@@ -34,9 +34,9 @@
     "next": "^14.0.0",
     "next-auth": "^4.24.0",
     "postcss": "^8.4.0",
-    "react": "^18.2.0",
+    "react": "18.2.0",
     "react-avatar": "5.0.0",
-    "react-dom": "^18.2.0",
+    "react-dom": "18.2.0",
     "react-dropzone": "^14.2.3",
     "react-hook-form": "^7.47.0",
     "react-hot-toast": "^2.4.1",
@@ -45,7 +45,7 @@
     "react-query": "^3.39.0",
     "react-swipeable": "^7.0.0",
     "react-virtualized": "^9.22.5",
-    "react-wavesurfer": "^0.8.0",
+    "react-wavesurfer": "^0.8.6",
     "tailwindcss": "^3.3.0",
     "typescript": "^5.0.0",
     "wavesurfer.js": "^7.0.0",
@@ -57,5 +57,9 @@
     "@types/multer": "^1.4.11",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0"
+  },
+  "overrides": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
   }
 }
