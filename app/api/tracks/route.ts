@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import dbConnect, { isConnected } from '@/lib/db';
 import Track from '@/models/Track';
 
 // GET - Récupérer toutes les pistes publiques
 export async function GET(request: NextRequest) {
   try {
+    // S'assurer que la connexion est établie
     await dbConnect();
+    
+    // Vérifier que la connexion est active
+    if (!isConnected()) {
+      console.warn('⚠️ MongoDB non connecté, tentative de reconnexion...');
+      await dbConnect();
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
