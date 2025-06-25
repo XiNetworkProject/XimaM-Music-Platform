@@ -10,6 +10,7 @@ export default function SignInPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [showInstructions, setShowInstructions] = useState(false);
 
   // Rediriger si déjà connecté
   useEffect(() => {
@@ -23,24 +24,19 @@ export default function SignInPage() {
     setError('');
     
     try {
-      // Détecter si on est dans une app mobile
+      // Afficher les instructions pour mobile
       const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
       if (isMobile) {
-        // Pour mobile, utiliser une approche différente
-        const result = await signIn('google', { 
-          callbackUrl: '/',
-          redirect: false 
-        });
-        
-        if (result?.error) {
-          setError('Erreur lors de la connexion');
-        } else if (result?.url) {
-          // Ouvrir dans la même fenêtre
-          window.location.href = result.url;
-        }
+        setShowInstructions(true);
+        // Attendre un peu puis lancer la connexion
+        setTimeout(() => {
+          signIn('google', { 
+            callbackUrl: '/',
+            redirect: true 
+          });
+        }, 2000);
       } else {
-        // Pour desktop, redirection normale
         await signIn('google', { 
           callbackUrl: '/',
           redirect: true 
@@ -89,6 +85,18 @@ export default function SignInPage() {
           </div>
         )}
 
+        {showInstructions && (
+          <div className="mb-4 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded">
+            <p className="font-semibold mb-2">📱 Instructions pour l'app mobile :</p>
+            <ol className="text-sm space-y-1">
+              <li>1. Une fenêtre Google va s'ouvrir</li>
+              <li>2. Connectez-vous avec votre compte Google</li>
+              <li>3. Revenez à l'app XimaM</li>
+              <li>4. Vous serez automatiquement connecté</li>
+            </ol>
+          </div>
+        )}
+
         <button
           onClick={handleGoogleSignIn}
           disabled={isLoading}
@@ -113,6 +121,12 @@ export default function SignInPage() {
               politique de confidentialité
             </a>
             .
+          </p>
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-xs text-gray-400">
+            💡 Conseil : Si vous êtes dans l'app mobile, revenez à l'app après la connexion Google
           </p>
         </div>
       </div>
