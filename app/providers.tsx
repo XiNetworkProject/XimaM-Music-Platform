@@ -186,7 +186,10 @@ export function useAudioPlayer() {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <SessionProvider>
+    <SessionProvider 
+      refetchInterval={5 * 60} // Refetch toutes les 5 minutes
+      refetchOnWindowFocus={true} // Refetch quand la fenêtre reprend le focus
+    >
       <QueryClientProvider client={queryClient}>
         <AudioPlayerProvider>
           {children}
