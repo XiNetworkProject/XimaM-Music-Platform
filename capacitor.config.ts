@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'XimaM',
   webDir: 'out',
   server: {
-    url: 'https://xima-m-music-platform-h3ysr1scy-maximes-projects-d242441a.vercel.app',
+    url: 'https://xima-m-music-platform.vercel.app',
     cleartext: true
   }
 };
