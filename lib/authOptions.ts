@@ -5,6 +5,11 @@ import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { compare } from 'bcryptjs';
 
+// Forcer l'URL de production
+const NEXTAUTH_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://xima-m-music-platform.vercel.app'
+  : process.env.NEXTAUTH_URL;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
