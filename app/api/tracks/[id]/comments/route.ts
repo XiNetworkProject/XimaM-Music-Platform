@@ -86,9 +86,9 @@ export async function GET(
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
+    const searchParams = request.nextUrl.searchParams;
     const limit = parseInt(searchParams.get('limit') || '20');
+    const page = parseInt(searchParams.get('page') || '1');
     const skip = (page - 1) * limit;
 
     const comments = await Comment.find({ track: params.id })

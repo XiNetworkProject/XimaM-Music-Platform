@@ -14,11 +14,12 @@ export async function GET(request: NextRequest) {
       await dbConnect();
     }
 
-    const { searchParams } = new URL(request.url);
+    const searchParams = request.nextUrl.searchParams;
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
-    const genre = searchParams.get('genre');
-    const search = searchParams.get('search');
+    const genre = searchParams.get('genre') || '';
+    const search = searchParams.get('search') || '';
+    const sort = searchParams.get('sort') || 'latest';
     const skip = (page - 1) * limit;
 
     // Construire la requête
