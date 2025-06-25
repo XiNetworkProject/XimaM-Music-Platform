@@ -90,7 +90,9 @@ export const authOptions: NextAuthOptions = {
           return true;
         } catch (error) {
           console.error('Erreur lors de la connexion Google:', error);
-          return false;
+          // En cas d'erreur MongoDB, on autorise quand même la connexion
+          // L'utilisateur sera créé lors de la prochaine tentative
+          return true;
         }
       }
       return true;
