@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
+import dbConnect, { isConnected } from '@/lib/db';
 import { uploadAudio, uploadImage } from '@/lib/cloudinary';
 import Track from '@/models/Track';
 import User from '@/models/User';
@@ -15,7 +15,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    // S'assurer que la connexion est établie
     await dbConnect();
+    
+    // Vérifier que la connexion est active
+    if (!isConnected()) {
+      console.warn('⚠️ MongoDB non connecté, tentative de reconnexion...');
+      await dbConnect();
+    }
 
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
@@ -157,7 +164,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    // S'assurer que la connexion est établie
     await dbConnect();
+    
+    // Vérifier que la connexion est active
+    if (!isConnected()) {
+      console.warn('⚠️ MongoDB non connecté, tentative de reconnexion...');
+      await dbConnect();
+    }
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
