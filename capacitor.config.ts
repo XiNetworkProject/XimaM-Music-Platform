@@ -10,7 +10,8 @@ const config: CapacitorConfig = {
     allowNavigation: [
       'https://accounts.google.com/*',
       'https://xima-m-music-platform.vercel.app/*',
-      'https://*.googleusercontent.com/*'
+      'https://*.googleusercontent.com/*',
+      'https://*.google.com/*'
     ]
   },
   plugins: {
@@ -27,7 +28,14 @@ const config: CapacitorConfig = {
       smallIcon: 'ic_stat_icon_config_sample',
       iconColor: '#488AFF',
     },
+    App: {
+      url: 'https://xima-m-music-platform.vercel.app'
+    }
   },
+  android: {
+    allowMixedContent: true,
+    webContentsDebuggingEnabled: true
+  }
 };
 
 export default config;

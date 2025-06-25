@@ -28,7 +28,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          prompt: "consent",
+          prompt: "select_account",
           access_type: "offline",
           response_type: "code"
         }
@@ -168,17 +168,8 @@ export const authOptions: NextAuthOptions = {
       // Gestion spéciale pour les redirections dans l'app mobile
       console.log('🔄 Redirection:', { url, baseUrl });
       
-      // Si c'est une URL relative, on la rend absolue
-      if (url.startsWith('/')) {
-        return `${baseUrl}${url}`;
-      }
-      
-      // Si c'est une URL externe qui ne correspond pas à notre domaine, on redirige vers l'accueil
-      if (url.startsWith('http') && !url.startsWith(baseUrl)) {
-        return baseUrl;
-      }
-      
-      return url;
+      // Toujours rediriger vers l'accueil pour éviter les problèmes de redirection
+      return baseUrl;
     },
   },
   pages: {

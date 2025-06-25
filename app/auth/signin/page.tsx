@@ -23,28 +23,32 @@ export default function SignInPage() {
     setError('');
     
     try {
-      // Utiliser une URL de callback spécifique pour mobile
-      const callbackUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:3000'
-        : 'https://xima-m-music-platform.vercel.app';
+      // Détecter si on est dans une app mobile
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      
+      if (isMobile) {
+        // Pour mobile, utiliser une approche différente
+        const result = await signIn('google', { 
+          callbackUrl: '/',
+          redirect: false 
+        });
         
-      const result = await signIn('google', { 
-        callbackUrl,
-        redirect: false 
-      });
-      
-      console.log('Résultat connexion:', result);
-      
-      if (result?.error) {
-        setError('Erreur lors de la connexion');
-      } else if (result?.url) {
-        // Rediriger vers l'URL de callback
-        window.location.href = result.url;
+        if (result?.error) {
+          setError('Erreur lors de la connexion');
+        } else if (result?.url) {
+          // Ouvrir dans la même fenêtre
+          window.location.href = result.url;
+        }
+      } else {
+        // Pour desktop, redirection normale
+        await signIn('google', { 
+          callbackUrl: '/',
+          redirect: true 
+        });
       }
     } catch (error) {
       console.error('Erreur connexion Google:', error);
       setError('Erreur lors de la connexion');
-    } finally {
       setIsLoading(false);
     }
   };
