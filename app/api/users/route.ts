@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
+import dbConnect, { isConnected } from '@/lib/db';
 import User from '@/models/User';
 
 export async function GET(request: NextRequest) {
   try {
+    // S'assurer que la connexion est établie
     await dbConnect();
+    
+    // Vérifier que la connexion est active
+    if (!isConnected()) {
+      console.warn('⚠️ MongoDB non connecté, tentative de reconnexion...');
+      await dbConnect();
+    }
     
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');

@@ -5,16 +5,34 @@ import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { compare } from 'bcryptjs';
 
-// Forcer l'URL de production
-const NEXTAUTH_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://xima-m-music-platform.vercel.app'
-  : process.env.NEXTAUTH_URL;
+// Configuration des URLs selon l'environnement
+const getAuthUrls = () => {
+  const baseUrl = process.env.NODE_ENV === 'production' 
+    ? 'https://xima-m-music-platform.vercel.app'
+    : process.env.NEXTAUTH_URL || 'http://localhost:3000';
+
+  return {
+    baseUrl,
+    callbackUrl: `${baseUrl}/api/auth/callback/google`,
+    signInUrl: `${baseUrl}/auth/signin`,
+    errorUrl: `${baseUrl}/auth/error`
+  };
+};
+
+const { baseUrl, callbackUrl, signInUrl, errorUrl } = getAuthUrls();
 
 export const authOptions: NextAuthOptions = {
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     CredentialsProvider({
       name: 'credentials',
@@ -146,10 +164,26 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
+    async redirect({ url, baseUrl }) {
+      // Gestion spéciale pour les redirections dans l'app mobile
+      console.log('🔄 Redirection:', { url, baseUrl });
+      
+      // Si c'est une URL relative, on la rend absolue
+      if (url.startsWith('/')) {
+        return `${baseUrl}${url}`;
+      }
+      
+      // Si c'est une URL externe qui ne correspond pas à notre domaine, on redirige vers l'accueil
+      if (url.startsWith('http') && !url.startsWith(baseUrl)) {
+        return baseUrl;
+      }
+      
+      return url;
+    },
   },
   pages: {
-    signIn: '/auth/signin',
-    error: '/auth/error',
+    signIn: signInUrl,
+    error: errorUrl,
   },
   session: {
     strategy: 'jwt',
