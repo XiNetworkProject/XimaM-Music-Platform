@@ -54,6 +54,12 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async signIn({ user, account, profile }) {
+      console.log('🔐 Tentative de connexion:', { 
+        provider: account?.provider, 
+        email: user.email,
+        hasImage: !!user.image 
+      });
+
       if (account?.provider === 'google') {
         try {
           await dbConnect();
@@ -62,6 +68,8 @@ export const authOptions: NextAuthOptions = {
           const existingUser = await User.findOne({ email: user.email });
           
           if (!existingUser) {
+            console.log('👤 Création d\'un nouvel utilisateur Google:', user.email);
+            
             // Créer un nouvel utilisateur
             const username = user.email?.split('@')[0] || user.name?.toLowerCase().replace(/\s+/g, '');
             
@@ -85,11 +93,14 @@ export const authOptions: NextAuthOptions = {
             });
             
             await newUser.save();
+            console.log('✅ Nouvel utilisateur créé:', uniqueUsername);
+          } else {
+            console.log('✅ Utilisateur existant trouvé:', existingUser.username);
           }
           
           return true;
         } catch (error) {
-          console.error('Erreur lors de la connexion Google:', error);
+          console.error('❌ Erreur lors de la connexion Google:', error);
           // En cas d'erreur MongoDB, on autorise quand même la connexion
           // L'utilisateur sera créé lors de la prochaine tentative
           return true;
@@ -98,6 +109,8 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
     async session({ session, token }) {
+      console.log('🔄 Mise à jour de la session pour:', session.user?.email);
+      
       if (session.user?.email) {
         try {
           await dbConnect();
@@ -113,9 +126,12 @@ export const authOptions: NextAuthOptions = {
             session.user.location = user.location;
             session.user.website = user.website;
             session.user.socialLinks = user.socialLinks;
+            console.log('✅ Session mise à jour avec les données utilisateur');
+          } else {
+            console.warn('⚠️ Utilisateur non trouvé en base pour:', session.user.email);
           }
         } catch (error) {
-          console.error('Erreur lors de la récupération de la session:', error);
+          console.error('❌ Erreur lors de la récupération de la session:', error);
         }
       }
       return session;
@@ -126,6 +142,7 @@ export const authOptions: NextAuthOptions = {
         token.username = user.username;
         token.role = user.role;
         token.isVerified = user.isVerified;
+        console.log('🔑 JWT mis à jour pour:', user.email);
       }
       return token;
     },
@@ -139,7 +156,7 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 jours
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development',
+  debug: true, // Activer le debug pour voir les logs
   // Configuration explicite pour l'URL de production
   useSecureCookies: process.env.NODE_ENV === 'production',
   cookies: {
