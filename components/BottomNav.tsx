@@ -37,10 +37,10 @@ const navItems = [
     path: '/community',
   },
   {
-    id: 'debug',
-    label: 'Debug',
-    icon: Settings,
-    path: '/debug',
+    id: 'profile',
+    label: 'Profil',
+    icon: User,
+    path: '/settings',
   },
 ];
 

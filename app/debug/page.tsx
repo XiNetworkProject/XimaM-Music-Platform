@@ -15,10 +15,7 @@ export default function DebugPage() {
       isMobile: /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent),
       isInApp: window.location.href.includes('capacitor://') || 
                window.location.href.includes('file://') ||
-               window.navigator.userAgent.includes('Capacitor') ||
-               window.navigator.userAgent.includes('wv') || // WebView Android
-               (window as any).Capacitor !== undefined ||
-               (window as any).cordova !== undefined,
+               window.navigator.userAgent.includes('Capacitor'),
       timestamp: new Date().toISOString(),
       sessionStatus: status,
       hasSession: !!session,
@@ -26,16 +23,7 @@ export default function DebugPage() {
         user: session.user?.email,
         username: session.user?.username,
         role: session.user?.role
-      } : null,
-      // Informations supplémentaires pour le debug
-      windowLocation: {
-        href: window.location.href,
-        protocol: window.location.protocol,
-        hostname: window.location.hostname,
-        pathname: window.location.pathname
-      },
-      capacitorAvailable: (window as any).Capacitor !== undefined,
-      cordovaAvailable: (window as any).cordova !== undefined
+      } : null
     };
     
     setDebugInfo(info);
@@ -48,16 +36,6 @@ export default function DebugPage() {
       alert(`Connexion réussie! ${data.length || 0} pistes trouvées.`);
     } catch (error) {
       alert(`Erreur de connexion: ${error}`);
-    }
-  };
-
-  const testAuth = async () => {
-    try {
-      const response = await fetch('/api/auth/session');
-      const data = await response.json();
-      alert(`Session: ${JSON.stringify(data, null, 2)}`);
-    } catch (error) {
-      alert(`Erreur session: ${error}`);
     }
   };
 
@@ -97,20 +75,12 @@ export default function DebugPage() {
           {/* Test de connexion */}
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold mb-4">Test de Connexion</h2>
-            <div className="space-y-2">
-              <button
-                onClick={testConnection}
-                className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Tester l'API
-              </button>
-              <button
-                onClick={testAuth}
-                className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                Tester l'Auth
-              </button>
-            </div>
+            <button
+              onClick={testConnection}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Tester l'API
+            </button>
           </div>
 
           {/* User Agent */}
