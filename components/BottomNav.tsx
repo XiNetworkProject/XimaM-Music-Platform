@@ -7,7 +7,8 @@ import {
   Search, 
   Music, 
   Users, 
-  User
+  User,
+  Settings
 } from 'lucide-react';
 
 const navItems = [
@@ -36,10 +37,10 @@ const navItems = [
     path: '/community',
   },
   {
-    id: 'profile',
-    label: 'Profil',
-    icon: User,
-    path: '/settings',
+    id: 'debug',
+    label: 'Debug',
+    icon: Settings,
+    path: '/debug',
   },
 ];
 

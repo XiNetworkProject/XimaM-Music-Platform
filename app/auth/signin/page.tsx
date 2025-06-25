@@ -11,6 +11,17 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showInstructions, setShowInstructions] = useState(false);
+  const [isMobileApp, setIsMobileApp] = useState(false);
+
+  // Détecter si on est dans l'app mobile
+  useEffect(() => {
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isInApp = window.location.href.includes('capacitor://') || 
+                   window.location.href.includes('file://') ||
+                   window.navigator.userAgent.includes('Capacitor');
+    
+    setIsMobileApp(isMobile && isInApp);
+  }, []);
 
   // Rediriger si déjà connecté
   useEffect(() => {
@@ -24,10 +35,7 @@ export default function SignInPage() {
     setError('');
     
     try {
-      // Afficher les instructions pour mobile
-      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      
-      if (isMobile) {
+      if (isMobileApp) {
         setShowInstructions(true);
         // Attendre un peu puis lancer la connexion
         setTimeout(() => {
@@ -77,6 +85,9 @@ export default function SignInPage() {
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">XimaM</h1>
           <p className="text-gray-600">Connectez-vous pour continuer</p>
+          {isMobileApp && (
+            <p className="text-sm text-blue-600 mt-2">📱 Mode application mobile</p>
+          )}
         </div>
 
         {error && (
@@ -91,9 +102,12 @@ export default function SignInPage() {
             <ol className="text-sm space-y-1">
               <li>1. Une fenêtre Google va s'ouvrir</li>
               <li>2. Connectez-vous avec votre compte Google</li>
-              <li>3. Revenez à l'app XimaM</li>
+              <li>3. <strong>Revenez à l'app XimaM</strong></li>
               <li>4. Vous serez automatiquement connecté</li>
             </ol>
+            <p className="text-xs mt-2 text-blue-600">
+              💡 Utilisez le bouton "Retour" de votre téléphone ou fermez l'onglet Google
+            </p>
           </div>
         )}
 
@@ -124,11 +138,13 @@ export default function SignInPage() {
           </p>
         </div>
 
-        <div className="mt-4 text-center">
-          <p className="text-xs text-gray-400">
-            💡 Conseil : Si vous êtes dans l'app mobile, revenez à l'app après la connexion Google
-          </p>
-        </div>
+        {isMobileApp && (
+          <div className="mt-4 text-center">
+            <p className="text-xs text-gray-400">
+              💡 Conseil : Après la connexion Google, revenez à l'app XimaM
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );

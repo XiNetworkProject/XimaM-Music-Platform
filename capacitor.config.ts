@@ -11,7 +11,13 @@ const config: CapacitorConfig = {
       'https://accounts.google.com/*',
       'https://xima-m-music-platform.vercel.app/*',
       'https://*.googleusercontent.com/*',
-      'https://*.google.com/*'
+      'https://*.google.com/*',
+      'https://oauth2.googleapis.com/*',
+      'https://www.googleapis.com/*',
+      'https://*.googleapis.com/*',
+      'https://accounts.google.com/oauth/*',
+      'https://accounts.google.com/signin/*',
+      'https://accounts.google.com/ServiceLogin*'
     ]
   },
   plugins: {
@@ -34,7 +40,8 @@ const config: CapacitorConfig = {
   },
   android: {
     allowMixedContent: true,
-    webContentsDebuggingEnabled: true
+    webContentsDebuggingEnabled: true,
+    captureInput: true
   }
 };
 

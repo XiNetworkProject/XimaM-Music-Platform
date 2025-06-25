@@ -168,7 +168,14 @@ export const authOptions: NextAuthOptions = {
       // Gestion spéciale pour les redirections dans l'app mobile
       console.log('🔄 Redirection:', { url, baseUrl });
       
-      // Toujours rediriger vers l'accueil pour éviter les problèmes de redirection
+      // Si c'est une URL Google OAuth, la laisser passer
+      if (url.startsWith('https://accounts.google.com') || 
+          url.startsWith('https://oauth2.googleapis.com') ||
+          url.includes('google.com/oauth')) {
+        return url;
+      }
+      
+      // Pour toutes les autres redirections, aller à l'accueil
       return baseUrl;
     },
   },
