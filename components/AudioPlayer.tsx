@@ -1,40 +1,9 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { useNativeFeatures } from '@/hooks/useNativeFeatures';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, Shuffle, Heart, X, Minimize2, Maximize2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useAudioPlayer } from '@/app/providers';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from 'lucide-react';
 import { motion } from 'framer-motion';
-
-interface Track {
-  _id: string;
-  title: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  audioUrl: string;
-  coverUrl?: string;
-  duration: number;
-  likes: string[];
-  comments: string[];
-  plays: number;
-  isLiked?: boolean;
-}
-
-interface AudioPlayerProps {
-  tracks: Track[];
-  currentTrackIndex?: number;
-  isPlaying?: boolean;
-  isMinimized?: boolean;
-  onTrackChange?: (index: number) => void;
-  onPlayPause?: (playing: boolean) => void;
-  onLike?: (trackId: string) => void;
-  onClose?: () => void;
-  onMinimize?: (minimized: boolean) => void;
-}
 
 export default function AudioPlayer() {
   const { audioState, setIsPlaying, setCurrentTrackIndex } = useAudioPlayer();
@@ -43,11 +12,6 @@ export default function AudioPlayer() {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
-  const [isShuffled, setIsShuffled] = useState(false);
-  const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
-  const [showVolume, setShowVolume] = useState(false);
-
-  const { isNative, showNotification } = useNativeFeatures();
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
@@ -85,13 +49,6 @@ export default function AudioPlayer() {
       if (audioRef.current) {
         await audioRef.current.play();
         setIsPlaying(true);
-        
-        if (isNative) {
-          await showNotification(
-            'Lecture en cours',
-            `${currentTrack.title} - ${currentTrack.artist?.name || currentTrack.artist?.username}`
-          );
-        }
       }
     } catch (error) {
       console.error('Erreur lecture audio:', error);
@@ -118,11 +75,7 @@ export default function AudioPlayer() {
     
     let nextIndex = audioState.currentTrackIndex + 1;
     if (nextIndex >= audioState.tracks.length) {
-      if (repeatMode === 'all') {
-        nextIndex = 0;
-      } else {
-        return; // Fin de la playlist
-      }
+      nextIndex = 0; // Retour au début
     }
     
     setCurrentTrackIndex(nextIndex);
@@ -133,11 +86,7 @@ export default function AudioPlayer() {
     
     let prevIndex = audioState.currentTrackIndex - 1;
     if (prevIndex < 0) {
-      if (repeatMode === 'all') {
-        prevIndex = audioState.tracks.length - 1;
-      } else {
-        return; // Début de la playlist
-      }
+      prevIndex = audioState.tracks.length - 1; // Aller à la fin
     }
     
     setCurrentTrackIndex(prevIndex);
@@ -156,15 +105,8 @@ export default function AudioPlayer() {
   };
 
   const handleEnded = () => {
-    if (repeatMode === 'one') {
-      // Rejouer la même piste
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        playTrack();
-      }
-    } else {
-      nextTrack();
-    }
+    // Passer à la piste suivante
+    nextTrack();
   };
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -185,38 +127,10 @@ export default function AudioPlayer() {
     setIsMuted(!isMuted);
   };
 
-  const toggleShuffle = () => {
-    setIsShuffled(!isShuffled);
-  };
-
-  const toggleRepeat = () => {
-    const modes: Array<'none' | 'one' | 'all'> = ['none', 'one', 'all'];
-    const currentIndex = modes.indexOf(repeatMode);
-    const nextIndex = (currentIndex + 1) % modes.length;
-    setRepeatMode(modes[nextIndex]);
-  };
-
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const handleLike = () => {
-    // TODO: Implémenter la fonctionnalité de like
-    console.log('Like track:', currentTrack._id);
-  };
-
-  const handleClose = () => {
-    // Ne pas arrêter la musique automatiquement
-    // pauseTrack();
-    // TODO: Implémenter la fermeture du lecteur
-    console.log('Close player');
-  };
-
-  const handleMinimize = (minimized: boolean) => {
-    // TODO: Implémenter la minimisation
-    console.log('Minimize player:', minimized);
   };
 
   if (!audioState.showPlayer || !currentTrack) {
