@@ -115,8 +115,12 @@ export default function FullScreenPlayer() {
   }, [audioState.isPlaying]);
 
   // Mini-player (toujours visible en bas)
-  if (!audioState.showPlayer || !currentTrack) return null;
+  if (!audioState.showPlayer || !currentTrack) {
+    console.log('Mini-player caché:', { showPlayer: audioState.showPlayer, currentTrack: !!currentTrack });
+    return null;
+  }
 
+  console.log('Mini-player affiché:', { showPlayer: audioState.showPlayer, currentTrack: currentTrack.title });
   const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
@@ -132,7 +136,10 @@ export default function FullScreenPlayer() {
 
       {/* Mini-player */}
       <motion.div
-        className="fixed left-1/2 -translate-x-1/2 bottom-24 z-50 w-[90vw] sm:w-[92vw] md:w-[95vw] max-w-xl rounded-full glass-player flex items-center px-3 py-3 shadow-lg cursor-pointer"
+        className="glass-player"
+        style={{
+          display: showFull ? 'none' : 'flex'
+        }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
@@ -179,20 +186,30 @@ export default function FullScreenPlayer() {
             {/* Contenu centré */}
             <motion.div
               className="flex flex-col items-center justify-center w-full h-full max-w-2xl mx-auto px-6"
+              style={{
+                paddingTop: 'env(safe-area-inset-top, 20px)',
+                paddingBottom: 'env(safe-area-inset-bottom, 20px)',
+                minHeight: '100vh',
+                justifyContent: 'space-between'
+              }}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
               {/* Header : jaquette grande + bouton fermer */}
-              <div className="relative w-full flex flex-col items-center">
+              <div className="relative w-full flex flex-col items-center mt-4">
                 <motion.img 
                   src={currentTrack.coverUrl || '/default-cover.jpg'} 
                   alt={currentTrack.title} 
-                  className="w-48 h-48 md:w-64 md:h-64 rounded-2xl object-cover shadow-2xl cover-float-animation" 
+                  className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation" 
                 />
                 <button
-                  className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                  className="absolute w-10 h-10 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                  style={{
+                    top: '-20px',
+                    right: '20px'
+                  }}
                   onClick={() => setShowFull(false)}
                 >
                   <X size={22} className="text-white" />
@@ -200,7 +217,7 @@ export default function FullScreenPlayer() {
               </div>
               
               {/* Centre : titre, artiste, animation d'onde/barre */}
-              <div className="flex flex-col items-center mt-6 mb-4">
+              <div className="flex flex-col items-center flex-1 justify-center">
                 <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center">{currentTrack.title}</span>
                 <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack.artist?.name || currentTrack.artist?.username}</span>
                 {audioState.isPlaying && (
