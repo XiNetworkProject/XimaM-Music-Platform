@@ -1,11 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/next"
-    }
-  ],
   "functions": {
     "app/api/upload/route.ts": {
       "maxDuration": 60
@@ -28,15 +22,6 @@
           "value": "Content-Type"
         }
       ]
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/upload",
-      "dest": "/api/upload",
-      "headers": {
-        "Content-Type": "multipart/form-data"
-      }
     }
   ]
 } 
