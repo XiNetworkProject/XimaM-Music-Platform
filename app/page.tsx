@@ -5,7 +5,11 @@ import { useSession } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
-import { Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, Users, TrendingUp, Star, Zap } from 'lucide-react';
+import { 
+  Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
+  Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
+  Sparkles, Crown, Radio, Disc3, Mic2
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface Track {
@@ -23,7 +27,14 @@ interface Track {
   likes: string[];
   comments: string[];
   plays: number;
+  createdAt: string;
   isLiked?: boolean;
+}
+
+interface CategoryData {
+  tracks: Track[];
+  loading: boolean;
+  error: string | null;
 }
 
 export default function HomePage() {
@@ -33,49 +44,100 @@ export default function HomePage() {
   const { audioState, setTracks, playTrack, handleLike } = useAudioPlayer();
   
   const [loading, setLoading] = useState(true);
-  const [hasLoaded, setHasLoaded] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
 
+  // États pour les différentes catégories
+  const [categories, setCategories] = useState<Record<string, CategoryData>>({
+    featured: { tracks: [], loading: false, error: null },
+    trending: { tracks: [], loading: false, error: null },
+    popular: { tracks: [], loading: false, error: null },
+    recent: { tracks: [], loading: false, error: null },
+    mostLiked: { tracks: [], loading: false, error: null },
+    following: { tracks: [], loading: false, error: null },
+    recommended: { tracks: [], loading: false, error: null }
+  });
+
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+  const featuredTracks = categories.featured.tracks.slice(0, 5);
 
-  // Charger les pistes depuis l'API
+  // Charger toutes les catégories
   useEffect(() => {
-    if (hasLoaded) return;
+    const fetchAllCategories = async () => {
+      setLoading(true);
+      
+      const categoryApis = [
+        { key: 'trending', url: '/api/tracks/trending?limit=10' },
+        { key: 'popular', url: '/api/tracks/popular?limit=10' },
+        { key: 'recent', url: '/api/tracks/recent?limit=10' },
+        { key: 'mostLiked', url: '/api/tracks/most-liked?limit=10' },
+        { key: 'recommended', url: '/api/tracks/recommended?limit=10' },
+        { key: 'following', url: '/api/tracks/following?limit=10' }
+      ];
 
-    const fetchTracks = async () => {
+      // Charger les pistes en vedette (mélange des plus populaires)
       try {
-        setLoading(true);
-        const response = await fetch('/api/tracks?limit=20');
-        if (response.ok) {
-          const data = await response.json();
-          setTracks(data.tracks || []);
-        } else {
-          console.error('Erreur lors du chargement des pistes');
+        const featuredResponse = await fetch('/api/tracks/popular?limit=20');
+        if (featuredResponse.ok) {
+          const featuredData = await featuredResponse.json();
+          setCategories(prev => ({
+            ...prev,
+            featured: { tracks: featuredData.tracks, loading: false, error: null }
+          }));
         }
       } catch (error) {
-        console.error('Erreur fetch tracks:', error);
-      } finally {
-        setLoading(false);
-        setHasLoaded(true);
+        console.error('Erreur chargement pistes vedettes:', error);
       }
+
+      // Charger les autres catégories en parallèle
+      const promises = categoryApis.map(async ({ key, url }) => {
+        try {
+          setCategories(prev => ({
+            ...prev,
+            [key]: { ...prev[key], loading: true }
+          }));
+
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            setCategories(prev => ({
+              ...prev,
+              [key]: { tracks: data.tracks || [], loading: false, error: null }
+            }));
+          } else {
+            setCategories(prev => ({
+              ...prev,
+              [key]: { tracks: [], loading: false, error: 'Erreur de chargement' }
+            }));
+          }
+        } catch (error) {
+          console.error(`Erreur chargement ${key}:`, error);
+          setCategories(prev => ({
+            ...prev,
+            [key]: { tracks: [], loading: false, error: 'Erreur de chargement' }
+          }));
+        }
+      });
+
+      await Promise.all(promises);
+      setLoading(false);
     };
 
-    fetchTracks();
+    fetchAllCategories();
   }, []);
 
   // Auto-play du carrousel
   useEffect(() => {
-    if (!isAutoPlaying || audioState.tracks.length === 0) return;
+    if (!isAutoPlaying || featuredTracks.length === 0) return;
 
     const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % Math.min(audioState.tracks.length, 5));
+      setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [isAutoPlaying, audioState.tracks.length]);
+  }, [isAutoPlaying, featuredTracks.length]);
 
   useEffect(() => {
     if (isNative) {
@@ -88,12 +150,12 @@ export default function HomePage() {
   }, [isNative, checkForUpdates]);
 
   const nextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % Math.min(audioState.tracks.length, 5));
+    setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
     setIsAutoPlaying(false);
   };
 
   const prevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + Math.min(audioState.tracks.length, 5)) % Math.min(audioState.tracks.length, 5));
+    setCurrentSlide((prev) => (prev - 1 + Math.min(featuredTracks.length, 5)) % Math.min(featuredTracks.length, 5));
     setIsAutoPlaying(false);
   };
 
@@ -117,18 +179,87 @@ export default function HomePage() {
     return num.toString();
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) return 'Aujourd\'hui';
+    if (diffDays === 2) return 'Hier';
+    if (diffDays <= 7) return `Il y a ${diffDays - 1} jours`;
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p>Chargement des musiques...</p>
+          <p>Chargement de votre univers musical...</p>
         </div>
       </div>
     );
   }
 
-  const featuredTracks = audioState.tracks.slice(0, 5);
+  const categoryConfigs = [
+    {
+      key: 'trending',
+      title: '🔥 En Tendance',
+      subtitle: 'Les plus écoutées en ce moment',
+      icon: Flame,
+      color: 'from-orange-500 to-red-500',
+      bgColor: 'bg-orange-500/10',
+      borderColor: 'border-orange-500/20'
+    },
+    {
+      key: 'popular',
+      title: '⭐ Les Plus Populaires',
+      subtitle: 'Les favoris de la communauté',
+      icon: Crown,
+      color: 'from-yellow-500 to-orange-500',
+      bgColor: 'bg-yellow-500/10',
+      borderColor: 'border-yellow-500/20'
+    },
+    {
+      key: 'recent',
+      title: '🆕 Dernières Sorties',
+      subtitle: 'Les nouveautés du moment',
+      icon: Calendar,
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'bg-green-500/10',
+      borderColor: 'border-green-500/20'
+    },
+    {
+      key: 'mostLiked',
+      title: '💖 Les Plus Aimées',
+      subtitle: 'Coup de cœur de la communauté',
+      icon: Heart,
+      color: 'from-pink-500 to-rose-500',
+      bgColor: 'bg-pink-500/10',
+      borderColor: 'border-pink-500/20'
+    },
+    {
+      key: 'following',
+      title: '👥 Vos Suivis',
+      subtitle: 'Les artistes que vous suivez',
+      icon: UserPlus,
+      color: 'from-blue-500 to-indigo-500',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500/20',
+      showOnlyIfLoggedIn: true
+    },
+    {
+      key: 'recommended',
+      title: '🎯 Recommandées',
+      subtitle: 'Basé sur vos goûts',
+      icon: Sparkles,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'bg-purple-500/10',
+      borderColor: 'border-purple-500/20',
+      showOnlyIfLoggedIn: true
+    }
+  ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
@@ -348,108 +479,144 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* Section autres musiques */}
-      {audioState.tracks.length > 5 && (
-        <section className="py-16 bg-gradient-to-b from-transparent to-gray-900/50">
-          <div className="container mx-auto px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8 }}
-              className="text-center mb-12"
-            >
-              <h2 className="text-4xl font-bold text-white mb-4">Découvrir plus</h2>
-              <p className="text-gray-400 text-lg">Explorez notre collection de musiques</p>
-            </motion.div>
+      {/* Sections de catégories */}
+      <div className="py-16 space-y-20">
+        {categoryConfigs.map((config, configIndex) => {
+          // Ne pas afficher les sections qui nécessitent une connexion si l'utilisateur n'est pas connecté
+          if (config.showOnlyIfLoggedIn && !session) return null;
+          
+          const categoryData = categories[config.key];
+          const tracks = categoryData.tracks;
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {audioState.tracks.slice(5).map((track, index) => (
-                <motion.div
-                  key={track._id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: index * 0.1 }}
-                  whileHover={{ y: -10 }}
-                  className="group cursor-pointer"
-                >
-                  <div className="relative bg-gray-800/50 backdrop-blur-sm rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
-                    {/* Cover */}
-                    <div className="relative aspect-square">
-                      <img
-                        src={track.coverUrl || '/default-cover.jpg'}
-                        alt={track.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      />
-                      
-                      {/* Overlay avec bouton play */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => playTrack(track._id)}
-                          className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
-                        >
-                          {currentTrack?._id === track._id && audioState.isPlaying ? (
-                            <Pause size={24} fill="white" />
-                          ) : (
-                            <Play size={24} fill="white" className="ml-1" />
+          if (tracks.length === 0 && !categoryData.loading) return null;
+
+          return (
+            <section key={config.key} className="container mx-auto px-8">
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: configIndex * 0.1 }}
+                className="mb-8"
+              >
+                <div className="flex items-center space-x-4 mb-4">
+                  <div className={`p-3 rounded-xl bg-gradient-to-r ${config.color} ${config.bgColor} ${config.borderColor} border`}>
+                    <config.icon size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-3xl font-bold text-white">{config.title}</h2>
+                    <p className="text-gray-400">{config.subtitle}</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {categoryData.loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                  {tracks.map((track, index) => (
+                    <motion.div
+                      key={track._id}
+                      initial={{ opacity: 0, y: 30 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.6, delay: index * 0.05 }}
+                      whileHover={{ y: -10 }}
+                      className="group cursor-pointer"
+                    >
+                      <div className={`relative rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 ${config.bgColor} ${config.borderColor} border`}>
+                        {/* Cover */}
+                        <div className="relative aspect-square">
+                          <img
+                            src={track.coverUrl || '/default-cover.jpg'}
+                            alt={track.title}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          />
+                          
+                          {/* Overlay avec bouton play */}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => playTrack(track._id)}
+                              className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
+                            >
+                              {currentTrack?._id === track._id && audioState.isPlaying ? (
+                                <Pause size={24} fill="white" />
+                              ) : (
+                                <Play size={24} fill="white" className="ml-1" />
+                              )}
+                            </motion.button>
+                          </div>
+
+                          {/* Badge durée */}
+                          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                            {formatDuration(track.duration)}
+                          </div>
+
+                          {/* Badge date pour les récentes */}
+                          {config.key === 'recent' && (
+                            <div className="absolute top-2 left-2 bg-green-500/90 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                              {formatDate(track.createdAt)}
+                            </div>
                           )}
-                        </motion.button>
-                      </div>
+                        </div>
 
-                      {/* Badge durée */}
-                      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                        {formatDuration(track.duration)}
-                      </div>
-                    </div>
-
-                    {/* Info */}
-                    <div className="p-4">
-                      <h3 className="font-semibold text-white truncate mb-1 group-hover:text-purple-300 transition-colors">
-                        {track.title}
-                      </h3>
-                      <p className="text-gray-300 text-sm truncate mb-3">
-                        {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                      </p>
-                      
-                      {/* Stats */}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{formatNumber(track.plays)} écoutes</span>
-                        <div className="flex items-center space-x-2">
-                          <motion.button
-                            whileHover={{ scale: 1.2 }}
-                            whileTap={{ scale: 0.8 }}
-                            onClick={() => handleLike(track._id)}
-                            className={`transition-colors ${
-                              track.isLiked || track.likes.includes(user?.id || '')
-                                ? 'text-red-500'
-                                : 'text-gray-500 hover:text-red-500'
-                            }`}
-                          >
-                            <Heart size={14} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
-                          </motion.button>
-                          <span>{formatNumber(track.likes.length)}</span>
+                        {/* Info */}
+                        <div className="p-4">
+                          <h3 className="font-semibold text-white truncate mb-1 group-hover:text-purple-300 transition-colors">
+                            {track.title}
+                          </h3>
+                          <p className="text-gray-300 text-sm truncate mb-3">
+                            {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                          </p>
+                          
+                          {/* Stats */}
+                          <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center space-x-2">
+                              <Headphones size={12} />
+                              <span>{formatNumber(track.plays)}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <motion.button
+                                whileHover={{ scale: 1.2 }}
+                                whileTap={{ scale: 0.8 }}
+                                onClick={() => handleLike(track._id)}
+                                className={`transition-colors ${
+                                  track.isLiked || track.likes.includes(user?.id || '')
+                                    ? 'text-red-500'
+                                    : 'text-gray-500 hover:text-red-500'
+                                }`}
+                              >
+                                <Heart size={12} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
+                              </motion.button>
+                              <span>{formatNumber(track.likes.length)}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
 
       {/* Message si aucune musique */}
-      {audioState.tracks.length === 0 && (
+      {Object.values(categories).every(cat => cat.tracks.length === 0) && !loading && (
         <div className="flex items-center justify-center min-h-screen">
           <div className="text-center">
-            <p className="text-gray-400 mb-6 text-lg">Aucune musique n'a été uploadée pour le moment</p>
+            <Music size={64} className="text-gray-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-gray-400 mb-4">Aucune musique disponible</h2>
+            <p className="text-gray-500 mb-8">Soyez le premier à partager votre musique !</p>
             <a
               href="/upload"
-              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-xl font-medium hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300"
             >
-              Uploader la première musique
+              <Mic2 size={20} />
+              <span>Uploader ma musique</span>
             </a>
           </div>
         </div>
