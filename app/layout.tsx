@@ -38,7 +38,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <div className="flex flex-col min-h-screen">
-            <main className="flex-1 pb-40">
+            <main className="flex-1" style={{ marginBottom: '120px' }}>
               {children}
             </main>
             <BottomNav />

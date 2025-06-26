@@ -45,7 +45,7 @@ export default function HomePage() {
   const { data: session } = useSession();
   const { user } = useAuth();
   const { isNative, checkForUpdates } = useNativeFeatures();
-  const { audioState, setTracks, playTrack, handleLike } = useAudioPlayer();
+  const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized, playTrack, handleLike } = useAudioPlayer();
   
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -277,6 +277,25 @@ export default function HomePage() {
     setSelectedTrack(null);
   };
 
+  // Fonction pour jouer une piste
+  const handlePlayTrack = (track: Track) => {
+    console.log('Tentative de lecture de la piste:', track.title, 'URL:', track.audioUrl);
+    
+    // Ajouter la piste à l'état audio si elle n'y est pas
+    const existingTrackIndex = audioState.tracks.findIndex(t => t._id === track._id);
+    if (existingTrackIndex === -1) {
+      console.log('Ajout de la piste à la liste audio');
+      setTracks([...audioState.tracks, track]);
+      setCurrentTrackIndex(audioState.tracks.length);
+    } else {
+      console.log('Piste déjà dans la liste, index:', existingTrackIndex);
+      setCurrentTrackIndex(existingTrackIndex);
+    }
+    setIsPlaying(true);
+    setShowPlayer(true);
+    setIsMinimized(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
@@ -460,7 +479,7 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => playTrack(featuredTracks[currentSlide]._id)}
+                            onClick={() => handlePlayTrack(featuredTracks[currentSlide])}
                             className="flex items-center space-x-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-full font-semibold text-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-2xl hover:shadow-purple-500/25"
                           >
                             {currentTrack?._id === featuredTracks[currentSlide]._id && audioState.isPlaying ? (
@@ -628,7 +647,7 @@ export default function HomePage() {
                               whileTap={{ scale: 0.9 }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                playTrack(track._id);
+                                handlePlayTrack(track);
                               }}
                               className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
                             >

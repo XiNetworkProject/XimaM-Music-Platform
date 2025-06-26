@@ -86,13 +86,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   };
 
   const playTrack = (trackId: string) => {
-    const trackIndex = audioState.tracks.findIndex(track => track._id === trackId);
-    if (trackIndex !== -1) {
-      setCurrentTrackIndex(trackIndex);
-      setIsPlaying(true);
-      setShowPlayer(true);
-      setIsMinimized(false);
+    let trackIndex = audioState.tracks.findIndex(track => track._id === trackId);
+    
+    // Si la piste n'est pas dans la liste, on doit l'ajouter
+    if (trackIndex === -1) {
+      // On ne peut pas ajouter une piste sans avoir ses données
+      // Il faudrait récupérer les données de la piste depuis l'API
+      console.log('Piste non trouvée dans la liste, ID:', trackId);
+      return;
     }
+    
+    setCurrentTrackIndex(trackIndex);
+    setIsPlaying(true);
+    setShowPlayer(true);
+    setIsMinimized(false);
   };
 
   const handleLike = async (trackId: string) => {
