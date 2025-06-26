@@ -53,18 +53,6 @@ const nextConfig = {
       },
     ];
   },
-  // Configuration pour les limites de taille des API
-  async rewrites() {
-    return [
-      {
-        source: '/api/upload',
-        destination: '/api/upload',
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      },
-    ];
-  },
   images: {
     unoptimized: true,
     domains: [
