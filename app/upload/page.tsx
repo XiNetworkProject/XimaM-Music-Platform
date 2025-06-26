@@ -78,35 +78,40 @@ export default function UploadPage() {
   // Vérifier l'authentification
   requireAuth();
 
+  const MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 Mo
+  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 Mo
+
   const onAudioDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
-    if (file && file.type.startsWith('audio/')) {
-      // Vérifier la taille (max 25MB pour Vercel)
-      if (file.size > 25 * 1024 * 1024) {
-        toast.error('Fichier trop volumineux (max 25MB)');
+    if (file) {
+      if (!file.type.startsWith('audio/')) {
+        toast.error('Veuillez sélectionner un fichier audio valide');
+        return;
+      }
+      if (file.size > MAX_AUDIO_SIZE) {
+        toast.error('Fichier audio trop volumineux (max 25 Mo)');
         return;
       }
       setAudioFile(file);
       const url = URL.createObjectURL(file);
       setAudioPreview(url);
-    } else {
-      toast.error('Veuillez sélectionner un fichier audio valide');
     }
   }, []);
 
   const onCoverDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
-    if (file && file.type.startsWith('image/')) {
-      // Vérifier la taille (max 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image trop volumineuse (max 5MB)');
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast.error('Veuillez sélectionner une image valide');
+        return;
+      }
+      if (file.size > MAX_IMAGE_SIZE) {
+        toast.error('Image trop volumineuse (max 5 Mo)');
         return;
       }
       setCoverFile(file);
       const url = URL.createObjectURL(file);
       setCoverPreview(url);
-    } else {
-      toast.error('Veuillez sélectionner une image valide');
     }
   }, []);
 
@@ -160,7 +165,14 @@ export default function UploadPage() {
       toast.error('Veuillez sélectionner un fichier audio');
       return;
     }
-
+    if (audioFile.size > MAX_AUDIO_SIZE) {
+      toast.error('Fichier audio trop volumineux (max 25 Mo)');
+      return;
+    }
+    if (coverFile && coverFile.size > MAX_IMAGE_SIZE) {
+      toast.error('Image trop volumineuse (max 5 Mo)');
+      return;
+    }
     if (!formData.title.trim()) {
       toast.error('Veuillez saisir un titre');
       return;

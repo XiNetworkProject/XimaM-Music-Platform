@@ -5,31 +5,7 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['mongoose'],
   },
-  api: {
-    bodyParser: {
-      sizeLimit: '50mb',
-    },
-    responseLimit: false,
-  },
-  images: {
-    unoptimized: true,
-    domains: [
-      'images.unsplash.com', 
-      'res.cloudinary.com',
-      'lh3.googleusercontent.com',
-      'avatars.githubusercontent.com',
-    ],
-  },
-  env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://xima-m-music-platform.vercel.app',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    MONGODB_URI: process.env.MONGODB_URI,
-    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
-  },
+  // Configuration pour augmenter les limites de taille
   async headers() {
     return [
       {
@@ -76,6 +52,37 @@ const nextConfig = {
         ],
       },
     ];
+  },
+  // Configuration pour les limites de taille des API
+  async rewrites() {
+    return [
+      {
+        source: '/api/upload',
+        destination: '/api/upload',
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      },
+    ];
+  },
+  images: {
+    unoptimized: true,
+    domains: [
+      'images.unsplash.com', 
+      'res.cloudinary.com',
+      'lh3.googleusercontent.com',
+      'avatars.githubusercontent.com',
+    ],
+  },
+  env: {
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://xima-m-music-platform.vercel.app',
+    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    MONGODB_URI: process.env.MONGODB_URI,
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   },
   // Webpack pour optimiser les bundles
   webpack: (config, { isServer }) => {
