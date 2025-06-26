@@ -45,6 +45,54 @@ interface UploadProgress {
   cover: number;
 }
 
+// Fonction pour upload direct vers Cloudinary
+const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 'video') => {
+  // 1. Obtenir la signature d'upload
+  const timestamp = Math.round(new Date().getTime() / 1000);
+  const publicId = `${resourceType === 'video' ? 'track' : 'cover'}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  const signatureResponse = await fetch('/api/upload/signature', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ timestamp, publicId, resourceType }),
+  });
+
+  if (!signatureResponse.ok) {
+    throw new Error('Erreur lors de la génération de la signature');
+  }
+
+  const { signature, apiKey, cloudName } = await signatureResponse.json();
+
+  // 2. Upload direct vers Cloudinary
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('public_id', publicId);
+  formData.append('api_key', apiKey);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('signature', signature);
+  formData.append('resource_type', resourceType);
+  formData.append('folder', resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
+
+  if (resourceType === 'image') {
+    formData.append('width', '800');
+    formData.append('height', '800');
+    formData.append('crop', 'fill');
+  }
+
+  const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!uploadResponse.ok) {
+    const errorData = await uploadResponse.text();
+    console.error('Erreur upload Cloudinary:', errorData);
+    throw new Error('Erreur lors de l\'upload vers Cloudinary');
+  }
+
+  return await uploadResponse.json();
+};
+
 export default function UploadPage() {
   const { user, requireAuth } = useAuth();
   const router = useRouter();
@@ -78,18 +126,11 @@ export default function UploadPage() {
   // Vérifier l'authentification
   requireAuth();
 
-  const MAX_AUDIO_SIZE = 25 * 1024 * 1024; // 25 Mo
-  const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 Mo
-
   const onAudioDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
       if (!file.type.startsWith('audio/')) {
         toast.error('Veuillez sélectionner un fichier audio valide');
-        return;
-      }
-      if (file.size > MAX_AUDIO_SIZE) {
-        toast.error('Fichier audio trop volumineux (max 25 Mo)');
         return;
       }
       setAudioFile(file);
@@ -103,10 +144,6 @@ export default function UploadPage() {
     if (file) {
       if (!file.type.startsWith('image/')) {
         toast.error('Veuillez sélectionner une image valide');
-        return;
-      }
-      if (file.size > MAX_IMAGE_SIZE) {
-        toast.error('Image trop volumineuse (max 5 Mo)');
         return;
       }
       setCoverFile(file);
@@ -165,14 +202,7 @@ export default function UploadPage() {
       toast.error('Veuillez sélectionner un fichier audio');
       return;
     }
-    if (audioFile.size > MAX_AUDIO_SIZE) {
-      toast.error('Fichier audio trop volumineux (max 25 Mo)');
-      return;
-    }
-    if (coverFile && coverFile.size > MAX_IMAGE_SIZE) {
-      toast.error('Image trop volumineuse (max 5 Mo)');
-      return;
-    }
+
     if (!formData.title.trim()) {
       toast.error('Veuillez saisir un titre');
       return;
@@ -182,28 +212,44 @@ export default function UploadPage() {
     setUploadProgress({ audio: 0, cover: 0 });
 
     try {
-      // Créer FormData pour l'upload
-      const uploadFormData = new FormData();
-      uploadFormData.append('audio', audioFile);
+      // Upload audio vers Cloudinary
+      toast.loading('Upload audio en cours...');
+      setUploadProgress(prev => ({ ...prev, audio: 25 }));
       
-      if (coverFile) {
-        uploadFormData.append('cover', coverFile);
-      }
-      
-      uploadFormData.append('trackData', JSON.stringify({
-        ...formData,
-        duration: 0, // Sera calculé côté serveur
-      }));
+      const audioResult = await uploadToCloudinary(audioFile, 'video');
+      setUploadProgress(prev => ({ ...prev, audio: 75 }));
 
-      // Upload vers l'API
+      // Upload cover si fourni
+      let coverResult = null;
+      if (coverFile) {
+        toast.loading('Upload image de couverture...');
+        setUploadProgress(prev => ({ ...prev, cover: 25 }));
+        
+        coverResult = await uploadToCloudinary(coverFile, 'image');
+        setUploadProgress(prev => ({ ...prev, cover: 75 }));
+      }
+
+      setUploadProgress({ audio: 100, cover: 100 });
+
+      // Sauvegarder en base de données
+      toast.loading('Sauvegarde en cours...');
+      
       const response = await fetch('/api/upload', {
         method: 'POST',
-        body: uploadFormData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audioUrl: audioResult.secure_url,
+          audioPublicId: audioResult.public_id,
+          coverUrl: coverResult?.secure_url || null,
+          coverPublicId: coverResult?.public_id || null,
+          trackData: formData,
+          duration: audioResult.duration || 0,
+        }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur lors de l\'upload');
+        throw new Error(errorData.error || 'Erreur lors de la sauvegarde');
       }
 
       const result = await response.json();
@@ -215,6 +261,7 @@ export default function UploadPage() {
       console.error('Upload error:', error);
     } finally {
       setIsUploading(false);
+      setUploadProgress({ audio: 0, cover: 0 });
     }
   };
 
