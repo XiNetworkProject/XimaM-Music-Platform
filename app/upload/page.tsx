@@ -64,15 +64,15 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
 
   const { signature, apiKey, cloudName } = await signatureResponse.json();
 
-  // 2. Upload direct vers Cloudinary
+  // 2. Upload direct vers Cloudinary - paramètres dans le même ordre que la signature
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('public_id', publicId);
-  formData.append('api_key', apiKey);
-  formData.append('timestamp', timestamp.toString());
-  formData.append('signature', signature);
-  formData.append('resource_type', resourceType);
   formData.append('folder', resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
+  formData.append('public_id', publicId);
+  formData.append('resource_type', resourceType);
+  formData.append('timestamp', timestamp.toString());
+  formData.append('api_key', apiKey);
+  formData.append('signature', signature);
 
   if (resourceType === 'image') {
     formData.append('width', '800');
@@ -81,12 +81,12 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
   }
 
   console.log('Upload params:', {
-    public_id: publicId,
-    api_key: apiKey,
-    timestamp: timestamp.toString(),
-    signature,
-    resource_type: resourceType,
     folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
+    public_id: publicId,
+    resource_type: resourceType,
+    timestamp: timestamp.toString(),
+    api_key: apiKey,
+    signature,
   });
 
   const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {

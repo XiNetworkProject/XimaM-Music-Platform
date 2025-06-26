@@ -13,12 +13,12 @@ export async function POST(request: NextRequest) {
 
     const { timestamp, publicId, resourceType = 'video' } = await request.json();
 
-    // Préparer les paramètres dans l'ordre correct pour Cloudinary
+    // Préparer les paramètres dans l'ordre alphabétique pour Cloudinary
     const params = {
-      timestamp: timestamp,
+      folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
       public_id: publicId,
       resource_type: resourceType,
-      folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
+      timestamp: timestamp,
     };
 
     console.log('Params for signature:', params);
