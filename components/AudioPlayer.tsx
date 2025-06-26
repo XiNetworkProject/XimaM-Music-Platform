@@ -330,6 +330,21 @@ export default function AudioPlayer() {
 
   return (
     <>
+      {/* Particules EN DEHORS du player, en arrière-plan */}
+      <div className="fixed left-0 top-0 w-full h-full pointer-events-none z-30" style={{overflow:'visible'}}>
+        {[...Array(7)].map((_, i) => (
+          <div key={i} className="particle" style={{
+            top: `${10 + i * 10}%`,
+            left: `${5 + i * 13}%`,
+            opacity: 0.18,
+            zIndex: 0,
+            position: 'absolute',
+            width: 8,
+            height: 8
+          }}/>
+        ))}
+      </div>
+
       {/* Élément audio caché */}
       <audio
         ref={audioRef}
@@ -367,16 +382,9 @@ export default function AudioPlayer() {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 100, opacity: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          className={`fixed left-1/2 -translate-x-1/2 z-50 shadow-2xl ${isMini ? 'h-16' : 'h-24'} flex flex-col items-center justify-center w-full sm:w-[480px] md:w-[540px] lg:w-[600px] rounded-full glass-player border border-white/10 backdrop-blur-xl`}
-          style={{ bottom: '80px', maxWidth: '98vw' }}
+          className={`fixed left-1/2 -translate-x-1/2 z-50 shadow-2xl ${isMini ? 'h-14' : 'h-24'} flex flex-col items-center justify-center w-[95vw] max-w-3xl rounded-full glass-player border border-white/10 backdrop-blur-xl`}
+          style={{ bottom: '80px' }}
         >
-          {/* Particules flottantes autour du player (pas dans la barre) */}
-          <div className="floating-particles pointer-events-none">
-            {[...Array(7)].map((_, i) => (
-              <div key={i} className="particle" style={{ top: `${10 + i * 10}%`, left: `${5 + i * 13}%`, opacity: 0.3 }}/>
-            ))}
-          </div>
-
           {/* Barre de progression interactive, bien séparée */}
           <div className="w-full px-6 pt-2">
             <div className="modern-progress-bar h-2 rounded-full relative cursor-pointer"
@@ -437,34 +445,34 @@ export default function AudioPlayer() {
           </div>
 
           {/* Contenu du player */}
-          <div className={`flex items-center justify-between w-full px-6 py-2 ${isMini ? 'h-10' : 'h-16'}`}>
+          <div className={`flex items-center justify-between w-full px-6 py-1 ${isMini ? 'h-8' : 'h-16'}`}>
             {/* Infos piste (mini : titre seulement) */}
             <div className="flex items-center min-w-0 flex-1">
               <img
                 src={currentTrack.coverUrl || '/default-cover.jpg'}
                 alt={currentTrack.title}
-                className={`object-cover ${isMini ? 'w-8 h-8 rounded-md' : 'w-12 h-12 rounded-xl'} mr-3 cover-animation`}
+                className={`object-cover ${isMini ? 'w-7 h-7 rounded-md' : 'w-12 h-12 rounded-xl'} mr-3 cover-animation`}
                 style={{ display: isMini ? 'none' : 'block' }}
               />
-              <span className={`truncate font-semibold text-white ${isMini ? 'text-sm' : 'text-base animated-text'}`}>{currentTrack.title}</span>
+              <span className={`truncate font-semibold text-white ${isMini ? 'text-xs' : 'text-base animated-text'}`}>{currentTrack.title}</span>
             </div>
 
             {/* Contrôles principaux */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               {/* Play/Pause */}
               <motion.button
                 onClick={togglePlay}
-                className={`play-button flex items-center justify-center ${isMini ? 'w-8 h-8' : 'w-10 h-10'} text-white`}
+                className={`play-button flex items-center justify-center ${isMini ? 'w-7 h-7' : 'w-10 h-10'} text-white`}
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={isLoading}
               >
                 {isLoading ? (
-                  <Loader2 size={isMini ? 16 : 20} className="animate-spin" />
+                  <Loader2 size={isMini ? 13 : 20} className="animate-spin" />
                 ) : audioState.isPlaying ? (
-                  <Pause size={isMini ? 16 : 20} />
+                  <Pause size={isMini ? 13 : 20} />
                 ) : (
-                  <Play size={isMini ? 16 : 20} />
+                  <Play size={isMini ? 13 : 20} />
                 )}
               </motion.button>
 
@@ -476,7 +484,7 @@ export default function AudioPlayer() {
                 whileTap={{ scale: 0.95 }}
                 style={{ display: isMini ? 'inline-flex' : 'inline-flex' }}
               >
-                <Heart size={isMini ? 14 : 18} fill={currentTrack.isLiked ? 'currentColor' : 'none'} />
+                <Heart size={isMini ? 12 : 18} fill={currentTrack.isLiked ? 'currentColor' : 'none'} />
               </motion.button>
 
               {/* Volume (mini ou non) */}
@@ -487,7 +495,7 @@ export default function AudioPlayer() {
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isMuted || volume === 0 ? <VolumeX size={isMini ? 14 : 18} /> : <Volume2 size={isMini ? 14 : 18} />}
+                  {isMuted || volume === 0 ? <VolumeX size={isMini ? 12 : 18} /> : <Volume2 size={isMini ? 12 : 18} />}
                 </motion.button>
                 {!isMini && showVolumeSlider && (
                   <motion.div
@@ -509,27 +517,37 @@ export default function AudioPlayer() {
                 )}
               </div>
 
-              {/* Minimiser/Maximiser (affiché seulement si non mini) */}
-              {!isMini && (
+              {/* Maximiser (toujours visible en mini) */}
+              {isMini && (
                 <motion.button
                   onClick={toggleMinimize}
-                  className="control-button text-gray-400 hover:text-white transition-colors p-1"
+                  className="control-button text-gray-400 hover:text-white transition-colors p-1 ml-1"
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {audioState.isMinimized ? <Maximize2 size={18} /> : <Minimize2 size={18} />}
+                  <Maximize2 size={14} />
                 </motion.button>
               )}
-              {/* Fermer (affiché seulement si non mini) */}
+              {/* Minimiser/fermer (affiché seulement si non mini) */}
               {!isMini && (
-                <motion.button
-                  onClick={closePlayer}
-                  className="control-button text-gray-400 hover:text-red-400 transition-colors p-1"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <X size={18} />
-                </motion.button>
+                <>
+                  <motion.button
+                    onClick={toggleMinimize}
+                    className="control-button text-gray-400 hover:text-white transition-colors p-1"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <Minimize2 size={18} />
+                  </motion.button>
+                  <motion.button
+                    onClick={closePlayer}
+                    className="control-button text-gray-400 hover:text-red-400 transition-colors p-1"
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <X size={18} />
+                  </motion.button>
+                </>
               )}
             </div>
           </div>
