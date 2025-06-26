@@ -83,34 +83,10 @@ export const deleteFile = async (publicId: string, resourceType: 'image' | 'vide
   }
 };
 
-// Générer une signature pour l'upload direct
+// Générer une signature pour l'upload direct (méthode officielle Cloudinary)
 export const generateUploadSignature = (params: any) => {
-  // Créer un objet avec les paramètres triés
-  const sortedParams: any = {};
-  Object.keys(params)
-    .sort()
-    .forEach(key => {
-      if (params[key] !== undefined && params[key] !== null && params[key] !== '') {
-        sortedParams[key] = params[key];
-      }
-    });
-
-  // Créer la chaîne à signer
-  const signString = Object.entries(sortedParams)
-    .map(([key, value]) => `${key}=${value}`)
-    .join('&');
-
-  console.log('String to sign:', signString);
-
-  // Générer la signature SHA1
-  const signature = crypto
-    .createHash('sha1')
-    .update(signString + process.env.CLOUDINARY_API_SECRET!)
-    .digest('hex');
-
-  console.log('Generated signature:', signature);
-  
-  return signature;
+  // Utiliser la méthode officielle de Cloudinary
+  return cloudinary.utils.api_sign_request(params, process.env.CLOUDINARY_API_SECRET!);
 };
 
 // Optimiser une image existante

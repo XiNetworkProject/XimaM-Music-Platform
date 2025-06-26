@@ -13,16 +13,20 @@ export async function POST(request: NextRequest) {
 
     const { timestamp, publicId, resourceType = 'video' } = await request.json();
 
-    // Préparer les paramètres pour la signature
+    // Préparer les paramètres dans l'ordre correct pour Cloudinary
     const params = {
-      timestamp,
+      timestamp: timestamp,
       public_id: publicId,
       resource_type: resourceType,
       folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
     };
 
+    console.log('Params for signature:', params);
+
     // Générer la signature pour l'upload direct
     const signature = generateUploadSignature(params);
+
+    console.log('Generated signature:', signature);
 
     return NextResponse.json({
       signature,
