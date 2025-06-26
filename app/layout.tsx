@@ -37,7 +37,10 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-            {children}
+            {/* Contenu principal avec padding pour la barre de navigation */}
+            <main className="pb-24 relative z-10">
+              {children}
+            </main>
             
             {/* Navigation persistante */}
             <BottomNav />

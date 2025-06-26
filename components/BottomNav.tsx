@@ -53,7 +53,7 @@ export default function BottomNav() {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50">
+    <div className="fixed bottom-0 left-0 right-0 z-40">
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/80 to-transparent h-8" />
       

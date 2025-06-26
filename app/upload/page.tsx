@@ -17,7 +17,8 @@ import {
   Tag,
   FileText,
   ArrowLeft,
-  Check
+  Check,
+  Settings
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -283,7 +284,7 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white">
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass-effect">
+      <header className="fixed top-0 left-0 right-0 z-30 glass-effect">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center space-x-4">
             <button
@@ -332,7 +333,7 @@ export default function UploadPage() {
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 pb-32">
+      <main className="container mx-auto px-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -407,8 +408,7 @@ export default function UploadPage() {
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold flex items-center space-x-2">
                     <Image size={20} />
-                    <span>Image de Couverture</span>
-                    <span className="text-sm text-white/60">(optionnel)</span>
+                    <span>Image de Couverture (optionnel)</span>
                   </h3>
                   
                   <div
@@ -428,35 +428,76 @@ export default function UploadPage() {
                           <Image size={24} className="text-green-400" />
                           <span className="font-medium">{coverFile.name}</span>
                         </div>
+                        <div className="text-sm text-white/60">
+                          {(coverFile.size / 1024 / 1024).toFixed(2)} MB
+                        </div>
                         {coverPreview && (
-                          <img
-                            src={coverPreview}
-                            alt="Cover preview"
-                            className="w-32 h-32 object-cover rounded-lg mx-auto"
-                          />
+                          <div className="flex justify-center">
+                            <img
+                              src={coverPreview}
+                              alt="Aperçu"
+                              className="w-32 h-32 object-cover rounded-lg"
+                            />
+                          </div>
                         )}
                       </div>
                     ) : (
                       <div className="space-y-4">
                         <Image size={48} className="mx-auto text-white/60" />
                         <div>
-                          <p className="font-medium">Glissez votre image de couverture ici</p>
+                          <p className="font-medium">Glissez votre image ici</p>
                           <p className="text-sm text-white/60">ou cliquez pour sélectionner</p>
                         </div>
                         <p className="text-xs text-white/40">
-                          Formats supportés: JPG, PNG (max 5MB)
+                          Formats supportés: JPG, PNG, WebP (max 5MB)
                         </p>
                       </div>
                     )}
                   </div>
                 </div>
 
-                <div className="flex justify-end">
+                {/* Progress Bars */}
+                {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
+                  <div className="space-y-4">
+                    {uploadProgress.audio > 0 && (
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Upload Audio</span>
+                          <span>{uploadProgress.audio}%</span>
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-2">
+                          <div
+                            className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress.audio}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {uploadProgress.cover > 0 && (
+                      <div>
+                        <div className="flex justify-between text-sm mb-2">
+                          <span>Upload Image</span>
+                          <span>{uploadProgress.cover}%</span>
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-2">
+                          <div
+                            className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${uploadProgress.cover}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex justify-end pt-6">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    disabled={!audioFile}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+                    disabled={!audioFile || isUploading}
+                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
                   >
                     Suivant
                   </button>
@@ -471,164 +512,94 @@ export default function UploadPage() {
                 animate={{ opacity: 1 }}
                 className="space-y-6"
               >
-                <h2 className="text-2xl font-bold mb-6">Informations de la musique</h2>
+                <h2 className="text-2xl font-bold mb-6">Informations de la piste</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Titre *</label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => handleInputChange('title', e.target.value)}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                      placeholder="Titre de la musique"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Artiste *</label>
-                    <input
-                      type="text"
-                      value={formData.artist}
-                      onChange={(e) => handleInputChange('artist', e.target.value)}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                      placeholder="Nom de l'artiste"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Album</label>
-                    <input
-                      type="text"
-                      value={formData.album}
-                      onChange={(e) => handleInputChange('album', e.target.value)}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                      placeholder="Nom de l'album"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Genres</label>
-                    <div className="space-y-2">
-                      <input
-                        type="text"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            addGenre((e.target as HTMLInputElement).value);
-                            (e.target as HTMLInputElement).value = '';
-                          }
-                        }}
-                        className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                        placeholder="Appuyez sur Entrée pour ajouter"
-                      />
-                      <div className="flex flex-wrap gap-2">
-                        {formData.genre.map((genre) => (
-                          <span
-                            key={genre}
-                            className="px-3 py-1 bg-primary-500/20 text-primary-400 rounded-full text-sm flex items-center space-x-1"
-                          >
-                            <span>{genre}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeGenre(genre)}
-                              className="hover:text-red-400"
-                            >
-                              <X size={14} />
-                            </button>
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                {/* Titre */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Titre *</label>
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                    placeholder="Titre de votre musique"
+                    required
+                  />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Tags</label>
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addTag((e.target as HTMLInputElement).value);
-                          (e.target as HTMLInputElement).value = '';
-                        }
-                      }}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                      placeholder="Appuyez sur Entrée pour ajouter"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      {formData.tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-3 py-1 bg-secondary-500/20 text-secondary-400 rounded-full text-sm flex items-center space-x-1"
-                        >
-                          <span>{tag}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeTag(tag)}
-                            className="hover:text-red-400"
-                          >
-                            <X size={14} />
-                          </button>
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Description</label>
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={4}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                    placeholder="Description de la musique..."
+                    rows={3}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors resize-none"
+                    placeholder="Décrivez votre musique..."
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Paroles (optionnel)</label>
-                  <textarea
-                    value={formData.lyrics}
-                    onChange={(e) => handleInputChange('lyrics', e.target.value)}
-                    rows={6}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                    placeholder="Paroles de la musique..."
+                {/* Genre */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Genre</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B'].map((genre) => (
+                      <button
+                        key={genre}
+                        type="button"
+                        onClick={() => formData.genre.includes(genre) ? removeGenre(genre) : addGenre(genre)}
+                        className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                          formData.genre.includes(genre)
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-white/10 text-white/60 hover:bg-white/20'
+                        }`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium">Tags</label>
+                  <div className="flex flex-wrap gap-2">
+                    {formData.tags.map((tag) => (
+                      <div key={tag} className="flex items-center space-x-1 bg-primary-500/20 px-3 py-1 rounded-full">
+                        <span className="text-sm">{tag}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeTag(tag)}
+                          className="text-primary-400 hover:text-white"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Ajouter un tag..."
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const input = e.target as HTMLInputElement;
+                        if (input.value.trim()) {
+                          addTag(input.value.trim());
+                          input.value = '';
+                        }
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
                   />
                 </div>
 
-                <div className="flex items-center space-x-4">
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.isExplicit}
-                      onChange={(e) => handleInputChange('isExplicit', e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Contenu explicite</span>
-                  </label>
-
-                  <label className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={formData.isPublic}
-                      onChange={(e) => handleInputChange('isPublic', e.target.checked)}
-                      className="rounded"
-                    />
-                    <span className="text-sm">Publique</span>
-                  </label>
-                </div>
-
-                <div className="flex justify-between">
+                {/* Navigation */}
+                <div className="flex justify-between pt-6">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
+                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
                   >
                     Précédent
                   </button>
@@ -636,7 +607,7 @@ export default function UploadPage() {
                     type="button"
                     onClick={() => setCurrentStep(3)}
                     disabled={!formData.title.trim()}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors"
+                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
                   >
                     Suivant
                   </button>
@@ -644,90 +615,105 @@ export default function UploadPage() {
               </motion.div>
             )}
 
-            {/* Étape 3: Droits d'auteur */}
+            {/* Étape 3: Droits */}
             {currentStep === 3 && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 className="space-y-6"
               >
-                <h2 className="text-2xl font-bold mb-6">Droits d'auteur</h2>
+                <h2 className="text-2xl font-bold mb-6">Droits et paramètres</h2>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Propriétaire des droits *</label>
-                    <input
-                      type="text"
-                      value={formData.copyright.owner}
-                      onChange={(e) => handleCopyrightChange('owner', e.target.value)}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                      placeholder="Nom du propriétaire"
-                      required
-                    />
+                {/* Copyright */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center space-x-2">
+                    <Calendar size={20} />
+                    <span>Informations de copyright</span>
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Propriétaire</label>
+                      <input
+                        type="text"
+                        value={formData.copyright.owner}
+                        onChange={(e) => handleCopyrightChange('owner', e.target.value)}
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                        placeholder="Votre nom ou nom d'artiste"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Année</label>
+                      <input
+                        type="number"
+                        value={formData.copyright.year}
+                        onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                        placeholder="2024"
+                      />
+                    </div>
                   </div>
-
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Année *</label>
-                    <input
-                      type="number"
-                      value={formData.copyright.year}
-                      onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
-                      className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                      min="1900"
-                      max={new Date().getFullYear() + 1}
-                      required
-                    />
+                  
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Droits</label>
+                    <select
+                      value={formData.copyright.rights}
+                      onChange={(e) => handleCopyrightChange('rights', e.target.value)}
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                    >
+                      <option value="Tous droits réservés">Tous droits réservés</option>
+                      <option value="Creative Commons">Creative Commons</option>
+                      <option value="Domaine public">Domaine public</option>
+                    </select>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2">Type de droits *</label>
-                  <select
-                    value={formData.copyright.rights}
-                    onChange={(e) => handleCopyrightChange('rights', e.target.value)}
-                    className="w-full p-3 bg-white/10 border border-white/20 rounded-lg focus:outline-none focus:border-primary-500"
-                    required
-                  >
-                    <option value="Tous droits réservés">Tous droits réservés</option>
-                    <option value="Creative Commons">Creative Commons</option>
-                    <option value="Domaine public">Domaine public</option>
-                    <option value="Licence libre">Licence libre</option>
-                  </select>
+                {/* Paramètres */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center space-x-2">
+                    <Settings size={20} />
+                    <span>Paramètres</span>
+                  </h3>
+                  
+                  <div className="space-y-4">
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isPublic}
+                        onChange={(e) => handleInputChange('isPublic', e.target.checked)}
+                        className="w-5 h-5 text-primary-500 bg-white/10 border-white/20 rounded focus:ring-primary-500"
+                      />
+                      <span>Rendre public</span>
+                    </label>
+                    
+                    <label className="flex items-center space-x-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.isExplicit}
+                        onChange={(e) => handleInputChange('isExplicit', e.target.checked)}
+                        className="w-5 h-5 text-primary-500 bg-white/10 border-white/20 rounded focus:ring-primary-500"
+                      />
+                      <span>Contenu explicite</span>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
-                  <h3 className="font-semibold text-yellow-400 mb-2">Important</h3>
-                  <p className="text-sm text-white/80">
-                    En uploadant cette musique, vous confirmez que vous êtes le propriétaire des droits 
-                    ou que vous avez l'autorisation de distribuer ce contenu. XimaM se réserve le droit 
-                    de supprimer tout contenu qui viole les droits d'auteur.
-                  </p>
-                </div>
-
-                <div className="flex justify-between">
+                {/* Navigation */}
+                <div className="flex justify-between pt-6">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
+                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
                   >
                     Précédent
                   </button>
                   <button
                     type="submit"
                     disabled={isUploading}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-medium transition-colors flex items-center space-x-2"
+                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
                   >
-                    {isUploading ? (
-                      <>
-                        <div className="spinner" />
-                        <span>Upload en cours...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload size={20} />
-                        <span>Publier la musique</span>
-                      </>
-                    )}
+                    {isUploading ? 'Upload en cours...' : 'Publier'}
                   </button>
                 </div>
               </motion.div>
@@ -735,26 +721,6 @@ export default function UploadPage() {
           </form>
         </motion.div>
       </main>
-
-      {/* Progress Bar */}
-      {isUploading && (
-        <div className="fixed bottom-0 left-0 right-0 bg-dark-800 border-t border-white/10 p-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium">Upload en cours...</span>
-              <span className="text-sm text-white/60">
-                {uploadProgress.audio}% - {uploadProgress.cover}%
-              </span>
-            </div>
-            <div className="w-full bg-white/20 rounded-full h-2">
-              <div
-                className="bg-gradient-to-r from-primary-500 to-secondary-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${Math.max(uploadProgress.audio, uploadProgress.cover)}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Bottom Navigation */}
       <BottomNav />
