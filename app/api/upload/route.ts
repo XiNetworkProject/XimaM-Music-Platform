@@ -7,6 +7,14 @@ import Track from '@/models/Track';
 import User from '@/models/User';
 import { v2 as cloudinary } from 'cloudinary';
 
+// Configuration pour les gros fichiers
+export const config = {
+  api: {
+    bodyParser: false,
+    responseLimit: false,
+  },
+};
+
 export async function POST(request: NextRequest) {
   try {
     // Vérifier l'authentification
@@ -24,6 +32,7 @@ export async function POST(request: NextRequest) {
       await dbConnect();
     }
 
+    // Utiliser FormData pour gérer les gros fichiers
     const formData = await request.formData();
     const audioFile = formData.get('audio') as File;
     const coverFile = formData.get('cover') as File;
@@ -70,19 +79,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier la taille (max 50MB)
-    if (audioFile.size > 50 * 1024 * 1024) {
+    // Vérifier la taille (max 25MB pour Vercel)
+    if (audioFile.size > 25 * 1024 * 1024) {
       return NextResponse.json(
-        { error: 'Fichier trop volumineux (max 50MB)' },
+        { error: 'Fichier trop volumineux (max 25MB)' },
         { status: 400 }
       );
     }
 
-    // Upload audio
-    const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-    const audioResult = await uploadAudio(audioBuffer, {
-      public_id: `track_${Date.now()}`,
-    });
+    // Upload audio avec gestion d'erreur améliorée
+    let audioResult;
+    try {
+      const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
+      audioResult = await uploadAudio(audioBuffer, {
+        public_id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        resource_type: 'video', // Cloudinary traite l'audio comme vidéo
+        format: 'mp3',
+      });
+    } catch (uploadError) {
+      console.error('Erreur upload audio:', uploadError);
+      return NextResponse.json(
+        { error: 'Erreur lors de l\'upload audio' },
+        { status: 500 }
+      );
+    }
 
     // Upload cover si fourni (optionnel)
     let coverResult = null;
@@ -90,10 +110,12 @@ export async function POST(request: NextRequest) {
       try {
         if (!coverFile.type.startsWith('image/')) {
           console.warn('Fichier image invalide ignoré:', coverFile.type);
+        } else if (coverFile.size > 5 * 1024 * 1024) {
+          console.warn('Image trop volumineuse ignorée (max 5MB)');
         } else {
           const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
           coverResult = await uploadImage(coverBuffer, {
-            public_id: `cover_${Date.now()}`,
+            public_id: `cover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             width: 800,
             height: 800,
             crop: 'fill',
@@ -113,15 +135,15 @@ export async function POST(request: NextRequest) {
       tags: trackData.tags || [],
       audioUrl: audioResult.secure_url,
       audioPublicId: audioResult.public_id,
-      coverUrl: coverResult?.secure_url || '/default-cover.jpg', // Image par défaut
+      coverUrl: coverResult?.secure_url || '/default-cover.jpg',
       coverPublicId: coverResult?.public_id || null,
       duration: audioResult.duration || 0,
       artist: session.user.id,
       isPublic: trackData.isPublic !== false,
       isExplicit: trackData.isExplicit || false,
       plays: 0,
-      likes: [], // Tableau vide d'ObjectId
-      comments: [], // Tableau vide d'ObjectId
+      likes: [],
+      comments: [],
       copyright: {
         owner: trackData.copyright?.owner || session.user.name || 'Unknown',
         year: trackData.copyright?.year || new Date().getFullYear(),
@@ -199,7 +221,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Erreur récupération pistes:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération' },
+      { error: 'Erreur lors de la récupération des pistes' },
       { status: 500 }
     );
   }

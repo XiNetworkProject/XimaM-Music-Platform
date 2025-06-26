@@ -81,6 +81,11 @@ export default function UploadPage() {
   const onAudioDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file && file.type.startsWith('audio/')) {
+      // Vérifier la taille (max 25MB pour Vercel)
+      if (file.size > 25 * 1024 * 1024) {
+        toast.error('Fichier trop volumineux (max 25MB)');
+        return;
+      }
       setAudioFile(file);
       const url = URL.createObjectURL(file);
       setAudioPreview(url);
@@ -92,6 +97,11 @@ export default function UploadPage() {
   const onCoverDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file && file.type.startsWith('image/')) {
+      // Vérifier la taille (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image trop volumineuse (max 5MB)');
+        return;
+      }
       setCoverFile(file);
       const url = URL.createObjectURL(file);
       setCoverPreview(url);
