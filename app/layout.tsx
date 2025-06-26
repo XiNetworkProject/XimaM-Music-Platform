@@ -38,7 +38,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <div className="flex flex-col min-h-screen">
-            {children}
+            <main className="flex-1 pb-40">
+              {children}
+            </main>
             <BottomNav />
             <AudioPlayer />
           </div>

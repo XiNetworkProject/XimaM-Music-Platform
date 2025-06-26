@@ -242,7 +242,7 @@ export default function AudioPlayer() {
         initial={{ y: 100 }}
         animate={{ y: 0 }}
         exit={{ y: 100 }}
-        className={`fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 z-40 ${
+        className={`fixed bottom-20 left-0 right-0 bg-gray-900 border-t border-gray-700 z-40 ${
           audioState.isMinimized ? 'h-16' : 'h-24'
         }`}
       >
