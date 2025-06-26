@@ -79,7 +79,8 @@ export async function GET(request: NextRequest) {
 
     // Récupérer les artistes des pistes likées par l'utilisateur
     const likedTracks = await Track.find({ _id: { $in: user.likedTracks } }).select('artist');
-    const likedArtists = [...new Set(likedTracks.map(track => track.artist.toString()))];
+    const artistIds = likedTracks.map(track => track.artist.toString());
+    const likedArtists = artistIds.filter((id, index) => artistIds.indexOf(id) === index);
 
     // Récupérer les pistes recommandées basées sur les artistes likés
     const tracks = await Track.aggregate([
