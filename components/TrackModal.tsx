@@ -82,9 +82,13 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
       if (response.ok) {
         const data = await response.json();
         setComments(data.comments);
+      } else {
+        console.error('Erreur chargement commentaires:', response.status);
+        setComments([]);
       }
     } catch (error) {
       console.error('Erreur chargement commentaires:', error);
+      setComments([]);
     }
   };
 

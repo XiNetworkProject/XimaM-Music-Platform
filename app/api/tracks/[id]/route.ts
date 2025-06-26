@@ -11,9 +11,21 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    console.log('API Track - ID reçu:', params.id);
+    console.log('API Track - URL:', request.url);
+    
     await dbConnect();
     const session = await getServerSession(authOptions);
-    const trackId = params.id;
+    
+    // Nettoyer l'ID (enlever les slashes et espaces)
+    const trackId = params.id.replace(/[\/\s]/g, '');
+    console.log('API Track - ID nettoyé:', trackId);
+
+    // Valider que l'ID est un ObjectId MongoDB valide
+    if (!trackId || trackId.length !== 24) {
+      console.error('API Track - ID invalide:', trackId);
+      return NextResponse.json({ error: 'ID de piste invalide' }, { status: 400 });
+    }
 
     // Récupérer la piste avec les informations de l'artiste
     const track = await Track.findById(trackId)
@@ -27,8 +39,11 @@ export async function GET(
       });
 
     if (!track) {
+      console.error('API Track - Piste non trouvée:', trackId);
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
+
+    console.log('API Track - Piste trouvée:', track.title);
 
     // Vérifier si l'utilisateur connecté a liké cette piste
     let isLiked = false;

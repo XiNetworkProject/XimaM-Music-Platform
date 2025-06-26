@@ -243,11 +243,24 @@ export default function HomePage() {
   // Fonction pour ouvrir le modal d'une piste
   const openTrackModal = async (track: Track) => {
     try {
+      // Valider l'ID de la piste
+      if (!track._id || track._id.length !== 24) {
+        console.error('ID de piste invalide:', track._id);
+        setSelectedTrack(track);
+        setIsModalOpen(true);
+        return;
+      }
+
       // Récupérer les détails complets de la piste
       const response = await fetch(`/api/tracks/${track._id}`);
       if (response.ok) {
         const data = await response.json();
         setSelectedTrack(data.track);
+        setIsModalOpen(true);
+      } else {
+        console.error('Erreur récupération détails piste:', response.status);
+        // Fallback : utiliser la piste de base
+        setSelectedTrack(track);
         setIsModalOpen(true);
       }
     } catch (error) {
