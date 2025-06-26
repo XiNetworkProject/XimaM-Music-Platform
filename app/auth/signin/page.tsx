@@ -2,11 +2,11 @@
 
 import { signIn, useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, Music } from 'lucide-react';
 
-function SignInForm() {
+export default function SignInPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -217,20 +217,5 @@ function SignInForm() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function SignInPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto"></div>
-          <p className="mt-4 text-white/80">Chargement...</p>
-        </div>
-      </div>
-    }>
-      <SignInForm />
-    </Suspense>
   );
 } 

@@ -21,9 +21,9 @@ export async function GET(
     const session = await getServerSession(authOptions);
     const isOwnProfile = session?.user?.id === user._id.toString();
 
-    const searchParams = request.nextUrl.searchParams;
-    const limit = parseInt(searchParams.get('limit') || '20');
+    const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
     const skip = (page - 1) * limit;
 
     // Construire la requête

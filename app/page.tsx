@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
-import { Play, Heart } from 'lucide-react';
+import { Play, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Track {
   _id: string;
@@ -33,6 +33,8 @@ export default function HomePage() {
   
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   // Charger les pistes depuis l'API
   useEffect(() => {
@@ -71,6 +73,35 @@ export default function HomePage() {
     }
   }, [isNative, checkForUpdates]);
 
+  // Carrousel automatique
+  useEffect(() => {
+    if (audioState.tracks.length === 0) return;
+
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => 
+        prev === Math.min(4, audioState.tracks.length - 1) ? 0 : prev + 1
+      );
+    }, 4000); // Change toutes les 4 secondes
+
+    return () => clearInterval(interval);
+  }, [audioState.tracks.length]);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => 
+      prev === Math.min(4, audioState.tracks.length - 1) ? 0 : prev + 1
+    );
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => 
+      prev === 0 ? Math.min(4, audioState.tracks.length - 1) : prev - 1
+    );
+  };
+
+  const goToSlide = (index: number) => {
+    setCurrentSlide(index);
+  };
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -85,6 +116,10 @@ export default function HomePage() {
     }
     return num.toString();
   };
+
+  // Obtenir les 5 premières pistes pour le carrousel
+  const trendingTracks = audioState.tracks.slice(0, 5);
+  const remainingTracks = audioState.tracks.slice(5);
 
   if (loading) {
     return (
@@ -128,10 +163,112 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Carrousel de pistes */}
+      {/* Bannière Carrousel des Tendances */}
+      {trendingTracks.length > 0 && (
+        <div className="relative w-full h-80 mb-8">
+          <div className="relative w-full h-full overflow-hidden">
+            {/* Carrousel */}
+            <div 
+              ref={carouselRef}
+              className="flex w-full h-full transition-transform duration-500 ease-in-out"
+              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+            >
+              {trendingTracks.map((track, index) => (
+                <div key={track._id} className="w-full h-full flex-shrink-0 relative">
+                  {/* Image de fond avec overlay */}
+                  <div className="absolute inset-0">
+                    <img
+                      src={track.coverUrl || '/default-cover.jpg'}
+                      alt={track.title}
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                  </div>
+                  
+                  {/* Contenu du slide */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <div className="flex items-end space-x-4">
+                      {/* Cover */}
+                      <div className="relative">
+                        <img
+                          src={track.coverUrl || '/default-cover.jpg'}
+                          alt={track.title}
+                          className="w-20 h-20 rounded-xl object-cover shadow-lg"
+                        />
+                        <button
+                          onClick={() => playTrack(track._id)}
+                          className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                        >
+                          <Play size={24} fill="white" />
+                        </button>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <h2 className="text-2xl font-bold truncate mb-1">{track.title}</h2>
+                        <p className="text-gray-300 text-lg truncate mb-2">
+                          {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                        </p>
+                        <div className="flex items-center space-x-4 text-sm text-gray-300">
+                          <span>{formatDuration(track.duration)}</span>
+                          <span>{formatNumber(track.plays)} écoutes</span>
+                          <span>{formatNumber(track.likes.length)} likes</span>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleLike(track._id)}
+                          className={`p-3 rounded-full transition-colors ${
+                            track.isLiked || track.likes.includes(user?.id || '')
+                              ? 'text-red-500 bg-red-500/20'
+                              : 'text-white hover:text-red-500 hover:bg-red-500/20'
+                          }`}
+                        >
+                          <Heart size={24} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Contrôles de navigation */}
+            <button
+              onClick={prevSlide}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <button
+              onClick={nextSlide}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+            >
+              <ChevronRight size={24} />
+            </button>
+
+            {/* Indicateurs de points */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+              {trendingTracks.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => goToSlide(index)}
+                  className={`w-2 h-2 rounded-full transition-colors ${
+                    index === currentSlide ? 'bg-white' : 'bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Liste des autres pistes */}
       <div className="px-6 pb-32">
         <h2 className="text-xl font-semibold mb-6">
-          {audioState.tracks.length > 0 ? 'Tendances' : 'Aucune musique trouvée'}
+          {remainingTracks.length > 0 ? 'Autres musiques' : 'Aucune autre musique'}
         </h2>
         
         {audioState.tracks.length === 0 ? (
@@ -146,7 +283,7 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {audioState.tracks.map((track, index) => (
+            {remainingTracks.map((track) => (
               <div
                 key={track._id}
                 className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 hover:bg-white/15 transition-all duration-300"

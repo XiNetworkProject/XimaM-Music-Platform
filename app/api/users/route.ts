@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
       await dbConnect();
     }
     
-    const searchParams = request.nextUrl.searchParams;
+    const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '20');
     const search = searchParams.get('search') || '';
     
