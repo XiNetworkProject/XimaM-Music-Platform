@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
-import { Play, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Heart, ChevronLeft, ChevronRight, Pause } from 'lucide-react';
 
 interface Track {
   _id: string;
@@ -35,6 +35,9 @@ export default function HomePage() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
+
+  // Obtenir la piste actuelle
+  const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
   // Charger les pistes depuis l'API
   useEffect(() => {
@@ -81,7 +84,7 @@ export default function HomePage() {
       setCurrentSlide((prev) => 
         prev === Math.min(4, audioState.tracks.length - 1) ? 0 : prev + 1
       );
-    }, 4000); // Change toutes les 4 secondes
+    }, 5000); // Change toutes les 5 secondes
 
     return () => clearInterval(interval);
   }, [audioState.tracks.length]);
@@ -134,47 +137,18 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black text-white">
-      {/* Header */}
-      <div className="p-6 pb-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">XimaM</h1>
-            <p className="text-gray-300">Découvrez de nouvelles musiques</p>
-          </div>
-          {session ? (
-            <div className="flex items-center space-x-3">
-              <span className="text-sm text-gray-300">Bonjour, {user?.name || session.user?.name}</span>
-              {user?.avatar && (
-                <img
-                  src={user.avatar}
-                  alt="Avatar"
-                  className="w-8 h-8 rounded-full"
-                />
-              )}
-            </div>
-          ) : (
-            <a
-              href="/auth/signin"
-              className="bg-white text-black px-4 py-2 rounded-full font-medium hover:bg-gray-200 transition-colors"
-            >
-              Se connecter
-            </a>
-          )}
-        </div>
-      </div>
-
       {/* Bannière Carrousel des Tendances */}
       {trendingTracks.length > 0 && (
-        <div className="relative w-full h-80 mb-8">
+        <div className="relative w-full h-96 mb-8">
           <div className="relative w-full h-full overflow-hidden">
             {/* Carrousel */}
             <div 
               ref={carouselRef}
-              className="flex w-full h-full transition-transform duration-500 ease-in-out"
+              className="flex w-full h-full transition-transform duration-700 ease-out"
               style={{ transform: `translateX(-${currentSlide * 100}%)` }}
             >
               {trendingTracks.map((track, index) => (
-                <div key={track._id} className="w-full h-full flex-shrink-0 relative">
+                <div key={track._id} className="w-full h-full flex-shrink-0 relative group">
                   {/* Image de fond avec overlay */}
                   <div className="absolute inset-0">
                     <img
@@ -182,34 +156,44 @@ export default function HomePage() {
                       alt={track.title}
                       className="w-full h-full object-cover"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-blue-900/20"></div>
                   </div>
                   
                   {/* Contenu du slide */}
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <div className="flex items-end space-x-4">
-                      {/* Cover */}
-                      <div className="relative">
-                        <img
-                          src={track.coverUrl || '/default-cover.jpg'}
-                          alt={track.title}
-                          className="w-20 h-20 rounded-xl object-cover shadow-lg"
-                        />
-                        <button
-                          onClick={() => playTrack(track._id)}
-                          className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                        >
-                          <Play size={24} fill="white" />
-                        </button>
+                  <div className="absolute inset-0 flex items-center justify-center p-8">
+                    <div className="text-center max-w-2xl">
+                      {/* Cover avec effet hover */}
+                      <div className="relative mx-auto mb-6 group">
+                        <div className="relative w-48 h-48 mx-auto">
+                          <img
+                            src={track.coverUrl || '/default-cover.jpg'}
+                            alt={track.title}
+                            className="w-full h-full rounded-2xl object-cover shadow-2xl transform group-hover:scale-105 transition-transform duration-300"
+                          />
+                          <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/40 transition-colors duration-300"></div>
+                          
+                          {/* Bouton play/pause */}
+                          <button
+                            onClick={() => playTrack(track._id)}
+                            className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100"
+                          >
+                            {currentTrack?._id === track._id && audioState.isPlaying ? (
+                              <Pause size={48} fill="white" className="text-white" />
+                            ) : (
+                              <Play size={48} fill="white" className="text-white ml-2" />
+                            )}
+                          </button>
+                        </div>
                       </div>
 
                       {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <h2 className="text-2xl font-bold truncate mb-1">{track.title}</h2>
-                        <p className="text-gray-300 text-lg truncate mb-2">
+                      <div className="space-y-3">
+                        <h2 className="text-4xl font-bold truncate text-shadow-lg">{track.title}</h2>
+                        <p className="text-xl text-gray-300 truncate">
                           {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                         </p>
-                        <div className="flex items-center space-x-4 text-sm text-gray-300">
+                        <div className="flex items-center justify-center space-x-6 text-sm text-gray-300">
                           <span>{formatDuration(track.duration)}</span>
                           <span>{formatNumber(track.plays)} écoutes</span>
                           <span>{formatNumber(track.likes.length)} likes</span>
@@ -217,13 +201,13 @@ export default function HomePage() {
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center space-x-2">
+                      <div className="mt-6 flex items-center justify-center space-x-4">
                         <button
                           onClick={() => handleLike(track._id)}
-                          className={`p-3 rounded-full transition-colors ${
+                          className={`p-4 rounded-full transition-all duration-300 transform hover:scale-110 ${
                             track.isLiked || track.likes.includes(user?.id || '')
-                              ? 'text-red-500 bg-red-500/20'
-                              : 'text-white hover:text-red-500 hover:bg-red-500/20'
+                              ? 'text-red-500 bg-red-500/20 hover:bg-red-500/30'
+                              : 'text-white bg-white/20 hover:bg-white/30'
                           }`}
                         >
                           <Heart size={24} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
@@ -238,25 +222,25 @@ export default function HomePage() {
             {/* Contrôles de navigation */}
             <button
               onClick={prevSlide}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+              className="absolute left-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition-all duration-300 transform hover:scale-110"
             >
-              <ChevronLeft size={24} />
+              <ChevronLeft size={28} />
             </button>
             <button
               onClick={nextSlide}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-black/50 rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
+              className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition-all duration-300 transform hover:scale-110"
             >
-              <ChevronRight size={24} />
+              <ChevronRight size={28} />
             </button>
 
             {/* Indicateurs de points */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex space-x-2">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3">
               {trendingTracks.map((_, index) => (
                 <button
                   key={index}
                   onClick={() => goToSlide(index)}
-                  className={`w-2 h-2 rounded-full transition-colors ${
-                    index === currentSlide ? 'bg-white' : 'bg-white/50'
+                  className={`w-3 h-3 rounded-full transition-all duration-300 transform hover:scale-125 ${
+                    index === currentSlide ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/75'
                   }`}
                 />
               ))}
