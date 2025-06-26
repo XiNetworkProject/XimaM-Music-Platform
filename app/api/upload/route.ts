@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect, { isConnected } from '@/lib/db';
-import { uploadAudio, uploadImage } from '@/lib/cloudinary';
 import Track from '@/models/Track';
 import User from '@/models/User';
-import { v2 as cloudinary } from 'cloudinary';
 
 // Configuration pour les gros fichiers
 export const config = {
@@ -32,34 +30,20 @@ export async function POST(request: NextRequest) {
       await dbConnect();
     }
 
-    // Utiliser FormData pour gérer les gros fichiers
-    const formData = await request.formData();
-    const audioFile = formData.get('audio') as File;
-    const coverFile = formData.get('cover') as File;
-    const trackDataString = formData.get('trackData') as string;
+    const body = await request.json();
+    const { audioUrl, coverUrl, trackData } = body;
 
     // Validation
-    if (!audioFile) {
+    if (!audioUrl) {
       return NextResponse.json(
-        { error: 'Fichier audio requis' },
+        { error: 'URL audio requise' },
         { status: 400 }
       );
     }
 
-    if (!trackDataString) {
+    if (!trackData) {
       return NextResponse.json(
         { error: 'Données de piste requises' },
-        { status: 400 }
-      );
-    }
-
-    // Parser les données de la piste
-    let trackData;
-    try {
-      trackData = JSON.parse(trackDataString);
-    } catch (error) {
-      return NextResponse.json(
-        { error: 'Données de piste invalides' },
         { status: 400 }
       );
     }
@@ -71,73 +55,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier le type de fichier audio
-    if (!audioFile.type.startsWith('audio/')) {
-      return NextResponse.json(
-        { error: 'Fichier audio invalide' },
-        { status: 400 }
-      );
-    }
-
-    // Vérifier la taille (max 25MB pour Vercel)
-    if (audioFile.size > 25 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: 'Fichier trop volumineux (max 25MB)' },
-        { status: 400 }
-      );
-    }
-
-    // Upload audio avec gestion d'erreur améliorée
-    let audioResult;
-    try {
-      const audioBuffer = Buffer.from(await audioFile.arrayBuffer());
-      audioResult = await uploadAudio(audioBuffer, {
-        public_id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        resource_type: 'video', // Cloudinary traite l'audio comme vidéo
-        format: 'mp3',
-      });
-    } catch (uploadError) {
-      console.error('Erreur upload audio:', uploadError);
-      return NextResponse.json(
-        { error: 'Erreur lors de l\'upload audio' },
-        { status: 500 }
-      );
-    }
-
-    // Upload cover si fourni (optionnel)
-    let coverResult = null;
-    if (coverFile && coverFile.size > 0) {
-      try {
-        if (!coverFile.type.startsWith('image/')) {
-          console.warn('Fichier image invalide ignoré:', coverFile.type);
-        } else if (coverFile.size > 5 * 1024 * 1024) {
-          console.warn('Image trop volumineuse ignorée (max 5MB)');
-        } else {
-          const coverBuffer = Buffer.from(await coverFile.arrayBuffer());
-          coverResult = await uploadImage(coverBuffer, {
-            public_id: `cover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            width: 800,
-            height: 800,
-            crop: 'fill',
-          });
-        }
-      } catch (error) {
-        console.error('Erreur upload cover (ignoré):', error);
-        // On continue sans l'image de couverture
-      }
-    }
-
     // Créer la piste dans la base de données
     const track = new Track({
       title: trackData.title.trim(),
       description: trackData.description || '',
       genre: trackData.genre || ['Pop'],
       tags: trackData.tags || [],
-      audioUrl: audioResult.secure_url,
-      audioPublicId: audioResult.public_id,
-      coverUrl: coverResult?.secure_url || '/default-cover.jpg',
-      coverPublicId: coverResult?.public_id || null,
-      duration: audioResult.duration || 0,
+      audioUrl: audioUrl,
+      audioPublicId: trackData.audioPublicId || null,
+      coverUrl: coverUrl || '/default-cover.jpg',
+      coverPublicId: trackData.coverPublicId || null,
+      duration: trackData.duration || 0,
       artist: session.user.id,
       isPublic: trackData.isPublic !== false,
       isExplicit: trackData.isExplicit || false,
