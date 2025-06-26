@@ -132,9 +132,9 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-      {/* Carrousel Hero - Plein écran */}
+      {/* Carrousel Hero - Hauteur réduite */}
       {featuredTracks.length > 0 && (
-        <section className="relative h-screen overflow-hidden">
+        <section className="relative h-[70vh] overflow-hidden">
           {/* Fond animé */}
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-blue-900/20">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.3),transparent_50%)] animate-pulse"></div>
@@ -168,7 +168,7 @@ export default function HomePage() {
 
                   {/* Contenu principal */}
                   <div className="relative h-full flex items-end">
-                    <div className="container mx-auto px-8 pb-32">
+                    <div className="container mx-auto px-8 pb-20">
                       <motion.div
                         initial={{ opacity: 0, y: 50 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -191,7 +191,7 @@ export default function HomePage() {
                           initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.7, duration: 0.8 }}
-                          className="text-6xl md:text-7xl font-bold text-white mb-4 leading-tight"
+                          className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight"
                         >
                           {featuredTracks[currentSlide].title}
                         </motion.h1>
@@ -201,7 +201,7 @@ export default function HomePage() {
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.9, duration: 0.6 }}
-                          className="text-2xl md:text-3xl text-gray-300 mb-8"
+                          className="text-xl md:text-2xl text-gray-300 mb-6"
                         >
                           {featuredTracks[currentSlide].artist?.name || featuredTracks[currentSlide].artist?.username || 'Artiste inconnu'}
                         </motion.p>
@@ -211,7 +211,7 @@ export default function HomePage() {
                           initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 1.1, duration: 0.8 }}
-                          className="flex flex-wrap items-center gap-6 mb-8"
+                          className="flex flex-wrap items-center gap-6 mb-6"
                         >
                           {/* Stats */}
                           <div className="flex items-center space-x-6 text-lg text-gray-300">
@@ -280,7 +280,7 @@ export default function HomePage() {
             </AnimatePresence>
 
             {/* Navigation du carrousel */}
-            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+            <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20">
               <div className="flex items-center space-x-4">
                 {/* Bouton précédent */}
                 <motion.button
