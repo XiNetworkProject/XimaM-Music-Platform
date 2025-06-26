@@ -4,6 +4,7 @@ import './globals.css';
 import Providers from './providers';
 import GlobalAudioPlayer from '@/components/GlobalAudioPlayer';
 import BottomNav from '@/components/BottomNav';
+import AudioPlayer from '@/components/AudioPlayer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,17 +37,10 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-            {/* Contenu principal avec padding pour la barre de navigation */}
-            <main className="pb-24 relative z-10">
-              {children}
-            </main>
-            
-            {/* Navigation persistante */}
+          <div className="flex flex-col min-h-screen">
+            {children}
             <BottomNav />
-            
-            {/* Lecteur audio global */}
-            <GlobalAudioPlayer />
+            <AudioPlayer />
           </div>
         </Providers>
       </body>

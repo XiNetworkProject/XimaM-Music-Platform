@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Repeat, Shuffle, Heart, X, Minimize2, Maximize2 } from 'lucide-react';
+import { useAudioPlayer } from '@/app/providers';
+import { motion } from 'framer-motion';
 
 interface Track {
   _id: string;
@@ -34,17 +36,9 @@ interface AudioPlayerProps {
   onMinimize?: (minimized: boolean) => void;
 }
 
-export default function AudioPlayer({ 
-  tracks, 
-  currentTrackIndex = 0, 
-  isPlaying = false,
-  isMinimized = false,
-  onTrackChange, 
-  onPlayPause,
-  onLike,
-  onClose,
-  onMinimize
-}: AudioPlayerProps) {
+export default function AudioPlayer() {
+  const { audioState, setIsPlaying, setCurrentTrackIndex } = useAudioPlayer();
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
@@ -53,10 +47,9 @@ export default function AudioPlayer({
   const [repeatMode, setRepeatMode] = useState<'none' | 'one' | 'all'>('none');
   const [showVolume, setShowVolume] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement>(null);
   const { isNative, showNotification } = useNativeFeatures();
 
-  const currentTrack = tracks[currentTrackIndex];
+  const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
   useEffect(() => {
     if (audioRef.current) {
@@ -65,12 +58,25 @@ export default function AudioPlayer({
   }, [volume, isMuted]);
 
   useEffect(() => {
-    if (isPlaying && currentTrack) {
+    if (audioState.isPlaying && currentTrack) {
       playTrack();
-    } else if (!isPlaying) {
+    } else if (!audioState.isPlaying) {
       pauseTrack();
     }
-  }, [isPlaying, currentTrackIndex]);
+  }, [audioState.isPlaying, audioState.currentTrackIndex]);
+
+  useEffect(() => {
+    if (audioRef.current && currentTrack) {
+      audioRef.current.src = currentTrack.audioUrl;
+      audioRef.current.load();
+      if (audioState.isPlaying) {
+        audioRef.current.play().catch(error => {
+          console.error('Erreur lecture nouvelle piste:', error);
+          setIsPlaying(false);
+        });
+      }
+    }
+  }, [currentTrack, audioState.isPlaying, setIsPlaying]);
 
   const playTrack = async () => {
     if (!currentTrack) return;
@@ -78,7 +84,7 @@ export default function AudioPlayer({
     try {
       if (audioRef.current) {
         await audioRef.current.play();
-        onPlayPause?.(true);
+        setIsPlaying(true);
         
         if (isNative) {
           await showNotification(
@@ -95,12 +101,12 @@ export default function AudioPlayer({
   const pauseTrack = () => {
     if (audioRef.current) {
       audioRef.current.pause();
-      onPlayPause?.(false);
+      setIsPlaying(false);
     }
   };
 
   const togglePlay = () => {
-    if (isPlaying) {
+    if (audioState.isPlaying) {
       pauseTrack();
     } else {
       playTrack();
@@ -108,10 +114,10 @@ export default function AudioPlayer({
   };
 
   const nextTrack = () => {
-    if (tracks.length === 0) return;
+    if (audioState.tracks.length === 0) return;
     
-    let nextIndex = currentTrackIndex + 1;
-    if (nextIndex >= tracks.length) {
+    let nextIndex = audioState.currentTrackIndex + 1;
+    if (nextIndex >= audioState.tracks.length) {
       if (repeatMode === 'all') {
         nextIndex = 0;
       } else {
@@ -119,22 +125,22 @@ export default function AudioPlayer({
       }
     }
     
-    onTrackChange?.(nextIndex);
+    setCurrentTrackIndex(nextIndex);
   };
 
   const previousTrack = () => {
-    if (tracks.length === 0) return;
+    if (audioState.tracks.length === 0) return;
     
-    let prevIndex = currentTrackIndex - 1;
+    let prevIndex = audioState.currentTrackIndex - 1;
     if (prevIndex < 0) {
       if (repeatMode === 'all') {
-        prevIndex = tracks.length - 1;
+        prevIndex = audioState.tracks.length - 1;
       } else {
         return; // Début de la playlist
       }
     }
     
-    onTrackChange?.(prevIndex);
+    setCurrentTrackIndex(prevIndex);
   };
 
   const handleTimeUpdate = () => {
@@ -197,214 +203,135 @@ export default function AudioPlayer({
   };
 
   const handleLike = () => {
-    if (onLike && currentTrack) {
-      onLike(currentTrack._id);
-    }
+    // TODO: Implémenter la fonctionnalité de like
+    console.log('Like track:', currentTrack._id);
   };
 
   const handleClose = () => {
     // Ne pas arrêter la musique automatiquement
     // pauseTrack();
-    onClose?.();
+    // TODO: Implémenter la fermeture du lecteur
+    console.log('Close player');
   };
 
   const handleMinimize = (minimized: boolean) => {
-    onMinimize?.(minimized);
+    // TODO: Implémenter la minimisation
+    console.log('Minimize player:', minimized);
   };
 
-  if (!currentTrack) {
+  if (!audioState.showPlayer || !currentTrack) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-20 left-4 right-4 z-50">
-      {/* Audio element - toujours présent */}
+    <>
+      {/* Élément audio caché */}
       <audio
         ref={audioRef}
-        src={currentTrack.audioUrl}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
+        onError={(e) => {
+          console.error('Erreur audio:', e);
+          setIsPlaying(false);
+        }}
       />
 
-      {/* Version minimisée */}
-      {isMinimized ? (
-        <div className="bg-black/90 backdrop-blur-md rounded-xl p-3 shadow-2xl border border-white/10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <img
-                src={currentTrack.coverUrl || '/default-cover.jpg'}
-                alt={currentTrack.title}
-                className="w-10 h-10 rounded-lg object-cover"
-              />
-              <div className="min-w-0">
-                <h4 className="font-medium text-sm truncate">{currentTrack.title}</h4>
-                <p className="text-xs text-gray-400 truncate">
-                  {currentTrack.artist?.name || currentTrack.artist?.username}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={togglePlay}
-                className="p-2 rounded-full bg-white text-black hover:bg-gray-200"
-              >
-                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-              </button>
-              
-              <button
-                onClick={() => handleMinimize(false)}
-                className="p-2 rounded-full text-gray-400 hover:text-white"
-              >
-                <Maximize2 size={16} />
-              </button>
-              
-              <button
-                onClick={handleClose}
-                className="p-2 rounded-full text-gray-400 hover:text-red-400"
-              >
-                <X size={16} />
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        /* Version complète */
-        <div className="bg-black/90 backdrop-blur-md rounded-xl p-4 shadow-2xl border border-white/10">
-          {/* Header avec contrôles de fenêtre */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
-              <img
-                src={currentTrack.coverUrl || '/default-cover.jpg'}
-                alt={currentTrack.title}
-                className="w-12 h-12 rounded-lg object-cover"
-              />
-              <div className="min-w-0">
-                <h4 className="font-medium truncate">{currentTrack.title}</h4>
-                <p className="text-sm text-gray-400 truncate">
-                  {currentTrack.artist?.name || currentTrack.artist?.username}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handleMinimize(true)}
-                className="p-2 rounded-full text-gray-400 hover:text-white"
-              >
-                <Minimize2 size={16} />
-              </button>
-              
-              <button
-                onClick={handleClose}
-                className="p-2 rounded-full text-gray-400 hover:text-red-400"
-              >
-                <X size={16} />
-              </button>
+      {/* Interface du lecteur */}
+      <motion.div
+        initial={{ y: 100 }}
+        animate={{ y: 0 }}
+        exit={{ y: 100 }}
+        className={`fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 z-40 ${
+          audioState.isMinimized ? 'h-16' : 'h-24'
+        }`}
+      >
+        <div className="flex items-center justify-between px-4 py-2 h-full">
+          {/* Informations de la piste */}
+          <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <img
+              src={currentTrack.coverUrl || '/default-cover.jpg'}
+              alt={currentTrack.title}
+              className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+            />
+            <div className="min-w-0 flex-1">
+              <h3 className="text-white font-medium truncate text-sm">
+                {currentTrack.title}
+              </h3>
+              <p className="text-gray-400 text-xs truncate">
+                {currentTrack.artist.name}
+              </p>
             </div>
           </div>
 
-          {/* Progress bar */}
-          <div className="mb-4">
-            <div className="flex items-center space-x-2 text-xs text-gray-400">
-              <span>{formatDuration(currentTime)}</span>
-              <div className="flex-1 bg-gray-700 rounded-full h-1 relative">
-                <div
-                  className="bg-primary-500 h-1 rounded-full transition-all"
-                  style={{ width: `${(currentTime / duration) * 100}%` }}
-                />
-                <input
-                  type="range"
-                  min="0"
-                  max={duration || 0}
-                  value={currentTime}
-                  onChange={handleSeek}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                />
-              </div>
-              <span>{formatDuration(duration)}</span>
-            </div>
-          </div>
-
-          {/* Main controls */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={toggleShuffle}
-                className={`p-2 rounded-full ${isShuffled ? 'text-primary-500' : 'text-gray-400'} hover:text-white`}
-              >
-                <Shuffle size={18} />
-              </button>
-              
-              <button
-                onClick={previousTrack}
-                className="p-2 rounded-full text-white hover:bg-white/10"
-              >
-                <SkipBack size={20} />
-              </button>
-            </div>
+          {/* Contrôles principaux */}
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={previousTrack}
+              className="text-gray-400 hover:text-white transition-colors"
+              disabled={audioState.tracks.length <= 1}
+            >
+              <SkipBack size={20} />
+            </button>
 
             <button
               onClick={togglePlay}
-              className="p-3 rounded-full bg-white text-black hover:bg-gray-200"
+              className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white hover:bg-purple-700 transition-colors"
             >
-              {isPlaying ? <Pause size={24} /> : <Play size={24} />}
+              {audioState.isPlaying ? <Pause size={20} /> : <Play size={20} />}
             </button>
 
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={nextTrack}
-                className="p-2 rounded-full text-white hover:bg-white/10"
-              >
-                <SkipForward size={20} />
-              </button>
-              
-              <button
-                onClick={toggleRepeat}
-                className={`p-2 rounded-full ${repeatMode !== 'none' ? 'text-primary-500' : 'text-gray-400'} hover:text-white`}
-              >
-                <Repeat size={18} />
-              </button>
-            </div>
+            <button
+              onClick={nextTrack}
+              className="text-gray-400 hover:text-white transition-colors"
+              disabled={audioState.tracks.length <= 1}
+            >
+              <SkipForward size={20} />
+            </button>
           </div>
 
-          {/* Volume and like */}
-          <div className="flex items-center justify-between mt-4">
+          {/* Contrôles de volume */}
+          <div className="flex items-center space-x-2">
             <button
-              onClick={handleLike}
-              className={`p-2 rounded-full ${
-                currentTrack.isLiked ? 'text-red-500' : 'text-gray-400'
-              } hover:text-red-500`}
+              onClick={toggleMute}
+              className="text-gray-400 hover:text-white transition-colors"
             >
-              <Heart size={18} fill={currentTrack.isLiked ? 'currentColor' : 'none'} />
+              {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
             </button>
-            
-            <div className="relative">
-              <button
-                onClick={() => setShowVolume(!showVolume)}
-                className="p-2 rounded-full text-gray-400 hover:text-white"
-              >
-                {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              
-              {showVolume && (
-                <div className="absolute bottom-full right-0 mb-2 bg-gray-800 p-3 rounded-lg">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={volume}
-                    onChange={handleVolumeChange}
-                    className="w-20"
-                  />
-                </div>
-              )}
-            </div>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.1"
+              value={isMuted ? 0 : volume}
+              onChange={handleVolumeChange}
+              className="w-16 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+            />
           </div>
         </div>
-      )}
-    </div>
+
+        {/* Barre de progression */}
+        {!audioState.isMinimized && (
+          <div className="px-4 pb-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-gray-400 w-8">
+                {formatDuration(currentTime)}
+              </span>
+              <input
+                type="range"
+                min="0"
+                max={duration || 0}
+                value={currentTime}
+                onChange={handleSeek}
+                className="flex-1 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+              <span className="text-xs text-gray-400 w-8">
+                {formatDuration(duration)}
+              </span>
+            </div>
+          </div>
+        )}
+      </motion.div>
+    </>
   );
 } 
