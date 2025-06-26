@@ -1,12 +1,13 @@
 'use client';
 
 import { signIn, useSession } from 'next-auth/react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { Eye, EyeOff, Mail, Lock, Music } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
-export default function SignInPage() {
+function SignInContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -217,5 +218,13 @@ export default function SignInPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-white">Chargement...</div>}>
+      <SignInContent />
+    </Suspense>
   );
 } 
