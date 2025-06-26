@@ -325,7 +325,7 @@ export default function AudioPlayer() {
             <div className="absolute left-0 right-0 top-0 h-1">
               <div className="relative w-full h-full">
                 <div
-                  className="absolute top-0 left-0 h-full rounded-full"
+                  className="absolute top-0 left-0 h-full rounded-full animate-pulse"
                   style={{
                     width: `${(currentTime / (duration || 1)) * 100}%`,
                     background: 'linear-gradient(90deg, #ff00cc, #3333ff, #00ff99, #ffea00, #ff00cc)',
