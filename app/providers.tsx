@@ -39,6 +39,8 @@ interface AudioPlayerState {
   isPlaying: boolean;
   showPlayer: boolean;
   isMinimized: boolean;
+  shuffle: boolean;
+  repeat: 'none' | 'one' | 'all';
 }
 
 interface AudioPlayerContextType {
@@ -48,6 +50,8 @@ interface AudioPlayerContextType {
   setIsPlaying: (playing: boolean) => void;
   setShowPlayer: (show: boolean) => void;
   setIsMinimized: (minimized: boolean) => void;
+  setShuffle: (shuffle: boolean) => void;
+  setRepeat: (repeat: 'none' | 'one' | 'all') => void;
   playTrack: (trackIdOrTrack: string | Track) => void;
   handleLike: (trackId: string) => void;
   closePlayer: () => void;
@@ -63,6 +67,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     isPlaying: false,
     showPlayer: false,
     isMinimized: false,
+    shuffle: false,
+    repeat: 'none',
   });
 
   const setTracks = (tracks: Track[]) => {
@@ -83,6 +89,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const setIsMinimized = (minimized: boolean) => {
     setAudioState(prev => ({ ...prev, isMinimized: minimized }));
+  };
+
+  const setShuffle = (shuffle: boolean) => {
+    setAudioState(prev => ({ ...prev, shuffle }));
+  };
+
+  const setRepeat = (repeat: 'none' | 'one' | 'all') => {
+    setAudioState(prev => ({ ...prev, repeat }));
   };
 
   const playTrack = (trackIdOrTrack: string | Track) => {
@@ -200,6 +214,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setIsPlaying,
     setShowPlayer,
     setIsMinimized,
+    setShuffle,
+    setRepeat,
     playTrack,
     handleLike,
     closePlayer,

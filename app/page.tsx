@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
-import TrackModal from '@/components/TrackModal';
 import { 
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
@@ -51,8 +50,6 @@ export default function HomePage() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const carouselRef = useRef<HTMLDivElement>(null);
-  const [selectedTrack, setSelectedTrack] = useState<Track | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // États pour les différentes catégories
   const [categories, setCategories] = useState<Record<string, CategoryData>>({
@@ -240,43 +237,6 @@ export default function HomePage() {
     }
   };
 
-  // Fonction pour ouvrir le modal d'une piste
-  const openTrackModal = async (track: Track) => {
-    try {
-      // Valider l'ID de la piste
-      if (!track._id || track._id.length !== 24) {
-        console.error('ID de piste invalide:', track._id);
-        setSelectedTrack(track);
-        setIsModalOpen(true);
-        return;
-      }
-
-      // Récupérer les détails complets de la piste
-      const response = await fetch(`/api/tracks/${track._id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setSelectedTrack(data.track);
-        setIsModalOpen(true);
-      } else {
-        console.error('Erreur récupération détails piste:', response.status);
-        // Fallback : utiliser la piste de base
-        setSelectedTrack(track);
-        setIsModalOpen(true);
-      }
-    } catch (error) {
-      console.error('Erreur ouverture modal:', error);
-      // Fallback : utiliser la piste de base
-      setSelectedTrack(track);
-      setIsModalOpen(true);
-    }
-  };
-
-  // Fonction pour fermer le modal
-  const closeTrackModal = () => {
-    setIsModalOpen(false);
-    setSelectedTrack(null);
-  };
-
   // Fonction pour jouer une piste
   const handlePlayTrack = (track: Track) => {
     console.log('Tentative de lecture de la piste:', track.title, 'URL:', track.audioUrl);
@@ -428,7 +388,6 @@ export default function HomePage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.7, duration: 0.8 }}
                           className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight cursor-pointer hover:text-purple-300 transition-colors"
-                          onClick={() => openTrackModal(featuredTracks[currentSlide])}
                         >
                           {featuredTracks[currentSlide].title}
                         </motion.h1>
@@ -439,7 +398,6 @@ export default function HomePage() {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.9, duration: 0.6 }}
                           className="text-xl md:text-2xl text-gray-300 mb-6 cursor-pointer hover:text-purple-300 transition-colors"
-                          onClick={() => openTrackModal(featuredTracks[currentSlide])}
                         >
                           {featuredTracks[currentSlide].artist?.name || featuredTracks[currentSlide].artist?.username || 'Artiste inconnu'}
                         </motion.p>
@@ -676,13 +634,11 @@ export default function HomePage() {
                         <div className="p-4">
                           <h3 
                             className="font-semibold text-white truncate mb-1 group-hover:text-purple-300 transition-colors cursor-pointer"
-                            onClick={() => openTrackModal(track)}
                           >
                             {track.title}
                           </h3>
                           <p 
                             className="text-gray-300 text-sm truncate mb-3 cursor-pointer hover:text-purple-300 transition-colors"
-                            onClick={() => openTrackModal(track)}
                           >
                             {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                           </p>
@@ -737,13 +693,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      {/* Modal de détails de piste */}
-      <TrackModal
-        track={selectedTrack}
-        isOpen={isModalOpen}
-        onClose={closeTrackModal}
-      />
     </div>
   );
 } 

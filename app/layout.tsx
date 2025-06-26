@@ -2,9 +2,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
-import GlobalAudioPlayer from '@/components/GlobalAudioPlayer';
 import BottomNav from '@/components/BottomNav';
-import AudioPlayer from '@/components/AudioPlayer';
+import FullScreenPlayer from '@/components/FullScreenPlayer';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -42,7 +41,7 @@ export default function RootLayout({
               {children}
             </main>
             <BottomNav />
-            <AudioPlayer />
+            <FullScreenPlayer />
           </div>
         </Providers>
       </body>
