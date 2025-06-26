@@ -311,14 +311,38 @@ export default function AudioPlayer() {
       {/* Interface du lecteur */}
       <AnimatePresence>
         <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
+          initial={{ y: 100, opacity: 0, scale: 1 }}
+          animate={{ y: 0, opacity: 1, scale: audioState.isMinimized ? 0.98 : 1 }}
+          exit={{ y: 100, opacity: 0, scale: 1 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           className={`fixed left-0 right-0 bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 border-t border-gray-700 z-50 shadow-2xl ${
             audioState.isMinimized ? 'h-16' : 'h-20'
           }`}
-          style={{ bottom: '80px' }} // Au-dessus de la barre de navigation
+          style={{ bottom: '80px', overflow: 'visible' }}
         >
+          {/* Barre de progression multicolore en mode minimisé */}
+          {audioState.isMinimized && (
+            <div className="absolute left-0 right-0 top-0 h-1">
+              <div className="relative w-full h-full">
+                <div
+                  className="absolute top-0 left-0 h-full rounded-full"
+                  style={{
+                    width: `${(currentTime / (duration || 1)) * 100}%`,
+                    background: 'linear-gradient(90deg, #ff00cc, #3333ff, #00ff99, #ffea00, #ff00cc)',
+                    backgroundSize: '200% 200%',
+                    animation: 'rainbow-bar 2s linear infinite',
+                    transition: 'width 0.2s cubic-bezier(.4,2,.6,1)',
+                  }}
+                />
+                <style jsx>{`
+                  @keyframes rainbow-bar {
+                    0% { background-position: 0% 50%; }
+                    100% { background-position: 100% 50%; }
+                  }
+                `}</style>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between px-4 py-2 h-full">
             {/* Informations de la piste */}
             <div className="flex items-center space-x-3 flex-1 min-w-0">

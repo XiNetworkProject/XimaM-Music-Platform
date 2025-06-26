@@ -54,7 +54,7 @@ interface TrackModalProps {
 export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) {
   const { data: session } = useSession();
   const { user } = useAuth();
-  const { audioState, playTrack, handleLike } = useAudioPlayer();
+  const { audioState, playTrack, handleLike, setShowPlayer, setIsPlaying } = useAudioPlayer();
   
   const [activeTab, setActiveTab] = useState<'info' | 'lyrics' | 'comments'>('info');
   const [comments, setComments] = useState<Comment[]>([]);
@@ -66,6 +66,18 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const isCurrentTrack = currentTrack?._id === track?._id;
   const isPlaying = isCurrentTrack && audioState.isPlaying;
+
+  // Cacher le player quand le modal s'ouvre
+  useEffect(() => {
+    if (isOpen) {
+      setShowPlayer(false);
+    } else {
+      // Remontrer le player quand le modal se ferme
+      if (audioState.isPlaying) {
+        setShowPlayer(true);
+      }
+    }
+  }, [isOpen, setShowPlayer, audioState.isPlaying]);
 
   // Charger les commentaires quand le modal s'ouvre
   useEffect(() => {
@@ -89,30 +101,6 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
     } catch (error) {
       console.error('Erreur chargement commentaires:', error);
       setComments([]);
-    }
-  };
-
-  const handleLikeTrack = async () => {
-    if (!session || !track) return;
-
-    try {
-      const response = await fetch(`/api/tracks/${track._id}/like`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Mettre à jour l'état local
-        if (track) {
-          track.isLiked = data.isLiked;
-          track.likes = data.isLiked 
-            ? [...track.likes, user?.id || '']
-            : track.likes.filter(id => id !== user?.id);
-        }
-      }
-    } catch (error) {
-      console.error('Erreur like/unlike:', error);
     }
   };
 
@@ -182,6 +170,26 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
     });
   };
 
+  const handlePlayPause = () => {
+    if (!track) return;
+    
+    if (isCurrentTrack) {
+      // Si c'est la piste actuelle, toggle play/pause
+      setIsPlaying(!isPlaying);
+    } else {
+      // Si c'est une nouvelle piste, la jouer
+      playTrack(track._id);
+    }
+  };
+
+  const handleClose = () => {
+    // Remontrer le player si la musique joue
+    if (audioState.isPlaying) {
+      setShowPlayer(true);
+    }
+    onClose();
+  };
+
   if (!track) return null;
 
   return (
@@ -192,7 +200,7 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm"
-          onClick={onClose}
+          onClick={handleClose}
         >
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -253,7 +261,7 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
 
                   {/* Bouton fermer */}
                   <button
-                    onClick={onClose}
+                    onClick={handleClose}
                     className="absolute top-2 right-2 w-8 h-8 sm:w-10 sm:h-10 bg-black/50 rounded-full flex items-center justify-center hover:bg-black/70 transition-colors"
                   >
                     <X size={16} className="sm:w-5 sm:h-5" />
@@ -270,7 +278,7 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => playTrack(track._id)}
+                    onClick={handlePlayPause}
                     className="flex items-center space-x-2 sm:space-x-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300 text-sm sm:text-base"
                   >
                     {isPlaying ? <Pause size={16} className="sm:w-5 sm:h-5" /> : <Play size={16} className="sm:w-5 sm:h-5" />}
@@ -280,7 +288,7 @@ export default function TrackModal({ track, isOpen, onClose }: TrackModalProps) 
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={handleLikeTrack}
+                    onClick={() => handleLike(track._id)}
                     className={`flex items-center space-x-2 px-3 sm:px-4 py-2 sm:py-3 rounded-full font-semibold transition-all duration-300 text-sm sm:text-base ${
                       track.isLiked
                         ? 'text-red-500 bg-red-500/20 border border-red-500/30'

@@ -103,21 +103,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   };
 
   const handleLike = async (trackId: string) => {
-    // Mettre à jour l'état local
-    setAudioState(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => 
-        track._id === trackId 
-          ? { 
-              ...track, 
-              isLiked: !track.isLiked, 
-              likes: track.isLiked 
-                ? track.likes.filter(id => id !== session?.user?.id) 
-                : [...track.likes, session?.user?.id || '']
-            }
-          : track
-      )
-    }));
+    setAudioState(prev => {
+      // On ne touche que le champ isLiked/likes de la piste courante
+      const newTracks = prev.tracks.map((track, idx) => {
+        if (track._id !== trackId) return track;
+        // On ne recrée pas tout l'objet, on clone juste les champs nécessaires
+        const isLiked = !track.isLiked;
+        const likes = isLiked
+          ? [...track.likes, session?.user?.id || '']
+          : track.likes.filter(id => id !== session?.user?.id);
+        return { ...track, isLiked, likes };
+      });
+      return { ...prev, tracks: newTracks };
+    });
 
     // Appel API pour liker/unliker
     try {
@@ -127,7 +125,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           'Content-Type': 'application/json',
         },
       });
-      
       if (!response.ok) {
         throw new Error('Erreur lors du like');
       }
