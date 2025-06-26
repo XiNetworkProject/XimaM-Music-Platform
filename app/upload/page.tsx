@@ -89,6 +89,12 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
     signature,
   });
 
+  // Log des paramètres FormData pour debug
+  console.log('FormData entries:');
+  Array.from(formData.entries()).forEach(([key, value]) => {
+    console.log(`${key}: ${value}`);
+  });
+
   const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
     method: 'POST',
     body: formData,

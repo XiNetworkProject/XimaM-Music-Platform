@@ -13,18 +13,23 @@ export async function POST(request: NextRequest) {
 
     const { timestamp, publicId, resourceType = 'video' } = await request.json();
 
-    // Préparer les paramètres pour la signature
+    // Préparer les paramètres pour la signature (exclure resource_type car Cloudinary ne l'utilise pas)
     const params = {
       folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
       public_id: publicId,
-      resource_type: resourceType,
       timestamp: timestamp,
     };
 
+    console.log('=== DEBUG SIGNATURE ===');
+    console.log('Input params:', { timestamp, publicId, resourceType });
     console.log('Params for signature:', params);
+    console.log('API Secret length:', process.env.CLOUDINARY_API_SECRET?.length);
 
     // Générer la signature pour l'upload direct
     const signature = generateUploadSignature(params);
+
+    console.log('Generated signature:', signature);
+    console.log('=== END DEBUG ===');
 
     return NextResponse.json({
       signature,

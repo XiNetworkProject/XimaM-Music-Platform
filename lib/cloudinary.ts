@@ -85,6 +85,9 @@ export const deleteFile = async (publicId: string, resourceType: 'image' | 'vide
 
 // Générer une signature pour l'upload direct (méthode manuelle pour contrôle total)
 export const generateUploadSignature = (params: any) => {
+  console.log('=== GENERATE SIGNATURE ===');
+  console.log('Input params:', params);
+  
   // Trier les paramètres par ordre alphabétique
   const sortedParams = Object.keys(params)
     .sort()
@@ -93,12 +96,15 @@ export const generateUploadSignature = (params: any) => {
       return result;
     }, {});
 
+  console.log('Sorted params:', sortedParams);
+
   // Créer la chaîne à signer au format key=value&key=value
   const signString = Object.entries(sortedParams)
     .map(([key, value]) => `${key}=${value}`)
     .join('&');
 
   console.log('String to sign:', signString);
+  console.log('API Secret:', process.env.CLOUDINARY_API_SECRET?.substring(0, 10) + '...');
 
   // Générer la signature SHA1
   const signature = crypto
@@ -107,6 +113,7 @@ export const generateUploadSignature = (params: any) => {
     .digest('hex');
 
   console.log('Generated signature:', signature);
+  console.log('=== END GENERATE SIGNATURE ===');
   
   return signature;
 };
