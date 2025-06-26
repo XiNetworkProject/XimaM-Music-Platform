@@ -17,52 +17,39 @@ export async function POST(
     }
 
     await dbConnect();
+    const trackId = params.id;
 
-    const track = await Track.findById(params.id);
+    // Vérifier si la piste existe
+    const track = await Track.findById(trackId);
     if (!track) {
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
-    const user = await User.findById(session.user.id);
-    if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
+    // Vérifier si l'utilisateur a déjà liké
     const isLiked = track.likes.includes(session.user.id);
 
     if (isLiked) {
-      // Unliker
-      await Track.findByIdAndUpdate(params.id, {
-        $pull: { likes: session.user.id },
-        $inc: { likesCount: -1 }
-      });
-      
-      await User.findByIdAndUpdate(session.user.id, {
-        $pull: { likedTracks: params.id }
-      });
-
-      return NextResponse.json({ 
-        success: true, 
-        liked: false,
-        likesCount: track.likesCount - 1
+      // Retirer le like
+      await Track.findByIdAndUpdate(trackId, {
+        $pull: { likes: session.user.id }
       });
     } else {
-      // Liker
-      await Track.findByIdAndUpdate(params.id, {
-        $addToSet: { likes: session.user.id },
-        $inc: { likesCount: 1 }
-      });
-      
-      await User.findByIdAndUpdate(session.user.id, {
-        $addToSet: { likedTracks: params.id }
-      });
-
-      return NextResponse.json({ 
-        success: true, 
-        liked: true,
-        likesCount: track.likesCount + 1
+      // Ajouter le like
+      await Track.findByIdAndUpdate(trackId, {
+        $addToSet: { likes: session.user.id }
       });
     }
+
+    // Récupérer la piste mise à jour
+    const updatedTrack = await Track.findById(trackId)
+      .populate('artist', 'name username avatar');
+
+    return NextResponse.json({
+      success: true,
+      isLiked: !isLiked,
+      likesCount: updatedTrack.likes.length,
+      track: updatedTrack
+    });
 
   } catch (error) {
     console.error('Erreur like/unlike:', error);

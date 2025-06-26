@@ -102,9 +102,14 @@ export default function HomePage() {
           const response = await fetch(url);
           if (response.ok) {
             const data = await response.json();
+            // Marquer les pistes likées par l'utilisateur
+            const tracksWithLikes = data.tracks.map((track: Track) => ({
+              ...track,
+              isLiked: track.likes.includes(user?.id || '')
+            }));
             setCategories(prev => ({
               ...prev,
-              [key]: { tracks: data.tracks || [], loading: false, error: null }
+              [key]: { tracks: tracksWithLikes, loading: false, error: null }
             }));
           } else {
             setCategories(prev => ({
@@ -126,7 +131,7 @@ export default function HomePage() {
     };
 
     fetchAllCategories();
-  }, []);
+  }, [user?.id]);
 
   // Auto-play du carrousel
   useEffect(() => {
@@ -189,6 +194,44 @@ export default function HomePage() {
     if (diffDays === 2) return 'Hier';
     if (diffDays <= 7) return `Il y a ${diffDays - 1} jours`;
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  };
+
+  // Fonction pour gérer les likes
+  const handleLikeTrack = async (trackId: string, categoryKey: string, trackIndex: number) => {
+    if (!session) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/tracks/${trackId}/like`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Mettre à jour l'état local
+        setCategories(prev => {
+          const newCategories = { ...prev };
+          if (newCategories[categoryKey]) {
+            newCategories[categoryKey] = {
+              ...newCategories[categoryKey],
+              tracks: newCategories[categoryKey].tracks.map(track => 
+                track._id === trackId 
+                  ? { ...track, isLiked: data.isLiked }
+                  : track
+              )
+            };
+          }
+          return newCategories;
+        });
+      }
+    } catch (error) {
+      console.error('Erreur like/unlike:', error);
+    }
   };
 
   if (loading) {
@@ -389,7 +432,7 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => handleLike(featuredTracks[currentSlide]._id)}
+                            onClick={() => handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', currentSlide)}
                             className={`flex items-center space-x-3 px-6 py-4 rounded-full font-semibold transition-all duration-300 backdrop-blur-sm ${
                               featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')
                                 ? 'text-red-500 bg-red-500/20 border border-red-500/30'
@@ -581,7 +624,7 @@ export default function HomePage() {
                               <motion.button
                                 whileHover={{ scale: 1.2 }}
                                 whileTap={{ scale: 0.8 }}
-                                onClick={() => handleLike(track._id)}
+                                onClick={() => handleLikeTrack(track._id, config.key, index)}
                                 className={`transition-colors ${
                                   track.isLiked || track.likes.includes(user?.id || '')
                                     ? 'text-red-500'

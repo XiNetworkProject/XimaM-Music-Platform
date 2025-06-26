@@ -55,6 +55,8 @@ export async function GET(request: NextRequest) {
           comments: 1,
           plays: 1,
           createdAt: 1,
+          genre: 1,
+          description: 1,
           artist: {
             _id: '$artistInfo._id',
             name: '$artistInfo.name',

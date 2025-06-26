@@ -12,24 +12,46 @@ export async function GET(
 ) {
   try {
     await dbConnect();
+    const session = await getServerSession(authOptions);
+    const trackId = params.id;
 
-    const track = await Track.findById(params.id)
+    // Récupérer la piste avec les informations de l'artiste
+    const track = await Track.findById(trackId)
       .populate('artist', 'name username avatar bio')
-      .populate('comments.user', 'name username avatar');
+      .populate({
+        path: 'comments',
+        populate: {
+          path: 'user',
+          select: 'name username avatar'
+        }
+      });
 
     if (!track) {
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
-    // Incrémenter le nombre de lectures
-    await Track.findByIdAndUpdate(params.id, { $inc: { plays: 1 } });
+    // Vérifier si l'utilisateur connecté a liké cette piste
+    let isLiked = false;
+    if (session?.user?.id) {
+      isLiked = track.likes.includes(session.user.id);
+    }
 
-    return NextResponse.json({ track });
+    // Incrémenter le nombre d'écoutes
+    await Track.findByIdAndUpdate(trackId, {
+      $inc: { plays: 1 }
+    });
+
+    return NextResponse.json({
+      track: {
+        ...track.toObject(),
+        isLiked
+      }
+    });
 
   } catch (error) {
     console.error('Erreur récupération piste:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération' },
+      { error: 'Erreur lors de la récupération de la piste' },
       { status: 500 }
     );
   }

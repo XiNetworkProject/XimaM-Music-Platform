@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
 import Comment from '@/models/Comment';
-import User from '@/models/User';
 
 // POST - Ajouter un commentaire
 export async function POST(
@@ -18,41 +17,31 @@ export async function POST(
     }
 
     await dbConnect();
+    const trackId = params.id;
+    const { content } = await request.json();
 
-    const track = await Track.findById(params.id);
+    if (!content || !content.trim()) {
+      return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
+    }
+
+    // Vérifier si la piste existe
+    const track = await Track.findById(trackId);
     if (!track) {
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
-    }
-
-    const body = await request.json();
-    const { content } = body;
-
-    if (!content || content.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Contenu du commentaire requis' },
-        { status: 400 }
-      );
-    }
-
-    if (content.length > 500) {
-      return NextResponse.json(
-        { error: 'Commentaire trop long (max 500 caractères)' },
-        { status: 400 }
-      );
     }
 
     // Créer le commentaire
     const comment = new Comment({
       content: content.trim(),
       user: session.user.id,
-      track: params.id,
+      track: trackId,
     });
 
     await comment.save();
 
-    // Incrémenter le nombre de commentaires sur la piste
-    await Track.findByIdAndUpdate(params.id, {
-      $inc: { commentsCount: 1 }
+    // Ajouter le commentaire à la piste
+    await Track.findByIdAndUpdate(trackId, {
+      $push: { comments: comment._id }
     });
 
     // Récupérer le commentaire avec les infos utilisateur
@@ -80,24 +69,27 @@ export async function GET(
 ) {
   try {
     await dbConnect();
-
-    const track = await Track.findById(params.id);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
-    }
+    const trackId = params.id;
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '20');
     const skip = (page - 1) * limit;
 
-    const comments = await Comment.find({ track: params.id })
+    // Vérifier si la piste existe
+    const track = await Track.findById(trackId);
+    if (!track) {
+      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
+    }
+
+    // Récupérer les commentaires
+    const comments = await Comment.find({ track: trackId })
+      .populate('user', 'name username avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .populate('user', 'name username avatar');
+      .limit(limit);
 
-    const total = await Comment.countDocuments({ track: params.id });
+    const total = await Comment.countDocuments({ track: trackId });
 
     return NextResponse.json({
       comments,
@@ -112,7 +104,7 @@ export async function GET(
   } catch (error) {
     console.error('Erreur récupération commentaires:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération' },
+      { error: 'Erreur lors de la récupération des commentaires' },
       { status: 500 }
     );
   }
