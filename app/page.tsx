@@ -33,7 +33,6 @@ export default function HomePage() {
   
   const [loading, setLoading] = useState(true);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   // Obtenir la piste actuelle
@@ -76,33 +75,16 @@ export default function HomePage() {
     }
   }, [isNative, checkForUpdates]);
 
-  // Carrousel automatique
-  useEffect(() => {
-    if (audioState.tracks.length === 0) return;
-
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => 
-        prev === Math.min(4, audioState.tracks.length - 1) ? 0 : prev + 1
-      );
-    }, 5000); // Change toutes les 5 secondes
-
-    return () => clearInterval(interval);
-  }, [audioState.tracks.length]);
-
-  const nextSlide = () => {
-    setCurrentSlide((prev) => 
-      prev === Math.min(4, audioState.tracks.length - 1) ? 0 : prev + 1
-    );
+  const scrollLeft = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+    }
   };
 
-  const prevSlide = () => {
-    setCurrentSlide((prev) => 
-      prev === 0 ? Math.min(4, audioState.tracks.length - 1) : prev - 1
-    );
-  };
-
-  const goToSlide = (index: number) => {
-    setCurrentSlide(index);
+  const scrollRight = () => {
+    if (carouselRef.current) {
+      carouselRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+    }
   };
 
   const formatDuration = (seconds: number) => {
@@ -120,13 +102,9 @@ export default function HomePage() {
     return num.toString();
   };
 
-  // Obtenir les 5 premières pistes pour le carrousel
-  const trendingTracks = audioState.tracks.slice(0, 5);
-  const remainingTracks = audioState.tracks.slice(5);
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p>Chargement des musiques...</p>
@@ -136,82 +114,88 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-black text-white">
-      {/* Bannière Carrousel des Tendances */}
-      {trendingTracks.length > 0 && (
-        <div className="relative w-full h-96 mb-8">
-          <div className="relative w-full h-full overflow-hidden">
+    <div className="min-h-screen bg-black text-white">
+      {/* Section Tendances */}
+      {audioState.tracks.length > 0 && (
+        <div className="pt-8 pb-16">
+          <div className="px-8 mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">Tendances</h2>
+            <p className="text-gray-400">Les musiques les plus populaires</p>
+          </div>
+          
+          <div className="relative group">
+            {/* Bouton gauche */}
+            <button
+              onClick={scrollLeft}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90"
+            >
+              <ChevronLeft size={24} />
+            </button>
+
             {/* Carrousel */}
             <div 
               ref={carouselRef}
-              className="flex w-full h-full transition-transform duration-700 ease-out"
-              style={{ transform: `translateX(-${currentSlide * 100}%)` }}
+              className="flex gap-4 px-8 overflow-x-auto scrollbar-hide scroll-smooth"
             >
-              {trendingTracks.map((track, index) => (
-                <div key={track._id} className="w-full h-full flex-shrink-0 relative group">
-                  {/* Image de fond avec overlay */}
-                  <div className="absolute inset-0">
-                    <img
-                      src={track.coverUrl || '/default-cover.jpg'}
-                      alt={track.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 to-blue-900/20"></div>
-                  </div>
-                  
-                  {/* Contenu du slide */}
-                  <div className="absolute inset-0 flex items-center justify-center p-8">
-                    <div className="text-center max-w-2xl">
-                      {/* Cover avec effet hover */}
-                      <div className="relative mx-auto mb-6 group">
-                        <div className="relative w-48 h-48 mx-auto">
-                          <img
-                            src={track.coverUrl || '/default-cover.jpg'}
-                            alt={track.title}
-                            className="w-full h-full rounded-2xl object-cover shadow-2xl transform group-hover:scale-105 transition-transform duration-300"
-                          />
-                          <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/40 transition-colors duration-300"></div>
-                          
-                          {/* Bouton play/pause */}
-                          <button
-                            onClick={() => playTrack(track._id)}
-                            className="absolute inset-0 bg-black/60 rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform scale-90 group-hover:scale-100"
-                          >
-                            {currentTrack?._id === track._id && audioState.isPlaying ? (
-                              <Pause size={48} fill="white" className="text-white" />
-                            ) : (
-                              <Play size={48} fill="white" className="text-white ml-2" />
-                            )}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Info */}
-                      <div className="space-y-3">
-                        <h2 className="text-4xl font-bold truncate text-shadow-lg">{track.title}</h2>
-                        <p className="text-xl text-gray-300 truncate">
-                          {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                        </p>
-                        <div className="flex items-center justify-center space-x-6 text-sm text-gray-300">
-                          <span>{formatDuration(track.duration)}</span>
-                          <span>{formatNumber(track.plays)} écoutes</span>
-                          <span>{formatNumber(track.likes.length)} likes</span>
-                        </div>
-                      </div>
-
-                      {/* Actions */}
-                      <div className="mt-6 flex items-center justify-center space-x-4">
+              {audioState.tracks.map((track) => (
+                <div
+                  key={track._id}
+                  className="flex-shrink-0 w-64 group/track"
+                >
+                  <div className="relative bg-gray-900 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300">
+                    {/* Cover */}
+                    <div className="relative aspect-square">
+                      <img
+                        src={track.coverUrl || '/default-cover.jpg'}
+                        alt={track.title}
+                        className="w-full h-full object-cover"
+                      />
+                      
+                      {/* Overlay avec bouton play */}
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/track:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                         <button
-                          onClick={() => handleLike(track._id)}
-                          className={`p-4 rounded-full transition-all duration-300 transform hover:scale-110 ${
-                            track.isLiked || track.likes.includes(user?.id || '')
-                              ? 'text-red-500 bg-red-500/20 hover:bg-red-500/30'
-                              : 'text-white bg-white/20 hover:bg-white/30'
-                          }`}
+                          onClick={() => playTrack(track._id)}
+                          className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
                         >
-                          <Heart size={24} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
+                          {currentTrack?._id === track._id && audioState.isPlaying ? (
+                            <Pause size={24} fill="white" />
+                          ) : (
+                            <Play size={24} fill="white" className="ml-1" />
+                          )}
                         </button>
+                      </div>
+
+                      {/* Badge durée */}
+                      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                        {formatDuration(track.duration)}
+                      </div>
+                    </div>
+
+                    {/* Info */}
+                    <div className="p-4">
+                      <h3 className="font-semibold text-white truncate mb-1">
+                        {track.title}
+                      </h3>
+                      <p className="text-gray-400 text-sm truncate mb-3">
+                        {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                      </p>
+                      
+                      {/* Stats */}
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{formatNumber(track.plays)} écoutes</span>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleLike(track._id)}
+                            className={`transition-colors ${
+                              track.isLiked || track.likes.includes(user?.id || '')
+                                ? 'text-red-500'
+                                : 'text-gray-500 hover:text-red-500'
+                            }`}
+                          >
+                            <Heart size={14} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
+                          </button>
+                          <span>{formatNumber(track.likes.length)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -219,109 +203,122 @@ export default function HomePage() {
               ))}
             </div>
 
-            {/* Contrôles de navigation */}
+            {/* Bouton droit */}
             <button
-              onClick={prevSlide}
-              className="absolute left-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition-all duration-300 transform hover:scale-110"
+              onClick={scrollRight}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90"
             >
-              <ChevronLeft size={28} />
+              <ChevronRight size={24} />
             </button>
-            <button
-              onClick={nextSlide}
-              className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-black/40 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-black/60 transition-all duration-300 transform hover:scale-110"
-            >
-              <ChevronRight size={28} />
-            </button>
-
-            {/* Indicateurs de points */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex space-x-3">
-              {trendingTracks.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToSlide(index)}
-                  className={`w-3 h-3 rounded-full transition-all duration-300 transform hover:scale-125 ${
-                    index === currentSlide ? 'bg-white scale-125' : 'bg-white/50 hover:bg-white/75'
-                  }`}
-                />
-              ))}
-            </div>
           </div>
         </div>
       )}
 
-      {/* Liste des autres pistes */}
-      <div className="px-6 pb-32">
-        <h2 className="text-xl font-semibold mb-6">
-          {remainingTracks.length > 0 ? 'Autres musiques' : 'Aucune autre musique'}
-        </h2>
-        
-        {audioState.tracks.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-400 mb-4">Aucune musique n'a été uploadée pour le moment</p>
+      {/* Section Découvertes */}
+      {audioState.tracks.length > 0 && (
+        <div className="pb-16">
+          <div className="px-8 mb-6">
+            <h2 className="text-2xl font-bold text-white mb-2">Découvertes</h2>
+            <p className="text-gray-400">Nouvelles musiques à explorer</p>
+          </div>
+          
+          <div className="relative group">
+            <button
+              onClick={scrollLeft}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90"
+            >
+              <ChevronLeft size={24} />
+            </button>
+
+            <div 
+              ref={carouselRef}
+              className="flex gap-4 px-8 overflow-x-auto scrollbar-hide scroll-smooth"
+            >
+              {audioState.tracks.slice().reverse().map((track) => (
+                <div
+                  key={track._id}
+                  className="flex-shrink-0 w-64 group/track"
+                >
+                  <div className="relative bg-gray-900 rounded-lg overflow-hidden hover:scale-105 transition-transform duration-300">
+                    <div className="relative aspect-square">
+                      <img
+                        src={track.coverUrl || '/default-cover.jpg'}
+                        alt={track.title}
+                        className="w-full h-full object-cover"
+                      />
+                      
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/track:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                        <button
+                          onClick={() => playTrack(track._id)}
+                          className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
+                        >
+                          {currentTrack?._id === track._id && audioState.isPlaying ? (
+                            <Pause size={24} fill="white" />
+                          ) : (
+                            <Play size={24} fill="white" className="ml-1" />
+                          )}
+                        </button>
+                      </div>
+
+                      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                        {formatDuration(track.duration)}
+                      </div>
+                    </div>
+
+                    <div className="p-4">
+                      <h3 className="font-semibold text-white truncate mb-1">
+                        {track.title}
+                      </h3>
+                      <p className="text-gray-400 text-sm truncate mb-3">
+                        {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                      </p>
+                      
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{formatNumber(track.plays)} écoutes</span>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleLike(track._id)}
+                            className={`transition-colors ${
+                              track.isLiked || track.likes.includes(user?.id || '')
+                                ? 'text-red-500'
+                                : 'text-gray-500 hover:text-red-500'
+                            }`}
+                          >
+                            <Heart size={14} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
+                          </button>
+                          <span>{formatNumber(track.likes.length)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={scrollRight}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-10 w-12 h-12 bg-black/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-black/90"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Message si aucune musique */}
+      {audioState.tracks.length === 0 && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <p className="text-gray-400 mb-4 text-lg">Aucune musique n'a été uploadée pour le moment</p>
             <a
               href="/upload"
-              className="bg-primary-500 text-white px-6 py-3 rounded-full font-medium hover:bg-primary-600 transition-colors"
+              className="bg-red-600 text-white px-8 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
             >
               Uploader la première musique
             </a>
           </div>
-        ) : (
-          <div className="space-y-6">
-            {remainingTracks.map((track) => (
-              <div
-                key={track._id}
-                className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 hover:bg-white/15 transition-all duration-300"
-              >
-                <div className="flex items-center space-x-4">
-                  {/* Cover */}
-                  <div className="relative">
-                    <img
-                      src={track.coverUrl || '/default-cover.jpg'}
-                      alt={track.title}
-                      className="w-16 h-16 rounded-xl object-cover"
-                    />
-                    <button
-                      onClick={() => playTrack(track._id)}
-                      className="absolute inset-0 bg-black/50 rounded-xl flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                    >
-                      <Play size={20} fill="white" />
-                    </button>
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold truncate">{track.title}</h3>
-                    <p className="text-gray-300 text-sm truncate">
-                      {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                    </p>
-                    <div className="flex items-center space-x-4 mt-1 text-xs text-gray-400">
-                      <span>{formatDuration(track.duration)}</span>
-                      <span>{formatNumber(track.plays)} écoutes</span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => handleLike(track._id)}
-                      className={`p-2 rounded-full transition-colors ${
-                        track.isLiked || track.likes.includes(user?.id || '')
-                          ? 'text-red-500 bg-red-500/20'
-                          : 'text-gray-400 hover:text-red-500 hover:bg-red-500/20'
-                      }`}
-                    >
-                      <Heart size={18} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
-                    </button>
-                    <span className="text-xs text-gray-400">
-                      {formatNumber(track.likes.length)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 } 
