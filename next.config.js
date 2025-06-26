@@ -2,6 +2,15 @@
 const nextConfig = {
   // output: 'export', // Désactivé car incompatible avec les API routes
   trailingSlash: true,
+  experimental: {
+    serverComponentsExternalPackages: ['mongoose'],
+  },
+  api: {
+    bodyParser: {
+      sizeLimit: '50mb',
+    },
+    responseLimit: false,
+  },
   images: {
     unoptimized: true,
     domains: [

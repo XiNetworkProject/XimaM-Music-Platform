@@ -13,6 +13,9 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   themeColor: '#000000',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -33,7 +36,7 @@ export default function RootLayout({
     <html lang="fr">
       <body className={inter.className}>
         <Providers>
-          <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
+          <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
             {children}
             
             {/* Navigation persistante */}
