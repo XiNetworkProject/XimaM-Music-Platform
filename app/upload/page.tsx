@@ -79,6 +79,15 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
     formData.append('crop', 'fill');
   }
 
+  console.log('Upload params:', {
+    public_id: publicId,
+    api_key: apiKey,
+    timestamp: timestamp.toString(),
+    signature,
+    resource_type: resourceType,
+    folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
+  });
+
   const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
     method: 'POST',
     body: formData,

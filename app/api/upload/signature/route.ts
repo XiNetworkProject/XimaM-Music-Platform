@@ -13,13 +13,16 @@ export async function POST(request: NextRequest) {
 
     const { timestamp, publicId, resourceType = 'video' } = await request.json();
 
-    // Générer la signature pour l'upload direct
-    const signature = generateUploadSignature({
+    // Préparer les paramètres pour la signature
+    const params = {
       timestamp,
       public_id: publicId,
       resource_type: resourceType,
       folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
-    });
+    };
+
+    // Générer la signature pour l'upload direct
+    const signature = generateUploadSignature(params);
 
     return NextResponse.json({
       signature,
