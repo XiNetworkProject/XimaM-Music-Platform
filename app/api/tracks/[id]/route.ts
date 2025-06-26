@@ -14,9 +14,6 @@ export async function GET(
     console.log('API Track - ID reçu:', params.id);
     console.log('API Track - URL:', request.url);
     
-    await dbConnect();
-    const session = await getServerSession(authOptions);
-    
     // Nettoyer l'ID (enlever les slashes et espaces)
     const trackId = params.id.replace(/[\/\s]/g, '');
     console.log('API Track - ID nettoyé:', trackId);
@@ -27,17 +24,18 @@ export async function GET(
       return NextResponse.json({ error: 'ID de piste invalide' }, { status: 400 });
     }
 
-    // Récupérer la piste avec les informations de l'artiste
-    const track = await Track.findById(trackId)
-      .populate('artist', 'name username avatar bio')
-      .populate({
-        path: 'comments',
-        populate: {
-          path: 'user',
-          select: 'name username avatar'
-        }
-      });
+    // Connexion à la base de données
+    console.log('API Track - Connexion à la base de données...');
+    await dbConnect();
+    console.log('API Track - Connexion réussie');
+    
+    const session = await getServerSession(authOptions);
+    console.log('API Track - Session:', session ? 'Connecté' : 'Non connecté');
 
+    // Test simple de récupération
+    console.log('API Track - Recherche de la piste...');
+    const track = await Track.findById(trackId);
+    
     if (!track) {
       console.error('API Track - Piste non trouvée:', trackId);
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
@@ -52,10 +50,12 @@ export async function GET(
     }
 
     // Incrémenter le nombre d'écoutes
+    console.log('API Track - Incrémentation des écoutes...');
     await Track.findByIdAndUpdate(trackId, {
       $inc: { plays: 1 }
     });
 
+    console.log('API Track - Réponse envoyée avec succès');
     return NextResponse.json({
       track: {
         ...track.toObject(),
@@ -64,9 +64,10 @@ export async function GET(
     });
 
   } catch (error) {
-    console.error('Erreur récupération piste:', error);
+    console.error('Erreur récupération piste - Détails:', error);
+    console.error('Erreur récupération piste - Stack:', error instanceof Error ? error.stack : 'Pas de stack');
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération de la piste' },
+      { error: 'Erreur lors de la récupération de la piste', details: error instanceof Error ? error.message : 'Erreur inconnue' },
       { status: 500 }
     );
   }
