@@ -16,6 +16,7 @@ import {
   Repeat
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useAudioPlayer } from '@/app/providers';
 
 interface Track {
   _id: string;
@@ -51,9 +52,9 @@ interface Playlist {
 
 export default function LibraryPage() {
   const { data: session } = useSession();
+  const { audioState, playTrack, setIsPlaying } = useAudioPlayer();
   const [activeTab, setActiveTab] = useState<'playlists' | 'recent' | 'favorites'>('playlists');
   const [selectedPlaylist, setSelectedPlaylist] = useState<string | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
   const [favoriteTracks, setFavoriteTracks] = useState<Track[]>([]);
@@ -203,10 +204,10 @@ export default function LibraryPage() {
                     {/* Contrôles de lecture */}
                     <div className="flex items-center space-x-4 mb-6">
                       <button
-                        onClick={() => setIsPlaying(!isPlaying)}
+                        onClick={() => setIsPlaying(!audioState.isPlaying)}
                         className="w-12 h-12 bg-primary-500 rounded-full flex items-center justify-center hover:bg-primary-600 transition-colors"
                       >
-                        {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+                        {audioState.isPlaying ? <Pause size={20} /> : <Play size={20} />}
                       </button>
                       <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
                         <Shuffle size={20} />
@@ -238,6 +239,16 @@ export default function LibraryPage() {
                               {track.artist?.name || track.artist?.username}
                             </p>
                           </div>
+                          <button
+                            onClick={() => playTrack(track)}
+                            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          >
+                            {audioState.tracks[audioState.currentTrackIndex]?._id === track._id && audioState.isPlaying ? (
+                              <Pause size={16} />
+                            ) : (
+                              <Play size={16} />
+                            )}
+                          </button>
                           <span className="text-white/40 text-sm">
                             {formatDuration(track.duration)}
                           </span>
@@ -327,6 +338,16 @@ export default function LibraryPage() {
                             {track.artist?.name || track.artist?.username}
                           </p>
                         </div>
+                        <button
+                          onClick={() => playTrack(track)}
+                          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        >
+                          {audioState.tracks[audioState.currentTrackIndex]?._id === track._id && audioState.isPlaying ? (
+                            <Pause size={16} />
+                          ) : (
+                            <Play size={16} />
+                          )}
+                        </button>
                         <div className="text-right">
                           <span className="text-white/40 text-sm block">
                             {formatDuration(track.duration)}
@@ -383,6 +404,16 @@ export default function LibraryPage() {
                             {track.artist?.name || track.artist?.username}
                           </p>
                         </div>
+                        <button
+                          onClick={() => playTrack(track)}
+                          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        >
+                          {audioState.tracks[audioState.currentTrackIndex]?._id === track._id && audioState.isPlaying ? (
+                            <Pause size={16} />
+                          ) : (
+                            <Play size={16} />
+                          )}
+                        </button>
                         <div className="text-right">
                           <span className="text-white/40 text-sm block">
                             {formatDuration(track.duration)}
