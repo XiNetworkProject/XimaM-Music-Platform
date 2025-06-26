@@ -334,12 +334,6 @@ export default function AudioPlayer() {
                     transition: 'width 0.2s cubic-bezier(.4,2,.6,1)',
                   }}
                 />
-                <style jsx>{`
-                  @keyframes rainbow-bar {
-                    0% { background-position: 0% 50%; }
-                    100% { background-position: 100% 50%; }
-                  }
-                `}</style>
               </div>
             </div>
           )}
@@ -492,26 +486,6 @@ export default function AudioPlayer() {
           )}
         </motion.div>
       </AnimatePresence>
-
-      {/* Styles CSS pour les sliders */}
-      <style jsx>{`
-        .slider::-webkit-slider-thumb {
-          appearance: none;
-          height: 12px;
-          width: 12px;
-          border-radius: 50%;
-          background: #a855f7;
-          cursor: pointer;
-        }
-        .slider::-moz-range-thumb {
-          height: 12px;
-          width: 12px;
-          border-radius: 50%;
-          background: #a855f7;
-          cursor: pointer;
-          border: none;
-        }
-      `}</style>
     </>
   );
 } 
