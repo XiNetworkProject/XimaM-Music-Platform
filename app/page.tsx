@@ -9,7 +9,7 @@ import {
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Disc3, Mic2, RefreshCw, Share2, Eye, 
-  Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List
+  Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -77,6 +77,42 @@ export default function HomePage() {
   const [weeklyTrends, setWeeklyTrends] = useState<any[]>([]);
   const [communityPlaylists, setCommunityPlaylists] = useState<any[]>([]);
   const [collaborations, setCollaborations] = useState<Track[]>([]);
+  
+  // État pour les événements live
+  const [liveEvents, setLiveEvents] = useState<any[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  
+  // État pour la recherche
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any>({ tracks: [], artists: [], playlists: [] });
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('all');
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  
+  // État pour les statistiques de la communauté
+  const [communityStats, setCommunityStats] = useState<any[]>([]);
+  const [statsLoading, setStatsLoading] = useState(false);
+  
+  // État pour les recommandations personnalisées
+  const [personalRecommendations, setPersonalRecommendations] = useState<any[]>([]);
+  const [userPreferences, setUserPreferences] = useState<any>(null);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(false);
+  
+  // État pour l'activité récente
+  const [recentActivity, setRecentActivity] = useState<any>({
+    followedActivities: [],
+    systemNotifications: [],
+    userActivities: []
+  });
+  const [activityLoading, setActivityLoading] = useState(false);
+  
+  // État pour les playlists populaires
+  const [popularPlaylists, setPopularPlaylists] = useState<any[]>([]);
+  const [playlistsLoading, setPlaylistsLoading] = useState(false);
+  
+  // État pour les genres musicaux
+  const [musicGenres, setMusicGenres] = useState<any[]>([]);
+  const [genresLoading, setGenresLoading] = useState(false);
 
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -227,25 +263,127 @@ export default function HomePage() {
     }
   }, [user?.id]);
 
-  // Fonction pour gérer le partage avec notification
-  const handleShare = useCallback(async (track: Track) => {
-    const shareText = `Écoutez "${track.title}" par ${track.artist?.name || track.artist?.username}`;
-    const shareUrl = window.location.href;
-
+  // Fonction pour charger les événements live
+  const fetchLiveEvents = useCallback(async () => {
+    setEventsLoading(true);
     try {
-      if (navigator.share) {
-        await navigator.share({
-          title: track.title,
-          text: shareText,
-          url: shareUrl
-        });
-      } else {
-        await navigator.clipboard.writeText(`${shareText} - ${shareUrl}`);
-        // Simuler une notification de succès
-        console.log('Lien copié dans le presse-papiers !');
+      const response = await fetch('/api/events/live');
+      if (response.ok) {
+        const data = await response.json();
+        setLiveEvents(data.events);
       }
     } catch (error) {
-      console.error('Erreur lors du partage:', error);
+      console.error('Erreur chargement événements live:', error);
+    } finally {
+      setEventsLoading(false);
+    }
+  }, []);
+
+  // Fonction pour effectuer la recherche
+  const performSearch = useCallback(async (query: string, filter: string = 'all') => {
+    if (!query.trim()) {
+      setSearchResults({ tracks: [], artists: [], playlists: [] });
+      setShowSearchResults(false);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await fetch(`/api/search?query=${encodeURIComponent(query)}&filter=${filter}&limit=10`);
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data);
+        setShowSearchResults(true);
+      }
+    } catch (error) {
+      console.error('Erreur recherche:', error);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  // Fonction pour charger les statistiques de la communauté
+  const fetchCommunityStats = useCallback(async () => {
+    setStatsLoading(true);
+    try {
+      const response = await fetch('/api/stats/community');
+      if (response.ok) {
+        const data = await response.json();
+        setCommunityStats(data.stats);
+      }
+    } catch (error) {
+      console.error('Erreur chargement statistiques:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  // Fonction pour charger les recommandations personnalisées
+  const fetchPersonalRecommendations = useCallback(async () => {
+    if (!session) return;
+    
+    setRecommendationsLoading(true);
+    try {
+      const response = await fetch('/api/recommendations/personal');
+      if (response.ok) {
+        const data = await response.json();
+        setPersonalRecommendations(data.recommendations);
+        setUserPreferences(data.userPreferences);
+      }
+    } catch (error) {
+      console.error('Erreur chargement recommandations:', error);
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  }, [session]);
+
+  // Fonction pour charger l'activité récente
+  const fetchRecentActivity = useCallback(async () => {
+    if (!session) return;
+    
+    setActivityLoading(true);
+    try {
+      const response = await fetch('/api/activity/recent');
+      if (response.ok) {
+        const data = await response.json();
+        setRecentActivity(data);
+      }
+    } catch (error) {
+      console.error('Erreur chargement activité récente:', error);
+    } finally {
+      setActivityLoading(false);
+    }
+  }, [session]);
+
+  // Fonction pour charger les playlists populaires
+  const fetchPopularPlaylists = useCallback(async () => {
+    setPlaylistsLoading(true);
+    try {
+      const response = await fetch('/api/playlists/popular?limit=6');
+      if (response.ok) {
+        const data = await response.json();
+        setPopularPlaylists(data.playlists);
+      }
+    } catch (error) {
+      console.error('Erreur chargement playlists populaires:', error);
+    } finally {
+      setPlaylistsLoading(false);
+    }
+  }, []);
+
+  // Fonction pour charger les genres musicaux
+  const fetchMusicGenres = useCallback(async () => {
+    setGenresLoading(true);
+    try {
+      const response = await fetch('/api/genres');
+      if (response.ok) {
+        const data = await response.json();
+        setMusicGenres(data.genres);
+      }
+    } catch (error) {
+      console.error('Erreur chargement genres musicaux:', error);
+    } finally {
+      setGenresLoading(false);
     }
   }, []);
 
@@ -275,14 +413,20 @@ export default function HomePage() {
         fetchDailyDiscoveries(),
         fetchWeeklyTrends(),
         fetchCommunityPlaylists(),
-        fetchCollaborations()
+        fetchCollaborations(),
+        fetchLiveEvents(),
+        fetchCommunityStats(),
+        fetchPersonalRecommendations(),
+        fetchRecentActivity(),
+        fetchPopularPlaylists(),
+        fetchMusicGenres()
       ]);
 
       setLoading(false);
     };
 
     fetchAllCategories();
-  }, [fetchCategoryData, fetchPopularUsers, fetchDailyDiscoveries, fetchWeeklyTrends, fetchCommunityPlaylists, fetchCollaborations]);
+  }, [fetchCategoryData, fetchPopularUsers, fetchDailyDiscoveries, fetchWeeklyTrends, fetchCommunityPlaylists, fetchCollaborations, fetchLiveEvents, fetchCommunityStats, fetchPersonalRecommendations, fetchRecentActivity, fetchPopularPlaylists, fetchMusicGenres]);
 
   // Fonction de rafraîchissement
   const handleRefresh = useCallback(async () => {
@@ -417,6 +561,41 @@ export default function HomePage() {
     setShowPlayer(true);
     setIsMinimized(false);
   }, [audioState.tracks, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized]);
+
+  // Fonction pour gérer le changement de recherche avec debounce
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (value.trim()) {
+      const timeoutId = setTimeout(() => {
+        performSearch(value, searchFilter);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setShowSearchResults(false);
+    }
+  }, [searchFilter, performSearch]);
+
+  // Fonction pour gérer le partage avec notification
+  const handleShare = useCallback(async (track: Track) => {
+    const shareText = `Écoutez "${track.title}" par ${track.artist?.name || track.artist?.username}`;
+    const shareUrl = window.location.href;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: track.title,
+          text: shareText,
+          url: shareUrl
+        });
+      } else {
+        await navigator.clipboard.writeText(`${shareText} - ${shareUrl}`);
+        // Simuler une notification de succès
+        console.log('Lien copié dans le presse-papiers !');
+      }
+    } catch (error) {
+      console.error('Erreur lors du partage:', error);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -735,12 +914,20 @@ export default function HomePage() {
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
               <input
                 type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
                 placeholder="Rechercher des créations, artistes, genres..."
                 className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
               />
+              {searchLoading && (
+                <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500"></div>
+                </div>
+              )}
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => performSearch(searchQuery, searchFilter)}
                 className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-2 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300"
               >
                 <Search size={16} />
@@ -751,13 +938,10 @@ export default function HomePage() {
           {/* Filtres rapides */}
           <div className="flex flex-wrap justify-center gap-3 mb-6">
             {[
-              { label: 'Tous', icon: Music, active: true },
-              { label: 'Pop', icon: Music, color: 'from-pink-500 to-rose-500' },
-              { label: 'Rock', icon: Music, color: 'from-red-500 to-orange-500' },
-              { label: 'Hip-Hop', icon: Music, color: 'from-purple-500 to-indigo-500' },
-              { label: 'Electronic', icon: Music, color: 'from-blue-500 to-cyan-500' },
-              { label: 'Jazz', icon: Music, color: 'from-yellow-500 to-orange-500' },
-              { label: 'Classical', icon: Music, color: 'from-gray-500 to-slate-500' }
+              { label: 'Tous', value: 'all', icon: Music, active: searchFilter === 'all' },
+              { label: 'Créations', value: 'tracks', icon: Music, active: searchFilter === 'tracks' },
+              { label: 'Artistes', value: 'artists', icon: Users, active: searchFilter === 'artists' },
+              { label: 'Playlists', value: 'playlists', icon: Music, active: searchFilter === 'playlists' }
             ].map((filter, index) => (
               <motion.button
                 key={filter.label}
@@ -767,6 +951,12 @@ export default function HomePage() {
                 transition={{ duration: 0.4, delay: index * 0.1 }}
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setSearchFilter(filter.value);
+                  if (searchQuery.trim()) {
+                    performSearch(searchQuery, filter.value);
+                  }
+                }}
                 className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 backdrop-blur-sm border ${
                   filter.active 
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-500/50' 
@@ -779,26 +969,206 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* Suggestions de recherche */}
-          <div className="text-center">
-            <p className="text-gray-400 text-sm mb-3">Suggestions populaires :</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {['Nouveautés 2024', 'Remixes', 'Live Sessions', 'Collaborations', 'Demos', 'Covers'].map((suggestion, index) => (
-                <motion.button
-                  key={suggestion}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.3, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-3 py-1.5 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-all duration-300"
-                >
-                  {suggestion}
-                </motion.button>
-              ))}
+          {/* Résultats de recherche */}
+          {showSearchResults && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-4xl mx-auto"
+            >
+              {/* Résumé des résultats */}
+              <div className="text-center mb-6">
+                <p className="text-gray-400 text-sm">
+                  {searchResults.total > 0 
+                    ? `${searchResults.total} résultat(s) pour "${searchQuery}"`
+                    : `Aucun résultat pour "${searchQuery}"`
+                  }
+                </p>
+              </div>
+
+              {/* Résultats par catégorie */}
+              {searchResults.tracks.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-white font-semibold text-lg mb-4 flex items-center">
+                    <Music size={20} className="mr-2 text-purple-400" />
+                    Créations ({searchResults.tracks.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {searchResults.tracks.map((track: Track, index: number) => (
+                      <motion.div
+                        key={track._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ y: -4, scale: 1.02 }}
+                        className="group cursor-pointer"
+                      >
+                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
+                          <div className="relative aspect-square">
+                            <img
+                              src={track.coverUrl || '/default-cover.jpg'}
+                              alt={track.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-cover.jpg';
+                              }}
+                            />
+                            
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePlayTrack(track);
+                                }}
+                                className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+                              >
+                                {currentTrack?._id === track._id && audioState.isPlaying ? (
+                                  <Pause size={18} fill="white" />
+                                ) : (
+                                  <Play size={18} fill="white" className="ml-0.5" />
+                                )}
+                              </motion.button>
+                            </div>
+
+                            <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                              {formatDuration(track.duration)}
+                            </div>
+                          </div>
+
+                          <div className="p-3">
+                            <h4 className="font-semibold text-white truncate mb-1 text-sm">
+                              {track.title}
+                            </h4>
+                            <p className="text-gray-300 text-xs truncate">
+                              {track.artist?.name || track.artist?.username}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Résultats artistes */}
+              {searchResults.artists.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-white font-semibold text-lg mb-4 flex items-center">
+                    <Users size={20} className="mr-2 text-blue-400" />
+                    Artistes ({searchResults.artists.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {searchResults.artists.map((artist: any, index: number) => (
+                      <motion.div
+                        key={artist._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ y: -4, scale: 1.02 }}
+                        className="group cursor-pointer"
+                      >
+                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 p-4 text-center">
+                          <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
+                            <img
+                              src={artist.avatar || '/default-avatar.png'}
+                              alt={artist.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <h4 className="font-semibold text-white text-sm mb-1">
+                            {artist.name}
+                          </h4>
+                          <p className="text-gray-300 text-xs">
+                            @{artist.username}
+                          </p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Résultats playlists */}
+              {searchResults.playlists.length > 0 && (
+                <div className="mb-8">
+                  <h3 className="text-white font-semibold text-lg mb-4 flex items-center">
+                    <Music size={20} className="mr-2 text-green-400" />
+                    Playlists ({searchResults.playlists.length})
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {searchResults.playlists.map((playlist: any, index: number) => (
+                      <motion.div
+                        key={playlist._id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ y: -4, scale: 1.02 }}
+                        className="group cursor-pointer"
+                      >
+                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300">
+                          <div className={`aspect-square bg-gradient-to-br ${playlist.color} flex items-center justify-center relative`}>
+                            <div className="text-3xl">{playlist.emoji}</div>
+                            
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                              <motion.button
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+                              >
+                                <Play size={20} fill="white" className="ml-1" />
+                              </motion.button>
+                            </div>
+                          </div>
+                          
+                          <div className="p-3">
+                            <h4 className="font-semibold text-white text-sm truncate mb-1">
+                              {playlist.title}
+                            </h4>
+                            <p className="text-gray-300 text-xs mb-2">
+                              par {playlist.creator.name}
+                            </p>
+                            <div className="flex items-center justify-between text-xs text-gray-500">
+                              <span>{playlist.tracks} titres</span>
+                              <span>{playlist.likes} likes</span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* Suggestions de recherche (seulement si pas de résultats) */}
+          {!showSearchResults && (
+            <div className="text-center">
+              <p className="text-gray-400 text-sm mb-3">Suggestions populaires :</p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {['Nouveautés 2024', 'Remixes', 'Live Sessions', 'Collaborations', 'Demos', 'Covers'].map((suggestion, index) => (
+                  <motion.button
+                    key={suggestion}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => {
+                      setSearchQuery(suggestion);
+                      performSearch(suggestion, searchFilter);
+                    }}
+                    className="px-3 py-1.5 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-all duration-300"
+                  >
+                    {suggestion}
+                  </motion.button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
         </motion.div>
       </section>
 
@@ -1024,8 +1394,8 @@ export default function HomePage() {
                     <h3 className="font-medium text-white text-xs truncate">{user.name || user.username}</h3>
                     <p className="text-gray-400 text-xs">{user.followers?.length || 0} abonnés</p>
                   </motion.div>
-                ))}
-              </div>
+              ))}
+            </div>
             )}
           </motion.div>
         </section>
@@ -1043,7 +1413,7 @@ export default function HomePage() {
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-lg bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30">
                   <BarChart3 size={20} className="text-green-400" />
-                </div>
+          </div>
                 <div>
                   <h2 className="text-xl font-bold text-white">Tendances de la Semaine</h2>
                   <p className="text-gray-400 text-sm">Les styles qui montent en flèche</p>
@@ -1059,29 +1429,42 @@ export default function HomePage() {
             </div>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {weeklyTrends.map((trend, index) => (
-                <motion.div
-                  key={trend.genre}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -2, scale: 1.02 }}
-                  className="group cursor-pointer"
-                >
-                  <div className={`relative p-4 rounded-lg bg-gradient-to-br ${trend.color} hover:shadow-lg transition-all duration-300 border border-white/10`}>
-                    <div className="absolute inset-0 bg-black/10 rounded-lg group-hover:bg-black/5 transition-colors"></div>
-                    <div className="relative z-10 text-center">
-                      <div className="text-2xl mb-2">{trend.icon}</div>
-                      <p className="text-white font-medium mb-2 text-sm">{trend.genre}</p>
-                      <div className="inline-flex items-center space-x-1 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
-                        <TrendingUp size={12} className="text-white" />
-                        <span className="text-white text-xs font-medium">{trend.growth}</span>
+              {weeklyTrends.length > 0 ? (
+                weeklyTrends.map((trend, index) => (
+                  <motion.div
+                    key={trend.genre}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    whileHover={{ y: -2, scale: 1.02 }}
+                    className="group cursor-pointer"
+                  >
+                    <div className={`relative p-4 rounded-lg bg-gradient-to-br ${trend.color} hover:shadow-lg transition-all duration-300 border border-white/10`}>
+                      <div className="absolute inset-0 bg-black/10 rounded-lg group-hover:bg-black/5 transition-colors"></div>
+                      <div className="relative z-10 text-center">
+                        <div className="text-2xl mb-2">{trend.icon}</div>
+                        <p className="text-white font-medium mb-2 text-sm">{trend.genre}</p>
+                        <div className="inline-flex items-center space-x-1 bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
+                          <TrendingUp size={12} className="text-white" />
+                          <span className="text-white text-xs font-medium">{trend.growth}</span>
+                        </div>
                       </div>
                     </div>
+                  </motion.div>
+                ))
+              ) : (
+                // Skeleton loading si pas de données
+                [...Array(4)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="p-4 rounded-lg bg-gray-800">
+                      <div className="text-2xl mb-2">🎵</div>
+                      <div className="h-4 bg-gray-700 rounded mb-2"></div>
+                      <div className="h-6 bg-gray-700 rounded w-3/4 mx-auto"></div>
+                    </div>
                   </div>
-                </motion.div>
-              ))}
+                ))
+              )}
             </div>
           </motion.div>
         </section>
@@ -1109,43 +1492,73 @@ export default function HomePage() {
               </motion.button>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {[
-                { title: 'Créations Populaires', tracks: 24, color: 'from-purple-500 to-pink-500', emoji: '🔥' },
-                { title: 'Premiers Pas', tracks: 18, color: 'from-blue-500 to-cyan-500', emoji: '🌟' },
-                { title: 'Collaborations', tracks: 32, color: 'from-orange-500 to-red-500', emoji: '🤝' },
-                { title: 'Remixes', tracks: 15, color: 'from-indigo-500 to-purple-500', emoji: '🔄' },
-                { title: 'Live Sessions', tracks: 28, color: 'from-pink-500 to-rose-500', emoji: '🎤' },
-                { title: 'Demos', tracks: 12, color: 'from-green-500 to-emerald-500', emoji: '🎵' }
-              ].map((playlist, index) => (
-                <motion.div
-                  key={playlist.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  className="group cursor-pointer"
-                >
-                  <div className="relative rounded-xl overflow-hidden">
-                    <div className={`aspect-square bg-gradient-to-br ${playlist.color} flex items-center justify-center`}>
-                      <div className="text-4xl">{playlist.emoji}</div>
+              {dailyDiscoveries.length > 0 ? (
+                dailyDiscoveries.map((track, index) => (
+                  <motion.div
+                    key={track._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className="group cursor-pointer"
+                  >
+                    <div className="relative rounded-xl overflow-hidden">
+                      <div className="aspect-square bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center relative">
+                        <img
+                          src={track.coverUrl || '/default-cover.jpg'}
+                          alt={track.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-cover.jpg';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handlePlayTrack(track)}
+                            className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+                          >
+                            <Play size={20} fill="white" className="ml-1" />
+                          </motion.button>
+                        </div>
+                      </div>
+                      <div className="p-3 bg-black/80 backdrop-blur-sm">
+                        <h3 className="font-semibold text-white text-sm truncate">{track.title}</h3>
+                        <p className="text-gray-400 text-xs">{track.artist?.name || track.artist?.username}</p>
+                        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <Headphones size={10} />
+                            <span>{formatNumber(track.plays)}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Heart size={10} />
+                            <span>{formatNumber(track.likes.length)}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
-                        className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
-                      >
-                        <Play size={20} fill="white" className="ml-1" />
-                      </motion.button>
-                    </div>
-                    <div className="p-3 bg-black/80 backdrop-blur-sm">
-                      <h3 className="font-semibold text-white text-sm truncate">{playlist.title}</h3>
-                      <p className="text-gray-400 text-xs">{playlist.tracks} créations</p>
+                  </motion.div>
+                ))
+              ) : (
+                // Skeleton loading si pas de données
+                [...Array(6)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="relative rounded-xl overflow-hidden">
+                      <div className="aspect-square bg-gray-800"></div>
+                      <div className="p-3 bg-gray-800">
+                        <div className="h-4 bg-gray-700 rounded mb-1"></div>
+                        <div className="h-3 bg-gray-700 rounded w-2/3 mb-2"></div>
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-700 rounded w-1/3"></div>
+                          <div className="h-3 bg-gray-700 rounded w-1/4"></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
+                ))
+              )}
             </div>
           </motion.div>
         </section>
@@ -1282,32 +1695,523 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <h2 className="text-2xl font-bold text-white mb-6">Notre Communauté</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-red-500 to-pink-500">
+                  <Radio size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">🎙️ Événements en Direct</h2>
+                  <p className="text-gray-400">Rejoignez les sessions live de nos artistes</p>
+                </div>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="text-purple-400 hover:text-purple-300 font-medium"
+              >
+                Voir tout
+              </motion.button>
+            </div>
+            
+            {eventsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {liveEvents.map((event, index) => (
+                  <motion.div
+                    key={event._id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className="group cursor-pointer"
+                  >
+                    <div className={`relative rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10 hover:shadow-2xl transition-all duration-300 border border-blue-500/20`}>
+                      {/* Badge "LIVE" */}
+                      <div className="absolute top-3 left-3 z-20">
+                        <div className="flex items-center space-x-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
+                          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                          <span>LIVE</span>
+                        </div>
+                      </div>
+
+                      {/* Badge spectateurs */}
+                      <div className="absolute top-3 right-3 z-20">
+                        <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium">
+                          👥 {formatNumber(event.viewers)}
+                        </div>
+                      </div>
+
+                      {/* Contenu principal */}
+                      <div className="p-6 text-center">
+                        <div className="text-4xl mb-4">🎤</div>
+                        <h3 className="text-white font-semibold text-lg mb-2 group-hover:text-purple-200 transition-colors">
+                          {event.title}
+                        </h3>
+                        <p className="text-white/80 text-sm mb-3">par {event.artist.name}</p>
+                        
+                        {/* Bouton rejoindre */}
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="w-full bg-white/20 backdrop-blur-sm text-white py-2 rounded-lg font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
+                        >
+                          Rejoindre le live
+                        </motion.button>
+                      </div>
+
+                      {/* Effet de brillance au survol */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </section>
+
+        {/* Section Actualités */}
+        <section className="container mx-auto px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '50px' }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white">Actualités</h2>
+                <p className="text-gray-400">Les dernières nouvelles de la communauté</p>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="text-purple-400 hover:text-purple-300 font-medium"
+              >
+                Voir tout
+              </motion.button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
-                { icon: Music, label: 'Créations', value: '1,234', color: 'from-purple-500 to-pink-500' },
-                { icon: Users, label: 'Artistes', value: '567', color: 'from-blue-500 to-cyan-500' },
-                { icon: Heart, label: 'Likes', value: '89K', color: 'from-pink-500 to-rose-500' },
-                { icon: Headphones, label: 'Écoutes', value: '2.1M', color: 'from-green-500 to-emerald-500' }
-              ].map((stat, index) => (
+                { 
+                  title: 'Nouvelle fonctionnalité : Playlists collaboratives', 
+                  excerpt: 'Créez et partagez des playlists avec vos amis en temps réel',
+                  date: 'Il y a 2 jours',
+                  color: 'from-purple-500 to-pink-500'
+                },
+                { 
+                  title: 'Artiste de la semaine : Luna Sky', 
+                  excerpt: 'Découvrez cette artiste émergente et ses derniers titres',
+                  date: 'Il y a 5 jours',
+                  color: 'from-blue-500 to-cyan-500'
+                },
+                { 
+                  title: 'Mise à jour de l\'application', 
+                  excerpt: 'Nouvelles fonctionnalités et améliorations de performance',
+                  date: 'Il y a 1 semaine',
+                  color: 'from-green-500 to-emerald-500'
+                }
+              ].map((news, index) => (
                 <motion.div
-                  key={stat.label}
+                  key={news.title}
                   initial={{ opacity: 0, y: 20 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '50px' }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="text-center"
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  className="group cursor-pointer"
                 >
-                  <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br ${stat.color} mb-4`}>
-                    <stat.icon size={24} className="text-white" />
+                  <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${news.color} hover:shadow-2xl transition-all duration-300`}>
+                    <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/10 transition-colors"></div>
+                    <div className="relative z-10">
+                      <h3 className="text-white font-semibold mb-2 group-hover:text-purple-200 transition-colors">{news.title}</h3>
+                      <p className="text-white/80 text-sm mb-3">{news.excerpt}</p>
+                      <p className="text-white/60 text-xs">{news.date}</p>
+                    </div>
                   </div>
-                  <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                  <div className="text-gray-400 text-sm">{stat.label}</div>
                 </motion.div>
               ))}
             </div>
           </motion.div>
         </section>
+
+        {/* Section Statistiques de la Communauté */}
+        <section className="container mx-auto px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '50px' }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-white mb-4">Notre Communauté en Chiffres</h2>
+              <p className="text-gray-400 text-lg">Découvrez l'impact de notre plateforme musicale</p>
+            </div>
+            
+            {statsLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                {communityStats.map((stat, index) => (
+                  <motion.div
+                    key={stat.label}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    whileHover={{ y: -5, scale: 1.02 }}
+                    className="group cursor-pointer text-center"
+                  >
+                    <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${stat.color} hover:shadow-2xl transition-all duration-300 border border-white/10 overflow-hidden`}>
+                      {/* Effet de particules animées */}
+                      <div className="absolute inset-0 opacity-20">
+                        {[...Array(3)].map((_, i) => (
+                          <motion.div
+                            key={i}
+                            className="absolute w-2 h-2 bg-white rounded-full"
+                            animate={{
+                              x: [0, 100, 0],
+                              y: [0, -50, 0],
+                              opacity: [0, 1, 0],
+                            }}
+                            transition={{
+                              duration: 3 + i,
+                              repeat: Infinity,
+                              delay: i * 0.5,
+                            }}
+                            style={{
+                              left: Math.random() * 100 + '%',
+                              top: Math.random() * 100 + '%',
+                            }}
+                          />
+                        ))}
+                      </div>
+
+                      <div className="relative z-10">
+                        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                          {stat.icon === 'Music' && <Music size={28} className="text-white" />}
+                          {stat.icon === 'Users' && <Users size={28} className="text-white" />}
+                          {stat.icon === 'Heart' && <Heart size={28} className="text-white" />}
+                          {stat.icon === 'Headphones' && <Headphones size={28} className="text-white" />}
+                        </div>
+                        
+                        <motion.div 
+                          className="text-3xl font-bold text-white mb-2"
+                          initial={{ scale: 0 }}
+                          whileInView={{ scale: 1 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.5, delay: index * 0.1 + 0.3 }}
+                        >
+                          {stat.value}
+                        </motion.div>
+                        
+                        <div className="text-white font-semibold mb-1">{stat.label}</div>
+                        <div className="text-white/70 text-sm">{stat.growth}</div>
+                      </div>
+
+                      {/* Effet de brillance au survol */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+
+            {/* Statistiques supplémentaires */}
+            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { 
+                  title: 'Temps d\'écoute moyen', 
+                  value: '45 min', 
+                  icon: Clock,
+                  color: 'from-orange-500 to-red-500'
+                },
+                { 
+                  title: 'Collaborations', 
+                  value: '234', 
+                  icon: Users,
+                  color: 'from-indigo-500 to-purple-500'
+                },
+                { 
+                  title: 'Playlists créées', 
+                  value: '1.2K', 
+                  icon: List,
+                  color: 'from-teal-500 to-cyan-500'
+                }
+              ].map((stat, index) => (
+                <motion.div
+                  key={stat.title}
+                  initial={{ opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, margin: '50px' }}
+                  transition={{ duration: 0.4, delay: index * 0.1 }}
+                  className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
+                >
+                  <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color}`}>
+                    <stat.icon size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <div className="text-white font-semibold">{stat.value}</div>
+                    <div className="text-gray-400 text-sm">{stat.title}</div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+        </section>
+
+        {/* Section Recommandations Personnalisées - Design futuriste */}
+        {session && (
+          <section className="container mx-auto px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '50px' }}
+              transition={{ duration: 0.6 }}
+              className="mb-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500">
+                    <Sparkles size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">✨ Recommandations pour Vous</h2>
+                    <p className="text-gray-400">Basé sur vos goûts et votre historique</p>
+                  </div>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={fetchPersonalRecommendations}
+                  className="text-purple-400 hover:text-purple-300 font-medium"
+                >
+                  Rafraîchir
+                </motion.button>
+              </div>
+
+              {recommendationsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                </div>
+              ) : (
+                <>
+                  {/* Cartes de recommandations */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {personalRecommendations.map((rec, index) => (
+                      <motion.div
+                        key={rec.title}
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true, margin: '50px' }}
+                        transition={{ duration: 0.4, delay: index * 0.1 }}
+                        whileHover={{ y: -8, scale: 1.02 }}
+                        className="group cursor-pointer"
+                      >
+                        <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${rec.color} hover:shadow-2xl transition-all duration-300 border border-white/10 overflow-hidden`}>
+                          {/* Badge de confiance */}
+                          <div className="absolute top-4 right-4">
+                            <div className="bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-semibold">
+                              {rec.confidence}
+                            </div>
+                          </div>
+
+                          {/* Type de recommandation */}
+                          <div className="text-white/80 text-sm font-medium mb-3">{rec.type}</div>
+
+                          {/* Icône */}
+                          <div className="mb-4">
+                            {rec.icon === 'UserPlus' && <UserPlus size={32} className="text-white" />}
+                            {rec.icon === 'TrendingUp' && <TrendingUp size={32} className="text-white" />}
+                            {rec.icon === 'Sparkles' && <Sparkles size={32} className="text-white" />}
+                          </div>
+
+                          {/* Contenu */}
+                          <h3 className="text-white font-semibold text-lg mb-2 group-hover:text-purple-200 transition-colors">
+                            {rec.title}
+                          </h3>
+                          <p className="text-white/80 text-sm mb-4">{rec.description}</p>
+
+                          {/* Tracks recommandées */}
+                          {rec.tracks && rec.tracks.length > 0 && (
+                            <div className="space-y-2 mb-4">
+                              {rec.tracks.slice(0, 2).map((track: Track) => (
+                                <div key={track._id} className="flex items-center space-x-2 p-2 bg-white/10 rounded-lg">
+                                  <img
+                                    src={track.coverUrl || '/default-cover.jpg'}
+                                    alt={track.title}
+                                    className="w-8 h-8 rounded object-cover"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-white text-xs font-medium truncate">{track.title}</p>
+                                    <p className="text-white/70 text-xs truncate">
+                                      {track.artist?.name || track.artist?.username}
+                                    </p>
+                                  </div>
+                                  <motion.button
+                                    whileHover={{ scale: 1.1 }}
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePlayTrack(track);
+                                    }}
+                                    className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"
+                                  >
+                                    <Play size={10} fill="white" className="ml-0.5" />
+                                  </motion.button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Bouton d'action */}
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="w-full bg-white/20 backdrop-blur-sm text-white py-2 rounded-lg font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
+                          >
+                            Découvrir
+                          </motion.button>
+
+                          {/* Effet de brillance au survol */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Insights personnalisés */}
+                  {userPreferences && (
+                    <div className="mt-8 p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
+                      <h3 className="text-white font-semibold text-lg mb-4">Vos Insights Musicaux</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {[
+                          { 
+                            label: 'Genres préférés', 
+                            value: userPreferences.topGenres?.slice(0, 2).join(', ') || 'Aucun', 
+                            icon: Music 
+                          },
+                          { 
+                            label: 'Créations aimées', 
+                            value: `${userPreferences.totalLiked || 0} titres`, 
+                            icon: Heart 
+                          },
+                          { 
+                            label: 'Artiste favori', 
+                            value: userPreferences.favoriteArtist || 'Aucun', 
+                            icon: Star 
+                          }
+                        ].map((insight, index) => (
+                          <motion.div
+                            key={insight.label}
+                            initial={{ opacity: 0, x: -20 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            viewport={{ once: true, margin: '50px' }}
+                            transition={{ duration: 0.4, delay: index * 0.1 }}
+                            className="flex items-center space-x-3"
+                          >
+                            <insight.icon size={20} className="text-purple-400" />
+                            <div>
+                              <div className="text-white font-medium">{insight.value}</div>
+                              <div className="text-gray-400 text-sm">{insight.label}</div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </section>
+        )}
+
+        {/* Section Activité Récente - Design futuriste */}
+        {recentActivity.followedActivities.length > 0 && (
+          <section className="container mx-auto px-8">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '50px' }}
+              transition={{ duration: 0.6 }}
+              className="mb-8"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-4">
+                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
+                    <Activity size={24} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">📱 Activité Récente</h2>
+                    <p className="text-gray-400">Ce qui se passe dans votre réseau</p>
+                  </div>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="text-purple-400 hover:text-purple-300 font-medium"
+                >
+                  Voir tout
+                </motion.button>
+              </div>
+              
+              <div className="space-y-4">
+                {activityLoading ? (
+                  // Skeleton loading pour l'activité
+                  [...Array(3)].map((_, index) => (
+                    <div key={index} className="animate-pulse">
+                      <div className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg">
+                        <div className="w-12 h-12 bg-gray-700 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-700 rounded mb-2"></div>
+                          <div className="h-3 bg-gray-700 rounded w-2/3"></div>
+                        </div>
+                        <div className="h-3 bg-gray-700 rounded w-16"></div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  recentActivity.followedActivities.slice(0, 5).map((activity: any, index: number) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true, margin: '50px' }}
+                      transition={{ duration: 0.4, delay: index * 0.1 }}
+                      className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800/70 transition-colors cursor-pointer"
+                    >
+                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${activity.color} flex items-center justify-center`}>
+                        <img
+                          src={activity.avatar}
+                          alt={activity.artist}
+                          className="w-full h-full rounded-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-avatar.png';
+                          }}
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white font-medium">
+                          <span className="text-purple-400">{activity.artist}</span> {activity.action}
+                        </p>
+                        <p className="text-gray-400 text-sm">{activity.track}</p>
+                      </div>
+                      <span className="text-gray-500 text-sm">{activity.time}</span>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </section>
+        )}
 
         {/* Sections de catégories existantes améliorées */}
         {categoryConfigs.map((config, configIndex) => {
@@ -1465,33 +2369,45 @@ export default function HomePage() {
           >
             <h2 className="text-2xl font-bold text-white mb-6">Explorer par Style</h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              {[
-                { name: 'Pop', color: 'from-pink-500 to-rose-500', icon: '🎵', tracks: '234' },
-                { name: 'Rock', color: 'from-red-500 to-orange-500', icon: '🎸', tracks: '156' },
-                { name: 'Hip-Hop', color: 'from-purple-500 to-indigo-500', icon: '🎤', tracks: '189' },
-                { name: 'Electronic', color: 'from-blue-500 to-cyan-500', icon: '🎧', tracks: '98' },
-                { name: 'Jazz', color: 'from-yellow-500 to-orange-500', icon: '🎷', tracks: '67' },
-                { name: 'Classical', color: 'from-gray-500 to-slate-500', icon: '🎻', tracks: '45' }
-              ].map((genre, index) => (
-                <motion.div
-                  key={genre.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.05, y: -5 }}
-                  className="group cursor-pointer"
-                >
-                  <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${genre.color} hover:shadow-2xl transition-all duration-300`}>
-                    <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/10 transition-colors"></div>
-                    <div className="relative z-10 text-center">
-                      <div className="text-3xl mb-2">{genre.icon}</div>
-                      <p className="text-white font-semibold mb-1">{genre.name}</p>
-                      <p className="text-white/80 text-xs">{genre.tracks} créations</p>
+              {genresLoading ? (
+                // Skeleton loading pour les genres
+                [...Array(6)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="p-6 rounded-2xl bg-gray-800">
+                      <div className="text-3xl mb-2">🎵</div>
+                      <div className="h-4 bg-gray-700 rounded mb-1"></div>
+                      <div className="h-3 bg-gray-700 rounded w-2/3"></div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
+                ))
+              ) : (
+                musicGenres.slice(0, 12).map((genre, index) => (
+                  <motion.div
+                    key={genre.name}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    transition={{ duration: 0.4, delay: index * 0.1 }}
+                    whileHover={{ scale: 1.05, y: -5 }}
+                    className="group cursor-pointer"
+                  >
+                    <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${genre.color} hover:shadow-2xl transition-all duration-300`}>
+                      <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/10 transition-colors"></div>
+                      <div className="relative z-10 text-center">
+                        <div className="text-3xl mb-2">{genre.emoji}</div>
+                        <p className="text-white font-semibold mb-1">{genre.name}</p>
+                        <p className="text-white/80 text-xs">{formatNumber(genre.count)} créations</p>
+                        <div className="mt-2 text-xs text-white/70">
+                          <div className="flex items-center justify-center space-x-2">
+                            <Headphones size={12} />
+                            <span>{formatNumber(genre.plays)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))
+              )}
             </div>
           </motion.div>
         </section>
@@ -1525,332 +2441,27 @@ export default function HomePage() {
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {communityPlaylists.map((playlist, index) => (
-                <motion.div
-                  key={playlist.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -8, scale: 1.02 }}
-                  className="group cursor-pointer"
-                >
-                  <div className="relative rounded-xl overflow-hidden">
-                    <div className={`aspect-square bg-gradient-to-br ${playlist.color} flex items-center justify-center relative`}>
-                      <div className="text-4xl">{playlist.emoji}</div>
-                      
-                      {/* Overlay avec bouton play */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
-                        >
-                          <Play size={20} fill="white" className="ml-1" />
-                        </motion.button>
-                      </div>
-                    </div>
-                    
-                    <div className="p-4 bg-black/80 backdrop-blur-sm">
-                      <h3 className="font-semibold text-white text-sm truncate mb-1">{playlist.title}</h3>
-                      <p className="text-gray-400 text-xs mb-2">par {playlist.creator}</p>
-                      
-                      {/* Stats */}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <Music size={12} />
-                          <span>{playlist.tracks} titres</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Heart size={12} />
-                          <span>{playlist.likes}</span>
+              {playlistsLoading ? (
+                // Skeleton loading pour les playlists
+                [...Array(4)].map((_, index) => (
+                  <div key={index} className="animate-pulse">
+                    <div className="relative rounded-xl overflow-hidden">
+                      <div className="aspect-square bg-gray-800"></div>
+                      <div className="p-4 bg-gray-800">
+                        <div className="h-4 bg-gray-700 rounded mb-1"></div>
+                        <div className="h-3 bg-gray-700 rounded w-2/3 mb-2"></div>
+                        <div className="flex justify-between">
+                          <div className="h-3 bg-gray-700 rounded w-1/3"></div>
+                          <div className="h-3 bg-gray-700 rounded w-1/4"></div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </section>
-
-        {/* Section Actualités */}
-        <section className="container mx-auto px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Actualités</h2>
-                <p className="text-gray-400">Les dernières nouvelles de la communauté</p>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="text-purple-400 hover:text-purple-300 font-medium"
-              >
-                Voir tout
-              </motion.button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { 
-                  title: 'Nouvelle fonctionnalité : Playlists collaboratives', 
-                  excerpt: 'Créez et partagez des playlists avec vos amis en temps réel',
-                  date: 'Il y a 2 jours',
-                  color: 'from-purple-500 to-pink-500'
-                },
-                { 
-                  title: 'Artiste de la semaine : Luna Sky', 
-                  excerpt: 'Découvrez cette artiste émergente et ses derniers titres',
-                  date: 'Il y a 5 jours',
-                  color: 'from-blue-500 to-cyan-500'
-                },
-                { 
-                  title: 'Mise à jour de l\'application', 
-                  excerpt: 'Nouvelles fonctionnalités et améliorations de performance',
-                  date: 'Il y a 1 semaine',
-                  color: 'from-green-500 to-emerald-500'
-                }
-              ].map((news, index) => (
-                <motion.div
-                  key={news.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  className="group cursor-pointer"
-                >
-                  <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${news.color} hover:shadow-2xl transition-all duration-300`}>
-                    <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/10 transition-colors"></div>
-                    <div className="relative z-10">
-                      <h3 className="text-white font-semibold mb-2 group-hover:text-purple-200 transition-colors">{news.title}</h3>
-                      <p className="text-white/80 text-sm mb-3">{news.excerpt}</p>
-                      <p className="text-white/60 text-xs">{news.date}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </section>
-
-        {/* Section Statistiques de la Communauté */}
-        <section className="container mx-auto px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Notre Communauté en Chiffres</h2>
-              <p className="text-gray-400 text-lg">Découvrez l'impact de notre plateforme musicale</p>
-            </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {[
-                { 
-                  icon: Music, 
-                  label: 'Créations', 
-                  value: '1,234', 
-                  suffix: '+',
-                  color: 'from-purple-500 to-pink-500',
-                  description: 'Titres partagés'
-                },
-                { 
-                  icon: Users, 
-                  label: 'Artistes', 
-                  value: '567', 
-                  suffix: '+',
-                  color: 'from-blue-500 to-cyan-500',
-                  description: 'Créateurs actifs'
-                },
-                { 
-                  icon: Heart, 
-                  label: 'Likes', 
-                  value: '89K', 
-                  suffix: '+',
-                  color: 'from-pink-500 to-rose-500',
-                  description: 'Interactions'
-                },
-                { 
-                  icon: Headphones, 
-                  label: 'Écoutes', 
-                  value: '2.1M', 
-                  suffix: '+',
-                  color: 'from-green-500 to-emerald-500',
-                  description: 'Minutes écoutées'
-                }
-              ].map((stat, index) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  className="group cursor-pointer text-center"
-                >
-                  <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${stat.color} hover:shadow-2xl transition-all duration-300 border border-white/10 overflow-hidden`}>
-                    {/* Effet de particules animées */}
-                    <div className="absolute inset-0 opacity-20">
-                      {[...Array(3)].map((_, i) => (
-                        <motion.div
-                          key={i}
-                          className="absolute w-2 h-2 bg-white rounded-full"
-                          animate={{
-                            x: [0, 100, 0],
-                            y: [0, -50, 0],
-                            opacity: [0, 1, 0],
-                          }}
-                          transition={{
-                            duration: 3 + i,
-                            repeat: Infinity,
-                            delay: i * 0.5,
-                          }}
-                          style={{
-                            left: Math.random() * 100 + '%',
-                            top: Math.random() * 100 + '%',
-                          }}
-                        />
-                      ))}
-                    </div>
-
-                    <div className="relative z-10">
-                      <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                        <stat.icon size={28} className="text-white" />
-                      </div>
-                      
-                      <motion.div 
-                        className="text-3xl font-bold text-white mb-2"
-                        initial={{ scale: 0 }}
-                        whileInView={{ scale: 1 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: index * 0.1 + 0.3 }}
-                      >
-                        {stat.value}{stat.suffix}
-                      </motion.div>
-                      
-                      <div className="text-white font-semibold mb-1">{stat.label}</div>
-                      <div className="text-white/70 text-sm">{stat.description}</div>
-                    </div>
-
-                    {/* Effet de brillance au survol */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Statistiques supplémentaires */}
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
-              {[
-                { 
-                  title: 'Temps d\'écoute moyen', 
-                  value: '45 min', 
-                  icon: Clock,
-                  color: 'from-orange-500 to-red-500'
-                },
-                { 
-                  title: 'Collaborations', 
-                  value: '234', 
-                  icon: Users,
-                  color: 'from-indigo-500 to-purple-500'
-                },
-                { 
-                  title: 'Playlists créées', 
-                  value: '1.2K', 
-                  icon: List,
-                  color: 'from-teal-500 to-cyan-500'
-                }
-              ].map((stat, index) => (
-                <motion.div
-                  key={stat.title}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
-                >
-                  <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color}`}>
-                    <stat.icon size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <div className="text-white font-semibold">{stat.value}</div>
-                    <div className="text-gray-400 text-sm">{stat.title}</div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
-        </section>
-
-        {/* Section Recommandations Personnalisées - Design futuriste */}
-        {session && (
-          <section className="container mx-auto px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '50px' }}
-              transition={{ duration: 0.6 }}
-              className="mb-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500">
-                    <Sparkles size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">✨ Recommandations pour Vous</h2>
-                    <p className="text-gray-400">Basé sur vos goûts et votre historique</p>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="text-purple-400 hover:text-purple-300 font-medium"
-                >
-                  Rafraîchir
-                </motion.button>
-              </div>
-
-              {/* Cartes de recommandations */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[
-                  { 
-                    type: 'Artiste similaire', 
-                    title: 'Découvrez Luna Sky',
-                    description: 'Basé sur votre écoute de "Midnight Dreams"',
-                    confidence: '95%',
-                    color: 'from-purple-500 to-pink-500',
-                    icon: UserPlus
-                  },
-                  { 
-                    type: 'Genre émergent', 
-                    title: 'Nouveau style : Lo-Fi',
-                    description: 'Vous pourriez aimer ces sons relaxants',
-                    confidence: '87%',
-                    color: 'from-blue-500 to-cyan-500',
-                    icon: Music
-                  },
-                  { 
-                    type: 'Collaboration', 
-                    title: 'Projet avec DJ Nova',
-                    description: 'Vos styles se complètent parfaitement',
-                    confidence: '92%',
-                    color: 'from-green-500 to-emerald-500',
-                    icon: Users
-                  }
-                ].map((rec, index) => (
+                ))
+              ) : (
+                popularPlaylists.map((playlist, index) => (
                   <motion.div
-                    key={rec.title}
+                    key={playlist._id}
                     initial={{ opacity: 0, y: 20 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: '50px' }}
@@ -1858,218 +2469,45 @@ export default function HomePage() {
                     whileHover={{ y: -8, scale: 1.02 }}
                     className="group cursor-pointer"
                   >
-                    <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${rec.color} hover:shadow-2xl transition-all duration-300 border border-white/10 overflow-hidden`}>
-                      {/* Badge de confiance */}
-                      <div className="absolute top-4 right-4">
-                        <div className="bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-semibold">
-                          {rec.confidence}
+                    <div className="relative rounded-xl overflow-hidden">
+                      <div className={`aspect-square bg-gradient-to-br ${playlist.color} flex items-center justify-center relative`}>
+                        <div className="text-4xl">{playlist.emoji}</div>
+                        
+                        {/* Overlay avec bouton play */}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+                          >
+                            <Play size={20} fill="white" className="ml-1" />
+                          </motion.button>
                         </div>
                       </div>
-
-                      {/* Type de recommandation */}
-                      <div className="text-white/80 text-sm font-medium mb-3">{rec.type}</div>
-
-                      {/* Icône */}
-                      <div className="mb-4">
-                        <rec.icon size={32} className="text-white" />
-                      </div>
-
-                      {/* Contenu */}
-                      <h3 className="text-white font-semibold text-lg mb-2 group-hover:text-purple-200 transition-colors">
-                        {rec.title}
-                      </h3>
-                      <p className="text-white/80 text-sm mb-4">{rec.description}</p>
-
-                      {/* Bouton d'action */}
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="w-full bg-white/20 backdrop-blur-sm text-white py-2 rounded-lg font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
-                      >
-                        Découvrir
-                      </motion.button>
-
-                      {/* Effet de brillance au survol */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Insights personnalisés */}
-              <div className="mt-8 p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-                <h3 className="text-white font-semibold text-lg mb-4">Vos Insights Musicaux</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { label: 'Genre préféré', value: 'Pop/Electronic', icon: Music },
-                    { label: 'Temps d\'écoute', value: '2h 15min/jour', icon: Clock },
-                    { label: 'Artiste top', value: 'Luna Sky', icon: Star }
-                  ].map((insight, index) => (
-                    <motion.div
-                      key={insight.label}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true, margin: '50px' }}
-                      transition={{ duration: 0.4, delay: index * 0.1 }}
-                      className="flex items-center space-x-3"
-                    >
-                      <insight.icon size={20} className="text-purple-400" />
-                      <div>
-                        <div className="text-white font-medium">{insight.value}</div>
-                        <div className="text-gray-400 text-sm">{insight.label}</div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          </section>
-        )}
-
-        {/* Section Activité Récente - Design futuriste */}
-        <section className="container mx-auto px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500">
-                  <Zap size={24} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">⚡ Activité Récente</h2>
-                  <p className="text-gray-400">Ce qui se passe dans votre réseau</p>
-                </div>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="text-purple-400 hover:text-purple-300 font-medium"
-              >
-                Voir tout
-              </motion.button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Activités des artistes suivis */}
-              <div className="space-y-4">
-                <h3 className="text-white font-semibold text-lg mb-4">Artistes que vous suivez</h3>
-                {[
-                  { 
-                    artist: 'Luna Sky', 
-                    action: 'a partagé une nouvelle création', 
-                    track: 'Midnight Dreams',
-                    time: 'Il y a 2h',
-                    avatar: '/default-avatar.png',
-                    color: 'from-purple-500 to-pink-500'
-                  },
-                  { 
-                    artist: 'DJ Nova', 
-                    action: 'a commencé un live', 
-                    track: 'Session Lo-Fi',
-                    time: 'Il y a 4h',
-                    avatar: '/default-avatar.png',
-                    color: 'from-blue-500 to-cyan-500'
-                  },
-                  { 
-                    artist: 'The Groove Collective', 
-                    action: 'a aimé votre création', 
-                    track: 'Summer Vibes',
-                    time: 'Il y a 6h',
-                    avatar: '/default-avatar.png',
-                    color: 'from-green-500 to-emerald-500'
-                  }
-                ].map((activity, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: '50px' }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                    whileHover={{ x: 5 }}
-                    className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer"
-                  >
-                    <div className={`w-10 h-10 rounded-full bg-gradient-to-r ${activity.color} flex items-center justify-center`}>
-                      <img 
-                        src={activity.avatar} 
-                        alt={activity.artist}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-white text-sm">
-                        <span className="font-semibold">{activity.artist}</span> {activity.action}
-                      </p>
-                      <p className="text-purple-400 text-xs">{activity.track}</p>
-                      <p className="text-gray-400 text-xs">{activity.time}</p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              {/* Notifications et mises à jour */}
-              <div className="space-y-4">
-                <h3 className="text-white font-semibold text-lg mb-4">Notifications</h3>
-                {[
-                  { 
-                    type: 'Nouvelle fonctionnalité', 
-                    title: 'Playlists collaboratives disponibles',
-                    description: 'Créez des playlists avec vos amis en temps réel',
-                    time: 'Il y a 1h',
-                    icon: Gift,
-                    color: 'from-yellow-500 to-orange-500'
-                  },
-                  { 
-                    type: 'Mise à jour', 
-                    title: 'Nouveau design disponible',
-                    description: 'Interface améliorée et nouvelles animations',
-                    time: 'Il y a 3h',
-                    icon: RefreshCw,
-                    color: 'from-green-500 to-emerald-500'
-                  },
-                  { 
-                    type: 'Événement', 
-                    title: 'Concert virtuel ce soir',
-                    description: 'Rejoignez le live de Luna Sky à 20h',
-                    time: 'Il y a 5h',
-                    icon: Radio,
-                    color: 'from-red-500 to-pink-500'
-                  }
-                ].map((notification, index) => (
-                  <motion.div
-                    key={index}
-                    initial={{ opacity: 0, x: 20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true, margin: '50px' }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                    whileHover={{ x: -5 }}
-                    className="p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 cursor-pointer"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className={`p-2 rounded-lg bg-gradient-to-r ${notification.color}`}>
-                        <notification.icon size={16} className="text-white" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-2 mb-1">
-                          <span className="text-purple-400 text-xs font-medium">{notification.type}</span>
-                          <span className="text-gray-400 text-xs">{notification.time}</span>
+                      
+                      <div className="p-4 bg-black/80 backdrop-blur-sm">
+                        <h3 className="font-semibold text-white text-sm truncate mb-1">{playlist.title}</h3>
+                        <p className="text-gray-400 text-xs mb-2">par {playlist.creator.name}</p>
+                        
+                        {/* Stats */}
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div className="flex items-center space-x-2">
+                            <Music size={12} />
+                            <span>{playlist.trackCount} titres</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Heart size={12} />
+                            <span>{formatNumber(playlist.likes)}</span>
+                          </div>
                         </div>
-                        <h4 className="text-white font-semibold text-sm mb-1">{notification.title}</h4>
-                        <p className="text-gray-400 text-xs">{notification.description}</p>
                       </div>
                     </div>
                   </motion.div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
           </motion.div>
         </section>
-
-        {/* Sections de catégories existantes améliorées */}
       </div>
 
       {/* Message si aucune musique */}
