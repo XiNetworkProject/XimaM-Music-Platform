@@ -76,7 +76,7 @@ export default function BottomNav() {
         <div className="relative">
           {/* Fond avec effet de flou et gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent backdrop-blur-xl" />
-          
+      
           {/* Ligne de séparation avec effet lumineux */}
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
           
@@ -85,22 +85,22 @@ export default function BottomNav() {
             <div className="flex items-center justify-around max-w-md mx-auto">
               {navItems.map((item, index) => {
                 const isActive = isItemActive(item.path);
-                
-                return (
-                  <motion.button
-                    key={item.id}
-                    onClick={() => handleNavigation(item.path)}
+            
+            return (
+              <motion.button
+                key={item.id}
+                onClick={() => handleNavigation(item.path)}
                     className="relative flex flex-col items-center space-y-1 px-3 py-2 rounded-2xl transition-all duration-200 group"
                     whileHover={{ scale: 1.05, y: -1 }}
-                    whileTap={{ scale: 0.95 }}
+                whileTap={{ scale: 0.95 }}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05, duration: 0.3 }}
-                  >
+              >
                     {/* Indicateur actif avec animation */}
                     <AnimatePresence mode="wait">
-                      {isActive && (
-                        <motion.div
+                {isActive && (
+                  <motion.div
                           key={`active-${item.id}-${pathname}`}
                           className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl border border-purple-500/30"
                           initial={{ opacity: 0, scale: 0.8 }}
@@ -140,12 +140,12 @@ export default function BottomNav() {
                                 left: `${20 + i * 15}%`,
                                 top: '50%',
                               }}
-                            />
+                  />
                           ))}
                         </div>
                       )}
                     </AnimatePresence>
-                    
+                
                     {/* Icône avec animation */}
                     <motion.div 
                       className="relative z-10"
@@ -166,14 +166,14 @@ export default function BottomNav() {
                         stiffness: 400
                       }}
                     >
-                      <item.icon 
+                  <item.icon 
                         size={22} 
                         className={`transition-all duration-200 ${
                           isActive 
                             ? 'text-purple-400 drop-shadow-lg' 
                             : 'text-white/60 group-hover:text-white/80'
-                        }`} 
-                      />
+                    }`} 
+                  />
                       
                       {/* Effet de glow pour l'icône active */}
                       <AnimatePresence>
@@ -189,7 +189,7 @@ export default function BottomNav() {
                         )}
                       </AnimatePresence>
                     </motion.div>
-                    
+                
                     {/* Label avec animation */}
                     <motion.span 
                       key={`${item.id}-label-${pathname}`}
@@ -197,7 +197,7 @@ export default function BottomNav() {
                         isActive 
                           ? 'text-purple-400 font-semibold' 
                           : 'text-white/60 group-hover:text-white/80'
-                      }`}
+                  }`}
                       initial={isActive ? { y: 0, scale: 1 } : { y: 0, scale: 1 }}
                       animate={isActive ? { 
                         y: [0, -1, 0],
@@ -213,19 +213,19 @@ export default function BottomNav() {
                         type: "spring",
                         stiffness: 400
                       }}
-                    >
-                      {item.label}
+                >
+                  {item.label}
                     </motion.span>
                     
                     {/* Effet de hover avec gradient */}
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     />
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
           
           {/* Effet de bordure inférieure avec animation */}
           <div className="absolute bottom-0 left-0 right-0 h-px">
@@ -241,7 +241,7 @@ export default function BottomNav() {
               }}
             />
           </div>
-        </div>
+    </div>
       </motion.div>
     </>
   );

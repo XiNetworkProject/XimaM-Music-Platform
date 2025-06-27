@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
-import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
 
@@ -64,7 +64,7 @@ interface AudioPlayerContextType {
   playTrack: (trackIdOrTrack: string | Track) => Promise<void>;
   handleLike: (trackId: string) => void;
   closePlayer: () => void;
-  // Méthodes du service audio
+  // Nouvelles méthodes du service audio
   play: () => Promise<void>;
   pause: () => void;
   stop: () => void;
@@ -105,26 +105,22 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   // Synchronisation optimisée avec le service audio
   useEffect(() => {
-    const syncState = () => {
-      setAudioState(prev => ({
-        ...prev,
-        isPlaying: audioService.state.isPlaying,
-        volume: audioService.state.volume,
-        currentTime: audioService.state.currentTime,
-        duration: audioService.state.duration,
-        isLoading: audioService.state.isLoading,
-        error: audioService.state.error,
-        isMuted: audioService.state.isMuted,
-        playbackRate: audioService.state.playbackRate,
-        shuffle: audioService.shuffle,
-        repeat: audioService.repeat,
-      }));
-    };
-
-    syncState();
+    setAudioState(prev => ({
+      ...prev,
+      isPlaying: audioService.state.isPlaying,
+      volume: audioService.state.volume,
+      currentTime: audioService.state.currentTime,
+      duration: audioService.state.duration,
+      isLoading: audioService.state.isLoading,
+      error: audioService.state.error,
+      isMuted: audioService.state.isMuted,
+      playbackRate: audioService.state.playbackRate,
+      shuffle: audioService.shuffle,
+      repeat: audioService.repeat,
+    }));
   }, [audioService.state, audioService.shuffle, audioService.repeat]);
 
-  // Synchronisation optimisée de la piste courante
+  // Synchronisation de la piste courante optimisée
   useEffect(() => {
     if (audioService.state.currentTrack) {
       const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
@@ -134,10 +130,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex]);
 
-  // Méthodes optimisées avec useCallback
   const setTracks = useCallback((tracks: Track[]) => {
     setAudioState(prev => ({ ...prev, tracks }));
-    audioService.actions.setAllTracks(tracks);
     audioService.actions.setQueueAndPlay(tracks, 0);
   }, [audioService.actions]);
 
@@ -174,7 +168,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setAudioState(prev => ({ ...prev, repeat }));
   }, []);
 
-  // Fonction playTrack ultra-optimisée
   const playTrack = useCallback(async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;
@@ -200,9 +193,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         showPlayer: true,
         isMinimized: false,
       }));
-      
-      // Mettre à jour le service audio
-      audioService.actions.setAllTracks(newTracks);
       await audioService.actions.loadTrack(trackData);
       await audioService.actions.play();
       return;
@@ -270,7 +260,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audioService.actions.stop();
   }, [setShowPlayer, setIsPlaying, setIsMinimized, audioService.actions]);
 
-  // Persister l'état dans localStorage avec debounce
+  // Persister l'état dans localStorage
   useEffect(() => {
     const savedState = localStorage.getItem('audioPlayerState');
     if (savedState) {
@@ -284,22 +274,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      localStorage.setItem('audioPlayerState', JSON.stringify({
-        currentTrackIndex: audioState.currentTrackIndex,
-        isPlaying: audioState.isPlaying,
-        showPlayer: audioState.showPlayer,
-        isMinimized: audioState.isMinimized,
-        volume: audioState.volume,
-        shuffle: audioState.shuffle,
-        repeat: audioState.repeat,
-      }));
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
+    localStorage.setItem('audioPlayerState', JSON.stringify({
+      currentTrackIndex: audioState.currentTrackIndex,
+      isPlaying: audioState.isPlaying,
+      showPlayer: audioState.showPlayer,
+      isMinimized: audioState.isMinimized,
+      volume: audioState.volume,
+      shuffle: audioState.shuffle,
+      repeat: audioState.repeat,
+    }));
   }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat]);
 
-  // Valeur contextuelle mémorisée
   const value = useMemo(() => ({
     audioState,
     setTracks,

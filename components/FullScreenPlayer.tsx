@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAudioPlayer } from '@/app/providers';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -31,9 +31,12 @@ export default function FullScreenPlayer() {
   const [showFull, setShowFull] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showError, setShowError] = useState(false);
+  const [isNotificationRequested, setIsNotificationRequested] = useState(false);
+  const volumeSliderRef = useRef<HTMLDivElement>(null);
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
   const formatTime = useCallback((seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -42,6 +45,8 @@ export default function FullScreenPlayer() {
   // Gestion de la lecture/pause optimisée
   const togglePlay = useCallback(async () => {
     try {
+      if (audioState.isLoading) return;
+      
       if (audioState.isPlaying) {
         pause();
       } else {
@@ -51,34 +56,38 @@ export default function FullScreenPlayer() {
       console.error('Erreur lecture/pause:', error);
       toast.error('Erreur lors de la lecture audio');
     }
-  }, [audioState.isPlaying, play, pause]);
+  }, [audioState.isPlaying, audioState.isLoading, play, pause]);
 
   // Gestion du changement de piste optimisée
   const handleNextTrack = useCallback(() => {
     try {
+      if (audioState.isLoading) return;
       nextTrack();
     } catch (error) {
       console.error('Erreur piste suivante:', error);
       toast.error('Erreur lors du changement de piste');
     }
-  }, [nextTrack]);
+  }, [nextTrack, audioState.isLoading]);
 
   const handlePreviousTrack = useCallback(() => {
     try {
+      if (audioState.isLoading) return;
       previousTrack();
     } catch (error) {
       console.error('Erreur piste précédente:', error);
       toast.error('Erreur lors du changement de piste');
     }
-  }, [previousTrack]);
+  }, [previousTrack, audioState.isLoading]);
 
   // Gestion du seek optimisée
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (audioState.isLoading || !audioState.duration) return;
+    
     const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
+    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const newTime = percent * audioState.duration;
     seek(newTime);
-  }, [audioState.duration, seek]);
+  }, [audioState.duration, audioState.isLoading, seek]);
 
   // Gestion du volume
   const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,16 +95,34 @@ export default function FullScreenPlayer() {
     setVolume(volume);
   }, [setVolume]);
 
+  // Fermer le slider de volume quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (volumeSliderRef.current && !volumeSliderRef.current.contains(event.target as Node)) {
+        setShowVolumeSlider(false);
+      }
+    };
+
+    if (showVolumeSlider) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showVolumeSlider]);
+
   // Demande de permission pour les notifications
   useEffect(() => {
-    if (audioState.showPlayer && currentTrack) {
+    if (audioState.showPlayer && currentTrack && !isNotificationRequested) {
+      setIsNotificationRequested(true);
       requestNotificationPermission().then((granted) => {
         if (granted) {
           console.log('Notifications activées');
         }
       });
     }
-  }, [audioState.showPlayer, currentTrack, requestNotificationPermission]);
+  }, [audioState.showPlayer, currentTrack, isNotificationRequested, requestNotificationPermission]);
 
   // Gestion des erreurs
   useEffect(() => {
@@ -107,12 +134,20 @@ export default function FullScreenPlayer() {
     }
   }, [audioState.error]);
 
+  // Calculs optimisés
+  const progressPercentage = useMemo(() => {
+    if (!audioState.duration || audioState.duration <= 0) return 0;
+    return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
+  }, [audioState.currentTime, audioState.duration]);
+
+  const isCurrentTrack = useMemo(() => {
+    return currentTrack?._id === audioState.tracks[audioState.currentTrackIndex]?._id;
+  }, [currentTrack?._id, audioState.tracks, audioState.currentTrackIndex]);
+
   // Mini-player (toujours visible en bas)
   if (!audioState.showPlayer || !currentTrack) {
     return null;
   }
-
-  const progressPercentage = audioState.duration > 0 ? (audioState.currentTime / audioState.duration) * 100 : 0;
 
   return (
     <>
@@ -132,12 +167,13 @@ export default function FullScreenPlayer() {
           src={currentTrack.coverUrl || '/default-cover.jpg'} 
           alt={currentTrack.title} 
           className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0" 
+          loading="lazy"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-1 sm:space-x-2">
             <span className="truncate font-semibold text-white text-xs sm:text-sm">{currentTrack.title}</span>
             {/* Animation d'onde/barre */}
-            {audioState.isPlaying && (
+            {audioState.isPlaying && !audioState.isLoading && (
               <div className="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
                 <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
                 <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.2s' }}></div>
@@ -151,7 +187,7 @@ export default function FullScreenPlayer() {
         {/* Indicateur de chargement */}
         {audioState.isLoading && (
           <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+            <Loader2 size={16} className="text-white animate-spin" />
           </div>
         )}
         
@@ -163,11 +199,17 @@ export default function FullScreenPlayer() {
         )}
         
         <button
-          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0"
+          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={e => { e.stopPropagation(); togglePlay(); }}
           disabled={audioState.isLoading}
         >
-          {audioState.isPlaying ? <Pause size={14} className="text-white sm:w-[18px] sm:h-[18px]" /> : <Play size={14} className="text-white sm:w-[18px] sm:h-[18px]" />}
+          {audioState.isLoading ? (
+            <Loader2 size={14} className="text-white animate-spin sm:w-[18px] sm:h-[18px]" />
+          ) : audioState.isPlaying ? (
+            <Pause size={14} className="text-white sm:w-[18px] sm:h-[18px]" />
+          ) : (
+            <Play size={14} className="text-white sm:w-[18px] sm:h-[18px]" />
+          )}
         </button>
       </motion.div>
 
@@ -201,6 +243,7 @@ export default function FullScreenPlayer() {
                   src={currentTrack.coverUrl || '/default-cover.jpg'} 
                   alt={currentTrack.title} 
                   className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation" 
+                  loading="lazy"
                 />
                 <button
                   className="absolute w-10 h-10 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
@@ -218,7 +261,7 @@ export default function FullScreenPlayer() {
               <div className="flex flex-col items-center flex-1 justify-center">
                 <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center">{currentTrack.title}</span>
                 <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack.artist?.name || currentTrack.artist?.username}</span>
-                {audioState.isPlaying && (
+                {audioState.isPlaying && !audioState.isLoading && (
                   <div className="flex space-x-1 mb-2">
                     <div className="w-1 h-4 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
                     <div className="w-1 h-4 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.2s' }}></div>
@@ -238,13 +281,13 @@ export default function FullScreenPlayer() {
                     onClick={handleSeek}
                   >
                     <div 
-                      className="h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full relative"
+                      className="h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full relative transition-all duration-100"
                       style={{ width: `${progressPercentage}%` }}
                     >
                       <div className="progress-shimmer absolute inset-0 rounded-full"></div>
                     </div>
                     <div 
-                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer"
+                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100"
                       style={{ left: `calc(${progressPercentage}% - 8px)` }}
                     />
                   </div>
@@ -257,19 +300,19 @@ export default function FullScreenPlayer() {
                 {/* Contrôles principaux */}
                 <div className="flex items-center justify-center space-x-4 mb-4">
                   <button 
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors" 
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     onClick={handlePreviousTrack}
                     disabled={audioState.isLoading}
                   >
                     <SkipBack size={28} className="text-white" />
                   </button>
                   <button 
-                    className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-colors" 
+                    className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     onClick={togglePlay}
                     disabled={audioState.isLoading}
                   >
                     {audioState.isLoading ? (
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                      <Loader2 size={32} className="text-white animate-spin" />
                     ) : audioState.isPlaying ? (
                       <Pause size={32} className="text-white" />
                     ) : (
@@ -277,7 +320,7 @@ export default function FullScreenPlayer() {
                     )}
                   </button>
                   <button 
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors" 
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                     onClick={handleNextTrack}
                     disabled={audioState.isLoading}
                   >
@@ -305,7 +348,7 @@ export default function FullScreenPlayer() {
                   >
                     <Heart size={22} fill={currentTrack.isLiked ? 'currentColor' : 'none'} />
                   </button>
-                  <div className="relative">
+                  <div className="relative" ref={volumeSliderRef}>
                     <button 
                       className="p-2 text-white/60 hover:bg-white/10 rounded-full transition-colors"
                       onClick={() => setShowVolumeSlider(!showVolumeSlider)}
