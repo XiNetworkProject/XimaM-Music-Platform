@@ -2,38 +2,36 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useAudioPlayer } from '@/app/providers';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 export default function FullScreenPlayer() {
-  const { audioState, setIsPlaying, setCurrentTrackIndex, setShowPlayer, setIsMinimized, handleLike, setShuffle, setRepeat } = useAudioPlayer();
+  const { 
+    audioState, 
+    setIsPlaying, 
+    setCurrentTrackIndex, 
+    setShowPlayer, 
+    setIsMinimized, 
+    handleLike, 
+    setShuffle, 
+    setRepeat,
+    play,
+    pause,
+    seek,
+    setVolume,
+    toggleMute,
+    nextTrack,
+    previousTrack,
+    toggleShuffle,
+    cycleRepeat,
+    requestNotificationPermission
+  } = useAudioPlayer();
+  
   const [showFull, setShowFull] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
+  const [showError, setShowError] = useState(false);
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
-
-  // Gestion du temps audio
-  const handleTimeUpdate = useCallback(() => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
-  }, []);
-
-  const handleLoadedMetadata = useCallback(() => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
-  }, []);
-
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const percent = (e.clientX - rect.left) / rect.width;
-    const newTime = percent * duration;
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  }, [duration]);
 
   const formatTime = useCallback((seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -41,99 +39,83 @@ export default function FullScreenPlayer() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
-  // Gestion de la lecture/pause
-  const togglePlay = useCallback(() => {
-    if (audioRef.current) {
+  // Gestion de la lecture/pause optimisée
+  const togglePlay = useCallback(async () => {
+    try {
       if (audioState.isPlaying) {
-        audioRef.current.pause();
+        pause();
       } else {
-        audioRef.current.play();
+        await play();
       }
-      setIsPlaying(!audioState.isPlaying);
+    } catch (error) {
+      console.error('Erreur lecture/pause:', error);
+      toast.error('Erreur lors de la lecture audio');
     }
-  }, [audioState.isPlaying, setIsPlaying]);
+  }, [audioState.isPlaying, play, pause]);
 
-  // Gestion du changement de piste
-  const nextTrack = useCallback(() => {
-    if (audioState.tracks.length === 0) return;
-    let nextIndex = audioState.currentTrackIndex + 1;
-    if (nextIndex >= audioState.tracks.length) {
-      if (audioState.repeat === 'all') {
-        nextIndex = 0;
-      } else {
-        setIsPlaying(false);
-        return;
-      }
-    }
-    setCurrentTrackIndex(nextIndex);
-  }, [audioState.tracks.length, audioState.currentTrackIndex, audioState.repeat, setCurrentTrackIndex, setIsPlaying]);
-
-  const previousTrack = useCallback(() => {
-    if (audioState.tracks.length === 0) return;
-    let prevIndex = audioState.currentTrackIndex - 1;
-    if (prevIndex < 0) {
-      if (audioState.repeat === 'all') {
-        prevIndex = audioState.tracks.length - 1;
-      } else {
-        setIsPlaying(false);
-        return;
-      }
-    }
-    setCurrentTrackIndex(prevIndex);
-  }, [audioState.tracks.length, audioState.currentTrackIndex, audioState.repeat, setCurrentTrackIndex, setIsPlaying]);
-
-  // Gestion de la fin de piste
-  const handleEnded = useCallback(() => {
-    if (audioState.repeat === 'one') {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play();
-      }
-    } else {
+  // Gestion du changement de piste optimisée
+  const handleNextTrack = useCallback(() => {
+    try {
       nextTrack();
+    } catch (error) {
+      console.error('Erreur piste suivante:', error);
+      toast.error('Erreur lors du changement de piste');
     }
-  }, [audioState.repeat, nextTrack]);
+  }, [nextTrack]);
 
-  // Mise à jour de la source audio quand la piste change
-  useEffect(() => {
-    if (audioRef.current && currentTrack) {
-      audioRef.current.src = currentTrack.audioUrl;
-      audioRef.current.load();
-      setCurrentTime(0);
+  const handlePreviousTrack = useCallback(() => {
+    try {
+      previousTrack();
+    } catch (error) {
+      console.error('Erreur piste précédente:', error);
+      toast.error('Erreur lors du changement de piste');
     }
-  }, [currentTrack]);
+  }, [previousTrack]);
 
-  // Gestion de la lecture/pause
+  // Gestion du seek optimisée
+  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newTime = percent * audioState.duration;
+    seek(newTime);
+  }, [audioState.duration, seek]);
+
+  // Gestion du volume
+  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const volume = parseFloat(e.target.value);
+    setVolume(volume);
+  }, [setVolume]);
+
+  // Demande de permission pour les notifications
   useEffect(() => {
-    if (audioRef.current) {
-      if (audioState.isPlaying) {
-        audioRef.current.play().catch(console.error);
-      } else {
-        audioRef.current.pause();
-      }
+    if (audioState.showPlayer && currentTrack) {
+      requestNotificationPermission().then((granted) => {
+        if (granted) {
+          console.log('Notifications activées');
+        }
+      });
     }
-  }, [audioState.isPlaying]);
+  }, [audioState.showPlayer, currentTrack, requestNotificationPermission]);
+
+  // Gestion des erreurs
+  useEffect(() => {
+    if (audioState.error) {
+      setShowError(true);
+      toast.error(audioState.error);
+    } else {
+      setShowError(false);
+    }
+  }, [audioState.error]);
 
   // Mini-player (toujours visible en bas)
   if (!audioState.showPlayer || !currentTrack) {
-    console.log('Mini-player caché:', { showPlayer: audioState.showPlayer, currentTrack: !!currentTrack });
     return null;
   }
 
-  console.log('Mini-player affiché:', { showPlayer: audioState.showPlayer, currentTrack: currentTrack.title });
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progressPercentage = audioState.duration > 0 ? (audioState.currentTime / audioState.duration) * 100 : 0;
 
   return (
     <>
-      {/* Élément audio caché */}
-      <audio
-        ref={audioRef}
-        onTimeUpdate={handleTimeUpdate}
-        onLoadedMetadata={handleLoadedMetadata}
-        onEnded={handleEnded}
-        preload="metadata"
-      />
-
       {/* Mini-player */}
       <motion.div
         className="glass-player"
@@ -165,9 +147,25 @@ export default function FullScreenPlayer() {
           </div>
           <span className="text-xs text-gray-300 truncate text-xs sm:text-xs">{currentTrack.artist?.name || currentTrack.artist?.username}</span>
         </div>
+        
+        {/* Indicateur de chargement */}
+        {audioState.isLoading && (
+          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+          </div>
+        )}
+        
+        {/* Indicateur d'erreur */}
+        {showError && (
+          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8">
+            <AlertCircle size={16} className="text-red-400" />
+          </div>
+        )}
+        
         <button
           className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0"
           onClick={e => { e.stopPropagation(); togglePlay(); }}
+          disabled={audioState.isLoading}
         >
           {audioState.isPlaying ? <Pause size={14} className="text-white sm:w-[18px] sm:h-[18px]" /> : <Play size={14} className="text-white sm:w-[18px] sm:h-[18px]" />}
         </button>
@@ -251,23 +249,38 @@ export default function FullScreenPlayer() {
                     />
                   </div>
                   <div className="flex justify-between text-xs text-gray-400 mt-1">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration)}</span>
+                    <span>{formatTime(audioState.currentTime)}</span>
+                    <span>{formatTime(audioState.duration)}</span>
                   </div>
                 </div>
                 
                 {/* Contrôles principaux */}
                 <div className="flex items-center justify-center space-x-4 mb-4">
-                  <button className="p-2 hover:bg-white/10 rounded-full transition-colors" onClick={previousTrack}>
+                  <button 
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors" 
+                    onClick={handlePreviousTrack}
+                    disabled={audioState.isLoading}
+                  >
                     <SkipBack size={28} className="text-white" />
                   </button>
                   <button 
                     className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-colors" 
                     onClick={togglePlay}
+                    disabled={audioState.isLoading}
                   >
-                    {audioState.isPlaying ? <Pause size={32} className="text-white" /> : <Play size={32} className="text-white" />}
+                    {audioState.isLoading ? (
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                    ) : audioState.isPlaying ? (
+                      <Pause size={32} className="text-white" />
+                    ) : (
+                      <Play size={32} className="text-white" />
+                    )}
                   </button>
-                  <button className="p-2 hover:bg-white/10 rounded-full transition-colors" onClick={nextTrack}>
+                  <button 
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors" 
+                    onClick={handleNextTrack}
+                    disabled={audioState.isLoading}
+                  >
                     <SkipForward size={28} className="text-white" />
                   </button>
                 </div>
@@ -276,13 +289,13 @@ export default function FullScreenPlayer() {
                 <div className="flex items-center justify-center space-x-4">
                   <button 
                     className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.shuffle ? 'text-purple-400' : 'text-white/60'}`} 
-                    onClick={() => setShuffle(!audioState.shuffle)}
+                    onClick={toggleShuffle}
                   >
                     <Shuffle size={22} />
                   </button>
                   <button 
                     className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.repeat !== 'none' ? 'text-purple-400' : 'text-white/60'}`} 
-                    onClick={() => setRepeat(audioState.repeat === 'none' ? 'one' : audioState.repeat === 'one' ? 'all' : 'none')}
+                    onClick={cycleRepeat}
                   >
                     <Repeat size={22} />
                   </button>
@@ -292,9 +305,27 @@ export default function FullScreenPlayer() {
                   >
                     <Heart size={22} fill={currentTrack.isLiked ? 'currentColor' : 'none'} />
                   </button>
-                  <button className="p-2 text-white/60 hover:bg-white/10 rounded-full transition-colors">
-                    <Volume2 size={22} />
-                  </button>
+                  <div className="relative">
+                    <button 
+                      className="p-2 text-white/60 hover:bg-white/10 rounded-full transition-colors"
+                      onClick={() => setShowVolumeSlider(!showVolumeSlider)}
+                    >
+                      {audioState.isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
+                    </button>
+                    {showVolumeSlider && (
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.1"
+                          value={audioState.volume}
+                          onChange={handleVolumeChange}
+                          className="volume-slider w-20 h-2"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>

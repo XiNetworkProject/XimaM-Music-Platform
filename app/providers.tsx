@@ -5,6 +5,7 @@ import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
+import { useAudioService } from '@/hooks/useAudioService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,6 +32,7 @@ interface Track {
   comments: string[];
   plays: number;
   isLiked?: boolean;
+  genre?: string[];
 }
 
 interface AudioPlayerState {
@@ -41,6 +43,13 @@ interface AudioPlayerState {
   isMinimized: boolean;
   shuffle: boolean;
   repeat: 'none' | 'one' | 'all';
+  volume: number;
+  currentTime: number;
+  duration: number;
+  isLoading: boolean;
+  error: string | null;
+  isMuted: boolean;
+  playbackRate: number;
 }
 
 interface AudioPlayerContextType {
@@ -55,12 +64,28 @@ interface AudioPlayerContextType {
   playTrack: (trackIdOrTrack: string | Track) => void;
   handleLike: (trackId: string) => void;
   closePlayer: () => void;
+  // Nouvelles méthodes du service audio
+  play: () => Promise<void>;
+  pause: () => void;
+  stop: () => void;
+  seek: (time: number) => void;
+  setVolume: (volume: number) => void;
+  toggleMute: () => void;
+  setPlaybackRate: (rate: number) => void;
+  nextTrack: () => void;
+  previousTrack: () => void;
+  toggleShuffle: () => void;
+  cycleRepeat: () => void;
+  setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
+  requestNotificationPermission: () => Promise<boolean>;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
+  const audioService = useAudioService();
+  
   const [audioState, setAudioState] = useState<AudioPlayerState>({
     tracks: [],
     currentTrackIndex: 0,
@@ -69,18 +94,61 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     isMinimized: false,
     shuffle: false,
     repeat: 'none',
+    volume: 1,
+    currentTime: 0,
+    duration: 0,
+    isLoading: false,
+    error: null,
+    isMuted: false,
+    playbackRate: 1,
   });
+
+  // Synchronisation avec le service audio
+  useEffect(() => {
+    setAudioState(prev => ({
+      ...prev,
+      isPlaying: audioService.state.isPlaying,
+      volume: audioService.state.volume,
+      currentTime: audioService.state.currentTime,
+      duration: audioService.state.duration,
+      isLoading: audioService.state.isLoading,
+      error: audioService.state.error,
+      isMuted: audioService.state.isMuted,
+      playbackRate: audioService.state.playbackRate,
+      shuffle: audioService.shuffle,
+      repeat: audioService.repeat,
+    }));
+  }, [audioService.state, audioService.shuffle, audioService.repeat]);
+
+  // Synchronisation de la piste courante
+  useEffect(() => {
+    if (audioService.state.currentTrack) {
+      const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
+      if (trackIndex !== -1) {
+        setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
+      }
+    }
+  }, [audioService.state.currentTrack, audioState.tracks]);
 
   const setTracks = (tracks: Track[]) => {
     setAudioState(prev => ({ ...prev, tracks }));
+    audioService.actions.setQueueAndPlay(tracks, 0);
   };
 
   const setCurrentTrackIndex = (index: number) => {
     setAudioState(prev => ({ ...prev, currentTrackIndex: index }));
+    if (audioState.tracks[index]) {
+      audioService.actions.loadTrack(audioState.tracks[index]);
+    }
   };
 
   const setIsPlaying = (playing: boolean) => {
     setAudioState(prev => ({ ...prev, isPlaying: playing }));
+    if (playing) {
+      audioService.actions.play();
+    } else {
+      audioService.actions.pause();
+    }
   };
 
   const setShowPlayer = (show: boolean) => {
@@ -93,13 +161,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const setShuffle = (shuffle: boolean) => {
     setAudioState(prev => ({ ...prev, shuffle }));
+    audioService.actions.toggleShuffle();
   };
 
   const setRepeat = (repeat: 'none' | 'one' | 'all') => {
     setAudioState(prev => ({ ...prev, repeat }));
+    // Le service audio gère déjà le cycle repeat
   };
 
-  const playTrack = (trackIdOrTrack: string | Track) => {
+  const playTrack = async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;
     
@@ -116,14 +186,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Si la piste n'est pas dans la liste et qu'on a les données, l'ajouter
     if (trackIndex === -1 && trackData) {
+      const newTracks = [...audioState.tracks, trackData];
       setAudioState(prev => ({
         ...prev,
-        tracks: [...prev.tracks, trackData],
-        currentTrackIndex: prev.tracks.length,
-        isPlaying: true,
+        tracks: newTracks,
+        currentTrackIndex: newTracks.length - 1,
         showPlayer: true,
         isMinimized: false,
       }));
+      await audioService.actions.loadTrack(trackData);
+      await audioService.actions.play();
       return;
     }
     
@@ -135,7 +207,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Si c'est la piste actuelle, toggle play/pause
     if (trackIndex === audioState.currentTrackIndex) {
-      setIsPlaying(!audioState.isPlaying);
+      if (audioState.isPlaying) {
+        audioService.actions.pause();
+      } else {
+        await audioService.actions.play();
+      }
       setShowPlayer(true);
       setIsMinimized(false);
       return;
@@ -143,17 +219,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Sinon, changer de piste et jouer
     setCurrentTrackIndex(trackIndex);
-    setIsPlaying(true);
+    await audioService.actions.loadTrack(audioState.tracks[trackIndex]);
+    await audioService.actions.play();
     setShowPlayer(true);
     setIsMinimized(false);
   };
 
   const handleLike = async (trackId: string) => {
     setAudioState(prev => {
-      // On ne touche que le champ isLiked/likes de la piste courante
-      const newTracks = prev.tracks.map((track, idx) => {
+      const newTracks = prev.tracks.map((track) => {
         if (track._id !== trackId) return track;
-        // On ne recrée pas tout l'objet, on clone juste les champs nécessaires
         const isLiked = !track.isLiked;
         const likes = isLiked
           ? [...track.likes, session?.user?.id || '']
@@ -183,6 +258,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setShowPlayer(false);
     setIsPlaying(false);
     setIsMinimized(false);
+    audioService.actions.stop();
   };
 
   // Persister l'état dans localStorage
@@ -204,8 +280,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       isPlaying: audioState.isPlaying,
       showPlayer: audioState.showPlayer,
       isMinimized: audioState.isMinimized,
+      volume: audioState.volume,
+      shuffle: audioState.shuffle,
+      repeat: audioState.repeat,
     }));
-  }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized]);
+  }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat]);
 
   const value = {
     audioState,
@@ -219,6 +298,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     playTrack,
     handleLike,
     closePlayer,
+    // Méthodes du service audio
+    play: audioService.actions.play,
+    pause: audioService.actions.pause,
+    stop: audioService.actions.stop,
+    seek: audioService.actions.seek,
+    setVolume: audioService.actions.setVolume,
+    toggleMute: audioService.actions.toggleMute,
+    setPlaybackRate: audioService.actions.setPlaybackRate,
+    nextTrack: audioService.actions.nextTrack,
+    previousTrack: audioService.actions.previousTrack,
+    toggleShuffle: audioService.actions.toggleShuffle,
+    cycleRepeat: audioService.actions.cycleRepeat,
+    setQueueAndPlay: audioService.actions.setQueueAndPlay,
+    requestNotificationPermission: audioService.actions.requestNotificationPermission,
   };
 
   return (

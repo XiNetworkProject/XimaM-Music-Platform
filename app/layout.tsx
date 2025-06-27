@@ -27,6 +27,22 @@ export const metadata: Metadata = {
   },
 };
 
+// Enregistrement du service worker côté client
+if (typeof window !== 'undefined') {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((registration) => {
+          console.log('Service Worker enregistré avec succès:', registration);
+        })
+        .catch((error) => {
+          console.error('Erreur enregistrement Service Worker:', error);
+        });
+    });
+  }
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -34,6 +50,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
+      <head>
+        <meta name="theme-color" content="#1db954" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="XimaM Music" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body className={inter.className}>
         <Providers>
           <div className="flex flex-col min-h-screen">
