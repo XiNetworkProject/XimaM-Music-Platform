@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioRecommendations } from './useAudioRecommendations';
 
@@ -52,6 +52,8 @@ export const useAudioService = () => {
   const { data: session } = useSession();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recommendations = useAudioRecommendations();
+  const notificationRef = useRef<Notification | null>(null);
+  const serviceWorkerRef = useRef<ServiceWorkerRegistration | null>(null);
   
   const [state, setState] = useState<AudioServiceState>({
     currentTrack: null,
@@ -72,31 +74,45 @@ export const useAudioService = () => {
   const [shuffledQueue, setShuffledQueue] = useState<Track[]>([]);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialisation du service worker
+  // Initialisation optimisée du service worker
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
+    const initServiceWorker = async () => {
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.register('/sw.js');
+          serviceWorkerRef.current = registration;
           console.log('Service Worker enregistré:', registration);
-        })
-        .catch((error) => {
+          
+          // Demander les permissions de notification immédiatement
+          if ('Notification' in window && Notification.permission === 'default') {
+            await Notification.requestPermission();
+          }
+        } catch (error) {
           console.error('Erreur enregistrement Service Worker:', error);
-        });
-    }
+        }
+      }
+    };
+
+    initServiceWorker();
   }, []);
 
-  // Écoute des messages du service worker
+  // Écoute des messages du service worker avec debounce
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        if (event.data.type === 'AUDIO_CONTROL') {
-          handleServiceWorkerControl(event.data.action);
-        }
-      });
-    }
-  }, [state.isPlaying, state.currentTrack]);
+    if (!serviceWorkerRef.current) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data.type === 'AUDIO_CONTROL') {
+        handleServiceWorkerControl(event.data.action);
+      }
+    };
+
+    navigator.serviceWorker.addEventListener('message', handleMessage);
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleMessage);
+    };
+  }, []);
 
   const handleServiceWorkerControl = useCallback((action: string) => {
     switch (action) {
@@ -115,104 +131,99 @@ export const useAudioService = () => {
     }
   }, [state.isPlaying]);
 
-  // Création de l'élément audio
+  // Création optimisée de l'élément audio
   useEffect(() => {
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-      audioRef.current.preload = 'metadata';
-      
-      // Événements audio
-      audioRef.current.addEventListener('loadstart', () => {
-        setState(prev => ({ ...prev, isLoading: true, error: null }));
-      });
+    if (isInitialized) return;
 
-      audioRef.current.addEventListener('canplay', () => {
-        setState(prev => ({ ...prev, isLoading: false }));
-      });
-
-      audioRef.current.addEventListener('timeupdate', () => {
-        if (audioRef.current) {
-          setState(prev => ({ 
-            ...prev, 
-            currentTime: audioRef.current!.currentTime 
-          }));
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audio.crossOrigin = 'anonymous';
+    
+    // Optimisation des événements audio
+    const events = {
+      loadstart: () => setState(prev => ({ ...prev, isLoading: true, error: null })),
+      canplay: () => setState(prev => ({ ...prev, isLoading: false })),
+      timeupdate: () => {
+        if (audio.currentTime !== state.currentTime) {
+          setState(prev => ({ ...prev, currentTime: audio.currentTime }));
         }
-      });
-
-      audioRef.current.addEventListener('loadedmetadata', () => {
-        if (audioRef.current) {
-          setState(prev => ({ 
-            ...prev, 
-            duration: audioRef.current!.duration 
-          }));
+      },
+      loadedmetadata: () => {
+        if (audio.duration !== state.duration) {
+          setState(prev => ({ ...prev, duration: audio.duration }));
         }
-      });
-
-      audioRef.current.addEventListener('ended', () => {
-        handleTrackEnd();
-      });
-
-      audioRef.current.addEventListener('error', (e) => {
+      },
+      ended: () => handleTrackEnd(),
+      error: (e: Event) => {
         console.error('Erreur audio:', e);
         setState(prev => ({ 
           ...prev, 
           error: 'Erreur de lecture audio',
           isLoading: false 
         }));
-      });
-
-      audioRef.current.addEventListener('play', () => {
+      },
+      play: () => {
         setState(prev => ({ ...prev, isPlaying: true }));
         updateNotification();
-      });
-
-      audioRef.current.addEventListener('pause', () => {
+      },
+      pause: () => {
         setState(prev => ({ ...prev, isPlaying: false }));
         updateNotification();
-      });
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
       }
     };
-  }, []);
+
+    // Ajouter tous les événements
+    Object.entries(events).forEach(([event, handler]) => {
+      audio.addEventListener(event, handler);
+    });
+
+    audioRef.current = audio;
+    setIsInitialized(true);
+
+    return () => {
+      Object.entries(events).forEach(([event, handler]) => {
+        audio.removeEventListener(event, handler);
+      });
+      audio.pause();
+      audioRef.current = null;
+    };
+  }, [isInitialized, state.currentTime, state.duration]);
 
   const handleTrackEnd = useCallback(() => {
     if (repeat === 'one') {
-      // Rejouer la même piste
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
-        audioRef.current.play();
+        audioRef.current.play().catch(console.error);
       }
     } else if (repeat === 'all' || queue.length > 1) {
-      // Passer à la piste suivante
       nextTrack();
     } else if (autoPlayEnabled && allTracks.length > 0) {
-      // Auto-play intelligent
       const nextTrack = recommendations.getAutoPlayNext(state.currentTrack!, queue, allTracks);
       if (nextTrack) {
         loadTrack(nextTrack).then(() => play());
       }
     } else {
-      // Arrêter la lecture
       setState(prev => ({ ...prev, isPlaying: false }));
     }
   }, [repeat, queue.length, autoPlayEnabled, allTracks.length, state.currentTrack, recommendations]);
 
+  // Fonction play ultra-optimisée
   const play = useCallback(async (track?: Track) => {
+    if (!audioRef.current) return;
+
     try {
       if (track) {
         await loadTrack(track);
       }
       
-      if (audioRef.current) {
-        await audioRef.current.play();
-        setState(prev => ({ ...prev, isPlaying: true, error: null }));
-        updateNotification();
+      // Utiliser une promesse pour éviter les problèmes de timing
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        await playPromise;
       }
+      
+      setState(prev => ({ ...prev, isPlaying: true, error: null }));
+      updateNotification();
     } catch (error) {
       console.error('Erreur lecture:', error);
       setState(prev => ({ 
@@ -281,30 +292,32 @@ export const useAudioService = () => {
     }
   }, []);
 
+  // Fonction loadTrack ultra-optimisée
   const loadTrack = useCallback(async (track: Track) => {
+    if (!audioRef.current) return;
+
     try {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
       
-      if (audioRef.current) {
-        audioRef.current.src = track.audioUrl;
-        audioRef.current.load();
-        
-        setState(prev => ({ 
-          ...prev, 
-          currentTrack: track,
-          currentTime: 0,
-          duration: 0,
-          isLoading: false 
-        }));
-        
-        // Analyser la session d'écoute
-        if (state.currentTrack) {
-          const listenDuration = Math.min(state.currentTime, state.currentTrack.duration);
-          recommendations.analyzeListeningSession(state.currentTrack, listenDuration);
-        }
-        
-        updateNotification();
+      // Analyser la session d'écoute précédente
+      if (state.currentTrack) {
+        const listenDuration = Math.min(state.currentTime, state.currentTrack.duration);
+        recommendations.analyzeListeningSession(state.currentTrack, listenDuration);
       }
+
+      // Charger la nouvelle piste
+      audioRef.current.src = track.audioUrl;
+      await audioRef.current.load();
+      
+      setState(prev => ({ 
+        ...prev, 
+        currentTrack: track,
+        currentTime: 0,
+        duration: 0,
+        isLoading: false 
+      }));
+      
+      updateNotification();
     } catch (error) {
       console.error('Erreur chargement piste:', error);
       setState(prev => ({ 
@@ -361,15 +374,48 @@ export const useAudioService = () => {
     });
   }, [queue, shuffledQueue, currentIndex, shuffle, repeat, state.isPlaying]);
 
+  // Notifications ultra-optimisées
   const updateNotification = useCallback(() => {
-    if ('serviceWorker' in navigator && state.currentTrack) {
-      navigator.serviceWorker.ready.then((registration) => {
-        registration.active?.postMessage({
-          type: 'UPDATE_NOTIFICATION',
-          title: state.currentTrack?.title || 'XimaM Music',
-          body: `${state.currentTrack?.artist?.name || state.currentTrack?.artist?.username} - ${state.isPlaying ? 'En lecture' : 'En pause'}`,
-          track: state.currentTrack
+    if (!state.currentTrack) return;
+
+    // Fermer la notification précédente
+    if (notificationRef.current) {
+      notificationRef.current.close();
+      notificationRef.current = null;
+    }
+
+    // Créer une nouvelle notification
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        notificationRef.current = new Notification(state.currentTrack.title, {
+          body: `${state.currentTrack.artist?.name || state.currentTrack.artist?.username} - ${state.isPlaying ? 'En lecture' : 'En pause'}`,
+          icon: state.currentTrack.coverUrl || '/android-chrome-192x192.png',
+          badge: '/android-chrome-192x192.png',
+          tag: 'ximam-audio',
+          requireInteraction: false,
+          silent: false,
+          data: { track: state.currentTrack }
         });
+
+        // Auto-fermer après 5 secondes
+        setTimeout(() => {
+          if (notificationRef.current) {
+            notificationRef.current.close();
+            notificationRef.current = null;
+          }
+        }, 5000);
+      } catch (error) {
+        console.error('Erreur notification:', error);
+      }
+    }
+
+    // Mettre à jour le service worker
+    if (serviceWorkerRef.current?.active) {
+      serviceWorkerRef.current.active.postMessage({
+        type: 'UPDATE_NOTIFICATION',
+        title: state.currentTrack.title,
+        body: `${state.currentTrack.artist?.name || state.currentTrack.artist?.username} - ${state.isPlaying ? 'En lecture' : 'En pause'}`,
+        track: state.currentTrack
       });
     }
   }, [state.currentTrack, state.isPlaying]);
@@ -392,7 +438,7 @@ export const useAudioService = () => {
     return permission === 'granted';
   }, []);
 
-  // Gestion de la file d'attente
+  // Gestion de la file d'attente optimisée
   const setQueueAndPlay = useCallback((tracks: Track[], startIndex: number = 0) => {
     setQueue(tracks);
     setCurrentIndex(startIndex);
@@ -405,7 +451,7 @@ export const useAudioService = () => {
     if (tracks.length > 0) {
       loadTrack(tracks[startIndex]);
     }
-  }, [shuffle]);
+  }, [shuffle, loadTrack]);
 
   const toggleShuffle = useCallback(() => {
     const newShuffle = !shuffle;
@@ -428,7 +474,6 @@ export const useAudioService = () => {
     });
   }, []);
 
-  // Auto-play intelligent amélioré
   const autoPlayNext = useCallback(() => {
     if (queue.length > 1 && repeat !== 'none') {
       nextTrack();

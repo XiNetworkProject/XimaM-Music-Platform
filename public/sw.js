@@ -1,10 +1,11 @@
-// Service Worker pour XimaM Music Platform
-const CACHE_NAME = 'ximam-audio-v1';
-const AUDIO_CACHE_NAME = 'ximam-audio-files-v1';
+// Service Worker ultra-optimisé pour XimaM Music Platform
+const CACHE_NAME = 'ximam-audio-v2';
+const AUDIO_CACHE_NAME = 'ximam-audio-files-v2';
+const NOTIFICATION_TAG = 'ximam-audio-notification';
 
 // Installation du service worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installé');
+  console.log('Service Worker installé v2');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll([
@@ -15,25 +16,32 @@ self.addEventListener('install', (event) => {
       ]);
     })
   );
+  // Activation immédiate
+  self.skipWaiting();
 });
 
 // Activation du service worker
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activé');
+  console.log('Service Worker activé v2');
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME && cacheName !== AUDIO_CACHE_NAME) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      // Prendre le contrôle immédiatement
+      self.clients.claim(),
+      // Nettoyer les anciens caches
+      caches.keys().then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME && cacheName !== AUDIO_CACHE_NAME) {
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+    ])
   );
 });
 
-// Gestion des notifications
+// Gestion des notifications push optimisée
 self.addEventListener('push', (event) => {
   console.log('Notification push reçue:', event);
   
@@ -68,8 +76,9 @@ self.addEventListener('push', (event) => {
         icon: '/android-chrome-192x192.png'
       }
     ],
-    requireInteraction: true,
-    silent: false
+    requireInteraction: false,
+    silent: false,
+    tag: NOTIFICATION_TAG
   };
 
   event.waitUntil(
@@ -77,22 +86,38 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Gestion des clics sur les notifications
+// Gestion des clics sur les notifications optimisée
 self.addEventListener('notificationclick', (event) => {
   console.log('Clic sur notification:', event.action);
   
+  // Fermer la notification immédiatement
   event.notification.close();
 
   if (event.action) {
     // Envoyer un message au client pour contrôler la lecture
     event.waitUntil(
-      self.clients.matchAll().then((clients) => {
-        clients.forEach((client) => {
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        // Essayer d'abord les clients contrôlés
+        let targetClients = clients.filter(client => client.controller);
+        
+        // Si aucun client contrôlé, utiliser tous les clients
+        if (targetClients.length === 0) {
+          targetClients = clients;
+        }
+
+        // Envoyer le message à tous les clients
+        targetClients.forEach((client) => {
           client.postMessage({
             type: 'AUDIO_CONTROL',
-            action: event.action
+            action: event.action,
+            timestamp: Date.now()
           });
         });
+
+        // Si aucun client n'est ouvert, en ouvrir un
+        if (targetClients.length === 0) {
+          return self.clients.openWindow('/');
+        }
       })
     );
   } else {
@@ -103,13 +128,19 @@ self.addEventListener('notificationclick', (event) => {
   }
 });
 
-// Gestion des messages du client
+// Gestion des messages du client optimisée
 self.addEventListener('message', (event) => {
   console.log('Message reçu du client:', event.data);
   
   if (event.data.type === 'UPDATE_NOTIFICATION') {
     const { title, body, track } = event.data;
     
+    // Fermer les notifications existantes
+    self.registration.getNotifications({ tag: NOTIFICATION_TAG }).then(notifications => {
+      notifications.forEach(notification => notification.close());
+    });
+    
+    // Créer une nouvelle notification
     self.registration.showNotification(title, {
       body,
       icon: track?.coverUrl || '/android-chrome-192x192.png',
@@ -138,14 +169,16 @@ self.addEventListener('message', (event) => {
           icon: '/android-chrome-192x192.png'
         }
       ],
-      requireInteraction: true,
-      silent: false
+      requireInteraction: false,
+      silent: false,
+      tag: NOTIFICATION_TAG
     });
   }
 });
 
-// Cache des fichiers audio
+// Cache des fichiers audio optimisé
 self.addEventListener('fetch', (event) => {
+  // Cache des fichiers audio
   if (event.request.url.includes('/api/tracks/') && event.request.method === 'GET') {
     event.respondWith(
       caches.open(AUDIO_CACHE_NAME).then((cache) => {
@@ -164,4 +197,25 @@ self.addEventListener('fetch', (event) => {
       })
     );
   }
+  
+  // Cache des ressources statiques
+  else if (event.request.destination === 'image' || 
+           event.request.destination === 'script' || 
+           event.request.destination === 'style') {
+    event.respondWith(
+      caches.match(event.request).then((response) => {
+        return response || fetch(event.request);
+      })
+    );
+  }
+});
+
+// Gestion des erreurs
+self.addEventListener('error', (event) => {
+  console.error('Erreur Service Worker:', event.error);
+});
+
+// Gestion des rejets de promesses non gérés
+self.addEventListener('unhandledrejection', (event) => {
+  console.error('Promesse rejetée non gérée:', event.reason);
 }); 

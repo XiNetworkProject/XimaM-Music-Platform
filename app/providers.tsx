@@ -3,7 +3,7 @@
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
 
@@ -61,10 +61,10 @@ interface AudioPlayerContextType {
   setIsMinimized: (minimized: boolean) => void;
   setShuffle: (shuffle: boolean) => void;
   setRepeat: (repeat: 'none' | 'one' | 'all') => void;
-  playTrack: (trackIdOrTrack: string | Track) => void;
+  playTrack: (trackIdOrTrack: string | Track) => Promise<void>;
   handleLike: (trackId: string) => void;
   closePlayer: () => void;
-  // Nouvelles méthodes du service audio
+  // Méthodes du service audio
   play: () => Promise<void>;
   pause: () => void;
   stop: () => void;
@@ -103,73 +103,79 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     playbackRate: 1,
   });
 
-  // Synchronisation avec le service audio
+  // Synchronisation optimisée avec le service audio
   useEffect(() => {
-    setAudioState(prev => ({
-      ...prev,
-      isPlaying: audioService.state.isPlaying,
-      volume: audioService.state.volume,
-      currentTime: audioService.state.currentTime,
-      duration: audioService.state.duration,
-      isLoading: audioService.state.isLoading,
-      error: audioService.state.error,
-      isMuted: audioService.state.isMuted,
-      playbackRate: audioService.state.playbackRate,
-      shuffle: audioService.shuffle,
-      repeat: audioService.repeat,
-    }));
+    const syncState = () => {
+      setAudioState(prev => ({
+        ...prev,
+        isPlaying: audioService.state.isPlaying,
+        volume: audioService.state.volume,
+        currentTime: audioService.state.currentTime,
+        duration: audioService.state.duration,
+        isLoading: audioService.state.isLoading,
+        error: audioService.state.error,
+        isMuted: audioService.state.isMuted,
+        playbackRate: audioService.state.playbackRate,
+        shuffle: audioService.shuffle,
+        repeat: audioService.repeat,
+      }));
+    };
+
+    syncState();
   }, [audioService.state, audioService.shuffle, audioService.repeat]);
 
-  // Synchronisation de la piste courante
+  // Synchronisation optimisée de la piste courante
   useEffect(() => {
     if (audioService.state.currentTrack) {
       const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
-      if (trackIndex !== -1) {
+      if (trackIndex !== -1 && trackIndex !== audioState.currentTrackIndex) {
         setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
       }
     }
-  }, [audioService.state.currentTrack, audioState.tracks]);
+  }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex]);
 
-  const setTracks = (tracks: Track[]) => {
+  // Méthodes optimisées avec useCallback
+  const setTracks = useCallback((tracks: Track[]) => {
     setAudioState(prev => ({ ...prev, tracks }));
+    audioService.actions.setAllTracks(tracks);
     audioService.actions.setQueueAndPlay(tracks, 0);
-  };
+  }, [audioService.actions]);
 
-  const setCurrentTrackIndex = (index: number) => {
+  const setCurrentTrackIndex = useCallback((index: number) => {
     setAudioState(prev => ({ ...prev, currentTrackIndex: index }));
     if (audioState.tracks[index]) {
       audioService.actions.loadTrack(audioState.tracks[index]);
     }
-  };
+  }, [audioState.tracks, audioService.actions]);
 
-  const setIsPlaying = (playing: boolean) => {
+  const setIsPlaying = useCallback((playing: boolean) => {
     setAudioState(prev => ({ ...prev, isPlaying: playing }));
     if (playing) {
       audioService.actions.play();
     } else {
       audioService.actions.pause();
     }
-  };
+  }, [audioService.actions]);
 
-  const setShowPlayer = (show: boolean) => {
+  const setShowPlayer = useCallback((show: boolean) => {
     setAudioState(prev => ({ ...prev, showPlayer: show }));
-  };
+  }, []);
 
-  const setIsMinimized = (minimized: boolean) => {
+  const setIsMinimized = useCallback((minimized: boolean) => {
     setAudioState(prev => ({ ...prev, isMinimized: minimized }));
-  };
+  }, []);
 
-  const setShuffle = (shuffle: boolean) => {
+  const setShuffle = useCallback((shuffle: boolean) => {
     setAudioState(prev => ({ ...prev, shuffle }));
     audioService.actions.toggleShuffle();
-  };
+  }, [audioService.actions]);
 
-  const setRepeat = (repeat: 'none' | 'one' | 'all') => {
+  const setRepeat = useCallback((repeat: 'none' | 'one' | 'all') => {
     setAudioState(prev => ({ ...prev, repeat }));
-    // Le service audio gère déjà le cycle repeat
-  };
+  }, []);
 
-  const playTrack = async (trackIdOrTrack: string | Track) => {
+  // Fonction playTrack ultra-optimisée
+  const playTrack = useCallback(async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;
     
@@ -194,6 +200,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         showPlayer: true,
         isMinimized: false,
       }));
+      
+      // Mettre à jour le service audio
+      audioService.actions.setAllTracks(newTracks);
       await audioService.actions.loadTrack(trackData);
       await audioService.actions.play();
       return;
@@ -223,9 +232,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     await audioService.actions.play();
     setShowPlayer(true);
     setIsMinimized(false);
-  };
+  }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setCurrentTrackIndex, setShowPlayer, setIsMinimized]);
 
-  const handleLike = async (trackId: string) => {
+  const handleLike = useCallback(async (trackId: string) => {
     setAudioState(prev => {
       const newTracks = prev.tracks.map((track) => {
         if (track._id !== trackId) return track;
@@ -252,16 +261,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Erreur like:', error);
     }
-  };
+  }, [session?.user?.id]);
 
-  const closePlayer = () => {
+  const closePlayer = useCallback(() => {
     setShowPlayer(false);
     setIsPlaying(false);
     setIsMinimized(false);
     audioService.actions.stop();
-  };
+  }, [setShowPlayer, setIsPlaying, setIsMinimized, audioService.actions]);
 
-  // Persister l'état dans localStorage
+  // Persister l'état dans localStorage avec debounce
   useEffect(() => {
     const savedState = localStorage.getItem('audioPlayerState');
     if (savedState) {
@@ -275,18 +284,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('audioPlayerState', JSON.stringify({
-      currentTrackIndex: audioState.currentTrackIndex,
-      isPlaying: audioState.isPlaying,
-      showPlayer: audioState.showPlayer,
-      isMinimized: audioState.isMinimized,
-      volume: audioState.volume,
-      shuffle: audioState.shuffle,
-      repeat: audioState.repeat,
-    }));
+    const timeoutId = setTimeout(() => {
+      localStorage.setItem('audioPlayerState', JSON.stringify({
+        currentTrackIndex: audioState.currentTrackIndex,
+        isPlaying: audioState.isPlaying,
+        showPlayer: audioState.showPlayer,
+        isMinimized: audioState.isMinimized,
+        volume: audioState.volume,
+        shuffle: audioState.shuffle,
+        repeat: audioState.repeat,
+      }));
+    }, 100);
+
+    return () => clearTimeout(timeoutId);
   }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat]);
 
-  const value = {
+  // Valeur contextuelle mémorisée
+  const value = useMemo(() => ({
     audioState,
     setTracks,
     setCurrentTrackIndex,
@@ -312,7 +326,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     cycleRepeat: audioService.actions.cycleRepeat,
     setQueueAndPlay: audioService.actions.setQueueAndPlay,
     requestNotificationPermission: audioService.actions.requestNotificationPermission,
-  };
+  }), [
+    audioState,
+    setTracks,
+    setCurrentTrackIndex,
+    setIsPlaying,
+    setShowPlayer,
+    setIsMinimized,
+    setShuffle,
+    setRepeat,
+    playTrack,
+    handleLike,
+    closePlayer,
+    audioService.actions
+  ]);
 
   return (
     <AudioPlayerContext.Provider value={value}>
