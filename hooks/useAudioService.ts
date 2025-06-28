@@ -141,6 +141,11 @@ export const useAudioService = () => {
     audioRef.current.preload = 'metadata';
     audioRef.current.crossOrigin = 'anonymous';
     
+    // Configuration spécifique pour mobile
+    audioRef.current.setAttribute('playsinline', 'true');
+    audioRef.current.setAttribute('webkit-playsinline', 'true');
+    audioRef.current.setAttribute('x-webkit-airplay', 'allow');
+    
     // Événements audio optimisés
     const audio = audioRef.current;
 
@@ -373,16 +378,42 @@ export const useAudioService = () => {
       }
       
       if (audioRef.current) {
-        await audioRef.current.play();
-        setState(prev => ({ ...prev, isPlaying: true, error: null }));
+        // Gestion spécifique pour mobile
+        const playPromise = audioRef.current.play();
+        
+        if (playPromise !== undefined) {
+          await playPromise;
+          setState(prev => ({ ...prev, isPlaying: true, error: null }));
+        } else {
+          // Fallback pour les navigateurs qui ne retournent pas de promise
+          setState(prev => ({ ...prev, isPlaying: true, error: null }));
+        }
       }
     } catch (error) {
       console.error('Erreur lecture:', error);
-      setState(prev => ({ 
-        ...prev, 
-        error: 'Impossible de lire la piste',
-        isPlaying: false 
-      }));
+      
+      // Gestion spécifique des erreurs mobile
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          setState(prev => ({ 
+            ...prev, 
+            error: 'Lecture automatique bloquée. Cliquez sur play pour commencer.',
+            isPlaying: false 
+          }));
+        } else {
+          setState(prev => ({ 
+            ...prev, 
+            error: 'Impossible de lire la piste',
+            isPlaying: false 
+          }));
+        }
+      } else {
+        setState(prev => ({ 
+          ...prev, 
+          error: 'Erreur de lecture inconnue',
+          isPlaying: false 
+        }));
+      }
     }
   }, [loadTrack]);
 

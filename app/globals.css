@@ -140,6 +140,38 @@ a {
     width: 100vw;
     height: 100vh;
   }
+  
+  /* Améliorations spécifiques pour mobile */
+  .glass-player {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Boutons plus grands sur mobile pour faciliter le touch */
+  .glass-player button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  /* Éviter le zoom sur les inputs */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  /* Améliorer la lisibilité sur mobile */
+  .text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  /* Gestion des safe areas sur iOS */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
 }
 
 /* Player audio personnalisé */

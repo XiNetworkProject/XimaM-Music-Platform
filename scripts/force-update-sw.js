@@ -1,175 +1,106 @@
 // Script pour forcer la mise à jour du service worker
-console.log('🔧 Forçage de la mise à jour du service worker...');
+// Utile pour résoudre les problèmes de cache sur mobile
 
-// Fonction pour nettoyer tous les caches
-async function clearAllCaches() {
-  try {
-    const cacheNames = await caches.keys();
-    console.log('📋 Caches trouvés:', cacheNames);
-    
-    await Promise.all(
-      cacheNames.map(cacheName => {
-        console.log('🗑️ Suppression du cache:', cacheName);
-        return caches.delete(cacheName);
-      })
-    );
-    
-    console.log('✅ Tous les caches ont été supprimés');
-  } catch (error) {
-    console.error('❌ Erreur lors de la suppression des caches:', error);
-  }
-}
+console.log('🔄 Début du script de mise à jour du service worker...');
 
-// Fonction pour forcer la mise à jour du service worker
 async function forceUpdateServiceWorker() {
+  if (!('serviceWorker' in navigator)) {
+    console.log('❌ Service Worker non supporté');
+    return;
+  }
+
   try {
-    if ('serviceWorker' in navigator) {
-      console.log('🔄 Désenregistrement du service worker actuel...');
-      
-      // Désenregistrer tous les service workers
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(
-        registrations.map(registration => registration.unregister())
-      );
-      
-      console.log('✅ Service workers désenregistrés');
-      
-      // Attendre un peu
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Réenregistrer le service worker
-      console.log('🔄 Réenregistrement du service worker...');
-      const registration = await navigator.serviceWorker.register('/sw.js', {
-        updateViaCache: 'none'
-      });
-      
-      console.log('✅ Service worker réenregistré:', registration);
-      
-      // Forcer l'activation
-      if (registration.waiting) {
-        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
-      
-      // Attendre l'activation
-      await new Promise(resolve => {
-        if (registration.active) {
-          resolve();
-        } else {
-          registration.addEventListener('activate', resolve, { once: true });
-        }
-      });
-      
-      console.log('✅ Service worker activé');
-      
-      // Nettoyer les caches après l'activation
-      await clearAllCaches();
-      
-      console.log('🎉 Mise à jour terminée avec succès !');
-      
-      // Recharger la page pour appliquer les changements
-      setTimeout(() => {
-        console.log('🔄 Rechargement de la page...');
-        window.location.reload();
-      }, 2000);
-      
-    } else {
-      console.log('❌ Service Worker non supporté');
+    // 1. Désenregistrer tous les service workers existants
+    const registrations = await navigator.serviceWorker.getRegistrations();
+    console.log(`📊 ${registrations.length} service worker(s) trouvé(s)`);
+    
+    for (const registration of registrations) {
+      console.log('🗑️ Désenregistrement du service worker:', registration.scope);
+      await registration.unregister();
     }
+
+    // 2. Nettoyer le cache
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      console.log(`🗑️ Nettoyage de ${cacheNames.length} cache(s)`);
+      
+      for (const cacheName of cacheNames) {
+        console.log('🗑️ Suppression du cache:', cacheName);
+        await caches.delete(cacheName);
+      }
+    }
+
+    // 3. Attendre un peu
+    console.log('⏳ Attente de 2 secondes...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    // 4. Réenregistrer le service worker
+    console.log('📝 Réenregistrement du service worker...');
+    const newRegistration = await navigator.serviceWorker.register('/sw.js', {
+      scope: '/',
+      updateViaCache: 'none' // Force la mise à jour
+    });
+
+    console.log('✅ Service worker réenregistré:', newRegistration);
+    
+    // 5. Forcer l'activation immédiate
+    if (newRegistration.waiting) {
+      console.log('🔄 Activation du service worker en attente...');
+      newRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+
+    // 6. Attendre l'activation
+    await new Promise((resolve) => {
+      if (newRegistration.active) {
+        resolve();
+      } else {
+        newRegistration.addEventListener('activate', resolve, { once: true });
+      }
+    });
+
+    console.log('✅ Service worker activé avec succès!');
+    
+    // 7. Recharger la page pour appliquer les changements
+    console.log('🔄 Rechargement de la page...');
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
+
   } catch (error) {
     console.error('❌ Erreur lors de la mise à jour:', error);
   }
 }
 
-// Fonction pour vérifier l'état des notifications
-async function checkNotificationStatus() {
-  console.log('🔍 Vérification du statut des notifications...');
+// Fonction pour détecter les problèmes mobiles
+function detectMobileIssues() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   
-  if (!('Notification' in window)) {
-    console.log('❌ Notifications non supportées');
-    return;
-  }
-  
-  console.log('📱 Permission actuelle:', Notification.permission);
-  
-  if (Notification.permission === 'granted') {
-    console.log('✅ Notifications autorisées');
+  if (isMobile) {
+    console.log('📱 Détection mobile - Vérification des problèmes courants...');
     
-    // Tester l'affichage d'une notification
-    try {
-      const testNotification = new Notification('Test XimaM', {
-        body: 'Test de notification',
-        icon: '/android-chrome-192x192.png',
-        tag: 'test'
+    // Vérifier les permissions audio
+    if ('permissions' in navigator) {
+      navigator.permissions.query({ name: 'microphone' }).then(result => {
+        console.log('🎤 Permission microphone:', result.state);
       });
-      
-      setTimeout(() => {
-        testNotification.close();
-        console.log('✅ Test de notification réussi');
-      }, 3000);
-      
-    } catch (error) {
-      console.error('❌ Erreur test notification:', error);
     }
-  } else {
-    console.log('⚠️ Notifications non autorisées');
-  }
-}
-
-// Fonction pour vérifier l'état du service worker
-async function checkServiceWorkerStatus() {
-  console.log('🔍 Vérification du statut du service worker...');
-  
-  if ('serviceWorker' in navigator) {
-    const registration = await navigator.serviceWorker.getRegistration();
     
-    if (registration) {
-      console.log('✅ Service worker enregistré');
-      console.log('📋 État:', registration.active ? 'Actif' : 'Inactif');
-      console.log('🔄 En attente:', registration.waiting ? 'Oui' : 'Non');
-      console.log('📦 Installation:', registration.installing ? 'En cours' : 'Terminée');
-    } else {
-      console.log('❌ Aucun service worker enregistré');
-    }
-  } else {
-    console.log('❌ Service Worker non supporté');
+    // Vérifier le support audio
+    const audio = new Audio();
+    console.log('🎵 Support audio:', {
+      canPlayType: audio.canPlayType('audio/mpeg'),
+      hasAudio: 'Audio' in window,
+      hasWebAudio: 'AudioContext' in window || 'webkitAudioContext' in window
+    });
   }
 }
 
-// Exécuter les vérifications et la mise à jour
-async function main() {
-  console.log('🚀 Démarrage du script de mise à jour...');
-  
-  // Vérifications initiales
-  await checkServiceWorkerStatus();
-  await checkNotificationStatus();
-  
-  // Demander confirmation
-  const shouldUpdate = confirm(
-    'Voulez-vous forcer la mise à jour du service worker et nettoyer le cache ?\n\n' +
-    'Cela va :\n' +
-    '• Désenregistrer le service worker actuel\n' +
-    '• Nettoyer tous les caches\n' +
-    '• Réenregistrer le service worker\n' +
-    '• Recharger la page'
-  );
-  
-  if (shouldUpdate) {
-    await forceUpdateServiceWorker();
-  } else {
-    console.log('❌ Mise à jour annulée par l\'utilisateur');
-  }
-}
+// Exécuter les fonctions
+detectMobileIssues();
+forceUpdateServiceWorker();
 
-// Exposer les fonctions globalement pour utilisation dans la console
-window.forceUpdateSW = {
-  clearAllCaches,
-  forceUpdateServiceWorker,
-  checkNotificationStatus,
-  checkServiceWorkerStatus,
-  main
-};
+// Exposer les fonctions globalement pour le debug
+window.forceUpdateServiceWorker = forceUpdateServiceWorker;
+window.detectMobileIssues = detectMobileIssues;
 
-// Exécuter automatiquement si le script est chargé directement
-if (typeof window !== 'undefined') {
-  main();
-} 
+console.log('🔧 Script terminé - Fonctions exposées globalement'); 
