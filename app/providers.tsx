@@ -78,6 +78,7 @@ interface AudioPlayerContextType {
   cycleRepeat: () => void;
   setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
   requestNotificationPermission: () => Promise<boolean>;
+  forceUpdateNotification: () => void;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
@@ -124,11 +125,24 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (audioService.state.currentTrack) {
       const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
-      if (trackIndex !== -1 && trackIndex !== audioState.currentTrackIndex) {
-        setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
-      }
+      setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
     }
-  }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex]);
+  }, [audioService.state.currentTrack, audioState.tracks]);
+
+  // Synchronisation des pistes avec le service audio
+  useEffect(() => {
+    if (audioState.tracks.length > 0) {
+      audioService.actions.setAllTracks(audioState.tracks);
+    }
+  }, [audioState.tracks, audioService.actions]);
+
+  // Charger automatiquement toutes les pistes dans le player
+  useEffect(() => {
+    if (audioService.allTracks && audioService.allTracks.length > 0 && audioState.tracks.length === 0) {
+      console.log('🎵 Synchronisation automatique des pistes avec le player...');
+      setAudioState(prev => ({ ...prev, tracks: audioService.allTracks }));
+    }
+  }, [audioService.allTracks, audioState.tracks.length]);
 
   const setTracks = useCallback((tracks: Track[]) => {
     setAudioState(prev => ({ ...prev, tracks }));
@@ -193,8 +207,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         showPlayer: true,
         isMinimized: false,
       }));
+      
+      // Utiliser directement le service audio
       await audioService.actions.loadTrack(trackData);
       await audioService.actions.play();
+      
+      // Forcer la mise à jour de la notification
+      setTimeout(() => {
+        audioService.actions.forceUpdateNotification();
+      }, 100);
       return;
     }
     
@@ -217,12 +238,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
     
     // Sinon, changer de piste et jouer
-    setCurrentTrackIndex(trackIndex);
-    await audioService.actions.loadTrack(audioState.tracks[trackIndex]);
+    const trackToPlay = trackData || audioState.tracks[trackIndex];
+    setAudioState(prev => ({
+      ...prev,
+      currentTrackIndex: trackIndex,
+      showPlayer: true,
+      isMinimized: false,
+    }));
+    
+    // Utiliser directement le service audio
+    await audioService.actions.loadTrack(trackToPlay);
     await audioService.actions.play();
-    setShowPlayer(true);
-    setIsMinimized(false);
-  }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setCurrentTrackIndex, setShowPlayer, setIsMinimized]);
+    
+    // Forcer la mise à jour de la notification
+    setTimeout(() => {
+      audioService.actions.forceUpdateNotification();
+    }, 100);
+  }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setShowPlayer, setIsMinimized]);
 
   const handleLike = useCallback(async (trackId: string) => {
     setAudioState(prev => {
@@ -311,6 +343,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     cycleRepeat: audioService.actions.cycleRepeat,
     setQueueAndPlay: audioService.actions.setQueueAndPlay,
     requestNotificationPermission: audioService.actions.requestNotificationPermission,
+    forceUpdateNotification: audioService.actions.forceUpdateNotification,
   }), [
     audioState,
     setTracks,
@@ -325,6 +358,39 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     closePlayer,
     audioService.actions
   ]);
+
+  // Exposer le service audio globalement pour le debug
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      console.log('🔧 Tentative d\'exposition du service audio...');
+      console.log('📊 État du service:', {
+        hasAudioService: !!audioService,
+        hasValue: !!value,
+        allTracksCount: audioService?.allTracks?.length || 0,
+        hasActions: !!audioService?.actions
+      });
+      
+      (window as any).audioService = audioService;
+      (window as any).audioPlayer = value;
+      console.log('🔧 Service audio exposé globalement pour le debug');
+      
+      // Vérifier que l'exposition a fonctionné
+      setTimeout(() => {
+        console.log('🔍 Vérification de l\'exposition:', {
+          windowAudioService: !!(window as any).audioService,
+          windowAudioPlayer: !!(window as any).audioPlayer
+        });
+      }, 100);
+    }
+  }, [audioService, value]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        window.location.reload();
+      });
+    }
+  }, []);
 
   return (
     <AudioPlayerContext.Provider value={value}>

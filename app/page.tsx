@@ -49,7 +49,7 @@ export default function HomePage() {
   const { data: session } = useSession();
   const { user } = useAuth();
   const { isNative, checkForUpdates } = useNativeFeatures();
-  const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized } = useAudioPlayer();
+  const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized, playTrack } = useAudioPlayer();
   
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -550,17 +550,8 @@ export default function HomePage() {
 
   // Fonction pour jouer une piste
   const handlePlayTrack = useCallback((track: Track) => {
-    const existingTrackIndex = audioState.tracks.findIndex(t => t._id === track._id);
-    if (existingTrackIndex === -1) {
-      setTracks([...audioState.tracks, track]);
-      setCurrentTrackIndex(audioState.tracks.length);
-    } else {
-      setCurrentTrackIndex(existingTrackIndex);
-    }
-    setIsPlaying(true);
-    setShowPlayer(true);
-    setIsMinimized(false);
-  }, [audioState.tracks, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized]);
+    playTrack(track);
+  }, [playTrack]);
 
   // Fonction pour gérer le changement de recherche avec debounce
   const handleSearchChange = useCallback((value: string) => {
