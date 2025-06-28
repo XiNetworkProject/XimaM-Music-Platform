@@ -288,444 +288,437 @@ export default function UploadPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-30 glass-effect">
-        <div className="flex items-center justify-between p-4">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={() => router.back()}
-              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <h1 className="text-xl font-bold">Upload de Musique</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      <main className="container mx-auto px-4 pt-16 pb-32">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-10">
+            <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
+              <Upload size={28} className="text-purple-400" />
+              Upload de Musique
+            </h1>
+            <p className="text-white/60 text-lg">Partagez vos créations avec la communauté.</p>
           </div>
-        </div>
-      </header>
 
-      {/* Progress Steps */}
-      <div className="pt-20 pb-6">
-        <div className="container mx-auto px-4">
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center space-x-4">
-              {steps.map((step, index) => (
-                <div key={step.id} className="flex items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                      currentStep >= step.id
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-white/10 text-white/60'
-                    }`}
-                  >
-                    {currentStep > step.id ? (
-                      <Check size={20} />
-                    ) : (
-                      <step.icon size={20} />
+          {/* Progress Steps */}
+          <div className="glass-effect rounded-xl p-6 mb-8">
+            <div className="flex justify-center mb-8">
+              <div className="flex items-center space-x-4">
+                {steps.map((step, index) => (
+                  <div key={step.id} className="flex items-center">
+                    <div
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                        currentStep >= step.id
+                          ? 'bg-primary-500 text-white'
+                          : 'bg-white/10 text-white/60'
+                      }`}
+                    >
+                      {currentStep > step.id ? (
+                        <Check size={20} />
+                      ) : (
+                        <step.icon size={20} />
+                      )}
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div
+                        className={`w-16 h-1 mx-2 transition-colors ${
+                          currentStep > step.id ? 'bg-primary-500' : 'bg-white/10'
+                        }`}
+                      />
                     )}
                   </div>
-                  {index < steps.length - 1 && (
-                    <div
-                      className={`w-16 h-1 mx-2 transition-colors ${
-                        currentStep > step.id ? 'bg-primary-500' : 'bg-white/10'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Étape 1: Upload des fichiers */}
-            {currentStep === 1 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-6"
-              >
-                <h2 className="text-2xl font-bold mb-6">Upload des fichiers</h2>
-                
-                {/* Upload Audio */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center space-x-2">
-                    <Music size={20} />
-                    <span>Fichier Audio</span>
-                  </h3>
+          {/* Main Content */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-effect rounded-xl p-6"
+          >
+            <form onSubmit={handleSubmit} className="space-y-8">
+              {/* Étape 1: Upload des fichiers */}
+              {currentStep === 1 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-bold mb-6">Upload des fichiers</h2>
                   
-                  <div
-                    {...getAudioRootProps()}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
-                      isAudioDragActive
-                        ? 'border-primary-500 bg-primary-500/10'
-                        : audioFile
-                        ? 'border-green-500 bg-green-500/10'
-                        : 'border-white/20 hover:border-white/40'
-                    }`}
-                  >
-                    <input {...getAudioInputProps()} />
-                    {audioFile ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-center space-x-2">
-                          <Music size={24} className="text-green-400" />
-                          <span className="font-medium">{audioFile.name}</span>
-                        </div>
-                        <div className="text-sm text-white/60">
-                          {(audioFile.size / 1024 / 1024).toFixed(2)} MB
-                        </div>
-                        {audioPreview && (
+                  {/* Upload Audio */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center space-x-2">
+                      <Music size={20} />
+                      <span>Fichier Audio</span>
+                    </h3>
+                    
+                    <div
+                      {...getAudioRootProps()}
+                      className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                        isAudioDragActive
+                          ? 'border-primary-500 bg-primary-500/10'
+                          : audioFile
+                          ? 'border-green-500 bg-green-500/10'
+                          : 'border-white/20 hover:border-white/40'
+                      }`}
+                    >
+                      <input {...getAudioInputProps()} />
+                      {audioFile ? (
+                        <div className="space-y-4">
                           <div className="flex items-center justify-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => setIsPlaying(!isPlaying)}
-                              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                            >
-                              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                            </button>
-                            <span className="text-sm">Prévisualiser</span>
+                            <Music size={24} className="text-green-400" />
+                            <span className="font-medium">{audioFile.name}</span>
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <Upload size={48} className="mx-auto text-white/60" />
-                        <div>
-                          <p className="font-medium">Glissez votre fichier audio ici</p>
-                          <p className="text-sm text-white/60">ou cliquez pour sélectionner</p>
+                          <div className="text-sm text-white/60">
+                            {(audioFile.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                          {audioPreview && (
+                            <div className="flex items-center justify-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => setIsPlaying(!isPlaying)}
+                                className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                              >
+                                {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                              </button>
+                              <span className="text-sm">Prévisualiser</span>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-xs text-white/40">
-                          Formats supportés: MP3, WAV, FLAC (max 50MB)
-                        </p>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="space-y-4">
+                          <Upload size={48} className="mx-auto text-white/60" />
+                          <div>
+                            <p className="font-medium">Glissez votre fichier audio ici</p>
+                            <p className="text-sm text-white/60">ou cliquez pour sélectionner</p>
+                          </div>
+                          <p className="text-xs text-white/40">
+                            Formats supportés: MP3, WAV, FLAC (max 50MB)
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {/* Upload Cover */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center space-x-2">
-                    <Image size={20} />
-                    <span>Image de Couverture (optionnel)</span>
-                  </h3>
-                  
-                  <div
-                    {...getCoverRootProps()}
-                    className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
-                      isCoverDragActive
-                        ? 'border-primary-500 bg-primary-500/10'
-                        : coverFile
-                        ? 'border-green-500 bg-green-500/10'
-                        : 'border-white/20 hover:border-white/40'
-                    }`}
-                  >
-                    <input {...getCoverInputProps()} />
-                    {coverFile ? (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-center space-x-2">
-                          <Image size={24} className="text-green-400" />
-                          <span className="font-medium">{coverFile.name}</span>
+                  {/* Upload Cover */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center space-x-2">
+                      <Image size={20} />
+                      <span>Image de Couverture (optionnel)</span>
+                    </h3>
+                    
+                    <div
+                      {...getCoverRootProps()}
+                      className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
+                        isCoverDragActive
+                          ? 'border-primary-500 bg-primary-500/10'
+                          : coverFile
+                          ? 'border-green-500 bg-green-500/10'
+                          : 'border-white/20 hover:border-white/40'
+                      }`}
+                    >
+                      <input {...getCoverInputProps()} />
+                      {coverFile ? (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-center space-x-2">
+                            <Image size={24} className="text-green-400" />
+                            <span className="font-medium">{coverFile.name}</span>
+                          </div>
+                          <div className="text-sm text-white/60">
+                            {(coverFile.size / 1024 / 1024).toFixed(2)} MB
+                          </div>
+                          {coverPreview && (
+                            <div className="flex justify-center">
+                              <img
+                                src={coverPreview}
+                                alt="Aperçu"
+                                className="w-32 h-32 object-cover rounded-lg"
+                              />
+                            </div>
+                          )}
                         </div>
-                        <div className="text-sm text-white/60">
-                          {(coverFile.size / 1024 / 1024).toFixed(2)} MB
+                      ) : (
+                        <div className="space-y-4">
+                          <Image size={48} className="mx-auto text-white/60" />
+                          <div>
+                            <p className="font-medium">Glissez votre image ici</p>
+                            <p className="text-sm text-white/60">ou cliquez pour sélectionner</p>
+                          </div>
+                          <p className="text-xs text-white/40">
+                            Formats supportés: JPG, PNG, WebP (max 5MB)
+                          </p>
                         </div>
-                        {coverPreview && (
-                          <div className="flex justify-center">
-                            <img
-                              src={coverPreview}
-                              alt="Aperçu"
-                              className="w-32 h-32 object-cover rounded-lg"
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Progress Bars */}
+                  {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
+                    <div className="space-y-4">
+                      {uploadProgress.audio > 0 && (
+                        <div>
+                          <div className="flex justify-between text-sm mb-2">
+                            <span>Upload Audio</span>
+                            <span>{uploadProgress.audio}%</span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-2">
+                            <div
+                              className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${uploadProgress.audio}%` }}
                             />
                           </div>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <Image size={48} className="mx-auto text-white/60" />
+                        </div>
+                      )}
+                      
+                      {uploadProgress.cover > 0 && (
                         <div>
-                          <p className="font-medium">Glissez votre image ici</p>
-                          <p className="text-sm text-white/60">ou cliquez pour sélectionner</p>
+                          <div className="flex justify-between text-sm mb-2">
+                            <span>Upload Image</span>
+                            <span>{uploadProgress.cover}%</span>
+                          </div>
+                          <div className="w-full bg-white/10 rounded-full h-2">
+                            <div
+                              className="bg-primary-500 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${uploadProgress.cover}%` }}
+                            />
+                          </div>
                         </div>
-                        <p className="text-xs text-white/40">
-                          Formats supportés: JPG, PNG, WebP (max 5MB)
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Progress Bars */}
-                {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
-                  <div className="space-y-4">
-                    {uploadProgress.audio > 0 && (
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span>Upload Audio</span>
-                          <span>{uploadProgress.audio}%</span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-2">
-                          <div
-                            className="bg-primary-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${uploadProgress.audio}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    
-                    {uploadProgress.cover > 0 && (
-                      <div>
-                        <div className="flex justify-between text-sm mb-2">
-                          <span>Upload Image</span>
-                          <span>{uploadProgress.cover}%</span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-2">
-                          <div
-                            className="bg-primary-500 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${uploadProgress.cover}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Navigation */}
-                <div className="flex justify-end pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    disabled={!audioFile || isUploading}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
-                  >
-                    Suivant
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Étape 2: Informations */}
-            {currentStep === 2 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-6"
-              >
-                <h2 className="text-2xl font-bold mb-6">Informations de la piste</h2>
-                
-                {/* Titre */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Titre *</label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => handleInputChange('title', e.target.value)}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                    placeholder="Titre de votre musique"
-                    required
-                  />
-                </div>
-
-                {/* Description */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors resize-none"
-                    placeholder="Décrivez votre musique..."
-                  />
-                </div>
-
-                {/* Genre */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Genre</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B'].map((genre) => (
-                      <button
-                        key={genre}
-                        type="button"
-                        onClick={() => formData.genre.includes(genre) ? removeGenre(genre) : addGenre(genre)}
-                        className={`px-3 py-1 rounded-full text-sm transition-colors ${
-                          formData.genre.includes(genre)
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-white/10 text-white/60 hover:bg-white/20'
-                        }`}
-                      >
-                        {genre}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Tags */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium">Tags</label>
-                  <div className="flex flex-wrap gap-2">
-                    {formData.tags.map((tag) => (
-                      <div key={tag} className="flex items-center space-x-1 bg-primary-500/20 px-3 py-1 rounded-full">
-                        <span className="text-sm">{tag}</span>
-                        <button
-                          type="button"
-                          onClick={() => removeTag(tag)}
-                          className="text-primary-400 hover:text-white"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Ajouter un tag..."
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        const input = e.target as HTMLInputElement;
-                        if (input.value.trim()) {
-                          addTag(input.value.trim());
-                          input.value = '';
-                        }
-                      }
-                    }}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                  />
-                </div>
-
-                {/* Navigation */}
-                <div className="flex justify-between pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(1)}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
-                  >
-                    Précédent
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(3)}
-                    disabled={!formData.title.trim()}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
-                  >
-                    Suivant
-                  </button>
-                </div>
-              </motion.div>
-            )}
-
-            {/* Étape 3: Droits */}
-            {currentStep === 3 && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="space-y-6"
-              >
-                <h2 className="text-2xl font-bold mb-6">Droits et paramètres</h2>
-                
-                {/* Copyright */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center space-x-2">
-                    <Calendar size={20} />
-                    <span>Informations de copyright</span>
-                  </h3>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium">Propriétaire</label>
-                      <input
-                        type="text"
-                        value={formData.copyright.owner}
-                        onChange={(e) => handleCopyrightChange('owner', e.target.value)}
-                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                        placeholder="Votre nom ou nom d'artiste"
-                      />
+                      )}
                     </div>
-                    
-                    <div className="space-y-2">
-                      <label className="block text-sm font-medium">Année</label>
-                      <input
-                        type="number"
-                        value={formData.copyright.year}
-                        onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
-                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                        placeholder="2024"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium">Droits</label>
-                    <select
-                      value={formData.copyright.rights}
-                      onChange={(e) => handleCopyrightChange('rights', e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                  )}
+
+                  {/* Navigation */}
+                  <div className="flex justify-end pt-6">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      disabled={!audioFile || isUploading}
+                      className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
                     >
-                      <option value="Tous droits réservés">Tous droits réservés</option>
-                      <option value="Creative Commons">Creative Commons</option>
-                      <option value="Domaine public">Domaine public</option>
-                    </select>
+                      Suivant
+                    </button>
                   </div>
-                </div>
+                </motion.div>
+              )}
 
-                {/* Paramètres */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold flex items-center space-x-2">
-                    <Settings size={20} />
-                    <span>Paramètres</span>
-                  </h3>
+              {/* Étape 2: Informations */}
+              {currentStep === 2 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-bold mb-6">Informations de la piste</h2>
                   
-                  <div className="space-y-4">
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isPublic}
-                        onChange={(e) => handleInputChange('isPublic', e.target.checked)}
-                        className="w-5 h-5 text-primary-500 bg-white/10 border-white/20 rounded focus:ring-primary-500"
-                      />
-                      <span>Rendre public</span>
-                    </label>
-                    
-                    <label className="flex items-center space-x-3 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.isExplicit}
-                        onChange={(e) => handleInputChange('isExplicit', e.target.checked)}
-                        className="w-5 h-5 text-primary-500 bg-white/10 border-white/20 rounded focus:ring-primary-500"
-                      />
-                      <span>Contenu explicite</span>
-                    </label>
+                  {/* Titre */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Titre *</label>
+                    <input
+                      type="text"
+                      value={formData.title}
+                      onChange={(e) => handleInputChange('title', e.target.value)}
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                      placeholder="Titre de votre musique"
+                      required
+                    />
                   </div>
-                </div>
 
-                {/* Navigation */}
-                <div className="flex justify-between pt-6">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentStep(2)}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
-                  >
-                    Précédent
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isUploading}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
-                  >
-                    {isUploading ? 'Upload en cours...' : 'Publier'}
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </form>
-        </motion.div>
+                  {/* Description */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Description</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors resize-none"
+                      placeholder="Décrivez votre musique..."
+                    />
+                  </div>
+
+                  {/* Genre */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Genre</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B'].map((genre) => (
+                        <button
+                          key={genre}
+                          type="button"
+                          onClick={() => formData.genre.includes(genre) ? removeGenre(genre) : addGenre(genre)}
+                          className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                            formData.genre.includes(genre)
+                              ? 'bg-primary-500 text-white'
+                              : 'bg-white/10 text-white/60 hover:bg-white/20'
+                          }`}
+                        >
+                          {genre}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tags */}
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium">Tags</label>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.tags.map((tag) => (
+                        <div key={tag} className="flex items-center space-x-1 bg-primary-500/20 px-3 py-1 rounded-full">
+                          <span className="text-sm">{tag}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeTag(tag)}
+                            className="text-primary-400 hover:text-white"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Ajouter un tag..."
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const input = e.target as HTMLInputElement;
+                          if (input.value.trim()) {
+                            addTag(input.value.trim());
+                            input.value = '';
+                          }
+                        }
+                      }}
+                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                    />
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="flex justify-between pt-6">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(1)}
+                      className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
+                    >
+                      Précédent
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(3)}
+                      disabled={!formData.title.trim()}
+                      className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+                    >
+                      Suivant
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Étape 3: Droits */}
+              {currentStep === 3 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="space-y-6"
+                >
+                  <h2 className="text-2xl font-bold mb-6">Droits et paramètres</h2>
+                  
+                  {/* Copyright */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center space-x-2">
+                      <Calendar size={20} />
+                      <span>Informations de copyright</span>
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">Propriétaire</label>
+                        <input
+                          type="text"
+                          value={formData.copyright.owner}
+                          onChange={(e) => handleCopyrightChange('owner', e.target.value)}
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                          placeholder="Votre nom ou nom d'artiste"
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium">Année</label>
+                        <input
+                          type="number"
+                          value={formData.copyright.year}
+                          onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
+                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                          placeholder="2024"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="block text-sm font-medium">Droits</label>
+                      <select
+                        value={formData.copyright.rights}
+                        onChange={(e) => handleCopyrightChange('rights', e.target.value)}
+                        className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
+                      >
+                        <option value="Tous droits réservés">Tous droits réservés</option>
+                        <option value="Creative Commons">Creative Commons</option>
+                        <option value="Domaine public">Domaine public</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Paramètres */}
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold flex items-center space-x-2">
+                      <Settings size={20} />
+                      <span>Paramètres</span>
+                    </h3>
+                    
+                    <div className="space-y-4">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isPublic}
+                          onChange={(e) => handleInputChange('isPublic', e.target.checked)}
+                          className="w-5 h-5 text-primary-500 bg-white/10 border-white/20 rounded focus:ring-primary-500"
+                        />
+                        <span>Rendre public</span>
+                      </label>
+                      
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isExplicit}
+                          onChange={(e) => handleInputChange('isExplicit', e.target.checked)}
+                          className="w-5 h-5 text-primary-500 bg-white/10 border-white/20 rounded focus:ring-primary-500"
+                        />
+                        <span>Contenu explicite</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Navigation */}
+                  <div className="flex justify-between pt-6">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStep(2)}
+                      className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
+                    >
+                      Précédent
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isUploading}
+                      className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+                    >
+                      {isUploading ? 'Upload en cours...' : 'Publier'}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </form>
+          </motion.div>
+        </div>
       </main>
 
       {/* Bottom Navigation */}

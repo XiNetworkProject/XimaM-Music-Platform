@@ -45,17 +45,7 @@ const envPath = path.join(__dirname, '..', '.env.local');
 
 try {
   fs.writeFileSync(envPath, envTemplate);
-  console.log('✅ Fichier .env.local créé avec succès !');
-  console.log('\n📝 Instructions pour compléter la configuration :');
-  console.log('1. Ouvrez le fichier .env.local');
-  console.log('2. Remplacez les valeurs "your-..." par vos vraies valeurs :');
-  console.log('   - GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET (vous avez déjà)');
-  console.log('   - CLOUDINARY_* (vous avez déjà)');
-  console.log('   - MONGODB_URI (voir instructions ci-dessous)');
-  console.log('\n🗄️ Pour MongoDB :');
-  console.log('- Si local : gardez mongodb://localhost:27017/ximam');
-  console.log('- Si Atlas : remplacez par votre URI de connexion');
-  console.log('\n🚀 Une fois configuré, lancez : npm run dev');
+  // Fichier .env.local créé avec succès !
 } catch (error) {
-  console.error('❌ Erreur lors de la création du fichier .env.local:', error);
+  // Erreur lors de la création du fichier .env.local
 } 

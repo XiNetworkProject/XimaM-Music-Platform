@@ -49,7 +49,7 @@ export const useAudioRecommendations = () => {
         try {
           setUserHistory(JSON.parse(savedHistory));
         } catch (error) {
-          console.error('Erreur chargement historique:', error);
+          // Erreur silencieuse
         }
       }
 
@@ -58,7 +58,7 @@ export const useAudioRecommendations = () => {
         try {
           setUserPreferences(JSON.parse(savedPreferences));
         } catch (error) {
-          console.error('Erreur chargement préférences:', error);
+          // Erreur silencieuse
         }
       }
     }

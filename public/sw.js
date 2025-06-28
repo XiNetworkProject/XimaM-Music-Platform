@@ -26,7 +26,6 @@ function canCacheRequest(request) {
 
 // Installation du service worker
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installé v3');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll([
@@ -42,7 +41,6 @@ self.addEventListener('install', (event) => {
 
 // Activation du service worker
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activé v3');
   event.waitUntil(
     Promise.all([
       // Nettoyer les anciens caches
@@ -50,7 +48,6 @@ self.addEventListener('activate', (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME && cacheName !== AUDIO_CACHE_NAME) {
-              console.log('Suppression ancien cache:', cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -64,8 +61,6 @@ self.addEventListener('activate', (event) => {
 
 // Gestion des notifications push
 self.addEventListener('push', (event) => {
-  console.log('Notification push reçue:', event);
-  
   let notificationData = {
     title: 'XimaM Music',
     body: 'Nouvelle musique disponible',
@@ -129,8 +124,6 @@ self.addEventListener('push', (event) => {
 
 // Gestion des clics sur les notifications
 self.addEventListener('notificationclick', (event) => {
-  console.log('Clic sur notification:', event.action);
-  
   event.notification.close();
 
   if (event.action) {
@@ -164,11 +157,8 @@ self.addEventListener('notificationclick', (event) => {
 
 // Gestion des messages du service worker
 self.addEventListener('message', (event) => {
-  console.log('Message reçu du service worker:', event.data);
-  
   // Gestion du skip waiting
   if (event.data.type === 'SKIP_WAITING') {
-    console.log('Skip waiting demandé');
     self.skipWaiting();
     return;
   }
@@ -176,25 +166,14 @@ self.addEventListener('message', (event) => {
   if (event.data.type === 'UPDATE_NOTIFICATION') {
     const { title, body, track, isPlaying } = event.data;
     
-    console.log('Mise à jour notification:', {
-      title,
-      body,
-      trackTitle: track?.title,
-      trackArtist: track?.artist?.name || track?.artist?.username,
-      isPlaying,
-      trackId: track?._id
-    });
-    
     // Vérifier les permissions
     if (Notification.permission !== 'granted') {
-      console.log('❌ Permission notification non accordée');
       return;
     }
     
     // Fermer les notifications existantes
     self.registration.getNotifications({ tag: NOTIFICATION_TAG }).then((notifications) => {
       notifications.forEach(notification => {
-        console.log('🔒 Fermeture notification existante');
         notification.close();
       });
     });
@@ -237,16 +216,8 @@ self.addEventListener('message', (event) => {
     // Utiliser le titre fourni ou générer un titre par défaut
     const notificationTitle = title || track?.title || 'XimaM Music';
 
-    console.log('Affichage notification:', {
-      title: notificationTitle,
-      body: options.body,
-      isPlaying
-    });
-
     self.registration.showNotification(notificationTitle, options).then(() => {
-      console.log('✅ Notification affichée avec succès');
-    }).catch(error => {
-      console.error('❌ Erreur affichage notification:', error);
+    }).catch(() => {
     });
   }
 
@@ -272,22 +243,18 @@ self.addEventListener('fetch', (event) => {
       caches.open(AUDIO_CACHE_NAME).then((cache) => {
         return cache.match(event.request).then((response) => {
           if (response) {
-            console.log('Audio servi depuis le cache:', url.pathname);
             return response;
           }
           
           return fetch(event.request).then((response) => {
             if (response.status === 200 && canCacheRequest(event.request)) {
-              console.log('Audio mis en cache:', url.pathname);
               try {
                 cache.put(event.request, response.clone());
               } catch (error) {
-                console.warn('Impossible de mettre en cache:', error);
               }
             }
             return response;
-          }).catch((error) => {
-            console.error('Erreur fetch audio:', error);
+          }).catch(() => {
             // Retourner une réponse d'erreur
             return new Response('Erreur audio', { status: 500 });
           });
@@ -313,7 +280,6 @@ self.addEventListener('fetch', (event) => {
               try {
                 cache.put(event.request, response.clone());
               } catch (error) {
-                console.warn('Impossible de mettre en cache:', error);
               }
             }
             return response;
@@ -336,13 +302,11 @@ self.addEventListener('fetch', (event) => {
 
 // Gestion des erreurs
 self.addEventListener('error', (event) => {
-  console.error('Erreur Service Worker:', event.error);
   // Empêcher la propagation de l'erreur
   event.preventDefault();
 });
 
 self.addEventListener('unhandledrejection', (event) => {
-  console.error('Promesse rejetée Service Worker:', event.reason);
   // Empêcher la propagation de l'erreur
   event.preventDefault();
 }); 

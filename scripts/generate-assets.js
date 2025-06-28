@@ -13,9 +13,9 @@ const config = {
   }
 };
 
-console.log('🎨 Génération des assets Android...');
-console.log('📁 Place tes images dans le dossier assets/');
-console.log('🔧 Puis lance: npx @capacitor/assets generate --android');
+// Génération des assets Android
+// Place tes images dans le dossier assets/
+// Puis lance: npx @capacitor/assets generate --android
 
 // Créer des icônes SVG simples pour le manifest
 const createSVGIcon = (size) => {
@@ -38,6 +38,7 @@ const createPNGFromSVG = (svgContent, size) => {
 // Créer les icônes
 const sizes = [192, 512];
 
+// Génération des icônes pour le manifest
 console.log('🎨 Génération des icônes pour le manifest...');
 
 sizes.forEach(size => {
@@ -79,7 +80,7 @@ manifest.icons = [
 fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
 console.log('✅ Manifest mis à jour avec les icônes SVG');
 
-console.log('\n🎉 Génération terminée !');
-console.log('📝 Note: Les icônes sont maintenant en SVG. Pour une meilleure compatibilité,');
-console.log('   vous devriez convertir ces SVG en PNG avec un outil comme ImageMagick ou');
-console.log('   utiliser un service en ligne de conversion SVG vers PNG.'); 
+// Génération terminée !
+// Note: Les icônes sont maintenant en SVG. Pour une meilleure compatibilité,
+// vous devriez convertir ces SVG en PNG avec un outil comme ImageMagick ou
+// utiliser un service en ligne de conversion SVG vers PNG. 

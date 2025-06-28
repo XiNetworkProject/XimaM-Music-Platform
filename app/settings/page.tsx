@@ -281,19 +281,19 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 text-white">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-50 glass-effect">
-        <div className="p-4">
-          <h1 className="text-2xl font-bold gradient-text">Paramètres</h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      <main className="container mx-auto px-4 pt-16 pb-32">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-10">
+            <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
+              <Settings size={28} className="text-purple-400" />
+              Paramètres
+            </h1>
+            <p className="text-white/60 text-lg">Personnalisez votre expérience musicale.</p>
+          </div>
 
-      {/* Main Content */}
-      <main className="pt-20 pb-32">
-        <div className="container mx-auto px-4">
           {/* Profil utilisateur */}
-          <div className="glass-effect rounded-xl p-4 mb-6">
+          <div className="glass-effect rounded-xl p-6 mb-8">
             <div className="flex items-center space-x-4">
               <img
                 src={user?.avatar || user?.image || '/default-avatar.png'}

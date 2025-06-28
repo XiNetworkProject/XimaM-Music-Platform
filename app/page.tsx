@@ -155,7 +155,7 @@ export default function HomePage() {
         throw new Error('Erreur de chargement');
           }
         } catch (error) {
-          console.error(`Erreur chargement ${key}:`, error);
+          // Erreur silencieuse
           setCategories(prev => ({
             ...prev,
             [key]: { tracks: [], loading: false, error: 'Erreur de chargement' }
@@ -173,7 +173,7 @@ export default function HomePage() {
         setPopularUsers(data.users);
       }
     } catch (error) {
-      console.error('Erreur chargement utilisateurs:', error);
+      // Erreur silencieuse
     } finally {
       setUsersLoading(false);
     }
@@ -192,7 +192,7 @@ export default function HomePage() {
         setDailyDiscoveries(tracksWithLikes);
       }
     } catch (error) {
-      console.error('Erreur chargement découvertes:', error);
+      // Erreur silencieuse
     }
   }, [user?.id]);
 
@@ -259,7 +259,7 @@ export default function HomePage() {
         setCollaborations(tracksWithLikes);
       }
     } catch (error) {
-      console.error('Erreur chargement collaborations:', error);
+      // Erreur silencieuse
     }
   }, [user?.id]);
 
@@ -273,7 +273,7 @@ export default function HomePage() {
         setLiveEvents(data.events);
       }
     } catch (error) {
-      console.error('Erreur chargement événements live:', error);
+      // Erreur silencieuse
     } finally {
       setEventsLoading(false);
     }
@@ -296,7 +296,7 @@ export default function HomePage() {
         setShowSearchResults(true);
       }
     } catch (error) {
-      console.error('Erreur recherche:', error);
+      // Erreur silencieuse
     } finally {
       setSearchLoading(false);
     }
@@ -312,7 +312,7 @@ export default function HomePage() {
         setCommunityStats(data.stats);
       }
     } catch (error) {
-      console.error('Erreur chargement statistiques:', error);
+      // Erreur silencieuse
     } finally {
       setStatsLoading(false);
     }
@@ -331,7 +331,7 @@ export default function HomePage() {
         setUserPreferences(data.userPreferences);
       }
     } catch (error) {
-      console.error('Erreur chargement recommandations:', error);
+      // Erreur silencieuse
     } finally {
       setRecommendationsLoading(false);
     }
@@ -349,7 +349,7 @@ export default function HomePage() {
         setRecentActivity(data);
       }
     } catch (error) {
-      console.error('Erreur chargement activité récente:', error);
+      // Erreur silencieuse
     } finally {
       setActivityLoading(false);
     }
@@ -365,7 +365,7 @@ export default function HomePage() {
         setPopularPlaylists(data.playlists);
       }
     } catch (error) {
-      console.error('Erreur chargement playlists populaires:', error);
+      // Erreur silencieuse
     } finally {
       setPlaylistsLoading(false);
     }
@@ -381,7 +381,7 @@ export default function HomePage() {
         setMusicGenres(data.genres);
       }
     } catch (error) {
-      console.error('Erreur chargement genres musicaux:', error);
+      // Erreur silencieuse
     } finally {
       setGenresLoading(false);
     }
@@ -462,7 +462,7 @@ export default function HomePage() {
     if (isNative) {
       checkForUpdates().then(update => {
         if (update) {
-          console.log('Mise à jour disponible:', update);
+          // Mise à jour disponible
         }
       });
     }
@@ -544,7 +544,7 @@ export default function HomePage() {
         });
       }
     } catch (error) {
-      console.error('Erreur like/unlike:', error);
+      // Erreur silencieuse
     }
   }, [session]);
 
@@ -580,11 +580,10 @@ export default function HomePage() {
         });
       } else {
         await navigator.clipboard.writeText(`${shareText} - ${shareUrl}`);
-        // Simuler une notification de succès
-        console.log('Lien copié dans le presse-papiers !');
+        // Lien copié dans le presse-papiers
       }
     } catch (error) {
-      console.error('Erreur lors du partage:', error);
+      // Erreur silencieuse
     }
   }, []);
 

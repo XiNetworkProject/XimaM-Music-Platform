@@ -53,8 +53,7 @@ export default function FullScreenPlayer() {
         await play();
       }
     } catch (error) {
-      console.error('Erreur lecture/pause:', error);
-      toast.error('Erreur lors de la lecture audio');
+      // Erreur silencieuse
     }
   }, [audioState.isPlaying, audioState.isLoading, play, pause]);
 
@@ -64,8 +63,7 @@ export default function FullScreenPlayer() {
       if (audioState.isLoading) return;
       nextTrack();
     } catch (error) {
-      console.error('Erreur piste suivante:', error);
-      toast.error('Erreur lors du changement de piste');
+      // Erreur silencieuse
     }
   }, [nextTrack, audioState.isLoading]);
 
@@ -74,8 +72,7 @@ export default function FullScreenPlayer() {
       if (audioState.isLoading) return;
       previousTrack();
     } catch (error) {
-      console.error('Erreur piste précédente:', error);
-      toast.error('Erreur lors du changement de piste');
+      // Erreur silencieuse
     }
   }, [previousTrack, audioState.isLoading]);
 
@@ -118,7 +115,7 @@ export default function FullScreenPlayer() {
       setIsNotificationRequested(true);
       requestNotificationPermission().then((granted) => {
         if (granted) {
-          console.log('Notifications activées');
+          // Notifications activées
         }
       });
     }

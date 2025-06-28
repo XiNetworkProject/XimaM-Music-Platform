@@ -281,7 +281,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         throw new Error('Erreur lors du like');
       }
     } catch (error) {
-      console.error('Erreur like:', error);
+      // Erreur silencieuse
     }
   }, [session?.user?.id]);
 
@@ -359,30 +359,42 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audioService.actions
   ]);
 
-  // Exposer le service audio globalement pour le debug
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      console.log('🔧 Tentative d\'exposition du service audio...');
-      console.log('📊 État du service:', {
-        hasAudioService: !!audioService,
-        hasValue: !!value,
-        allTracksCount: audioService?.allTracks?.length || 0,
-        hasActions: !!audioService?.actions
-      });
-      
-      (window as any).audioService = audioService;
-      (window as any).audioPlayer = value;
-      console.log('🔧 Service audio exposé globalement pour le debug');
-      
-      // Vérifier que l'exposition a fonctionné
-      setTimeout(() => {
-        console.log('🔍 Vérification de l\'exposition:', {
-          windowAudioService: !!(window as any).audioService,
-          windowAudioPlayer: !!(window as any).audioPlayer
-        });
-      }, 100);
+  // Tentative d'exposition du service audio
+  if (typeof window !== 'undefined') {
+    // État du service
+    const serviceState = {
+      currentTrack: audioState.tracks[audioState.currentTrackIndex]?.title || '',
+      isPlaying: audioState.isPlaying,
+      allTracks: audioService.allTracks?.length || 0,
+      playerTracks: audioState.tracks.length
+    };
+    
+    // Service audio exposé globalement pour le debug
+    (window as any).audioService = {
+      state: serviceState,
+      actions: {
+        play: () => audioService.actions.play(),
+        pause: () => audioService.actions.pause(),
+        nextTrack: () => audioService.actions.nextTrack(),
+        previousTrack: () => audioService.actions.previousTrack(),
+        setTrack: (trackId: string) => {
+          const trackIndex = audioState.tracks.findIndex(track => track._id === trackId);
+          if (trackIndex !== -1) {
+            setCurrentTrackIndex(trackIndex);
+          }
+        },
+        loadAllTracks: () => {
+          // Synchronisation automatique des pistes avec le player
+          setAudioState(prev => ({ ...prev, tracks: audioService.allTracks || [] }));
+        }
+      }
+    };
+    
+    // Vérification de l'exposition
+    if ((window as any).audioService) {
+      // Service audio exposé avec succès
     }
-  }, [audioService, value]);
+  }
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {

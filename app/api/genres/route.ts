@@ -169,10 +169,7 @@ export async function GET(request: NextRequest) {
       total: genres.length
     });
   } catch (error) {
-    console.error('Erreur genres musicaux:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors du chargement des genres' },
-      { status: 500 }
-    );
+    // Erreur silencieuse
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 } 
