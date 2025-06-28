@@ -136,34 +136,25 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [audioState.tracks, audioService.actions]);
 
-  // Charger automatiquement toutes les pistes dans le player
+  // Synchronisation automatique des pistes avec le player
   useEffect(() => {
-    if (audioService.allTracks && audioService.allTracks.length > 0 && audioState.tracks.length === 0) {
-      console.log('🎵 Synchronisation automatique des pistes avec le player...');
+    if (audioService.allTracks.length > 0 && audioState.tracks.length === 0) {
+      // Synchronisation automatique des pistes avec le player
       setAudioState(prev => ({ ...prev, tracks: audioService.allTracks }));
     }
   }, [audioService.allTracks, audioState.tracks.length]);
 
   const setTracks = useCallback((tracks: Track[]) => {
     setAudioState(prev => ({ ...prev, tracks }));
-    audioService.actions.setQueueAndPlay(tracks, 0);
-  }, [audioService.actions]);
+  }, []);
 
   const setCurrentTrackIndex = useCallback((index: number) => {
     setAudioState(prev => ({ ...prev, currentTrackIndex: index }));
-    if (audioState.tracks[index]) {
-      audioService.actions.loadTrack(audioState.tracks[index]);
-    }
-  }, [audioState.tracks, audioService.actions]);
+  }, []);
 
   const setIsPlaying = useCallback((playing: boolean) => {
     setAudioState(prev => ({ ...prev, isPlaying: playing }));
-    if (playing) {
-      audioService.actions.play();
-    } else {
-      audioService.actions.pause();
-    }
-  }, [audioService.actions]);
+  }, []);
 
   const setShowPlayer = useCallback((show: boolean) => {
     setAudioState(prev => ({ ...prev, showPlayer: show }));
@@ -175,18 +166,26 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const setShuffle = useCallback((shuffle: boolean) => {
     setAudioState(prev => ({ ...prev, shuffle }));
-    audioService.actions.toggleShuffle();
-  }, [audioService.actions]);
+  }, []);
 
   const setRepeat = useCallback((repeat: 'none' | 'one' | 'all') => {
     setAudioState(prev => ({ ...prev, repeat }));
   }, []);
 
+  // Synchronisation de l'état du service audio avec le provider
+  useEffect(() => {
+    if (audioService.state.currentTrack && audioState.tracks.length > 0) {
+      const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
+      if (trackIndex !== -1 && trackIndex !== audioState.currentTrackIndex) {
+        setCurrentTrackIndex(trackIndex);
+      }
+    }
+  }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex, setCurrentTrackIndex]);
+
   const playTrack = useCallback(async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;
-    
-    // Déterminer si on a un ID ou un objet Track
+
     if (typeof trackIdOrTrack === 'string') {
       trackId = trackIdOrTrack;
       trackData = undefined;
@@ -194,8 +193,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       trackId = trackIdOrTrack._id;
       trackData = trackIdOrTrack;
     }
-    
-    let trackIndex = audioState.tracks.findIndex(track => track._id === trackId);
+
+    const trackIndex = audioState.tracks.findIndex(track => track._id === trackId);
     
     // Si la piste n'est pas dans la liste et qu'on a les données, l'ajouter
     if (trackIndex === -1 && trackData) {
@@ -221,7 +220,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Si la piste n'est pas dans la liste et qu'on n'a pas les données
     if (trackIndex === -1) {
-      console.log('Piste non trouvée dans la liste et données non fournies, ID:', trackId);
+      // Piste non trouvée dans la liste et données non fournies
       return;
     }
     
@@ -239,6 +238,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Sinon, changer de piste et jouer
     const trackToPlay = trackData || audioState.tracks[trackIndex];
+    
+    // Mettre à jour l'état du player
     setAudioState(prev => ({
       ...prev,
       currentTrackIndex: trackIndex,
@@ -246,14 +247,18 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       isMinimized: false,
     }));
     
-    // Utiliser directement le service audio
-    await audioService.actions.loadTrack(trackToPlay);
-    await audioService.actions.play();
-    
-    // Forcer la mise à jour de la notification
-    setTimeout(() => {
-      audioService.actions.forceUpdateNotification();
-    }, 100);
+    // Forcer le chargement et la lecture de la nouvelle piste
+    try {
+      await audioService.actions.loadTrack(trackToPlay);
+      await audioService.actions.play();
+      
+      // Forcer la mise à jour de la notification
+      setTimeout(() => {
+        audioService.actions.forceUpdateNotification();
+      }, 100);
+    } catch (error) {
+      // Erreur silencieuse
+    }
   }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setShowPlayer, setIsMinimized]);
 
   const handleLike = useCallback(async (trackId: string) => {

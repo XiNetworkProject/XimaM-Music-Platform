@@ -375,6 +375,11 @@ export const useAudioService = () => {
           recommendations.analyzeListeningSession(state.currentTrack, listenDuration);
         }
 
+        // Forcer l'arrêt de la lecture actuelle
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        
+        // Changer la source audio
         audioRef.current.src = track.audioUrl;
         audioRef.current.load();
         
@@ -566,7 +571,12 @@ export const useAudioService = () => {
       }
       
       if (nextTrack) {
-        setState(prev => ({ ...prev, currentTrack: nextTrack, isPlaying: true }));
+        // Charger et jouer la nouvelle piste
+        loadTrack(nextTrack).then(() => {
+          if (state.isPlaying) {
+            play();
+          }
+        });
         setCurrentIndex(allTracks.findIndex(track => track._id === nextTrack!._id));
       } else {
         // Aucune piste disponible pour la lecture
@@ -664,7 +674,12 @@ export const useAudioService = () => {
       }
       
       if (prevTrack) {
-        setState(prev => ({ ...prev, currentTrack: prevTrack, isPlaying: true }));
+        // Charger et jouer la nouvelle piste
+        loadTrack(prevTrack).then(() => {
+          if (state.isPlaying) {
+            play();
+          }
+        });
         setCurrentIndex(allTracks.findIndex(track => track._id === prevTrack!._id));
       } else {
         // Aucune piste disponible pour la lecture
