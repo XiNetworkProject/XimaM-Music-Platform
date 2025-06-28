@@ -198,6 +198,13 @@ export default function FullScreenPlayer() {
           </div>
         )}
         
+        {/* Message d'aide pour première lecture mobile */}
+        {audioState.error && audioState.error.includes('Première lecture') && (
+          <div className="ml-2 px-2 py-1 bg-blue-500/20 rounded text-xs text-blue-300 max-w-32">
+            Cliquez sur play
+          </div>
+        )}
+        
         <button
           className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={e => { e.stopPropagation(); togglePlay(); }}

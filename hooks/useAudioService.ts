@@ -75,6 +75,7 @@ export const useAudioService = () => {
   const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
+  const [isFirstPlay, setIsFirstPlay] = useState(true);
 
   // Initialisation du service worker et des notifications
   useEffect(() => {
@@ -384,9 +385,16 @@ export const useAudioService = () => {
         if (playPromise !== undefined) {
           await playPromise;
           setState(prev => ({ ...prev, isPlaying: true, error: null }));
+          // Marquer que la première lecture a réussi
+          if (isFirstPlay) {
+            setIsFirstPlay(false);
+          }
         } else {
           // Fallback pour les navigateurs qui ne retournent pas de promise
           setState(prev => ({ ...prev, isPlaying: true, error: null }));
+          if (isFirstPlay) {
+            setIsFirstPlay(false);
+          }
         }
       }
     } catch (error) {
@@ -397,7 +405,13 @@ export const useAudioService = () => {
         if (error.name === 'NotAllowedError') {
           setState(prev => ({ 
             ...prev, 
-            error: 'Lecture automatique bloquée. Cliquez sur play pour commencer.',
+            error: '🎵 Cliquez sur le bouton play pour commencer la lecture (lecture automatique bloquée sur mobile)',
+            isPlaying: false 
+          }));
+        } else if (error.message.includes('play()') || isFirstPlay) {
+          setState(prev => ({ 
+            ...prev, 
+            error: '🎵 Première lecture : Cliquez sur play pour activer l\'audio sur mobile',
             isPlaying: false 
           }));
         } else {
@@ -415,7 +429,7 @@ export const useAudioService = () => {
         }));
       }
     }
-  }, [loadTrack]);
+  }, [loadTrack, isFirstPlay]);
 
   const pause = useCallback(() => {
     if (audioRef.current) {
@@ -862,6 +876,7 @@ export const useAudioService = () => {
     allTracks,
     autoPlayEnabled,
     notificationPermission,
+    isFirstPlay,
     actions: {
       play,
       pause,
@@ -897,6 +912,7 @@ export const useAudioService = () => {
     allTracks,
     autoPlayEnabled,
     notificationPermission,
+    isFirstPlay,
     play,
     pause,
     stop,
