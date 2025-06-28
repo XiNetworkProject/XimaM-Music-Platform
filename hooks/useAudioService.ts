@@ -214,6 +214,46 @@ export const useAudioService = () => {
     };
   }, []);
 
+  // Charger automatiquement toutes les pistes disponibles
+  const loadAllTracks = useCallback(async () => {
+    try {
+      // Chargement de toutes les pistes disponibles
+      const response = await fetch('/api/tracks');
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Données reçues de l'API
+        let tracks: Track[] = [];
+        
+        if (Array.isArray(data)) {
+          tracks = data;
+          // Pistes chargées
+        } else if (data.tracks && Array.isArray(data.tracks)) {
+          tracks = data.tracks;
+          // Pistes chargées (propriété tracks)
+        } else if (data.data && Array.isArray(data.data)) {
+          tracks = data.data;
+          // Pistes chargées (propriété data)
+        } else {
+          // Format de données invalide
+          return [];
+        }
+        
+        setAllTracks(tracks);
+        
+        // État allTracks mis à jour
+        return tracks;
+      } else {
+        // Erreur chargement pistes
+        return [];
+      }
+    } catch (error) {
+      // Erreur silencieuse
+      return [];
+    }
+  }, []);
+
   const handleTrackEnd = useCallback(() => {
     if (repeat === 'one') {
       if (audioRef.current) {
@@ -236,9 +276,9 @@ export const useAudioService = () => {
       // 1. Essayer une piste similaire
       if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
         const similarTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack._id && 
+          track._id !== state.currentTrack!._id && 
           track.genre && 
-          track.genre.some(g => state.currentTrack.genre!.includes(g))
+          track.genre.some(g => state.currentTrack!.genre!.includes(g))
         );
         if (similarTracks.length > 0) {
           autoPlayNextTrack = similarTracks[Math.floor(Math.random() * similarTracks.length)];
@@ -748,46 +788,6 @@ export const useAudioService = () => {
       // Mise à jour notification
     }
   }, [state.currentTrack, notificationPermission, updateNotification]);
-
-  // Charger automatiquement toutes les pistes disponibles
-  const loadAllTracks = useCallback(async () => {
-    try {
-      // Chargement de toutes les pistes disponibles
-      const response = await fetch('/api/tracks');
-      
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Données reçues de l'API
-        let tracks: Track[] = [];
-        
-        if (Array.isArray(data)) {
-          tracks = data;
-          // Pistes chargées
-        } else if (data.tracks && Array.isArray(data.tracks)) {
-          tracks = data.tracks;
-          // Pistes chargées (propriété tracks)
-        } else if (data.data && Array.isArray(data.data)) {
-          tracks = data.data;
-          // Pistes chargées (propriété data)
-        } else {
-          // Format de données invalide
-          return [];
-        }
-        
-        setAllTracks(tracks);
-        
-        // État allTracks mis à jour
-        return tracks;
-      } else {
-        // Erreur chargement pistes
-        return [];
-      }
-    } catch (error) {
-      // Erreur silencieuse
-      return [];
-    }
-  }, []);
 
   // Fonction pour forcer le rechargement des pistes
   const reloadAllTracks = useCallback(async () => {
