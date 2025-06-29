@@ -193,7 +193,7 @@ export default function ProfileUserPage() {
     
     try {
       setActionLoading(true);
-      const res = await fetch(`/api/users/${user._id}/follow`, { method: 'POST' });
+      const res = await fetch(`/api/users/${user.username}/follow`, { method: 'POST' });
       if (res.ok) {
         setUser(prev => prev ? {
           ...prev,

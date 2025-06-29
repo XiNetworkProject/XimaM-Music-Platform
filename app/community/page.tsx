@@ -207,11 +207,14 @@ export default function CommunityPage() {
 
   // Follow/unfollow user
   const toggleFollow = async (userId: string) => {
+    const user = users.find(u => u._id === userId);
+    if (!user) return;
+    
     setUsers(prev => prev.map(u => u._id === userId ? {
       ...u,
       isFollowing: !u.isFollowing
     } : u));
-    await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+    await fetch(`/api/users/${user.username}/follow`, { method: 'POST' });
   };
 
   // Formatage
