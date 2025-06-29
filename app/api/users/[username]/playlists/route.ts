@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
+import Playlist from '@/models/Playlist';
 
 export async function GET(
   request: NextRequest,
@@ -22,19 +23,22 @@ export async function GET(
       );
     }
 
-    const following = await User.find({ _id: { $in: user.following } })
-      .select('name username avatar bio isVerified')
-      .lean();
+    const isOwnProfile = session?.user?.id === user._id.toString();
 
-    // Marquer si l'utilisateur connecté suit chaque utilisateur
-    if (session?.user?.id) {
-      const currentUser = await User.findById(session.user.id).select('following');
-      following.forEach(followed => {
-        followed.isFollowing = currentUser?.following?.includes(followed._id) || false;
-      });
+    // Construire la requête
+    let query: any = { createdBy: user._id };
+    
+    // Si ce n'est pas son propre profil, ne montrer que les playlists publiques
+    if (!isOwnProfile) {
+      query.isPublic = true;
     }
 
-    return NextResponse.json({ following });
+    const playlists = await Playlist.find(query)
+      .populate('createdBy', 'name username avatar')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    return NextResponse.json({ playlists });
   } catch (error) {
     return NextResponse.json(
       { error: 'Erreur serveur' },

@@ -101,31 +101,31 @@ export default function LibraryPage() {
 
   // Charger les données depuis l'API
   const fetchLibraryData = useCallback(async () => {
-      if (!session?.user?.id) return;
+    if (!session?.user?.id) return;
 
-      try {
-        setLoading(true);
-        
-        // Charger les playlists de l'utilisateur
-        const playlistsResponse = await fetch('/api/playlists?user=' + session.user.id);
-        if (playlistsResponse.ok) {
-          const playlistsData = await playlistsResponse.json();
-          setPlaylists(playlistsData.playlists || []);
-        }
+    try {
+      setLoading(true);
+      
+      // Charger les playlists de l'utilisateur
+      const playlistsResponse = await fetch('/api/playlists?user=' + session.user.id);
+      if (playlistsResponse.ok) {
+        const playlistsData = await playlistsResponse.json();
+        setPlaylists(playlistsData.playlists || []);
+      }
 
-        // Charger les pistes récentes
+      // Charger les pistes récentes
       const recentResponse = await fetch('/api/tracks?recent=true&limit=20');
-        if (recentResponse.ok) {
-          const recentData = await recentResponse.json();
-          setRecentTracks(recentData.tracks || []);
-        }
+      if (recentResponse.ok) {
+        const recentData = await recentResponse.json();
+        setRecentTracks(recentData.tracks || []);
+      }
 
-        // Charger les favoris
+      // Charger les favoris
       const favoritesResponse = await fetch('/api/tracks?liked=true&limit=50');
-        if (favoritesResponse.ok) {
-          const favoritesData = await favoritesResponse.json();
-          setFavoriteTracks(favoritesData.tracks || []);
-        }
+      if (favoritesResponse.ok) {
+        const favoritesData = await favoritesResponse.json();
+        setFavoriteTracks(favoritesData.tracks || []);
+      }
 
       // Charger toutes les pistes pour l'ajout aux playlists
       const allTracksResponse = await fetch('/api/tracks?limit=100');
@@ -137,11 +137,11 @@ export default function LibraryPage() {
       // Charger les téléchargements (simulation)
       setDownloadedTracks([]);
 
-      } catch (error) {
+    } catch (error) {
       // Erreur silencieuse
-      } finally {
-        setLoading(false);
-      }
+    } finally {
+      setLoading(false);
+    }
   }, [session?.user?.id]);
 
   useEffect(() => {
@@ -326,7 +326,7 @@ export default function LibraryPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-6xl mx-auto">
-      {/* Header */}
+          {/* Header */}
           <div className="mb-10">
             <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
               <Music size={28} className="text-purple-400" />
@@ -385,43 +385,43 @@ export default function LibraryPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Onglets */}
           <div className="glass-effect rounded-xl p-6 mb-8">
-          <div className="flex space-x-1 bg-white/10 rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab('playlists')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'playlists'
+            <div className="flex space-x-1 bg-white/10 rounded-xl p-1">
+              <button
+                onClick={() => setActiveTab('playlists')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'playlists'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              <Music size={16} className="inline mr-2" />
-              Playlists
-            </button>
-            <button
-              onClick={() => setActiveTab('recent')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'recent'
+                    : 'text-white/60 hover:text-white/80'
+                }`}
+              >
+                <Music size={16} className="inline mr-2" />
+                Playlists
+              </button>
+              <button
+                onClick={() => setActiveTab('recent')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'recent'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              <Clock size={16} className="inline mr-2" />
-              Récent
-            </button>
-            <button
-              onClick={() => setActiveTab('favorites')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'favorites'
+                    : 'text-white/60 hover:text-white/80'
+                }`}
+              >
+                <Clock size={16} className="inline mr-2" />
+                Récent
+              </button>
+              <button
+                onClick={() => setActiveTab('favorites')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'favorites'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              <Heart size={16} className="inline mr-2" />
-              Favoris
-            </button>
+                    : 'text-white/60 hover:text-white/80'
+                }`}
+              >
+                <Heart size={16} className="inline mr-2" />
+                Favoris
+              </button>
               <button
                 onClick={() => setActiveTab('downloads')}
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
@@ -566,7 +566,7 @@ export default function LibraryPage() {
                         <Plus size={16} className="text-white/60" />
                       </button>
                     ))}
-        </div>
+                  </div>
                 </motion.div>
               </motion.div>
             )}
@@ -574,29 +574,29 @@ export default function LibraryPage() {
 
           {/* Contenu des onglets */}
           <div className="glass-effect rounded-xl p-6">
-          <AnimatePresence mode="wait">
-            {activeTab === 'playlists' && (
-              <motion.div
-                key="playlists"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                {selectedPlaylist ? (
-                  // Vue détaillée de la playlist
-                  <div>
-                    <div className="flex items-center space-x-4 mb-6">
-                      <button
-                        onClick={() => setSelectedPlaylist(null)}
-                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                      >
-                        ←
-                      </button>
+            <AnimatePresence mode="wait">
+              {activeTab === 'playlists' && (
+                <motion.div
+                  key="playlists"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {selectedPlaylist ? (
+                    // Vue détaillée de la playlist
+                    <div>
+                      <div className="flex items-center space-x-4 mb-6">
+                        <button
+                          onClick={() => setSelectedPlaylist(null)}
+                          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                        >
+                          ←
+                        </button>
                         <div className="flex-1">
-                        <h2 className="text-xl font-bold">{currentPlaylist?.name}</h2>
-                        <p className="text-white/60">{currentPlaylist?.description}</p>
-                      </div>
+                          <h2 className="text-xl font-bold">{currentPlaylist?.name}</h2>
+                          <p className="text-white/60">{currentPlaylist?.description}</p>
+                        </div>
                         <div className="flex items-center space-x-2">
                           <button
                             onClick={() => sharePlaylist(currentPlaylist!)}
@@ -611,75 +611,75 @@ export default function LibraryPage() {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                    </div>
+                      </div>
 
-                    {/* Contrôles de lecture */}
-                    <div className="flex items-center space-x-4 mb-6">
-                      <button
+                      {/* Contrôles de lecture */}
+                      <div className="flex items-center space-x-4 mb-6">
+                        <button
                           onClick={() => playPlaylist(currentPlaylist!)}
                           className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:from-purple-700 hover:to-pink-700 transition-all"
-                      >
-                          <Play size={20} />
-                      </button>
-                      <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-                        <Shuffle size={20} />
-                      </button>
-                      <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-                        <Repeat size={20} />
-                      </button>
-                    </div>
-
-                    {/* Liste des pistes */}
-                    <div className="space-y-2">
-                      {currentPlaylist?.tracks.map((track, index) => (
-                        <motion.div
-                          key={track._id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                         >
-                          <span className="text-white/40 text-sm w-8">{index + 1}</span>
-                          <img
-                            src={track.coverUrl || '/default-cover.jpg'}
-                            alt={track.title}
-                            className="w-10 h-10 rounded object-cover"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium truncate">{track.title}</h4>
-                            <p className="text-sm text-white/60 truncate">
-                              {track.artist?.name || track.artist?.username}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => playTrack(track)}
-                            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                          <Play size={20} />
+                        </button>
+                        <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                          <Shuffle size={20} />
+                        </button>
+                        <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                          <Repeat size={20} />
+                        </button>
+                      </div>
+
+                      {/* Liste des pistes */}
+                      <div className="space-y-2">
+                        {currentPlaylist?.tracks.map((track, index) => (
+                          <motion.div
+                            key={track._id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                           >
+                            <span className="text-white/40 text-sm w-8">{index + 1}</span>
+                            <img
+                              src={track.coverUrl || '/default-cover.jpg'}
+                              alt={track.title}
+                              className="w-10 h-10 rounded object-cover"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-medium truncate">{track.title}</h4>
+                              <p className="text-sm text-white/60 truncate">
+                                {track.artist?.name || track.artist?.username}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => playTrack(track)}
+                              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                            >
                               {isCurrentlyPlaying(track._id) ? (
-                              <Pause size={16} />
-                            ) : (
-                              <Play size={16} />
-                            )}
-                          </button>
-                          <span className="text-white/40 text-sm">
-                            {formatDuration(track.duration)}
-                          </span>
-                        </motion.div>
-                      ))}
+                                <Pause size={16} />
+                              ) : (
+                                <Play size={16} />
+                              )}
+                            </button>
+                            <span className="text-white/40 text-sm">
+                              {formatDuration(track.duration)}
+                            </span>
+                          </motion.div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ) : (
-                  // Liste des playlists
-                  <div>
-                    <div className="flex items-center justify-between mb-6">
-                      <h2 className="text-xl font-bold">Mes Playlists</h2>
+                  ) : (
+                    // Liste des playlists
+                    <div>
+                      <div className="flex items-center justify-between mb-6">
+                        <h2 className="text-xl font-bold">Mes Playlists</h2>
                         <div className="text-white/60 text-sm">
                           {filteredPlaylists.length} playlist{filteredPlaylists.length !== 1 ? 's' : ''}
                         </div>
-                    </div>
+                      </div>
 
                       {filteredPlaylists.length === 0 ? (
-                      <div className="text-center py-12">
+                        <div className="text-center py-12">
                           <FolderPlus className="w-16 h-16 text-white/40 mx-auto mb-4" />
                           <p className="text-white/60 mb-4">
                             {searchQuery ? 'Aucune playlist trouvée' : 'Aucune playlist créée'}
@@ -689,35 +689,35 @@ export default function LibraryPage() {
                               onClick={() => setShowCreatePlaylist(true)}
                               className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
                             >
-                          Créer une playlist
-                        </button>
+                              Créer une playlist
+                            </button>
                           )}
-                      </div>
-                    ) : (
+                        </div>
+                      ) : (
                         <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-4'}>
                           {filteredPlaylists.map((playlist) => (
-                          <motion.div
-                            key={playlist._id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            <motion.div
+                              key={playlist._id}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
                               className={`glass-effect rounded-xl overflow-hidden hover:scale-105 transition-all duration-300 cursor-pointer ${
                                 viewMode === 'list' ? 'flex items-center space-x-4 p-4' : 'p-4'
                               }`}
-                            onClick={() => setSelectedPlaylist(playlist._id)}
-                          >
+                              onClick={() => setSelectedPlaylist(playlist._id)}
+                            >
                               {viewMode === 'grid' ? (
                                 <>
-                            <img
-                              src={playlist.coverUrl || '/default-cover.jpg'}
-                              alt={playlist.name}
-                              className="w-full h-32 object-cover rounded-lg mb-3"
-                            />
-                            <h3 className="font-semibold mb-1">{playlist.name}</h3>
-                            <p className="text-sm text-white/60 mb-2">{playlist.description}</p>
-                            <div className="flex items-center justify-between text-xs text-white/40">
-                              <span>{playlist.trackCount} pistes</span>
-                              <span>{formatDuration(playlist.duration)}</span>
-                            </div>
+                                  <img
+                                    src={playlist.coverUrl || '/default-cover.jpg'}
+                                    alt={playlist.name}
+                                    className="w-full h-32 object-cover rounded-lg mb-3"
+                                  />
+                                  <h3 className="font-semibold mb-1">{playlist.name}</h3>
+                                  <p className="text-sm text-white/60 mb-2">{playlist.description}</p>
+                                  <div className="flex items-center justify-between text-xs text-white/40">
+                                    <span>{playlist.trackCount} pistes</span>
+                                    <span>{formatDuration(playlist.duration)}</span>
+                                  </div>
                                 </>
                               ) : (
                                 <>
@@ -740,53 +740,53 @@ export default function LibraryPage() {
                                   </div>
                                 </>
                               )}
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            )}
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
-            {activeTab === 'recent' && (
-              <motion.div
-                key="recent"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <h2 className="text-xl font-bold mb-6">Écouté Récemment</h2>
-                
+              {activeTab === 'recent' && (
+                <motion.div
+                  key="recent"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <h2 className="text-xl font-bold mb-6">Écouté Récemment</h2>
+                  
                   {filteredRecentTracks.length === 0 ? (
-                  <div className="text-center py-12">
+                    <div className="text-center py-12">
                       <Clock className="w-16 h-16 text-white/40 mx-auto mb-4" />
                       <p className="text-white/60">
                         {searchQuery ? 'Aucun résultat trouvé' : 'Aucune écoute récente'}
                       </p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
                       {filteredRecentTracks.map((track, index) => (
-                      <motion.div
-                        key={track._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
-                      >
-                        <img
-                          src={track.coverUrl || '/default-cover.jpg'}
-                          alt={track.title}
-                          className="w-12 h-12 rounded object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium truncate">{track.title}</h4>
-                          <p className="text-sm text-white/60 truncate">
-                            {track.artist?.name || track.artist?.username}
-                          </p>
-                        </div>
+                        <motion.div
+                          key={track._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                          <img
+                            src={track.coverUrl || '/default-cover.jpg'}
+                            alt={track.title}
+                            className="w-12 h-12 rounded object-cover"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">{track.title}</h4>
+                            <p className="text-sm text-white/60 truncate">
+                              {track.artist?.name || track.artist?.username}
+                            </p>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => setShowAddToPlaylist(track._id)}
@@ -794,78 +794,78 @@ export default function LibraryPage() {
                             >
                               <Plus size={16} />
                             </button>
-                        <button
-                          onClick={() => playTrack(track)}
-                          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                        >
+                            <button
+                              onClick={() => playTrack(track)}
+                              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                            >
                               {isCurrentlyPlaying(track._id) ? (
-                            <Pause size={16} />
-                          ) : (
-                            <Play size={16} />
-                          )}
-                        </button>
+                                <Pause size={16} />
+                              ) : (
+                                <Play size={16} />
+                              )}
+                            </button>
                           </div>
-                        <div className="text-right">
-                          <span className="text-white/40 text-sm block">
-                            {formatDuration(track.duration)}
-                          </span>
-                          <span className="text-white/40 text-xs">
-                            {formatNumber(track.plays)} écoutes
-                          </span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
+                          <div className="text-right">
+                            <span className="text-white/40 text-sm block">
+                              {formatDuration(track.duration)}
+                            </span>
+                            <span className="text-white/40 text-xs">
+                              {formatNumber(track.plays)} écoutes
+                            </span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
-            {activeTab === 'favorites' && (
-              <motion.div
-                key="favorites"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
-              >
-                <h2 className="text-xl font-bold mb-6">Mes Favoris</h2>
-                
+              {activeTab === 'favorites' && (
+                <motion.div
+                  key="favorites"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <h2 className="text-xl font-bold mb-6">Mes Favoris</h2>
+                  
                   {filteredFavoriteTracks.length === 0 ? (
-                  <div className="text-center py-12">
+                    <div className="text-center py-12">
                       <Heart className="w-16 h-16 text-white/40 mx-auto mb-4" />
                       <p className="text-white/60 mb-4">
                         {searchQuery ? 'Aucun résultat trouvé' : 'Aucun favori pour le moment'}
                       </p>
                       {!searchQuery && (
-                    <a
-                      href="/discover"
+                        <a
+                          href="/discover"
                           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                    >
-                      Découvrir de la musique
-                    </a>
+                        >
+                          Découvrir de la musique
+                        </a>
                       )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
                       {filteredFavoriteTracks.map((track, index) => (
-                      <motion.div
-                        key={track._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
-                      >
-                        <img
-                          src={track.coverUrl || '/default-cover.jpg'}
-                          alt={track.title}
-                          className="w-12 h-12 rounded object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium truncate">{track.title}</h4>
-                          <p className="text-sm text-white/60 truncate">
-                            {track.artist?.name || track.artist?.username}
-                          </p>
-                        </div>
+                        <motion.div
+                          key={track._id}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
+                        >
+                          <img
+                            src={track.coverUrl || '/default-cover.jpg'}
+                            alt={track.title}
+                            className="w-12 h-12 rounded object-cover"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium truncate">{track.title}</h4>
+                            <p className="text-sm text-white/60 truncate">
+                              {track.artist?.name || track.artist?.username}
+                            </p>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <button
                               onClick={() => handleLikeTrack(track._id)}
@@ -879,31 +879,31 @@ export default function LibraryPage() {
                             >
                               <Plus size={16} />
                             </button>
-                        <button
-                          onClick={() => playTrack(track)}
-                          className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                        >
+                            <button
+                              onClick={() => playTrack(track)}
+                              className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                            >
                               {isCurrentlyPlaying(track._id) ? (
-                            <Pause size={16} />
-                          ) : (
-                            <Play size={16} />
-                          )}
-                        </button>
+                                <Pause size={16} />
+                              ) : (
+                                <Play size={16} />
+                              )}
+                            </button>
                           </div>
-                        <div className="text-right">
-                          <span className="text-white/40 text-sm block">
-                            {formatDuration(track.duration)}
-                          </span>
-                          <span className="text-white/40 text-xs">
-                            {formatNumber(track.likes.length)} likes
-                          </span>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </motion.div>
-            )}
+                          <div className="text-right">
+                            <span className="text-white/40 text-sm block">
+                              {formatDuration(track.duration)}
+                            </span>
+                            <span className="text-white/40 text-xs">
+                              {formatNumber(track.likes.length)} likes
+                            </span>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </motion.div>
+              )}
 
               {activeTab === 'downloads' && (
                 <motion.div
@@ -961,7 +961,7 @@ export default function LibraryPage() {
                   )}
                 </motion.div>
               )}
-          </AnimatePresence>
+            </AnimatePresence>
           </div>
         </div>
       </main>

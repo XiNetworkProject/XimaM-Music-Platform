@@ -290,7 +290,7 @@ export default function SettingsPage() {
               Paramètres
             </h1>
             <p className="text-white/60 text-lg">Personnalisez votre expérience musicale.</p>
-        </div>
+          </div>
 
           {/* Profil utilisateur */}
           <div className="glass-effect rounded-xl p-6 mb-8">

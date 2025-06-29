@@ -125,7 +125,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (audioService.state.currentTrack) {
       const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
-        setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
+      setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
     }
   }, [audioService.state.currentTrack, audioState.tracks]);
 
@@ -185,7 +185,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const playTrack = useCallback(async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;
-    
+
     if (typeof trackIdOrTrack === 'string') {
       trackId = trackIdOrTrack;
       trackData = undefined;
@@ -193,7 +193,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       trackId = trackIdOrTrack._id;
       trackData = trackIdOrTrack;
     }
-    
+
     const trackIndex = audioState.tracks.findIndex(track => track._id === trackId);
     
     // Si la piste n'est pas dans la liste et qu'on a les données, l'ajouter
@@ -249,13 +249,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Forcer le chargement et la lecture de la nouvelle piste
     try {
-    await audioService.actions.loadTrack(trackToPlay);
-    await audioService.actions.play();
-    
-    // Forcer la mise à jour de la notification
-    setTimeout(() => {
-      audioService.actions.forceUpdateNotification();
-    }, 100);
+      await audioService.actions.loadTrack(trackToPlay);
+      await audioService.actions.play();
+      
+      // Forcer la mise à jour de la notification
+      setTimeout(() => {
+        audioService.actions.forceUpdateNotification();
+      }, 100);
     } catch (error) {
       // Erreur silencieuse
     }

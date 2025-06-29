@@ -35,22 +35,7 @@ export async function GET(request: NextRequest) {
     let query: any = {};
     
     if (user) {
-      // Rechercher par username dans createdBy
-      const userDoc = await User.findOne({ username: user });
-      if (userDoc) {
-        query.createdBy = userDoc._id;
-      } else {
-        // Si l'utilisateur n'existe pas, retourner une liste vide
-        return NextResponse.json({
-          playlists: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            pages: 0
-          }
-        });
-      }
+      query.createdBy = user;
     } else {
       query.isPublic = true;
     }
@@ -164,7 +149,7 @@ export async function POST(request: NextRequest) {
       .lean() as any;
     
     if (!populatedPlaylist) {
-    return NextResponse.json(
+      return NextResponse.json(
         { error: 'Erreur lors de la création de la playlist' },
         { status: 500 }
       );
