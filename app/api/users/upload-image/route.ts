@@ -22,6 +22,13 @@ if (isCloudinaryConfigured()) {
 
 export const runtime = 'nodejs';
 
+// Fonction pour obtenir l'URL de base de l'application
+const getBaseUrl = (request: NextRequest) => {
+  const protocol = request.headers.get('x-forwarded-proto') || 'http';
+  const host = request.headers.get('host') || request.headers.get('x-forwarded-host');
+  return `${protocol}://${host}`;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -90,16 +97,14 @@ export async function POST(request: NextRequest) {
           console.error('Erreur de configuration Cloudinary - vérifiez les variables d\'environnement');
         }
         
-        // Fallback vers une image par défaut avec URL complète
-        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-        imageUrl = type === 'avatar' ? `${baseUrl}/default-avatar.png` : `${baseUrl}/default-cover.jpg`;
+        // Fallback vers une image par défaut avec chemin relatif
+        imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
         uploadSuccess = false;
       }
     } else {
-      // Si Cloudinary n'est pas configuré, utiliser des images par défaut avec URL complète
+      // Si Cloudinary n'est pas configuré, utiliser des images par défaut avec chemin relatif
       console.warn('Cloudinary non configuré, utilisation des images par défaut');
-      const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
-      imageUrl = type === 'avatar' ? `${baseUrl}/default-avatar.png` : `${baseUrl}/default-cover.jpg`;
+      imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
       uploadSuccess = false;
     }
     
