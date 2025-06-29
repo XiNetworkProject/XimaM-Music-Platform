@@ -34,9 +34,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Le fichier est trop volumineux (max 5MB)' }, { status: 400 });
     }
 
-    // Créer une URL temporaire pour l'image
-    // En production, vous pourriez utiliser un service comme Cloudinary, AWS S3, ou un stockage local
-    const imageUrl = `https://via.placeholder.com/400x400/6366f1/ffffff?text=${type === 'avatar' ? 'Avatar' : 'Banner'}`;
+    // Utiliser des images locales existantes
+    let imageUrl: string;
+    if (type === 'avatar') {
+      imageUrl = '/default-avatar.png';
+    } else if (type === 'banner') {
+      imageUrl = '/default-cover.jpg';
+    } else {
+      return NextResponse.json({ error: 'Type d\'image invalide' }, { status: 400 });
+    }
     
     // Mettre à jour l'utilisateur
     const user = await User.findById(session.user.id);
