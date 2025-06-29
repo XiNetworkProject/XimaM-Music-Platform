@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     let sortOptions: any = { createdAt: -1 };
     
     if (trending === 'true') {
-      sortOptions = { plays: -1, 'likes.length': -1 };
+      sortOptions = { plays: -1, likes: -1 };
     }
     
     if (recent === 'true') {
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       tags: track.tags || [],
       plays: track.plays || 0,
       duration: track.duration || 0,
-      trendingScore: track.trendingScore || 0
+      trendingScore: (track.plays || 0) + (track.likes?.length || 0) * 10 // Calculer un score de tendance
     }));
 
     return NextResponse.json({
@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
+    console.error('Erreur API tracks:', error);
     return NextResponse.json(
       { 
         error: 'Erreur lors de la récupération des pistes',
