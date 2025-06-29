@@ -5,12 +5,9 @@ import Track from '@/models/Track';
 // GET - Récupérer toutes les pistes publiques
 export async function GET(request: NextRequest) {
   try {
-    // S'assurer que la connexion est établie
     await dbConnect();
     
-    // Vérifier que la connexion est active
     if (!isConnected()) {
-      console.warn('⚠️ MongoDB non connecté, tentative de reconnexion...');
       await dbConnect();
     }
 
@@ -19,6 +16,9 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const genre = searchParams.get('genre');
     const search = searchParams.get('search');
+    const trending = searchParams.get('trending');
+    const recent = searchParams.get('recent');
+    const liked = searchParams.get('liked');
     const skip = (page - 1) * limit;
 
     // Construire la requête
@@ -34,18 +34,47 @@ export async function GET(request: NextRequest) {
       query.$text = { $search: search };
     }
 
+    // Tri selon les paramètres
+    let sortOptions: any = { createdAt: -1 };
+    
+    if (trending === 'true') {
+      sortOptions = { plays: -1, 'likes.length': -1 };
+    }
+    
+    if (recent === 'true') {
+      sortOptions = { createdAt: -1 };
+    }
+
     // Récupérer les pistes avec les informations de l'artiste
     const tracks = await Track.find(query)
       .populate('artist', 'name username avatar')
-      .sort({ createdAt: -1 })
+      .sort(sortOptions)
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
 
     // Compter le total
     const total = await Track.countDocuments(query);
 
+    // Formater les pistes pour éviter les erreurs de sérialisation
+    const formattedTracks = tracks.map((track: any) => ({
+      ...track,
+      _id: track._id.toString(),
+      artist: track.artist ? {
+        ...track.artist,
+        _id: track.artist._id.toString()
+      } : null,
+      likes: track.likes || [],
+      comments: track.comments || [],
+      genre: track.genre || [],
+      tags: track.tags || [],
+      plays: track.plays || 0,
+      duration: track.duration || 0,
+      trendingScore: track.trendingScore || 0
+    }));
+
     return NextResponse.json({
-      tracks,
+      tracks: formattedTracks,
       pagination: {
         page,
         limit,
@@ -55,9 +84,11 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erreur récupération pistes:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des pistes' },
+      { 
+        error: 'Erreur lors de la récupération des pistes',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     );
   }

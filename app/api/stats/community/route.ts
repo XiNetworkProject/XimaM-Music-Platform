@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
 
     // Top artistes (par nombre de followers)
     const topArtists = [...users]
-      .sort((a, b) => (b.followers?.length || 0) - (a.followers?.length || 0))
+      .sort((a, b) => ((b.followers?.length || 0) - (a.followers?.length || 0)))
       .slice(0, 5);
 
     // Activité récente (likes, uploads, follows, commentaires, playlists)
@@ -89,6 +89,9 @@ export async function GET(request: NextRequest) {
       recentActivity: recentActivity.slice(0, 15)
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Erreur stats communauté' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur stats communauté',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 });
   }
 } 
