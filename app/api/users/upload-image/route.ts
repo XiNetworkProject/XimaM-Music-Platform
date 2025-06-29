@@ -90,14 +90,16 @@ export async function POST(request: NextRequest) {
           console.error('Erreur de configuration Cloudinary - vérifiez les variables d\'environnement');
         }
         
-        // Fallback vers une image par défaut
-        imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
+        // Fallback vers une image par défaut avec URL complète
+        const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+        imageUrl = type === 'avatar' ? `${baseUrl}/default-avatar.png` : `${baseUrl}/default-cover.jpg`;
         uploadSuccess = false;
       }
     } else {
-      // Si Cloudinary n'est pas configuré, utiliser des images par défaut
+      // Si Cloudinary n'est pas configuré, utiliser des images par défaut avec URL complète
       console.warn('Cloudinary non configuré, utilisation des images par défaut');
-      imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
+      const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
+      imageUrl = type === 'avatar' ? `${baseUrl}/default-avatar.png` : `${baseUrl}/default-cover.jpg`;
       uploadSuccess = false;
     }
     

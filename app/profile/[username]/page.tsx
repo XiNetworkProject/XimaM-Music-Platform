@@ -390,6 +390,25 @@ export default function ProfilePage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Fonction pour obtenir l'URL correcte d'une image
+  const getImageUrl = (url: string | undefined, defaultImage: string) => {
+    if (!url) return defaultImage;
+    
+    // Si c'est une URL complète (http/https), l'utiliser directement
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // Si c'est une URL relative, la préfixer avec le domaine
+    if (url.startsWith('/')) {
+      const baseUrl = window.location.origin;
+      return `${baseUrl}${url}`;
+    }
+    
+    // Sinon, utiliser l'image par défaut
+    return defaultImage;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
@@ -424,7 +443,7 @@ export default function ProfilePage() {
       {/* Bannière */}
       <div className="relative h-64 md:h-80 overflow-hidden">
         <img
-          src={profile.banner || '/default-cover.jpg'}
+          src={getImageUrl(profile.banner, '/default-cover.jpg')}
           alt="Bannière"
           className="w-full h-full object-cover"
           onLoad={() => console.log('Bannière chargée:', profile.banner)}
@@ -480,7 +499,7 @@ export default function ProfilePage() {
           <div className="flex items-end gap-6">
             <div className="relative">
               <img
-                src={profile.avatar || '/default-avatar.png'}
+                src={getImageUrl(profile.avatar, '/default-avatar.png')}
                 alt={profile.name}
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white/20"
                 onLoad={() => console.log('Avatar chargé:', profile.avatar)}
@@ -624,7 +643,7 @@ export default function ProfilePage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.jpg'}
+                          src={getImageUrl(track.coverUrl, '/default-cover.jpg')}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -693,7 +712,7 @@ export default function ProfilePage() {
                         onClick={() => router.push(`/playlists/${playlist._id}`)}
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.jpg'}
+                          src={getImageUrl(playlist.coverUrl, '/default-cover.jpg')}
                           alt={playlist.name}
                           className="w-full h-32 object-cover rounded-lg mb-3"
                         />
@@ -881,7 +900,7 @@ export default function ProfilePage() {
             <div className="flex flex-wrap gap-3">
               {commonFollowers.map((user) => (
                 <div key={user._id} className="flex items-center gap-2 bg-white/10 rounded-full px-3 py-1">
-                  <img src={user.avatar || '/default-avatar.png'} alt={user.name} className="w-6 h-6 rounded-full object-cover" />
+                  <img src={getImageUrl(user.avatar, '/default-avatar.png')} alt={user.name} className="w-6 h-6 rounded-full object-cover" />
                   <span className="text-sm">{user.name}</span>
                 </div>
               ))}
@@ -922,7 +941,7 @@ export default function ProfilePage() {
                     <label className="block text-sm font-medium text-white/80 mb-2">Photo de profil</label>
                     <div className="relative">
                       <img
-                        src={profile.avatar || '/default-avatar.png'}
+                        src={getImageUrl(profile.avatar, '/default-avatar.png')}
                         alt="Avatar"
                         className="w-24 h-24 rounded-full object-cover"
                       />
@@ -946,7 +965,7 @@ export default function ProfilePage() {
                     <label className="block text-sm font-medium text-white/80 mb-2">Bannière</label>
                     <div className="relative">
                       <img
-                        src={profile.banner || '/default-cover.jpg'}
+                        src={getImageUrl(profile.banner, '/default-cover.jpg')}
                         alt="Bannière"
                         className="w-full h-24 rounded-lg object-cover"
                       />
@@ -1060,7 +1079,7 @@ export default function ProfilePage() {
                 {followers.map((follower) => (
                   <div key={follower._id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
                     <img
-                      src={follower.avatar || '/default-avatar.png'}
+                      src={getImageUrl(follower.avatar, '/default-avatar.png')}
                       alt={follower.name}
                       className="w-10 h-10 rounded-full object-cover"
                     />
@@ -1110,7 +1129,7 @@ export default function ProfilePage() {
                 {following.map((followed) => (
                   <div key={followed._id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
                     <img
-                      src={followed.avatar || '/default-avatar.png'}
+                      src={getImageUrl(followed.avatar, '/default-avatar.png')}
                       alt={followed.name}
                       className="w-10 h-10 rounded-full object-cover"
                     />
