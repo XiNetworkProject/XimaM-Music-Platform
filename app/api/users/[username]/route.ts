@@ -14,12 +14,23 @@ export async function GET(
     await dbConnect();
     if (!isConnected()) await dbConnect();
     const { username } = params;
-    const user = await User.findOne({ username })
+    
+    // Essayer de trouver par username d'abord
+    let user = await User.findOne({ username })
       .select('-password')
       .lean() as any;
+    
+    // Si pas trouvé par username, essayer par ID MongoDB
+    if (!user && /^[0-9a-fA-F]{24}$/.test(username)) {
+      user = await User.findById(username)
+        .select('-password')
+        .lean() as any;
+    }
+    
     if (!user) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
+    
     // Formatage des champs pour le front
     return NextResponse.json({
       ...user,
@@ -62,13 +73,23 @@ export async function PUT(
     await dbConnect();
     if (!isConnected()) await dbConnect();
     const { username } = params;
-    const user = await User.findOne({ username });
+    
+    // Essayer de trouver par username d'abord
+    let user = await User.findOne({ username });
+    
+    // Si pas trouvé par username, essayer par ID MongoDB
+    if (!user && /^[0-9a-fA-F]{24}$/.test(username)) {
+      user = await User.findById(username);
+    }
+    
     if (!user) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
+    
     if (user._id.toString() !== session.user.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
+    
     const body = await request.json();
     user.name = body.name || user.name;
     user.bio = body.bio || user.bio;
@@ -77,6 +98,7 @@ export async function PUT(
     user.genres = body.genres || user.genres;
     user.instruments = body.instruments || user.instruments;
     user.socialLinks = body.socialLinks || user.socialLinks;
+    
     await user.save();
     return NextResponse.json({ success: true });
   } catch (error) {
