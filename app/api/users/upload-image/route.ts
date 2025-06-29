@@ -3,6 +3,22 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect, { isConnected } from '@/lib/db';
 import User from '@/models/User';
+import { v2 as cloudinary } from 'cloudinary';
+
+// Configuration Cloudinary avec vérification
+const isCloudinaryConfigured = () => {
+  return process.env.CLOUDINARY_CLOUD_NAME && 
+         process.env.CLOUDINARY_API_KEY && 
+         process.env.CLOUDINARY_API_SECRET;
+};
+
+if (isCloudinaryConfigured()) {
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+  });
+}
 
 export const runtime = 'nodejs';
 
@@ -29,19 +45,43 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Le fichier doit être une image' }, { status: 400 });
     }
 
-    // Vérifier la taille du fichier (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Le fichier est trop volumineux (max 5MB)' }, { status: 400 });
-    }
+    let imageUrl = '';
 
-    // Utiliser des images locales existantes
-    let imageUrl: string;
-    if (type === 'avatar') {
-      imageUrl = '/default-avatar.png';
-    } else if (type === 'banner') {
-      imageUrl = '/default-cover.jpg';
+    // Essayer Cloudinary d'abord
+    if (isCloudinaryConfigured()) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        
+        const uploadRes = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload_stream({
+            folder: 'xima-users',
+            resource_type: 'image',
+            public_id: `${session.user.id}_${type}`,
+            overwrite: true,
+            transformation: [
+              { width: type === 'avatar' ? 400 : 1200, height: type === 'avatar' ? 400 : 400, crop: 'fill' }
+            ]
+          }, (err, result) => {
+            if (err) {
+              console.error('Erreur Cloudinary:', err);
+              reject(err);
+            } else {
+              resolve(result);
+            }
+          }).end(buffer);
+        });
+
+        imageUrl = (uploadRes as any).secure_url;
+      } catch (cloudinaryError) {
+        console.error('Erreur Cloudinary, utilisation du fallback:', cloudinaryError);
+        // Fallback vers une image par défaut
+        imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
+      }
     } else {
-      return NextResponse.json({ error: 'Type d\'image invalide' }, { status: 400 });
+      // Si Cloudinary n'est pas configuré, utiliser des images par défaut
+      console.warn('Cloudinary non configuré, utilisation des images par défaut');
+      imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
     }
     
     // Mettre à jour l'utilisateur
@@ -54,9 +94,17 @@ export async function POST(request: NextRequest) {
     if (type === 'banner') user.banner = imageUrl;
     
     await user.save();
-    return NextResponse.json({ url: imageUrl });
+    
+    return NextResponse.json({ 
+      url: imageUrl,
+      success: true,
+      message: isCloudinaryConfigured() ? 'Image uploadée avec succès' : 'Image par défaut appliquée'
+    });
   } catch (error) {
     console.error('Erreur upload image:', error);
-    return NextResponse.json({ error: 'Erreur lors de l\'upload' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Erreur lors de l\'upload',
+      details: error instanceof Error ? error.message : 'Erreur inconnue'
+    }, { status: 500 });
   }
 } 
