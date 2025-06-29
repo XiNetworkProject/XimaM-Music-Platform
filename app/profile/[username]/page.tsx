@@ -128,6 +128,7 @@ export default function ProfilePage() {
   const [showFollowing, setShowFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState<'avatar' | 'banner' | null>(null);
 
   // Données du profil
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -303,6 +304,20 @@ export default function ProfilePage() {
   // Upload d'images
   const uploadImage = async (file: File, type: 'avatar' | 'banner') => {
     try {
+      setUploadLoading(type);
+      
+      // Prévisualisation immédiate
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const previewUrl = e.target?.result as string;
+        setProfile(prev => prev ? {
+          ...prev,
+          [type]: previewUrl
+        } : null);
+      };
+      reader.readAsDataURL(file);
+
+      // Upload vers le serveur
       const formData = new FormData();
       formData.append('image', file);
       formData.append('type', type);
@@ -314,13 +329,26 @@ export default function ProfilePage() {
       
       if (res.ok) {
         const data = await res.json();
+        // Mettre à jour avec l'URL finale du serveur
         setProfile(prev => prev ? {
           ...prev,
           [type]: data.url
         } : null);
+        
+        // Afficher un message de succès
+        console.log('Image uploadée avec succès:', data.message);
+      } else {
+        const errorData = await res.json();
+        console.error('Erreur upload:', errorData.error);
+        // Revenir à l'image précédente en cas d'erreur
+        fetchProfileData();
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur upload image:', error);
+      // Revenir à l'image précédente en cas d'erreur
+      fetchProfileData();
+    } finally {
+      setUploadLoading(null);
     }
   };
 
@@ -869,6 +897,11 @@ export default function ProfilePage() {
                         alt="Avatar"
                         className="w-24 h-24 rounded-full object-cover"
                       />
+                      {uploadLoading === 'avatar' && (
+                        <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                        </div>
+                      )}
                       <label className="absolute bottom-0 right-0 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-purple-700 transition-colors">
                         <Camera size={16} />
                         <input
@@ -888,6 +921,11 @@ export default function ProfilePage() {
                         alt="Bannière"
                         className="w-full h-24 rounded-lg object-cover"
                       />
+                      {uploadLoading === 'banner' && (
+                        <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                        </div>
+                      )}
                       <label className="absolute bottom-2 right-2 w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-purple-700 transition-colors">
                         <Camera size={16} />
                         <input
