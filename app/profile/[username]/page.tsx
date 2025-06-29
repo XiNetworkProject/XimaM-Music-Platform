@@ -44,6 +44,7 @@ import {
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
+import { getImageUrl } from '@/hooks/useImageUrl';
 
 interface UserProfile {
   _id: string;
@@ -388,25 +389,6 @@ export default function ProfilePage() {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  // Fonction pour obtenir l'URL correcte d'une image
-  const getImageUrl = (url: string | undefined, defaultImage: string) => {
-    if (!url) return defaultImage;
-    
-    // Si c'est une URL complète (http/https), l'utiliser directement
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      return url;
-    }
-    
-    // Si c'est une URL relative, la préfixer avec le domaine
-    if (url.startsWith('/')) {
-      const baseUrl = window.location.origin;
-      return `${baseUrl}${url}`;
-    }
-    
-    // Sinon, utiliser l'image par défaut
-    return defaultImage;
   };
 
   if (loading) {
