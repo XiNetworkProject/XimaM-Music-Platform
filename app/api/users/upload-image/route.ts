@@ -46,15 +46,17 @@ export async function POST(request: NextRequest) {
     }
 
     let imageUrl = '';
+    let uploadSuccess = false;
 
     // Essayer Cloudinary d'abord
     if (isCloudinaryConfigured()) {
       try {
+        console.log('Tentative d\'upload Cloudinary...');
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
         
         const uploadRes = await new Promise((resolve, reject) => {
-          cloudinary.uploader.upload_stream({
+          const uploadStream = cloudinary.uploader.upload_stream({
             folder: 'xima-users',
             resource_type: 'image',
             public_id: `${session.user.id}_${type}`,
@@ -64,24 +66,39 @@ export async function POST(request: NextRequest) {
             ]
           }, (err, result) => {
             if (err) {
-              console.error('Erreur Cloudinary:', err);
+              console.error('Erreur Cloudinary détaillée:', err);
               reject(err);
             } else {
+              console.log('Upload Cloudinary réussi:', result);
               resolve(result);
             }
-          }).end(buffer);
+          });
+          
+          uploadStream.end(buffer);
         });
 
         imageUrl = (uploadRes as any).secure_url;
+        uploadSuccess = true;
+        console.log('URL Cloudinary générée:', imageUrl);
+        
       } catch (cloudinaryError) {
-        console.error('Erreur Cloudinary, utilisation du fallback:', cloudinaryError);
+        console.error('Erreur Cloudinary complète:', cloudinaryError);
+        
+        // Vérifier si c'est une erreur de configuration
+        const errorMessage = cloudinaryError instanceof Error ? cloudinaryError.message : String(cloudinaryError);
+        if (errorMessage.includes('<!DOCTYPE')) {
+          console.error('Erreur de configuration Cloudinary - vérifiez les variables d\'environnement');
+        }
+        
         // Fallback vers une image par défaut
         imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
+        uploadSuccess = false;
       }
     } else {
       // Si Cloudinary n'est pas configuré, utiliser des images par défaut
       console.warn('Cloudinary non configuré, utilisation des images par défaut');
       imageUrl = type === 'avatar' ? '/default-avatar.png' : '/default-cover.jpg';
+      uploadSuccess = false;
     }
     
     // Mettre à jour l'utilisateur
@@ -97,14 +114,16 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       url: imageUrl,
-      success: true,
-      message: isCloudinaryConfigured() ? 'Image uploadée avec succès' : 'Image par défaut appliquée'
+      success: uploadSuccess,
+      message: uploadSuccess ? 'Image uploadée avec succès sur Cloudinary' : 'Image par défaut appliquée (Cloudinary non disponible)',
+      uploaded: uploadSuccess
     });
   } catch (error) {
-    console.error('Erreur upload image:', error);
+    console.error('Erreur générale upload image:', error);
     return NextResponse.json({ 
       error: 'Erreur lors de l\'upload',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
+      details: error instanceof Error ? error.message : 'Erreur inconnue',
+      fallback: true
     }, { status: 500 });
   }
 } 

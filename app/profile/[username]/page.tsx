@@ -347,8 +347,12 @@ export default function ProfilePage() {
           [type]: data.url
         } : null);
         
-        // Afficher un message de succès
-        console.log('Image uploadée avec succès:', data.message);
+        // Afficher un message de succès ou d'information
+        if (data.uploaded) {
+          console.log('Image uploadée avec succès sur Cloudinary:', data.message);
+        } else {
+          console.log('Image par défaut appliquée:', data.message);
+        }
       } else {
         const errorData = await res.json();
         console.error('Erreur upload:', errorData);
