@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect, { isConnected } from '@/lib/db';
 import Track from '@/models/Track';
+import User from '@/models/User';
 
 // GET - Récupérer toutes les pistes publiques
 export async function GET(request: NextRequest) {
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const genre = searchParams.get('genre');
     const search = searchParams.get('search');
+    const artist = searchParams.get('artist');
     const skip = (page - 1) * limit;
 
     // Construire la requête
@@ -32,6 +34,25 @@ export async function GET(request: NextRequest) {
     // Recherche par texte
     if (search) {
       query.$text = { $search: search };
+    }
+
+    // Filtrer par artiste (username)
+    if (artist) {
+      const user = await User.findOne({ username: artist });
+      if (user) {
+        query.artist = user._id;
+      } else {
+        // Si l'artiste n'existe pas, retourner une liste vide
+        return NextResponse.json({
+          tracks: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0,
+          },
+        });
+      }
     }
 
     // Récupérer les pistes avec les informations de l'artiste

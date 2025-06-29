@@ -371,7 +371,7 @@ export default function ProfilePage() {
       {/* Bannière */}
       <div className="relative h-64 md:h-80 overflow-hidden">
         <img
-          src={profile.banner || '/default-banner.jpg'}
+          src={profile.banner || '/default-cover.jpg'}
           alt="Bannière"
           className="w-full h-full object-cover"
         />
@@ -884,7 +884,7 @@ export default function ProfilePage() {
                     <label className="block text-sm font-medium text-white/80 mb-2">Bannière</label>
                     <div className="relative">
                       <img
-                        src={profile.banner || '/default-banner.jpg'}
+                        src={profile.banner || '/default-cover.jpg'}
                         alt="Bannière"
                         className="w-full h-24 rounded-lg object-cover"
                       />
