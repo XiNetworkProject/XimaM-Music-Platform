@@ -380,10 +380,10 @@ export default function CommunityPage() {
 
   const filteredTracks = trendingTracks.filter(track => {
     const matchesSearch = track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         track.artist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         track.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+                         (track.artist?.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         (track.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesGenre = selectedGenre === 'all' || track.genre.includes(selectedGenre);
+    const matchesGenre = selectedGenre === 'all' || (track.genre || []).includes(selectedGenre);
     
     return matchesSearch && matchesGenre;
   });
@@ -391,11 +391,11 @@ export default function CommunityPage() {
   const sortedTracks = [...filteredTracks].sort((a, b) => {
     switch (sortBy) {
       case 'trending':
-        return b.trendingScore - a.trendingScore;
+        return (b.trendingScore || 0) - (a.trendingScore || 0);
       case 'recent':
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
       case 'popular':
-        return b.plays - a.plays;
+        return (b.plays || 0) - (a.plays || 0);
       default:
         return 0;
     }
@@ -644,25 +644,25 @@ export default function CommunityPage() {
                               <div className="flex items-center space-x-4 text-xs text-white/40">
                                 <span className="flex items-center gap-1">
                                   <Headphones size={12} />
-                                  {formatNumber(track.plays)}
+                                  {formatNumber(track.plays || 0)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Heart size={12} />
-                                  {formatNumber(track.likes.length)}
+                                  {formatNumber((track.likes || []).length)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <MessageCircle size={12} />
-                                  {formatNumber(track.comments.length)}
+                                  {formatNumber((track.comments || []).length)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Clock size={12} />
-                                  {formatDuration(track.duration)}
+                                  {formatDuration(track.duration || 0)}
                                 </span>
                               </div>
 
                               {/* Tags */}
                               <div className="flex flex-wrap gap-1 mt-2">
-                                {track.tags.slice(0, 3).map((tag, tagIndex) => (
+                                {(track.tags || []).slice(0, 3).map((tag, tagIndex) => (
                                   <span
                                     key={tagIndex}
                                     className="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full"
@@ -776,8 +776,8 @@ export default function CommunityPage() {
                                 <p className="text-sm text-white/80 mb-3 line-clamp-2">{user.bio}</p>
                               )}
                               <div className="flex items-center justify-between text-xs text-white/40 mb-3">
-                                <span>{formatNumber(user.followers.length)} abonnés</span>
-                                <span>{user.trackCount} pistes</span>
+                                <span>{formatNumber((user.followers || []).length)} abonnés</span>
+                                <span>{user.trackCount || 0} pistes</span>
                               </div>
                               <button
                                 onClick={() => toggleFollow(user._id)}
@@ -812,9 +812,9 @@ export default function CommunityPage() {
                                   <p className="text-sm text-white/80 mt-1 line-clamp-1">{user.bio}</p>
                                 )}
                                 <div className="flex items-center space-x-4 text-xs text-white/40 mt-1">
-                                  <span>{formatNumber(user.followers.length)} abonnés</span>
-                                  <span>{user.trackCount} pistes</span>
-                                  <span>{formatNumber(user.totalPlays)} écoutes</span>
+                                  <span>{formatNumber((user.followers || []).length)} abonnés</span>
+                                  <span>{user.trackCount || 0} pistes</span>
+                                  <span>{formatNumber(user.totalPlays || 0)} écoutes</span>
                                 </div>
                               </div>
                               <button
@@ -922,11 +922,11 @@ export default function CommunityPage() {
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Headphones size={12} />
-                                  {formatNumber(track.plays)}
+                                  {formatNumber(track.plays || 0)}
                                 </span>
                                 <span className="flex items-center gap-1">
                                   <Heart size={12} />
-                                  {formatNumber(track.likes.length)}
+                                  {formatNumber((track.likes || []).length)}
                                 </span>
                               </div>
                             </div>
