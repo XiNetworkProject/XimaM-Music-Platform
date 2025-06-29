@@ -164,6 +164,11 @@ export default function ProfilePage() {
       const profileRes = await fetch(`/api/users/${username}`);
       if (profileRes.ok) {
         const profileData = await profileRes.json();
+        console.log('Profil chargé:', {
+          avatar: profileData.avatar,
+          banner: profileData.banner,
+          name: profileData.name
+        });
         setProfile(profileData);
         setIsOwnProfile(profileData._id === session?.user?.id);
         setIsFollowing(profileData.followers.includes(session?.user?.id));
@@ -195,7 +200,7 @@ export default function ProfilePage() {
       }
 
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur chargement profil:', error);
     } finally {
       setLoading(false);
     }
@@ -306,10 +311,14 @@ export default function ProfilePage() {
     try {
       setUploadLoading(type);
       
+      // Sauvegarder l'URL précédente pour le fallback
+      const previousUrl = profile?.[type];
+      
       // Prévisualisation immédiate
       const reader = new FileReader();
       reader.onload = (e) => {
         const previewUrl = e.target?.result as string;
+        console.log(`Prévisualisation ${type}:`, previewUrl.substring(0, 50) + '...');
         setProfile(prev => prev ? {
           ...prev,
           [type]: previewUrl
@@ -322,6 +331,7 @@ export default function ProfilePage() {
       formData.append('image', file);
       formData.append('type', type);
       
+      console.log(`Upload ${type} en cours...`);
       const res = await fetch('/api/users/upload-image', {
         method: 'POST',
         body: formData
@@ -329,6 +339,8 @@ export default function ProfilePage() {
       
       if (res.ok) {
         const data = await res.json();
+        console.log(`Upload ${type} réussi:`, data);
+        
         // Mettre à jour avec l'URL finale du serveur
         setProfile(prev => prev ? {
           ...prev,
@@ -339,14 +351,23 @@ export default function ProfilePage() {
         console.log('Image uploadée avec succès:', data.message);
       } else {
         const errorData = await res.json();
-        console.error('Erreur upload:', errorData.error);
-        // Revenir à l'image précédente en cas d'erreur
-        fetchProfileData();
+        console.error('Erreur upload:', errorData);
+        
+        // Revenir à l'URL précédente en cas d'erreur
+        setProfile(prev => prev ? {
+          ...prev,
+          [type]: previousUrl
+        } : null);
       }
     } catch (error) {
       console.error('Erreur upload image:', error);
-      // Revenir à l'image précédente en cas d'erreur
-      fetchProfileData();
+      
+      // Revenir à l'URL précédente en cas d'erreur
+      const previousUrl = profile?.[type];
+      setProfile(prev => prev ? {
+        ...prev,
+        [type]: previousUrl
+      } : null);
     } finally {
       setUploadLoading(null);
     }
@@ -402,6 +423,8 @@ export default function ProfilePage() {
           src={profile.banner || '/default-cover.jpg'}
           alt="Bannière"
           className="w-full h-full object-cover"
+          onLoad={() => console.log('Bannière chargée:', profile.banner)}
+          onError={(e) => console.error('Erreur chargement bannière:', e.currentTarget.src)}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
         
@@ -456,6 +479,8 @@ export default function ProfilePage() {
                 src={profile.avatar || '/default-avatar.png'}
                 alt={profile.name}
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover border-4 border-white/20"
+                onLoad={() => console.log('Avatar chargé:', profile.avatar)}
+                onError={(e) => console.error('Erreur chargement avatar:', e.currentTarget.src)}
               />
               {profile.isVerified && (
                 <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
