@@ -4,10 +4,10 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
-// POST - Suivre/Ne plus suivre un utilisateur par ID
+// POST - Suivre/Ne plus suivre un utilisateur
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { username: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -21,7 +21,7 @@ export async function POST(
     await dbConnect();
     
     // Trouver l'utilisateur à suivre
-    const userToFollow = await User.findById(params.id);
+    const userToFollow = await User.findOne({ username: params.username });
     if (!userToFollow) {
       return NextResponse.json(
         { error: 'Utilisateur non trouvé' },
@@ -75,22 +75,22 @@ export async function POST(
 // GET - Vérifier si l'utilisateur suit cet utilisateur
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { username: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     await dbConnect();
 
-    const targetUser = await User.findById(params.id);
+    const targetUser = await User.findOne({ username: params.username });
     if (!targetUser) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    const currentUser = await User.findOne({ email: session.user.email });
+    const currentUser = await User.findById(session.user.id);
     if (!currentUser) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
@@ -99,8 +99,8 @@ export async function GET(
 
     return NextResponse.json({
       following: isFollowing,
-      followersCount: targetUser.followersCount || 0,
-      followingCount: targetUser.followingCount || 0
+      followersCount: targetUser.followersCount,
+      followingCount: targetUser.followingCount
     });
 
   } catch (error) {

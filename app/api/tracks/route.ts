@@ -5,9 +5,11 @@ import Track from '@/models/Track';
 // GET - Récupérer toutes les pistes publiques
 export async function GET(request: NextRequest) {
   try {
+    // Connexion à la base de données
     await dbConnect();
     
     if (!isConnected()) {
+      console.warn('MongoDB non connecté, tentative de reconnexion...');
       await dbConnect();
     }
 
@@ -21,7 +23,7 @@ export async function GET(request: NextRequest) {
     const liked = searchParams.get('liked');
     const skip = (page - 1) * limit;
 
-    // Construire la requête
+    // Construire la requête de base
     let query: any = { isPublic: true };
 
     // Filtrer par genre
@@ -29,16 +31,24 @@ export async function GET(request: NextRequest) {
       query.genre = { $in: [genre] };
     }
 
-    // Recherche par texte
+    // Recherche par texte (seulement si l'index text existe)
     if (search) {
-      query.$text = { $search: search };
+      try {
+        query.$text = { $search: search };
+      } catch (error) {
+        // Si l'index text n'existe pas, on fait une recherche simple
+        query.$or = [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } }
+        ];
+      }
     }
 
     // Tri selon les paramètres
     let sortOptions: any = { createdAt: -1 };
     
     if (trending === 'true') {
-      sortOptions = { plays: -1, likes: -1 };
+      sortOptions = { plays: -1 };
     }
     
     if (recent === 'true') {
@@ -57,21 +67,44 @@ export async function GET(request: NextRequest) {
     const total = await Track.countDocuments(query);
 
     // Formater les pistes pour éviter les erreurs de sérialisation
-    const formattedTracks = tracks.map((track: any) => ({
-      ...track,
-      _id: track._id.toString(),
-      artist: track.artist ? {
-        ...track.artist,
-        _id: track.artist._id.toString()
-      } : null,
-      likes: track.likes || [],
-      comments: track.comments || [],
-      genre: track.genre || [],
-      tags: track.tags || [],
-      plays: track.plays || 0,
-      duration: track.duration || 0,
-      trendingScore: (track.plays || 0) + (track.likes?.length || 0) * 10 // Calculer un score de tendance
-    }));
+    const formattedTracks = tracks.map((track: any) => {
+      try {
+        return {
+          ...track,
+          _id: track._id?.toString() || '',
+          artist: track.artist ? {
+            ...track.artist,
+            _id: track.artist._id?.toString() || ''
+          } : null,
+          likes: Array.isArray(track.likes) ? track.likes : [],
+          comments: Array.isArray(track.comments) ? track.comments : [],
+          genre: Array.isArray(track.genre) ? track.genre : [],
+          tags: Array.isArray(track.tags) ? track.tags : [],
+          plays: typeof track.plays === 'number' ? track.plays : 0,
+          duration: typeof track.duration === 'number' ? track.duration : 0,
+          trendingScore: typeof track.trendingScore === 'number' ? track.trendingScore : 0,
+          createdAt: track.createdAt || new Date(),
+          updatedAt: track.updatedAt || new Date()
+        };
+      } catch (formatError) {
+        console.error('Erreur formatage track:', formatError);
+        return {
+          _id: track._id?.toString() || '',
+          title: track.title || 'Titre inconnu',
+          artist: null,
+          audioUrl: track.audioUrl || '',
+          coverUrl: track.coverUrl || '',
+          duration: 0,
+          plays: 0,
+          likes: [],
+          comments: [],
+          genre: [],
+          tags: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
+    });
 
     return NextResponse.json({
       tracks: formattedTracks,
@@ -88,7 +121,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { 
         error: 'Erreur lors de la récupération des pistes',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        tracks: [],
+        pagination: {
+          page: 1,
+          limit: 20,
+          total: 0,
+          pages: 0,
+        }
       },
       { status: 500 }
     );
