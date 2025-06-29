@@ -19,7 +19,6 @@ export interface IUser extends Document {
   provider?: string;
   providerId?: string;
   password?: string;
-  lastLogin?: Date;
   socialLinks?: {
     instagram?: string;
     twitter?: string;
@@ -107,9 +106,6 @@ const UserSchema = new Schema<IUser>({
   },
   password: {
     type: String,
-  },
-  lastLogin: {
-    type: Date,
   },
   socialLinks: {
     instagram: String,

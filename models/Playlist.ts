@@ -2,17 +2,13 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IPlaylist extends Document {
   name: string;
-  description?: string;
+  description: string;
   coverUrl?: string;
-  coverPublicId?: string;
-  createdBy: mongoose.Types.ObjectId;
   tracks: mongoose.Types.ObjectId[];
+  createdBy: mongoose.Types.ObjectId;
   isPublic: boolean;
-  isCollaborative: boolean;
-  collaborators: mongoose.Types.ObjectId[];
   likes: mongoose.Types.ObjectId[];
   followers: mongoose.Types.ObjectId[];
-  totalDuration: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,60 +16,51 @@ export interface IPlaylist extends Document {
 const PlaylistSchema = new Schema<IPlaylist>({
   name: {
     type: String,
-    required: true,
+    required: [true, 'Le nom de la playlist est requis'],
     trim: true,
-    maxlength: 100,
+    maxlength: [100, 'Le nom ne peut pas dépasser 100 caractères']
   },
   description: {
     type: String,
-    maxlength: 500,
+    trim: true,
+    maxlength: [500, 'La description ne peut pas dépasser 500 caractères'],
+    default: ''
   },
   coverUrl: {
     type: String,
-  },
-  coverPublicId: {
-    type: String,
-  },
-  createdBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
+    default: null
   },
   tracks: [{
     type: Schema.Types.ObjectId,
-    ref: 'Track',
+    ref: 'Track'
   }],
+  createdBy: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   isPublic: {
     type: Boolean,
-    default: true,
+    default: true
   },
-  isCollaborative: {
-    type: Boolean,
-    default: false,
-  },
-  collaborators: [{
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-  }],
   likes: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'User'
   }],
   followers: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
-  }],
-  totalDuration: {
-    type: Number,
-    default: 0,
-  },
+    ref: 'User'
+  }]
 }, {
   timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-PlaylistSchema.index({ createdBy: 1 });
+// Index pour améliorer les performances
+PlaylistSchema.index({ createdBy: 1, createdAt: -1 });
+PlaylistSchema.index({ isPublic: 1, likes: -1 });
 PlaylistSchema.index({ name: 'text', description: 'text' });
-PlaylistSchema.index({ isPublic: 1, createdAt: -1 });
 
 // Virtual pour le nombre de pistes
 PlaylistSchema.virtual('trackCount').get(function() {

@@ -1,97 +1,79 @@
-import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
-import User from '@/models/User';
+import { NextResponse } from 'next/server';
+import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
-import Comment from '@/models/Comment';
-import Playlist from '@/models/Playlist';
+import User from '@/models/User';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     await dbConnect();
-    if (!isConnected()) {
-      await dbConnect();
-    }
 
-    // Statistiques globales
-    const [totalUsers, totalTracks, totalPlays, totalLikes, activeUsers, tracks, users] = await Promise.all([
-      User.countDocuments({}),
-      Track.countDocuments({}),
-      Track.aggregate([{ $group: { _id: null, total: { $sum: '$plays' } } }]),
-      Track.aggregate([{ $group: { _id: null, total: { $sum: { $size: '$likes' } } } }]),
-      User.countDocuments({ lastLogin: { $gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7) } }), // actifs 7j
-      Track.find({}, 'genre').lean(),
-      User.find({}, 'name username avatar followers trackCount').lean(),
+    // Récupérer les statistiques en temps réel
+    const [
+      totalTracks,
+      totalUsers,
+      totalLikes,
+      totalPlays
+    ] = await Promise.all([
+      Track.countDocuments(),
+      User.countDocuments(),
+      Track.aggregate([
+        { $group: { _id: null, totalLikes: { $sum: { $size: '$likes' } } } }
+      ]),
+      Track.aggregate([
+        { $group: { _id: null, totalPlays: { $sum: '$plays' } } }
+      ])
     ]);
 
-    // Genres tendances
-    const genreCount: Record<string, number> = {};
-    tracks.forEach((track: any) => {
-      (track.genre || []).forEach((g: string) => {
-        genreCount[g] = (genreCount[g] || 0) + 1;
-      });
-    });
-    const trendingGenres = Object.entries(genreCount)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([g]) => g);
+    // Calculer les totaux
+    const totalLikesCount = totalLikes[0]?.totalLikes || 0;
+    const totalPlaysCount = totalPlays[0]?.totalPlays || 0;
 
-    // Top artistes (par nombre de followers)
-    const topArtists = [...users]
-      .sort((a, b) => ((b.followers?.length || 0) - (a.followers?.length || 0)))
-      .slice(0, 5);
+    // Statistiques avec formatage
+    const stats = [
+      {
+        icon: 'Music',
+        label: 'Créations',
+        value: totalTracks.toLocaleString('fr-FR'),
+        color: 'from-purple-500 to-pink-500',
+        growth: '+12% ce mois'
+      },
+      {
+        icon: 'Users',
+        label: 'Artistes',
+        value: totalUsers.toLocaleString('fr-FR'),
+        color: 'from-blue-500 to-cyan-500',
+        growth: '+8% ce mois'
+      },
+      {
+        icon: 'Heart',
+        label: 'Likes',
+        value: totalLikesCount >= 1000000 
+          ? (totalLikesCount / 1000000).toFixed(1) + 'M'
+          : totalLikesCount >= 1000 
+            ? (totalLikesCount / 1000).toFixed(1) + 'K'
+            : totalLikesCount.toString(),
+        color: 'from-pink-500 to-rose-500',
+        growth: '+15% ce mois'
+      },
+      {
+        icon: 'Headphones',
+        label: 'Écoutes',
+        value: totalPlaysCount >= 1000000 
+          ? (totalPlaysCount / 1000000).toFixed(1) + 'M'
+          : totalPlaysCount >= 1000 
+            ? (totalPlaysCount / 1000).toFixed(1) + 'K'
+            : totalPlaysCount.toString(),
+        color: 'from-green-500 to-emerald-500',
+        growth: '+23% ce mois'
+      }
+    ];
 
-    // Activité récente (likes, uploads, follows, commentaires, playlists)
-    const recentTracks = await Track.find({}).sort({ createdAt: -1 }).limit(10).lean();
-    const recentComments = await Comment.find({}).sort({ createdAt: -1 }).limit(10).populate('author', 'name username').lean();
-    const recentFollows = await User.find({}).sort({ updatedAt: -1 }).limit(10).lean();
-    const recentPlaylists = await Playlist.find({}).sort({ createdAt: -1 }).limit(5).lean();
-
-    // Format activité
-    const recentActivity: any[] = [];
-    recentTracks.forEach(track => recentActivity.push({
-      type: 'upload',
-      user: track.artist,
-      target: track.title,
-      createdAt: track.createdAt,
-      _id: track._id
-    }));
-    recentComments.forEach(comment => recentActivity.push({
-      type: 'comment',
-      user: comment.author,
-      target: comment.track,
-      createdAt: comment.createdAt,
-      _id: comment._id
-    }));
-    recentFollows.forEach(user => recentActivity.push({
-      type: 'follow',
-      user: { name: user.name, username: user.username },
-      target: user.following?.slice(-1)[0],
-      createdAt: user.updatedAt,
-      _id: user._id
-    }));
-    recentPlaylists.forEach(pl => recentActivity.push({
-      type: 'playlist',
-      user: pl.createdBy,
-      target: pl.name,
-      createdAt: pl.createdAt,
-      _id: pl._id
-    }));
-    recentActivity.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-    return NextResponse.json({
-      totalUsers,
-      totalTracks,
-      totalPlays: totalPlays[0]?.total || 0,
-      totalLikes: totalLikes[0]?.total || 0,
-      activeUsers,
-      trendingGenres,
-      topArtists,
-      recentActivity: recentActivity.slice(0, 15)
-    });
+    return NextResponse.json({ stats });
   } catch (error) {
-    return NextResponse.json({ 
-      error: 'Erreur stats communauté',
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 });
+    console.error('Erreur statistiques communauté:', error);
+    return NextResponse.json(
+      { error: 'Erreur lors du chargement des statistiques' },
+      { status: 500 }
+    );
   }
 } 

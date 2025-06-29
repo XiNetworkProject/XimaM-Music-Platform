@@ -417,7 +417,7 @@ export const useAudioService = () => {
           }
         } else {
           // Fallback pour les navigateurs qui ne retournent pas de promise
-        setState(prev => ({ ...prev, isPlaying: true, error: null }));
+          setState(prev => ({ ...prev, isPlaying: true, error: null }));
           if (isFirstPlay) {
             setIsFirstPlay(false);
           }
@@ -499,23 +499,23 @@ export const useAudioService = () => {
     
     // Si on a une file d'attente avec plusieurs pistes
     if (currentQueue.length > 1) {
-    let nextIndex = currentIndex + 1;
-    if (nextIndex >= currentQueue.length) {
-      if (repeat === 'all') {
-        nextIndex = 0;
-      } else {
-        stop();
-        return;
+      let nextIndex = currentIndex + 1;
+      if (nextIndex >= currentQueue.length) {
+        if (repeat === 'all') {
+          nextIndex = 0;
+        } else {
+          stop();
+          return;
+        }
       }
-    }
 
-    const nextTrack = currentQueue[nextIndex];
-    setCurrentIndex(nextIndex);
-    loadTrack(nextTrack).then(() => {
-      if (state.isPlaying) {
-        play();
-      }
-    });
+      const nextTrack = currentQueue[nextIndex];
+      setCurrentIndex(nextIndex);
+      loadTrack(nextTrack).then(() => {
+        if (state.isPlaying) {
+          play();
+        }
+      });
       return;
     }
     
@@ -602,23 +602,23 @@ export const useAudioService = () => {
     
     // Si on a une file d'attente avec plusieurs pistes
     if (currentQueue.length > 1) {
-    let prevIndex = currentIndex - 1;
-    if (prevIndex < 0) {
-      if (repeat === 'all') {
-        prevIndex = currentQueue.length - 1;
-      } else {
-        stop();
-        return;
+      let prevIndex = currentIndex - 1;
+      if (prevIndex < 0) {
+        if (repeat === 'all') {
+          prevIndex = currentQueue.length - 1;
+        } else {
+          stop();
+          return;
+        }
       }
-    }
 
-    const prevTrack = currentQueue[prevIndex];
-    setCurrentIndex(prevIndex);
-    loadTrack(prevTrack).then(() => {
-      if (state.isPlaying) {
-        play();
-      }
-    });
+      const prevTrack = currentQueue[prevIndex];
+      setCurrentIndex(prevIndex);
+      loadTrack(prevTrack).then(() => {
+        if (state.isPlaying) {
+          play();
+        }
+      });
       return;
     }
     
