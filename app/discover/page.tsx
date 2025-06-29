@@ -63,24 +63,24 @@ export default function DiscoverPage() {
 
   // Charger les pistes depuis l'API
   const fetchTracks = useCallback(async (page = 1, append = false) => {
-    try {
+      try {
       if (page === 1) setLoading(true);
       if (page > 1) setSearchLoading(true);
 
-      const params = new URLSearchParams();
-      if (selectedGenre !== 'Tous') {
-        params.append('genre', selectedGenre);
-      }
+        const params = new URLSearchParams();
+        if (selectedGenre !== 'Tous') {
+          params.append('genre', selectedGenre);
+        }
       if (debouncedQuery) {
         params.append('search', debouncedQuery);
-      }
+        }
       params.append('sort', sortBy);
       params.append('page', page.toString());
       params.append('limit', '20');
 
-      const response = await fetch(`/api/tracks?${params}`);
-      if (response.ok) {
-        const data = await response.json();
+        const response = await fetch(`/api/tracks?${params}`);
+        if (response.ok) {
+          const data = await response.json();
         const newTracks = data.tracks || [];
         
         if (append) {
@@ -93,11 +93,11 @@ export default function DiscoverPage() {
         setCurrentPage(page);
       } else {
         // Erreur silencieuse
-      }
-    } catch (error) {
+        }
+      } catch (error) {
       // Erreur silencieuse
-    } finally {
-      setLoading(false);
+      } finally {
+        setLoading(false);
       setSearchLoading(false);
     }
   }, [debouncedQuery, selectedGenre, sortBy]);
@@ -216,7 +216,7 @@ export default function DiscoverPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-6xl mx-auto">
-          {/* Header */}
+      {/* Header */}
           <div className="mb-10">
             <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
               <Search size={28} className="text-purple-400" />
@@ -227,40 +227,40 @@ export default function DiscoverPage() {
           
           {/* Barre de recherche et filtres */}
           <div className="glass-effect rounded-xl p-6 mb-8">
-            {/* Barre de recherche */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={20} />
-              <input
-                type="text"
+          {/* Barre de recherche */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={20} />
+            <input
+              type="text"
                 placeholder="Rechercher des artistes, titres, genres..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 bg-white/10 rounded-xl border border-white/20 focus:border-purple-400 focus:outline-none text-white placeholder-white/60"
-              />
+            />
               {searchLoading && (
                 <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-400"></div>
                 </div>
               )}
-            </div>
+          </div>
 
             {/* Filtres et tri */}
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              {/* Filtres par genre */}
-              <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-                {genres.map((genre) => (
-                  <button
-                    key={genre}
-                    onClick={() => setSelectedGenre(genre)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                      selectedGenre === genre
+          {/* Filtres par genre */}
+          <div className="flex items-center space-x-2 overflow-x-auto pb-2">
+            {genres.map((genre) => (
+              <button
+                key={genre}
+                onClick={() => setSelectedGenre(genre)}
+                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
+                  selectedGenre === genre
                         ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                        : 'bg-white/10 text-white/80 hover:bg-white/20'
-                    }`}
-                  >
-                    {genre}
-                  </button>
-                ))}
+                    : 'bg-white/10 text-white/80 hover:bg-white/20'
+                }`}
+              >
+                {genre}
+              </button>
+            ))}
               </div>
 
               {/* Bouton filtres avancés et tri */}
@@ -355,54 +355,54 @@ export default function DiscoverPage() {
               <TrendingUp className="w-8 h-8 text-green-400 mx-auto mb-2" />
               <div className="text-2xl font-bold">{formatNumber(tracks.reduce((sum, track) => sum + track.comments.length, 0))}</div>
               <div className="text-white/60 text-sm">Commentaires</div>
-            </div>
           </div>
+        </div>
 
           {/* Résultats */}
           <div className="glass-effect rounded-xl p-6">
             {filteredTracks.length === 0 ? (
-              <div className="text-center py-12">
+            <div className="text-center py-12">
                 <Music className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                <p className="text-white/60 mb-4">
-                  {searchQuery || selectedGenre !== 'Tous' 
+              <p className="text-white/60 mb-4">
+                {searchQuery || selectedGenre !== 'Tous' 
                     ? 'Aucun résultat trouvé pour votre recherche' 
-                    : 'Aucune musique n\'a été uploadée pour le moment'
-                  }
-                </p>
-                {!searchQuery && selectedGenre === 'Tous' && (
-                  <a
-                    href="/upload"
+                  : 'Aucune musique n\'a été uploadée pour le moment'
+                }
+              </p>
+              {!searchQuery && selectedGenre === 'Tous' && (
+                <a
+                  href="/upload"
                     className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                  >
-                    Uploader la première musique
-                  </a>
-                )}
-              </div>
-            ) : (
+                >
+                  Uploader la première musique
+                </a>
+              )}
+            </div>
+          ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                   <AnimatePresence>
                     {filteredTracks.map((track, index) => (
-                      <motion.div
-                        key={track._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                <motion.div
+                  key={track._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ delay: index * 0.1 }}
                         className="glass-effect rounded-xl overflow-hidden hover:scale-105 transition-all duration-300 group"
-                      >
-                        {/* Image de couverture */}
-                        <div className="relative aspect-square">
-                          <img
-                            src={track.coverUrl || '/default-cover.jpg'}
-                            alt={track.title}
+                >
+                  {/* Image de couverture */}
+                  <div className="relative aspect-square">
+                    <img
+                      src={track.coverUrl || '/default-cover.jpg'}
+                      alt={track.title}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
                               e.currentTarget.src = '/default-cover.jpg';
                             }}
-                          />
+                    />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
-                          
+                    
                           {/* Bouton play avec état de lecture */}
                           <button 
                             onClick={() => handlePlayTrack(track)}
@@ -421,7 +421,7 @@ export default function DiscoverPage() {
                             ) : (
                               <Play size={18} fill="white" />
                             )}
-                          </button>
+                    </button>
 
                           {/* Badge genre */}
                           {track.genre?.[0] && (
@@ -434,62 +434,62 @@ export default function DiscoverPage() {
                           <div className="absolute bottom-3 right-3 px-2 py-1 bg-black/50 backdrop-blur-sm rounded-full text-xs">
                             {formatDuration(track.duration)}
                           </div>
-                        </div>
+                  </div>
 
-                        {/* Informations */}
-                        <div className="p-4">
+                  {/* Informations */}
+                  <div className="p-4">
                           <h3 className="font-semibold text-sm mb-1 truncate group-hover:text-purple-300 transition-colors">
                             {track.title}
                           </h3>
                           <p className="text-xs text-white/60 mb-3 truncate">
-                            {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                          </p>
-
+                      {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                    </p>
+                    
                           {/* Statistiques */}
-                          <div className="flex items-center justify-between text-xs text-white/60 mb-3">
+                    <div className="flex items-center justify-between text-xs text-white/60 mb-3">
                             <div className="flex items-center space-x-3">
                               <span className="flex items-center space-x-1">
                                 <Users size={12} />
-                                <span>{formatNumber(track.plays)}</span>
+                        <span>{formatNumber(track.plays)}</span>
                               </span>
                               <span className="flex items-center space-x-1">
                                 <Heart size={12} />
-                                <span>{formatNumber(track.likes.length)}</span>
+                        <span>{formatNumber(track.likes.length)}</span>
                               </span>
                             </div>
                             <span className="flex items-center space-x-1">
                               <MessageCircle size={12} />
                               <span>{formatNumber(track.comments.length)}</span>
                             </span>
-                          </div>
-
+                      </div>
+                      
                           {/* Actions */}
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <button
+                      <div className="flex items-center space-x-2">
+                        <button
                                 onClick={() => handleLikeTrack(track._id)}
                                 className={`p-2 rounded-full transition-all duration-300 ${
                                   track.isLiked
                                     ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
                                     : 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white'
-                                }`}
-                              >
+                          }`}
+                        >
                                 <Heart size={14} fill={track.isLiked ? 'currentColor' : 'none'} />
-                              </button>
-                              
+                        </button>
+                        
                               <button 
                                 onClick={() => handleShare(track)}
                                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 text-white/60 hover:text-white"
                               >
-                                <Share2 size={14} />
-                              </button>
+                          <Share2 size={14} />
+                        </button>
                             </div>
-
+                        
                             <button className="text-xs text-white/60 hover:text-purple-300 transition-colors">
                               Voir plus
-                            </button>
-                          </div>
-                        </div>
+                        </button>
+                      </div>
+                    </div>
                       </motion.div>
                     ))}
                   </AnimatePresence>
@@ -516,7 +516,7 @@ export default function DiscoverPage() {
                 )}
               </>
             )}
-          </div>
+            </div>
         </div>
       </main>
     </div>
