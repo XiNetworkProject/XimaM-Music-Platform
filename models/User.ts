@@ -5,6 +5,7 @@ export interface IUser extends Document {
   name: string;
   username: string;
   avatar?: string;
+  banner?: string;
   bio?: string;
   location?: string;
   website?: string;
@@ -49,6 +50,9 @@ const UserSchema = new Schema<IUser>({
     lowercase: true,
   },
   avatar: {
+    type: String,
+  },
+  banner: {
     type: String,
   },
   bio: {

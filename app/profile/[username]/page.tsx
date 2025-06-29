@@ -5,48 +5,50 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   User,
-  Music,
+  Edit3,
+  Camera,
   Heart,
+  MessageCircle,
+  Share2,
+  MoreVertical,
+  Music,
+  Play,
+  Pause,
+  Plus,
   Users,
   Calendar,
   MapPin,
   Globe,
-  Edit3,
+  Twitter,
+  Instagram,
+  Youtube,
   Settings,
-  Share2,
-  MoreVertical,
-  Play,
-  Pause,
-  Plus,
-  Grid,
-  List,
-  Search,
-  Filter,
+  X,
+  Check,
+  Upload,
+  Trash2,
+  Eye,
+  EyeOff,
   Star,
   Trophy,
   Flame,
-  Eye,
-  EyeOff,
+  TrendingUp,
+  Grid,
+  List,
+  Filter,
+  Search,
+  ArrowLeft,
+  ArrowRight,
   Download,
   Bookmark,
-  MessageCircle,
-  UserPlus,
-  UserCheck,
-  Camera,
-  Image,
-  X,
-  Check,
-  ArrowLeft,
-  ExternalLink,
-  Clock,
-  Headphones,
+  Flag,
+  Crown,
+  Verified,
   Mic,
-  Disc3,
+  Headphones,
   Radio,
-  Instagram,
-  Twitter,
-  Youtube,
-  Music2
+  Disc3,
+  Volume2
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
@@ -61,6 +63,12 @@ interface User {
   bio?: string;
   location?: string;
   website?: string;
+  socialLinks?: {
+    twitter?: string;
+    instagram?: string;
+    youtube?: string;
+    spotify?: string;
+  };
   followers: string[];
   following: string[];
   trackCount: number;
@@ -69,15 +77,8 @@ interface User {
   totalLikes: number;
   isVerified: boolean;
   isFollowing?: boolean;
-  isOwnProfile?: boolean;
   createdAt: string;
   lastActive: string;
-  socialLinks?: {
-    instagram?: string;
-    twitter?: string;
-    youtube?: string;
-    soundcloud?: string;
-  };
 }
 
 interface Track {
@@ -116,10 +117,23 @@ interface Playlist {
   createdAt: string;
 }
 
+interface EditProfileData {
+  name: string;
+  bio: string;
+  location: string;
+  website: string;
+  socialLinks: {
+    twitter: string;
+    instagram: string;
+    youtube: string;
+    spotify: string;
+  };
+}
+
 export default function ProfileUserPage() {
   const { username } = useParams();
   const { data: session } = useSession();
-  const { playTrack, handleLike } = useAudioPlayer();
+  const { playTrack } = useAudioPlayer();
   const router = useRouter();
   
   // États principaux
@@ -128,11 +142,39 @@ export default function ProfileUserPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [followers, setFollowers] = useState<User[]>([]);
   const [following, setFollowing] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'tracks' | 'playlists' | 'followers' | 'following'>('tracks');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'alphabetical'>('recent');
+  
+  // États pour l'édition du profil
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<EditProfileData>({
+    name: '',
+    bio: '',
+    location: '',
+    website: '',
+    socialLinks: {
+      twitter: '',
+      instagram: '',
+      youtube: '',
+      spotify: ''
+    }
+  });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [newAvatar, setNewAvatar] = useState<File | null>(null);
+  const [newBanner, setNewBanner] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [bannerPreview, setBannerPreview] = useState<string>('');
   const [actionLoading, setActionLoading] = useState(false);
+  
+  // États pour les modals
+  const [showFollowers, setShowFollowers] = useState(false);
+  const [showFollowing, setShowFollowing] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [showMore, setShowMore] = useState(false);
 
   // Charger les données du profil
   const fetchProfileData = useCallback(async () => {
@@ -141,35 +183,47 @@ export default function ProfileUserPage() {
     try {
       setLoading(true);
       
-      // Profil utilisateur
+      // Charger les données utilisateur
       const userRes = await fetch(`/api/users/${username}`);
       if (userRes.ok) {
         const userData = await userRes.json();
-        setUser(userData.user);
+        setUser(userData);
+        setEditData({
+          name: userData.name || '',
+          bio: userData.bio || '',
+          location: userData.location || '',
+          website: userData.website || '',
+          socialLinks: {
+            twitter: userData.socialLinks?.twitter || '',
+            instagram: userData.socialLinks?.instagram || '',
+            youtube: userData.socialLinks?.youtube || '',
+            spotify: userData.socialLinks?.spotify || ''
+          }
+        });
       }
       
-      // Musiques publiées
-      const tracksRes = await fetch(`/api/users/${username}/tracks`);
+      // Charger les pistes de l'utilisateur
+      const tracksRes = await fetch(`/api/tracks?artist=${username}&limit=50`);
       if (tracksRes.ok) {
         const tracksData = await tracksRes.json();
         setTracks(tracksData.tracks || []);
       }
       
-      // Playlists
-      const playlistsRes = await fetch(`/api/users/${username}/playlists`);
+      // Charger les playlists de l'utilisateur
+      const playlistsRes = await fetch(`/api/playlists?user=${username}&limit=20`);
       if (playlistsRes.ok) {
         const playlistsData = await playlistsRes.json();
         setPlaylists(playlistsData.playlists || []);
       }
       
-      // Followers
+      // Charger les followers
       const followersRes = await fetch(`/api/users/${username}/followers`);
       if (followersRes.ok) {
         const followersData = await followersRes.json();
         setFollowers(followersData.followers || []);
       }
       
-      // Following
+      // Charger les following
       const followingRes = await fetch(`/api/users/${username}/following`);
       if (followingRes.ok) {
         const followingData = await followingRes.json();
@@ -187,21 +241,77 @@ export default function ProfileUserPage() {
     fetchProfileData();
   }, [fetchProfileData]);
 
-  // Actions
-  const toggleFollow = async () => {
+  // Gestion des images
+  const handleImageUpload = (file: File, type: 'avatar' | 'banner') => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (type === 'avatar') {
+        setNewAvatar(file);
+        setAvatarPreview(e.target?.result as string);
+      } else {
+        setNewBanner(file);
+        setBannerPreview(e.target?.result as string);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload vers Cloudinary
+  const uploadToCloudinary = async (file: File, type: 'avatar' | 'banner') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'ximaM_uploads');
+    formData.append('folder', type === 'avatar' ? 'avatars' : 'banners');
+    
+    const res = await fetch('https://api.cloudinary.com/v1_1/demo/image/upload', {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      return data.secure_url;
+    }
+    throw new Error('Erreur upload');
+  };
+
+  // Sauvegarder les modifications du profil
+  const saveProfile = async () => {
     if (!user) return;
     
     try {
       setActionLoading(true);
-      const res = await fetch(`/api/users/${user.username}/follow`, { method: 'POST' });
+      
+      let avatarUrl = user.avatar;
+      let bannerUrl = user.banner;
+      
+      // Upload des nouvelles images si nécessaire
+      if (newAvatar) {
+        avatarUrl = await uploadToCloudinary(newAvatar, 'avatar');
+      }
+      if (newBanner) {
+        bannerUrl = await uploadToCloudinary(newBanner, 'banner');
+      }
+      
+      // Mettre à jour le profil
+      const res = await fetch(`/api/users/${user._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...editData,
+          avatar: avatarUrl,
+          banner: bannerUrl
+        })
+      });
+      
       if (res.ok) {
-        setUser(prev => prev ? {
-          ...prev,
-          isFollowing: !prev.isFollowing,
-          followers: prev.isFollowing 
-            ? prev.followers.filter(id => id !== session?.user?.id)
-            : [...prev.followers, session?.user?.id || '']
-        } : null);
+        const updatedUser = await res.json();
+        setUser(updatedUser);
+        setIsEditing(false);
+        setNewAvatar(null);
+        setNewBanner(null);
+        setAvatarPreview('');
+        setBannerPreview('');
       }
     } catch (error) {
       // Erreur silencieuse
@@ -210,17 +320,32 @@ export default function ProfileUserPage() {
     }
   };
 
-  const handleLikeTrack = async (trackId: string) => {
+  // Follow/Unfollow
+  const toggleFollow = async () => {
+    if (!user) return;
+    
     try {
-      await handleLike(trackId);
-      setTracks(prev => prev.map(track => 
-        track._id === trackId 
-          ? { ...track, isLiked: !track.isLiked, likes: track.isLiked ? track.likes.filter(id => id !== session?.user?.id) : [...track.likes, session?.user?.id || ''] }
-          : track
-      ));
+      const res = await fetch(`/api/users/${user._id}/follow`, {
+        method: 'POST'
+      });
+      
+      if (res.ok) {
+        setUser(prev => prev ? { ...prev, isFollowing: !prev.isFollowing } : null);
+        fetchProfileData();
+      }
     } catch (error) {
       // Erreur silencieuse
     }
+  };
+
+  // Like/Unlike track
+  const toggleLikeTrack = async (trackId: string) => {
+    setTracks(prev => prev.map(track => 
+      track._id === trackId 
+        ? { ...track, isLiked: !track.isLiked, likes: track.isLiked ? track.likes.filter(id => id !== session?.user?.id) : [...track.likes, session?.user?.id || ''] }
+        : track
+    ));
+    await fetch(`/api/tracks/${trackId}/like`, { method: 'POST' });
   };
 
   // Utilitaires
@@ -236,16 +361,19 @@ export default function ProfileUserPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const isCurrentlyPlaying = (trackId: string) => {
-    // Logique pour vérifier si la piste est en cours de lecture
-    return false;
-  };
+  const isOwnProfile = session?.user?.username === username;
 
-  // Filtrage
+  // Filtrage et tri
   const filteredTracks = tracks.filter(track =>
     track.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     track.genre.some(g => g.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  ).sort((a, b) => {
+    switch (sortBy) {
+      case 'popular': return b.plays - a.plays;
+      case 'alphabetical': return a.title.localeCompare(b.title);
+      default: return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    }
+  });
 
   const filteredPlaylists = playlists.filter(playlist =>
     playlist.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -267,14 +395,14 @@ export default function ProfileUserPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <User size={64} className="text-white/40 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold mb-2">Utilisateur non trouvé</h2>
-          <p className="text-white/60 mb-4">Le profil que vous recherchez n'existe pas.</p>
+          <User className="w-16 h-16 text-white/40 mx-auto mb-4" />
+          <h2 className="text-xl font-bold mb-2">Utilisateur non trouvé</h2>
+          <p className="text-white/60 mb-4">L'utilisateur @{username} n'existe pas.</p>
           <button
-            onClick={() => router.back()}
+            onClick={() => router.push('/discover')}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
           >
-            Retour
+            Découvrir des artistes
           </button>
         </div>
       </div>
@@ -285,196 +413,146 @@ export default function ProfileUserPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       {/* Bannière */}
       <div className="relative h-64 md:h-80 overflow-hidden">
-        <div 
-          className="w-full h-full bg-gradient-to-r from-purple-900/50 to-pink-900/50"
-          style={{
-            backgroundImage: user.banner ? `url(${user.banner})` : 'none',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
+        <img
+          src={bannerPreview || user.banner || '/default-banner.svg'}
+          alt="Bannière"
+          className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-black/40" />
-        <div className="absolute bottom-4 left-4 right-4">
-          <div className="flex items-end gap-4">
-            <div className="relative">
-              <img
-                src={user.avatar || '/default-avatar.png'}
-                alt={user.name}
-                className="w-20 h-20 md:w-24 md:h-24 rounded-full object-cover border-4 border-white/20"
-              />
-              {user.isVerified && (
-                <div className="absolute -top-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                  <Check size={12} className="text-white" />
-                </div>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl md:text-3xl font-bold mb-1">{user.name}</h1>
-              <p className="text-white/80 mb-2">@{user.username}</p>
-              {user.bio && <p className="text-white/70 text-sm line-clamp-2">{user.bio}</p>}
-            </div>
-          </div>
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+        
+        {/* Bouton retour */}
         <button
           onClick={() => router.back()}
           className="absolute top-4 left-4 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
         >
           <ArrowLeft size={20} />
         </button>
+        
+        {/* Actions */}
+        <div className="absolute top-4 right-4 flex items-center gap-2">
+          {!isOwnProfile && (
+            <button
+              onClick={toggleFollow}
+              className={`px-4 py-2 rounded-full font-medium transition-all ${
+                user.isFollowing 
+                  ? 'bg-pink-600 text-white hover:bg-pink-700' 
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              {user.isFollowing ? 'Abonné' : 'Suivre'}
+            </button>
+          )}
+          
+          <button
+            onClick={() => setShowShare(true)}
+            className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+          >
+            <Share2 size={20} />
+          </button>
+          
+          <button
+            onClick={() => setShowMore(true)}
+            className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+          >
+            <MoreVertical size={20} />
+          </button>
+        </div>
       </div>
 
       <main className="container mx-auto px-4 pb-32">
-        <div className="max-w-6xl mx-auto -mt-8 relative z-10">
-          {/* Actions et statistiques */}
-          <div className="glass-effect rounded-xl p-6 mb-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div className="flex items-center gap-4">
-                {!user.isOwnProfile && (
+        <div className="max-w-6xl mx-auto">
+          {/* En-tête du profil */}
+          <div className="relative -mt-20 mb-8">
+            <div className="flex flex-col md:flex-row items-start md:items-end gap-6">
+              {/* Avatar */}
+              <div className="relative">
+                <img
+                  src={avatarPreview || user.avatar || '/default-avatar.svg'}
+                  alt={user.name}
+                  className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-4 border-gray-900 shadow-xl"
+                />
+                {isOwnProfile && (
                   <button
-                    onClick={toggleFollow}
-                    disabled={actionLoading}
-                    className={`px-6 py-2 rounded-full font-medium transition-all ${
-                      user.isFollowing 
-                        ? 'bg-pink-600 text-white hover:bg-pink-700' 
-                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
-                    } disabled:opacity-50`}
+                    onClick={() => document.getElementById('avatar-upload')?.click()}
+                    className="absolute bottom-2 right-2 p-2 rounded-full bg-purple-600 hover:bg-purple-700 transition-colors"
                   >
-                    {actionLoading ? '...' : user.isFollowing ? 'Abonné' : 'Suivre'}
+                    <Camera size={16} />
                   </button>
                 )}
-                {user.isOwnProfile && (
-                  <button
-                    onClick={() => router.push('/profile/edit')}
-                    className="px-6 py-2 rounded-full font-medium bg-white/10 text-white hover:bg-white/20 transition-all"
-                  >
-                    <Edit3 size={16} className="inline mr-2" />
-                    Modifier le profil
-                  </button>
-                )}
-                <button className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
-                  <Share2 size={16} />
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-6 text-center">
-                <div>
-                  <div className="text-2xl font-bold">{formatNumber(tracks.length)}</div>
-                  <div className="text-sm text-white/60">Morceaux</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{formatNumber(user.followers.length)}</div>
-                  <div className="text-sm text-white/60">Abonnés</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{formatNumber(user.following.length)}</div>
-                  <div className="text-sm text-white/60">Abonnements</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold">{formatNumber(user.totalPlays)}</div>
-                  <div className="text-sm text-white/60">Écoutes</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Informations détaillées */}
-          {(user.location || user.website || user.socialLinks) && (
-            <div className="glass-effect rounded-xl p-6 mb-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {user.location && (
-                  <div className="flex items-center gap-2 text-white/70">
-                    <MapPin size={16} />
-                    <span>{user.location}</span>
-                  </div>
-                )}
-                {user.website && (
-                  <a
-                    href={user.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-                  >
-                    <Globe size={16} />
-                    <span className="truncate">{user.website}</span>
-                    <ExternalLink size={12} />
-                  </a>
-                )}
-                {user.socialLinks?.instagram && (
-                  <a
-                    href={user.socialLinks.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-                  >
-                    <Instagram size={16} className="text-pink-400" />
-                    <span>Instagram</span>
-                    <ExternalLink size={12} />
-                  </a>
-                )}
-                {user.socialLinks?.twitter && (
-                  <a
-                    href={user.socialLinks.twitter}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-                  >
-                    <Twitter size={16} className="text-blue-400" />
-                    <span>Twitter</span>
-                    <ExternalLink size={12} />
-                  </a>
-                )}
-                {user.socialLinks?.youtube && (
-                  <a
-                    href={user.socialLinks.youtube}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-white/70 hover:text-white transition-colors"
-                  >
-                    <Youtube size={16} className="text-red-400" />
-                    <span>YouTube</span>
-                    <ExternalLink size={12} />
-                  </a>
-                )}
-                <div className="flex items-center gap-2 text-white/70">
-                  <Calendar size={16} />
-                  <span>Membre depuis {new Date(user.createdAt).toLocaleDateString()}</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Barre de recherche et contrôles */}
-          <div className="glass-effect rounded-xl p-6 mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={20} />
                 <input
-                  type="text"
-                  placeholder={`Rechercher dans ${user.name}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/10 rounded-xl border border-white/20 focus:border-purple-400 focus:outline-none text-white placeholder-white/60"
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'avatar')}
+                  className="hidden"
                 />
               </div>
-              <div className="flex items-center space-x-3">
-                <div className="flex bg-white/10 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'grid' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'
-                    }`}
-                  >
-                    <Grid size={16} />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'list' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'
-                    }`}
-                  >
-                    <List size={16} />
-                  </button>
+              
+              {/* Informations utilisateur */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-2xl md:text-3xl font-bold">{user.name}</h1>
+                  {user.isVerified && <Verified className="text-blue-400 w-6 h-6" />}
+                  {isOwnProfile && (
+                    <button
+                      onClick={() => setIsEditing(true)}
+                      className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                    >
+                      <Edit3 size={16} />
+                    </button>
+                  )}
                 </div>
+                <p className="text-white/60 mb-3">@{user.username}</p>
+                
+                {user.bio && (
+                  <p className="text-white/80 mb-4 max-w-2xl">{user.bio}</p>
+                )}
+                
+                {/* Statistiques */}
+                <div className="flex items-center gap-6 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Music size={16} className="text-purple-400" />
+                    <span>{formatNumber(user.trackCount)} morceaux</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Users size={16} className="text-purple-400" />
+                    <span>{formatNumber(user.followers.length)} abonnés</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <User size={16} className="text-purple-400" />
+                    <span>{formatNumber(user.following.length)} abonnements</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Play size={16} className="text-purple-400" />
+                    <span>{formatNumber(user.totalPlays)} écoutes</span>
+                  </div>
+                </div>
+                
+                {/* Liens sociaux */}
+                {user.socialLinks && Object.values(user.socialLinks).some(link => link) && (
+                  <div className="flex items-center gap-3 mt-4">
+                    {user.socialLinks.twitter && (
+                      <a href={user.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                        <Twitter size={16} />
+                      </a>
+                    )}
+                    {user.socialLinks.instagram && (
+                      <a href={user.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                        <Instagram size={16} />
+                      </a>
+                    )}
+                    {user.socialLinks.youtube && (
+                      <a href={user.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                        <Youtube size={16} />
+                      </a>
+                    )}
+                    {user.socialLinks.spotify && (
+                      <a href={user.socialLinks.spotify} target="_blank" rel="noopener noreferrer" className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                        <Music size={16} />
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -501,7 +579,7 @@ export default function ProfileUserPage() {
                     : 'text-white/60 hover:text-white/80'
                 }`}
               >
-                <Disc3 size={16} className="inline mr-2" />
+                <List size={16} className="inline mr-2" />
                 Playlists ({playlists.length})
               </button>
               <button
@@ -513,7 +591,7 @@ export default function ProfileUserPage() {
                 }`}
               >
                 <Users size={16} className="inline mr-2" />
-                Abonnés ({user.followers.length})
+                Abonnés ({followers.length})
               </button>
               <button
                 onClick={() => setActiveTab('following')}
@@ -523,8 +601,8 @@ export default function ProfileUserPage() {
                     : 'text-white/60 hover:text-white/80'
                 }`}
               >
-                <UserPlus size={16} className="inline mr-2" />
-                Abonnements ({user.following.length})
+                <User size={16} className="inline mr-2" />
+                Abonnements ({following.length})
               </button>
             </div>
           </div>
@@ -540,13 +618,57 @@ export default function ProfileUserPage() {
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
                 >
+                  {/* Contrôles */}
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={16} />
+                        <input
+                          type="text"
+                          placeholder="Rechercher dans les morceaux..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10 pr-4 py-2 bg-white/10 rounded-lg border border-white/20 focus:border-purple-400 focus:outline-none text-white placeholder-white/60 text-sm"
+                        />
+                      </div>
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value as any)}
+                        className="px-3 py-2 bg-white/10 rounded-lg border border-white/20 focus:border-purple-400 focus:outline-none text-white text-sm"
+                      >
+                        <option value="recent">Plus récents</option>
+                        <option value="popular">Plus populaires</option>
+                        <option value="alphabetical">Alphabétique</option>
+                      </select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setViewMode('grid')}
+                        className={`p-2 rounded-md transition-colors ${
+                          viewMode === 'grid' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'
+                        }`}
+                      >
+                        <Grid size={16} />
+                      </button>
+                      <button
+                        onClick={() => setViewMode('list')}
+                        className={`p-2 rounded-md transition-colors ${
+                          viewMode === 'list' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'
+                        }`}
+                      >
+                        <List size={16} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Liste des morceaux */}
                   {filteredTracks.length === 0 ? (
                     <div className="text-center py-12">
                       <Music className="w-16 h-16 text-white/40 mx-auto mb-4" />
                       <p className="text-white/60 mb-4">
                         {searchQuery ? 'Aucun morceau trouvé' : 'Aucun morceau publié'}
                       </p>
-                      {user.isOwnProfile && (
+                      {isOwnProfile && (
                         <a
                           href="/upload"
                           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
@@ -569,14 +691,12 @@ export default function ProfileUserPage() {
                           {viewMode === 'grid' ? (
                             <>
                               <img
-                                src={track.coverUrl || '/default-cover.jpg'}
+                                src={track.coverUrl || '/default-cover.svg'}
                                 alt={track.title}
                                 className="w-full h-32 object-cover rounded-lg mb-3"
                               />
                               <h3 className="font-semibold mb-1 truncate">{track.title}</h3>
-                              <p className="text-sm text-white/60 mb-2 truncate">
-                                {track.artist?.name || track.artist?.username}
-                              </p>
+                              <p className="text-sm text-white/60 mb-2">{track.artist?.name || track.artist?.username}</p>
                               <div className="flex items-center justify-between text-xs text-white/40">
                                 <span>{formatNumber(track.plays)} écoutes</span>
                                 <span>{formatNumber(track.likes.length)} likes</span>
@@ -585,36 +705,32 @@ export default function ProfileUserPage() {
                           ) : (
                             <>
                               <img
-                                src={track.coverUrl || '/default-cover.jpg'}
+                                src={track.coverUrl || '/default-cover.svg'}
                                 alt={track.title}
                                 className="w-16 h-16 rounded object-cover"
                               />
                               <div className="flex-1 min-w-0">
                                 <h3 className="font-semibold">{track.title}</h3>
                                 <p className="text-sm text-white/60">{track.artist?.name || track.artist?.username}</p>
-                                <div className="flex items-center space-x-4 text-xs text-white/40 mt-1">
+                                <div className="flex items-center gap-4 text-xs text-white/40 mt-1">
+                                  <span>{formatDuration(track.duration)}</span>
                                   <span>{formatNumber(track.plays)} écoutes</span>
                                   <span>{formatNumber(track.likes.length)} likes</span>
-                                  <span>{formatDuration(track.duration)}</span>
                                 </div>
                               </div>
                             </>
                           )}
-                          <div className="flex items-center space-x-2 mt-3">
+                          <div className="flex items-center gap-2 mt-3">
                             <button
                               onClick={() => playTrack(track)}
                               className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
                             >
-                              {isCurrentlyPlaying(track._id) ? (
-                                <Pause size={16} />
-                              ) : (
-                                <Play size={16} />
-                              )}
+                              <Play size={16} />
                             </button>
                             <button
-                              onClick={() => handleLikeTrack(track._id)}
+                              onClick={() => toggleLikeTrack(track._id)}
                               className={`p-2 rounded-full transition-colors ${
-                                track.isLiked ? 'bg-red-500/20 text-red-400' : 'bg-white/10 text-white/60 hover:text-white'
+                                track.isLiked ? 'bg-pink-500/20 text-pink-400' : 'bg-white/10 hover:bg-white/20'
                               }`}
                             >
                               <Heart size={16} />
@@ -638,11 +754,9 @@ export default function ProfileUserPage() {
                 >
                   {filteredPlaylists.length === 0 ? (
                     <div className="text-center py-12 col-span-full">
-                      <Disc3 className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                      <p className="text-white/60 mb-4">
-                        {searchQuery ? 'Aucune playlist trouvée' : 'Aucune playlist créée'}
-                      </p>
-                      {user.isOwnProfile && (
+                      <List className="w-16 h-16 text-white/40 mx-auto mb-4" />
+                      <p className="text-white/60 mb-4">Aucune playlist créée</p>
+                      {isOwnProfile && (
                         <a
                           href="/library"
                           className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
@@ -657,16 +771,16 @@ export default function ProfileUserPage() {
                         key={playlist._id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="glass-effect rounded-xl p-4 flex flex-col gap-3 cursor-pointer hover:scale-105 transition-transform"
+                        className="glass-effect rounded-xl p-4 cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => router.push(`/playlists/${playlist._id}`)}
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.jpg'}
+                          src={playlist.coverUrl || '/default-cover.svg'}
                           alt={playlist.name}
-                          className="w-full h-32 object-cover rounded-lg mb-2"
+                          className="w-full h-32 object-cover rounded-lg mb-3"
                         />
                         <h3 className="font-semibold mb-1 truncate">{playlist.name}</h3>
-                        <p className="text-sm text-white/60 truncate">{playlist.description}</p>
+                        <p className="text-sm text-white/60 truncate mb-2">{playlist.description}</p>
                         <div className="flex items-center justify-between text-xs text-white/40">
                           <span>{playlist.trackCount} pistes</span>
                           <span>{formatNumber(playlist.likes.length)} likes</span>
@@ -684,7 +798,7 @@ export default function ProfileUserPage() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-3"
+                  className="space-y-4"
                 >
                   {followers.length === 0 ? (
                     <div className="text-center py-12">
@@ -697,29 +811,22 @@ export default function ProfileUserPage() {
                         key={follower._id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/profile/${follower.username}`)}
+                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={follower.avatar || '/default-avatar.png'}
+                          src={follower.avatar || '/default-avatar.svg'}
                           alt={follower.name}
-                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-500"
+                          className="w-12 h-12 rounded-full object-cover"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold truncate">{follower.name}</span>
-                            {follower.isVerified && <Check className="text-blue-400 w-4 h-4" />}
-                          </div>
-                          <span className="text-sm text-white/60">@{follower.username}</span>
+                          <h4 className="font-semibold truncate">{follower.name}</h4>
+                          <p className="text-sm text-white/60">@{follower.username}</p>
                         </div>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Logique pour suivre/ne plus suivre
-                          }}
-                          className="px-4 py-2 rounded-full font-medium bg-white/10 text-white/80 hover:bg-white/20 transition-all"
+                          onClick={() => router.push(`/profile/${follower.username}`)}
+                          className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-sm"
                         >
-                          Suivre
+                          Voir profil
                         </button>
                       </motion.div>
                     ))
@@ -734,11 +841,11 @@ export default function ProfileUserPage() {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
                   transition={{ duration: 0.3 }}
-                  className="space-y-3"
+                  className="space-y-4"
                 >
                   {following.length === 0 ? (
                     <div className="text-center py-12">
-                      <UserPlus className="w-16 h-16 text-white/40 mx-auto mb-4" />
+                      <User className="w-16 h-16 text-white/40 mx-auto mb-4" />
                       <p className="text-white/60">Aucun abonnement pour le moment</p>
                     </div>
                   ) : (
@@ -747,29 +854,22 @@ export default function ProfileUserPage() {
                         key={followed._id}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-                        onClick={() => router.push(`/profile/${followed.username}`)}
+                        className="flex items-center gap-4 p-4 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={followed.avatar || '/default-avatar.png'}
+                          src={followed.avatar || '/default-avatar.svg'}
                           alt={followed.name}
-                          className="w-12 h-12 rounded-full object-cover border-2 border-purple-500"
+                          className="w-12 h-12 rounded-full object-cover"
                         />
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold truncate">{followed.name}</span>
-                            {followed.isVerified && <Check className="text-blue-400 w-4 h-4" />}
-                          </div>
-                          <span className="text-sm text-white/60">@{followed.username}</span>
+                          <h4 className="font-semibold truncate">{followed.name}</h4>
+                          <p className="text-sm text-white/60">@{followed.username}</p>
                         </div>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            // Logique pour ne plus suivre
-                          }}
-                          className="px-4 py-2 rounded-full font-medium bg-pink-600 text-white hover:bg-pink-700 transition-all"
+                          onClick={() => router.push(`/profile/${followed.username}`)}
+                          className="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-sm"
                         >
-                          Abonné
+                          Voir profil
                         </button>
                       </motion.div>
                     ))
@@ -780,6 +880,208 @@ export default function ProfileUserPage() {
           </div>
         </div>
       </main>
+
+      {/* Modal d'édition du profil */}
+      <AnimatePresence>
+        {isEditing && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="glass-effect rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold">Modifier le profil</h3>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Images */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-3">Photo de profil</label>
+                    <div className="relative">
+                      <img
+                        src={avatarPreview || user.avatar || '/default-avatar.svg'}
+                        alt="Avatar"
+                        className="w-24 h-24 rounded-full object-cover border-2 border-purple-500"
+                      />
+                      <button
+                        onClick={() => document.getElementById('edit-avatar-upload')?.click()}
+                        className="absolute bottom-0 right-0 p-2 rounded-full bg-purple-600 hover:bg-purple-700 transition-colors"
+                      >
+                        <Camera size={14} />
+                      </button>
+                      <input
+                        id="edit-avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'avatar')}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-3">Bannière</label>
+                    <div className="relative">
+                      <img
+                        src={bannerPreview || user.banner || '/default-banner.svg'}
+                        alt="Bannière"
+                        className="w-full h-24 rounded-lg object-cover border-2 border-purple-500"
+                      />
+                      <button
+                        onClick={() => document.getElementById('edit-banner-upload')?.click()}
+                        className="absolute bottom-0 right-0 p-2 rounded-full bg-purple-600 hover:bg-purple-700 transition-colors"
+                      >
+                        <Camera size={14} />
+                      </button>
+                      <input
+                        id="edit-banner-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'banner')}
+                        className="hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Informations de base */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">Nom</label>
+                    <input
+                      type="text"
+                      value={editData.name}
+                      onChange={(e) => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">Localisation</label>
+                    <input
+                      type="text"
+                      value={editData.location}
+                      onChange={(e) => setEditData(prev => ({ ...prev, location: e.target.value }))}
+                      placeholder="Ville, Pays"
+                      className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">Bio</label>
+                  <textarea
+                    value={editData.bio}
+                    onChange={(e) => setEditData(prev => ({ ...prev, bio: e.target.value }))}
+                    placeholder="Parlez-nous de vous..."
+                    rows={4}
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">Site web</label>
+                  <input
+                    type="url"
+                    value={editData.website}
+                    onChange={(e) => setEditData(prev => ({ ...prev, website: e.target.value }))}
+                    placeholder="https://votre-site.com"
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none"
+                  />
+                </div>
+
+                {/* Réseaux sociaux */}
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-3">Réseaux sociaux</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">Twitter</label>
+                      <input
+                        type="url"
+                        value={editData.socialLinks.twitter}
+                        onChange={(e) => setEditData(prev => ({ 
+                          ...prev, 
+                          socialLinks: { ...prev.socialLinks, twitter: e.target.value }
+                        }))}
+                        placeholder="https://twitter.com/username"
+                        className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">Instagram</label>
+                      <input
+                        type="url"
+                        value={editData.socialLinks.instagram}
+                        onChange={(e) => setEditData(prev => ({ 
+                          ...prev, 
+                          socialLinks: { ...prev.socialLinks, instagram: e.target.value }
+                        }))}
+                        placeholder="https://instagram.com/username"
+                        className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">YouTube</label>
+                      <input
+                        type="url"
+                        value={editData.socialLinks.youtube}
+                        onChange={(e) => setEditData(prev => ({ 
+                          ...prev, 
+                          socialLinks: { ...prev.socialLinks, youtube: e.target.value }
+                        }))}
+                        placeholder="https://youtube.com/@username"
+                        className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-white/60 mb-1">Spotify</label>
+                      <input
+                        type="url"
+                        value={editData.socialLinks.spotify}
+                        onChange={(e) => setEditData(prev => ({ 
+                          ...prev, 
+                          socialLinks: { ...prev.socialLinks, spotify: e.target.value }
+                        }))}
+                        placeholder="https://open.spotify.com/artist/..."
+                        className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="flex-1 py-2 px-4 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={saveProfile}
+                    disabled={actionLoading}
+                    className="flex-1 py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {actionLoading ? 'Sauvegarde...' : 'Sauvegarder'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 } 

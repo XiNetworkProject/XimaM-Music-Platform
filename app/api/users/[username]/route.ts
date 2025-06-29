@@ -6,6 +6,7 @@ import User from '@/models/User';
 import Track from '@/models/Track';
 import Playlist from '@/models/Playlist';
 
+// GET - Récupérer un profil utilisateur
 export async function GET(
   request: NextRequest,
   { params }: { params: { username: string } }
@@ -16,45 +17,103 @@ export async function GET(
 
     await dbConnect();
 
-    const user = await User.findOne({ username })
-      .select('-password -email');
-
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
-    }
-
-    // Vérifier si l'utilisateur connecté suit cet utilisateur
-    let isFollowing = false;
-    let isOwnProfile = false;
-
-    if (session?.user?.id) {
-      const currentUser = await User.findById(session.user.id).select('following');
-      isFollowing = currentUser?.following?.includes(user._id) || false;
-      isOwnProfile = user._id.toString() === session.user.id;
-    }
-
-    // Compter les statistiques
-    const trackCount = await Track.countDocuments({ artist: user._id });
-    const playlistCount = await Playlist.countDocuments({ createdBy: user._id });
+    // Récupérer l'utilisateur avec ses statistiques
+    const user = await User.findOne({ username }).select('-password -email');
     
-    const tracks = await Track.find({ artist: user._id });
+    if (!user) {
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    }
+
+    // Compter les pistes de l'utilisateur
+    const trackCount = await Track.countDocuments({ 'artist._id': user._id });
+    
+    // Compter les playlists de l'utilisateur
+    const playlistCount = await Playlist.countDocuments({ 'createdBy._id': user._id });
+    
+    // Calculer les statistiques totales
+    const tracks = await Track.find({ 'artist._id': user._id });
     const totalPlays = tracks.reduce((sum, track) => sum + (track.plays || 0), 0);
     const totalLikes = tracks.reduce((sum, track) => sum + (track.likes?.length || 0), 0);
+    
+    // Vérifier si l'utilisateur connecté suit cet utilisateur
+    let isFollowing = false;
+    if (session?.user?.id) {
+      const currentUser = await User.findById(session.user.id);
+      isFollowing = currentUser?.following?.includes(user._id) || false;
+    }
 
+    // Préparer la réponse
     const userData = {
-      ...user.toObject(),
-      isFollowing,
-      isOwnProfile,
+      _id: user._id,
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      banner: user.banner,
+      bio: user.bio,
+      location: user.location,
+      website: user.website,
+      socialLinks: user.socialLinks,
+      followers: user.followers || [],
+      following: user.following || [],
       trackCount,
       playlistCount,
       totalPlays,
       totalLikes,
+      isVerified: user.isVerified || false,
+      isFollowing,
+      createdAt: user.createdAt,
+      lastActive: user.updatedAt
     };
 
-    return NextResponse.json({ user: userData });
+    return NextResponse.json(userData);
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Erreur serveur' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Mettre à jour un profil
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: { username: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
+    const { username } = params;
+    const body = await request.json();
+
+    await dbConnect();
+
+    // Vérifier que l'utilisateur modifie son propre profil
+    const user = await User.findOne({ username });
+    if (!user || user._id.toString() !== session.user.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    }
+
+    // Mettre à jour le profil
+    const updatedUser = await User.findByIdAndUpdate(
+      user._id,
+      {
+        name: body.name,
+        bio: body.bio,
+        location: body.location,
+        website: body.website,
+        avatar: body.avatar,
+        banner: body.banner,
+        socialLinks: body.socialLinks
+      },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    return NextResponse.json(updatedUser);
   } catch (error) {
     return NextResponse.json(
       { error: 'Erreur serveur' },

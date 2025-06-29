@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       .lean() as any;
     
     if (!populatedPlaylist) {
-      return NextResponse.json(
+    return NextResponse.json(
         { error: 'Erreur lors de la création de la playlist' },
         { status: 500 }
       );

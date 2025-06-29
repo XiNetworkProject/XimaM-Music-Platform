@@ -11,35 +11,58 @@ export async function GET(
   { params }: { params: { username: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    const { username } = params;
-
     await dbConnect();
 
-    const user = await User.findOne({ username });
+    const user = await User.findOne({ username: params.username });
     if (!user) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    const tracks = await Track.find({ artist: user._id })
-      .populate('artist', 'name username avatar')
+    const session = await getServerSession(authOptions);
+    const isOwnProfile = session?.user?.id === user._id.toString();
+
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const skip = (page - 1) * limit;
+
+    // Construire la requête
+    let query: any = { artist: user._id };
+    
+    // Si ce n'est pas son propre profil, ne montrer que les pistes publiques
+    if (!isOwnProfile) {
+      query.isPublic = true;
+    }
+
+    const tracks = await Track.find(query)
       .sort({ createdAt: -1 })
-      .lean();
+      .skip(skip)
+      .limit(limit)
+      .populate('artist', 'name username avatar');
 
-    // Marquer les pistes likées par l'utilisateur connecté
-    if (session?.user?.id) {
-      tracks.forEach(track => {
-        track.isLiked = track.likes?.includes(session.user.id) || false;
-      });
-    }
+    const total = await Track.countDocuments(query);
 
-    return NextResponse.json({ tracks });
+    return NextResponse.json({
+      tracks,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+      user: {
+        id: user._id,
+        username: user.username,
+        name: user.name,
+        avatar: user.avatar,
+        bio: user.bio,
+      }
+    });
+
   } catch (error) {
+    console.error('Erreur récupération pistes utilisateur:', error);
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: 'Erreur lors de la récupération' },
       { status: 500 }
     );
   }

@@ -119,8 +119,8 @@ export default function CommunityPage() {
 
   // Charger les données communautaires
   const fetchCommunityData = useCallback(async () => {
-    try {
-      setLoading(true);
+      try {
+        setLoading(true);
       // Feed communautaire (posts)
       const postsRes = await fetch('/api/community/feed?limit=20');
       if (postsRes.ok) {
@@ -131,8 +131,8 @@ export default function CommunityPage() {
       const usersRes = await fetch('/api/users?limit=20');
       if (usersRes.ok) {
         const usersData = await usersRes.json();
-        setUsers(usersData.users || []);
-      }
+          setUsers(usersData.users || []);
+        }
       // Playlists publiques
       const playlistsRes = await fetch('/api/playlists?limit=20');
       if (playlistsRes.ok) {
@@ -149,12 +149,12 @@ export default function CommunityPage() {
       if (topPlaylistsRes.ok) {
         const topPlaylistsData = await topPlaylistsRes.json();
         setTopPlaylists(topPlaylistsData.playlists || []);
-      }
-    } catch (error) {
+        }
+      } catch (error) {
       // Erreur silencieuse
-    } finally {
-      setLoading(false);
-    }
+      } finally {
+        setLoading(false);
+      }
   }, []);
 
   useEffect(() => {
@@ -207,14 +207,11 @@ export default function CommunityPage() {
 
   // Follow/unfollow user
   const toggleFollow = async (userId: string) => {
-    const user = users.find(u => u._id === userId);
-    if (!user) return;
-    
     setUsers(prev => prev.map(u => u._id === userId ? {
       ...u,
       isFollowing: !u.isFollowing
     } : u));
-    await fetch(`/api/users/${user.username}/follow`, { method: 'POST' });
+    await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
   };
 
   // Formatage
@@ -255,7 +252,7 @@ export default function CommunityPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-5xl mx-auto">
-          {/* Header */}
+      {/* Header */}
           <div className="mb-10">
             <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
               <Users size={28} className="text-purple-400" />
@@ -335,10 +332,10 @@ export default function CommunityPage() {
               </motion.div>
             )}
           </AnimatePresence>
-
+          
           {/* Onglets */}
           <div className="glass-effect rounded-xl p-6 mb-8">
-            <div className="flex space-x-1 bg-white/10 rounded-xl p-1">
+          <div className="flex space-x-1 bg-white/10 rounded-xl p-1">
               <button
                 onClick={() => setActiveTab('feed')}
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
@@ -350,18 +347,18 @@ export default function CommunityPage() {
                 <List size={16} className="inline mr-2" />
                 Fil d'actualité
               </button>
-              <button
-                onClick={() => setActiveTab('artists')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                  activeTab === 'artists'
+            <button
+              onClick={() => setActiveTab('artists')}
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'artists'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                    : 'text-white/60 hover:text-white/80'
-                }`}
-              >
-                <Users size={16} className="inline mr-2" />
-                Artistes
-              </button>
-              <button
+                  : 'text-white/60 hover:text-white/80'
+              }`}
+            >
+              <Users size={16} className="inline mr-2" />
+              Artistes
+            </button>
+            <button
                 onClick={() => setActiveTab('playlists')}
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'playlists'
@@ -374,21 +371,21 @@ export default function CommunityPage() {
               </button>
               <button
                 onClick={() => setActiveTab('classement')}
-                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'classement'
                     ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                    : 'text-white/60 hover:text-white/80'
-                }`}
-              >
+                  : 'text-white/60 hover:text-white/80'
+              }`}
+            >
                 <Trophy size={16} className="inline mr-2" />
                 Classements
-              </button>
-            </div>
+            </button>
           </div>
+        </div>
 
           {/* Contenu des onglets */}
           <div className="glass-effect rounded-xl p-6">
-            <AnimatePresence mode="wait">
+          <AnimatePresence mode="wait">
               {activeTab === 'feed' && (
                 <motion.div
                   key="feed"
@@ -490,36 +487,36 @@ export default function CommunityPage() {
                 </motion.div>
               )}
 
-              {activeTab === 'artists' && (
-                <motion.div
-                  key="artists"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="space-y-4"
-                >
+            {activeTab === 'artists' && (
+              <motion.div
+                key="artists"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-4"
+              >
                   {filteredUsers.length === 0 ? (
-                    <div className="text-center py-12">
-                      <p className="text-white/60 mb-4">Aucun artiste trouvé</p>
-                      <a
-                        href="/upload"
+                  <div className="text-center py-12">
+                    <p className="text-white/60 mb-4">Aucun artiste trouvé</p>
+                    <a
+                      href="/upload"
                         className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                      >
-                        Devenir le premier artiste
-                      </a>
-                    </div>
-                  ) : (
+                    >
+                      Devenir le premier artiste
+                    </a>
+                  </div>
+                ) : (
                     filteredUsers.map((user) => (
-                      <motion.div
-                        key={user._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                    <motion.div
+                      key={user._id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
                         className="glass-effect rounded-xl p-4 flex items-center gap-4"
-                      >
-                        <img
-                          src={user.avatar || '/default-avatar.png'}
-                          alt={user.name}
+                    >
+                          <img
+                            src={user.avatar || '/default-avatar.png'}
+                            alt={user.name}
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-500"
                         />
                         <div className="flex-1 min-w-0">
@@ -533,43 +530,43 @@ export default function CommunityPage() {
                             <span><UserPlus size={12} className="inline mr-1" />{formatNumber(user.followers.length)} abonnés</span>
                           </div>
                         </div>
-                        <button
-                          onClick={() => toggleFollow(user._id)}
+                          <button
+                            onClick={() => toggleFollow(user._id)}
                           className={`px-4 py-2 rounded-full font-medium transition-all ${user.isFollowing ? 'bg-pink-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
-                        >
+                          >
                           {user.isFollowing ? 'Abonné' : 'Suivre'}
-                        </button>
-                      </motion.div>
-                    ))
-                  )}
-                </motion.div>
-              )}
+                          </button>
+                    </motion.div>
+                  ))
+                )}
+              </motion.div>
+            )}
 
               {activeTab === 'playlists' && (
-                <motion.div
+              <motion.div
                   key="playlists"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
                 >
                   {filteredPlaylists.length === 0 ? (
                     <div className="text-center py-12 col-span-full">
                       <p className="text-white/60 mb-4">Aucune playlist publique trouvée</p>
-                      <a
+                    <a
                         href="/library"
                         className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                      >
+                    >
                         Créer une playlist
-                      </a>
-                    </div>
-                  ) : (
+                    </a>
+                  </div>
+                ) : (
                     filteredPlaylists.map((playlist) => (
-                      <motion.div
+                    <motion.div
                         key={playlist._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
                         className="glass-effect rounded-xl p-4 flex flex-col gap-3 cursor-pointer hover:scale-105 transition-transform"
                         onClick={() => router.push(`/playlists/${playlist._id}`)}
                       >
@@ -589,12 +586,12 @@ export default function CommunityPage() {
                           className={`flex items-center gap-1 text-sm mt-2 ${playlist.likes.includes(session?.user?.id || '') ? 'text-pink-400' : 'text-white/60 hover:text-white'}`}
                         >
                           <Heart size={16} /> {formatNumber(playlist.likes.length)}
-                        </button>
-                      </motion.div>
-                    ))
-                  )}
-                </motion.div>
-              )}
+                          </button>
+                    </motion.div>
+                  ))
+                )}
+              </motion.div>
+            )}
 
               {activeTab === 'classement' && (
                 <motion.div
@@ -655,7 +652,7 @@ export default function CommunityPage() {
                   </div>
                 </motion.div>
               )}
-            </AnimatePresence>
+          </AnimatePresence>
           </div>
         </div>
       </main>

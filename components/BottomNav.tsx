@@ -40,7 +40,7 @@ const navItems = [
     id: 'profile',
     label: 'Profil',
     icon: User,
-    path: '/settings',
+    path: '/profile',
   },
 ];
 
