@@ -38,7 +38,8 @@ import {
   Headphones,
   Disc3,
   Radio,
-  Volume2
+  Volume2,
+  UserPlus
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter, useParams } from 'next/navigation';
