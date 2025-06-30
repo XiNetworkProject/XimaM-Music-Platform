@@ -123,6 +123,8 @@ export default function HomePage() {
     listeners: 1247,
     isLive: true
   });
+  const [radioAudio, setRadioAudio] = useState<HTMLAudioElement | null>(null);
+  const [streamUrl, setStreamUrl] = useState<string>('');
 
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -597,20 +599,91 @@ export default function HomePage() {
     }
   }, []);
 
+  // Fonction pour récupérer l'URL de streaming StreamRadio
+  const fetchStreamUrl = async () => {
+    try {
+      const response = await fetch('https://manager5.streamradio.fr:1570/api/links/?t=web&l=pmjadhmu&c=1');
+      if (response.ok) {
+        const data = await response.json();
+        // Adapter selon la structure de réponse de StreamRadio
+        if (data.streamUrl) {
+          setStreamUrl(data.streamUrl);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur récupération URL streaming:', error);
+    }
+  };
+
   // Fonction pour gérer la lecture/arrêt de la radio
-  const handleRadioToggle = () => {
+  const handleRadioToggle = async () => {
     if (isRadioPlaying) {
       // Arrêter la radio
+      if (radioAudio) {
+        radioAudio.pause();
+        radioAudio.src = '';
+        setRadioAudio(null);
+      }
       setIsRadioPlaying(false);
-      // Ici tu pourrais ajouter la logique pour arrêter le flux audio
       console.log('Radio arrêtée');
     } else {
       // Démarrer la radio
-      setIsRadioPlaying(true);
-      // Ici tu pourrais ajouter la logique pour démarrer le flux audio
-      console.log('Radio démarrée - Mixx Party');
+      try {
+        // Récupérer l'URL de streaming si pas encore fait
+        if (!streamUrl) {
+          await fetchStreamUrl();
+        }
+        
+        // Créer un nouvel élément audio
+        const audio = new Audio();
+        audio.crossOrigin = 'anonymous';
+        audio.preload = 'none';
+        
+        // Utiliser l'URL de streaming ou une URL de fallback
+        const finalStreamUrl = streamUrl || 'https://manager5.streamradio.fr:1570/api/links/?t=web&l=pmjadhmu&c=1';
+        audio.src = finalStreamUrl;
+        
+        // Gestion des événements
+        audio.addEventListener('loadstart', () => {
+          console.log('Chargement du flux radio...');
+        });
+        
+        audio.addEventListener('canplay', () => {
+          console.log('Flux radio prêt à jouer');
+          audio.play().then(() => {
+            setIsRadioPlaying(true);
+            setRadioAudio(audio);
+            console.log('Radio démarrée - Mixx Party');
+          }).catch(error => {
+            console.error('Erreur lecture radio:', error);
+          });
+        });
+        
+        audio.addEventListener('error', (error) => {
+          console.error('Erreur flux radio:', error);
+        });
+        
+        audio.addEventListener('ended', () => {
+          console.log('Flux radio terminé');
+          setIsRadioPlaying(false);
+          setRadioAudio(null);
+        });
+        
+      } catch (error) {
+        console.error('Erreur démarrage radio:', error);
+      }
     }
   };
+
+  // Nettoyer l'audio radio quand le composant se démonte
+  useEffect(() => {
+    return () => {
+      if (radioAudio) {
+        radioAudio.pause();
+        radioAudio.src = '';
+      }
+    };
+  }, [radioAudio]);
 
   if (loading) {
     return (
