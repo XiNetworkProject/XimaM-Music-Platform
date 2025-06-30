@@ -35,7 +35,22 @@ export async function GET(request: NextRequest) {
     let query: any = {};
     
     if (user) {
-      query.createdBy = user;
+      // Chercher l'utilisateur par username d'abord
+      const userDoc = await User.findOne({ username: user });
+      if (userDoc) {
+        query.createdBy = userDoc._id;
+      } else {
+        // Si l'utilisateur n'existe pas, retourner une liste vide
+        return NextResponse.json({
+          playlists: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0
+          }
+        });
+      }
     } else {
       query.isPublic = true;
     }

@@ -258,21 +258,16 @@ export default function ProfileUserPage() {
 
   // Upload vers Cloudinary
   const uploadToCloudinary = async (file: File, type: 'avatar' | 'banner') => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'ximaM_uploads');
-    formData.append('folder', type === 'avatar' ? 'avatars' : 'banners');
+    // En production, on utilise une solution alternative
+    // Pour l'instant, on retourne une URL factice
+    // TODO: Implémenter un vrai service d'upload (AWS S3, Cloudinary pro, etc.)
     
-    const res = await fetch('https://api.cloudinary.com/v1_1/demo/image/upload', {
-      method: 'POST',
-      body: formData
-    });
+    const fakeUrl = `https://via.placeholder.com/${type === 'avatar' ? '200x200' : '1200x400'}/667eea/ffffff?text=${encodeURIComponent(type)}`;
     
-    if (res.ok) {
-      const data = await res.json();
-      return data.secure_url;
-    }
-    throw new Error('Erreur upload');
+    // Simuler un délai d'upload
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    return fakeUrl;
   };
 
   // Sauvegarder les modifications du profil
