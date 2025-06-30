@@ -29,22 +29,29 @@ export const uploadImageDirect = async (file: Buffer, options: any = {}): Promis
       throw new Error('Configuration Cloudinary incomplète');
     }
     
-    // Préparer les paramètres
+    // Préparer les paramètres avec timestamp et signature
+    const timestamp = Math.round(new Date().getTime() / 1000);
     const params = {
-      file: `data:image/png;base64,${file.toString('base64')}`,
+      timestamp,
       folder: options.folder || 'ximam/images',
       resource_type: 'image',
       ...options
     };
     
-    console.log('📤 Paramètres upload:', { ...params, file: 'data:image/png;base64,[BUFFER]' });
+    // Générer la signature
+    const signature = generateUploadSignature(params);
+    
+    console.log('📤 Paramètres upload:', { ...params, signature });
     
     // URL de l'API Cloudinary
     const uploadUrl = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`;
     
-    // Créer FormData
+    // Créer FormData avec authentification signée
     const formData = new FormData();
-    formData.append('file', params.file);
+    formData.append('file', `data:image/png;base64,${file.toString('base64')}`);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+    formData.append('api_key', process.env.CLOUDINARY_API_KEY!);
     formData.append('folder', params.folder);
     formData.append('resource_type', params.resource_type);
     
@@ -54,12 +61,9 @@ export const uploadImageDirect = async (file: Buffer, options: any = {}): Promis
     
     console.log('🔄 Envoi requête HTTP vers Cloudinary...');
     
-    // Faire la requête HTTP
+    // Faire la requête HTTP sans authentification Basic (utilise la signature)
     const response = await fetch(uploadUrl, {
       method: 'POST',
-      headers: {
-        'Authorization': `Basic ${Buffer.from(`${process.env.CLOUDINARY_API_KEY}:${process.env.CLOUDINARY_API_SECRET}`).toString('base64')}`
-      },
       body: formData
     });
     
