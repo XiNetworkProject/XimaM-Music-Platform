@@ -813,11 +813,11 @@ export default function ProfileUserPage() {
                                 disabled={likeLoading === track._id}
                               >
                                 {likeLoading === track._id ? (
-                                  <div className="flex items-center justify-center w-3 h-3">
-                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
                                   </div>
                                 ) : (
-                                  <Heart className={`w-3 h-3 ${track.isLiked ? 'fill-current' : ''}`} />
+                                  <Heart className={`w-4 h-4 ${track.isLiked ? 'fill-current' : ''}`} />
                                 )}
                                 {track.likes.length}
                               </button>
@@ -863,7 +863,7 @@ export default function ProfileUserPage() {
                                     disabled={deleteLoading === track._id}
                                   >
                                     {deleteLoading === track._id ? (
-                                      <div className="flex items-center justify-center w-4 h-4">
+                                      <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                       </div>
                                     ) : (
@@ -933,7 +933,7 @@ export default function ProfileUserPage() {
                                 disabled={likeLoading === track._id}
                               >
                                 {likeLoading === track._id ? (
-                                  <div className="flex items-center justify-center w-4 h-4">
+                                  <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                   </div>
                                 ) : (
@@ -984,7 +984,7 @@ export default function ProfileUserPage() {
                                     disabled={deleteLoading === track._id}
                                   >
                                     {deleteLoading === track._id ? (
-                                      <div className="flex items-center justify-center w-4 h-4">
+                                      <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                       </div>
                                     ) : (
@@ -1081,7 +1081,7 @@ export default function ProfileUserPage() {
                             disabled={followLoading === follower._id}
                           >
                             {followLoading === follower._id ? (
-                              <div className="flex items-center justify-center w-4 h-4">
+                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               </div>
                             ) : (
@@ -1095,7 +1095,7 @@ export default function ProfileUserPage() {
                             disabled={followLoading === follower._id}
                           >
                             {followLoading === follower._id ? (
-                              <div className="flex items-center justify-center w-4 h-4">
+                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               </div>
                             ) : (
@@ -1145,7 +1145,7 @@ export default function ProfileUserPage() {
                             disabled={followLoading === followed._id}
                           >
                             {followLoading === followed._id ? (
-                              <div className="flex items-center justify-center w-4 h-4">
+                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               </div>
                             ) : (
@@ -1159,7 +1159,7 @@ export default function ProfileUserPage() {
                             disabled={followLoading === followed._id}
                           >
                             {followLoading === followed._id ? (
-                              <div className="flex items-center justify-center w-4 h-4">
+                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                               </div>
                             ) : (
@@ -1309,7 +1309,13 @@ export default function ProfileUserPage() {
                   disabled={uploading}
                   className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}
+                  {uploading ? (
+                    <div className="flex items-center justify-center w-4 h-4 min-h-[16px] mx-auto">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    </div>
+                  ) : (
+                    'Sauvegarder'
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -1367,7 +1373,13 @@ export default function ProfileUserPage() {
                           onClick={() => handleFollowUser(follower._id)}
                           disabled={followLoading === follower._id}
                         >
-                          {followLoading === follower._id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ne plus suivre'}
+                          {followLoading === follower._id ? (
+                            <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            </div>
+                          ) : (
+                            'Ne plus suivre'
+                          )}
                         </button>
                       ) : (
                         <button
@@ -1375,7 +1387,13 @@ export default function ProfileUserPage() {
                           onClick={() => handleFollowUser(follower._id)}
                           disabled={followLoading === follower._id}
                         >
-                          {followLoading === follower._id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Suivre'}
+                          {followLoading === follower._id ? (
+                            <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            </div>
+                          ) : (
+                            'Suivre'
+                          )}
                         </button>
                       )}
                     </div>
@@ -1441,7 +1459,13 @@ export default function ProfileUserPage() {
                         onClick={() => handleFollowUser(followed._id)}
                         disabled={followLoading === followed._id}
                       >
-                        {followLoading === followed._id ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Ne plus suivre'}
+                        {followLoading === followed._id ? (
+                          <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          </div>
+                        ) : (
+                          'Ne plus suivre'
+                        )}
                       </button>
                     </div>
                   ))
