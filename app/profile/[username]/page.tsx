@@ -195,11 +195,28 @@ export default function ProfileUserPage() {
 
   // Upload vers Cloudinary
   const uploadToCloudinary = async (file: File, type: 'avatar' | 'banner') => {
-    // Utiliser des images locales par défaut
-    if (type === 'avatar') {
-      return '/default-avatar.svg';
-    } else {
-      return '/default-banner.svg';
+    try {
+      // Créer FormData pour l'upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', type === 'avatar' ? 'ximam/avatars' : 'ximam/banners');
+      
+      // Upload via l'API
+      const response = await fetch('/api/upload/image', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de l\'upload');
+      }
+      
+      const result = await response.json();
+      return result.url;
+    } catch (error) {
+      console.error('Erreur upload image:', error);
+      // Retourner l'image par défaut en cas d'erreur
+      return type === 'avatar' ? '/default-avatar.svg' : '/default-banner.svg';
     }
   };
 

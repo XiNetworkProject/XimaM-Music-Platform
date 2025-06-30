@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { uploadImage } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const folder = formData.get('folder') as string || 'general';
+    const folder = formData.get('folder') as string || 'ximam/images';
 
     if (!file) {
       return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
@@ -34,24 +35,31 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Utiliser une image locale par défaut
-    let url = '/default-avatar.svg';
-    if (folder === 'banners') {
-      url = '/default-banner.svg';
-    }
-    
-    // Retourner une réponse sécurisée sans champs undefined
+    // Convertir File en Buffer
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    // Upload vers Cloudinary
+    const result = await uploadImage(buffer, {
+      folder,
+      width: 800,
+      height: 800,
+      crop: 'fill',
+      quality: 'auto'
+    });
+
     return NextResponse.json({
       success: true,
-      url,
-      publicId: `local-${Date.now()}`,
-      width: 400,
-      height: 400,
-      format: file.type.split('/')[1] || 'jpeg',
-      size: file.size || 0
+      url: result.secure_url,
+      publicId: result.public_id,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      size: result.bytes
     });
 
   } catch (error) {
+    console.error('Erreur upload image:', error);
     return NextResponse.json(
       { error: 'Erreur serveur lors de l\'upload' },
       { status: 500 }
