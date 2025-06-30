@@ -126,6 +126,11 @@ export default function HomePage() {
   });
   const [showProgramDialog, setShowProgramDialog] = useState(false);
 
+  // Debug: log l'état du dialog
+  useEffect(() => {
+    console.log('État du dialog:', showProgramDialog);
+  }, [showProgramDialog]);
+
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
@@ -1866,8 +1871,11 @@ export default function HomePage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowProgramDialog(true)}
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide transition-colors duration-300 self-center sm:self-start"
+                      onClick={() => {
+                        console.log('Bouton programmation cliqué');
+                        setShowProgramDialog(true);
+                      }}
+                      className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide transition-colors duration-300 self-center sm:self-start cursor-pointer relative z-10"
                     >
                       Voir la programmation
                     </motion.button>
