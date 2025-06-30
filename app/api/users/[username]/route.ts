@@ -20,14 +20,8 @@ export async function GET(
     
     const { username } = params;
     
-    // Récupérer l'utilisateur avec toutes les données populées
-    const user = await User.findOne({ username })
-      .populate('followers', 'name username avatar isVerified')
-      .populate('following', 'name username avatar isVerified')
-      .populate('tracks', 'title coverUrl duration plays likes createdAt')
-      .populate('playlists', 'name description coverUrl trackCount likes isPublic createdAt')
-      .populate('likes', 'title artist coverUrl duration plays')
-      .lean() as any;
+    // Récupérer l'utilisateur de base d'abord
+    const user = await User.findOne({ username }).lean() as any;
 
     if (!user) {
       return NextResponse.json(
@@ -36,30 +30,113 @@ export async function GET(
       );
     }
 
+    // Récupérer les données populées séparément pour éviter les erreurs
+    let followers = [];
+    let following = [];
+    let tracks = [];
+    let playlists = [];
+    let likes = [];
+
+    try {
+      // Populate followers
+      const userWithFollowers = await User.findById(user._id)
+        .populate('followers', 'name username avatar isVerified')
+        .lean() as any;
+      followers = userWithFollowers?.followers || [];
+    } catch (error) {
+      console.error('Erreur populate followers:', error);
+      followers = [];
+    }
+
+    try {
+      // Populate following
+      const userWithFollowing = await User.findById(user._id)
+        .populate('following', 'name username avatar isVerified')
+        .lean() as any;
+      following = userWithFollowing?.following || [];
+    } catch (error) {
+      console.error('Erreur populate following:', error);
+      following = [];
+    }
+
+    try {
+      // Populate tracks
+      const userWithTracks = await User.findById(user._id)
+        .populate({
+          path: 'tracks',
+          select: 'title coverUrl duration plays likes createdAt',
+          populate: {
+            path: 'artist',
+            select: 'name username avatar'
+          }
+        })
+        .lean() as any;
+      tracks = userWithTracks?.tracks || [];
+    } catch (error) {
+      console.error('Erreur populate tracks:', error);
+      tracks = [];
+    }
+
+    try {
+      // Populate playlists
+      const userWithPlaylists = await User.findById(user._id)
+        .populate({
+          path: 'playlists',
+          select: 'name description coverUrl trackCount likes isPublic createdAt',
+          populate: {
+            path: 'createdBy',
+            select: 'name username avatar'
+          }
+        })
+        .lean() as any;
+      playlists = userWithPlaylists?.playlists || [];
+    } catch (error) {
+      console.error('Erreur populate playlists:', error);
+      playlists = [];
+    }
+
+    try {
+      // Populate likes
+      const userWithLikes = await User.findById(user._id)
+        .populate({
+          path: 'likes',
+          select: 'title artist coverUrl duration plays',
+          populate: {
+            path: 'artist',
+            select: 'name username avatar'
+          }
+        })
+        .lean() as any;
+      likes = userWithLikes?.likes || [];
+    } catch (error) {
+      console.error('Erreur populate likes:', error);
+      likes = [];
+    }
+
     // Calculer les statistiques
-    const totalPlays = (user.tracks || []).reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
-    const totalLikes = (user.tracks || []).reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
+    const totalPlays = tracks.reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
+    const totalLikes = tracks.reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
     
     // Formater les données pour la réponse
     const formattedUser = {
       ...user,
       _id: user._id.toString(),
-      trackCount: (user.tracks || []).length,
-      playlistCount: (user.playlists || []).length,
-      followerCount: (user.followers || []).length,
-      followingCount: (user.following || []).length,
-      likeCount: (user.likes || []).length,
+      trackCount: tracks.length,
+      playlistCount: playlists.length,
+      followerCount: followers.length,
+      followingCount: following.length,
+      likeCount: likes.length,
       totalPlays,
       totalLikes,
-      followers: (user.followers || []).map((follower: any) => ({
+      followers: followers.map((follower: any) => ({
         ...follower,
         _id: follower._id.toString()
       })),
-      following: (user.following || []).map((following: any) => ({
+      following: following.map((following: any) => ({
         ...following,
         _id: following._id.toString()
       })),
-      tracks: (user.tracks || []).map((track: any) => ({
+      tracks: tracks.map((track: any) => ({
         ...track,
         _id: track._id.toString(),
         artist: track.artist ? {
@@ -67,7 +144,7 @@ export async function GET(
           _id: track.artist._id.toString()
         } : null
       })),
-      playlists: (user.playlists || []).map((playlist: any) => ({
+      playlists: playlists.map((playlist: any) => ({
         ...playlist,
         _id: playlist._id.toString(),
         createdBy: playlist.createdBy ? {
@@ -75,7 +152,7 @@ export async function GET(
           _id: playlist.createdBy._id.toString()
         } : null
       })),
-      likes: (user.likes || []).map((track: any) => ({
+      likes: likes.map((track: any) => ({
         ...track,
         _id: track._id.toString(),
         artist: track.artist ? {
@@ -87,6 +164,7 @@ export async function GET(
 
     return NextResponse.json(formattedUser);
   } catch (error) {
+    console.error('Erreur API users/[username]:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la récupération du profil' },
       { status: 500 }

@@ -658,8 +658,8 @@ export default function CommunityPage() {
                       )}
                     </div>
                   </div>
-                </motion.div>
-              )}
+              </motion.div>
+            )}
           </AnimatePresence>
           </div>
         </div>

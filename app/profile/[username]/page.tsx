@@ -56,8 +56,18 @@ export default function ProfileUserPage() {
       setError('');
       try {
         const res = await fetch(`/api/users/${username}`);
-        if (!res.ok) throw new Error('Profil introuvable');
         const data = await res.json();
+        
+        if (!res.ok) {
+          if (res.status === 404) {
+            throw new Error('Ce profil n\'existe pas');
+          } else if (res.status === 500) {
+            throw new Error('Erreur serveur - profil temporairement indisponible');
+          } else {
+            throw new Error(data.error || 'Erreur lors du chargement du profil');
+          }
+        }
+        
         setProfile(data);
         setEditData({ ...data });
       } catch (e: any) {
