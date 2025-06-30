@@ -18,9 +18,15 @@ export async function GET(
     // Récupérer les followers avec leurs informations de base
     const followers = await User.find({
       _id: { $in: user.followers || [] }
-    }).select('_id username name avatar bio');
+    }).select('_id username name avatar bio').lean();
 
-    return NextResponse.json({ followers });
+    // Convertir les _id en chaînes de caractères
+    const followersWithStringIds = followers.map(follower => ({
+      ...follower,
+      _id: follower._id ? follower._id.toString() : Math.random().toString()
+    }));
+
+    return NextResponse.json({ followers: followersWithStringIds });
   } catch (error) {
     return NextResponse.json(
       { error: 'Erreur serveur' },

@@ -78,7 +78,15 @@ export async function GET(request: NextRequest) {
     tracks = tracks.map(track => ({
       ...track,
       _id: track._id ? track._id.toString() : Math.random().toString(),
-      artist: track.artist || { name: 'Artiste inconnu', username: 'unknown' }
+      artist: track.artist ? {
+        ...track.artist,
+        _id: track.artist._id ? track.artist._id.toString() : Math.random().toString()
+      } : { 
+        _id: Math.random().toString(),
+        name: 'Artiste inconnu', 
+        username: 'unknown',
+        avatar: '/default-avatar.svg'
+      }
     }));
 
     // Compter le total
