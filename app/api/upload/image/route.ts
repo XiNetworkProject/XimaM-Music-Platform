@@ -39,14 +39,16 @@ export async function POST(request: NextRequest) {
     if (folder === 'banners') {
       url = '/default-banner.svg';
     }
+    
+    // Retourner une réponse sécurisée sans champs undefined
     return NextResponse.json({
       success: true,
       url,
       publicId: `local-${Date.now()}`,
       width: 400,
       height: 400,
-      format: file.type.split('/')[1],
-      size: file.size
+      format: file.type.split('/')[1] || 'jpeg',
+      size: file.size || 0
     });
 
   } catch (error) {

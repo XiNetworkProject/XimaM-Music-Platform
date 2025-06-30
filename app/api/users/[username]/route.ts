@@ -44,7 +44,7 @@ export async function GET(
 
     // Préparer la réponse
     const userData = {
-      _id: user._id,
+      _id: user._id.toString(),
       username: user.username,
       name: user.name,
       email: user.email,
@@ -113,7 +113,13 @@ export async function PUT(
       { new: true, runValidators: true }
     ).select('-password');
 
-    return NextResponse.json(updatedUser);
+    // Convertir l'_id en chaîne
+    const userResponse = {
+      ...updatedUser.toObject(),
+      _id: updatedUser._id.toString()
+    };
+
+    return NextResponse.json(userResponse);
   } catch (error) {
     return NextResponse.json(
       { error: 'Erreur serveur' },

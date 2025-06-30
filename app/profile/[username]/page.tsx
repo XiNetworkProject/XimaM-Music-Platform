@@ -268,7 +268,7 @@ export default function ProfileUserPage() {
 
   // Sauvegarder les modifications du profil
   const saveProfile = async () => {
-    if (!user) return;
+    if (!user || !user.username) return;
     
     try {
       setActionLoading(true);
@@ -305,7 +305,7 @@ export default function ProfileUserPage() {
         setBannerPreview('');
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur lors de la sauvegarde:', error);
     } finally {
       setActionLoading(false);
     }
@@ -313,7 +313,7 @@ export default function ProfileUserPage() {
 
   // Follow/Unfollow
   const toggleFollow = async () => {
-    if (!user) return;
+    if (!user || !user.username) return;
     
     try {
       const res = await fetch(`/api/users/${user.username}/follow`, {
@@ -325,12 +325,14 @@ export default function ProfileUserPage() {
         fetchProfileData();
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur lors du follow/unfollow:', error);
     }
   };
 
   // Like/Unlike track
   const toggleLikeTrack = async (trackId: string) => {
+    if (!trackId || !session?.user?.id) return;
+    
     setTracks(prev => prev.map(track => 
       track._id === trackId 
         ? { ...track, isLiked: !track.isLiked, likes: track.isLiked ? track.likes.filter(id => id !== session?.user?.id) : [...track.likes, session?.user?.id || ''] }
