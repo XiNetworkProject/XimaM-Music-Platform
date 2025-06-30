@@ -19,10 +19,16 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const genre = searchParams.get('genre');
     const search = searchParams.get('search');
+    const artist = searchParams.get('artist');
     const skip = (page - 1) * limit;
 
     // Construire la requête
-    let query: any = { isPublic: true };
+    let query: any = { 
+      $or: [
+        { isPublic: true },
+        { isPublic: { $exists: false } } // Inclure les tracks sans le champ isPublic
+      ]
+    };
 
     // Filtrer par genre
     if (genre && genre !== 'all') {
@@ -31,7 +37,33 @@ export async function GET(request: NextRequest) {
 
     // Recherche par texte
     if (search) {
-      query.$text = { $search: search };
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { tags: { $in: [new RegExp(search, 'i')] } }
+      ];
+    }
+
+    // Filtrer par artiste (username)
+    if (artist) {
+      // On suppose que le champ artist dans Track est un ObjectId vers User
+      // Il faut donc retrouver l'utilisateur par username
+      const User = (await import('@/models/User')).default;
+      const userDoc = await User.findOne({ username: artist });
+      if (userDoc) {
+        query.artist = userDoc._id;
+      } else {
+        // Aucun utilisateur trouvé, retourner une liste vide
+        return NextResponse.json({
+          tracks: [],
+          pagination: {
+            page,
+            limit,
+            total: 0,
+            pages: 0
+          },
+        });
+      }
     }
 
     // Récupérer les pistes avec les informations de l'artiste
