@@ -546,6 +546,35 @@ export default function ProfileUserPage() {
     }
   }, [showTrackOptions]);
 
+  const [menuPosition, setMenuPosition] = useState<{ [trackId: string]: { top: number, left: number, direction: 'up' | 'down' } }>({});
+
+  useEffect(() => {
+    if (!showTrackOptions) return;
+    const button = menuButtonRefs.current[showTrackOptions];
+    const menu = menuRefs.current[showTrackOptions];
+    if (button && typeof window !== 'undefined') {
+      const rect = button.getBoundingClientRect();
+      const menuHeight = menu ? menu.offsetHeight : 120;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      const margin = 16;
+      let direction: 'up' | 'down' = 'down';
+      let top = rect.bottom + 8; // 8px de marge
+      if (spaceBelow < menuHeight + margin && spaceAbove > menuHeight + margin) {
+        direction = 'up';
+        top = rect.top - menuHeight - 8;
+      }
+      setMenuPosition((prev) => ({
+        ...prev,
+        [showTrackOptions]: {
+          top,
+          left: rect.right - 180, // 180px = largeur du menu + petit décalage
+          direction
+        }
+      }));
+    }
+  }, [showTrackOptions]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
@@ -862,11 +891,15 @@ export default function ProfileUserPage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               
-                              {showTrackOptions === track._id && (
-                                <div 
-                                  className={`absolute right-0 ${menuDirection[track._id] === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-20 min-w-[160px]`}
-                                  onClick={(e) => e.stopPropagation()}
+                              {showTrackOptions === track._id && menuPosition[track._id] && (
+                                <div
                                   ref={el => { menuRefs.current[track._id] = el; }}
+                                  className="fixed min-w-[180px] bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-[9999]"
+                                  style={{
+                                    top: menuPosition[track._id].top,
+                                    left: menuPosition[track._id].left,
+                                  }}
+                                  onClick={e => e.stopPropagation()}
                                 >
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
@@ -985,11 +1018,15 @@ export default function ProfileUserPage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               
-                              {showTrackOptions === track._id && (
-                                <div 
-                                  className={`absolute right-0 ${menuDirection[track._id] === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-20 min-w-[160px]`}
-                                  onClick={(e) => e.stopPropagation()}
+                              {showTrackOptions === track._id && menuPosition[track._id] && (
+                                <div
                                   ref={el => { menuRefs.current[track._id] = el; }}
+                                  className="fixed min-w-[180px] bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-[9999]"
+                                  style={{
+                                    top: menuPosition[track._id].top,
+                                    left: menuPosition[track._id].left,
+                                  }}
+                                  onClick={e => e.stopPropagation()}
                                 >
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
