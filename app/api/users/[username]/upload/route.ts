@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import { uploadImage, uploadImageDirect } from '@/lib/cloudinary';
+import { uploadImage, uploadImageDirect, deleteFile } from '@/lib/cloudinary';
 
 export async function POST(
   request: NextRequest,
@@ -86,6 +86,16 @@ export async function POST(
 
     let result;
     if (type === 'avatar') {
+      // Supprimer l'ancien avatar Cloudinary si présent
+      if (user.avatarPublicId) {
+        try {
+          console.log('🗑️ Suppression ancien avatar Cloudinary:', user.avatarPublicId);
+          await deleteFile(user.avatarPublicId, 'image');
+          console.log('✅ Ancien avatar supprimé');
+        } catch (err) {
+          console.warn('⚠️ Erreur suppression ancien avatar Cloudinary:', err);
+        }
+      }
       console.log('📤 Upload avatar pour', username + ', taille:', buffer.length, 'bytes');
       console.log('📁 Dossier Cloudinary: ximam/avatars');
       
@@ -133,6 +143,16 @@ export async function POST(
       }
       
     } else if (type === 'banner') {
+      // Supprimer l'ancienne bannière Cloudinary si présente
+      if (user.bannerPublicId) {
+        try {
+          console.log('🗑️ Suppression ancienne bannière Cloudinary:', user.bannerPublicId);
+          await deleteFile(user.bannerPublicId, 'image');
+          console.log('✅ Ancienne bannière supprimée');
+        } catch (err) {
+          console.warn('⚠️ Erreur suppression ancienne bannière Cloudinary:', err);
+        }
+      }
       console.log('📤 Upload banner pour', username);
       // Fallback triple comme pour l'avatar
       try {
@@ -172,8 +192,10 @@ export async function POST(
     const updateData: any = {};
     if (type === 'avatar') {
       updateData.avatar = result.secure_url;
+      updateData.avatarPublicId = result.public_id;
     } else if (type === 'banner') {
       updateData.banner = result.secure_url;
+      updateData.bannerPublicId = result.public_id;
     }
 
     await User.findByIdAndUpdate(user._id, updateData);
