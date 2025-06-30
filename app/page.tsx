@@ -644,10 +644,38 @@ export default function HomePage() {
     }
   };
 
+  // Fonction helper pour valider les URLs d'images
+  const getValidImageUrl = (url: string | undefined, fallback: string) => {
+    if (!url || url === '' || url === 'null' || url === 'undefined') {
+      return fallback;
+    }
+    
+    // Si l'URL est relative, la rendre absolue
+    if (url.startsWith('/')) {
+      return url;
+    }
+    
+    // Si c'est une URL Cloudinary, la valider
+    if (url.includes('cloudinary.com')) {
+      return url;
+    }
+    
+    // Si c'est une URL externe, vérifier qu'elle commence par http/https
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    return fallback;
+  };
+
   // Fonction pour gérer la lecture/arrêt de la radio
   const handleRadioToggle = async () => {
     if (isRadioPlaying) {
-      // Arrêter la radio
+      // Arrêter la radio via le player principal
+      if (audioState.isPlaying && currentTrack?._id === 'radio-mixx-party') {
+        // Pause le player principal si c'est la radio qui joue
+        setIsPlaying(false);
+      }
       setIsRadioPlaying(false);
       console.log('Radio arrêtée');
     } else {
@@ -670,7 +698,7 @@ export default function HomePage() {
             avatar: '/default-avatar.png'
           },
           audioUrl: streamUrl,
-          coverUrl: '/default-cover.jpg', // Ou une image spécifique pour la radio
+          coverUrl: '/default-cover.jpg', // Image par défaut pour la radio
           duration: 0, // Durée infinie pour la radio
           likes: [],
           comments: [],
@@ -689,6 +717,16 @@ export default function HomePage() {
       }
     }
   };
+
+  // Synchroniser l'état de la radio avec le player principal
+  useEffect(() => {
+    if (currentTrack?._id === 'radio-mixx-party') {
+      setIsRadioPlaying(audioState.isPlaying);
+    } else if (isRadioPlaying) {
+      // Si une autre piste joue, arrêter l'état radio
+      setIsRadioPlaying(false);
+    }
+  }, [audioState.isPlaying, currentTrack?._id, isRadioPlaying]);
 
   // Mettre à jour les métadonnées radio périodiquement
   useEffect(() => {
@@ -824,14 +862,18 @@ export default function HomePage() {
                   {/* Image de fond avec effet parallax */}
                   <div className="absolute inset-0">
                     <motion.img
-                      src={featuredTracks[currentSlide].coverUrl || '/default-cover.jpg'}
+                      src={getValidImageUrl(featuredTracks[currentSlide].coverUrl, '/default-cover.jpg')}
                       alt={featuredTracks[currentSlide].title}
                       className="w-full h-full object-cover"
                       animate={{ scale: [1, 1.03, 1] }}
                       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                       loading="eager"
                       onError={(e) => {
+                        console.log('Erreur image cover:', featuredTracks[currentSlide].coverUrl);
                         e.currentTarget.src = '/default-cover.jpg';
+                      }}
+                      onLoad={() => {
+                        console.log('Image chargée avec succès:', featuredTracks[currentSlide].coverUrl);
                       }}
                     />
                     {/* Overlay gradient futuriste */}
