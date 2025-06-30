@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
         action: 'a partagé une nouvelle création',
         track: 'Midnight Dreams',
         time: 'Il y a 2h',
-        avatar: '/default-avatar.png',
+        avatar: '/default-avatar.svg',
         color: 'from-purple-500 to-pink-500',
         type: 'new_track'
       },
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
         action: 'a commencé un live',
         track: 'Session Lo-Fi',
         time: 'Il y a 4h',
-        avatar: '/default-avatar.png',
+        avatar: '/default-avatar.svg',
         color: 'from-blue-500 to-cyan-500',
         type: 'live_started'
       },
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         action: 'a aimé votre création',
         track: 'Summer Vibes',
         time: 'Il y a 6h',
-        avatar: '/default-avatar.png',
+        avatar: '/default-avatar.svg',
         color: 'from-green-500 to-emerald-500',
         type: 'liked_track'
       }

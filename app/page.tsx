@@ -1062,7 +1062,7 @@ export default function HomePage() {
                         <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 p-4 text-center">
                           <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
                             <img
-                              src={artist.avatar || '/default-avatar.png'}
+                              src={artist.avatar || '/default-avatar.svg'}
                               alt={artist.name}
                               className="w-full h-full object-cover"
                             />
@@ -1369,7 +1369,7 @@ export default function HomePage() {
                   >
                     <div className="relative mb-2">
                       <img
-                        src={user.avatar || '/default-avatar.png'}
+                        src={user.avatar || '/default-avatar.svg'}
                         alt={user.name || user.username}
                         className="w-16 h-16 rounded-full mx-auto object-cover group-hover:ring-2 ring-purple-500/50 transition-all duration-300"
                       />
@@ -2180,11 +2180,11 @@ export default function HomePage() {
                     >
                       <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${activity.color} flex items-center justify-center`}>
                         <img
-                          src={activity.avatar}
+                          src={activity.avatar || '/default-avatar.svg'}
                           alt={activity.artist}
                           className="w-full h-full rounded-full object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.png';
+                            e.currentTarget.src = '/default-avatar.svg';
                           }}
                         />
                       </div>

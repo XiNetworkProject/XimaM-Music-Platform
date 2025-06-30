@@ -20,7 +20,7 @@ export async function POST(
     const currentUserId = session.user.id;
 
     await dbConnect();
-
+    
     const currentUser = await User.findById(currentUserId);
     const targetUser = await User.findOne({ username });
 
@@ -34,7 +34,7 @@ export async function POST(
     }
 
     const isFollowing = currentUser.following?.includes(targetUser._id);
-
+    
     if (isFollowing) {
       // Unfollow
       await User.findByIdAndUpdate(currentUserId, {

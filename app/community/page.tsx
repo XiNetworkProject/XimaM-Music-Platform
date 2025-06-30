@@ -415,7 +415,7 @@ export default function CommunityPage() {
                       >
                         <div className="flex items-center gap-3">
                           <img
-                            src={post.user.avatar || '/default-avatar.png'}
+                            src={post.user.avatar || '/default-avatar.svg'}
                             alt={post.user.name}
                             className="w-10 h-10 rounded-full object-cover border-2 border-purple-500"
                           />
@@ -515,7 +515,7 @@ export default function CommunityPage() {
                         className="glass-effect rounded-xl p-4 flex items-center gap-4"
                     >
                           <img
-                            src={user.avatar || '/default-avatar.png'}
+                            src={user.avatar || '/default-avatar.svg'}
                             alt={user.name}
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-500"
                         />
@@ -612,7 +612,7 @@ export default function CommunityPage() {
                           <div key={user._id} className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <span className="font-bold text-lg text-yellow-400 w-6 text-center">#{idx + 1}</span>
                             <img
-                              src={user.avatar || '/default-avatar.png'}
+                              src={user.avatar || '/default-avatar.svg'}
                               alt={user.name}
                               className="w-10 h-10 rounded-full object-cover border-2 border-purple-500"
                             />
