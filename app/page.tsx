@@ -854,57 +854,139 @@ export default function HomePage() {
   const fetchRadioProgram = useCallback(async () => {
     setProgramLoading(true);
     try {
-      // Essayer de récupérer la programmation depuis l'API de la radio
+      // Récupérer les données depuis l'API StreamRadio.fr
       const response = await fetch('https://manager5.streamradio.fr:2335/status-json.xsl');
       if (response.ok) {
         const data = await response.json();
+        console.log('Données StreamRadio:', data);
         
-        // Si on a des données de programmation, les utiliser
+        // Analyser les données disponibles
         if (data.icestats && data.icestats.source) {
-          // Créer une programmation basée sur les métadonnées actuelles
+          const source = data.icestats.source;
+          console.log('Métadonnées source:', source);
+          
+          // Extraire les informations de programmation
+          const currentShow = {
+            title: source.title || 'En direct',
+            artist: source.artist || 'Mixx Party',
+            genre: source.genre || 'Electronic',
+            listeners: source.listeners || 0,
+            bitrate: source.bitrate || 0,
+            server_name: source.server_name || 'Mixx Party Radio'
+          };
+          
+          console.log('Émission actuelle:', currentShow);
+          
+          // Créer une programmation basée sur les vraies données
           const currentTime = new Date();
           const currentHour = currentTime.getHours();
           const currentDay = currentTime.getDay();
           
-          // Programmation basée sur l'heure actuelle
-          const programByHour = {
-            6: { title: 'Morning Mixx', dj: 'DJ Electro', genre: 'House/Techno' },
-            10: { title: 'Midday Vibes', dj: 'DJ Groove', genre: 'Deep House' },
-            14: { title: 'Afternoon Beats', dj: 'DJ Pulse', genre: 'Progressive' },
-            18: { title: 'Evening Energy', dj: 'DJ Fusion', genre: 'Trance' },
-            22: { title: 'Night Groove', dj: 'DJ Midnight', genre: 'Dubstep' }
-          };
+          // Programmation dynamique basée sur l'heure actuelle
+          let currentProgram = '';
+          let currentDJ = '';
+          let currentGenre = '';
           
-          // Créer la programmation pour la semaine
+          if (currentHour >= 6 && currentHour < 10) {
+            currentProgram = 'Morning Mixx';
+            currentDJ = 'DJ Electro';
+            currentGenre = 'House/Techno';
+          } else if (currentHour >= 10 && currentHour < 14) {
+            currentProgram = 'Midday Vibes';
+            currentDJ = 'DJ Groove';
+            currentGenre = 'Deep House';
+          } else if (currentHour >= 14 && currentHour < 18) {
+            currentProgram = 'Afternoon Beats';
+            currentDJ = 'DJ Pulse';
+            currentGenre = 'Progressive';
+          } else if (currentHour >= 18 && currentHour < 22) {
+            currentProgram = 'Evening Energy';
+            currentDJ = 'DJ Fusion';
+            currentGenre = 'Trance';
+          } else {
+            currentProgram = 'Night Groove';
+            currentDJ = 'DJ Midnight';
+            currentGenre = 'Dubstep';
+          }
+          
+          // Mettre à jour la programmation avec les vraies données
           const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-          const realProgram = days.map((day, dayIndex) => ({
-            day,
-            shows: [
-              { time: '06:00 - 10:00', title: 'Morning Mixx', dj: 'DJ Electro', genre: 'House/Techno' },
-              { time: '10:00 - 14:00', title: 'Midday Vibes', dj: 'DJ Groove', genre: 'Deep House' },
-              { time: '14:00 - 18:00', title: 'Afternoon Beats', dj: 'DJ Pulse', genre: 'Progressive' },
-              { time: '18:00 - 22:00', title: 'Evening Energy', dj: 'DJ Fusion', genre: 'Trance' },
-              { time: '22:00 - 06:00', title: 'Night Groove', dj: 'DJ Midnight', genre: 'Dubstep' }
-            ]
-          }));
+          const realProgram = days.map((day, dayIndex) => {
+            // Si c'est le jour actuel, utiliser les vraies données
+            if (dayIndex === currentDay) {
+              return {
+                day,
+                currentShow: currentShow,
+                shows: [
+                  { 
+                    time: '06:00 - 10:00', 
+                    title: 'Morning Mixx', 
+                    dj: 'DJ Electro', 
+                    genre: 'House/Techno',
+                    isCurrent: currentHour >= 6 && currentHour < 10
+                  },
+                  { 
+                    time: '10:00 - 14:00', 
+                    title: 'Midday Vibes', 
+                    dj: 'DJ Groove', 
+                    genre: 'Deep House',
+                    isCurrent: currentHour >= 10 && currentHour < 14
+                  },
+                  { 
+                    time: '14:00 - 18:00', 
+                    title: 'Afternoon Beats', 
+                    dj: 'DJ Pulse', 
+                    genre: 'Progressive',
+                    isCurrent: currentHour >= 14 && currentHour < 18
+                  },
+                  { 
+                    time: '18:00 - 22:00', 
+                    title: 'Evening Energy', 
+                    dj: 'DJ Fusion', 
+                    genre: 'Trance',
+                    isCurrent: currentHour >= 18 && currentHour < 22
+                  },
+                  { 
+                    time: '22:00 - 06:00', 
+                    title: 'Night Groove', 
+                    dj: 'DJ Midnight', 
+                    genre: 'Dubstep',
+                    isCurrent: currentHour >= 22 || currentHour < 6
+                  }
+                ]
+              };
+            } else {
+              // Pour les autres jours, utiliser la programmation standard
+              return {
+                day,
+                shows: [
+                  { time: '06:00 - 10:00', title: 'Morning Mixx', dj: 'DJ Electro', genre: 'House/Techno' },
+                  { time: '10:00 - 14:00', title: 'Midday Vibes', dj: 'DJ Groove', genre: 'Deep House' },
+                  { time: '14:00 - 18:00', title: 'Afternoon Beats', dj: 'DJ Pulse', genre: 'Progressive' },
+                  { time: '18:00 - 22:00', title: 'Evening Energy', dj: 'DJ Fusion', genre: 'Trance' },
+                  { time: '22:00 - 06:00', title: 'Night Groove', dj: 'DJ Midnight', genre: 'Dubstep' }
+                ]
+              };
+            }
+          });
           
           setRealRadioProgram(realProgram);
+          console.log('Programmation mise à jour:', realProgram);
         } else {
-          // Fallback vers la programmation par défaut
+          console.log('Aucune donnée source trouvée, utilisation du fallback');
           setRealRadioProgram(radioProgram);
         }
       } else {
-        // Fallback vers la programmation par défaut
+        console.log('Erreur API, utilisation du fallback');
         setRealRadioProgram(radioProgram);
       }
     } catch (error) {
       console.error('Erreur récupération programmation:', error);
-      // Fallback vers la programmation par défaut
       setRealRadioProgram(radioProgram);
     } finally {
       setProgramLoading(false);
     }
-  }, []);
+  }, [radioProgram]);
 
   // Charger la programmation quand le dialog s'ouvre
   useEffect(() => {
@@ -3052,14 +3134,26 @@ export default function HomePage() {
                       </div>
                     </div>
                     
-                    <motion.button
-                      whileHover={{ scale: 1.1, rotate: 90 }}
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => setShowProgramDialog(false)}
-                      className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
-                    >
-                      <X size={20} className="text-white" />
-                    </motion.button>
+                    <div className="flex items-center space-x-3">
+                      <motion.button
+                        whileHover={{ scale: 1.05, rotate: 180 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={fetchRadioProgram}
+                        disabled={programLoading}
+                        className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
+                      >
+                        <RefreshCw size={20} className={`text-white ${programLoading ? 'animate-spin' : ''}`} />
+                      </motion.button>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.1, rotate: 90 }}
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => setShowProgramDialog(false)}
+                        className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
+                      >
+                        <X size={20} className="text-white" />
+                      </motion.button>
+                    </div>
                   </div>
                 </div>
 
@@ -3096,12 +3190,36 @@ export default function HomePage() {
                                 initial={{ opacity: 0, x: -20 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: (dayIndex * 0.1) + (showIndex * 0.05) }}
-                                className="bg-black/20 rounded-xl p-3 border border-white/10 hover:border-cyan-500/30 transition-all duration-300"
+                                className={`rounded-xl p-3 border transition-all duration-300 ${
+                                  show.isCurrent 
+                                    ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border-cyan-500/50 shadow-lg shadow-cyan-500/20' 
+                                    : 'bg-black/20 border-white/10 hover:border-cyan-500/30'
+                                }`}
                               >
                                 <div className="flex items-start justify-between mb-2">
                                   <div className="flex-1">
-                                    <h4 className="text-white font-semibold text-sm">{show.title}</h4>
+                                    <div className="flex items-center space-x-2">
+                                      <h4 className="text-white font-semibold text-sm">{show.title}</h4>
+                                      {show.isCurrent && (
+                                        <span className="inline-block px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse">
+                                          EN DIRECT
+                                        </span>
+                                      )}
+                                    </div>
                                     <p className="text-cyan-400 text-xs font-medium">{show.dj}</p>
+                                    {show.isCurrent && dayProgram.currentShow && (
+                                      <div className="mt-2 p-2 bg-black/30 rounded-lg">
+                                        <p className="text-white text-xs">
+                                          <span className="text-gray-400">Titre actuel:</span> {dayProgram.currentShow.title}
+                                        </p>
+                                        <p className="text-white text-xs">
+                                          <span className="text-gray-400">Artiste:</span> {dayProgram.currentShow.artist}
+                                        </p>
+                                        <p className="text-white text-xs">
+                                          <span className="text-gray-400">Auditeurs:</span> {formatNumber(dayProgram.currentShow.listeners)}
+                                        </p>
+                                      </div>
+                                    )}
                                   </div>
                                   <div className="text-right">
                                     <p className="text-gray-300 text-xs font-medium">{show.time}</p>
