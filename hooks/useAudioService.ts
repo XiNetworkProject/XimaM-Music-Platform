@@ -171,11 +171,40 @@ export const useAudioService = () => {
 
     const handleError = (e: Event) => {
       console.error('Erreur audio:', e);
+      
+      // Analyser le type d'erreur
+      const audio = audioRef.current;
+      let errorMessage = 'Erreur de lecture audio';
+      
+      if (audio && audio.error) {
+        switch (audio.error.code) {
+          case MediaError.MEDIA_ERR_ABORTED:
+            errorMessage = 'Lecture interrompue';
+            break;
+          case MediaError.MEDIA_ERR_NETWORK:
+            errorMessage = 'Erreur réseau - impossible de charger l\'audio';
+            break;
+          case MediaError.MEDIA_ERR_DECODE:
+            errorMessage = 'Format audio non supporté';
+            break;
+          case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+            errorMessage = 'Source audio non supportée';
+            break;
+          default:
+            errorMessage = 'Erreur de lecture audio';
+        }
+      }
+      
       setState(prev => ({ 
         ...prev, 
-        error: 'Erreur de lecture audio',
+        error: errorMessage,
         isLoading: false 
       }));
+      
+      // Réessayer automatiquement après un délai
+      setTimeout(() => {
+        setState(prev => ({ ...prev, error: null }));
+      }, 3000);
     };
 
     const handlePlay = () => {
@@ -360,14 +389,22 @@ export const useAudioService = () => {
   }, [state.currentTrack, notificationPermission]);
 
   const loadTrack = useCallback(async (track: Track) => {
-    // Éviter de recharger la même piste
-    if (lastTrackId.current === track._id && audioRef.current?.src === track.audioUrl) {
-      return;
-    }
-
     try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
-      
+      // Validation de l'URL audio
+      if (!track.audioUrl || track.audioUrl.trim() === '') {
+        throw new Error('URL audio invalide');
+      }
+
+      // Vérifier que l'URL est accessible
+      try {
+        const response = await fetch(track.audioUrl, { method: 'HEAD' });
+        if (!response.ok) {
+          throw new Error('Fichier audio inaccessible');
+        }
+      } catch (fetchError) {
+        console.warn('Impossible de vérifier l\'URL audio, tentative de chargement direct:', fetchError);
+      }
+
       if (audioRef.current) {
         // Analyser la session d'écoute de la piste précédente
         if (state.currentTrack && state.currentTime > 0) {
@@ -379,9 +416,45 @@ export const useAudioService = () => {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
         
-        // Changer la source audio
+        // Réinitialiser les erreurs
+        setState(prev => ({ ...prev, error: null, isLoading: true }));
+        
+        // Changer la source audio avec gestion d'erreur
         audioRef.current.src = track.audioUrl;
-        audioRef.current.load();
+        
+        // Attendre que l'audio soit chargé
+        await new Promise((resolve, reject) => {
+          if (!audioRef.current) {
+            reject(new Error('Élément audio non disponible'));
+            return;
+          }
+
+          const audio = audioRef.current;
+          
+          const handleCanPlay = () => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('error', handleError);
+            resolve(true);
+          };
+
+          const handleError = (e: Event) => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('error', handleError);
+            reject(new Error('Erreur de chargement audio'));
+          };
+
+          audio.addEventListener('canplay', handleCanPlay);
+          audio.addEventListener('error', handleError);
+          
+          audio.load();
+          
+          // Timeout de sécurité
+          setTimeout(() => {
+            audio.removeEventListener('canplay', handleCanPlay);
+            audio.removeEventListener('error', handleError);
+            reject(new Error('Timeout de chargement audio'));
+          }, 10000);
+        });
         
         setState(prev => ({ 
           ...prev, 
@@ -394,7 +467,13 @@ export const useAudioService = () => {
         lastTrackId.current = track._id;
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur lors du chargement de la track:', error);
+      setState(prev => ({ 
+        ...prev, 
+        error: error instanceof Error ? error.message : 'Erreur de chargement audio',
+        isLoading: false 
+      }));
+      throw error;
     }
   }, [state.currentTrack, state.currentTime, recommendations]);
 

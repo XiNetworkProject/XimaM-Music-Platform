@@ -303,8 +303,57 @@ export default function ProfileUserPage() {
   };
 
   // Gestion play track
-  const handlePlayTrack = (track: any) => {
-    playTrack(track);
+  const handlePlayTrack = async (track: any) => {
+    try {
+      // S'assurer que la track a tous les champs nécessaires
+      const trackToPlay = {
+        _id: track._id,
+        title: track.title,
+        artist: track.artist || {
+          _id: profile._id,
+          name: profile.name,
+          username: profile.username,
+          avatar: profile.avatar
+        },
+        audioUrl: track.audioUrl,
+        coverUrl: track.coverUrl,
+        duration: track.duration,
+        likes: track.likes || [],
+        comments: track.comments || [],
+        plays: track.plays || 0,
+        genre: track.genre || [],
+        isLiked: track.isLiked || false
+      };
+
+      // Ajouter la track à la liste si elle n'y est pas déjà
+      if (!audioState.tracks.find(t => t._id === track._id)) {
+        // Récupérer les détails complets de la track depuis l'API
+        const trackResponse = await fetch(`/api/tracks/${track._id}`);
+        if (trackResponse.ok) {
+          const trackData = await trackResponse.json();
+          const fullTrack = {
+            ...trackToPlay,
+            ...trackData.track
+          };
+          await playTrack(fullTrack);
+        } else {
+          // Fallback : utiliser les données disponibles
+          await playTrack(trackToPlay);
+        }
+      } else {
+        // La track est déjà dans la liste, la jouer directement
+        await playTrack(trackToPlay);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la lecture:', error);
+      // Fallback : essayer de jouer avec les données de base
+      try {
+        await playTrack(track);
+      } catch (fallbackError) {
+        console.error('Erreur fallback:', fallbackError);
+        setError('Erreur lors de la lecture de la musique');
+      }
+    }
   };
 
   // Nouvelles fonctions pour la gestion des tracks
