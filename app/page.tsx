@@ -995,6 +995,154 @@ export default function HomePage() {
     }
   }, [showProgramDialog, realRadioProgram.length, fetchRadioProgram]);
 
+  // Fonction pour récupérer les informations en temps réel de la radio
+  const fetchRadioInfo = useCallback(async () => {
+    setProgramLoading(true);
+    try {
+      // Récupérer les données depuis l'API StreamRadio.fr
+      const response = await fetch('https://manager5.streamradio.fr:2335/status-json.xsl');
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Données StreamRadio:', data);
+        
+        // Analyser les données disponibles
+        if (data.icestats && data.icestats.source) {
+          const source = data.icestats.source;
+          console.log('Métadonnées source:', source);
+          
+          // Extraire les informations en temps réel
+          const currentTrack = {
+            title: source.title || 'Titre inconnu',
+            artist: source.artist || 'Artiste inconnu',
+            genre: source.genre || 'Electronic',
+            listeners: source.listeners || 0,
+            bitrate: source.bitrate || 0,
+            server_name: source.server_name || 'Mixx Party Radio',
+            server_description: source.server_description || 'Radio en boucle continue'
+          };
+          
+          console.log('Piste actuelle:', currentTrack);
+          
+          // Créer les informations de la radio
+          const radioInfo = {
+            currentTrack,
+            status: 'EN DIRECT',
+            description: 'Radio en boucle continue - Musique électronique 24h/24',
+            features: [
+              '🎵 Diffusion en boucle continue',
+              '🎧 Musique électronique 24h/24',
+              '🎛️ Mix automatique',
+              '🌙 Ambiance nocturne',
+              '💫 Hits et nouveautés'
+            ],
+            stats: {
+              listeners: currentTrack.listeners,
+              bitrate: currentTrack.bitrate,
+              uptime: '24h/24',
+              quality: 'Haute qualité'
+            }
+          };
+          
+          setRealRadioProgram([radioInfo]);
+          console.log('Informations radio mises à jour:', radioInfo);
+        } else {
+          console.log('Aucune donnée source trouvée, utilisation du fallback');
+          setRealRadioProgram([{
+            currentTrack: {
+              title: 'Mixx Party Radio',
+              artist: 'En boucle continue',
+              genre: 'Electronic',
+              listeners: 0,
+              bitrate: 0,
+              server_name: 'Mixx Party Radio',
+              server_description: 'Radio en boucle continue'
+            },
+            status: 'EN DIRECT',
+            description: 'Radio en boucle continue - Musique électronique 24h/24',
+            features: [
+              '🎵 Diffusion en boucle continue',
+              '🎧 Musique électronique 24h/24',
+              '🎛️ Mix automatique',
+              '🌙 Ambiance nocturne',
+              '💫 Hits et nouveautés'
+            ],
+            stats: {
+              listeners: 0,
+              bitrate: 0,
+              uptime: '24h/24',
+              quality: 'Haute qualité'
+            }
+          }]);
+        }
+      } else {
+        console.log('Erreur API, utilisation du fallback');
+        setRealRadioProgram([{
+          currentTrack: {
+            title: 'Mixx Party Radio',
+            artist: 'En boucle continue',
+            genre: 'Electronic',
+            listeners: 0,
+            bitrate: 0,
+            server_name: 'Mixx Party Radio',
+            server_description: 'Radio en boucle continue'
+          },
+          status: 'EN DIRECT',
+          description: 'Radio en boucle continue - Musique électronique 24h/24',
+          features: [
+            '🎵 Diffusion en boucle continue',
+            '🎧 Musique électronique 24h/24',
+            '🎛️ Mix automatique',
+            '🌙 Ambiance nocturne',
+            '💫 Hits et nouveautés'
+          ],
+          stats: {
+            listeners: 0,
+            bitrate: 0,
+            uptime: '24h/24',
+            quality: 'Haute qualité'
+          }
+        }]);
+      }
+    } catch (error) {
+      console.error('Erreur récupération informations radio:', error);
+      setRealRadioProgram([{
+        currentTrack: {
+          title: 'Mixx Party Radio',
+          artist: 'En boucle continue',
+          genre: 'Electronic',
+          listeners: 0,
+          bitrate: 0,
+          server_name: 'Mixx Party Radio',
+          server_description: 'Radio en boucle continue'
+        },
+        status: 'EN DIRECT',
+        description: 'Radio en boucle continue - Musique électronique 24h/24',
+        features: [
+          '🎵 Diffusion en boucle continue',
+          '🎧 Musique électronique 24h/24',
+          '🎛️ Mix automatique',
+          '🌙 Ambiance nocturne',
+          '💫 Hits et nouveautés'
+        ],
+        stats: {
+          listeners: 0,
+          bitrate: 0,
+          uptime: '24h/24',
+          quality: 'Haute qualité'
+        }
+      }]);
+    } finally {
+      setProgramLoading(false);
+    }
+  }, []);
+
+  // Charger les informations quand le dialog s'ouvre
+  useEffect(() => {
+    if (showProgramDialog && realRadioProgram.length === 0) {
+      fetchRadioInfo();
+    }
+  }, [showProgramDialog, realRadioProgram.length, fetchRadioInfo]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
@@ -1890,7 +2038,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    Radio Mixx Party
+                    Mixx Party Radio
                   </h2>
                   <p className="text-gray-400 text-sm sm:text-base lg:text-lg">Le meilleur de la musique électronique et dance</p>
                 </div>
@@ -2018,13 +2166,10 @@ export default function HomePage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        console.log('Bouton programmation cliqué');
-                        setShowProgramDialog(true);
-                      }}
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide transition-colors duration-300 self-center sm:self-start cursor-pointer relative z-10"
+                      onClick={() => setShowProgramDialog(true)}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl text-purple-300 text-sm font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 cursor-pointer z-10"
                     >
-                      Voir la programmation
+                      Informations en temps réel
                     </motion.button>
                   </div>
                 </div>
@@ -3128,9 +3273,9 @@ export default function HomePage() {
                       </div>
                       <div>
                         <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                          Programmation Mixx Party
+                          Mixx Party Radio
                         </h2>
-                        <p className="text-gray-400">Découvrez notre grille de programmes</p>
+                        <p className="text-gray-400">Informations en temps réel</p>
                       </div>
                     </div>
                     
@@ -3138,7 +3283,7 @@ export default function HomePage() {
                       <motion.button
                         whileHover={{ scale: 1.05, rotate: 180 }}
                         whileTap={{ scale: 0.95 }}
-                        onClick={fetchRadioProgram}
+                        onClick={fetchRadioInfo}
                         disabled={programLoading}
                         className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
                       >
@@ -3158,109 +3303,130 @@ export default function HomePage() {
                 </div>
 
                 {/* Contenu du dialog */}
-                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                <div className="flex-1 overflow-y-auto p-6">
                   {programLoading ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center justify-center h-64">
                       <div className="text-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 mx-auto mb-4"></div>
-                        <p className="text-gray-400">Chargement de la programmation...</p>
+                        <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-400">Chargement des informations...</p>
                       </div>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {(realRadioProgram.length > 0 ? realRadioProgram : radioProgram).map((dayProgram: any, dayIndex: number) => (
+                  ) : realRadioProgram.length > 0 ? (
+                    <div className="space-y-6">
+                      {realRadioProgram.map((radioInfo: any, index: number) => (
                         <motion.div
-                          key={dayProgram.day}
+                          key={index}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: dayIndex * 0.1 }}
-                          className="bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4"
+                          transition={{ delay: index * 0.1 }}
+                          className="space-y-6"
                         >
-                          <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center">
-                              <span className="text-white font-bold text-sm">{dayProgram.day.charAt(0)}</span>
+                          {/* Piste actuelle */}
+                          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-2xl p-6 border border-cyan-500/30">
+                            <div className="flex items-center space-x-3 mb-4">
+                              <div className="w-3 h-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse"></div>
+                              <h3 className="text-lg font-bold text-white">Piste actuelle</h3>
                             </div>
-                            <h3 className="text-lg font-bold text-white">{dayProgram.day}</h3>
-                          </div>
-                          
-                          <div className="space-y-3">
-                            {dayProgram.shows.map((show: any, showIndex: number) => (
-                              <motion.div
-                                key={showIndex}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: (dayIndex * 0.1) + (showIndex * 0.05) }}
-                                className={`rounded-xl p-3 border transition-all duration-300 ${
-                                  show.isCurrent 
-                                    ? 'bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border-cyan-500/50 shadow-lg shadow-cyan-500/20' 
-                                    : 'bg-black/20 border-white/10 hover:border-cyan-500/30'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="flex-1">
-                                    <div className="flex items-center space-x-2">
-                                      <h4 className="text-white font-semibold text-sm">{show.title}</h4>
-                                      {show.isCurrent && (
-                                        <span className="inline-block px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse">
-                                          EN DIRECT
-                                        </span>
-                                      )}
-                                    </div>
-                                    <p className="text-cyan-400 text-xs font-medium">{show.dj}</p>
-                                    {show.isCurrent && dayProgram.currentShow && (
-                                      <div className="mt-2 p-2 bg-black/30 rounded-lg">
-                                        <p className="text-white text-xs">
-                                          <span className="text-gray-400">Titre actuel:</span> {dayProgram.currentShow.title}
-                                        </p>
-                                        <p className="text-white text-xs">
-                                          <span className="text-gray-400">Artiste:</span> {dayProgram.currentShow.artist}
-                                        </p>
-                                        <p className="text-white text-xs">
-                                          <span className="text-gray-400">Auditeurs:</span> {formatNumber(dayProgram.currentShow.listeners)}
-                                        </p>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-gray-300 text-xs font-medium">{show.time}</p>
-                                    <span className="inline-block px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 text-xs rounded-full mt-1">
-                                      {show.genre}
-                                    </span>
-                                  </div>
+                            
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-white font-semibold text-lg">{radioInfo.currentTrack.title}</p>
+                                  <p className="text-cyan-400 text-sm">{radioInfo.currentTrack.artist}</p>
                                 </div>
-                              </motion.div>
-                            ))}
+                                <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse">
+                                  EN DIRECT
+                                </span>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div className="bg-black/20 rounded-lg p-3">
+                                  <p className="text-gray-400">Genre</p>
+                                  <p className="text-white font-medium">{radioInfo.currentTrack.genre}</p>
+                                </div>
+                                <div className="bg-black/20 rounded-lg p-3">
+                                  <p className="text-gray-400">Auditeurs</p>
+                                  <p className="text-white font-medium">{formatNumber(radioInfo.stats.listeners)}</p>
+                                </div>
+                                <div className="bg-black/20 rounded-lg p-3">
+                                  <p className="text-gray-400">Qualité</p>
+                                  <p className="text-white font-medium">{radioInfo.stats.bitrate}kbps</p>
+                                </div>
+                                <div className="bg-black/20 rounded-lg p-3">
+                                  <p className="text-gray-400">Statut</p>
+                                  <p className="text-white font-medium">{radioInfo.stats.uptime}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Description de la radio */}
+                          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-6 border border-purple-500/30">
+                            <h3 className="text-lg font-bold text-white mb-4">À propos de Mixx Party Radio</h3>
+                            <p className="text-gray-300 mb-4">{radioInfo.description}</p>
+                            
+                            <div className="space-y-2">
+                              {radioInfo.features.map((feature: string, featureIndex: number) => (
+                                <div key={featureIndex} className="flex items-center space-x-3">
+                                  <span className="text-2xl">{feature.split(' ')[0]}</span>
+                                  <span className="text-gray-300">{feature.split(' ').slice(1).join(' ')}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Statistiques */}
+                          <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-2xl p-6 border border-pink-500/30">
+                            <h3 className="text-lg font-bold text-white mb-4">Statistiques</h3>
+                            <div className="grid grid-cols-2 gap-4">
+                              <div className="text-center">
+                                <div className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                                  {formatNumber(radioInfo.stats.listeners)}
+                                </div>
+                                <p className="text-gray-400 text-sm">Auditeurs</p>
+                              </div>
+                              <div className="text-center">
+                                <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                                  {radioInfo.stats.bitrate}
+                                </div>
+                                <p className="text-gray-400 text-sm">kbps</p>
+                              </div>
+                            </div>
                           </div>
                         </motion.div>
                       ))}
                     </div>
-                  )}
-                  
-                  {/* Footer du dialog */}
-                  <div className="mt-6 pt-6 border-t border-white/10">
-                    <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                      <div className="flex items-center space-x-4 text-sm">
-                        <div className="flex items-center space-x-2 text-cyan-400">
-                          <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                          <span className="font-medium">Programme en direct 24h/24</span>
-                        </div>
-                        <div className="flex items-center space-x-2 text-green-400">
-                          <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
-                          <span className="font-medium">
-                            {realRadioProgram.length > 0 ? 'Programmation en temps réel' : 'Programmation par défaut'}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowProgramDialog(false)}
-                        className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/30"
-                      >
-                        Fermer
-                      </motion.button>
+                  ) : (
+                    <div className="text-center text-gray-400">
+                      <p>Aucune information disponible</p>
                     </div>
+                  )}
+                </div>
+
+                {/* Footer du dialog */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                  <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center space-x-2 text-cyan-400">
+                        <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                        <span className="font-medium">Programme en direct 24h/24</span>
+                      </div>
+                      <div className="flex items-center space-x-2 text-green-400">
+                        <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
+                        <span className="font-medium">
+                          {realRadioProgram.length > 0 ? 'Programmation en temps réel' : 'Programmation par défaut'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowProgramDialog(false)}
+                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/30"
+                    >
+                      Fermer
+                    </motion.button>
                   </div>
                 </div>
               </div>
