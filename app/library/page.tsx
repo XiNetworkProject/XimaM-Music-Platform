@@ -555,7 +555,7 @@ export default function LibraryPage() {
                         className="w-full flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.jpg'}
+                          src={playlist.coverUrl || '/default-cover.svg'}
                           alt={playlist.name}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -641,7 +641,7 @@ export default function LibraryPage() {
                         >
                           <span className="text-white/40 text-sm w-8">{index + 1}</span>
                           <img
-                            src={track.coverUrl || '/default-cover.jpg'}
+                            src={track.coverUrl || '/default-cover.svg'}
                             alt={track.title}
                             className="w-10 h-10 rounded object-cover"
                           />
@@ -708,7 +708,7 @@ export default function LibraryPage() {
                               {viewMode === 'grid' ? (
                                 <>
                             <img
-                              src={playlist.coverUrl || '/default-cover.jpg'}
+                              src={playlist.coverUrl || '/default-cover.svg'}
                               alt={playlist.name}
                               className="w-full h-32 object-cover rounded-lg mb-3"
                             />
@@ -722,7 +722,7 @@ export default function LibraryPage() {
                               ) : (
                                 <>
                                   <img
-                                    src={playlist.coverUrl || '/default-cover.jpg'}
+                                    src={playlist.coverUrl || '/default-cover.svg'}
                                     alt={playlist.name}
                                     className="w-16 h-16 rounded object-cover"
                                   />
@@ -777,7 +777,7 @@ export default function LibraryPage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.jpg'}
+                          src={track.coverUrl || '/default-cover.svg'}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -856,7 +856,7 @@ export default function LibraryPage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.jpg'}
+                          src={track.coverUrl || '/default-cover.svg'}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -932,7 +932,7 @@ export default function LibraryPage() {
                           className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                         >
                           <img
-                            src={track.coverUrl || '/default-cover.jpg'}
+                            src={track.coverUrl || '/default-cover.svg'}
                             alt={track.title}
                             className="w-12 h-12 rounded object-cover"
                           />

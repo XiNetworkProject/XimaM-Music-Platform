@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       tags: trackData.tags || [],
       audioUrl: audioUrl,
       audioPublicId: audioPublicId,
-      coverUrl: coverUrl || '/default-cover.jpg',
+      coverUrl: coverUrl || '/default-cover.svg',
       coverPublicId: coverPublicId || null,
       duration: duration,
       artist: session.user.id,

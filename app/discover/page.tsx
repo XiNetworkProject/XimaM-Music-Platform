@@ -394,11 +394,11 @@ export default function DiscoverPage() {
                   {/* Image de couverture */}
                   <div className="relative aspect-square">
                     <img
-                      src={track.coverUrl || '/default-cover.jpg'}
+                      src={track.coverUrl || '/default-cover.svg'}
                       alt={track.title}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
-                              e.currentTarget.src = '/default-cover.jpg';
+                              e.currentTarget.src = '/default-cover.svg';
                             }}
                     />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />

@@ -432,7 +432,7 @@ export default function CommunityPage() {
                         {post.track && (
                           <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <img
-                              src={post.track.coverUrl || '/default-cover.jpg'}
+                              src={post.track.coverUrl || '/default-cover.svg'}
                               alt={post.track.title}
                               className="w-12 h-12 rounded object-cover"
                             />
@@ -451,7 +451,7 @@ export default function CommunityPage() {
                         {post.playlist && (
                           <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <img
-                              src={post.playlist.coverUrl || '/default-cover.jpg'}
+                              src={post.playlist.coverUrl || '/default-cover.svg'}
                               alt={post.playlist.name}
                               className="w-12 h-12 rounded object-cover"
                             />
@@ -571,7 +571,7 @@ export default function CommunityPage() {
                         onClick={() => router.push(`/playlists/${playlist._id}`)}
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.jpg'}
+                          src={playlist.coverUrl || '/default-cover.svg'}
                           alt={playlist.name}
                           className="w-full h-32 object-cover rounded-lg mb-2"
                         />
@@ -636,7 +636,7 @@ export default function CommunityPage() {
                           <div key={playlist._id} className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <span className="font-bold text-lg text-pink-500 w-6 text-center">#{idx + 1}</span>
                             <img
-                              src={playlist.coverUrl || '/default-cover.jpg'}
+                              src={playlist.coverUrl || '/default-cover.svg'}
                               alt={playlist.name}
                               className="w-10 h-10 rounded object-cover"
                             />
