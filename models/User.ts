@@ -4,6 +4,7 @@ export interface IUser extends Document {
   name: string;
   email: string;
   username: string;
+  password: string;
   avatar?: string;
   avatarPublicId?: string;
   banner?: string;
@@ -67,6 +68,11 @@ const UserSchema = new Schema<IUser>({
     minlength: [3, 'Le nom d\'utilisateur doit contenir au moins 3 caractères'],
     maxlength: [30, 'Le nom d\'utilisateur ne peut pas dépasser 30 caractères'],
     match: [/^[a-zA-Z0-9_]+$/, 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres et underscores']
+  },
+  password: {
+    type: String,
+    required: [true, 'Le mot de passe est requis'],
+    minlength: [6, 'Le mot de passe doit contenir au moins 6 caractères']
   },
   avatar: {
     type: String,
