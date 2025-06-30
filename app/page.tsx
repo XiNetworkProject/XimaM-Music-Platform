@@ -1644,7 +1644,7 @@ export default function HomePage() {
         </section>
 
         {/* Section Radio Mixx Party - Style Futuriste */}
-        <section className="container mx-auto px-8">
+        <section className="container mx-auto px-4 sm:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -1652,26 +1652,26 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <div className="flex items-center justify-between mb-8">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+              <div className="flex items-center space-x-3 sm:space-x-4">
                 <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                    <Radio size={24} className="text-white" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <Radio size={20} className="sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                     Radio Mixx Party
                   </h2>
-                  <p className="text-gray-400 text-lg">Le meilleur de la musique électronique et dance</p>
+                  <p className="text-gray-400 text-sm sm:text-base lg:text-lg">Le meilleur de la musique électronique et dance</p>
                 </div>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <div className="flex items-center space-x-2 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm border border-cyan-500/30 px-4 py-2 rounded-full">
-                    <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                    <span className="text-cyan-400 text-sm font-semibold tracking-wider">EN DIRECT</span>
+                  <div className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm border border-cyan-500/30 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                    <span className="text-cyan-400 text-xs sm:text-sm font-semibold tracking-wider">EN DIRECT</span>
                   </div>
                   <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-full blur-sm animate-pulse"></div>
                 </div>
@@ -1680,44 +1680,44 @@ export default function HomePage() {
             
             <div className="relative group">
               {/* Effet de fond futuriste */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl sm:rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
               
-              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 overflow-hidden">
+              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 overflow-hidden">
                 {/* Effet de grille futuriste */}
                 <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-purple-500/5 opacity-50"></div>
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
                 
-                <div className="relative flex items-center justify-between">
+                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
                   <div className="flex-1">
-                    <div className="flex items-center space-x-6 mb-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-6 mb-4 sm:mb-6">
                       {/* Logo avec effet futuriste */}
-                      <div className="relative">
-                        <div className="w-20 h-20 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shadow-purple-500/30">
+                      <div className="relative self-center sm:self-start">
+                        <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shadow-purple-500/30">
                           <img
                             src="/mixxparty1.png"
                             alt="Mixx Party"
-                            className="w-16 h-16 object-contain"
+                            className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 object-contain"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none';
                               e.currentTarget.nextElementSibling?.classList.remove('hidden');
                             }}
                           />
-                          <Radio size={32} className="text-white hidden" />
+                          <Radio size={24} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white hidden" />
                         </div>
                         {/* Effet de lueur */}
-                        <div className="absolute -inset-2 bg-gradient-to-r from-cyan-400/30 via-purple-500/30 to-pink-500/30 rounded-2xl blur-lg animate-pulse"></div>
+                        <div className="absolute -inset-1 sm:-inset-2 bg-gradient-to-r from-cyan-400/30 via-purple-500/30 to-pink-500/30 rounded-xl sm:rounded-2xl blur-lg animate-pulse"></div>
                       </div>
                       
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-white mb-2 tracking-wide">{radioInfo.name}</h3>
-                        <p className="text-gray-300 text-base mb-3 leading-relaxed">{radioInfo.description}</p>
-                        <div className="flex items-center space-x-6 text-sm">
-                          <div className="flex items-center space-x-2 text-cyan-400">
-                            <Headphones size={16} />
+                      <div className="flex-1 text-center sm:text-left">
+                        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2 tracking-wide">{radioInfo.name}</h3>
+                        <p className="text-gray-300 text-sm sm:text-base mb-2 sm:mb-3 leading-relaxed">{radioInfo.description}</p>
+                        <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 lg:space-x-6 text-xs sm:text-sm">
+                          <div className="flex items-center space-x-1 sm:space-x-2 text-cyan-400">
+                            <Headphones size={12} className="sm:w-4 sm:h-4" />
                             <span className="font-medium">{formatNumber(radioInfo.listeners)} auditeurs</span>
                           </div>
-                          <div className="flex items-center space-x-2 text-green-400">
-                            <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
+                          <div className="flex items-center space-x-1 sm:space-x-2 text-green-400">
+                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
                             <span className="font-medium">En direct</span>
                           </div>
                         </div>
@@ -1725,48 +1725,48 @@ export default function HomePage() {
                     </div>
                     
                     {/* Section "En cours de lecture" modernisée */}
-                    <div className="bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-5 mb-6">
-                      <div className="flex items-center justify-between">
+                    <div className="bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-sm border border-white/20 rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 mb-4 sm:mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                         <div className="flex-1">
-                          <p className="text-gray-400 text-sm font-medium tracking-wide mb-1">EN COURS DE LECTURE</p>
-                          <p className="text-white font-semibold text-lg">{radioInfo.currentTrack}</p>
+                          <p className="text-gray-400 text-xs sm:text-sm font-medium tracking-wide mb-1">EN COURS DE LECTURE</p>
+                          <p className="text-white font-semibold text-sm sm:text-base lg:text-lg break-words">{radioInfo.currentTrack}</p>
                         </div>
-                        <div className="flex items-center space-x-3">
-                          <div className="w-3 h-3 bg-gradient-to-r from-red-400 to-pink-500 rounded-full animate-pulse"></div>
-                          <span className="text-red-400 text-sm font-bold tracking-wider">LIVE</span>
+                        <div className="flex items-center space-x-2 sm:space-x-3 self-start sm:self-center">
+                          <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-red-400 to-pink-500 rounded-full animate-pulse"></div>
+                          <span className="text-red-400 text-xs sm:text-sm font-bold tracking-wider">LIVE</span>
                         </div>
                       </div>
                     </div>
                   </div>
                   
                   {/* Bouton de lecture futuriste */}
-                  <div className="flex flex-col items-center space-y-4 ml-8">
+                  <div className="flex flex-col items-center space-y-3 sm:space-y-4 lg:ml-8">
                     <motion.button
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleRadioToggle}
-                      className={`relative w-20 h-20 rounded-2xl flex items-center justify-center transition-all duration-500 ${
+                      className={`relative w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-500 ${
                         isRadioPlaying 
                           ? 'bg-gradient-to-br from-red-500 to-pink-500 shadow-2xl shadow-red-500/40' 
                           : 'bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 shadow-2xl shadow-purple-500/40 hover:shadow-purple-500/60'
                       }`}
                     >
                       {/* Effet de lueur */}
-                      <div className={`absolute -inset-2 rounded-2xl blur-lg transition-all duration-500 ${
+                      <div className={`absolute -inset-1 sm:-inset-2 rounded-xl sm:rounded-2xl blur-lg transition-all duration-500 ${
                         isRadioPlaying 
                           ? 'bg-gradient-to-r from-red-500/30 to-pink-500/30 animate-pulse' 
                           : 'bg-gradient-to-r from-cyan-400/30 via-purple-500/30 to-pink-500/30'
                       }`}></div>
                       
                       {isRadioPlaying ? (
-                        <Pause size={28} className="text-white relative z-10" />
+                        <Pause size={20} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white relative z-10" />
                       ) : (
-                        <Play size={28} className="text-white relative z-10 ml-1" />
+                        <Play size={20} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white relative z-10 ml-0.5 sm:ml-1" />
                       )}
                     </motion.button>
                     
                     <div className="text-center">
-                      <p className="text-white font-semibold text-sm tracking-wide">
+                      <p className="text-white font-semibold text-xs sm:text-sm tracking-wide">
                         {isRadioPlaying ? 'Écouter' : 'Écouter'}
                       </p>
                       <p className="text-gray-400 text-xs font-medium">Mixx Party</p>
@@ -1775,22 +1775,22 @@ export default function HomePage() {
                 </div>
                 
                 {/* Section infos en bas */}
-                <div className="mt-8 pt-6 border-t border-white/10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-6 text-sm">
-                      <div className="flex items-center space-x-2 text-gray-300">
-                        <Users size={16} />
+                <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-white/10">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                    <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 lg:space-x-6 text-xs sm:text-sm">
+                      <div className="flex items-center space-x-1 sm:space-x-2 text-gray-300">
+                        <Users size={12} className="sm:w-4 sm:h-4" />
                         <span className="font-medium">{formatNumber(radioInfo.listeners)} auditeurs actifs</span>
                       </div>
-                      <div className="flex items-center space-x-2 text-gray-300">
-                        <Clock size={16} />
+                      <div className="flex items-center space-x-1 sm:space-x-2 text-gray-300">
+                        <Clock size={12} className="sm:w-4 sm:h-4" />
                         <span className="font-medium">24h/24</span>
                       </div>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      className="text-cyan-400 hover:text-cyan-300 font-semibold text-sm tracking-wide transition-colors duration-300"
+                      className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide transition-colors duration-300 self-center sm:self-start"
                     >
                       Voir la programmation
                     </motion.button>
