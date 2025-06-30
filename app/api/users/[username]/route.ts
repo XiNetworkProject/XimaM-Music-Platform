@@ -30,6 +30,21 @@ export async function GET(
       );
     }
 
+    // Vérifier si l'utilisateur connecté suit ce profil
+    let isFollowing = false;
+    try {
+      const session = await getServerSession(authOptions);
+      if (session?.user?.email) {
+        const currentUser = await User.findOne({ email: session.user.email });
+        if (currentUser) {
+          isFollowing = currentUser.following.includes(user._id);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur vérification follow:', error);
+      // Continue sans l'info follow si erreur
+    }
+
     // Récupérer les données populées séparément pour éviter les erreurs
     let followers = [];
     let following = [];
@@ -128,6 +143,7 @@ export async function GET(
       likeCount: likes.length,
       totalPlays,
       totalLikes,
+      isFollowing,
       followers: followers.map((follower: any) => ({
         ...follower,
         _id: follower._id.toString()
