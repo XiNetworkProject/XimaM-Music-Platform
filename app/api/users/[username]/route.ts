@@ -32,12 +32,14 @@ export async function GET(
 
     // Vérifier si l'utilisateur connecté suit ce profil
     let isFollowing = false;
+    let sessionUserId = null;
     try {
       const session = await getServerSession(authOptions);
       if (session?.user?.email) {
         const currentUser = await User.findOne({ email: session.user.email });
         if (currentUser) {
           isFollowing = currentUser.following.includes(user._id);
+          sessionUserId = currentUser._id.toString();
         }
       }
     } catch (error) {
@@ -79,7 +81,7 @@ export async function GET(
       const userWithTracks = await User.findById(user._id)
         .populate({
           path: 'tracks',
-          select: 'title coverUrl duration plays likes createdAt',
+          select: 'title coverUrl duration plays likes createdAt isFeatured featuredBanner isPublic description genre tags',
           populate: {
             path: 'artist',
             select: 'name username avatar'
@@ -87,6 +89,10 @@ export async function GET(
         })
         .lean() as any;
       tracks = userWithTracks?.tracks || [];
+      // Filtrer les tracks : si ce n'est pas le propriétaire, ne garder que les publiques
+      if (!sessionUserId || sessionUserId !== user._id.toString()) {
+        tracks = tracks.filter((track: any) => track.isPublic);
+      }
     } catch (error) {
       console.error('Erreur populate tracks:', error);
       tracks = [];
