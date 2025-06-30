@@ -602,16 +602,27 @@ export default function HomePage() {
   // Fonction pour récupérer l'URL de streaming StreamRadio
   const fetchStreamUrl = async () => {
     try {
-      const response = await fetch('https://manager5.streamradio.fr:1570/api/links/?t=web&l=pmjadhmu&c=1');
-      if (response.ok) {
-        const data = await response.json();
-        // Adapter selon la structure de réponse de StreamRadio
-        if (data.streamUrl) {
-          setStreamUrl(data.streamUrl);
-        }
-      }
+      // URL directe HTTPS pour le flux StreamRadio Mixx Party
+      const directStreamUrl = 'https://manager5.streamradio.fr:2335/stream';
+      setStreamUrl(directStreamUrl);
+      console.log('URL de streaming configurée:', directStreamUrl);
     } catch (error) {
       console.error('Erreur récupération URL streaming:', error);
+    }
+  };
+
+  // Fonction pour récupérer les métadonnées du flux
+  const fetchRadioMetadata = async () => {
+    try {
+      const response = await fetch('http://manager5.streamradio.fr:2330/index.html');
+      if (response.ok) {
+        const html = await response.text();
+        // Parser le HTML pour extraire les métadonnées
+        // Adapter selon la structure de la page de statut
+        console.log('Métadonnées radio récupérées');
+      }
+    } catch (error) {
+      console.error('Erreur récupération métadonnées:', error);
     }
   };
 
@@ -634,13 +645,16 @@ export default function HomePage() {
           await fetchStreamUrl();
         }
         
+        // Récupérer les métadonnées du flux
+        await fetchRadioMetadata();
+        
         // Créer un nouvel élément audio
         const audio = new Audio();
         audio.crossOrigin = 'anonymous';
         audio.preload = 'none';
         
         // Utiliser l'URL de streaming ou une URL de fallback
-        const finalStreamUrl = streamUrl || 'https://manager5.streamradio.fr:1570/api/links/?t=web&l=pmjadhmu&c=1';
+        const finalStreamUrl = streamUrl || 'https://manager5.streamradio.fr:2335/stream';
         audio.src = finalStreamUrl;
         
         // Gestion des événements
