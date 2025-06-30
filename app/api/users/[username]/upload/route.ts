@@ -10,6 +10,15 @@ export async function POST(
   { params }: { params: { username: string } }
 ) {
   try {
+    // Vérifier les variables d'environnement Cloudinary
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error('Variables d\'environnement Cloudinary manquantes');
+      return NextResponse.json(
+        { error: 'Configuration Cloudinary manquante' },
+        { status: 500 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       return NextResponse.json(
@@ -21,7 +30,11 @@ export async function POST(
     await dbConnect();
     
     if (!isConnected()) {
-      await dbConnect();
+      console.error('Impossible de se connecter à la base de données');
+      return NextResponse.json(
+        { error: 'Erreur de connexion à la base de données' },
+        { status: 500 }
+      );
     }
     
     const { username } = params;
@@ -73,6 +86,8 @@ export async function POST(
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
+    console.log(`Upload ${type} pour ${username}, taille: ${buffer.length} bytes`);
+    
     // Upload vers Cloudinary
     const folder = type === 'avatar' ? 'ximam/avatars' : 'ximam/banners';
     const uploadResult = await uploadImage(buffer, {
@@ -85,11 +100,14 @@ export async function POST(
     });
     
     if (!uploadResult.secure_url) {
+      console.error('Upload Cloudinary échoué:', uploadResult);
       return NextResponse.json(
         { error: 'Erreur lors de l\'upload de l\'image' },
         { status: 500 }
       );
     }
+    
+    console.log(`Upload réussi: ${uploadResult.secure_url}`);
     
     // Mettre à jour l'utilisateur avec la nouvelle image
     const updateData: any = {};
@@ -108,6 +126,7 @@ export async function POST(
       .lean() as any;
     
     if (!updatedUser) {
+      console.error('Échec de la mise à jour de l\'utilisateur');
       return NextResponse.json(
         { error: 'Erreur lors de la mise à jour du profil' },
         { status: 500 }
