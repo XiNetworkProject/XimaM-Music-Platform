@@ -119,13 +119,10 @@ export async function POST(
     const folder = type === 'avatar' ? 'ximam/avatars' : 'ximam/banners';
     console.log('📁 Dossier Cloudinary:', folder);
     
+    // Upload simplifié sans options problématiques
     const uploadResult = await uploadImage(buffer, {
-      folder,
-      width: type === 'avatar' ? 400 : 1200,
-      height: type === 'avatar' ? 400 : 400,
-      crop: 'fill',
-      gravity: 'auto',
-      quality: 'auto'
+      folder
+      // Retiré temporairement: width, height, crop, gravity, quality
     });
     
     if (!uploadResult.secure_url) {

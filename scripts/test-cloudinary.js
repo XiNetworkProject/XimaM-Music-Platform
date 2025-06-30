@@ -65,6 +65,31 @@ async function testCloudinary() {
     console.error('Détails erreur:', error);
   }
   
+  // Test avec les options problématiques de l'API
+  try {
+    console.log('\nTest upload avec options API...');
+    const apiOptionsUploadResult = await cloudinary.uploader.upload(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      {
+        folder: 'ximam/avatars',
+        public_id: 'test-api-options',
+        width: 400,
+        height: 400,
+        crop: 'fill',
+        gravity: 'auto',
+        quality: 'auto'
+      }
+    );
+    console.log('✅ Upload avec options API réussi:', apiOptionsUploadResult.secure_url);
+    
+    // Nettoyer le fichier de test
+    await cloudinary.uploader.destroy(apiOptionsUploadResult.public_id);
+    console.log('✅ Fichier options API test supprimé');
+  } catch (error) {
+    console.error('❌ Erreur upload avec options API:', error.message);
+    console.error('Détails erreur:', error);
+  }
+  
   console.log('=== FIN TEST CLOUDINARY ===');
 }
 
