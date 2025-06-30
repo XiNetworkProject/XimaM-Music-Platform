@@ -134,7 +134,34 @@ export async function POST(
       
     } else if (type === 'banner') {
       console.log('📤 Upload banner pour', username);
-      result = await uploadImage(buffer, { folder: 'ximam/banners' });
+      // Fallback triple comme pour l'avatar
+      try {
+        console.log('🔄 Début upload Cloudinary (méthode simple)...');
+        const uploadOptions = {
+          folder: 'ximam/banners',
+          resource_type: 'image',
+          format: 'auto',
+          quality: 'auto'
+        };
+        console.log('Options:', uploadOptions);
+        result = await uploadImage(buffer, uploadOptions);
+        console.log('✅ Upload réussi avec méthode simple');
+      } catch (simpleError) {
+        console.log('❌ Échec méthode simple, essai méthode alternative...');
+        try {
+          result = await uploadImage(buffer, {});
+          console.log('✅ Upload réussi avec méthode alternative');
+        } catch (altError) {
+          console.log('❌ Échec méthode alternative, essai API REST directe...');
+          try {
+            result = await uploadImageDirect(buffer, { folder: 'ximam/banners' });
+            console.log('✅ Upload réussi avec API REST directe');
+          } catch (restError) {
+            console.error('❌ Échec API REST directe:', restError);
+            throw restError;
+          }
+        }
+      }
     } else {
       console.log('❌ Type d\'upload non supporté:', type);
       return NextResponse.json({ error: 'Type d\'upload non supporté' }, { status: 400 });
@@ -155,7 +182,7 @@ export async function POST(
     console.log('=== FIN UPLOAD API SUCCES ===');
     return NextResponse.json({
       success: true,
-      url: result.secure_url,
+      imageUrl: result.secure_url,
       publicId: result.public_id
     });
 
