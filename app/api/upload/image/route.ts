@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { uploadImage } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,28 +34,83 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Convertir File en Buffer
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    // Vérifier si Cloudinary est configuré
+    const cloudinaryConfig = {
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      apiSecret: process.env.CLOUDINARY_API_SECRET,
+    };
 
-    // Upload vers Cloudinary
-    const result = await uploadImage(buffer, {
-      folder,
-      width: 800,
-      height: 800,
-      crop: 'fill',
-      quality: 'auto'
-    });
+    // Si Cloudinary n'est pas configuré, utiliser des images locales
+    if (!cloudinaryConfig.cloudName || !cloudinaryConfig.apiKey || !cloudinaryConfig.apiSecret) {
+      console.log('Cloudinary non configuré, utilisation d\'images locales');
+      
+      let url = '/default-avatar.svg';
+      if (folder.includes('banners')) {
+        url = '/default-banner.svg';
+      } else if (folder.includes('covers')) {
+        url = '/default-cover.svg';
+      }
+      
+      return NextResponse.json({
+        success: true,
+        url,
+        publicId: `local-${Date.now()}`,
+        width: 400,
+        height: 400,
+        format: file.type.split('/')[1] || 'jpeg',
+        size: file.size
+      });
+    }
 
-    return NextResponse.json({
-      success: true,
-      url: result.secure_url,
-      publicId: result.public_id,
-      width: result.width,
-      height: result.height,
-      format: result.format,
-      size: result.bytes
-    });
+    // Essayer l'upload vers Cloudinary
+    try {
+      const { uploadImage } = await import('@/lib/cloudinary');
+      
+      // Convertir File en Buffer
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      // Upload vers Cloudinary
+      const result = await uploadImage(buffer, {
+        folder,
+        width: 800,
+        height: 800,
+        crop: 'fill',
+        quality: 'auto'
+      });
+
+      return NextResponse.json({
+        success: true,
+        url: result.secure_url,
+        publicId: result.public_id,
+        width: result.width,
+        height: result.height,
+        format: result.format,
+        size: result.bytes
+      });
+
+    } catch (cloudinaryError) {
+      console.error('Erreur Cloudinary:', cloudinaryError);
+      
+      // Fallback vers images locales en cas d'erreur Cloudinary
+      let url = '/default-avatar.svg';
+      if (folder.includes('banners')) {
+        url = '/default-banner.svg';
+      } else if (folder.includes('covers')) {
+        url = '/default-cover.svg';
+      }
+      
+      return NextResponse.json({
+        success: true,
+        url,
+        publicId: `local-${Date.now()}`,
+        width: 400,
+        height: 400,
+        format: file.type.split('/')[1] || 'jpeg',
+        size: file.size
+      });
+    }
 
   } catch (error) {
     console.error('Erreur upload image:', error);

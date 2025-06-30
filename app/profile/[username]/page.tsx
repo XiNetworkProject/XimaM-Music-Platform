@@ -208,10 +208,17 @@ export default function ProfileUserPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Erreur lors de l\'upload');
+        const errorText = await response.text();
+        console.error('Erreur API upload:', response.status, errorText);
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
       
       const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Erreur lors de l\'upload');
+      }
+      
       return result.url;
     } catch (error) {
       console.error('Erreur upload image:', error);
