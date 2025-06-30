@@ -60,6 +60,9 @@ export default function ProfileUserPage() {
   const [likeLoading, setLikeLoading] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
+  // État pour l'affichage des tracks
+  const [trackViewMode, setTrackViewMode] = useState<'grid' | 'list'>('grid');
+
   // Charger le profil utilisateur
   useEffect(() => {
     const fetchProfile = async () => {
@@ -269,8 +272,8 @@ export default function ProfileUserPage() {
   ];
 
   // Données pour les onglets (simulées pour l'instant)
-  const userTracks = paginatedTracks;
-  const userPlaylists = paginatedPlaylists;
+  const userTracks = profile?.tracks || [];
+  const userPlaylists = profile?.playlists || [];
   const followers = profile?.followers || [];
   const following = profile?.following || [];
 
@@ -727,12 +730,28 @@ export default function ProfileUserPage() {
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-white">Tracks</h3>
                   <div className="flex items-center space-x-2">
-                    <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                    <button 
+                      className={`p-2 rounded-lg transition-colors ${
+                        trackViewMode === 'list' 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                      }`}
+                      onClick={() => setTrackViewMode('list')}
+                      title="Vue liste"
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                       </svg>
                     </button>
-                    <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                    <button 
+                      className={`p-2 rounded-lg transition-colors ${
+                        trackViewMode === 'grid' 
+                          ? 'bg-purple-600 text-white' 
+                          : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                      }`}
+                      onClick={() => setTrackViewMode('grid')}
+                      title="Vue grille"
+                    >
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                       </svg>
@@ -740,125 +759,248 @@ export default function ProfileUserPage() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {userTracks.map((track: any) => (
-                    <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
-                      {/* Banderole de mise en avant */}
-                      {track.isFeatured && (
-                        <div className="absolute -top-2 -left-2 z-10">
-                          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                            <Crown size={12} />
-                            {track.featuredBanner || 'En vedette'}
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="flex items-start space-x-3">
-                        <div className="relative flex-shrink-0">
-                          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                            {track.coverUrl ? (
-                              <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
-                            ) : (
-                              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          <button 
-                            className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" 
-                            onClick={() => handlePlayTrack(track)}
-                            title="Lire"
-                          >
-                            {audioState.currentTrackIndex !== -1 && 
-                             audioState.tracks[audioState.currentTrackIndex]?._id === track._id && 
-                             audioState.isPlaying ? (
-                              <Pause className="w-6 h-6 text-white" />
-                            ) : (
-                              <Play className="w-6 h-6 text-white" />
-                            )}
-                          </button>
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-white truncate">{track.title}</h4>
-                          <p className="text-sm text-gray-400 truncate">
-                            {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
-                          </p>
-                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                            <button 
-                              className={`flex items-center gap-1 hover:text-pink-400 transition-colors ${
-                                track.isLiked ? 'text-pink-400' : 'text-gray-500'
-                              }`}
-                              onClick={() => handleLikeTrack(track._id)}
-                              disabled={likeLoading === track._id}
-                            >
-                              {likeLoading === track._id ? (
-                                <div className="flex items-center justify-center w-3 h-3">
-                                  <Loader2 className="w-3 h-3 animate-spin" />
-                                </div>
-                              ) : (
-                                <Heart className={`w-3 h-3 ${track.isLiked ? 'fill-current' : ''}`} />
-                              )}
-                              {track.likes.length}
-                            </button>
-                            <span>{track.plays} écoutes</span>
-                          </div>
-                        </div>
-                        
-                        {/* Menu d'options pour le propriétaire */}
-                        {isOwnProfile && (
-                          <div className="relative">
-                            <button 
-                              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
-                              }}
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                            
-                            {showTrackOptions === track._id && (
-                              <div 
-                                className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                                  onClick={() => handleEditTrack(track)}
-                                >
-                                  <Edit3 className="w-4 h-4" />
-                                  Modifier
-                                </button>
-                                <button
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
-                                  onClick={() => handleFeatureTrack(track)}
-                                >
-                                  <Star className={`w-4 h-4 ${track.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                                  {track.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
-                                </button>
-                                <button
-                                  className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
-                                  onClick={() => handleDeleteTrack(track._id)}
-                                  disabled={deleteLoading === track._id}
-                                >
-                                  {deleteLoading === track._id ? (
-                                    <div className="flex items-center justify-center w-4 h-4">
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    </div>
-                                  ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                  )}
-                                  Supprimer
-                                </button>
-                              </div>
-                            )}
+                {trackViewMode === 'grid' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {userTracks.map((track: any) => (
+                      <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                        {/* Banderole de mise en avant */}
+                        {track.isFeatured && (
+                          <div className="absolute -top-2 -left-2 z-10">
+                            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                              <Crown size={12} />
+                              {track.featuredBanner || 'En vedette'}
+                            </div>
                           </div>
                         )}
+                        
+                        <div className="flex items-start space-x-3">
+                          <div className="relative flex-shrink-0">
+                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                              {track.coverUrl ? (
+                                <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
+                              ) : (
+                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <button 
+                              className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" 
+                              onClick={() => handlePlayTrack(track)}
+                              title="Lire"
+                            >
+                              {audioState.currentTrackIndex !== -1 && 
+                               audioState.tracks[audioState.currentTrackIndex]?._id === track._id && 
+                               audioState.isPlaying ? (
+                                <Pause className="w-6 h-6 text-white" />
+                              ) : (
+                                <Play className="w-6 h-6 text-white" />
+                              )}
+                            </button>
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-white truncate">{track.title}</h4>
+                            <p className="text-sm text-gray-400 truncate">
+                              {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
+                            </p>
+                            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
+                              <button 
+                                className={`flex items-center gap-1 hover:text-pink-400 transition-colors ${
+                                  track.isLiked ? 'text-pink-400' : 'text-gray-500'
+                                }`}
+                                onClick={() => handleLikeTrack(track._id)}
+                                disabled={likeLoading === track._id}
+                              >
+                                {likeLoading === track._id ? (
+                                  <div className="flex items-center justify-center w-3 h-3">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                  </div>
+                                ) : (
+                                  <Heart className={`w-3 h-3 ${track.isLiked ? 'fill-current' : ''}`} />
+                                )}
+                                {track.likes.length}
+                              </button>
+                              <span>{track.plays} écoutes</span>
+                            </div>
+                          </div>
+                          
+                          {/* Menu d'options pour le propriétaire */}
+                          {isOwnProfile && (
+                            <div className="relative">
+                              <button 
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
+                                }}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                              
+                              {showTrackOptions === track._id && (
+                                <div 
+                                  className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    onClick={() => handleEditTrack(track)}
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                    Modifier
+                                  </button>
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    onClick={() => handleFeatureTrack(track)}
+                                  >
+                                    <Star className={`w-4 h-4 ${track.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                    {track.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                                  </button>
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
+                                    onClick={() => handleDeleteTrack(track._id)}
+                                    disabled={deleteLoading === track._id}
+                                  >
+                                    {deleteLoading === track._id ? (
+                                      <div className="flex items-center justify-center w-4 h-4">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      </div>
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                    Supprimer
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {userTracks.map((track: any) => (
+                      <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                        {/* Banderole de mise en avant */}
+                        {track.isFeatured && (
+                          <div className="absolute -top-2 -left-2 z-10">
+                            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                              <Crown size={12} />
+                              {track.featuredBanner || 'En vedette'}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center space-x-4">
+                          <div className="relative flex-shrink-0">
+                            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
+                              {track.coverUrl ? (
+                                <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
+                              ) : (
+                                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <button 
+                              className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" 
+                              onClick={() => handlePlayTrack(track)}
+                              title="Lire"
+                            >
+                              {audioState.currentTrackIndex !== -1 && 
+                               audioState.tracks[audioState.currentTrackIndex]?._id === track._id && 
+                               audioState.isPlaying ? (
+                                <Pause className="w-6 h-6 text-white" />
+                              ) : (
+                                <Play className="w-6 h-6 text-white" />
+                              )}
+                            </button>
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-white text-lg">{track.title}</h4>
+                            <p className="text-sm text-gray-400">
+                              {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
+                            </p>
+                            <div className="flex items-center space-x-6 mt-2 text-sm text-gray-500">
+                              <button 
+                                className={`flex items-center gap-2 hover:text-pink-400 transition-colors ${
+                                  track.isLiked ? 'text-pink-400' : 'text-gray-500'
+                                }`}
+                                onClick={() => handleLikeTrack(track._id)}
+                                disabled={likeLoading === track._id}
+                              >
+                                {likeLoading === track._id ? (
+                                  <div className="flex items-center justify-center w-4 h-4">
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  </div>
+                                ) : (
+                                  <Heart className={`w-4 h-4 ${track.isLiked ? 'fill-current' : ''}`} />
+                                )}
+                                {track.likes.length} likes
+                              </button>
+                              <span>{track.plays} écoutes</span>
+                              <span>{track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : '--:--'}</span>
+                            </div>
+                          </div>
+                          
+                          {/* Menu d'options pour le propriétaire */}
+                          {isOwnProfile && (
+                            <div className="relative">
+                              <button 
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
+                                }}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                              
+                              {showTrackOptions === track._id && (
+                                <div 
+                                  className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    onClick={() => handleEditTrack(track)}
+                                  >
+                                    <Edit3 className="w-4 h-4" />
+                                    Modifier
+                                  </button>
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    onClick={() => handleFeatureTrack(track)}
+                                  >
+                                    <Star className={`w-4 h-4 ${track.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                    {track.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                                  </button>
+                                  <button
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
+                                    onClick={() => handleDeleteTrack(track._id)}
+                                    disabled={deleteLoading === track._id}
+                                  >
+                                    {deleteLoading === track._id ? (
+                                      <div className="flex items-center justify-center w-4 h-4">
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      </div>
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
+                                    Supprimer
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
