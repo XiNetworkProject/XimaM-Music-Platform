@@ -74,8 +74,9 @@ export async function POST(request: NextRequest) {
 
     await track.save();
 
-    // Mettre à jour les statistiques de l'utilisateur
+    // Ajouter la track au tableau tracks de l'utilisateur
     await User.findByIdAndUpdate(session.user.id, {
+      $push: { tracks: track._id },
       $inc: { trackCount: 1 },
     });
 
