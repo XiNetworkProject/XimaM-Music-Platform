@@ -5,11 +5,12 @@ import { useSession } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
+import BottomNav from '@/components/BottomNav';
 import { 
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Disc3, Mic2, RefreshCw, Share2, Eye, 
-  Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity
+  Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -123,6 +124,7 @@ export default function HomePage() {
     listeners: 1247,
     isLive: true
   });
+  const [showProgramDialog, setShowProgramDialog] = useState(false);
 
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -766,6 +768,80 @@ export default function HomePage() {
     
     return () => clearInterval(interval);
   }, [isRadioPlaying]);
+
+  // Données de programmation de la radio
+  const radioProgram = [
+    {
+      day: 'Lundi',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Morning Mixx', dj: 'DJ Electro', genre: 'House/Techno' },
+        { time: '10:00 - 14:00', title: 'Midday Vibes', dj: 'DJ Groove', genre: 'Deep House' },
+        { time: '14:00 - 18:00', title: 'Afternoon Beats', dj: 'DJ Pulse', genre: 'Progressive' },
+        { time: '18:00 - 22:00', title: 'Evening Energy', dj: 'DJ Fusion', genre: 'Trance' },
+        { time: '22:00 - 02:00', title: 'Night Groove', dj: 'DJ Midnight', genre: 'Dubstep' }
+      ]
+    },
+    {
+      day: 'Mardi',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Wake Up Mixx', dj: 'DJ Sunrise', genre: 'Chill House' },
+        { time: '10:00 - 14:00', title: 'Workout Beats', dj: 'DJ Energy', genre: 'Electro' },
+        { time: '14:00 - 18:00', title: 'Afternoon Flow', dj: 'DJ Smooth', genre: 'Lounge' },
+        { time: '18:00 - 22:00', title: 'Evening Rush', dj: 'DJ Rush', genre: 'Hardstyle' },
+        { time: '22:00 - 02:00', title: 'Late Night', dj: 'DJ Dark', genre: 'Dark Techno' }
+      ]
+    },
+    {
+      day: 'Mercredi',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Midweek Start', dj: 'DJ Midweek', genre: 'Tech House' },
+        { time: '10:00 - 14:00', title: 'Day Vibes', dj: 'DJ Day', genre: 'Melodic House' },
+        { time: '14:00 - 18:00', title: 'Afternoon Mix', dj: 'DJ Mix', genre: 'Progressive House' },
+        { time: '18:00 - 22:00', title: 'Evening Session', dj: 'DJ Session', genre: 'Psytrance' },
+        { time: '22:00 - 02:00', title: 'Night Session', dj: 'DJ Night', genre: 'Minimal' }
+      ]
+    },
+    {
+      day: 'Jeudi',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Thursday Start', dj: 'DJ Thursday', genre: 'House' },
+        { time: '10:00 - 14:00', title: 'Midday Mixx', dj: 'DJ Midday', genre: 'Deep House' },
+        { time: '14:00 - 18:00', title: 'Afternoon Vibes', dj: 'DJ Vibes', genre: 'Chillout' },
+        { time: '18:00 - 22:00', title: 'Evening Groove', dj: 'DJ Groove', genre: 'Funk House' },
+        { time: '22:00 - 02:00', title: 'Late Groove', dj: 'DJ Late', genre: 'Acid House' }
+      ]
+    },
+    {
+      day: 'Vendredi',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Friday Start', dj: 'DJ Friday', genre: 'House' },
+        { time: '10:00 - 14:00', title: 'Weekend Vibes', dj: 'DJ Weekend', genre: 'Electro' },
+        { time: '14:00 - 18:00', title: 'Friday Rush', dj: 'DJ Rush', genre: 'Hard House' },
+        { time: '18:00 - 22:00', title: 'Friday Night', dj: 'DJ Night', genre: 'Trance' },
+        { time: '22:00 - 06:00', title: 'Weekend Party', dj: 'DJ Party', genre: 'Mixed' }
+      ]
+    },
+    {
+      day: 'Samedi',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Weekend Morning', dj: 'DJ Morning', genre: 'Chill House' },
+        { time: '10:00 - 14:00', title: 'Saturday Vibes', dj: 'DJ Saturday', genre: 'House' },
+        { time: '14:00 - 18:00', title: 'Weekend Afternoon', dj: 'DJ Afternoon', genre: 'Deep House' },
+        { time: '18:00 - 22:00', title: 'Saturday Night', dj: 'DJ Night', genre: 'Trance' },
+        { time: '22:00 - 06:00', title: 'Weekend Party', dj: 'DJ Party', genre: 'Mixed' }
+      ]
+    },
+    {
+      day: 'Dimanche',
+      shows: [
+        { time: '06:00 - 10:00', title: 'Sunday Morning', dj: 'DJ Sunday', genre: 'Chillout' },
+        { time: '10:00 - 14:00', title: 'Sunday Vibes', dj: 'DJ Vibes', genre: 'Lounge' },
+        { time: '14:00 - 18:00', title: 'Sunday Afternoon', dj: 'DJ Afternoon', genre: 'Deep House' },
+        { time: '18:00 - 22:00', title: 'Sunday Evening', dj: 'DJ Evening', genre: 'Progressive' },
+        { time: '22:00 - 06:00', title: 'Sunday Night', dj: 'DJ Night', genre: 'Ambient' }
+      ]
+    }
+  ];
 
   if (loading) {
     return (
@@ -1790,6 +1866,7 @@ export default function HomePage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
+                      onClick={() => setShowProgramDialog(true)}
                       className="text-cyan-400 hover:text-cyan-300 font-semibold text-xs sm:text-sm tracking-wide transition-colors duration-300 self-center sm:self-start"
                     >
                       Voir la programmation
@@ -2859,6 +2936,138 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* Dialog de Programmation Radio */}
+      <AnimatePresence>
+        {showProgramDialog && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowProgramDialog(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Effet de fond futuriste */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl"></div>
+              
+              <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
+                {/* Header du dialog */}
+                <div className="relative p-6 border-b border-white/10">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="relative">
+                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                          <Radio size={24} className="text-white" />
+                        </div>
+                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                      </div>
+                      <div>
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                          Programmation Mixx Party
+                        </h2>
+                        <p className="text-gray-400">Découvrez notre grille de programmes</p>
+                      </div>
+                    </div>
+                    
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setShowProgramDialog(false)}
+                      className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
+                    >
+                      <X size={20} className="text-white" />
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Contenu du dialog */}
+                <div className="p-6 max-h-[70vh] overflow-y-auto">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {radioProgram.map((dayProgram, dayIndex) => (
+                      <motion.div
+                        key={dayProgram.day}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: dayIndex * 0.1 }}
+                        className="bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4"
+                      >
+                        <div className="flex items-center space-x-3 mb-4">
+                          <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center">
+                            <span className="text-white font-bold text-sm">{dayProgram.day.charAt(0)}</span>
+                          </div>
+                          <h3 className="text-lg font-bold text-white">{dayProgram.day}</h3>
+                        </div>
+                        
+                        <div className="space-y-3">
+                          {dayProgram.shows.map((show, showIndex) => (
+                            <motion.div
+                              key={showIndex}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ delay: (dayIndex * 0.1) + (showIndex * 0.05) }}
+                              className="bg-black/20 rounded-xl p-3 border border-white/10 hover:border-cyan-500/30 transition-all duration-300"
+                            >
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="flex-1">
+                                  <h4 className="text-white font-semibold text-sm">{show.title}</h4>
+                                  <p className="text-cyan-400 text-xs font-medium">{show.dj}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-gray-300 text-xs font-medium">{show.time}</p>
+                                  <span className="inline-block px-2 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 text-xs rounded-full mt-1">
+                                    {show.genre}
+                                  </span>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  
+                  {/* Footer du dialog */}
+                  <div className="mt-6 pt-6 border-t border-white/10">
+                    <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
+                      <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex items-center space-x-2 text-cyan-400">
+                          <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                          <span className="font-medium">Programme en direct 24h/24</span>
+                        </div>
+                        <div className="flex items-center space-x-2 text-green-400">
+                          <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
+                          <span className="font-medium">Mise à jour en temps réel</span>
+                        </div>
+                      </div>
+                      
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setShowProgramDialog(false)}
+                        className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/30"
+                      >
+                        Fermer
+                      </motion.button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <BottomNav />
     </div>
   );
 } 
