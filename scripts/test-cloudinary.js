@@ -45,6 +45,26 @@ async function testCloudinary() {
     console.error('❌ Erreur upload test:', error.message);
   }
   
+  // Test spécifique pour le dossier ximam/avatars
+  try {
+    console.log('\nTest upload dans ximam/avatars...');
+    const avatarUploadResult = await cloudinary.uploader.upload(
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+      {
+        folder: 'ximam/avatars',
+        public_id: 'test-avatar-upload'
+      }
+    );
+    console.log('✅ Upload avatar test réussi:', avatarUploadResult.secure_url);
+    
+    // Nettoyer le fichier de test
+    await cloudinary.uploader.destroy(avatarUploadResult.public_id);
+    console.log('✅ Fichier avatar test supprimé');
+  } catch (error) {
+    console.error('❌ Erreur upload avatar test:', error.message);
+    console.error('Détails erreur:', error);
+  }
+  
   console.log('=== FIN TEST CLOUDINARY ===');
 }
 

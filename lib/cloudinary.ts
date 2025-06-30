@@ -22,8 +22,12 @@ cloudinary.config({
 // Upload d'image (cover, avatar, etc.)
 export const uploadImage = async (file: Buffer, options: any = {}): Promise<CloudinaryResult> => {
   try {
+    console.log('🔄 Début upload Cloudinary...');
+    console.log('Options:', options);
+    console.log('Taille buffer:', file.length);
+    
     const result = await new Promise<CloudinaryResult>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
+      const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'ximam/images',
           resource_type: 'image',
@@ -31,15 +35,42 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
           ...options,
         },
         (error, result) => {
-          if (error) reject(error);
-          else resolve(result as CloudinaryResult);
+          if (error) {
+            console.error('❌ Erreur Cloudinary:', error);
+            reject(error);
+          } else {
+            console.log('✅ Upload Cloudinary réussi:', result);
+            resolve(result as CloudinaryResult);
+          }
         }
-      ).end(file);
+      );
+      
+      uploadStream.end(file);
     });
 
     return result;
   } catch (error) {
-    console.error('Erreur upload image:', error);
+    console.error('❌ Erreur upload image:', error);
+    
+    // Gestion spécifique des erreurs Cloudinary
+    if (error && typeof error === 'object' && 'http_code' in error) {
+      const cloudinaryError = error as any;
+      console.error('Code erreur Cloudinary:', cloudinaryError.http_code);
+      console.error('Message erreur Cloudinary:', cloudinaryError.message);
+      
+      if (cloudinaryError.http_code === 400) {
+        throw new Error('Paramètres d\'upload invalides');
+      } else if (cloudinaryError.http_code === 401) {
+        throw new Error('Credentials Cloudinary invalides');
+      } else if (cloudinaryError.http_code === 403) {
+        throw new Error('Permissions Cloudinary insuffisantes');
+      } else if (cloudinaryError.http_code === 429) {
+        throw new Error('Quota Cloudinary dépassé');
+      } else if (cloudinaryError.http_code === 500) {
+        throw new Error('Erreur serveur Cloudinary');
+      }
+    }
+    
     throw new Error('Échec de l\'upload de l\'image');
   }
 };
