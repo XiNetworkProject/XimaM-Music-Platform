@@ -115,10 +115,10 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
     const result = await new Promise<CloudinaryResult>((resolve, reject) => {
       // Options par défaut plus simples
       const uploadOptions = {
-        folder: 'ximam/images',
-        resource_type: 'image',
-        quality: 'auto',
-        ...options,
+          folder: 'ximam/images',
+          resource_type: 'image',
+          quality: 'auto',
+          ...options,
       };
       
       console.log('🔄 Création upload stream avec options:', uploadOptions);

@@ -512,7 +512,8 @@ export default function CommunityPage() {
                       key={user._id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                        className="glass-effect rounded-xl p-4 flex items-center gap-4"
+                        className="glass-effect rounded-xl p-4 flex items-center gap-4 cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => router.push(`/profile/${user.username}`)}
                     >
                           <img
                             src={user.avatar || '/default-avatar.png'}
@@ -531,7 +532,10 @@ export default function CommunityPage() {
                           </div>
                         </div>
                           <button
-                            onClick={() => toggleFollow(user._id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleFollow(user._id);
+                            }}
                           className={`px-4 py-2 rounded-full font-medium transition-all ${user.isFollowing ? 'bg-pink-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
                           >
                           {user.isFollowing ? 'Abonné' : 'Suivre'}
@@ -609,7 +613,11 @@ export default function CommunityPage() {
                         <p className="text-white/60">Aucun utilisateur trouvé</p>
                       ) : (
                         topUsers.map((user, idx) => (
-                          <div key={user._id} className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
+                          <div 
+                            key={user._id} 
+                            className="flex items-center gap-3 bg-white/5 rounded-lg p-3 cursor-pointer hover:bg-white/10 transition-colors"
+                            onClick={() => router.push(`/profile/${user.username}`)}
+                          >
                             <span className="font-bold text-lg text-yellow-400 w-6 text-center">#{idx + 1}</span>
                             <img
                               src={user.avatar || '/default-avatar.png'}

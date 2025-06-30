@@ -6,46 +6,14 @@ import { Search, X, Play, Heart, User, Music, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 interface SearchResult {
-  id: string;
-  type: 'track' | 'artist';
+  _id: string;
+  type: 'track' | 'user';
   title: string;
   subtitle: string;
   imageUrl: string;
   metadata?: string;
+  username?: string;
 }
-
-const mockSearchResults: SearchResult[] = [
-  {
-    id: '1',
-    type: 'track',
-    title: 'Nouvelle Étoile',
-    subtitle: 'Luna Nova',
-    imageUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=100&h=100&fit=crop',
-    metadata: '3:00'
-  },
-  {
-    id: '2',
-    type: 'artist',
-    title: 'Luna Nova',
-    subtitle: 'Artiste • 15.4k abonnés',
-    imageUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop&crop=face'
-  },
-  {
-    id: '3',
-    type: 'track',
-    title: 'Rythme Urbain',
-    subtitle: 'Beat Master',
-    imageUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=100&h=100&fit=crop',
-    metadata: '3:30'
-  },
-  {
-    id: '4',
-    type: 'artist',
-    title: 'Beat Master',
-    subtitle: 'Artiste • 8.9k abonnés',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face'
-  }
-];
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -61,27 +29,70 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   useEffect(() => {
     if (query.trim()) {
       setIsLoading(true);
-      // Simuler une recherche
-      setTimeout(() => {
-        const filtered = mockSearchResults.filter(
-          result => 
-            result.title.toLowerCase().includes(query.toLowerCase()) ||
-            result.subtitle.toLowerCase().includes(query.toLowerCase())
-        );
-        setResults(filtered);
-        setIsLoading(false);
-      }, 300);
+      // Recherche réelle via l'API
+      const searchData = async () => {
+        try {
+          const res = await fetch(`/api/search?query=${encodeURIComponent(query)}&limit=10`);
+          if (res.ok) {
+            const data = await res.json();
+            const formattedResults: SearchResult[] = [];
+            
+            // Ajouter les utilisateurs
+            if (data.artists) {
+              data.artists.forEach((user: any) => {
+                formattedResults.push({
+                  _id: user._id,
+                  type: 'user',
+                  title: user.name || user.username,
+                  subtitle: `Artiste • ${user.followers?.length || 0} abonnés`,
+                  imageUrl: user.avatar || '/default-avatar.png',
+                  username: user.username
+                });
+              });
+            }
+            
+            // Ajouter les pistes
+            if (data.tracks) {
+              data.tracks.forEach((track: any) => {
+                formattedResults.push({
+                  _id: track._id,
+                  type: 'track',
+                  title: track.title,
+                  subtitle: track.artist?.name || track.artist?.username || 'Artiste inconnu',
+                  imageUrl: track.coverUrl || '/default-cover.jpg',
+                  metadata: formatDuration(track.duration)
+                });
+              });
+            }
+            
+            setResults(formattedResults);
+          }
+        } catch (error) {
+          console.error('Erreur recherche:', error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      
+      const timeoutId = setTimeout(searchData, 300);
+      return () => clearTimeout(timeoutId);
     } else {
       setResults([]);
     }
   }, [query]);
 
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const handleResultClick = (result: SearchResult) => {
-    if (result.type === 'artist') {
-      router.push(`/profile/${result.title.toLowerCase().replace(' ', '_')}`);
-    } else {
+    if (result.type === 'user' && result.username) {
+      router.push(`/profile/${result.username}`);
+    } else if (result.type === 'track') {
       // Naviguer vers la piste
-      router.push(`/track/${result.id}`);
+      router.push(`/tracks/${result._id}`);
     }
     onClose();
   };
@@ -144,7 +155,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                 <div className="p-4 space-y-2">
                   {results.map((result) => (
                     <motion.button
-                      key={result.id}
+                      key={result._id}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       onClick={() => handleResultClick(result)}
@@ -154,13 +165,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                         src={result.imageUrl}
                         alt={result.title}
                         className={`w-12 h-12 rounded object-cover ${
-                          result.type === 'artist' ? 'rounded-full' : 'rounded-lg'
+                          result.type === 'user' ? 'rounded-full' : 'rounded-lg'
                         }`}
                       />
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <h3 className="font-medium">{result.title}</h3>
-                          {result.type === 'artist' && (
+                          {result.type === 'user' && (
                             <User size={14} className="text-white/40" />
                           )}
                           {result.type === 'track' && (

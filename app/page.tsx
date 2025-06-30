@@ -13,6 +13,7 @@ import {
   Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
 interface Track {
   _id: string;
@@ -51,6 +52,7 @@ export default function HomePage() {
   const { user } = useAuth();
   const { isNative, checkForUpdates } = useNativeFeatures();
   const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized, playTrack, pause, play } = useAudioPlayer();
+  const router = useRouter();
   
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -1781,6 +1783,7 @@ export default function HomePage() {
                     transition={{ duration: 0.4, delay: index * 0.1 }}
                     whileHover={{ y: -2, scale: 1.02 }}
                     className="group cursor-pointer text-center"
+                    onClick={() => router.push(`/profile/${user.username}`)}
                   >
                     <div className="relative mb-2">
                       <img
@@ -1791,6 +1794,10 @@ export default function HomePage() {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          // Logique follow/unfollow ici
+                        }}
                         className="absolute bottom-0 right-0 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       >
                         <UserPlus size={12} className="text-white" />
@@ -3106,13 +3113,12 @@ export default function HomePage() {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
-              onClick={(e) => e.stopPropagation()}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-4xl max-h-[80vh] sm:max-h-[80vh] overflow-hidden"
+              onClick={e => e.stopPropagation()}
             >
               {/* Effet de fond futuriste */}
               <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl"></div>
-              
               <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden flex flex-col h-full">
                 {/* Header du dialog */}
                 <div className="relative p-3 sm:p-6 border-b border-white/10 flex-shrink-0">
@@ -3156,9 +3162,8 @@ export default function HomePage() {
                     </div>
                   </div>
                 </div>
-
-                {/* Contenu du dialog */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+                {/* Contenu scrollable */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-32 sm:pb-24" style={{ minHeight: 0 }}>
                   {programLoading ? (
                     <div className="flex items-center justify-center h-48 sm:h-64">
                       <div className="text-center">
@@ -3257,9 +3262,8 @@ export default function HomePage() {
                     </div>
                   )}
                 </div>
-
                 {/* Footer du dialog */}
-                <div className="p-3 sm:p-6 border-t border-white/10 flex-shrink-0">
+                <div className="p-3 sm:p-6 border-t border-white/10 flex-shrink-0 bg-black/80">
                   <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
                     <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
                       <div className="flex items-center space-x-2 text-cyan-400">
