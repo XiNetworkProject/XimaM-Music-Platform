@@ -2,21 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect, { isConnected } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import Playlist from '@/models/Playlist';
+import PlaylistModel from '@/models/Playlist';
 import User from '@/models/User';
 import Track from '@/models/Track';
 
-// Modèle Playlist temporaire (à créer plus tard)
-interface Playlist {
-  _id: string;
-  name: string;
-  description?: string;
-  tracks: string[];
-  user: string;
-  isPublic: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { Playlist } from '@/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -55,7 +45,7 @@ export async function GET(request: NextRequest) {
       query.isPublic = true;
     }
     
-    const playlists = await Playlist.find(query)
+    const playlists = await PlaylistModel.find(query)
       .populate('createdBy', 'name username avatar')
       .populate('tracks', 'title artist audioUrl coverUrl duration')
       .populate('likes', 'name username')
@@ -95,7 +85,7 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    const total = await Playlist.countDocuments(query);
+    const total = await PlaylistModel.countDocuments(query);
     
     return NextResponse.json({
       playlists: playlistsWithStats,
@@ -148,7 +138,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const playlist = new Playlist({
+    const playlist = new PlaylistModel({
       name: name.trim(),
       description: description.trim(),
       isPublic,
@@ -158,7 +148,7 @@ export async function POST(request: NextRequest) {
     
     await playlist.save();
     
-    const populatedPlaylist = await Playlist.findById(playlist._id)
+    const populatedPlaylist = await PlaylistModel.findById(playlist._id)
       .populate('createdBy', 'name username avatar')
       .populate('tracks', 'title artist audioUrl coverUrl duration')
       .lean() as any;

@@ -18,7 +18,7 @@ export async function GET(
     await dbConnect();
 
     // Récupérer l'utilisateur avec ses statistiques
-    const user = await User.findOne({ username }).select('-password -email');
+    const user = await User.findOne({ username }).select('-password -email').lean() as any;
     
     if (!user) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
@@ -31,15 +31,15 @@ export async function GET(
     const playlistCount = await Playlist.countDocuments({ 'createdBy._id': user._id });
     
     // Calculer les statistiques totales
-    const tracks = await Track.find({ 'artist._id': user._id });
+    const tracks = await Track.find({ 'artist._id': user._id }).lean() as any[];
     const totalPlays = tracks.reduce((sum, track) => sum + (track.plays || 0), 0);
     const totalLikes = tracks.reduce((sum, track) => sum + (track.likes?.length || 0), 0);
     
     // Vérifier si l'utilisateur connecté suit cet utilisateur
     let isFollowing = false;
     if (session?.user?.id) {
-      const currentUser = await User.findById(session.user.id);
-      isFollowing = currentUser?.following?.includes(user._id) || false;
+      const currentUser = await User.findById(session.user.id).lean() as any;
+      isFollowing = currentUser?.following?.some((id: any) => id.toString() === user._id.toString()) || false;
     }
 
     // Préparer la réponse
@@ -54,16 +54,16 @@ export async function GET(
       location: user.location,
       website: user.website,
       socialLinks: user.socialLinks,
-      followers: user.followers || [],
-      following: user.following || [],
+      followers: user.followers ? user.followers.map((id: any) => id.toString()) : [],
+      following: user.following ? user.following.map((id: any) => id.toString()) : [],
       trackCount,
       playlistCount,
       totalPlays,
       totalLikes,
       isVerified: user.isVerified || false,
       isFollowing,
-      createdAt: user.createdAt,
-      lastActive: user.updatedAt
+      createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
+      lastActive: user.updatedAt ? user.updatedAt.toISOString() : new Date().toISOString()
     };
 
     return NextResponse.json(userData);

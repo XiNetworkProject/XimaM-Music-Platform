@@ -6,26 +6,7 @@ import { Search, Filter, Play, Heart, Share2, MessageCircle, Clock, Users, Trend
 import { useAudioPlayer } from '../providers';
 import { useSession } from 'next-auth/react';
 
-interface Track {
-  _id: string;
-  title: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  audioUrl: string;
-  coverUrl?: string;
-  duration: number;
-  genre: string[];
-  tags: string[];
-  likes: string[];
-  comments: string[];
-  plays: number;
-  isLiked?: boolean;
-  createdAt: string;
-}
+import { Track } from '@/types';
 
 const genres = ['Tous', 'Pop', 'Hip-Hop', 'Rock', 'Electronic', 'Ambient', 'Jazz', 'Classical', 'R&B', 'Country', 'Folk', 'Metal'];
 const sortOptions = [

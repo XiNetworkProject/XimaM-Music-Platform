@@ -19,7 +19,7 @@ import {
   Check,
   Calendar,
   ArrowUpRight,
-  User,
+  User as UserIcon,
   Flame,
   Trophy,
   Eye,
@@ -29,58 +29,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-
-interface User {
-  _id: string;
-  username: string;
-  name: string;
-  avatar?: string;
-  followers: string[];
-  following: string[];
-  trackCount: number;
-  isVerified: boolean;
-  isFollowing?: boolean;
-  latestTrack?: {
-    _id: string;
-    title: string;
-    coverUrl?: string;
-    plays: number;
-  };
-}
-
-interface Track {
-  _id: string;
-  title: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  audioUrl: string;
-  coverUrl?: string;
-  duration: number;
-  genre: string[];
-  tags: string[];
-  likes: string[];
-  comments: string[];
-  plays: number;
-  isLiked?: boolean;
-}
-
-interface Playlist {
-  _id: string;
-  name: string;
-  description: string;
-  coverUrl?: string;
-  trackCount: number;
-  duration: number;
-  isPublic: boolean;
-  tracks: Track[];
-  createdBy: User;
-  likes: string[];
-  followers: string[];
-}
+import { User, Track, Playlist, Comment } from '@/types';
 
 interface Post {
   _id: string;
@@ -92,13 +41,6 @@ interface Post {
   createdAt: string;
   likes: string[];
   comments: Comment[];
-}
-
-interface Comment {
-  _id: string;
-  user: User;
-  content: string;
-  createdAt: string;
 }
 
 export default function CommunityPage() {

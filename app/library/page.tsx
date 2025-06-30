@@ -34,42 +34,9 @@ import {
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 
-interface Track {
-  _id: string;
-  title: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  audioUrl: string;
-  coverUrl?: string;
-  duration: number;
-  genre: string[];
-  tags: string[];
-  likes: string[];
-  comments: string[];
-  plays: number;
-  isLiked?: boolean;
-  createdAt: string;
-}
+import { Track } from '@/types';
 
-interface Playlist {
-  _id: string;
-  name: string;
-  description: string;
-  coverUrl?: string;
-  trackCount: number;
-  duration: number;
-  isPublic: boolean;
-  tracks: Track[];
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
-  likes: string[];
-  followers: string[];
-}
+import { Playlist } from '@/types';
 
 export default function LibraryPage() {
   const { data: session } = useSession();
@@ -566,7 +533,7 @@ export default function LibraryPage() {
                         <Plus size={16} className="text-white/60" />
                       </button>
                     ))}
-        </div>
+                  </div>
                 </motion.div>
               </motion.div>
             )}

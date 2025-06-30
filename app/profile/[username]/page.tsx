@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User,
+  User as UserIcon,
   Edit3,
   Camera,
   Heart,
@@ -52,70 +52,7 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-
-interface User {
-  _id: string;
-  username: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  banner?: string;
-  bio?: string;
-  location?: string;
-  website?: string;
-  socialLinks?: {
-    twitter?: string;
-    instagram?: string;
-    youtube?: string;
-    spotify?: string;
-  };
-  followers: string[];
-  following: string[];
-  trackCount: number;
-  playlistCount: number;
-  totalPlays: number;
-  totalLikes: number;
-  isVerified: boolean;
-  isFollowing?: boolean;
-  createdAt: string;
-  lastActive: string;
-}
-
-interface Track {
-  _id: string;
-  title: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  audioUrl: string;
-  coverUrl?: string;
-  duration: number;
-  genre: string[];
-  tags: string[];
-  likes: string[];
-  comments: string[];
-  plays: number;
-  isLiked?: boolean;
-  createdAt: string;
-}
-
-interface Playlist {
-  _id: string;
-  name: string;
-  description: string;
-  coverUrl?: string;
-  trackCount: number;
-  duration: number;
-  isPublic: boolean;
-  tracks: Track[];
-  createdBy: User;
-  likes: string[];
-  followers: string[];
-  createdAt: string;
-}
+import { User, Track, Playlist } from '@/types';
 
 interface EditProfileData {
   name: string;
@@ -388,7 +325,7 @@ export default function ProfileUserPage() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
         <div className="text-center">
-          <User className="w-16 h-16 text-white/40 mx-auto mb-4" />
+          <UserIcon className="w-16 h-16 text-white/40 mx-auto mb-4" />
           <h2 className="text-xl font-bold mb-2">Utilisateur non trouvé</h2>
           <p className="text-white/60 mb-4">L'utilisateur @{username} n'existe pas.</p>
           <button
@@ -512,12 +449,12 @@ export default function ProfileUserPage() {
                     <span>{formatNumber(user.followers.length)} abonnés</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <User size={16} className="text-purple-400" />
+                    <UserIcon size={16} className="text-purple-400" />
                     <span>{formatNumber(user.following.length)} abonnements</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Play size={16} className="text-purple-400" />
-                    <span>{formatNumber(user.totalPlays)} écoutes</span>
+                    <span>{formatNumber(user.totalPlays || 0)} écoutes</span>
                   </div>
                 </div>
                 
@@ -594,7 +531,7 @@ export default function ProfileUserPage() {
                     : 'text-white/60 hover:text-white/80'
                 }`}
               >
-                <User size={16} className="inline mr-2" />
+                <UserIcon size={16} className="inline mr-2" />
                 Abonnements ({following.length})
               </button>
             </div>
@@ -838,7 +775,7 @@ export default function ProfileUserPage() {
                 >
                   {following.length === 0 ? (
                     <div className="text-center py-12">
-                      <User className="w-16 h-16 text-white/40 mx-auto mb-4" />
+                      <UserIcon className="w-16 h-16 text-white/40 mx-auto mb-4" />
                       <p className="text-white/60">Aucun abonnement pour le moment</p>
                     </div>
                   ) : (

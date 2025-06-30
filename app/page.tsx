@@ -13,27 +13,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface Track {
-  _id: string;
-  title: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  audioUrl: string;
-  coverUrl?: string;
-  duration: number;
-  likes: string[];
-  comments: string[];
-  plays: number;
-  createdAt: string;
-  genre?: string[];
-  description?: string;
-  lyrics?: string;
-  isLiked?: boolean;
-}
+import { Track } from '@/types';
 
 interface CategoryData {
   tracks: Track[];

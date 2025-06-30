@@ -68,13 +68,13 @@ export async function GET(request: NextRequest) {
 
     // Récupérer les pistes avec les informations de l'artiste
     let tracks = await Track.find(query)
-      .populate('artist', 'name username avatar')
+      .populate('artist', '_id name username avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // Fallback pour garantir _id et artist
+    // Fallback pour garantir _id et artist avec toutes les données
     tracks = tracks.map(track => ({
       ...track,
       _id: track._id ? track._id.toString() : Math.random().toString(),
@@ -86,7 +86,11 @@ export async function GET(request: NextRequest) {
         name: 'Artiste inconnu', 
         username: 'unknown',
         avatar: '/default-avatar.svg'
-      }
+      },
+      likes: track.likes ? track.likes.map((id: any) => id.toString()) : [],
+      comments: track.comments ? track.comments.map((id: any) => id.toString()) : [],
+      createdAt: track.createdAt ? track.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: track.updatedAt ? track.updatedAt.toISOString() : new Date().toISOString()
     }));
 
     // Compter le total

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     // Récupérer les tracks que l'utilisateur a aimées
     const likedTracks = await Track.find({
       likes: user._id
-    }).populate('artist', 'name username avatar');
+    }).populate('artist', 'name username avatar').lean();
 
     // Analyser les genres préférés
     const genrePreferences = likedTracks.reduce((acc: any, track) => {
@@ -56,7 +56,8 @@ export async function GET(request: NextRequest) {
     })
     .populate('artist', 'name username avatar')
     .sort({ plays: -1, createdAt: -1 })
-    .limit(6);
+    .limit(6)
+    .lean();
 
     // Recommandations d'artistes similaires
     const likedArtists = Array.from(new Set(likedTracks.map(track => track.artist._id.toString())));
@@ -66,7 +67,8 @@ export async function GET(request: NextRequest) {
     })
     .populate('artist', 'name username avatar')
     .sort({ plays: -1 })
-    .limit(4);
+    .limit(4)
+    .lean();
 
     // Recommandations de nouveautés populaires
     const recentRecommendations = await Track.find({
@@ -75,7 +77,22 @@ export async function GET(request: NextRequest) {
     })
     .populate('artist', 'name username avatar')
     .sort({ createdAt: -1, plays: -1 })
-    .limit(4);
+    .limit(4)
+    .lean();
+
+    // Convertir les _id en string pour toutes les tracks
+    const convertTrackIds = (tracks: any[]) => tracks.map(track => ({
+      ...track,
+      _id: track._id.toString(),
+      artist: track.artist ? {
+        ...track.artist,
+        _id: track.artist._id.toString()
+      } : null,
+      likes: track.likes ? track.likes.map((id: any) => id.toString()) : [],
+      comments: track.comments ? track.comments.map((id: any) => id.toString()) : [],
+      createdAt: track.createdAt ? track.createdAt.toISOString() : new Date().toISOString(),
+      updatedAt: track.updatedAt ? track.updatedAt.toISOString() : new Date().toISOString()
+    }));
 
     // Créer les cartes de recommandations
     const recommendations = [
@@ -86,7 +103,7 @@ export async function GET(request: NextRequest) {
         confidence: '92%',
         color: 'from-purple-500 to-pink-500',
         icon: 'UserPlus',
-        tracks: artistRecommendations.slice(0, 3)
+        tracks: convertTrackIds(artistRecommendations.slice(0, 3))
       },
       {
         type: 'Nouveautés populaires',
@@ -95,7 +112,7 @@ export async function GET(request: NextRequest) {
         confidence: '88%',
         color: 'from-blue-500 to-cyan-500',
         icon: 'TrendingUp',
-        tracks: recentRecommendations.slice(0, 3)
+        tracks: convertTrackIds(recentRecommendations.slice(0, 3))
       },
       {
         type: 'Recommandations personnalisées',
@@ -104,7 +121,7 @@ export async function GET(request: NextRequest) {
         confidence: '95%',
         color: 'from-green-500 to-emerald-500',
         icon: 'Sparkles',
-        tracks: genreRecommendations.slice(0, 3)
+        tracks: convertTrackIds(genreRecommendations.slice(0, 3))
       }
     ];
 
