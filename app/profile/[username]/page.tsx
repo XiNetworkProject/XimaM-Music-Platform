@@ -537,7 +537,8 @@ export default function ProfileUserPage() {
       const menuHeight = menu ? menu.offsetHeight : 120;
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+      const margin = 16; // marge de sécurité
+      if (spaceBelow < menuHeight + margin && spaceAbove > menuHeight + margin) {
         setMenuDirection((prev) => ({ ...prev, [showTrackOptions]: 'up' }));
       } else {
         setMenuDirection((prev) => ({ ...prev, [showTrackOptions]: 'down' }));
@@ -863,7 +864,7 @@ export default function ProfileUserPage() {
                               
                               {showTrackOptions === track._id && (
                                 <div 
-                                  className={`absolute ${menuDirection[track._id] === 'up' ? 'top-full mt-1' : 'bottom-full mt-1'} bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]`}
+                                  className={`absolute right-0 ${menuDirection[track._id] === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-20 min-w-[160px]`}
                                   onClick={(e) => e.stopPropagation()}
                                   ref={el => { menuRefs.current[track._id] = el; }}
                                 >
@@ -986,7 +987,7 @@ export default function ProfileUserPage() {
                               
                               {showTrackOptions === track._id && (
                                 <div 
-                                  className={`absolute ${menuDirection[track._id] === 'up' ? 'top-full mt-1' : 'bottom-full mt-1'} bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]`}
+                                  className={`absolute right-0 ${menuDirection[track._id] === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'} bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-20 min-w-[160px]`}
                                   onClick={(e) => e.stopPropagation()}
                                   ref={el => { menuRefs.current[track._id] = el; }}
                                 >
