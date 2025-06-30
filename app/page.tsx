@@ -114,6 +114,16 @@ export default function HomePage() {
   const [musicGenres, setMusicGenres] = useState<any[]>([]);
   const [genresLoading, setGenresLoading] = useState(false);
 
+  // État pour la radio
+  const [isRadioPlaying, setIsRadioPlaying] = useState(false);
+  const [radioInfo, setRadioInfo] = useState({
+    name: 'Mixx Party',
+    description: 'Le meilleur de la musique électronique et dance',
+    currentTrack: 'En direct - Mixx Party',
+    listeners: 1247,
+    isLive: true
+  });
+
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
@@ -586,6 +596,21 @@ export default function HomePage() {
       // Erreur silencieuse
     }
   }, []);
+
+  // Fonction pour gérer la lecture/arrêt de la radio
+  const handleRadioToggle = () => {
+    if (isRadioPlaying) {
+      // Arrêter la radio
+      setIsRadioPlaying(false);
+      // Ici tu pourrais ajouter la logique pour arrêter le flux audio
+      console.log('Radio arrêtée');
+    } else {
+      // Démarrer la radio
+      setIsRadioPlaying(true);
+      // Ici tu pourrais ajouter la logique pour démarrer le flux audio
+      console.log('Radio démarrée - Mixx Party');
+    }
+  };
 
   if (loading) {
     return (
@@ -1455,6 +1480,122 @@ export default function HomePage() {
                   </div>
                 ))
               )}
+            </div>
+          </motion.div>
+        </section>
+
+        {/* Section Radio Mixx Party */}
+        <section className="container mx-auto px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '50px' }}
+            transition={{ duration: 0.6 }}
+            className="mb-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-red-500 to-orange-500">
+                  <Radio size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">📻 Radio Mixx Party</h2>
+                  <p className="text-gray-400">Le meilleur de la musique électronique et dance</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 bg-red-500/20 px-3 py-1 rounded-full">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                  <span className="text-red-400 text-sm font-medium">EN DIRECT</span>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20 rounded-2xl p-6 backdrop-blur-sm">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-4 mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
+                      <Radio size={28} className="text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-white mb-1">{radioInfo.name}</h3>
+                      <p className="text-gray-400 text-sm mb-2">{radioInfo.description}</p>
+                      <div className="flex items-center space-x-4 text-sm">
+                        <div className="flex items-center space-x-1 text-gray-400">
+                          <Headphones size={14} />
+                          <span>{formatNumber(radioInfo.listeners)} auditeurs</span>
+                        </div>
+                        <div className="flex items-center space-x-1 text-green-400">
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          <span>En direct</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-black/20 rounded-lg p-4 mb-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-gray-400 text-sm">En cours de lecture</p>
+                        <p className="text-white font-medium">{radioInfo.currentTrack}</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                        <span className="text-red-400 text-sm font-medium">LIVE</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col items-center space-y-4">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleRadioToggle}
+                    className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      isRadioPlaying 
+                        ? 'bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/30' 
+                        : 'bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg shadow-red-500/30'
+                    }`}
+                  >
+                    {isRadioPlaying ? (
+                      <Pause size={24} className="text-white" />
+                    ) : (
+                      <Play size={24} className="text-white ml-1" />
+                    )}
+                  </motion.button>
+                  
+                  <div className="text-center">
+                    <p className="text-white font-medium text-sm">
+                      {isRadioPlaying ? 'Écouter' : 'Écouter'}
+                    </p>
+                    <p className="text-gray-400 text-xs">Mixx Party</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-1 text-gray-400">
+                      <Users size={14} />
+                      <span>{formatNumber(radioInfo.listeners)} auditeurs actifs</span>
+                    </div>
+                    <div className="flex items-center space-x-1 text-gray-400">
+                      <Clock size={14} />
+                      <span>24h/24</span>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="text-red-400 hover:text-red-300 font-medium text-sm"
+                  >
+                    Voir la programmation
+                  </motion.button>
+                </div>
+              </div>
             </div>
           </motion.div>
         </section>
