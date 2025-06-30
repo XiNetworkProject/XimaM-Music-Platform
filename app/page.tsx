@@ -698,7 +698,7 @@ export default function HomePage() {
             avatar: '/default-avatar.png'
           },
           audioUrl: streamUrl,
-          coverUrl: '/default-cover.jpg', // Image par défaut pour la radio
+          coverUrl: '/mixxparty1.png', // Logo Mixx Party pour la radio
           duration: 0, // Durée infinie pour la radio
           likes: [],
           comments: [],
@@ -1650,8 +1650,17 @@ export default function HomePage() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-4 mb-4">
-                    <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center">
-                      <Radio size={28} className="text-white" />
+                    <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl flex items-center justify-center overflow-hidden">
+                      <img
+                        src="/mixxparty1.png"
+                        alt="Mixx Party"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                      <Radio size={28} className="text-white hidden" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-xl font-bold text-white mb-1">{radioInfo.name}</h3>
