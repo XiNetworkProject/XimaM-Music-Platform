@@ -523,6 +523,28 @@ export default function ProfileUserPage() {
     setFollowLoading(null);
   };
 
+  const [menuDirection, setMenuDirection] = useState<{ [trackId: string]: 'up' | 'down' }>({});
+  const menuButtonRefs = useRef<{ [trackId: string]: HTMLButtonElement | null }>({});
+  const menuRefs = useRef<{ [trackId: string]: HTMLDivElement | null }>({});
+
+  // Gestion dynamique de la direction du menu
+  useEffect(() => {
+    if (!showTrackOptions) return;
+    const button = menuButtonRefs.current[showTrackOptions];
+    const menu = menuRefs.current[showTrackOptions];
+    if (button && typeof window !== 'undefined') {
+      const rect = button.getBoundingClientRect();
+      const menuHeight = menu ? menu.offsetHeight : 120;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      if (spaceBelow < menuHeight && spaceAbove > menuHeight) {
+        setMenuDirection((prev) => ({ ...prev, [showTrackOptions]: 'up' }));
+      } else {
+        setMenuDirection((prev) => ({ ...prev, [showTrackOptions]: 'down' }));
+      }
+    }
+  }, [showTrackOptions]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
@@ -834,14 +856,16 @@ export default function ProfileUserPage() {
                                   e.stopPropagation();
                                   setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
                                 }}
+                                ref={el => { menuButtonRefs.current[track._id] = el; }}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               
                               {showTrackOptions === track._id && (
                                 <div 
-                                  className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]"
+                                  className={`absolute ${menuDirection[track._id] === 'up' ? 'top-full mt-1' : 'bottom-full mt-1'} bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]`}
                                   onClick={(e) => e.stopPropagation()}
+                                  ref={el => { menuRefs.current[track._id] = el; }}
                                 >
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
@@ -955,14 +979,16 @@ export default function ProfileUserPage() {
                                   e.stopPropagation();
                                   setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
                                 }}
+                                ref={el => { menuButtonRefs.current[track._id] = el; }}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               
                               {showTrackOptions === track._id && (
                                 <div 
-                                  className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]"
+                                  className={`absolute ${menuDirection[track._id] === 'up' ? 'top-full mt-1' : 'bottom-full mt-1'} bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]`}
                                   onClick={(e) => e.stopPropagation()}
+                                  ref={el => { menuRefs.current[track._id] = el; }}
                                 >
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
