@@ -67,11 +67,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer les pistes avec les informations de l'artiste
-    const tracks = await Track.find(query)
+    let tracks = await Track.find(query)
       .populate('artist', 'name username avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit);
+      .limit(limit)
+      .lean();
+
+    // Fallback pour garantir _id et artist
+    tracks = tracks.map(track => ({
+      ...track,
+      _id: track._id ? track._id.toString() : Math.random().toString(),
+      artist: track.artist || { name: 'Artiste inconnu', username: 'unknown' }
+    }));
 
     // Compter le total
     const total = await Track.countDocuments(query);

@@ -258,16 +258,12 @@ export default function ProfileUserPage() {
 
   // Upload vers Cloudinary
   const uploadToCloudinary = async (file: File, type: 'avatar' | 'banner') => {
-    // En production, on utilise une solution alternative
-    // Pour l'instant, on retourne une URL factice
-    // TODO: Implémenter un vrai service d'upload (AWS S3, Cloudinary pro, etc.)
-    
-    const fakeUrl = `https://via.placeholder.com/${type === 'avatar' ? '200x200' : '1200x400'}/667eea/ffffff?text=${encodeURIComponent(type)}`;
-    
-    // Simuler un délai d'upload
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    return fakeUrl;
+    // Utiliser des images locales par défaut
+    if (type === 'avatar') {
+      return '/default-avatar.svg';
+    } else {
+      return '/default-banner.svg';
+    }
   };
 
   // Sauvegarder les modifications du profil
@@ -676,7 +672,7 @@ export default function ProfileUserPage() {
                     <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-3'}>
                       {filteredTracks.map((track) => (
                         <motion.div
-                          key={track._id}
+                          key={track._id || Math.random()}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           className={`glass-effect rounded-xl overflow-hidden hover:scale-105 transition-all duration-300 ${
@@ -687,30 +683,30 @@ export default function ProfileUserPage() {
                             <>
                               <img
                                 src={track.coverUrl || '/default-cover.svg'}
-                                alt={track.title}
+                                alt={track.title || 'Morceau'}
                                 className="w-full h-32 object-cover rounded-lg mb-3"
                               />
-                              <h3 className="font-semibold mb-1 truncate">{track.title}</h3>
-                              <p className="text-sm text-white/60 mb-2">{track.artist?.name || track.artist?.username}</p>
+                              <h3 className="font-semibold mb-1 truncate">{track.title || 'Titre inconnu'}</h3>
+                              <p className="text-sm text-white/60 mb-2">{track.artist?.name || track.artist?.username || 'Artiste inconnu'}</p>
                               <div className="flex items-center justify-between text-xs text-white/40">
-                                <span>{formatNumber(track.plays)} écoutes</span>
-                                <span>{formatNumber(track.likes.length)} likes</span>
+                                <span>{formatNumber(track.plays || 0)} écoutes</span>
+                                <span>{formatNumber((track.likes && track.likes.length) || 0)} likes</span>
                               </div>
                             </>
                           ) : (
                             <>
                               <img
                                 src={track.coverUrl || '/default-cover.svg'}
-                                alt={track.title}
+                                alt={track.title || 'Morceau'}
                                 className="w-16 h-16 rounded object-cover"
                               />
                               <div className="flex-1 min-w-0">
-                                <h3 className="font-semibold">{track.title}</h3>
-                                <p className="text-sm text-white/60">{track.artist?.name || track.artist?.username}</p>
+                                <h3 className="font-semibold">{track.title || 'Titre inconnu'}</h3>
+                                <p className="text-sm text-white/60">{track.artist?.name || track.artist?.username || 'Artiste inconnu'}</p>
                                 <div className="flex items-center gap-4 text-xs text-white/40 mt-1">
-                                  <span>{formatDuration(track.duration)}</span>
-                                  <span>{formatNumber(track.plays)} écoutes</span>
-                                  <span>{formatNumber(track.likes.length)} likes</span>
+                                  <span>{formatDuration(track.duration || 0)}</span>
+                                  <span>{formatNumber(track.plays || 0)} écoutes</span>
+                                  <span>{formatNumber((track.likes && track.likes.length) || 0)} likes</span>
                                 </div>
                               </div>
                             </>

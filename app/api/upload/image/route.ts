@@ -34,16 +34,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // En production, on utilise une solution alternative
-    // Pour l'instant, on retourne une URL factice
-    // TODO: Implémenter un vrai service d'upload (AWS S3, Cloudinary pro, etc.)
-    
-    const fakeUrl = `https://via.placeholder.com/400x400/667eea/ffffff?text=${encodeURIComponent(folder)}`;
-    
+    // Utiliser une image locale par défaut
+    let url = '/default-avatar.svg';
+    if (folder === 'banners') {
+      url = '/default-banner.svg';
+    }
     return NextResponse.json({
       success: true,
-      url: fakeUrl,
-      publicId: `fake-${Date.now()}`,
+      url,
+      publicId: `local-${Date.now()}`,
       width: 400,
       height: 400,
       format: file.type.split('/')[1],
