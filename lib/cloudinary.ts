@@ -22,8 +22,13 @@ cloudinary.config({
 // Upload d'image (cover, avatar, etc.)
 export const uploadImage = async (file: Buffer, options: any = {}): Promise<CloudinaryResult> => {
   try {
+    // Vérifier la configuration Cloudinary
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      throw new Error('Configuration Cloudinary manquante');
+    }
+
     const result = await new Promise<CloudinaryResult>((resolve, reject) => {
-      cloudinary.uploader.upload_stream(
+      const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'ximam/images',
           resource_type: 'image',
@@ -31,10 +36,24 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
           ...options,
         },
         (error, result) => {
-          if (error) reject(error);
-          else resolve(result as CloudinaryResult);
+          if (error) {
+            console.error('Erreur Cloudinary upload:', error);
+            reject(error);
+          } else if (result) {
+            resolve(result as CloudinaryResult);
+          } else {
+            reject(new Error('Aucun résultat de Cloudinary'));
+          }
         }
-      ).end(file);
+      );
+
+      // Gérer les erreurs de stream
+      uploadStream.on('error', (error) => {
+        console.error('Erreur stream Cloudinary:', error);
+        reject(error);
+      });
+
+      uploadStream.end(file);
     });
 
     return result;
