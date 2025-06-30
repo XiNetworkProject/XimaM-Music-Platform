@@ -81,7 +81,7 @@ export async function GET(
       const userWithTracks = await User.findById(user._id)
         .populate({
           path: 'tracks',
-          select: 'title coverUrl duration plays likes createdAt isFeatured featuredBanner isPublic description genre tags',
+          select: 'title audioUrl coverUrl duration plays likes createdAt isFeatured featuredBanner isPublic description genre tags',
           populate: {
             path: 'artist',
             select: 'name username avatar'
@@ -121,7 +121,7 @@ export async function GET(
       const userWithLikes = await User.findById(user._id)
         .populate({
           path: 'likes',
-          select: 'title artist coverUrl duration plays',
+          select: 'title audioUrl artist coverUrl duration plays',
           populate: {
             path: 'artist',
             select: 'name username avatar'

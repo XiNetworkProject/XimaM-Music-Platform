@@ -305,6 +305,26 @@ export default function ProfileUserPage() {
   // Gestion play track
   const handlePlayTrack = async (track: any) => {
     try {
+      // Vérifier si la track a une URL audio
+      if (!track.audioUrl) {
+        console.warn('Track sans audioUrl, récupération des données complètes:', track._id);
+        // Récupérer les détails complets de la track depuis l'API
+        const trackResponse = await fetch(`/api/tracks/${track._id}`);
+        if (trackResponse.ok) {
+          const trackData = await trackResponse.json();
+          if (trackData.track && trackData.track.audioUrl) {
+            await playTrack(trackData.track);
+            return;
+          } else {
+            setError('Fichier audio non disponible pour cette piste');
+            return;
+          }
+        } else {
+          setError('Impossible de récupérer les détails de la piste');
+          return;
+        }
+      }
+
       // S'assurer que la track a tous les champs nécessaires
       const trackToPlay = {
         _id: track._id,

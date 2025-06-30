@@ -390,16 +390,23 @@ export const useAudioService = () => {
 
   const loadTrack = useCallback(async (track: Track) => {
     try {
-      // Validation de l'URL audio
-      if (!track.audioUrl || track.audioUrl.trim() === '') {
-        throw new Error('URL audio invalide');
+      // Validation de l'URL audio avec plus de flexibilité
+      if (!track.audioUrl) {
+        console.warn('Track sans audioUrl:', track._id, track.title);
+        throw new Error('URL audio manquante');
       }
 
-      // Vérifier que l'URL est accessible
+      if (track.audioUrl.trim() === '') {
+        console.warn('Track avec audioUrl vide:', track._id, track.title);
+        throw new Error('URL audio vide');
+      }
+
+      // Vérifier que l'URL est accessible (optionnel)
       try {
         const response = await fetch(track.audioUrl, { method: 'HEAD' });
         if (!response.ok) {
-          throw new Error('Fichier audio inaccessible');
+          console.warn('Fichier audio potentiellement inaccessible:', track.audioUrl);
+          // Ne pas bloquer, juste avertir
         }
       } catch (fetchError) {
         console.warn('Impossible de vérifier l\'URL audio, tentative de chargement direct:', fetchError);
