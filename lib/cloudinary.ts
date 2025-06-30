@@ -19,6 +19,78 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Upload d'image via API REST directe (méthode alternative)
+export const uploadImageDirect = async (file: Buffer, options: any = {}): Promise<CloudinaryResult> => {
+  try {
+    console.log('🔄 Début upload Cloudinary via API REST directe...');
+    
+    // Vérifier la configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      throw new Error('Configuration Cloudinary incomplète');
+    }
+    
+    // Préparer les paramètres
+    const params = {
+      file: `data:image/png;base64,${file.toString('base64')}`,
+      folder: options.folder || 'ximam/images',
+      resource_type: 'image',
+      ...options
+    };
+    
+    console.log('📤 Paramètres upload:', { ...params, file: 'data:image/png;base64,[BUFFER]' });
+    
+    // URL de l'API Cloudinary
+    const uploadUrl = `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`;
+    
+    // Créer FormData
+    const formData = new FormData();
+    formData.append('file', params.file);
+    formData.append('folder', params.folder);
+    formData.append('resource_type', params.resource_type);
+    
+    // Ajouter les options supplémentaires
+    if (options.quality) formData.append('quality', options.quality);
+    if (options.format) formData.append('format', options.format);
+    
+    console.log('🔄 Envoi requête HTTP vers Cloudinary...');
+    
+    // Faire la requête HTTP
+    const response = await fetch(uploadUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${Buffer.from(`${process.env.CLOUDINARY_API_KEY}:${process.env.CLOUDINARY_API_SECRET}`).toString('base64')}`
+      },
+      body: formData
+    });
+    
+    console.log('📥 Réponse Cloudinary reçue');
+    console.log('Status:', response.status);
+    console.log('Headers:', Object.fromEntries(response.headers.entries()));
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Erreur HTTP Cloudinary:', response.status, errorText);
+      throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const result = await response.json();
+    console.log('✅ Upload réussi via API REST:', result);
+    
+    return {
+      public_id: result.public_id,
+      secure_url: result.secure_url,
+      width: result.width,
+      height: result.height,
+      format: result.format,
+      bytes: result.bytes
+    };
+    
+  } catch (error) {
+    console.error('❌ Erreur upload via API REST:', error);
+    throw error;
+  }
+};
+
 // Upload d'image (cover, avatar, etc.)
 export const uploadImage = async (file: Buffer, options: any = {}): Promise<CloudinaryResult> => {
   try {

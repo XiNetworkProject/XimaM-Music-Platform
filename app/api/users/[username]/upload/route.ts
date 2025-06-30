@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
-import { uploadImage } from '@/lib/cloudinary';
+import { uploadImage, uploadImageDirect } from '@/lib/cloudinary';
 
 export async function POST(
   request: NextRequest,
@@ -89,7 +89,7 @@ export async function POST(
       console.log('📤 Upload avatar pour', username + ', taille:', buffer.length, 'bytes');
       console.log('📁 Dossier Cloudinary: ximam/avatars');
       
-      // Test avec une approche plus simple
+      // Test avec une approche en 3 étapes
       try {
         console.log('🔄 Début upload Cloudinary (méthode simple)...');
         
@@ -117,8 +117,18 @@ export async function POST(
           result = await uploadImage(buffer, {});
           console.log('✅ Upload réussi avec méthode alternative');
         } catch (altError) {
-          console.error('❌ Échec méthode alternative:', altError);
-          throw altError;
+          console.log('❌ Échec méthode alternative, essai API REST directe...');
+          console.error('Erreur méthode alternative:', altError);
+          
+          // Dernière chance : API REST directe
+          try {
+            console.log('🔄 Essai upload via API REST directe...');
+            result = await uploadImageDirect(buffer, { folder: 'ximam/avatars' });
+            console.log('✅ Upload réussi avec API REST directe');
+          } catch (restError) {
+            console.error('❌ Échec API REST directe:', restError);
+            throw restError;
+          }
         }
       }
       
