@@ -14,6 +14,14 @@ const socialIcons = {
   website: Globe,
 };
 
+function formatDuration(duration: number | undefined): string {
+  if (!duration || isNaN(duration)) return '--:--';
+  const totalSeconds = Math.round(duration);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export default function ProfileUserPage() {
   const { username } = useParams();
   const { data: session } = useSession();
@@ -1000,7 +1008,7 @@ export default function ProfileUserPage() {
                                 {track.likes.length} likes
                               </button>
                               <span>{track.plays} écoutes</span>
-                              <span>{track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : '--:--'}</span>
+                              <span>{formatDuration(track.duration)}</span>
                             </div>
                           </div>
                           

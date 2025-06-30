@@ -467,7 +467,6 @@ export const useAudioService = () => {
           ...prev, 
           currentTrack: track,
           currentTime: 0,
-          duration: 0,
           isLoading: false 
         }));
         
