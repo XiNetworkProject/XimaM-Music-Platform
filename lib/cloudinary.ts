@@ -26,17 +26,40 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
     console.log('Options:', options);
     console.log('Taille buffer:', file.length);
     
+    // Vérifier la configuration Cloudinary
+    console.log('🔍 Vérification config Cloudinary...');
+    console.log('Cloud Name:', process.env.CLOUDINARY_CLOUD_NAME);
+    console.log('API Key:', process.env.CLOUDINARY_API_KEY ? '✅ Présent' : '❌ Manquant');
+    console.log('API Secret:', process.env.CLOUDINARY_API_SECRET ? '✅ Présent' : '❌ Manquant');
+    
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      throw new Error('Configuration Cloudinary incomplète');
+    }
+    
     const result = await new Promise<CloudinaryResult>((resolve, reject) => {
+      // Options par défaut plus simples
+      const uploadOptions = {
+        folder: 'ximam/images',
+        resource_type: 'image',
+        quality: 'auto',
+        ...options,
+      };
+      
+      console.log('🔄 Création upload stream avec options:', uploadOptions);
+      
       const uploadStream = cloudinary.uploader.upload_stream(
-        {
-          folder: 'ximam/images',
-          resource_type: 'image',
-          quality: 'auto',
-          ...options,
-        },
+        uploadOptions,
         (error, result) => {
           if (error) {
-            console.error('❌ Erreur Cloudinary:', error);
+            console.error('❌ Erreur Cloudinary dans callback:', error);
+            console.error('Type d\'erreur:', error.constructor.name);
+            console.error('Propriétés erreur:', Object.keys(error));
+            
+            if (error && typeof error === 'object' && 'http_code' in error) {
+              console.error('Code HTTP:', (error as any).http_code);
+              console.error('Message:', (error as any).message);
+            }
+            
             reject(error);
           } else {
             console.log('✅ Upload Cloudinary réussi:', result);
@@ -45,6 +68,7 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
         }
       );
       
+      console.log('🔄 Envoi du buffer vers Cloudinary...');
       uploadStream.end(file);
     });
 

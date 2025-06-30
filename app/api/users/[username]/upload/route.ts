@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import { uploadImage } from '@/lib/cloudinary';
 
@@ -10,217 +10,161 @@ export async function POST(
   { params }: { params: { username: string } }
 ) {
   console.log('=== DEBUT UPLOAD API ===');
-  console.log('Username:', params.username);
   
   try {
-    // Vérifier les variables d'environnement Cloudinary
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-      console.error('Variables d\'environnement Cloudinary manquantes');
-      return NextResponse.json(
-        { error: 'Configuration Cloudinary manquante' },
-        { status: 500 }
-      );
-    }
-    console.log('✅ Variables Cloudinary OK');
+    const { username } = params;
+    console.log('Username:', username);
 
-    const session = await getServerSession(authOptions);
-    console.log('Session:', session ? '✅ Présente' : '❌ Absente');
-    console.log('User email:', session?.user?.email);
+    // Vérifier les variables Cloudinary
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const apiKey = process.env.CLOUDINARY_API_KEY;
+    const apiSecret = process.env.CLOUDINARY_API_SECRET;
     
+    console.log('✅ Variables Cloudinary OK');
+    console.log('Cloud Name:', cloudName);
+    console.log('API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'MANQUANT');
+    console.log('API Secret:', apiSecret ? `${apiSecret.substring(0, 10)}...` : 'MANQUANT');
+
+    // Vérifier la session
+    const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
       console.log('❌ Pas de session utilisateur');
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
+    console.log('Session:', session ? '✅ Présente' : '❌ Absente');
+    console.log('User email:', session.user.email);
+
+    // Connexion à la base de données
     console.log('🔄 Connexion à la base de données...');
     await dbConnect();
-    
-    if (!isConnected()) {
-      console.error('❌ Impossible de se connecter à la base de données');
-      return NextResponse.json(
-        { error: 'Erreur de connexion à la base de données' },
-        { status: 500 }
-      );
-    }
     console.log('✅ Base de données connectée');
-    
-    const { username } = params;
-    
-    // Vérifier que l'utilisateur modifie son propre profil
+
+    // Vérifier que l'utilisateur existe et a le bon username
     console.log('🔍 Recherche utilisateur:', session.user.email);
-    const currentUser = await User.findOne({ email: session.user.email });
-    console.log('Utilisateur trouvé:', currentUser ? '✅' : '❌');
-    console.log('Username actuel:', currentUser?.username);
-    console.log('Username demandé:', username);
-    
-    if (!currentUser || currentUser.username !== username) {
-      console.log('❌ Non autorisé à modifier ce profil');
-      return NextResponse.json(
-        { error: 'Non autorisé à modifier ce profil' },
-        { status: 403 }
-      );
+    const user = await User.findOne({ email: session.user.email });
+    if (!user) {
+      console.log('❌ Utilisateur non trouvé');
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
+
+    console.log('Utilisateur trouvé:', user ? '✅' : '❌');
+    console.log('Username actuel:', user.username);
+    console.log('Username demandé:', username);
+
+    if (user.username !== username) {
+      console.log('❌ Username ne correspond pas');
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    }
+
     console.log('✅ Autorisation OK');
-    
+
+    // Lire le FormData
     console.log('📁 Lecture FormData...');
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const type = formData.get('type') as 'avatar' | 'banner';
-    
-    console.log('Type de fichier:', file?.type);
-    console.log('Taille du fichier:', file?.size);
-    console.log('Type d\'upload:', type);
-    
+    const type = formData.get('type') as string;
+
     if (!file) {
       console.log('❌ Aucun fichier fourni');
-      return NextResponse.json(
-        { error: 'Aucun fichier fourni' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
     }
-    
-    if (!type || !['avatar', 'banner'].includes(type)) {
-      console.log('❌ Type d\'image invalide:', type);
-      return NextResponse.json(
-        { error: 'Type d\'image invalide' },
-        { status: 400 }
-      );
-    }
-    
+
+    console.log('Type de fichier:', file.type);
+    console.log('Taille du fichier:', file.size);
+    console.log('Type d\'upload:', type);
+
     // Vérifier le type de fichier
     if (!file.type.startsWith('image/')) {
-      console.log('❌ Fichier non-image:', file.type);
-      return NextResponse.json(
-        { error: 'Le fichier doit être une image' },
-        { status: 400 }
-      );
+      console.log('❌ Type de fichier invalide');
+      return NextResponse.json({ error: 'Type de fichier invalide' }, { status: 400 });
     }
-    
-    // Vérifier la taille (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      console.log('❌ Fichier trop volumineux:', file.size);
-      return NextResponse.json(
-        { error: 'Le fichier ne peut pas dépasser 5MB' },
-        { status: 400 }
-      );
-    }
-    
-    // Convertir le fichier en buffer
+
+    // Convertir en buffer
     console.log('🔄 Conversion en buffer...');
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    
-    console.log(`📤 Upload ${type} pour ${username}, taille: ${buffer.length} bytes`);
-    
-    // Upload vers Cloudinary
-    const folder = type === 'avatar' ? 'ximam/avatars' : 'ximam/banners';
-    console.log('📁 Dossier Cloudinary:', folder);
-    
-    // Upload simplifié sans options problématiques
-    const uploadResult = await uploadImage(buffer, {
-      folder
-      // Retiré temporairement: width, height, crop, gravity, quality
-    });
-    
-    if (!uploadResult.secure_url) {
-      console.error('❌ Upload Cloudinary échoué:', uploadResult);
-      return NextResponse.json(
-        { error: 'Erreur lors de l\'upload de l\'image' },
-        { status: 500 }
-      );
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    let result;
+    if (type === 'avatar') {
+      console.log('📤 Upload avatar pour', username + ', taille:', buffer.length, 'bytes');
+      console.log('📁 Dossier Cloudinary: ximam/avatars');
+      
+      // Test avec une approche plus simple
+      try {
+        console.log('🔄 Début upload Cloudinary (méthode simple)...');
+        
+        // Utiliser une approche plus basique
+        const uploadOptions = {
+          folder: 'ximam/avatars',
+          resource_type: 'image',
+          format: 'auto',
+          quality: 'auto'
+        };
+        
+        console.log('Options:', uploadOptions);
+        console.log('Taille buffer:', buffer.length);
+        
+        result = await uploadImage(buffer, uploadOptions);
+        console.log('✅ Upload réussi avec méthode simple');
+        
+      } catch (simpleError) {
+        console.log('❌ Échec méthode simple, essai méthode alternative...');
+        console.error('Erreur méthode simple:', simpleError);
+        
+        // Méthode alternative : upload direct sans options
+        try {
+          console.log('🔄 Essai upload direct sans options...');
+          result = await uploadImage(buffer, {});
+          console.log('✅ Upload réussi avec méthode alternative');
+        } catch (altError) {
+          console.error('❌ Échec méthode alternative:', altError);
+          throw altError;
+        }
+      }
+      
+    } else if (type === 'banner') {
+      console.log('📤 Upload banner pour', username);
+      result = await uploadImage(buffer, { folder: 'ximam/banners' });
+    } else {
+      console.log('❌ Type d\'upload non supporté:', type);
+      return NextResponse.json({ error: 'Type d\'upload non supporté' }, { status: 400 });
     }
-    
-    console.log(`✅ Upload réussi: ${uploadResult.secure_url}`);
-    
-    // Mettre à jour l'utilisateur avec la nouvelle image
+
+    // Mettre à jour l'utilisateur
     console.log('🔄 Mise à jour utilisateur...');
     const updateData: any = {};
-    updateData[type] = uploadResult.secure_url;
-    
-    const updatedUser = await User.findByIdAndUpdate(
-      currentUser._id,
-      updateData,
-      { new: true }
-    )
-      .populate('followers', 'name username avatar isVerified')
-      .populate('following', 'name username avatar isVerified')
-      .populate('tracks', 'title coverUrl duration plays likes createdAt')
-      .populate('playlists', 'name description coverUrl trackCount likes isPublic createdAt')
-      .populate('likes', 'title artist coverUrl duration plays')
-      .lean() as any;
-    
-    if (!updatedUser) {
-      console.error('❌ Échec de la mise à jour de l\'utilisateur');
-      return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour du profil' },
-        { status: 500 }
-      );
+    if (type === 'avatar') {
+      updateData.avatar = result.secure_url;
+    } else if (type === 'banner') {
+      updateData.banner = result.secure_url;
     }
-    
+
+    await User.findByIdAndUpdate(user._id, updateData);
     console.log('✅ Utilisateur mis à jour');
-    
-    // Calculer les statistiques
-    const totalPlays = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
-    const totalLikes = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
-    
-    // Formater la réponse
-    const formattedUser = {
-      ...updatedUser,
-      _id: updatedUser._id.toString(),
-      trackCount: (updatedUser.tracks || []).length,
-      playlistCount: (updatedUser.playlists || []).length,
-      followerCount: (updatedUser.followers || []).length,
-      followingCount: (updatedUser.following || []).length,
-      likeCount: (updatedUser.likes || []).length,
-      totalPlays,
-      totalLikes,
-      followers: (updatedUser.followers || []).map((follower: any) => ({
-        ...follower,
-        _id: follower._id.toString()
-      })),
-      following: (updatedUser.following || []).map((following: any) => ({
-        ...following,
-        _id: following._id.toString()
-      })),
-      tracks: (updatedUser.tracks || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      })),
-      playlists: (updatedUser.playlists || []).map((playlist: any) => ({
-        ...playlist,
-        _id: playlist._id.toString(),
-        createdBy: playlist.createdBy ? {
-          ...playlist.createdBy,
-          _id: playlist.createdBy._id.toString()
-        } : null
-      })),
-      likes: (updatedUser.likes || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      }))
-    };
-    
-    console.log('✅ Réponse envoyée avec succès');
-    console.log('=== FIN UPLOAD API ===');
-    
+
+    console.log('=== FIN UPLOAD API SUCCES ===');
     return NextResponse.json({
-      user: formattedUser,
-      imageUrl: uploadResult.secure_url,
-      message: `${type === 'avatar' ? 'Avatar' : 'Bannière'} mis à jour avec succès`
+      success: true,
+      url: result.secure_url,
+      publicId: result.public_id
     });
+
   } catch (error) {
     console.error('❌ Erreur upload image:', error);
+    
+    // Logs détaillés pour le diagnostic
+    if (error && typeof error === 'object') {
+      console.error('Type d\'erreur:', error.constructor.name);
+      console.error('Propriétés:', Object.keys(error));
+      
+      if ('http_code' in error) {
+        console.error('Code HTTP Cloudinary:', (error as any).http_code);
+      }
+      if ('message' in error) {
+        console.error('Message d\'erreur:', (error as any).message);
+      }
+    }
+    
     console.log('=== FIN UPLOAD API AVEC ERREUR ===');
     return NextResponse.json(
       { error: 'Erreur lors de l\'upload de l\'image' },
