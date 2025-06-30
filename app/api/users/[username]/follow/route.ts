@@ -11,62 +11,55 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
+    
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
+
+    const { username } = params;
+    const currentUserId = session.user.id;
 
     await dbConnect();
-    
-    // Trouver l'utilisateur à suivre
-    const userToFollow = await User.findOne({ username: params.username });
-    if (!userToFollow) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
+
+    const currentUser = await User.findById(currentUserId);
+    const targetUser = await User.findOne({ username });
+
+    if (!currentUser || !targetUser) {
+      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    // Trouver l'utilisateur connecté
-    const currentUser = await User.findOne({ email: session.user.email });
-    if (!currentUser) {
-      return NextResponse.json(
-        { error: 'Utilisateur connecté non trouvé' },
-        { status: 404 }
-      );
+    // Empêcher de se suivre soi-même
+    if (currentUser._id.equals(targetUser._id)) {
+      return NextResponse.json({ error: 'Vous ne pouvez pas vous suivre vous-même' }, { status: 400 });
     }
 
-    // Vérifier si on suit déjà cet utilisateur
-    const isFollowing = currentUser.following.includes(userToFollow._id);
-    
+    const isFollowing = currentUser.following?.includes(targetUser._id);
+
     if (isFollowing) {
-      // Ne plus suivre
-      await User.findByIdAndUpdate(currentUser._id, {
-        $pull: { following: userToFollow._id }
+      // Unfollow
+      await User.findByIdAndUpdate(currentUserId, {
+        $pull: { following: targetUser._id }
       });
-      await User.findByIdAndUpdate(userToFollow._id, {
-        $pull: { followers: currentUser._id }
+      await User.findByIdAndUpdate(targetUser._id, {
+        $pull: { followers: currentUserId }
       });
     } else {
-      // Suivre
-      await User.findByIdAndUpdate(currentUser._id, {
-        $addToSet: { following: userToFollow._id }
+      // Follow
+      await User.findByIdAndUpdate(currentUserId, {
+        $addToSet: { following: targetUser._id }
       });
-      await User.findByIdAndUpdate(userToFollow._id, {
-        $addToSet: { followers: currentUser._id }
+      await User.findByIdAndUpdate(targetUser._id, {
+        $addToSet: { followers: currentUserId }
       });
     }
 
     return NextResponse.json({ 
       success: true, 
-      following: !isFollowing 
+      isFollowing: !isFollowing 
     });
   } catch (error) {
-    console.error('Erreur follow/unfollow:', error);
     return NextResponse.json(
-      { error: 'Erreur lors du follow/unfollow' },
+      { error: 'Erreur serveur' },
       { status: 500 }
     );
   }
