@@ -47,4 +47,7 @@ CommentSchema.index({ track: 1, createdAt: -1 });
 CommentSchema.index({ user: 1 });
 CommentSchema.index({ parentComment: 1 });
 
-export default mongoose.models.Comment || mongoose.model<IComment>('Comment', CommentSchema); 
+// S'assurer que le modèle n'est pas déjà compilé
+const Comment = mongoose.models.Comment || mongoose.model<IComment>('Comment', CommentSchema);
+
+export default Comment; 

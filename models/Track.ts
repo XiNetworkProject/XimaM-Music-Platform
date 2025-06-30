@@ -121,4 +121,7 @@ TrackSchema.index({ artist: 1 });
 TrackSchema.index({ genre: 1 });
 TrackSchema.index({ createdAt: -1 });
 
-export default mongoose.models.Track || mongoose.model<ITrack>('Track', TrackSchema); 
+// S'assurer que le modèle n'est pas déjà compilé
+const Track = mongoose.models.Track || mongoose.model<ITrack>('Track', TrackSchema);
+
+export default Track; 

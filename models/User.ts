@@ -182,23 +182,23 @@ UserSchema.index({ 'socialLinks.twitter': 1 });
 
 // Virtuals pour les statistiques
 UserSchema.virtual('trackCount').get(function() {
-  return this.tracks.length;
+  return this.tracks ? this.tracks.length : 0;
 });
 
 UserSchema.virtual('playlistCount').get(function() {
-  return this.playlists.length;
+  return this.playlists ? this.playlists.length : 0;
 });
 
 UserSchema.virtual('followerCount').get(function() {
-  return this.followers.length;
+  return this.followers ? this.followers.length : 0;
 });
 
 UserSchema.virtual('followingCount').get(function() {
-  return this.following.length;
+  return this.following ? this.following.length : 0;
 });
 
 UserSchema.virtual('likeCount').get(function() {
-  return this.likes.length;
+  return this.likes ? this.likes.length : 0;
 });
 
 // Méthodes pour les interactions sociales
@@ -258,4 +258,7 @@ UserSchema.pre('save', function(next) {
   next();
 });
 
-export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema); 
+// S'assurer que le modèle n'est pas déjà compilé
+const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+
+export default User; 

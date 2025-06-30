@@ -64,7 +64,7 @@ PlaylistSchema.index({ name: 'text', description: 'text' });
 
 // Virtual pour le nombre de pistes
 PlaylistSchema.virtual('trackCount').get(function() {
-  return this.tracks.length;
+  return this.tracks ? this.tracks.length : 0;
 });
 
 // Virtual pour la durée totale
@@ -122,4 +122,7 @@ PlaylistSchema.pre('save', function(next) {
   next();
 });
 
-export default mongoose.models.Playlist || mongoose.model<IPlaylist>('Playlist', PlaylistSchema); 
+// S'assurer que le modèle n'est pas déjà compilé
+const Playlist = mongoose.models.Playlist || mongoose.model<IPlaylist>('Playlist', PlaylistSchema);
+
+export default Playlist; 
