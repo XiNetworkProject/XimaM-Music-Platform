@@ -169,6 +169,7 @@ export async function POST(
       message: `${type === 'avatar' ? 'Avatar' : 'Bannière'} mis à jour avec succès`
     });
   } catch (error) {
+    console.error('Erreur upload image:', error);
     return NextResponse.json(
       { error: 'Erreur lors de l\'upload de l\'image' },
       { status: 500 }

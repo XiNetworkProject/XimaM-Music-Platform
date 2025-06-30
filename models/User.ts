@@ -173,8 +173,8 @@ const UserSchema = new Schema<IUser>({
 });
 
 // Index pour améliorer les performances
-UserSchema.index({ username: 1 });
-UserSchema.index({ email: 1 });
+// UserSchema.index({ username: 1 }); // Supprimé car unique: true crée déjà l'index
+// UserSchema.index({ email: 1 }); // Supprimé car unique: true crée déjà l'index
 UserSchema.index({ isArtist: 1, totalPlays: -1 });
 UserSchema.index({ followers: -1 });
 UserSchema.index({ 'socialLinks.instagram': 1 });
