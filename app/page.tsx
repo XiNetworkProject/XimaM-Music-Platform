@@ -123,8 +123,6 @@ export default function HomePage() {
     listeners: 1247,
     isLive: true
   });
-  const [radioAudio, setRadioAudio] = useState<HTMLAudioElement | null>(null);
-  const [streamUrl, setStreamUrl] = useState<string>('');
 
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -599,27 +597,47 @@ export default function HomePage() {
     }
   }, []);
 
-  // Fonction pour récupérer l'URL de streaming StreamRadio
+  // Fonction pour récupérer l'URL de streaming
   const fetchStreamUrl = async () => {
     try {
-      // URL directe HTTPS pour le flux StreamRadio Mixx Party
-      const directStreamUrl = 'https://manager5.streamradio.fr:2335/stream';
-      setStreamUrl(directStreamUrl);
-      console.log('URL de streaming configurée:', directStreamUrl);
+      // URL de streaming directe HTTPS
+      const streamUrl = 'https://manager5.streamradio.fr:2335/stream';
+      console.log('URL de streaming radio configurée:', streamUrl);
+      return streamUrl;
     } catch (error) {
       console.error('Erreur récupération URL streaming:', error);
+      return 'https://manager5.streamradio.fr:2335/stream'; // URL de fallback
     }
   };
 
-  // Fonction pour récupérer les métadonnées du flux
+  // Fonction pour récupérer les métadonnées du flux radio
   const fetchRadioMetadata = async () => {
     try {
-      const response = await fetch('http://manager5.streamradio.fr:2330/index.html');
+      // URL de statut pour récupérer les métadonnées
+      const statusUrl = 'https://manager5.streamradio.fr:2335/status-json.xsl';
+      const response = await fetch(statusUrl);
+      
       if (response.ok) {
-        const html = await response.text();
-        // Parser le HTML pour extraire les métadonnées
-        // Adapter selon la structure de la page de statut
-        console.log('Métadonnées radio récupérées');
+        const data = await response.json();
+        
+        // Extraire les métadonnées du flux
+        if (data.icestats && data.icestats.source) {
+          const source = data.icestats.source;
+          
+          // Mettre à jour les infos radio avec les vraies métadonnées
+          setRadioInfo(prev => ({
+            ...prev,
+            currentTrack: source.title || 'En direct - Mixx Party',
+            listeners: source.listeners || prev.listeners,
+            isLive: true
+          }));
+          
+          console.log('Métadonnées radio mises à jour:', {
+            title: source.title,
+            artist: source.artist,
+            listeners: source.listeners
+          });
+        }
       }
     } catch (error) {
       console.error('Erreur récupération métadonnées:', error);
@@ -630,58 +648,41 @@ export default function HomePage() {
   const handleRadioToggle = async () => {
     if (isRadioPlaying) {
       // Arrêter la radio
-      if (radioAudio) {
-        radioAudio.pause();
-        radioAudio.src = '';
-        setRadioAudio(null);
-      }
       setIsRadioPlaying(false);
       console.log('Radio arrêtée');
     } else {
       // Démarrer la radio
       try {
-        // Récupérer l'URL de streaming si pas encore fait
-        if (!streamUrl) {
-          await fetchStreamUrl();
-        }
+        // Récupérer l'URL de streaming
+        const streamUrl = await fetchStreamUrl();
         
         // Récupérer les métadonnées du flux
         await fetchRadioMetadata();
         
-        // Créer un nouvel élément audio
-        const audio = new Audio();
-        audio.crossOrigin = 'anonymous';
-        audio.preload = 'none';
+        // Créer un objet "track" pour la radio
+        const radioTrack = {
+          _id: 'radio-mixx-party',
+          title: radioInfo.currentTrack,
+          artist: {
+            _id: 'radio',
+            name: 'Mixx Party',
+            username: 'mixxparty',
+            avatar: '/default-avatar.png'
+          },
+          audioUrl: streamUrl,
+          coverUrl: '/default-cover.jpg', // Ou une image spécifique pour la radio
+          duration: 0, // Durée infinie pour la radio
+          likes: [],
+          comments: [],
+          plays: 0,
+          isLiked: false,
+          genre: ['Electronic', 'Dance']
+        };
         
-        // Utiliser l'URL de streaming ou une URL de fallback
-        const finalStreamUrl = streamUrl || 'https://manager5.streamradio.fr:2335/stream';
-        audio.src = finalStreamUrl;
-        
-        // Gestion des événements
-        audio.addEventListener('loadstart', () => {
-          console.log('Chargement du flux radio...');
-        });
-        
-        audio.addEventListener('canplay', () => {
-          console.log('Flux radio prêt à jouer');
-          audio.play().then(() => {
-            setIsRadioPlaying(true);
-            setRadioAudio(audio);
-            console.log('Radio démarrée - Mixx Party');
-          }).catch(error => {
-            console.error('Erreur lecture radio:', error);
-          });
-        });
-        
-        audio.addEventListener('error', (error) => {
-          console.error('Erreur flux radio:', error);
-        });
-        
-        audio.addEventListener('ended', () => {
-          console.log('Flux radio terminé');
-          setIsRadioPlaying(false);
-          setRadioAudio(null);
-        });
+        // Utiliser le système de lecture audio existant
+        await playTrack(radioTrack);
+        setIsRadioPlaying(true);
+        console.log('Radio démarrée - Mixx Party via le player principal');
         
       } catch (error) {
         console.error('Erreur démarrage radio:', error);
@@ -689,15 +690,20 @@ export default function HomePage() {
     }
   };
 
-  // Nettoyer l'audio radio quand le composant se démonte
+  // Mettre à jour les métadonnées radio périodiquement
   useEffect(() => {
-    return () => {
-      if (radioAudio) {
-        radioAudio.pause();
-        radioAudio.src = '';
-      }
-    };
-  }, [radioAudio]);
+    if (!isRadioPlaying) return;
+    
+    // Mise à jour initiale
+    fetchRadioMetadata();
+    
+    // Mise à jour toutes les 30 secondes
+    const interval = setInterval(() => {
+      fetchRadioMetadata();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [isRadioPlaying]);
 
   if (loading) {
     return (
