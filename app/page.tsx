@@ -3099,7 +3099,7 @@ export default function HomePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm"
             onClick={() => setShowProgramDialog(false)}
           >
             <motion.div
@@ -3107,144 +3107,144 @@ export default function HomePage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-4xl max-h-[90vh] overflow-hidden"
+              className="relative w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Effet de fond futuriste */}
               <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl"></div>
               
-              <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden">
+              <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden flex flex-col h-full">
                 {/* Header du dialog */}
-                <div className="relative p-6 border-b border-white/10">
+                <div className="relative p-3 sm:p-6 border-b border-white/10 flex-shrink-0">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
                   
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2 sm:space-x-4">
                       <div className="relative">
-                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                          <Radio size={24} className="text-white" />
+                        <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                          <Radio size={16} className="sm:w-6 sm:h-6 text-white" />
                         </div>
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                        <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                        <h2 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                           Mixx Party Radio
                         </h2>
-                        <p className="text-gray-400">Informations en temps réel</p>
+                        <p className="text-gray-400 text-xs sm:text-sm">Informations en temps réel</p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 sm:space-x-3">
                       <motion.button
                         whileHover={{ scale: 1.05, rotate: 180 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={fetchRadioInfo}
                         disabled={programLoading}
-                        className="w-10 h-10 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
+                        className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
                       >
-                        <RefreshCw size={20} className={`text-white ${programLoading ? 'animate-spin' : ''}`} />
+                        <RefreshCw size={16} className={`sm:w-5 sm:h-5 text-white ${programLoading ? 'animate-spin' : ''}`} />
                       </motion.button>
                       
                       <motion.button
                         whileHover={{ scale: 1.1, rotate: 90 }}
                         whileTap={{ scale: 0.9 }}
                         onClick={() => setShowProgramDialog(false)}
-                        className="w-10 h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
+                        className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
                       >
-                        <X size={20} className="text-white" />
+                        <X size={16} className="sm:w-5 sm:h-5 text-white" />
                       </motion.button>
                     </div>
                   </div>
                 </div>
 
                 {/* Contenu du dialog */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-3 sm:p-6">
                   {programLoading ? (
-                    <div className="flex items-center justify-center h-64">
+                    <div className="flex items-center justify-center h-48 sm:h-64">
                       <div className="text-center">
-                        <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-400">Chargement des informations...</p>
+                        <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                        <p className="text-gray-400 text-sm sm:text-base">Chargement des informations...</p>
                       </div>
                     </div>
                   ) : realRadioProgram.length > 0 ? (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       {realRadioProgram.map((radioInfo: any, index: number) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="space-y-6"
+                          className="space-y-4 sm:space-y-6"
                         >
                           {/* Piste actuelle */}
-                          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-2xl p-6 border border-cyan-500/30">
-                            <div className="flex items-center space-x-3 mb-4">
-                              <div className="w-3 h-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse"></div>
-                              <h3 className="text-lg font-bold text-white">Piste actuelle</h3>
+                          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-2xl p-4 sm:p-6 border border-cyan-500/30">
+                            <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
+                              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse"></div>
+                              <h3 className="text-base sm:text-lg font-bold text-white">Piste actuelle</h3>
                             </div>
                             
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="text-white font-semibold text-lg">{radioInfo.currentTrack.title}</p>
-                                  <p className="text-cyan-400 text-sm">{radioInfo.currentTrack.artist}</p>
+                            <div className="space-y-3 sm:space-y-4">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white font-semibold text-base sm:text-lg truncate">{radioInfo.currentTrack.title}</p>
+                                  <p className="text-cyan-400 text-sm sm:text-base truncate">{radioInfo.currentTrack.artist}</p>
                                 </div>
-                                <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse">
+                                <span className="inline-block px-2 py-1 sm:px-3 sm:py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse self-start sm:self-center">
                                   EN DIRECT
                                 </span>
                               </div>
                               
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div className="bg-black/20 rounded-lg p-3">
-                                  <p className="text-gray-400">Genre</p>
-                                  <p className="text-white font-medium">{radioInfo.currentTrack.genre}</p>
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
+                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
+                                  <p className="text-gray-400 text-xs sm:text-sm">Genre</p>
+                                  <p className="text-white font-medium truncate">{radioInfo.currentTrack.genre}</p>
                                 </div>
-                                <div className="bg-black/20 rounded-lg p-3">
-                                  <p className="text-gray-400">Auditeurs</p>
+                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
+                                  <p className="text-gray-400 text-xs sm:text-sm">Auditeurs</p>
                                   <p className="text-white font-medium">{formatNumber(radioInfo.stats.listeners)}</p>
                                 </div>
-                                <div className="bg-black/20 rounded-lg p-3">
-                                  <p className="text-gray-400">Qualité</p>
+                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
+                                  <p className="text-gray-400 text-xs sm:text-sm">Qualité</p>
                                   <p className="text-white font-medium">{radioInfo.stats.bitrate}kbps</p>
                                 </div>
-                                <div className="bg-black/20 rounded-lg p-3">
-                                  <p className="text-gray-400">Statut</p>
-                                  <p className="text-white font-medium">{radioInfo.stats.uptime}</p>
+                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
+                                  <p className="text-gray-400 text-xs sm:text-sm">Statut</p>
+                                  <p className="text-white font-medium truncate">{radioInfo.stats.uptime}</p>
                                 </div>
                               </div>
                             </div>
                           </div>
 
                           {/* Description de la radio */}
-                          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-6 border border-purple-500/30">
-                            <h3 className="text-lg font-bold text-white mb-4">À propos de Mixx Party Radio</h3>
-                            <p className="text-gray-300 mb-4">{radioInfo.description}</p>
+                          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-4 sm:p-6 border border-purple-500/30">
+                            <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">À propos de Mixx Party Radio</h3>
+                            <p className="text-gray-300 text-sm sm:text-base mb-4">{radioInfo.description}</p>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-2 sm:space-y-3">
                               {radioInfo.features.map((feature: string, featureIndex: number) => (
-                                <div key={featureIndex} className="flex items-center space-x-3">
-                                  <span className="text-2xl">{feature.split(' ')[0]}</span>
-                                  <span className="text-gray-300">{feature.split(' ').slice(1).join(' ')}</span>
+                                <div key={featureIndex} className="flex items-center space-x-2 sm:space-x-3">
+                                  <span className="text-xl sm:text-2xl flex-shrink-0">{feature.split(' ')[0]}</span>
+                                  <span className="text-gray-300 text-sm sm:text-base">{feature.split(' ').slice(1).join(' ')}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
 
                           {/* Statistiques */}
-                          <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-2xl p-6 border border-pink-500/30">
-                            <h3 className="text-lg font-bold text-white mb-4">Statistiques</h3>
-                            <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-2xl p-4 sm:p-6 border border-pink-500/30">
+                            <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">Statistiques</h3>
+                            <div className="grid grid-cols-2 gap-3 sm:gap-4">
                               <div className="text-center">
-                                <div className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
                                   {formatNumber(radioInfo.stats.listeners)}
                                 </div>
-                                <p className="text-gray-400 text-sm">Auditeurs</p>
+                                <p className="text-gray-400 text-xs sm:text-sm">Auditeurs</p>
                               </div>
                               <div className="text-center">
-                                <div className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
                                   {radioInfo.stats.bitrate}
                                 </div>
-                                <p className="text-gray-400 text-sm">kbps</p>
+                                <p className="text-gray-400 text-xs sm:text-sm">kbps</p>
                               </div>
                             </div>
                           </div>
@@ -3252,16 +3252,16 @@ export default function HomePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center text-gray-400">
-                      <p>Aucune information disponible</p>
+                    <div className="text-center text-gray-400 py-8">
+                      <p className="text-sm sm:text-base">Aucune information disponible</p>
                     </div>
                   )}
                 </div>
 
                 {/* Footer du dialog */}
-                <div className="mt-6 pt-6 border-t border-white/10">
-                  <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
-                    <div className="flex items-center space-x-4 text-sm">
+                <div className="p-3 sm:p-6 border-t border-white/10 flex-shrink-0">
+                  <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
+                    <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
                       <div className="flex items-center space-x-2 text-cyan-400">
                         <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
                         <span className="font-medium">Programme en direct 24h/24</span>
@@ -3278,7 +3278,7 @@ export default function HomePage() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setShowProgramDialog(false)}
-                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-semibold px-6 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/30"
+                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-semibold px-4 sm:px-6 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/30 text-sm sm:text-base"
                     >
                       Fermer
                     </motion.button>
