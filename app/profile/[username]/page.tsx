@@ -289,7 +289,7 @@ export default function ProfileUserPage() {
       }
       
       // Mettre à jour le profil
-      const res = await fetch(`/api/users/${user._id}`, {
+      const res = await fetch(`/api/users/${user.username}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -320,7 +320,7 @@ export default function ProfileUserPage() {
     if (!user) return;
     
     try {
-      const res = await fetch(`/api/users/${user._id}/follow`, {
+      const res = await fetch(`/api/users/${user.username}/follow`, {
         method: 'POST'
       });
       
