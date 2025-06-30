@@ -13,7 +13,27 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { Track } from '@/types';
+interface Track {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  duration: number;
+  likes: string[];
+  comments: string[];
+  plays: number;
+  createdAt: string;
+  genre?: string[];
+  description?: string;
+  lyrics?: string;
+  isLiked?: boolean;
+}
 
 interface CategoryData {
   tracks: Track[];
@@ -686,14 +706,14 @@ export default function HomePage() {
                   {/* Image de fond avec effet parallax */}
                   <div className="absolute inset-0">
                     <motion.img
-                      src={featuredTracks[currentSlide].coverUrl || '/default-cover.svg'}
+                      src={featuredTracks[currentSlide].coverUrl || '/default-cover.jpg'}
                       alt={featuredTracks[currentSlide].title}
                       className="w-full h-full object-cover"
                       animate={{ scale: [1, 1.03, 1] }}
                       transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                       loading="eager"
                       onError={(e) => {
-                        e.currentTarget.src = '/default-cover.svg';
+                        e.currentTarget.src = '/default-cover.jpg';
                       }}
                     />
                     {/* Overlay gradient futuriste */}
@@ -976,11 +996,11 @@ export default function HomePage() {
                         <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
                           <div className="relative aspect-square">
                             <img
-                              src={track.coverUrl || '/default-cover.svg'}
+                              src={track.coverUrl || '/default-cover.jpg'}
                               alt={track.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                               onError={(e) => {
-                                e.currentTarget.src = '/default-cover.svg';
+                                e.currentTarget.src = '/default-cover.jpg';
                               }}
                             />
                             
@@ -1042,7 +1062,7 @@ export default function HomePage() {
                         <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 p-4 text-center">
                           <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
                             <img
-                              src={artist.avatar || '/default-avatar.svg'}
+                              src={artist.avatar || '/default-avatar.png'}
                               alt={artist.name}
                               className="w-full h-full object-cover"
                             />
@@ -1186,12 +1206,12 @@ export default function HomePage() {
                     {/* Cover avec lazy loading */}
                     <div className="relative aspect-square">
                       <img
-                        src={track.coverUrl || '/default-cover.svg'}
+                        src={track.coverUrl || '/default-cover.jpg'}
                         alt={track.title}
                         loading="lazy"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
-                          e.currentTarget.src = '/default-cover.svg';
+                          e.currentTarget.src = '/default-cover.jpg';
                         }}
                       />
                       
@@ -1349,7 +1369,7 @@ export default function HomePage() {
                   >
                     <div className="relative mb-2">
                       <img
-                        src={user.avatar || '/default-avatar.svg'}
+                        src={user.avatar || '/default-avatar.png'}
                         alt={user.name || user.username}
                         className="w-16 h-16 rounded-full mx-auto object-cover group-hover:ring-2 ring-purple-500/50 transition-all duration-300"
                       />
@@ -1476,11 +1496,11 @@ export default function HomePage() {
                     <div className="relative rounded-xl overflow-hidden">
                       <div className="aspect-square bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center relative">
                         <img
-                          src={track.coverUrl || '/default-cover.svg'}
+                          src={track.coverUrl || '/default-cover.jpg'}
                           alt={track.title}
                           className="w-full h-full object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = '/default-cover.svg';
+                            e.currentTarget.src = '/default-cover.jpg';
                           }}
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
@@ -1577,12 +1597,12 @@ export default function HomePage() {
                       {/* Cover avec lazy loading */}
                       <div className="relative aspect-square">
                         <img
-                          src={track.coverUrl || '/default-cover.svg'}
+                          src={track.coverUrl || '/default-cover.jpg'}
                           alt={track.title}
                           loading="lazy"
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                           onError={(e) => {
-                            e.currentTarget.src = '/default-cover.svg';
+                            e.currentTarget.src = '/default-cover.jpg';
                           }}
                         />
                         
@@ -2016,7 +2036,7 @@ export default function HomePage() {
                               {rec.tracks.slice(0, 2).map((track: Track) => (
                                 <div key={track._id} className="flex items-center space-x-2 p-2 bg-white/10 rounded-lg">
                                   <img
-                                    src={track.coverUrl || '/default-cover.svg'}
+                                    src={track.coverUrl || '/default-cover.jpg'}
                                     alt={track.title}
                                     className="w-8 h-8 rounded object-cover"
                                   />
@@ -2160,11 +2180,11 @@ export default function HomePage() {
                     >
                       <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${activity.color} flex items-center justify-center`}>
                         <img
-                          src={activity.avatar || '/default-avatar.svg'}
+                          src={activity.avatar}
                           alt={activity.artist}
                           className="w-full h-full rounded-full object-cover"
                           onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.svg';
+                            e.currentTarget.src = '/default-avatar.png';
                           }}
                         />
                       </div>
@@ -2242,12 +2262,12 @@ export default function HomePage() {
                         {/* Cover avec lazy loading */}
                         <div className="relative aspect-square">
                           <img
-                            src={track.coverUrl || '/default-cover.svg'}
+                            src={track.coverUrl || '/default-cover.jpg'}
                             alt={track.title}
                             loading="lazy"
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                             onError={(e) => {
-                              e.currentTarget.src = '/default-cover.svg';
+                              e.currentTarget.src = '/default-cover.jpg';
                             }}
                           />
                           

@@ -1,68 +1,6 @@
 // Script pour forcer la mise à jour du service worker
 // Utile pour résoudre les problèmes de cache sur mobile
 
-const fs = require('fs');
-const path = require('path');
-
-// Mettre à jour la version du cache dans le service worker
-const swPath = path.join(__dirname, '../public/sw.js');
-let swContent = fs.readFileSync(swPath, 'utf8');
-
-// Incrémenter la version du cache
-const versionMatch = swContent.match(/const CACHE_NAME = 'ximam-audio-v(\d+)'/);
-if (versionMatch) {
-  const currentVersion = parseInt(versionMatch[1]);
-  const newVersion = currentVersion + 1;
-  swContent = swContent.replace(
-    /const CACHE_NAME = 'ximam-audio-v\d+'/,
-    `const CACHE_NAME = 'ximam-audio-v${newVersion}'`
-  );
-  swContent = swContent.replace(
-    /const AUDIO_CACHE_NAME = 'ximam-audio-files-v\d+'/,
-    `const AUDIO_CACHE_NAME = 'ximam-audio-files-v${newVersion}'`
-  );
-  
-  fs.writeFileSync(swPath, swContent);
-  console.log(`✅ Service worker mis à jour vers la version ${newVersion}`);
-} else {
-  console.log('⚠️ Impossible de trouver la version du cache');
-}
-
-// Créer un script pour forcer la mise à jour côté client
-const clientScript = `
-// Script pour forcer la mise à jour du service worker
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then(function(registrations) {
-    for(let registration of registrations) {
-      registration.unregister();
-    }
-  });
-  
-  // Vider tous les caches
-  if ('caches' in window) {
-    caches.keys().then(function(names) {
-      for (let name of names) {
-        caches.delete(name);
-      }
-    });
-  }
-  
-  // Recharger la page
-  setTimeout(() => {
-    window.location.reload(true);
-  }, 1000);
-}
-`;
-
-const clientScriptPath = path.join(__dirname, '../public/force-update.js');
-fs.writeFileSync(clientScriptPath, clientScript);
-console.log('✅ Script de mise à jour forcée créé');
-
-console.log('\n📋 Instructions pour l\'utilisateur:');
-console.log('1. Ouvrez la console du navigateur (F12)');
-console.log('2. Exécutez: fetch("/force-update.js").then(r => r.text()).then(eval)');
-console.log('3. Ou ajoutez cette ligne dans votre HTML: <script src="/force-update.js"></script>');
-
 async function main() {
   // Début du script de mise à jour du service worker
   

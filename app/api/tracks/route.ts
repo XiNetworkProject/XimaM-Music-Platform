@@ -19,16 +19,10 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const genre = searchParams.get('genre');
     const search = searchParams.get('search');
-    const artist = searchParams.get('artist');
     const skip = (page - 1) * limit;
 
     // Construire la requête
-    let query: any = { 
-      $or: [
-        { isPublic: true },
-        { isPublic: { $exists: false } } // Inclure les tracks sans le champ isPublic
-      ]
-    };
+    let query: any = { isPublic: true };
 
     // Filtrer par genre
     if (genre && genre !== 'all') {
@@ -37,61 +31,15 @@ export async function GET(request: NextRequest) {
 
     // Recherche par texte
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
-      ];
-    }
-
-    // Filtrer par artiste (username)
-    if (artist) {
-      // On suppose que le champ artist dans Track est un ObjectId vers User
-      // Il faut donc retrouver l'utilisateur par username
-      const User = (await import('@/models/User')).default;
-      const userDoc = await User.findOne({ username: artist });
-      if (userDoc) {
-        query.artist = userDoc._id;
-      } else {
-        // Aucun utilisateur trouvé, retourner une liste vide
-        return NextResponse.json({
-          tracks: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            pages: 0
-          },
-        });
-      }
+      query.$text = { $search: search };
     }
 
     // Récupérer les pistes avec les informations de l'artiste
-    let tracks = await Track.find(query)
-      .populate('artist', '_id name username avatar')
+    const tracks = await Track.find(query)
+      .populate('artist', 'name username avatar')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .lean();
-
-    // Fallback pour garantir _id et artist avec toutes les données
-    tracks = tracks.map(track => ({
-      ...track,
-      _id: track._id ? track._id.toString() : Math.random().toString(),
-      artist: track.artist ? {
-        ...track.artist,
-        _id: track.artist._id ? track.artist._id.toString() : Math.random().toString()
-      } : { 
-        _id: Math.random().toString(),
-        name: 'Artiste inconnu', 
-        username: 'unknown',
-        avatar: '/default-avatar.svg'
-      },
-      likes: track.likes ? track.likes.map((id: any) => id.toString()) : [],
-      comments: track.comments ? track.comments.map((id: any) => id.toString()) : [],
-      createdAt: track.createdAt ? track.createdAt.toISOString() : new Date().toISOString(),
-      updatedAt: track.updatedAt ? track.updatedAt.toISOString() : new Date().toISOString()
-    }));
+      .limit(limit);
 
     // Compter le total
     const total = await Track.countDocuments(query);

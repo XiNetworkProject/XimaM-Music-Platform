@@ -38,28 +38,12 @@ export async function GET(
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .populate('artist', 'name username avatar')
-      .lean();
-
-    // Convertir les _id en chaînes de caractères
-    const tracksWithStringIds = tracks.map(track => ({
-      ...track,
-      _id: track._id ? track._id.toString() : Math.random().toString(),
-      artist: track.artist ? {
-        ...track.artist,
-        _id: track.artist._id ? track.artist._id.toString() : Math.random().toString()
-      } : {
-        _id: Math.random().toString(),
-        name: 'Artiste inconnu',
-        username: 'unknown',
-        avatar: '/default-avatar.svg'
-      }
-    }));
+      .populate('artist', 'name username avatar');
 
     const total = await Track.countDocuments(query);
 
     return NextResponse.json({
-      tracks: tracksWithStringIds,
+      tracks,
       pagination: {
         page,
         limit,
@@ -67,7 +51,7 @@ export async function GET(
         pages: Math.ceil(total / limit),
       },
       user: {
-        id: user._id.toString(),
+        id: user._id,
         username: user.username,
         name: user.name,
         avatar: user.avatar,

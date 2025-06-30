@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
+import dbConnect, { isConnected } from '@/lib/db';
 import User from '@/models/User';
 
 // POST - Suivre/Ne plus suivre un utilisateur
@@ -11,55 +11,74 @@ export async function POST(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
     }
-
-    const { username } = params;
-    const currentUserId = session.user.id;
 
     await dbConnect();
     
-    const currentUser = await User.findById(currentUserId);
-    const targetUser = await User.findOne({ username });
+    if (!isConnected()) {
+      await dbConnect();
+    }
+    
+    const { username } = params;
+    
+    // Récupérer l'utilisateur actuel
+    const currentUser = await User.findOne({ email: session.user.email });
+    if (!currentUser) {
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
 
-    if (!currentUser || !targetUser) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+    // Récupérer l'utilisateur à suivre
+    const userToFollow = await User.findOne({ username });
+    if (!userToFollow) {
+      return NextResponse.json(
+        { error: 'Utilisateur à suivre non trouvé' },
+        { status: 404 }
+      );
     }
 
     // Empêcher de se suivre soi-même
-    if (currentUser._id.equals(targetUser._id)) {
-      return NextResponse.json({ error: 'Vous ne pouvez pas vous suivre vous-même' }, { status: 400 });
+    if (currentUser._id.toString() === userToFollow._id.toString()) {
+      return NextResponse.json(
+        { error: 'Vous ne pouvez pas vous suivre vous-même' },
+        { status: 400 }
+      );
     }
-
-    const isFollowing = currentUser.following?.includes(targetUser._id);
+    
+    // Vérifier si l'utilisateur suit déjà
+    const isFollowing = currentUser.following.includes(userToFollow._id);
     
     if (isFollowing) {
       // Unfollow
-      await User.findByIdAndUpdate(currentUserId, {
-        $pull: { following: targetUser._id }
-      });
-      await User.findByIdAndUpdate(targetUser._id, {
-        $pull: { followers: currentUserId }
+      await currentUser.unfollow(userToFollow._id.toString());
+      await userToFollow.removeFollower(currentUser._id.toString());
+      
+      return NextResponse.json({
+        success: true,
+        action: 'unfollowed',
+        message: `Vous ne suivez plus ${userToFollow.name}`
       });
     } else {
       // Follow
-      await User.findByIdAndUpdate(currentUserId, {
-        $addToSet: { following: targetUser._id }
-      });
-      await User.findByIdAndUpdate(targetUser._id, {
-        $addToSet: { followers: currentUserId }
-      });
-    }
+      await currentUser.follow(userToFollow._id.toString());
+      await userToFollow.addFollower(currentUser._id.toString());
 
     return NextResponse.json({ 
       success: true, 
-      isFollowing: !isFollowing 
+        action: 'followed',
+        message: `Vous suivez maintenant ${userToFollow.name}`
     });
+    }
   } catch (error) {
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: 'Erreur lors de l\'action follow/unfollow' },
       { status: 500 }
     );
   }

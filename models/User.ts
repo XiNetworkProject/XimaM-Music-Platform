@@ -1,126 +1,261 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface IUser extends Document {
-  email: string;
   name: string;
+  email: string;
   username: string;
   avatar?: string;
   banner?: string;
   bio?: string;
   location?: string;
   website?: string;
-  followers: mongoose.Types.ObjectId[];
-  following: mongoose.Types.ObjectId[];
-  followersCount: number;
-  followingCount: number;
-  trackCount: number;
-  likedTracks: mongoose.Types.ObjectId[];
-  isVerified: boolean;
-  role: 'user' | 'artist' | 'admin';
-  provider?: string;
-  providerId?: string;
-  password?: string;
   socialLinks?: {
     instagram?: string;
     twitter?: string;
     youtube?: string;
+    soundcloud?: string;
     spotify?: string;
   };
+  followers: mongoose.Types.ObjectId[];
+  following: mongoose.Types.ObjectId[];
+  tracks: mongoose.Types.ObjectId[];
+  playlists: mongoose.Types.ObjectId[];
+  likes: mongoose.Types.ObjectId[];
+  isVerified: boolean;
+  isArtist: boolean;
+  artistName?: string;
+  genre?: string[];
+  totalPlays: number;
+  totalLikes: number;
   createdAt: Date;
   updatedAt: Date;
+  lastSeen: Date;
+  preferences: {
+    theme: 'light' | 'dark' | 'auto';
+    language: string;
+    notifications: {
+      email: boolean;
+      push: boolean;
+      newFollowers: boolean;
+      newLikes: boolean;
+      newComments: boolean;
+    };
+  };
 }
 
 const UserSchema = new Schema<IUser>({
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-  },
   name: {
     type: String,
-    required: true,
+    required: [true, 'Le nom est requis'],
     trim: true,
+    maxlength: [50, 'Le nom ne peut pas dépasser 50 caractères']
+  },
+  email: {
+    type: String,
+    required: [true, 'L\'email est requis'],
+    unique: true,
+    lowercase: true,
+    trim: true
   },
   username: {
     type: String,
-    required: true,
+    required: [true, 'Le nom d\'utilisateur est requis'],
     unique: true,
     trim: true,
-    lowercase: true,
+    minlength: [3, 'Le nom d\'utilisateur doit contenir au moins 3 caractères'],
+    maxlength: [30, 'Le nom d\'utilisateur ne peut pas dépasser 30 caractères'],
+    match: [/^[a-zA-Z0-9_]+$/, 'Le nom d\'utilisateur ne peut contenir que des lettres, chiffres et underscores']
   },
   avatar: {
     type: String,
+    default: null
   },
   banner: {
     type: String,
+    default: null
   },
   bio: {
     type: String,
-    maxlength: 500,
+    trim: true,
+    maxlength: [500, 'La bio ne peut pas dépasser 500 caractères'],
+    default: ''
   },
   location: {
     type: String,
-    maxlength: 100,
+    trim: true,
+    maxlength: [100, 'La localisation ne peut pas dépasser 100 caractères'],
+    default: ''
   },
   website: {
     type: String,
-    maxlength: 200,
+    trim: true,
+    default: ''
+  },
+  socialLinks: {
+    instagram: { type: String, trim: true, default: '' },
+    twitter: { type: String, trim: true, default: '' },
+    youtube: { type: String, trim: true, default: '' },
+    soundcloud: { type: String, trim: true, default: '' },
+    spotify: { type: String, trim: true, default: '' }
   },
   followers: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'User'
   }],
   following: [{
     type: Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'User'
   }],
-  followersCount: {
-    type: Number,
-    default: 0,
-  },
-  followingCount: {
-    type: Number,
-    default: 0,
-  },
-  trackCount: {
-    type: Number,
-    default: 0,
-  },
-  likedTracks: [{
+  tracks: [{
     type: Schema.Types.ObjectId,
-    ref: 'Track',
+    ref: 'Track'
+  }],
+  playlists: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Playlist'
+  }],
+  likes: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Track'
   }],
   isVerified: {
     type: Boolean,
-    default: false,
+    default: false
   },
-  role: {
+  isArtist: {
+    type: Boolean,
+    default: false
+  },
+  artistName: {
     type: String,
-    enum: ['user', 'artist', 'admin'],
-    default: 'user',
+    trim: true,
+    maxlength: [50, 'Le nom d\'artiste ne peut pas dépasser 50 caractères'],
+    default: ''
   },
-  provider: {
+  genre: [{
     type: String,
-    enum: ['local', 'google'],
-    default: 'local',
+    trim: true
+  }],
+  totalPlays: {
+    type: Number,
+    default: 0
   },
-  providerId: {
-    type: String,
+  totalLikes: {
+    type: Number,
+    default: 0
   },
-  password: {
-    type: String,
+  lastSeen: {
+    type: Date,
+    default: Date.now
   },
-  socialLinks: {
-    instagram: String,
-    twitter: String,
-    youtube: String,
-    spotify: String,
-  },
+  preferences: {
+    theme: {
+      type: String,
+      enum: ['light', 'dark', 'auto'],
+      default: 'dark'
+    },
+    language: {
+      type: String,
+      default: 'fr'
+    },
+    notifications: {
+      email: { type: Boolean, default: true },
+      push: { type: Boolean, default: true },
+      newFollowers: { type: Boolean, default: true },
+      newLikes: { type: Boolean, default: true },
+      newComments: { type: Boolean, default: true }
+    }
+  }
 }, {
   timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
-// Pas besoin d'index manuels car unique: true les crée automatiquement
+// Index pour améliorer les performances
+UserSchema.index({ username: 1 });
+UserSchema.index({ email: 1 });
+UserSchema.index({ isArtist: 1, totalPlays: -1 });
+UserSchema.index({ followers: -1 });
+UserSchema.index({ 'socialLinks.instagram': 1 });
+UserSchema.index({ 'socialLinks.twitter': 1 });
+
+// Virtuals pour les statistiques
+UserSchema.virtual('trackCount').get(function() {
+  return this.tracks.length;
+});
+
+UserSchema.virtual('playlistCount').get(function() {
+  return this.playlists.length;
+});
+
+UserSchema.virtual('followerCount').get(function() {
+  return this.followers.length;
+});
+
+UserSchema.virtual('followingCount').get(function() {
+  return this.following.length;
+});
+
+UserSchema.virtual('likeCount').get(function() {
+  return this.likes.length;
+});
+
+// Méthodes pour les interactions sociales
+UserSchema.methods.follow = function(userId: string) {
+  if (!this.following.includes(userId)) {
+    this.following.push(userId);
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+UserSchema.methods.unfollow = function(userId: string) {
+  this.following = this.following.filter((id: mongoose.Types.ObjectId) => id.toString() !== userId);
+  return this.save();
+};
+
+UserSchema.methods.addFollower = function(userId: string) {
+  if (!this.followers.includes(userId)) {
+    this.followers.push(userId);
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+UserSchema.methods.removeFollower = function(userId: string) {
+  this.followers = this.followers.filter((id: mongoose.Types.ObjectId) => id.toString() !== userId);
+  return this.save();
+};
+
+UserSchema.methods.likeTrack = function(trackId: string) {
+  if (!this.likes.includes(trackId)) {
+    this.likes.push(trackId);
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+UserSchema.methods.unlikeTrack = function(trackId: string) {
+  this.likes = this.likes.filter((id: mongoose.Types.ObjectId) => id.toString() !== trackId);
+  return this.save();
+};
+
+// Middleware pre-save pour valider
+UserSchema.pre('save', function(next) {
+  if (this.username && this.username.length < 3) {
+    next(new Error('Le nom d\'utilisateur doit contenir au moins 3 caractères'));
+  }
+  if (this.bio && this.bio.length > 500) {
+    next(new Error('La bio ne peut pas dépasser 500 caractères'));
+  }
+  next();
+});
+
+// Middleware pour mettre à jour lastSeen
+UserSchema.pre('save', function(next) {
+  this.lastSeen = new Date();
+  next();
+});
 
 export default mongoose.models.User || mongoose.model<IUser>('User', UserSchema); 

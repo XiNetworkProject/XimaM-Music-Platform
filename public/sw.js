@@ -1,6 +1,6 @@
 // Service Worker pour XimaM Music Platform
-const CACHE_NAME = 'ximam-audio-v4';
-const AUDIO_CACHE_NAME = 'ximam-audio-files-v4';
+const CACHE_NAME = 'ximam-audio-v3';
+const AUDIO_CACHE_NAME = 'ximam-audio-files-v3';
 const NOTIFICATION_TAG = 'ximam-music-player';
 
 // Fonction helper pour vérifier si une requête peut être mise en cache

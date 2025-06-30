@@ -6,7 +6,6 @@ import { Toaster } from 'react-hot-toast';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
-import { Track } from '@/types';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,6 +15,25 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+interface Track {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  duration: number;
+  likes: string[];
+  comments: string[];
+  plays: number;
+  isLiked?: boolean;
+  genre?: string[];
+}
 
 interface AudioPlayerState {
   tracks: Track[];
@@ -121,17 +139,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   // Synchronisation automatique des pistes avec le player
   useEffect(() => {
     if (audioService.allTracks.length > 0 && audioState.tracks.length === 0) {
-      // Conversion AudioTrack vers Track
-      const convertedTracks = audioService.allTracks.map(audioTrack => ({
-        ...audioTrack,
-        tags: audioTrack.genre || [],
-        genre: audioTrack.genre || [],
-        isExplicit: false,
-        isPublic: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      } as Track));
-      setAudioState(prev => ({ ...prev, tracks: convertedTracks }));
+      // Synchronisation automatique des pistes avec le player
+      setAudioState(prev => ({ ...prev, tracks: audioService.allTracks }));
     }
   }, [audioService.allTracks, audioState.tracks.length]);
 
@@ -380,17 +389,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           }
         },
         loadAllTracks: () => {
-          // Conversion AudioTrack vers Track
-          const convertedTracks = (audioService.allTracks || []).map(audioTrack => ({
-            ...audioTrack,
-            tags: audioTrack.genre || [],
-            genre: audioTrack.genre || [],
-            isExplicit: false,
-            isPublic: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          } as Track));
-          setAudioState(prev => ({ ...prev, tracks: convertedTracks }));
+          // Synchronisation automatique des pistes avec le player
+          setAudioState(prev => ({ ...prev, tracks: audioService.allTracks || [] }));
         }
       }
     };

@@ -2,11 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect, { isConnected } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import PlaylistModel from '@/models/Playlist';
+import Playlist from '@/models/Playlist';
 import User from '@/models/User';
 import Track from '@/models/Track';
 
-import { Playlist } from '@/types';
+// Modèle Playlist temporaire (à créer plus tard)
+interface Playlist {
+  _id: string;
+  name: string;
+  description?: string;
+  tracks: string[];
+  user: string;
+  isPublic: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,27 +35,12 @@ export async function GET(request: NextRequest) {
     let query: any = {};
     
     if (user) {
-      // Chercher l'utilisateur par username d'abord
-      const userDoc = await User.findOne({ username: user });
-      if (userDoc) {
-        query.createdBy = userDoc._id;
-      } else {
-        // Si l'utilisateur n'existe pas, retourner une liste vide
-        return NextResponse.json({
-          playlists: [],
-          pagination: {
-            page,
-            limit,
-            total: 0,
-            pages: 0
-          }
-        });
-      }
+      query.createdBy = user;
     } else {
       query.isPublic = true;
     }
     
-    const playlists = await PlaylistModel.find(query)
+    const playlists = await Playlist.find(query)
       .populate('createdBy', 'name username avatar')
       .populate('tracks', 'title artist audioUrl coverUrl duration')
       .populate('likes', 'name username')
@@ -85,7 +80,7 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    const total = await PlaylistModel.countDocuments(query);
+    const total = await Playlist.countDocuments(query);
     
     return NextResponse.json({
       playlists: playlistsWithStats,
@@ -138,7 +133,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const playlist = new PlaylistModel({
+    const playlist = new Playlist({
       name: name.trim(),
       description: description.trim(),
       isPublic,
@@ -148,7 +143,7 @@ export async function POST(request: NextRequest) {
     
     await playlist.save();
     
-    const populatedPlaylist = await PlaylistModel.findById(playlist._id)
+    const populatedPlaylist = await Playlist.findById(playlist._id)
       .populate('createdBy', 'name username avatar')
       .populate('tracks', 'title artist audioUrl coverUrl duration')
       .lean() as any;

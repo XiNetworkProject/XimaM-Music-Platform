@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import dbConnect, { isConnected } from '@/lib/db';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
 import User from '@/models/User';
 import Track from '@/models/Track';
 import Playlist from '@/models/Playlist';
@@ -12,64 +12,83 @@ export async function GET(
   { params }: { params: { username: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    const { username } = params;
-
     await dbConnect();
 
-    // Récupérer l'utilisateur avec ses statistiques
-    const user = await User.findOne({ username }).select('-password -email').lean() as any;
+    if (!isConnected()) {
+      await dbConnect();
+    }
     
+    const { username } = params;
+    
+    // Récupérer l'utilisateur avec toutes les données populées
+    const user = await User.findOne({ username })
+      .populate('followers', 'name username avatar isVerified')
+      .populate('following', 'name username avatar isVerified')
+      .populate('tracks', 'title coverUrl duration plays likes createdAt')
+      .populate('playlists', 'name description coverUrl trackCount likes isPublic createdAt')
+      .populate('likes', 'title artist coverUrl duration plays')
+      .lean() as any;
+
     if (!user) {
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
     }
 
-    // Compter les pistes de l'utilisateur
-    const trackCount = await Track.countDocuments({ 'artist._id': user._id });
+    // Calculer les statistiques
+    const totalPlays = (user.tracks || []).reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
+    const totalLikes = (user.tracks || []).reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
     
-    // Compter les playlists de l'utilisateur
-    const playlistCount = await Playlist.countDocuments({ 'createdBy._id': user._id });
-    
-    // Calculer les statistiques totales
-    const tracks = await Track.find({ 'artist._id': user._id }).lean() as any[];
-    const totalPlays = tracks.reduce((sum, track) => sum + (track.plays || 0), 0);
-    const totalLikes = tracks.reduce((sum, track) => sum + (track.likes?.length || 0), 0);
-    
-    // Vérifier si l'utilisateur connecté suit cet utilisateur
-    let isFollowing = false;
-    if (session?.user?.id) {
-      const currentUser = await User.findById(session.user.id).lean() as any;
-      isFollowing = currentUser?.following?.some((id: any) => id.toString() === user._id.toString()) || false;
-    }
-
-    // Préparer la réponse
-    const userData = {
+    // Formater les données pour la réponse
+    const formattedUser = {
+      ...user,
       _id: user._id.toString(),
-      username: user.username,
-      name: user.name,
-      email: user.email,
-      avatar: user.avatar,
-      banner: user.banner,
-      bio: user.bio,
-      location: user.location,
-      website: user.website,
-      socialLinks: user.socialLinks,
-      followers: user.followers ? user.followers.map((id: any) => id.toString()) : [],
-      following: user.following ? user.following.map((id: any) => id.toString()) : [],
-      trackCount,
-      playlistCount,
+      trackCount: (user.tracks || []).length,
+      playlistCount: (user.playlists || []).length,
+      followerCount: (user.followers || []).length,
+      followingCount: (user.following || []).length,
+      likeCount: (user.likes || []).length,
       totalPlays,
       totalLikes,
-      isVerified: user.isVerified || false,
-      isFollowing,
-      createdAt: user.createdAt ? user.createdAt.toISOString() : new Date().toISOString(),
-      lastActive: user.updatedAt ? user.updatedAt.toISOString() : new Date().toISOString()
+      followers: (user.followers || []).map((follower: any) => ({
+        ...follower,
+        _id: follower._id.toString()
+      })),
+      following: (user.following || []).map((following: any) => ({
+        ...following,
+        _id: following._id.toString()
+      })),
+      tracks: (user.tracks || []).map((track: any) => ({
+        ...track,
+        _id: track._id.toString(),
+        artist: track.artist ? {
+          ...track.artist,
+          _id: track.artist._id.toString()
+        } : null
+      })),
+      playlists: (user.playlists || []).map((playlist: any) => ({
+        ...playlist,
+        _id: playlist._id.toString(),
+        createdBy: playlist.createdBy ? {
+          ...playlist.createdBy,
+          _id: playlist.createdBy._id.toString()
+        } : null
+      })),
+      likes: (user.likes || []).map((track: any) => ({
+        ...track,
+        _id: track._id.toString(),
+        artist: track.artist ? {
+          ...track.artist,
+          _id: track.artist._id.toString()
+        } : null
+      }))
     };
 
-    return NextResponse.json(userData);
+    return NextResponse.json(formattedUser);
   } catch (error) {
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: 'Erreur lors de la récupération du profil' },
       { status: 500 }
     );
   }
@@ -82,47 +101,127 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
     }
-
-    const { username } = params;
-    const body = await request.json();
 
     await dbConnect();
 
+    if (!isConnected()) {
+      await dbConnect();
+    }
+    
+    const { username } = params;
+    const body = await request.json();
+
     // Vérifier que l'utilisateur modifie son propre profil
-    const user = await User.findOne({ username });
-    if (!user || user._id.toString() !== session.user.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    const currentUser = await User.findOne({ email: session.user.email });
+    if (!currentUser || currentUser.username !== username) {
+      return NextResponse.json(
+        { error: 'Non autorisé à modifier ce profil' },
+        { status: 403 }
+      );
     }
 
-    // Mettre à jour le profil
+    // Champs autorisés pour la modification
+    const allowedFields = [
+      'name', 'bio', 'location', 'website', 'socialLinks', 
+      'isArtist', 'artistName', 'genre', 'preferences'
+    ];
+    
+    const updateData: any = {};
+    allowedFields.forEach(field => {
+      if (body[field] !== undefined) {
+        updateData[field] = body[field];
+      }
+    });
+    
+    // Validation spéciale pour les réseaux sociaux
+    if (updateData.socialLinks) {
+      const socialFields = ['instagram', 'twitter', 'youtube', 'soundcloud', 'spotify'];
+      socialFields.forEach(field => {
+        if (updateData.socialLinks[field] && !updateData.socialLinks[field].startsWith('http')) {
+          updateData.socialLinks[field] = `https://${updateData.socialLinks[field]}`;
+        }
+      });
+    }
+    
+    // Mettre à jour l'utilisateur
     const updatedUser = await User.findByIdAndUpdate(
-      user._id,
-      {
-        name: body.name,
-        bio: body.bio,
-        location: body.location,
-        website: body.website,
-        avatar: body.avatar,
-        banner: body.banner,
-        socialLinks: body.socialLinks
-      },
+      currentUser._id,
+      updateData,
       { new: true, runValidators: true }
-    ).select('-password');
-
-    // Convertir l'_id en chaîne
-    const userResponse = {
-      ...updatedUser.toObject(),
-      _id: updatedUser._id.toString()
+    )
+      .populate('followers', 'name username avatar isVerified')
+      .populate('following', 'name username avatar isVerified')
+      .populate('tracks', 'title coverUrl duration plays likes createdAt')
+      .populate('playlists', 'name description coverUrl trackCount likes isPublic createdAt')
+      .populate('likes', 'title artist coverUrl duration plays')
+      .lean() as any;
+    
+    if (!updatedUser) {
+      return NextResponse.json(
+        { error: 'Erreur lors de la mise à jour du profil' },
+        { status: 500 }
+      );
+    }
+    
+    // Calculer les statistiques
+    const totalPlays = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
+    const totalLikes = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
+    
+    // Formater la réponse
+    const formattedUser = {
+      ...updatedUser,
+      _id: updatedUser._id.toString(),
+      trackCount: (updatedUser.tracks || []).length,
+      playlistCount: (updatedUser.playlists || []).length,
+      followerCount: (updatedUser.followers || []).length,
+      followingCount: (updatedUser.following || []).length,
+      likeCount: (updatedUser.likes || []).length,
+      totalPlays,
+      totalLikes,
+      followers: (updatedUser.followers || []).map((follower: any) => ({
+        ...follower,
+        _id: follower._id.toString()
+      })),
+      following: (updatedUser.following || []).map((following: any) => ({
+        ...following,
+        _id: following._id.toString()
+      })),
+      tracks: (updatedUser.tracks || []).map((track: any) => ({
+        ...track,
+        _id: track._id.toString(),
+        artist: track.artist ? {
+          ...track.artist,
+          _id: track.artist._id.toString()
+        } : null
+      })),
+      playlists: (updatedUser.playlists || []).map((playlist: any) => ({
+        ...playlist,
+        _id: playlist._id.toString(),
+        createdBy: playlist.createdBy ? {
+          ...playlist.createdBy,
+          _id: playlist.createdBy._id.toString()
+        } : null
+      })),
+      likes: (updatedUser.likes || []).map((track: any) => ({
+        ...track,
+        _id: track._id.toString(),
+        artist: track.artist ? {
+          ...track.artist,
+          _id: track.artist._id.toString()
+        } : null
+      }))
     };
 
-    return NextResponse.json(userResponse);
+    return NextResponse.json(formattedUser);
   } catch (error) {
     return NextResponse.json(
-      { error: 'Erreur serveur' },
+      { error: 'Erreur lors de la mise à jour du profil' },
       { status: 500 }
     );
   }

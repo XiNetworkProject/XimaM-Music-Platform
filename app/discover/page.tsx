@@ -6,7 +6,26 @@ import { Search, Filter, Play, Heart, Share2, MessageCircle, Clock, Users, Trend
 import { useAudioPlayer } from '../providers';
 import { useSession } from 'next-auth/react';
 
-import { Track } from '@/types';
+interface Track {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  duration: number;
+  genre: string[];
+  tags: string[];
+  likes: string[];
+  comments: string[];
+  plays: number;
+  isLiked?: boolean;
+  createdAt: string;
+}
 
 const genres = ['Tous', 'Pop', 'Hip-Hop', 'Rock', 'Electronic', 'Ambient', 'Jazz', 'Classical', 'R&B', 'Country', 'Folk', 'Metal'];
 const sortOptions = [
@@ -375,11 +394,11 @@ export default function DiscoverPage() {
                   {/* Image de couverture */}
                   <div className="relative aspect-square">
                     <img
-                      src={track.coverUrl || '/default-cover.svg'}
+                      src={track.coverUrl || '/default-cover.jpg'}
                       alt={track.title}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
-                              e.currentTarget.src = '/default-cover.svg';
+                              e.currentTarget.src = '/default-cover.jpg';
                             }}
                     />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />

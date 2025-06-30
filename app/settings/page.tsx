@@ -296,7 +296,7 @@ export default function SettingsPage() {
           <div className="glass-effect rounded-xl p-6 mb-8">
             <div className="flex items-center space-x-4">
               <img
-                src={user?.avatar || user?.image || '/default-avatar.svg'}
+                src={user?.avatar || user?.image || '/default-avatar.png'}
                 alt={user?.name || 'Avatar'}
                 className="w-16 h-16 rounded-full object-cover"
               />

@@ -34,9 +34,42 @@ import {
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 
-import { Track } from '@/types';
+interface Track {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  duration: number;
+  genre: string[];
+  tags: string[];
+  likes: string[];
+  comments: string[];
+  plays: number;
+  isLiked?: boolean;
+  createdAt: string;
+}
 
-import { Playlist } from '@/types';
+interface Playlist {
+  _id: string;
+  name: string;
+  description: string;
+  coverUrl?: string;
+  trackCount: number;
+  duration: number;
+  isPublic: boolean;
+  tracks: Track[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  likes: string[];
+  followers: string[];
+}
 
 export default function LibraryPage() {
   const { data: session } = useSession();
@@ -522,7 +555,7 @@ export default function LibraryPage() {
                         className="w-full flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.svg'}
+                          src={playlist.coverUrl || '/default-cover.jpg'}
                           alt={playlist.name}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -533,7 +566,7 @@ export default function LibraryPage() {
                         <Plus size={16} className="text-white/60" />
                       </button>
                     ))}
-                  </div>
+        </div>
                 </motion.div>
               </motion.div>
             )}
@@ -608,7 +641,7 @@ export default function LibraryPage() {
                         >
                           <span className="text-white/40 text-sm w-8">{index + 1}</span>
                           <img
-                            src={track.coverUrl || '/default-cover.svg'}
+                            src={track.coverUrl || '/default-cover.jpg'}
                             alt={track.title}
                             className="w-10 h-10 rounded object-cover"
                           />
@@ -675,7 +708,7 @@ export default function LibraryPage() {
                               {viewMode === 'grid' ? (
                                 <>
                             <img
-                              src={playlist.coverUrl || '/default-cover.svg'}
+                              src={playlist.coverUrl || '/default-cover.jpg'}
                               alt={playlist.name}
                               className="w-full h-32 object-cover rounded-lg mb-3"
                             />
@@ -689,7 +722,7 @@ export default function LibraryPage() {
                               ) : (
                                 <>
                                   <img
-                                    src={playlist.coverUrl || '/default-cover.svg'}
+                                    src={playlist.coverUrl || '/default-cover.jpg'}
                                     alt={playlist.name}
                                     className="w-16 h-16 rounded object-cover"
                                   />
@@ -744,7 +777,7 @@ export default function LibraryPage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.svg'}
+                          src={track.coverUrl || '/default-cover.jpg'}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -823,7 +856,7 @@ export default function LibraryPage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.svg'}
+                          src={track.coverUrl || '/default-cover.jpg'}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
                         />
@@ -899,7 +932,7 @@ export default function LibraryPage() {
                           className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                         >
                           <img
-                            src={track.coverUrl || '/default-cover.svg'}
+                            src={track.coverUrl || '/default-cover.jpg'}
                             alt={track.title}
                             className="w-12 h-12 rounded object-cover"
                           />

@@ -2,8 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioRecommendations } from './useAudioRecommendations';
 
-// Type simplifié pour le service audio
-interface AudioTrack {
+interface Track {
   _id: string;
   title: string;
   artist: {
@@ -23,7 +22,7 @@ interface AudioTrack {
 }
 
 interface AudioServiceState {
-  currentTrack: AudioTrack | null;
+  currentTrack: Track | null;
   isPlaying: boolean;
   volume: number;
   currentTime: number;
@@ -35,7 +34,7 @@ interface AudioServiceState {
 }
 
 interface AudioServiceActions {
-  play: (track?: AudioTrack) => Promise<void>;
+  play: (track?: Track) => Promise<void>;
   pause: () => void;
   stop: () => void;
   seek: (time: number) => void;
@@ -44,7 +43,7 @@ interface AudioServiceActions {
   setPlaybackRate: (rate: number) => void;
   nextTrack: () => void;
   previousTrack: () => void;
-  loadTrack: (track: AudioTrack) => Promise<void>;
+  loadTrack: (track: Track) => Promise<void>;
   updateNotification: () => void;
   requestNotificationPermission: () => Promise<boolean>;
 }
@@ -68,12 +67,12 @@ export const useAudioService = () => {
     playbackRate: 1,
   });
 
-  const [queue, setQueue] = useState<AudioTrack[]>([]);
+  const [queue, setQueue] = useState<Track[]>([]);
   const [currentIndex, setCurrentIndex] = useState(-1);
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
-  const [shuffledQueue, setShuffledQueue] = useState<AudioTrack[]>([]);
-  const [allTracks, setAllTracks] = useState<AudioTrack[]>([]);
+  const [shuffledQueue, setShuffledQueue] = useState<Track[]>([]);
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [isFirstPlay, setIsFirstPlay] = useState(true);
@@ -225,7 +224,7 @@ export const useAudioService = () => {
         const data = await response.json();
         
         // Données reçues de l'API
-        let tracks: AudioTrack[] = [];
+        let tracks: Track[] = [];
         
         if (Array.isArray(data)) {
           tracks = data;
@@ -272,7 +271,7 @@ export const useAudioService = () => {
       }
       
       // Sélection intelligente de la piste suivante
-      let autoPlayNextTrack: AudioTrack | null = null;
+      let autoPlayNextTrack: Track | null = null;
       
       // 1. Essayer une piste similaire
       if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
@@ -360,7 +359,7 @@ export const useAudioService = () => {
     }, 5000);
   }, [state.currentTrack, notificationPermission]);
 
-  const loadTrack = useCallback(async (track: AudioTrack) => {
+  const loadTrack = useCallback(async (track: Track) => {
     // Éviter de recharger la même piste
     if (lastTrackId.current === track._id && audioRef.current?.src === track.audioUrl) {
       return;
@@ -399,7 +398,7 @@ export const useAudioService = () => {
     }
   }, [state.currentTrack, state.currentTime, recommendations]);
 
-  const play = useCallback(async (track?: AudioTrack) => {
+  const play = useCallback(async (track?: Track) => {
     try {
       if (track) {
         await loadTrack(track);
@@ -523,7 +522,7 @@ export const useAudioService = () => {
     // Si pas de file d'attente ou une seule piste, utiliser les recommandations
     if (allTracks.length > 0) {
       // Sélection aléatoire intelligente pour la piste suivante
-      let nextTrack: AudioTrack | null = null;
+      let nextTrack: Track | null = null;
       
       // 1. Essayer une piste similaire
       if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
@@ -626,7 +625,7 @@ export const useAudioService = () => {
     // Si pas de file d'attente ou une seule piste, utiliser les recommandations
     if (allTracks.length > 0) {
       // Sélection aléatoire intelligente pour la piste précédente
-      let prevTrack: AudioTrack | null = null;
+      let prevTrack: Track | null = null;
       
       // 1. Essayer une piste similaire
       if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
@@ -719,7 +718,7 @@ export const useAudioService = () => {
   }, []);
 
   // Gestion de la file d'attente optimisée
-  const setQueueAndPlay = useCallback((tracks: AudioTrack[], startIndex: number = 0) => {
+  const setQueueAndPlay = useCallback((tracks: Track[], startIndex: number = 0) => {
     setQueue(tracks);
     setCurrentIndex(startIndex);
     

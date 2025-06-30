@@ -161,7 +161,7 @@ export default function FullScreenPlayer() {
         onClick={() => setShowFull(true)}
       >
         <img 
-          src={currentTrack.coverUrl || '/default-cover.svg'} 
+          src={currentTrack.coverUrl || '/default-cover.jpg'} 
           alt={currentTrack.title} 
           className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0" 
           loading="lazy"
@@ -244,7 +244,7 @@ export default function FullScreenPlayer() {
               {/* Header : jaquette grande + bouton fermer */}
               <div className="relative w-full flex flex-col items-center mt-4">
                 <motion.img 
-                  src={currentTrack.coverUrl || '/default-cover.svg'} 
+                  src={currentTrack.coverUrl || '/default-cover.jpg'} 
                   alt={currentTrack.title} 
                   className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation" 
                   loading="lazy"

@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // output: 'export', // Désactivé car incompatible avec les API routes
-  trailingSlash: true,
+  // trailingSlash: true, // Désactivé car peut causer des problèmes avec les API routes
   experimental: {
     serverComponentsExternalPackages: ['mongoose'],
   },
@@ -86,6 +86,8 @@ const nextConfig = {
     
     return config;
   },
+  // Optimisation des polices
+  optimizeFonts: true,
 };
 
 module.exports = nextConfig; 

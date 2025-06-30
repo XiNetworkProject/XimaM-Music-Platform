@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
           _id: '1',
           name: 'MusicLover',
           username: 'musiclover',
-          avatar: '/default-avatar.svg'
+          avatar: '/default-avatar.png'
         },
         tracks: popularTracks.slice(0, 8),
         trackCount: 8,
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
           _id: '2',
           name: 'ChillMaster',
           username: 'chillmaster',
-          avatar: '/default-avatar.svg'
+          avatar: '/default-avatar.png'
         },
         tracks: popularTracks.slice(8, 16),
         trackCount: 8,
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
           _id: '3',
           name: 'FitnessGuru',
           username: 'fitnessguru',
-          avatar: '/default-avatar.svg'
+          avatar: '/default-avatar.png'
         },
         tracks: popularTracks.slice(16, 24),
         trackCount: 8,
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
           _id: '4',
           name: 'NightOwl',
           username: 'nightowl',
-          avatar: '/default-avatar.svg'
+          avatar: '/default-avatar.png'
         },
         tracks: popularTracks.slice(24, 32),
         trackCount: 8,
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
           _id: '5',
           name: 'SummerBeats',
           username: 'summerbeats',
-          avatar: '/default-avatar.svg'
+          avatar: '/default-avatar.png'
         },
         tracks: popularTracks.slice(32, 40),
         trackCount: 8,
@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           _id: '6',
           name: 'StudyBuddy',
           username: 'studybuddy',
-          avatar: '/default-avatar.svg'
+          avatar: '/default-avatar.png'
         },
         tracks: popularTracks.slice(40, 48),
         trackCount: 8,

@@ -19,7 +19,7 @@ import {
   Check,
   Calendar,
   ArrowUpRight,
-  User as UserIcon,
+  User,
   Flame,
   Trophy,
   Eye,
@@ -29,7 +29,58 @@ import {
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-import { User, Track, Playlist, Comment } from '@/types';
+
+interface User {
+  _id: string;
+  username: string;
+  name: string;
+  avatar?: string;
+  followers: string[];
+  following: string[];
+  trackCount: number;
+  isVerified: boolean;
+  isFollowing?: boolean;
+  latestTrack?: {
+    _id: string;
+    title: string;
+    coverUrl?: string;
+    plays: number;
+  };
+}
+
+interface Track {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  duration: number;
+  genre: string[];
+  tags: string[];
+  likes: string[];
+  comments: string[];
+  plays: number;
+  isLiked?: boolean;
+}
+
+interface Playlist {
+  _id: string;
+  name: string;
+  description: string;
+  coverUrl?: string;
+  trackCount: number;
+  duration: number;
+  isPublic: boolean;
+  tracks: Track[];
+  createdBy: User;
+  likes: string[];
+  followers: string[];
+}
 
 interface Post {
   _id: string;
@@ -41,6 +92,13 @@ interface Post {
   createdAt: string;
   likes: string[];
   comments: Comment[];
+}
+
+interface Comment {
+  _id: string;
+  user: User;
+  content: string;
+  createdAt: string;
 }
 
 export default function CommunityPage() {
@@ -357,7 +415,7 @@ export default function CommunityPage() {
                       >
                         <div className="flex items-center gap-3">
                           <img
-                            src={post.user.avatar || '/default-avatar.svg'}
+                            src={post.user.avatar || '/default-avatar.png'}
                             alt={post.user.name}
                             className="w-10 h-10 rounded-full object-cover border-2 border-purple-500"
                           />
@@ -374,7 +432,7 @@ export default function CommunityPage() {
                         {post.track && (
                           <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <img
-                              src={post.track.coverUrl || '/default-cover.svg'}
+                              src={post.track.coverUrl || '/default-cover.jpg'}
                               alt={post.track.title}
                               className="w-12 h-12 rounded object-cover"
                             />
@@ -393,7 +451,7 @@ export default function CommunityPage() {
                         {post.playlist && (
                           <div className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <img
-                              src={post.playlist.coverUrl || '/default-cover.svg'}
+                              src={post.playlist.coverUrl || '/default-cover.jpg'}
                               alt={post.playlist.name}
                               className="w-12 h-12 rounded object-cover"
                             />
@@ -457,7 +515,7 @@ export default function CommunityPage() {
                         className="glass-effect rounded-xl p-4 flex items-center gap-4"
                     >
                           <img
-                            src={user.avatar || '/default-avatar.svg'}
+                            src={user.avatar || '/default-avatar.png'}
                             alt={user.name}
                           className="w-14 h-14 rounded-full object-cover border-2 border-purple-500"
                         />
@@ -513,7 +571,7 @@ export default function CommunityPage() {
                         onClick={() => router.push(`/playlists/${playlist._id}`)}
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.svg'}
+                          src={playlist.coverUrl || '/default-cover.jpg'}
                           alt={playlist.name}
                           className="w-full h-32 object-cover rounded-lg mb-2"
                         />
@@ -554,7 +612,7 @@ export default function CommunityPage() {
                           <div key={user._id} className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <span className="font-bold text-lg text-yellow-400 w-6 text-center">#{idx + 1}</span>
                             <img
-                              src={user.avatar || '/default-avatar.svg'}
+                              src={user.avatar || '/default-avatar.png'}
                               alt={user.name}
                               className="w-10 h-10 rounded-full object-cover border-2 border-purple-500"
                             />
@@ -578,7 +636,7 @@ export default function CommunityPage() {
                           <div key={playlist._id} className="flex items-center gap-3 bg-white/5 rounded-lg p-3">
                             <span className="font-bold text-lg text-pink-500 w-6 text-center">#{idx + 1}</span>
                             <img
-                              src={playlist.coverUrl || '/default-cover.svg'}
+                              src={playlist.coverUrl || '/default-cover.jpg'}
                               alt={playlist.name}
                               className="w-10 h-10 rounded object-cover"
                             />

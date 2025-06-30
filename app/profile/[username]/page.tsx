@@ -77,12 +77,18 @@ export default function ProfileUserPage() {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', type);
+      
       const res = await fetch(`/api/users/${username}/upload`, {
         method: 'POST',
         body: formData,
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
+        throw new Error(errorData.error || `Erreur ${res.status}: ${res.statusText}`);
+      }
+      
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur upload image');
       setProfile((prev: any) => ({ ...prev, [type]: data.imageUrl }));
       setEditData((prev: any) => ({ ...prev, [type]: data.imageUrl }));
     } catch (e: any) {
