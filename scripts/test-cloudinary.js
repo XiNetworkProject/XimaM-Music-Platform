@@ -1,3 +1,6 @@
+// Charger les variables d'environnement
+require('dotenv').config({ path: '.env.local' });
+
 const { v2: cloudinary } = require('cloudinary');
 
 // Configuration Cloudinary

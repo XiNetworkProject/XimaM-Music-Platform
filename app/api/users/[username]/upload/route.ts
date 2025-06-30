@@ -9,6 +9,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { username: string } }
 ) {
+  console.log('=== DEBUT UPLOAD API ===');
+  console.log('Username:', params.username);
+  
   try {
     // Vérifier les variables d'environnement Cloudinary
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
@@ -18,41 +21,61 @@ export async function POST(
         { status: 500 }
       );
     }
+    console.log('✅ Variables Cloudinary OK');
 
     const session = await getServerSession(authOptions);
+    console.log('Session:', session ? '✅ Présente' : '❌ Absente');
+    console.log('User email:', session?.user?.email);
+    
     if (!session?.user?.email) {
+      console.log('❌ Pas de session utilisateur');
       return NextResponse.json(
         { error: 'Non autorisé' },
         { status: 401 }
       );
     }
 
+    console.log('🔄 Connexion à la base de données...');
     await dbConnect();
     
     if (!isConnected()) {
-      console.error('Impossible de se connecter à la base de données');
+      console.error('❌ Impossible de se connecter à la base de données');
       return NextResponse.json(
         { error: 'Erreur de connexion à la base de données' },
         { status: 500 }
       );
     }
+    console.log('✅ Base de données connectée');
     
     const { username } = params;
     
     // Vérifier que l'utilisateur modifie son propre profil
+    console.log('🔍 Recherche utilisateur:', session.user.email);
     const currentUser = await User.findOne({ email: session.user.email });
+    console.log('Utilisateur trouvé:', currentUser ? '✅' : '❌');
+    console.log('Username actuel:', currentUser?.username);
+    console.log('Username demandé:', username);
+    
     if (!currentUser || currentUser.username !== username) {
+      console.log('❌ Non autorisé à modifier ce profil');
       return NextResponse.json(
         { error: 'Non autorisé à modifier ce profil' },
         { status: 403 }
       );
     }
+    console.log('✅ Autorisation OK');
     
+    console.log('📁 Lecture FormData...');
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const type = formData.get('type') as 'avatar' | 'banner';
     
+    console.log('Type de fichier:', file?.type);
+    console.log('Taille du fichier:', file?.size);
+    console.log('Type d\'upload:', type);
+    
     if (!file) {
+      console.log('❌ Aucun fichier fourni');
       return NextResponse.json(
         { error: 'Aucun fichier fourni' },
         { status: 400 }
@@ -60,6 +83,7 @@ export async function POST(
     }
     
     if (!type || !['avatar', 'banner'].includes(type)) {
+      console.log('❌ Type d\'image invalide:', type);
       return NextResponse.json(
         { error: 'Type d\'image invalide' },
         { status: 400 }
@@ -68,6 +92,7 @@ export async function POST(
     
     // Vérifier le type de fichier
     if (!file.type.startsWith('image/')) {
+      console.log('❌ Fichier non-image:', file.type);
       return NextResponse.json(
         { error: 'Le fichier doit être une image' },
         { status: 400 }
@@ -76,6 +101,7 @@ export async function POST(
     
     // Vérifier la taille (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
+      console.log('❌ Fichier trop volumineux:', file.size);
       return NextResponse.json(
         { error: 'Le fichier ne peut pas dépasser 5MB' },
         { status: 400 }
@@ -83,13 +109,16 @@ export async function POST(
     }
     
     // Convertir le fichier en buffer
+    console.log('🔄 Conversion en buffer...');
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     
-    console.log(`Upload ${type} pour ${username}, taille: ${buffer.length} bytes`);
+    console.log(`📤 Upload ${type} pour ${username}, taille: ${buffer.length} bytes`);
     
     // Upload vers Cloudinary
     const folder = type === 'avatar' ? 'ximam/avatars' : 'ximam/banners';
+    console.log('📁 Dossier Cloudinary:', folder);
+    
     const uploadResult = await uploadImage(buffer, {
       folder,
       width: type === 'avatar' ? 400 : 1200,
@@ -100,16 +129,17 @@ export async function POST(
     });
     
     if (!uploadResult.secure_url) {
-      console.error('Upload Cloudinary échoué:', uploadResult);
+      console.error('❌ Upload Cloudinary échoué:', uploadResult);
       return NextResponse.json(
         { error: 'Erreur lors de l\'upload de l\'image' },
         { status: 500 }
       );
     }
     
-    console.log(`Upload réussi: ${uploadResult.secure_url}`);
+    console.log(`✅ Upload réussi: ${uploadResult.secure_url}`);
     
     // Mettre à jour l'utilisateur avec la nouvelle image
+    console.log('🔄 Mise à jour utilisateur...');
     const updateData: any = {};
     updateData[type] = uploadResult.secure_url;
     
@@ -126,12 +156,14 @@ export async function POST(
       .lean() as any;
     
     if (!updatedUser) {
-      console.error('Échec de la mise à jour de l\'utilisateur');
+      console.error('❌ Échec de la mise à jour de l\'utilisateur');
       return NextResponse.json(
         { error: 'Erreur lors de la mise à jour du profil' },
         { status: 500 }
       );
     }
+    
+    console.log('✅ Utilisateur mis à jour');
     
     // Calculer les statistiques
     const totalPlays = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
@@ -182,13 +214,17 @@ export async function POST(
       }))
     };
     
+    console.log('✅ Réponse envoyée avec succès');
+    console.log('=== FIN UPLOAD API ===');
+    
     return NextResponse.json({
       user: formattedUser,
       imageUrl: uploadResult.secure_url,
       message: `${type === 'avatar' ? 'Avatar' : 'Bannière'} mis à jour avec succès`
     });
   } catch (error) {
-    console.error('Erreur upload image:', error);
+    console.error('❌ Erreur upload image:', error);
+    console.log('=== FIN UPLOAD API AVEC ERREUR ===');
     return NextResponse.json(
       { error: 'Erreur lors de l\'upload de l\'image' },
       { status: 500 }
