@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
+import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 
 const socialIcons = {
@@ -18,7 +18,7 @@ export default function ProfileUserPage() {
   const { username } = useParams();
   const { data: session } = useSession();
   const router = useRouter();
-  const { playTrack } = useAudioPlayer();
+  const { playTrack, audioState } = useAudioPlayer();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -48,6 +48,17 @@ export default function ProfileUserPage() {
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [newPlaylistData, setNewPlaylistData] = useState({ name: '', description: '', isPublic: true });
   const [followLoading, setFollowLoading] = useState<string | null>(null);
+  
+  // Nouvelles fonctionnalités pour les tracks
+  const [showTrackOptions, setShowTrackOptions] = useState<string | null>(null);
+  const [showEditTrackModal, setShowEditTrackModal] = useState(false);
+  const [showFeatureTrackModal, setShowFeatureTrackModal] = useState(false);
+  const [editingTrack, setEditingTrack] = useState<any>(null);
+  const [featuringTrack, setFeaturingTrack] = useState<any>(null);
+  const [trackEditData, setTrackEditData] = useState<any>({});
+  const [featuredBanner, setFeaturedBanner] = useState('');
+  const [likeLoading, setLikeLoading] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
   // Charger le profil utilisateur
   useEffect(() => {
@@ -162,6 +173,20 @@ export default function ProfileUserPage() {
   // Responsive : collapse bio
   const bioMaxLength = 180;
   const isOwnProfile = session?.user?.username === username;
+
+  // Fermer les menus d'options quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showTrackOptions) {
+        setShowTrackOptions(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [showTrackOptions]);
 
   // Scroll infini pour les musiques
   useEffect(() => {
@@ -280,6 +305,134 @@ export default function ProfileUserPage() {
   // Gestion play track
   const handlePlayTrack = (track: any) => {
     playTrack(track);
+  };
+
+  // Nouvelles fonctions pour la gestion des tracks
+  const handleLikeTrack = async (trackId: string) => {
+    if (!session?.user) return;
+    setLikeLoading(trackId);
+    try {
+      const res = await fetch(`/api/tracks/${trackId}/like`, { method: 'POST' });
+      if (!res.ok) throw new Error('Erreur like');
+      const data = await res.json();
+      
+      // Mettre à jour l'état local
+      setProfile((prev: any) => ({
+        ...prev,
+        tracks: prev.tracks.map((track: any) => 
+          track._id === trackId 
+            ? { ...track, isLiked: data.isLiked, likes: data.isLiked ? [...track.likes, session.user.id] : track.likes.filter((id: string) => id !== session.user.id) }
+            : track
+        )
+      }));
+    } catch (e: any) {
+      setError(e.message || 'Erreur like');
+    } finally {
+      setLikeLoading(null);
+    }
+  };
+
+  const handleDeleteTrack = async (trackId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette piste ?')) return;
+    setDeleteLoading(trackId);
+    try {
+      const res = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Erreur suppression');
+      
+      // Mettre à jour l'état local
+      setProfile((prev: any) => ({
+        ...prev,
+        tracks: prev.tracks.filter((track: any) => track._id !== trackId),
+        trackCount: prev.trackCount - 1
+      }));
+    } catch (e: any) {
+      setError(e.message || 'Erreur suppression');
+    } finally {
+      setDeleteLoading(null);
+    }
+  };
+
+  const handleEditTrack = (track: any) => {
+    setEditingTrack(track);
+    setTrackEditData({
+      title: track.title,
+      description: track.description || '',
+      genre: track.genre?.join(', ') || '',
+      tags: track.tags?.join(', ') || '',
+      isPublic: track.isPublic
+    });
+    setShowEditTrackModal(true);
+  };
+
+  const handleSaveTrackEdit = async () => {
+    if (!editingTrack) return;
+    setUploading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/tracks/${editingTrack._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...trackEditData,
+          genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean),
+          tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+        }),
+      });
+      if (!res.ok) throw new Error('Erreur modification');
+      const data = await res.json();
+      
+      // Mettre à jour l'état local
+      setProfile((prev: any) => ({
+        ...prev,
+        tracks: prev.tracks.map((track: any) => 
+          track._id === editingTrack._id ? data.track : track
+        )
+      }));
+      setShowEditTrackModal(false);
+      setEditingTrack(null);
+    } catch (e: any) {
+      setError(e.message || 'Erreur modification');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleFeatureTrack = (track: any) => {
+    setFeaturingTrack(track);
+    setFeaturedBanner(track.featuredBanner || '');
+    setShowFeatureTrackModal(true);
+  };
+
+  const handleSaveFeatureTrack = async () => {
+    if (!featuringTrack) return;
+    setUploading(true);
+    setError('');
+    try {
+      const res = await fetch(`/api/tracks/${featuringTrack._id}/featured`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isFeatured: !featuringTrack.isFeatured,
+          featuredBanner: featuredBanner
+        }),
+      });
+      if (!res.ok) throw new Error('Erreur mise en avant');
+      const data = await res.json();
+      
+      // Mettre à jour l'état local
+      setProfile((prev: any) => ({
+        ...prev,
+        tracks: prev.tracks.map((track: any) => 
+          track._id === featuringTrack._id ? data.track : track
+        )
+      }));
+      setShowFeatureTrackModal(false);
+      setFeaturingTrack(null);
+    } catch (e: any) {
+      setError(e.message || 'Erreur mise en avant');
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Suivre/Ne plus suivre un utilisateur depuis les modals
@@ -520,33 +673,115 @@ export default function ProfileUserPage() {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {userTracks.map((track: any) => (
-                    <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group">
+                    <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                      {/* Banderole de mise en avant */}
+                      {track.isFeatured && (
+                        <div className="absolute -top-2 -left-2 z-10">
+                          <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
+                            <Crown size={12} />
+                            {track.featuredBanner || 'En vedette'}
+                          </div>
+                        </div>
+                      )}
+                      
                       <div className="flex items-start space-x-3">
                         <div className="relative flex-shrink-0">
                           <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                            </svg>
+                            {track.coverUrl ? (
+                              <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
+                            ) : (
+                              <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                              </svg>
+                            )}
                           </div>
-                          <button className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" onClick={() => handlePlayTrack(track)}>
-                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                            </svg>
+                          <button 
+                            className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" 
+                            onClick={() => handlePlayTrack(track)}
+                            title="Lire"
+                          >
+                            {audioState.currentTrackIndex !== -1 && 
+                             audioState.tracks[audioState.currentTrackIndex]?._id === track._id && 
+                             audioState.isPlaying ? (
+                              <Pause className="w-6 h-6 text-white" />
+                            ) : (
+                              <Play className="w-6 h-6 text-white" />
+                            )}
                           </button>
                         </div>
+                        
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-white truncate">{track.title}</h4>
-                          <p className="text-sm text-gray-400 truncate">{track.genre}</p>
+                          <p className="text-sm text-gray-400 truncate">
+                            {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
+                          </p>
                           <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                            <span>{track.likes} likes</span>
-                            <span>{track.plays} plays</span>
+                            <button 
+                              className={`flex items-center gap-1 hover:text-pink-400 transition-colors ${
+                                track.isLiked ? 'text-pink-400' : 'text-gray-500'
+                              }`}
+                              onClick={() => handleLikeTrack(track._id)}
+                              disabled={likeLoading === track._id}
+                            >
+                              {likeLoading === track._id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <Heart className={`w-3 h-3 ${track.isLiked ? 'fill-current' : ''}`} />
+                              )}
+                              {track.likes.length}
+                            </button>
+                            <span>{track.plays} écoutes</span>
                           </div>
                         </div>
-                        <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
+                        
+                        {/* Menu d'options pour le propriétaire */}
+                        {isOwnProfile && (
+                          <div className="relative">
+                            <button 
+                              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
+                              }}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
+                            
+                            {showTrackOptions === track._id && (
+                              <div 
+                                className="absolute right-0 top-full mt-1 bg-gray-800 rounded-lg shadow-lg border border-white/10 z-20 min-w-[160px]"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                  onClick={() => handleEditTrack(track)}
+                                >
+                                  <Edit3 className="w-4 h-4" />
+                                  Modifier
+                                </button>
+                                <button
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                  onClick={() => handleFeatureTrack(track)}
+                                >
+                                  <Star className={`w-4 h-4 ${track.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                  {track.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                                </button>
+                                <button
+                                  className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
+                                  onClick={() => handleDeleteTrack(track._id)}
+                                  disabled={deleteLoading === track._id}
+                                >
+                                  {deleteLoading === track._id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
+                                  Supprimer
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -580,7 +815,7 @@ export default function ProfileUserPage() {
                           <h4 className="font-medium text-white truncate">{playlist.name}</h4>
                           <p className="text-sm text-gray-400 truncate">{playlist.tracks.length} tracks</p>
                           <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                            <span>{playlist.likes} likes</span>
+                            <span>{playlist.likes.length} likes</span>
                             <span>{playlist.isPublic ? 'Public' : 'Privé'}</span>
                           </div>
                         </div>
@@ -1062,6 +1297,202 @@ export default function ProfileUserPage() {
                   className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
                 >
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Créer'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Édition Track */}
+      <AnimatePresence>
+        {showEditTrackModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowEditTrackModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white">Modifier la piste</h3>
+                <button
+                  onClick={() => setShowEditTrackModal(false)}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Titre</label>
+                  <input
+                    type="text"
+                    value={trackEditData.title || ''}
+                    onChange={(e) => setTrackEditData({ ...trackEditData, title: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Titre de la piste"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                  <textarea
+                    value={trackEditData.description || ''}
+                    onChange={(e) => setTrackEditData({ ...trackEditData, description: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    placeholder="Description de la piste..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Genres (séparés par des virgules)</label>
+                  <input
+                    type="text"
+                    value={trackEditData.genre || ''}
+                    onChange={(e) => setTrackEditData({ ...trackEditData, genre: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Rock, Pop, Électronique"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Tags (séparés par des virgules)</label>
+                  <input
+                    type="text"
+                    value={trackEditData.tags || ''}
+                    onChange={(e) => setTrackEditData({ ...trackEditData, tags: e.target.value })}
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="chill, instrumental, ambient"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    id="isPublic"
+                    checked={trackEditData.isPublic}
+                    onChange={(e) => setTrackEditData({ ...trackEditData, isPublic: e.target.checked })}
+                    className="w-4 h-4 text-purple-600 bg-white/10 border-gray-600 rounded focus:ring-purple-500"
+                  />
+                  <label htmlFor="isPublic" className="text-sm text-gray-300">
+                    Rendre cette piste publique
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowEditTrackModal(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveTrackEdit}
+                  disabled={uploading || !trackEditData.title?.trim()}
+                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Mise en avant Track */}
+      <AnimatePresence>
+        {showFeatureTrackModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowFeatureTrackModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                  <Star className="w-6 h-6 text-yellow-400" />
+                  {featuringTrack?.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                </h3>
+                <button
+                  onClick={() => setShowFeatureTrackModal(false)}
+                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-white/5 rounded-lg p-4">
+                  <h4 className="font-medium text-white mb-2">{featuringTrack?.title}</h4>
+                  <p className="text-sm text-gray-400">
+                    {Array.isArray(featuringTrack?.genre) ? featuringTrack.genre.join(', ') : featuringTrack?.genre}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Banderole personnalisée (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    value={featuredBanner}
+                    onChange={(e) => setFeaturedBanner(e.target.value)}
+                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="Ex: Nouveau single, Hit de l'été, etc."
+                    maxLength={30}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Laissez vide pour utiliser "En vedette" par défaut
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-sm px-3 py-2 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Crown size={16} />
+                    <span className="font-medium">
+                      {featuredBanner || 'En vedette'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => setShowFeatureTrackModal(false)}
+                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSaveFeatureTrack}
+                  disabled={uploading}
+                  className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black rounded-lg font-medium transition-colors disabled:opacity-50"
+                >
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 
+                   featuringTrack?.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
                 </button>
               </div>
             </motion.div>

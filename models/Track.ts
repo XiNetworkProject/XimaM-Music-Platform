@@ -18,6 +18,8 @@ export interface ITrack extends Document {
   comments: mongoose.Types.ObjectId[];
   isExplicit: boolean;
   isPublic: boolean;
+  isFeatured?: boolean;
+  featuredBanner?: string;
   copyright: {
     owner: string;
     year: number;
@@ -94,6 +96,14 @@ const TrackSchema = new Schema<ITrack>({
   isPublic: {
     type: Boolean,
     default: true,
+  },
+  isFeatured: {
+    type: Boolean,
+    default: false,
+  },
+  featuredBanner: {
+    type: String,
+    trim: true,
   },
   copyright: {
     owner: {
