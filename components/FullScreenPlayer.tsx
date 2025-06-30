@@ -36,7 +36,7 @@ export default function FullScreenPlayer() {
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
   const formatTime = useCallback((seconds: number) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
+    if (!seconds || isNaN(seconds) || seconds < 0) return '--:--';
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -133,9 +133,9 @@ export default function FullScreenPlayer() {
 
   // Calculs optimisés
   const progressPercentage = useMemo(() => {
-    if (!audioState.duration || audioState.duration <= 0) return 0;
+    if (!audioState.duration || audioState.duration <= 0 || currentTrack?._id === 'radio-mixx-party') return 0;
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
-  }, [audioState.currentTime, audioState.duration]);
+  }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
 
   const isCurrentTrack = useMemo(() => {
     return currentTrack?._id === audioState.tracks[audioState.currentTrackIndex]?._id;

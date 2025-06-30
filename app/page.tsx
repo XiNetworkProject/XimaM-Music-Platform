@@ -49,7 +49,7 @@ export default function HomePage() {
   const { data: session } = useSession();
   const { user } = useAuth();
   const { isNative, checkForUpdates } = useNativeFeatures();
-  const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized, playTrack } = useAudioPlayer();
+  const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized, playTrack, pause, play } = useAudioPlayer();
   
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -632,6 +632,17 @@ export default function HomePage() {
             isLive: true
           }));
           
+          // Mettre à jour le titre dans le player si la radio joue
+          if (currentTrack?._id === 'radio-mixx-party' && audioState.isPlaying) {
+            // Mettre à jour le titre de la piste courante
+            const updatedTracks = audioState.tracks.map(track => 
+              track._id === 'radio-mixx-party' 
+                ? { ...track, title: source.title || 'En direct - Mixx Party' }
+                : track
+            );
+            setTracks(updatedTracks);
+          }
+          
           console.log('Métadonnées radio mises à jour:', {
             title: source.title,
             artist: source.artist,
@@ -671,10 +682,10 @@ export default function HomePage() {
   // Fonction pour gérer la lecture/arrêt de la radio
   const handleRadioToggle = async () => {
     if (isRadioPlaying) {
-      // Arrêter la radio via le player principal
+      // Arrêter la radio via le service audio
       if (audioState.isPlaying && currentTrack?._id === 'radio-mixx-party') {
-        // Pause le player principal si c'est la radio qui joue
-        setIsPlaying(false);
+        // Pause le service audio si c'est la radio qui joue
+        pause();
       }
       setIsRadioPlaying(false);
       console.log('Radio arrêtée');
@@ -699,7 +710,7 @@ export default function HomePage() {
           },
           audioUrl: streamUrl,
           coverUrl: '/mixxparty1.png', // Logo Mixx Party pour la radio
-          duration: 0, // Durée infinie pour la radio
+          duration: -1, // Durée spéciale pour la radio (streaming en direct)
           likes: [],
           comments: [],
           plays: 0,
@@ -708,7 +719,7 @@ export default function HomePage() {
         };
         
         // Utiliser le système de lecture audio existant
-        await playTrack(radioTrack);
+        playTrack(radioTrack);
         setIsRadioPlaying(true);
         console.log('Radio démarrée - Mixx Party via le player principal');
         
