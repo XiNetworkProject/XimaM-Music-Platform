@@ -652,6 +652,13 @@ export default function HomePage() {
       }
     } catch (error) {
       console.error('Erreur récupération métadonnées:', error);
+      // En cas d'erreur, utiliser les infos par défaut
+      setRadioInfo(prev => ({
+        ...prev,
+        currentTrack: 'En direct - Mixx Party',
+        listeners: 1247,
+        isLive: true
+      }));
     }
   };
 
@@ -695,13 +702,13 @@ export default function HomePage() {
         // Récupérer l'URL de streaming
         const streamUrl = await fetchStreamUrl();
         
-        // Récupérer les métadonnées du flux
-        await fetchRadioMetadata();
+        // Les métadonnées sont déjà chargées au démarrage de l'app
+        // Pas besoin de les recharger ici
         
-        // Créer un objet "track" pour la radio
+        // Créer un objet "track" pour la radio avec les infos actuelles
         const radioTrack = {
           _id: 'radio-mixx-party',
-          title: radioInfo.currentTrack,
+          title: radioInfo.currentTrack, // Utilise les infos déjà chargées
           artist: {
             _id: 'radio',
             name: 'Mixx Party',
@@ -738,6 +745,12 @@ export default function HomePage() {
       setIsRadioPlaying(false);
     }
   }, [audioState.isPlaying, currentTrack?._id, isRadioPlaying]);
+
+  // Charger les métadonnées radio au démarrage de l'app
+  useEffect(() => {
+    // Charger les infos radio dès le chargement
+    fetchRadioMetadata();
+  }, []); // Seulement au montage du composant
 
   // Mettre à jour les métadonnées radio périodiquement
   useEffect(() => {
