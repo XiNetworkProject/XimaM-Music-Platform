@@ -5,6 +5,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import FloatingParticles from './FloatingParticles';
 
 export default function FullScreenPlayer() {
   const { 
@@ -150,7 +151,7 @@ export default function FullScreenPlayer() {
     <>
       {/* Mini-player */}
       <motion.div
-        className="glass-player"
+        className="glass-player relative"
         style={{
           display: showFull ? 'none' : 'flex'
         }}
@@ -160,13 +161,19 @@ export default function FullScreenPlayer() {
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         onClick={() => setShowFull(true)}
       >
+        {/* Particules volantes quand en lecture */}
+        <FloatingParticles 
+          isPlaying={audioState.isPlaying && !audioState.isLoading} 
+          className="rounded-[50px]"
+        />
+        
         <img 
           src={currentTrack.coverUrl || '/default-cover.jpg'} 
           alt={currentTrack.title} 
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0" 
+          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0 relative z-10" 
           loading="lazy"
         />
-        <div className="flex-1 min-w-0">
+        <div className="flex-1 min-w-0 relative z-10">
           <div className="flex items-center space-x-1 sm:space-x-2">
             <span className="truncate font-semibold text-white text-xs sm:text-sm">{currentTrack.title}</span>
             {/* Animation d'onde/barre */}
@@ -183,27 +190,27 @@ export default function FullScreenPlayer() {
         
         {/* Indicateur de chargement */}
         {audioState.isLoading && (
-          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8">
+          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 relative z-10">
             <Loader2 size={16} className="text-white animate-spin" />
           </div>
         )}
         
         {/* Indicateur d'erreur */}
         {showError && (
-          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8">
+          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 relative z-10">
             <AlertCircle size={16} className="text-red-400" />
           </div>
         )}
         
         {/* Message d'aide pour première lecture mobile */}
         {audioState.error && audioState.error.includes('Première lecture') && (
-          <div className="ml-2 px-2 py-1 bg-blue-500/20 rounded text-xs text-blue-300 max-w-32">
+          <div className="ml-2 px-2 py-1 bg-blue-500/20 rounded text-xs text-blue-300 max-w-32 relative z-10">
             Cliquez sur play
           </div>
         )}
         
         <button
-          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
           onClick={e => { e.stopPropagation(); togglePlay(); }}
           disabled={audioState.isLoading}
         >
