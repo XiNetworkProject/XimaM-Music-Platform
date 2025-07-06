@@ -161,10 +161,9 @@ export default function FullScreenPlayer() {
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         onClick={() => setShowFull(true)}
       >
-        {/* Particules volantes quand en lecture */}
+        {/* Particules volantes AUTOUR du mini player quand en lecture */}
         <FloatingParticles 
           isPlaying={audioState.isPlaying && !audioState.isLoading} 
-          className="rounded-[50px]"
         />
         
         <img 
