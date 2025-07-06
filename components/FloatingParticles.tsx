@@ -30,8 +30,6 @@ const colors = [
   '#38f9d7', // Turquoise
   '#ff9a9e', // Rose pêche
   '#a8edea', // Bleu menthe
-  '#fed6e3', // Rose pâle
-  '#ffecd2', // Orange pâle
 ];
 
 export default function FloatingParticles({ isPlaying, className = '' }: FloatingParticlesProps) {
@@ -43,27 +41,27 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
       return;
     }
 
-    // Créer 20 particules qui apparaissent AUTOUR du mini player
-    const newParticles: Particle[] = Array.from({ length: 20 }, (_, index) => {
-      // Positionner les particules autour du player (pas dedans)
+    // Créer 8 particules discrètes autour du mini player
+    const newParticles: Particle[] = Array.from({ length: 8 }, (_, index) => {
+      // Positionner les particules plus proches du player
       let x, y;
       const side = Math.floor(Math.random() * 4); // 0: haut, 1: droite, 2: bas, 3: gauche
       
       switch (side) {
         case 0: // Haut
           x = Math.random() * 100;
-          y = -20 - Math.random() * 30; // Au-dessus du player
+          y = -10 - Math.random() * 15; // Plus proche du player
           break;
         case 1: // Droite
-          x = 100 + Math.random() * 30; // À droite du player
+          x = 100 + Math.random() * 15; // Plus proche du player
           y = Math.random() * 100;
           break;
         case 2: // Bas
           x = Math.random() * 100;
-          y = 100 + Math.random() * 30; // En-dessous du player
+          y = 100 + Math.random() * 15; // Plus proche du player
           break;
         case 3: // Gauche
-          x = -20 - Math.random() * 30; // À gauche du player
+          x = -10 - Math.random() * 15; // Plus proche du player
           y = Math.random() * 100;
           break;
         default:
@@ -75,11 +73,11 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
         id: index,
         x,
         y,
-        size: Math.random() * 6 + 2, // Taille entre 2 et 8px
+        size: Math.random() * 3 + 1, // Taille plus petite (1-4px)
         color: colors[Math.floor(Math.random() * colors.length)],
-        delay: Math.random() * 2, // Délai d'animation aléatoire
-        duration: Math.random() * 3 + 4, // Durée entre 4 et 7 secondes
-        type: Math.random() > 0.7 ? 'glow' : Math.random() > 0.5 ? 'pulse' : 'normal'
+        delay: Math.random() * 1.5, // Délai plus court
+        duration: Math.random() * 2 + 3, // Durée plus courte (3-5 secondes)
+        type: Math.random() > 0.8 ? 'glow' : Math.random() > 0.6 ? 'pulse' : 'normal'
       };
     });
 
@@ -90,10 +88,10 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
 
   return (
     <div className={`absolute pointer-events-none overflow-visible ${className}`} style={{
-      top: '-50px',
-      left: '-50px',
-      right: '-50px',
-      bottom: '-50px',
+      top: '-30px',
+      left: '-30px',
+      right: '-30px',
+      bottom: '-30px',
       zIndex: 9998
     }}>
       {particles.map((particle) => (
@@ -110,8 +108,8 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
             height: `${particle.size}px`,
             backgroundColor: particle.color,
             boxShadow: particle.type === 'glow' 
-              ? `0 0 ${particle.size * 3}px ${particle.color}` 
-              : `0 0 ${particle.size * 2}px ${particle.color}`,
+              ? `0 0 ${particle.size * 2}px ${particle.color}` 
+              : `0 0 ${particle.size * 1.5}px ${particle.color}`,
           }}
           initial={{ 
             opacity: 0, 
@@ -120,10 +118,10 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
             x: 0
           }}
           animate={{ 
-            opacity: [0, 0.9, 0.6, 0.3, 0],
-            scale: [0, 1, 1.3, 1, 0],
-            y: [-10, -30, -60, -90, -120],
-            x: [-5, 8, -3, 12, -8]
+            opacity: [0, 0.7, 0.4, 0.2, 0],
+            scale: [0, 1, 1.1, 1, 0],
+            y: [-5, -15, -25, -35, -45],
+            x: [-2, 3, -1, 4, -2]
           }}
           transition={{
             duration: particle.duration,
