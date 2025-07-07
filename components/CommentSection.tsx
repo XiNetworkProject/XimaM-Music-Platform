@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, MessageCircle, User, Clock, Heart, Reply, MoreVertical } from 'lucide-react';
+import { Send, MessageCircle, User, Clock, Heart, Reply, MoreVertical, Edit, Trash2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import InteractiveCounter from './InteractiveCounter';
 
@@ -40,6 +40,8 @@ export default function CommentSection({
   const [showAllComments, setShowAllComments] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
+  const [editingComment, setEditingComment] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -155,6 +157,62 @@ export default function CommentSection({
     }
   };
 
+  const handleEditComment = async (commentId: string) => {
+    if (!session?.user?.id || !editContent.trim() || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/tracks/${trackId}/comments/${commentId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: editContent.trim() }),
+      });
+
+      if (response.ok) {
+        const { comment } = await response.json();
+        setComments(prev => prev.map(c => 
+          c._id === commentId ? comment : c
+        ));
+        setEditingComment(null);
+        setEditContent('');
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!session?.user?.id || isSubmitting) return;
+
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce commentaire ?')) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/tracks/${trackId}/comments/${commentId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setComments(prev => prev.filter(c => c._id !== commentId));
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const startEditing = (comment: Comment) => {
+    setEditingComment(comment._id);
+    setEditContent(comment.content);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -260,9 +318,45 @@ export default function CommentSection({
                     </span>
                   </div>
                   
-                  <p className="text-gray-700 dark:text-gray-300 mb-3">
-                    {comment.content}
-                  </p>
+                  {/* Contenu du commentaire */}
+                  {editingComment === comment._id ? (
+                    <div className="mb-3">
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        className="w-full p-2 border border-gray-200 dark:border-gray-700 rounded resize-none focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-900"
+                        rows={2}
+                        maxLength={500}
+                      />
+                      <div className="flex items-center justify-between mt-2">
+                        <span className="text-xs text-gray-500">
+                          {editContent.length}/500
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              setEditingComment(null);
+                              setEditContent('');
+                            }}
+                            className="px-3 py-1 text-sm text-gray-500 hover:text-gray-700"
+                          >
+                            Annuler
+                          </button>
+                          <button
+                            onClick={() => handleEditComment(comment._id)}
+                            disabled={!editContent.trim() || isSubmitting}
+                            className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                          >
+                            {isSubmitting ? 'Sauvegarde...' : 'Sauvegarder'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-gray-700 dark:text-gray-300 mb-3">
+                      {comment.content}
+                    </p>
+                  )}
 
                   {/* Actions */}
                   <div className="flex items-center gap-4">
@@ -282,6 +376,26 @@ export default function CommentSection({
                       <Reply size={14} />
                       Répondre
                     </button>
+
+                    {/* Boutons de modification/suppression pour le propriétaire */}
+                    {session?.user?.id === comment.user._id && (
+                      <>
+                        <button
+                          onClick={() => startEditing(comment)}
+                          className="flex items-center gap-1 text-gray-500 hover:text-green-500 text-sm"
+                        >
+                          <Edit size={14} />
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => handleDeleteComment(comment._id)}
+                          className="flex items-center gap-1 text-gray-500 hover:text-red-500 text-sm"
+                        >
+                          <Trash2 size={14} />
+                          Supprimer
+                        </button>
+                      </>
+                    )}
                   </div>
 
                   {/* Formulaire de réponse */}
@@ -327,15 +441,24 @@ export default function CommentSection({
 
                   {/* Réponses */}
                   {comment.replies && comment.replies.length > 0 && (
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 space-y-3">
+                      <div className="text-sm text-gray-500 font-medium">
+                        {comment.replies.length} réponse{comment.replies.length > 1 ? 's' : ''}
+                      </div>
                       {comment.replies.map((reply) => (
-                        <div key={reply._id} className="pl-4 border-l-2 border-gray-200 dark:border-gray-600">
-                          <div className="flex items-center gap-2 mb-1">
+                        <div key={reply._id} className="pl-4 border-l-2 border-purple-200 dark:border-purple-600 bg-gray-50 dark:bg-gray-700 rounded-r-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold">
+                              {reply.user.name[0].toUpperCase()}
+                            </div>
                             <span className="font-semibold text-sm">{reply.user.name}</span>
                             <span className="text-gray-500 text-xs">@{reply.user.username}</span>
-                            <span className="text-gray-400 text-xs">{formatDate(reply.createdAt)}</span>
+                            <span className="text-gray-400 text-xs flex items-center gap-1">
+                              <Clock size={10} />
+                              {formatDate(reply.createdAt)}
+                            </span>
                           </div>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">{reply.content}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{reply.content}</p>
                         </div>
                       ))}
                     </div>

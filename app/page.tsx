@@ -597,7 +597,7 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         
-        // Mettre à jour l'état local
+        // Mettre à jour l'état local avec les vraies données de l'API
         setCategories(prev => {
           const newCategories = { ...prev };
           if (newCategories[categoryKey]) {
@@ -605,13 +605,29 @@ export default function HomePage() {
               ...newCategories[categoryKey],
               tracks: newCategories[categoryKey].tracks.map(track => 
                 track._id === trackId 
-                  ? { ...track, isLiked: data.isLiked, likes: data.isLiked ? [...track.likes, session.user.id] : track.likes.filter(id => id !== session.user.id) }
+                  ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
                   : track
               )
             };
           }
           return newCategories;
         });
+
+        // Mettre à jour aussi les autres états de pistes
+        setDailyDiscoveries(prev => 
+          prev.map(track => 
+            track._id === trackId 
+              ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+              : track
+          )
+        );
+        setCollaborations(prev => 
+          prev.map(track => 
+            track._id === trackId 
+              ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+              : track
+          )
+        );
       }
     } catch (error) {
       console.error('Erreur like:', error);
