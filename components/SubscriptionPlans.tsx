@@ -64,6 +64,7 @@ export default function SubscriptionPlans() {
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -74,13 +75,23 @@ export default function SubscriptionPlans() {
 
   const fetchSubscriptions = async () => {
     try {
+      console.log('🔍 Appel API /api/subscriptions...');
       const response = await fetch('/api/subscriptions');
+      console.log('📡 Réponse API:', response.status, response.statusText);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('✅ Données reçues:', data);
         setSubscriptions(data);
+      } else {
+        console.error('❌ Erreur API:', response.status, response.statusText);
+        const errorData = await response.json();
+        console.error('❌ Détails erreur:', errorData);
+        setError(`Erreur ${response.status}: ${errorData.error || 'Erreur inconnue'}`);
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération des abonnements:', error);
+      console.error('❌ Erreur lors de la récupération des abonnements:', error);
+      setError('Erreur de connexion au serveur');
     } finally {
       setLoading(false);
     }
@@ -174,6 +185,28 @@ export default function SubscriptionPlans() {
             </p>
           </motion.div>
 
+          {/* Debug Info */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="glass-effect rounded-2xl p-6 mb-8 border border-red-500/50"
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 rounded-xl bg-red-500">
+                  <X size={20} className="text-white" />
+                </div>
+                <h2 className="text-2xl font-bold text-red-400">Erreur</h2>
+              </div>
+              <p className="text-red-300">{error}</p>
+              <div className="mt-4 p-3 bg-gray-800 rounded-lg">
+                <p className="text-sm text-gray-300">Debug: {subscriptions.length} abonnements chargés</p>
+                <p className="text-sm text-gray-300">Session: {session?.user?.id ? 'Connecté' : 'Non connecté'}</p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Usage Info */}
           {usageInfo && (
             <motion.div
@@ -245,8 +278,31 @@ export default function SubscriptionPlans() {
           )}
 
           {/* Subscription Plans */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-            {subscriptions.map((plan, index) => (
+          {subscriptions.length === 0 && !loading && !error ? (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="glass-effect rounded-2xl p-8 text-center"
+            >
+              <div className="flex items-center justify-center mb-6">
+                <div className="p-4 rounded-2xl bg-gray-500">
+                  <Music size={32} className="text-white" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-4">Aucun abonnement disponible</h2>
+              <p className="text-gray-300 mb-6">
+                Les plans d'abonnement ne sont pas encore configurés.
+              </p>
+              <div className="p-4 bg-gray-800 rounded-lg">
+                <p className="text-sm text-gray-300">Debug: {subscriptions.length} abonnements trouvés</p>
+                <p className="text-sm text-gray-300">Loading: {loading ? 'Oui' : 'Non'}</p>
+                <p className="text-sm text-gray-300">Error: {error || 'Aucune'}</p>
+              </div>
+            </motion.div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+              {subscriptions.map((plan, index) => (
               <motion.div
                 key={plan._id}
                 initial={{ opacity: 0, y: 30 }}
@@ -371,7 +427,8 @@ export default function SubscriptionPlans() {
                 </motion.button>
               </motion.div>
             ))}
-          </div>
+            </div>
+          )}
 
           {/* Additional Info */}
           <motion.div
