@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, Play, Heart, Share2, MessageCircle, Clock, Users, TrendingUp, Music, Shuffle, SortAsc, SortDesc } from 'lucide-react';
 import { useAudioPlayer } from '../providers';
 import { useSession } from 'next-auth/react';
+import TrackCard from '@/components/TrackCard';
+import SocialStats from '@/components/SocialStats';
 
 interface Track {
   _id: string;
