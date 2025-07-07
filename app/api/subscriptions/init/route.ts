@@ -176,6 +176,10 @@ export async function POST(request: NextRequest) {
 
     console.log('🎉 Initialisation terminée !');
     
+    // Vérifier que les abonnements sont bien sauvegardés
+    const savedSubscriptions = await Subscription.find({ isActive: true });
+    console.log('🔍 Vérification - Abonnements sauvegardés:', savedSubscriptions.map(s => ({ name: s.name, isActive: s.isActive })));
+    
     return NextResponse.json({
       success: true,
       message: 'Abonnements initialisés avec succès',
@@ -183,8 +187,10 @@ export async function POST(request: NextRequest) {
       subscriptions: createdSubscriptions.map(sub => ({
         name: sub.name,
         price: sub.price,
-        features: sub.features.length
-      }))
+        features: sub.features.length,
+        isActive: sub.isActive
+      })),
+      savedCount: savedSubscriptions.length
     });
 
   } catch (error) {
