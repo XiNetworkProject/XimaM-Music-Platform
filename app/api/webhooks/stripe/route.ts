@@ -89,7 +89,8 @@ async function handleCheckoutSessionCompleted(session: any) {
     metadata: session.metadata
   });
 
-  const { userId, subscriptionId, subscriptionType } = session.metadata || {};
+  const { subscriptionId, subscriptionType } = session.metadata || {};
+  let { userId } = session.metadata || {};
 
   // Si on a les métadonnées, créer l'abonnement directement
   if (userId && subscriptionId) {
@@ -298,25 +299,79 @@ async function handleSubscriptionCreated(subscription: any) {
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
-  const { userId, subscriptionId } = subscription.metadata;
+  console.log('🔍 Mise à jour abonnement Stripe:', {
+    id: subscription.id,
+    status: subscription.status,
+    current_period_start: subscription.current_period_start,
+    current_period_end: subscription.current_period_end,
+    trial_end: subscription.trial_end,
+    metadata: subscription.metadata
+  });
+
+  const { subscriptionId } = subscription.metadata || {};
+  let { userId } = subscription.metadata || {};
+
+  // Si pas de métadonnées, essayer de retrouver l'utilisateur via le customer
+  if (!userId && subscription.customer) {
+    try {
+      const customer = await stripe.customers.retrieve(subscription.customer);
+      if (!customer.deleted && customer.email) {
+        const User = (await import('@/models/User')).default;
+        const user = await User.findOne({ email: customer.email });
+        if (user) {
+          userId = user._id.toString();
+          console.log('✅ Utilisateur trouvé via customer:', userId);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération du customer:', error);
+    }
+  }
+
+  if (!userId) {
+    console.log('❌ Impossible de déterminer l\'utilisateur pour la mise à jour');
+    return;
+  }
 
   // Convertir les timestamps Stripe (secondes) en dates JavaScript
   const currentPeriodStart = subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : new Date();
   const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : new Date();
   const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined;
 
+  // Déterminer le statut correct
+  let status = 'active';
+  if (subscription.status === 'trialing') {
+    status = 'trial';
+  } else if (subscription.status === 'active') {
+    status = 'active';
+  } else if (subscription.status === 'canceled') {
+    status = 'canceled';
+  } else if (subscription.status === 'past_due') {
+    status = 'past_due';
+  } else if (subscription.status === 'unpaid') {
+    status = 'expired';
+  }
+
+  console.log('📊 Mise à jour avec statut:', status);
+
   // Mettre à jour l'abonnement utilisateur
-  await UserSubscription.findOneAndUpdate(
+  const updatedSubscription = await UserSubscription.findOneAndUpdate(
     { user: userId },
     {
-      status: subscription.status === 'trialing' ? 'trial' : subscription.status,
+      status: status,
       currentPeriodStart: currentPeriodStart,
       currentPeriodEnd: currentPeriodEnd,
       trialEnd: trialEnd,
-    }
+    },
+    { new: true }
   );
 
-  console.log(`✅ Abonnement mis à jour pour l'utilisateur ${userId}`);
+  console.log(`✅ Abonnement mis à jour pour l'utilisateur ${userId}: ${status}`);
+  console.log('📋 Détails mise à jour:', {
+    id: updatedSubscription?._id,
+    status: updatedSubscription?.status,
+    currentPeriodEnd: updatedSubscription?.currentPeriodEnd
+  });
 }
 
 async function handleSubscriptionDeleted(subscription: any) {
