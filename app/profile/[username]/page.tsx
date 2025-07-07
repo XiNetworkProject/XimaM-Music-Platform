@@ -6,6 +6,9 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
+import InteractiveCounter from '@/components/InteractiveCounter';
+import SocialStats from '@/components/SocialStats';
+import UserProfileCard from '@/components/UserProfileCard';
 
 const socialIcons = {
   instagram: Instagram,
@@ -669,27 +672,43 @@ export default function ProfileUserPage() {
           <div className="mt-4 text-center">
             <div className="flex items-center justify-center gap-2 mb-1">
               <span className="text-2xl font-bold gradient-text">{profile.name}</span>
-              {profile.isVerified && <Check className="text-blue-400 w-5 h-5" />}
+              {profile.isVerified && (
+                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                  <Check className="text-white w-4 h-4" />
+                </div>
+              )}
             </div>
             <span className="text-white/60 text-sm">@{profile.username}</span>
             {profile.isArtist && profile.artistName && (
               <div className="text-xs text-pink-400 mt-1">Artiste : {profile.artistName}</div>
             )}
+            
+            {/* Statistiques avec nouveaux composants */}
+            <div className="mt-3">
+              <SocialStats
+                userId={profile._id}
+                initialStats={{
+                  followers: profile.followerCount || 0,
+                  following: profile.followingCount || 0
+                }}
+                size="sm"
+                showLabels={true}
+                layout="horizontal"
+                className="justify-center"
+              />
+            </div>
+            
+            {/* Badges et statistiques */}
             <div className="flex flex-wrap justify-center gap-3 mt-3">
-              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full"><Music size={14} /> {profile.trackCount} morceaux</span>
-              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full"><Heart size={14} /> {profile.likeCount} likes</span>
-              <button
-                className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full hover:bg-white/20"
-                onClick={() => setShowFollowersModal(true)}
-              >
-                <Users size={14} /> {profile.followerCount} abonnés
-              </button>
-              <button
-                className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full hover:bg-white/20"
-                onClick={() => setShowFollowingModal(true)}
-              >
-                <UserPlus size={14} /> {profile.followingCount} suivis
-              </button>
+              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full">
+                <Music size={14} /> {profile.trackCount || 0} morceaux
+              </span>
+              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full">
+                <Heart size={14} /> {profile.likeCount || 0} likes
+              </span>
+              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full">
+                <Users size={14} /> {profile.totalPlays || 0} écoutes
+              </span>
             </div>
             {/* Bio */}
             {profile.bio && (
@@ -742,13 +761,21 @@ export default function ProfileUserPage() {
                   <Edit3 size={16} /> Modifier le profil
                 </button>
               ) : (
-                <button
-                  className={`flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all ${profile.isFollowing ? 'bg-pink-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
-                  onClick={handleFollow}
-                  disabled={uploading}
-                >
-                  {profile.isFollowing ? <Check size={16} /> : <Plus size={16} />} {profile.isFollowing ? 'Abonné' : 'Suivre'}
-                </button>
+                <InteractiveCounter
+                  type="followers"
+                  initialCount={0}
+                  isActive={profile.isFollowing}
+                  onToggle={async (newState) => {
+                    await handleFollow();
+                  }}
+                  size="md"
+                  showIcon={true}
+                  className={`px-5 py-2 rounded-full font-medium transition-all ${
+                    profile.isFollowing 
+                      ? 'bg-pink-600 text-white' 
+                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                  }`}
+                />
               )}
             </div>
             {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
@@ -865,22 +892,18 @@ export default function ProfileUserPage() {
                               {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
                             </p>
                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                              <button 
-                                className={`flex items-center gap-1 hover:text-pink-400 transition-colors ${
-                                  track.isLiked ? 'text-pink-400' : 'text-gray-500'
-                                }`}
-                                onClick={() => handleLikeTrack(track._id)}
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={track.likes.length}
+                                isActive={track.isLiked}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track._id);
+                                }}
+                                size="sm"
+                                showIcon={true}
                                 disabled={likeLoading === track._id}
-                              >
-                                {likeLoading === track._id ? (
-                                  <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  </div>
-                                ) : (
-                                  <Heart className={`w-4 h-4 ${track.isLiked ? 'fill-current' : ''}`} />
-                                )}
-                                {track.likes.length}
-                              </button>
+                                className="hover:text-pink-400 transition-colors"
+                              />
                               <span>{track.plays} écoutes</span>
                             </div>
                           </div>
@@ -991,22 +1014,18 @@ export default function ProfileUserPage() {
                               {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
                             </p>
                             <div className="flex items-center space-x-6 mt-2 text-sm text-gray-500">
-                              <button 
-                                className={`flex items-center gap-2 hover:text-pink-400 transition-colors ${
-                                  track.isLiked ? 'text-pink-400' : 'text-gray-500'
-                                }`}
-                                onClick={() => handleLikeTrack(track._id)}
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={track.likes.length}
+                                isActive={track.isLiked}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track._id);
+                                }}
+                                size="sm"
+                                showIcon={true}
                                 disabled={likeLoading === track._id}
-                              >
-                                {likeLoading === track._id ? (
-                                  <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                  </div>
-                                ) : (
-                                  <Heart className={`w-4 h-4 ${track.isLiked ? 'fill-current' : ''}`} />
-                                )}
-                                {track.likes.length} likes
-                              </button>
+                                className="hover:text-pink-400 transition-colors"
+                              />
                               <span>{track.plays} écoutes</span>
                               <span>{formatDuration(track.duration)}</span>
                             </div>

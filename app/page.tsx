@@ -6,6 +6,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
 import BottomNav from '@/components/BottomNav';
+import InteractiveCounter from '@/components/InteractiveCounter';
+import SocialStats from '@/components/SocialStats';
 import { 
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
@@ -531,7 +533,7 @@ export default function HomePage() {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   }, []);
 
-  // Fonction pour gérer les likes
+  // Fonction pour gérer les likes avec les nouveaux composants
   const handleLikeTrack = useCallback(async (trackId: string, categoryKey: string, trackIndex: number) => {
     if (!session) {
       return;
@@ -556,7 +558,7 @@ export default function HomePage() {
               ...newCategories[categoryKey],
               tracks: newCategories[categoryKey].tracks.map(track => 
                 track._id === trackId 
-                  ? { ...track, isLiked: data.isLiked }
+                  ? { ...track, isLiked: data.isLiked, likes: data.isLiked ? [...track.likes, session.user.id] : track.likes.filter(id => id !== session.user.id) }
                   : track
               )
             };
@@ -565,7 +567,7 @@ export default function HomePage() {
         });
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur like:', error);
     }
   }, [session]);
 
@@ -1225,23 +1227,18 @@ export default function HomePage() {
                             </span>
                           </motion.button>
 
-                          {/* Bouton Like */}
-                          <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', currentSlide)}
-                            className={`flex items-center space-x-2 px-4 py-3 rounded-full font-semibold transition-all duration-300 backdrop-blur-sm ${
-                              featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')
-                                ? 'text-red-500 bg-red-500/20 border border-red-500/30'
-                                : 'text-white bg-white/10 border border-white/20 hover:bg-white/20'
-                            }`}
-                          >
-                            <Heart 
-                              size={18} 
-                              fill={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '') ? 'currentColor' : 'none'} 
-                            />
-                            <span>J'aime</span>
-                          </motion.button>
+                          {/* Bouton Like avec nouveau composant */}
+                          <InteractiveCounter
+                            type="likes"
+                            initialCount={featuredTracks[currentSlide].likes.length}
+                            isActive={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
+                            onToggle={async (newState) => {
+                              await handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', currentSlide);
+                            }}
+                            size="md"
+                            showIcon={true}
+                            className="px-4 py-3 rounded-full font-semibold transition-all duration-300 backdrop-blur-sm text-white bg-white/10 border border-white/20 hover:bg-white/20"
+                          />
 
                           {/* Bouton Partager */}
                           <motion.button
@@ -1679,19 +1676,17 @@ export default function HomePage() {
                           <span>{formatNumber(track.plays)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
-                          <motion.button
-                            whileHover={{ scale: 1.2 }}
-                            whileTap={{ scale: 0.8 }}
-                            onClick={() => handleLikeTrack(track._id, 'dailyDiscoveries', index)}
-                            className={`transition-colors ${
-                              track.isLiked || track.likes.includes(user?.id || '')
-                                ? 'text-red-500'
-                                : 'text-gray-500 hover:text-red-500'
-                            }`}
-                          >
-                            <Heart size={10} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
-                          </motion.button>
-                          <span>{formatNumber(track.likes.length)}</span>
+                          <InteractiveCounter
+                            type="likes"
+                            initialCount={track.likes.length}
+                            isActive={track.isLiked || track.likes.includes(user?.id || '')}
+                            onToggle={async (newState) => {
+                              await handleLikeTrack(track._id, 'dailyDiscoveries', index);
+                            }}
+                            size="sm"
+                            showIcon={true}
+                            className="text-gray-500 hover:text-red-500"
+                          />
                         </div>
                       </div>
                     </div>
@@ -2233,19 +2228,17 @@ export default function HomePage() {
                             <span>{formatNumber(track.plays)}</span>
                           </div>
                           <div className="flex items-center space-x-2">
-                            <motion.button
-                              whileHover={{ scale: 1.2 }}
-                              whileTap={{ scale: 0.8 }}
-                              onClick={() => handleLikeTrack(track._id, 'collaborations', index)}
-                              className={`transition-colors ${
-                                track.isLiked || track.likes.includes(user?.id || '')
-                                  ? 'text-red-500'
-                                  : 'text-gray-500 hover:text-red-500'
-                              }`}
-                            >
-                              <Heart size={12} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
-                            </motion.button>
-                            <span>{formatNumber(track.likes.length)}</span>
+                            <InteractiveCounter
+                              type="likes"
+                              initialCount={track.likes.length}
+                              isActive={track.isLiked || track.likes.includes(user?.id || '')}
+                              onToggle={async (newState) => {
+                                await handleLikeTrack(track._id, 'collaborations', index);
+                              }}
+                              size="sm"
+                              showIcon={true}
+                              className="text-gray-500 hover:text-red-500"
+                            />
                           </div>
                         </div>
                       </div>
@@ -2904,19 +2897,17 @@ export default function HomePage() {
                               <span>{formatNumber(track.plays)}</span>
                             </div>
                             <div className="flex items-center space-x-2">
-                              <motion.button
-                                whileHover={{ scale: 1.2 }}
-                                whileTap={{ scale: 0.8 }}
-                                onClick={() => handleLikeTrack(track._id, config.key, index)}
-                                className={`transition-colors ${
-                                  track.isLiked || track.likes.includes(user?.id || '')
-                                    ? 'text-red-500'
-                                    : 'text-gray-500 hover:text-red-500'
-                                }`}
-                              >
-                                <Heart size={12} fill={track.isLiked || track.likes.includes(user?.id || '') ? 'currentColor' : 'none'} />
-                              </motion.button>
-                              <span>{formatNumber(track.likes.length)}</span>
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={track.likes.length}
+                                isActive={track.isLiked || track.likes.includes(user?.id || '')}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track._id, config.key, index);
+                                }}
+                                size="sm"
+                                showIcon={true}
+                                className="text-gray-500 hover:text-red-500"
+                              />
                             </div>
                           </div>
                         </div>
