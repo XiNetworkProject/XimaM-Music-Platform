@@ -396,7 +396,7 @@ export default function SubscriptionPlans() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
                 <div className="text-center">
                   <div className="text-gray-300">Période</div>
                   <div className="text-white font-semibold">
@@ -412,14 +412,27 @@ export default function SubscriptionPlans() {
                 <div className="text-center">
                   <div className="text-gray-300">Qualité audio</div>
                   <div className="text-white font-semibold">
-                    {currentSubscription.subscription?.limits.audioQuality}
+                    {getQualityLabel(currentSubscription.subscription?.limits.audioQuality || '128kbps')}
                   </div>
                 </div>
                 <div className="text-center">
                   <div className="text-gray-300">Support</div>
                   <div className="text-white font-semibold">
-                    {currentSubscription.subscription?.limits.support}
+                    {currentSubscription.subscription?.limits.support || 'Community'}
                   </div>
+                </div>
+              </div>
+
+              {/* Fonctionnalités de l'abonnement actuel */}
+              <div className="border-t border-gray-700 pt-6">
+                <h3 className="text-lg font-semibold text-white mb-4">Vos fonctionnalités incluses :</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {currentSubscription.subscription?.features?.map((feature, index) => (
+                    <div key={index} className="flex items-center text-sm">
+                      <Check size={16} className="text-green-400 mr-2 flex-shrink-0" />
+                      <span className="text-gray-300">{feature}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </motion.div>
