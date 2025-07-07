@@ -37,7 +37,7 @@ export default function FullScreenPlayer() {
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const volumeSliderRef = useRef<HTMLDivElement>(null);
-  const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+  const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
 
   const formatTime = useCallback((seconds: number) => {
     if (!seconds || isNaN(seconds) || seconds < 0) return '--:--';
@@ -146,7 +146,7 @@ export default function FullScreenPlayer() {
   }, [currentTrack?._id, audioState.tracks, audioState.currentTrackIndex]);
 
   // Mini-player (toujours visible en bas)
-  if (!audioState.showPlayer || !currentTrack) {
+  if (!audioState.showPlayer || !currentTrack || !currentTrack.title) {
     return null;
   }
 
@@ -170,14 +170,14 @@ export default function FullScreenPlayer() {
         />
         
         <img 
-          src={currentTrack.coverUrl || '/default-cover.jpg'} 
-          alt={currentTrack.title} 
+          src={currentTrack?.coverUrl || '/default-cover.jpg'} 
+          alt={currentTrack?.title || 'Track'} 
           className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0 relative z-10" 
           loading="lazy"
         />
         <div className="flex-1 min-w-0 relative z-10">
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <span className="truncate font-semibold text-white text-xs sm:text-sm">{currentTrack.title}</span>
+            <span className="truncate font-semibold text-white text-xs sm:text-sm">{currentTrack?.title || 'Titre inconnu'}</span>
             {/* Animation d'onde/barre */}
             {audioState.isPlaying && !audioState.isLoading && (
               <div className="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
@@ -187,7 +187,7 @@ export default function FullScreenPlayer() {
               </div>
             )}
           </div>
-          <span className="text-xs text-gray-300 truncate text-xs sm:text-xs">{currentTrack.artist?.name || currentTrack.artist?.username}</span>
+          <span className="text-xs text-gray-300 truncate text-xs sm:text-xs">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
         </div>
         
         {/* Indicateur de chargement */}
@@ -253,8 +253,8 @@ export default function FullScreenPlayer() {
               {/* Header : jaquette grande + bouton fermer */}
               <div className="relative w-full flex flex-col items-center mt-4">
                 <motion.img 
-                  src={currentTrack.coverUrl || '/default-cover.jpg'} 
-                  alt={currentTrack.title} 
+                  src={currentTrack?.coverUrl || '/default-cover.jpg'} 
+                  alt={currentTrack?.title || 'Track'} 
                   className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation" 
                   loading="lazy"
                 />
@@ -272,22 +272,22 @@ export default function FullScreenPlayer() {
               
               {/* Centre : titre, artiste, animation d'onde/barre + statistiques */}
               <div className="flex flex-col items-center flex-1 justify-center">
-                <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center">{currentTrack.title}</span>
-                <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack.artist?.name || currentTrack.artist?.username}</span>
+                <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center">{currentTrack?.title || 'Titre inconnu'}</span>
+                <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
                 
                 {/* Statistiques de la piste */}
                 <div className="flex items-center space-x-6 mb-4 text-sm text-gray-400">
                   <div className="flex items-center space-x-1">
                     <Headphones size={16} />
-                    <span>{currentTrack.plays || 0}</span>
+                    <span>{currentTrack?.plays || 0}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <Heart size={16} />
-                    <span>{currentTrack.likes?.length || 0}</span>
+                    <span>{currentTrack?.likes?.length || 0}</span>
                   </div>
                   <div className="flex items-center space-x-1">
                     <MessageCircle size={16} />
-                    <span>{currentTrack.comments?.length || 0}</span>
+                    <span>{currentTrack?.comments?.length || 0}</span>
                   </div>
                 </div>
                 
@@ -374,10 +374,12 @@ export default function FullScreenPlayer() {
                   </button>
                   <InteractiveCounter
                     type="likes"
-                    initialCount={currentTrack.likes?.length || 0}
-                    isActive={currentTrack.isLiked}
+                    initialCount={currentTrack?.likes?.length || 0}
+                    isActive={currentTrack?.isLiked || false}
                     onToggle={async (newState) => {
-                      await handleLike(currentTrack._id);
+                      if (currentTrack?._id) {
+                        await handleLike(currentTrack._id);
+                      }
                     }}
                     size="sm"
                     showIcon={true}
@@ -438,7 +440,7 @@ export default function FullScreenPlayer() {
                       {/* Section commentaires */}
                       <div className="flex-1 overflow-hidden">
                         <CommentSection
-                          trackId={currentTrack._id}
+                          trackId={currentTrack?._id || ''}
                           initialComments={[]}
                           className="h-full"
                         />
