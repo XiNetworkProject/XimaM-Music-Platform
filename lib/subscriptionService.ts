@@ -47,7 +47,10 @@ class SubscriptionService {
     const userSub = await UserSubscription.findOne({ 
       user: userId,
       status: { $in: ['active', 'trial'] },
-      currentPeriodEnd: { $gte: new Date() }
+      $or: [
+        { currentPeriodEnd: { $gte: new Date() } },
+        { currentPeriodEnd: null }
+      ]
     }).populate('subscription');
     
     return userSub;
