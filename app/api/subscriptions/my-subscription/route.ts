@@ -5,71 +5,54 @@ import dbConnect from '@/lib/db';
 import UserSubscription from '@/models/UserSubscription';
 import Subscription from '@/models/Subscription';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    console.log('🔍 Début de la requête my-subscription');
-    
     const session = await getServerSession(authOptions);
-    console.log('👤 Session utilisateur:', session?.user?.id ? 'Présente' : 'Absente');
     
     if (!session?.user?.id) {
-      console.log('❌ Utilisateur non autorisé');
       return NextResponse.json(
         { error: 'Non autorisé' },
         { status: 401 }
       );
     }
 
-    console.log('✅ Utilisateur autorisé:', session.user.id);
     await dbConnect();
 
-    // Récupérer l'abonnement utilisateur actif
+    // Récupérer l'abonnement actuel de l'utilisateur
     const userSubscription = await UserSubscription.findOne({
-      user: session.user.id,
+      userId: session.user.id,
       status: { $in: ['active', 'trial'] }
-    }).populate('subscription');
-
-    console.log('📊 Abonnement utilisateur trouvé:', userSubscription ? 'Oui' : 'Non');
-    if (userSubscription) {
-      console.log('📋 Détails abonnement:', {
-        id: userSubscription._id,
-        status: userSubscription.status,
-        subscription: userSubscription.subscription
-      });
-    }
+    }).populate('subscriptionId');
 
     if (!userSubscription) {
-      console.log('⚠️ Aucun abonnement actif trouvé');
       return NextResponse.json({
         hasSubscription: false,
         subscription: null,
-        usage: null
+        userSubscription: null
       });
     }
 
     // Récupérer les détails de l'abonnement
-    const subscription = await Subscription.findById(userSubscription.subscription);
-    console.log('📦 Détails du plan d\'abonnement:', subscription ? 'Trouvé' : 'Non trouvé');
+    const subscription = await Subscription.findById(userSubscription.subscriptionId);
 
     if (!subscription) {
-      console.log('❌ Plan d\'abonnement non trouvé');
       return NextResponse.json({
         hasSubscription: false,
         subscription: null,
-        usage: null
+        userSubscription: null
       });
     }
 
-    const response = {
+    return NextResponse.json({
       hasSubscription: true,
       subscription: {
-        id: subscription._id,
+        _id: subscription._id,
         name: subscription.name,
         price: subscription.price,
         currency: subscription.currency,
         interval: subscription.interval,
-        features: subscription.features,
-        limits: subscription.limits
+        limits: subscription.limits,
+        features: subscription.features
       },
       userSubscription: {
         id: userSubscription._id,
@@ -80,20 +63,12 @@ export async function GET() {
         usage: userSubscription.usage,
         stripeSubscriptionId: userSubscription.stripeSubscriptionId
       }
-    };
-
-    console.log('✅ Réponse envoyée:', {
-      hasSubscription: response.hasSubscription,
-      subscriptionName: response.subscription.name,
-      userStatus: response.userSubscription.status
     });
 
-    return NextResponse.json(response);
-
   } catch (error) {
-    console.error('❌ Erreur lors de la récupération de l\'abonnement:', error);
+    console.error('Erreur lors de la récupération de l\'abonnement:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération de l\'abonnement' },
+      { error: 'Erreur serveur' },
       { status: 500 }
     );
   }
