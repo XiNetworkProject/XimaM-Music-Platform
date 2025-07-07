@@ -70,7 +70,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         } catch (error) {
           console.error('Erreur recherche:', error);
         } finally {
-          setIsLoading(false);
+        setIsLoading(false);
         }
       };
       

@@ -10,6 +10,7 @@ import {
   User,
   Settings
 } from 'lucide-react';
+import { useCallback, useMemo } from 'react';
 
 const navItems = [
   {
@@ -44,28 +45,69 @@ const navItems = [
   },
 ];
 
+// Cache pour les pages visitées
+const pageCache = new Map<string, { timestamp: number; data: any }>();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const handleNavigation = (path: string) => {
-    router.push(path);
-  };
+  // Navigation optimisée avec cache
+  const handleNavigation = useCallback((path: string) => {
+    // Vérifier si on est déjà sur cette page
+    if (pathname === path) return;
 
-  // Fonction pour déterminer si un élément est actif
-  const isItemActive = (itemPath: string) => {
+    // Précharger la page si elle n'est pas en cache
+    if (!pageCache.has(path)) {
+      // Préchargement intelligent
+      const prefetchPage = async () => {
+        try {
+          const response = await fetch(path, {
+            method: 'HEAD', // Juste vérifier que la page existe
+          });
+          if (response.ok) {
+            pageCache.set(path, {
+              timestamp: Date.now(),
+              data: { exists: true }
+            });
+          }
+        } catch (error) {
+          // Erreur silencieuse
+        }
+      };
+      prefetchPage();
+    }
+
+    // Navigation fluide avec transition
+    router.push(path, { scroll: false });
+  }, [router, pathname]);
+
+  // Fonction optimisée pour déterminer si un élément est actif
+  const isItemActive = useCallback((itemPath: string) => {
     if (itemPath === '/') {
       return pathname === '/';
     }
     return pathname.startsWith(itemPath);
-  };
+  }, [pathname]);
+
+  // Nettoyer le cache périodiquement
+  useMemo(() => {
+    const now = Date.now();
+    const entries = Array.from(pageCache.entries());
+    entries.forEach(([key, value]) => {
+      if (now - value.timestamp > CACHE_DURATION) {
+        pageCache.delete(key);
+      }
+    });
+  }, [pathname]);
 
   return (
     <>
       {/* Espace réservé pour éviter le chevauchement */}
       <div className="h-24 md:h-20" />
       
-      {/* Barre de navigation moderne */}
+      {/* Barre de navigation moderne et optimisée */}
       <motion.div 
         className="fixed bottom-0 left-0 right-0 z-50"
         initial={{ y: 100, opacity: 0 }}
@@ -97,7 +139,7 @@ export default function BottomNav() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05, duration: 0.3 }}
               >
-                    {/* Indicateur actif avec animation */}
+                    {/* Indicateur actif avec animation optimisée */}
                     <AnimatePresence mode="wait">
                 {isActive && (
                   <motion.div
@@ -116,28 +158,28 @@ export default function BottomNav() {
                       )}
                     </AnimatePresence>
                     
-                    {/* Effet de particules pour l'élément actif */}
+                    {/* Effet de particules optimisé pour l'élément actif */}
                     <AnimatePresence>
                       {isActive && (
                         <div className="absolute inset-0 overflow-hidden rounded-2xl">
-                          {[...Array(4)].map((_, i) => (
+                          {[...Array(3)].map((_, i) => (
                             <motion.div
                               key={`${item.id}-particle-${i}-${pathname}`}
                               className="absolute w-1 h-1 bg-purple-400 rounded-full"
                               initial={{ x: 0, y: 0, opacity: 0 }}
                               animate={{
-                                x: [0, Math.random() * 30 - 15],
-                                y: [0, Math.random() * 30 - 15],
+                                x: [0, Math.random() * 20 - 10],
+                                y: [0, Math.random() * 20 - 10],
                                 opacity: [0, 1, 0],
                               }}
                               transition={{
-                                duration: 1.5,
+                                duration: 2,
                                 repeat: Infinity,
-                                delay: i * 0.2,
+                                delay: i * 0.3,
                                 ease: "easeInOut"
                               }}
                               style={{
-                                left: `${20 + i * 15}%`,
+                                left: `${20 + i * 20}%`,
                                 top: '50%',
                               }}
                   />
@@ -146,24 +188,24 @@ export default function BottomNav() {
                       )}
                     </AnimatePresence>
                 
-                    {/* Icône avec animation */}
+                    {/* Icône avec animation optimisée */}
                     <motion.div 
                       className="relative z-10"
                       key={`${item.id}-icon-${pathname}`}
                       initial={isActive ? { scale: 1, rotate: 0 } : { scale: 1, rotate: 0 }}
                       animate={isActive ? { 
                         scale: [1, 1.1, 1],
-                        rotate: [0, 3, -3, 0]
+                        rotate: [0, 2, -2, 0]
                       } : {
                         scale: 1,
                         rotate: 0
                       }}
                       transition={{ 
-                        duration: 0.4, 
+                        duration: 0.6, 
                         repeat: isActive ? Infinity : 0, 
-                        repeatDelay: 1.5,
+                        repeatDelay: 2,
                         type: "spring",
-                        stiffness: 400
+                        stiffness: 300
                       }}
                     >
                   <item.icon 
@@ -175,22 +217,22 @@ export default function BottomNav() {
                     }`} 
                   />
                       
-                      {/* Effet de glow pour l'icône active */}
+                      {/* Effet de glow optimisé pour l'icône active */}
                       <AnimatePresence>
                         {isActive && (
                           <motion.div
                             key={`${item.id}-glow-${pathname}`}
-                            className="absolute inset-0 bg-purple-400 rounded-full blur-md opacity-50"
+                            className="absolute inset-0 bg-purple-400 rounded-full blur-md opacity-30"
                             initial={{ scale: 0, opacity: 0 }}
-                            animate={{ scale: [1, 1.3, 1], opacity: 0.5 }}
+                            animate={{ scale: [1, 1.2, 1], opacity: 0.3 }}
                             exit={{ scale: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, repeat: Infinity, repeatDelay: 1 }}
+                            transition={{ duration: 0.4, repeat: Infinity, repeatDelay: 1.5 }}
                           />
                         )}
                       </AnimatePresence>
                     </motion.div>
                 
-                    {/* Label avec animation */}
+                    {/* Label avec animation optimisée */}
                     <motion.span 
                       key={`${item.id}-label-${pathname}`}
                       className={`text-xs font-medium transition-all duration-200 relative z-10 ${
@@ -207,11 +249,11 @@ export default function BottomNav() {
                         scale: 1
                       }}
                       transition={{ 
-                        duration: 0.4, 
+                        duration: 0.6, 
                         repeat: isActive ? Infinity : 0, 
-                        repeatDelay: 1.5,
+                        repeatDelay: 2,
                         type: "spring",
-                        stiffness: 400
+                        stiffness: 300
                       }}
                 >
                   {item.label}
@@ -227,7 +269,7 @@ export default function BottomNav() {
         </div>
       </div>
           
-          {/* Effet de bordure inférieure avec animation */}
+          {/* Effet de bordure inférieure avec animation optimisée */}
           <div className="absolute bottom-0 left-0 right-0 h-px">
             <motion.div
               className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"
@@ -235,7 +277,7 @@ export default function BottomNav() {
                 backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] 
               }}
               transition={{ 
-                duration: 3, 
+                duration: 4, 
                 repeat: Infinity, 
                 ease: 'linear' 
               }}

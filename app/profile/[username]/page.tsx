@@ -584,7 +584,7 @@ export default function ProfileUserPage() {
   }, [showTrackOptions]);
 
   if (loading) {
-    return (
+  return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
         <Loader2 className="animate-spin w-10 h-10 text-purple-400" />
       </div>

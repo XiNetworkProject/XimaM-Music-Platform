@@ -4,6 +4,7 @@ import './globals.css';
 import Providers from './providers';
 import BottomNav from '@/components/BottomNav';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
+import PageTransition from '@/components/PageTransition';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -27,15 +28,28 @@ export const metadata: Metadata = {
   },
 };
 
-// Enregistrement du service worker côté client
+// Enregistrement du service worker optimisé côté client
 if (typeof window !== 'undefined') {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('/sw-optimized.js')
       .then(registration => {
-        // Service Worker enregistré avec succès
-        })
+        console.log('✅ Service Worker optimisé enregistré');
+        
+        // Vérifier les mises à jour
+        registration.addEventListener('updatefound', () => {
+          const newWorker = registration.installing;
+          if (newWorker) {
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // Nouvelle version disponible
+                console.log('🔄 Nouvelle version disponible');
+              }
+            });
+          }
+        });
+      })
       .catch(error => {
-        // Erreur silencieuse
+        console.error('❌ Erreur enregistrement Service Worker:', error);
     });
   }
 }
@@ -59,7 +73,9 @@ export default function RootLayout({
         <Providers>
           <div className="flex flex-col min-h-screen">
             <main className="flex-1">
-              {children}
+              <PageTransition>
+                {children}
+              </PageTransition>
             </main>
             <BottomNav />
             <FullScreenPlayer />

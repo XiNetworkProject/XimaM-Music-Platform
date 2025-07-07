@@ -74,7 +74,7 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
         x,
         y,
         size: Math.random() * 3 + 1, // Taille plus petite (1-4px)
-        color: colors[Math.floor(Math.random() * colors.length)],
+        color: colors[Math.floor(Math.random() * colors.length)] as string,
         delay: Math.random() * 1.5, // Délai plus court
         duration: Math.random() * 2 + 3, // Durée plus courte (3-5 secondes)
         type: Math.random() > 0.8 ? 'glow' : Math.random() > 0.6 ? 'pulse' : 'normal'
