@@ -10,6 +10,9 @@ export async function POST(request: NextRequest) {
     console.log('🔧 Début création session de paiement...');
     
     // Vérifier les variables d'environnement Stripe
+    console.log('🔍 Vérification STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'Présente' : 'Manquante');
+    console.log('🔍 Vérification NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:', process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? 'Présente' : 'Manquante');
+    
     if (!process.env.STRIPE_SECRET_KEY) {
       console.log('⚠️ Mode démo - Stripe non configuré');
       
@@ -58,8 +61,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Code Stripe normal (à décommenter quand Stripe sera configuré)
-    /*
+    // Code Stripe normal
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       console.log('❌ Utilisateur non autorisé');
@@ -100,12 +102,95 @@ export async function POST(request: NextRequest) {
     }
 
     // Code Stripe ici...
-    */
+    console.log('🔄 Création de la session Stripe...');
+    
+    // Import dynamique de Stripe pour éviter les erreurs
+    const { stripe } = await import('@/lib/stripe');
+    
+    // Créer ou récupérer le client Stripe
+    let customer;
+    const existingUserSubscription = await UserSubscription.findOne({ user: session.user.id });
+    
+    if (existingUserSubscription?.stripeCustomerId) {
+      customer = await stripe.customers.retrieve(existingUserSubscription.stripeCustomerId);
+    } else {
+      customer = await stripe.customers.create({
+        email: session.user.email || undefined,
+        name: session.user.name || undefined,
+        metadata: {
+          userId: session.user.id,
+        },
+      });
+    }
+
+    // Créer le produit et le prix Stripe s'ils n'existent pas
+    let stripePriceId = subscription.stripePriceId;
+    
+    if (!stripePriceId) {
+      console.log('🔄 Création du produit Stripe...');
+      // Créer le produit Stripe
+      const product = await stripe.products.create({
+        name: subscription.name.charAt(0).toUpperCase() + subscription.name.slice(1),
+        description: `Plan ${subscription.name} - ${subscription.features.join(', ')}`,
+        metadata: {
+          subscription_type: subscription.name,
+          features: JSON.stringify(subscription.features),
+        },
+      });
+
+      // Créer le prix Stripe
+      const price = await stripe.prices.create({
+        product: product.id,
+        unit_amount: Math.round(subscription.price * 100), // Stripe utilise les centimes
+        currency: subscription.currency.toLowerCase(),
+        recurring: {
+          interval: subscription.interval,
+        },
+        metadata: {
+          subscription_type: subscription.name,
+        },
+      });
+
+      stripePriceId = price.id;
+
+      // Mettre à jour l'abonnement avec l'ID du prix Stripe
+      await Subscription.findByIdAndUpdate(subscriptionId, { stripePriceId: price.id });
+    }
+
+    // Créer la session de paiement
+    const checkoutSession = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      payment_method_types: ['card'],
+      line_items: [
+        {
+          price: stripePriceId,
+          quantity: 1,
+        },
+      ],
+      mode: 'subscription',
+      success_url: `${process.env.NEXTAUTH_URL}/settings?success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXTAUTH_URL}/subscriptions?canceled=true`,
+      metadata: {
+        userId: session.user.id,
+        subscriptionId: subscriptionId,
+        subscriptionType: subscription.name,
+      },
+      subscription_data: {
+        metadata: {
+          userId: session.user.id,
+          subscriptionId: subscriptionId,
+          subscriptionType: subscription.name,
+        },
+        trial_period_days: subscription.name === 'free' ? 0 : 7, // 7 jours d'essai gratuit
+      },
+    });
+
+    console.log('✅ Session Stripe créée:', checkoutSession.id);
 
     return NextResponse.json({
-      error: 'Stripe en cours de configuration',
-      message: 'Veuillez configurer les clés Stripe pour activer les paiements'
-    }, { status: 503 });
+      sessionId: checkoutSession.id,
+      url: checkoutSession.url,
+    });
 
   } catch (error) {
     console.error('❌ Erreur création session de paiement:', error);
