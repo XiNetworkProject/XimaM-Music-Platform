@@ -65,6 +65,7 @@ export default function SubscriptionPlans() {
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [initializing, setInitializing] = useState(false);
 
   useEffect(() => {
     fetchSubscriptions();
@@ -151,6 +152,38 @@ export default function SubscriptionPlans() {
     setSelectedPlan(planName);
     // TODO: Intégrer Stripe pour le paiement
     alert(`Fonctionnalité de paiement à implémenter pour ${planName}`);
+  };
+
+  const handleInitializeSubscriptions = async () => {
+    try {
+      setInitializing(true);
+      setError(null);
+      
+      console.log('🔧 Initialisation des abonnements...');
+      const response = await fetch('/api/subscriptions/init', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Initialisation réussie:', data);
+        alert(`✅ ${data.count} abonnements initialisés avec succès !`);
+        // Recharger les abonnements
+        await fetchSubscriptions();
+      } else {
+        const errorData = await response.json();
+        console.error('❌ Erreur initialisation:', errorData);
+        setError(`Erreur d'initialisation: ${errorData.error || 'Erreur inconnue'}`);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de l\'initialisation:', error);
+      setError('Erreur de connexion lors de l\'initialisation');
+    } finally {
+      setInitializing(false);
+    }
   };
 
   if (loading) {
@@ -298,6 +331,17 @@ export default function SubscriptionPlans() {
                 <p className="text-sm text-gray-300">Debug: {subscriptions.length} abonnements trouvés</p>
                 <p className="text-sm text-gray-300">Loading: {loading ? 'Oui' : 'Non'}</p>
                 <p className="text-sm text-gray-300">Error: {error || 'Aucune'}</p>
+                <div className="mt-4 pt-4 border-t border-gray-600">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleInitializeSubscriptions}
+                    disabled={initializing}
+                    className="w-full py-2 px-4 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-lg font-semibold transition-all duration-300 disabled:opacity-50"
+                  >
+                    {initializing ? 'Initialisation...' : '🔧 Initialiser les abonnements'}
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           ) : (
