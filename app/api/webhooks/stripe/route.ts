@@ -94,22 +94,100 @@ async function handleCheckoutSessionCompleted(session: any) {
 }
 
 async function handleSubscriptionCreated(subscription: any) {
-  const { userId, subscriptionId, subscriptionType } = subscription.metadata;
-
   console.log('🔍 Détails de l\'abonnement Stripe:', {
     id: subscription.id,
     status: subscription.status,
     current_period_start: subscription.current_period_start,
     current_period_end: subscription.current_period_end,
-    trial_end: subscription.trial_end
+    trial_end: subscription.trial_end,
+    customer: subscription.customer,
+    metadata: subscription.metadata
   });
+
+  // Essayer de récupérer les métadonnées
+  let { userId, subscriptionId, subscriptionType } = subscription.metadata || {};
+
+  // Si les métadonnées sont manquantes, essayer de retrouver l'utilisateur via le customer
+  if (!userId && subscription.customer) {
+    console.log('⚠️ Métadonnées manquantes, recherche via customer...');
+    
+    try {
+      const customer = await stripe.customers.retrieve(subscription.customer);
+      
+      // Vérifier que le customer n'est pas supprimé et a un email
+      if (customer.deleted || !customer.email) {
+        console.log('❌ Customer supprimé ou sans email');
+        return;
+      }
+      
+      console.log('👤 Customer trouvé:', customer.email);
+      
+      // Rechercher l'utilisateur par email
+      const User = (await import('@/models/User')).default;
+      const user = await User.findOne({ email: customer.email });
+      
+      if (user) {
+        userId = user._id.toString();
+        console.log('✅ Utilisateur trouvé via email:', userId);
+      } else {
+        console.log('❌ Utilisateur non trouvé pour l\'email:', customer.email);
+        return;
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération du customer:', error);
+      return;
+    }
+  }
+
+  // Si on n'a toujours pas d'userId, on ne peut pas continuer
+  if (!userId) {
+    console.log('❌ Impossible de déterminer l\'utilisateur');
+    return;
+  }
+
+  // Si on n'a pas de subscriptionId, essayer de le déterminer via le prix Stripe
+  if (!subscriptionId) {
+    console.log('⚠️ subscriptionId manquant, recherche via prix...');
+    
+    try {
+      const price = await stripe.prices.retrieve(subscription.items.data[0].price.id);
+      console.log('💰 Prix trouvé:', price.metadata);
+      
+      if (price.metadata.subscription_type) {
+        // Rechercher l'abonnement par type
+        const subscriptionDoc = await Subscription.findOne({ name: price.metadata.subscription_type });
+        if (subscriptionDoc) {
+          subscriptionId = subscriptionDoc._id.toString();
+          subscriptionType = subscriptionDoc.name;
+          console.log('✅ Abonnement trouvé via prix:', subscriptionType);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération du prix:', error);
+    }
+  }
+
+  // Si on n'a toujours pas de subscriptionId, utiliser un abonnement par défaut
+  if (!subscriptionId) {
+    console.log('⚠️ Utilisation de l\'abonnement par défaut (starter)');
+    const defaultSubscription = await Subscription.findOne({ name: 'starter' });
+    if (defaultSubscription) {
+      subscriptionId = defaultSubscription._id.toString();
+      subscriptionType = 'starter';
+    } else {
+      console.log('❌ Aucun abonnement par défaut trouvé');
+      return;
+    }
+  }
 
   // Récupérer les détails de l'abonnement
   const subscriptionDetails = await Subscription.findById(subscriptionId);
   if (!subscriptionDetails) {
-    console.error(`Abonnement ${subscriptionId} non trouvé`);
+    console.error(`❌ Abonnement ${subscriptionId} non trouvé`);
     return;
   }
+
+  console.log('✅ Abonnement trouvé:', subscriptionDetails.name);
 
   // Convertir les timestamps Stripe (secondes) en dates JavaScript
   const currentPeriodStart = subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : new Date();
