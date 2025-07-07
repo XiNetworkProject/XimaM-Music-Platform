@@ -156,9 +156,47 @@ export default function SubscriptionPlans() {
   };
 
   const handleSubscribe = async (planName: string) => {
-    setSelectedPlan(planName);
-    // TODO: Intégrer Stripe pour le paiement
-    alert(`Fonctionnalité de paiement à implémenter pour ${planName}`);
+    try {
+      setSelectedPlan(planName);
+      setError(null);
+
+      // Trouver l'abonnement correspondant
+      const subscription = subscriptions.find(sub => sub.name === planName);
+      if (!subscription) {
+        setError('Abonnement non trouvé');
+        return;
+      }
+
+      // Créer la session de paiement
+      const response = await fetch('/api/subscriptions/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subscriptionId: subscription._id,
+        }),
+      });
+
+      if (response.ok) {
+        const { url } = await response.json();
+        
+        // Rediriger vers Stripe Checkout
+        if (url) {
+          window.location.href = url;
+        } else {
+          setError('Erreur lors de la création de la session de paiement');
+        }
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Erreur lors de la création de la session de paiement');
+      }
+    } catch (error) {
+      console.error('Erreur lors de l\'abonnement:', error);
+      setError('Erreur de connexion');
+    } finally {
+      setSelectedPlan(null);
+    }
   };
 
 
