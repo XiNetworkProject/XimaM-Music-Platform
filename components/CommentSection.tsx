@@ -40,9 +40,35 @@ export default function CommentSection({
   const [showAllComments, setShowAllComments] = useState(false);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const displayedComments = showAllComments ? comments : comments.slice(0, 3);
+
+  // Charger les commentaires au démarrage
+  useEffect(() => {
+    const loadComments = async () => {
+      if (!trackId) return;
+      
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/tracks/${trackId}/comments`);
+        
+        if (response.ok) {
+          const data = await response.json();
+          setComments(data.comments || []);
+        } else {
+          console.error('Erreur chargement commentaires');
+        }
+      } catch (error) {
+        console.error('Erreur chargement commentaires:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadComments();
+  }, [trackId]);
 
   const handleSubmitComment = async () => {
     if (!session?.user?.id || !newComment.trim() || isSubmitting) return;
@@ -155,8 +181,16 @@ export default function CommentSection({
         </h3>
       </div>
 
+      {/* Indicateur de chargement */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-8">
+          <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-2 text-gray-500">Chargement des commentaires...</span>
+        </div>
+      )}
+
       {/* Formulaire de commentaire */}
-      {session?.user?.id && (
+      {session?.user?.id && !isLoading && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -68,6 +68,12 @@ export default function InteractiveCounter({
     setIsLiked(isActive);
   }, [isActive]);
 
+  // Réinitialiser l'état local quand les props changent
+  useEffect(() => {
+    setCount(initialCount);
+    setIsLiked(isActive);
+  }, [initialCount, isActive]);
+
   const handleToggle = async () => {
     if (disabled || isLoading || !onToggle) return;
 
@@ -78,14 +84,9 @@ export default function InteractiveCounter({
       const newState = !isLiked;
       await onToggle(newState);
       
-      // Animation du compteur
-      if (newState) {
-        setCount(prev => prev + 1);
-      } else {
-        setCount(prev => Math.max(0, prev - 1));
-      }
+      // Ne pas modifier l'état local ici, laisser les props externes gérer
+      // L'état sera mis à jour via les useEffect ci-dessus
       
-      setIsLiked(newState);
     } catch (error) {
       console.error('Erreur lors du toggle:', error);
     } finally {

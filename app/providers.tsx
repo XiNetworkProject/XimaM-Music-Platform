@@ -146,8 +146,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioService.allTracks, audioState.tracks.length]);
 
   const setTracks = useCallback((tracks: Track[]) => {
-    setAudioState(prev => ({ ...prev, tracks }));
-  }, []);
+    // Initialiser l'état isLiked pour chaque piste
+    const tracksWithLikes = tracks.map(track => ({
+      ...track,
+      isLiked: session?.user?.id ? track.likes.includes(session.user.id) : false
+    }));
+    setAudioState(prev => ({ ...prev, tracks: tracksWithLikes }));
+  }, [session?.user?.id]);
 
   const setCurrentTrackIndex = useCallback((index: number) => {
     setAudioState(prev => ({ ...prev, currentTrackIndex: index }));
@@ -182,6 +187,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       }
     }
   }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex, setCurrentTrackIndex]);
+
+  // Mettre à jour l'état isLiked quand la session change
+  useEffect(() => {
+    if (audioState.tracks.length > 0) {
+      setAudioState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          isLiked: session?.user?.id ? track.likes.includes(session.user.id) : false
+        }))
+      }));
+    }
+  }, [session?.user?.id, audioState.tracks.length]);
 
   const updatePlayCount = useCallback(async (trackId: string) => {
     try {
