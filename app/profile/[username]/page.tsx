@@ -36,13 +36,11 @@ export default function ProfileUserPage() {
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState<any>({});
   const [uploading, setUploading] = useState(false);
-  const [showFollowers, setShowFollowers] = useState(false);
-  const [showFollowing, setShowFollowing] = useState(false);
   const [showFullBio, setShowFullBio] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'tracks' | 'playlists' | 'likes' | 'followers' | 'following'>('tracks');
+  const [activeTab, setActiveTab] = useState<'tracks' | 'playlists'>('tracks');
   const [trackPage, setTrackPage] = useState(1);
   const [trackLoading, setTrackLoading] = useState(false);
   const [hasMoreTracks, setHasMoreTracks] = useState(true);
@@ -54,8 +52,6 @@ export default function ProfileUserPage() {
   const playlistsPerPage = 9;
   const playlistListRef = useRef<HTMLDivElement>(null);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showFollowersModal, setShowFollowersModal] = useState(false);
-  const [showFollowingModal, setShowFollowingModal] = useState(false);
   const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
   const [newPlaylistData, setNewPlaylistData] = useState({ name: '', description: '', isPublic: true });
   const [followLoading, setFollowLoading] = useState<string | null>(null);
@@ -761,21 +757,25 @@ export default function ProfileUserPage() {
                   <Edit3 size={16} /> Modifier le profil
                 </button>
               ) : (
-                <InteractiveCounter
-                  type="followers"
-                  initialCount={0}
-                  isActive={profile.isFollowing}
-                  onToggle={async (newState) => {
-                    await handleFollow();
-                  }}
-                  size="md"
-                  showIcon={true}
-                  className={`px-5 py-2 rounded-full font-medium transition-all ${
+                <button
+                  className={`flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all ${
                     profile.isFollowing 
-                      ? 'bg-pink-600 text-white' 
-                      : 'bg-white/10 text-white/80 hover:bg-white/20'
+                      ? 'bg-pink-600 text-white hover:bg-pink-700' 
+                      : 'bg-purple-600 text-white hover:bg-purple-700'
                   }`}
-                />
+                  onClick={handleFollow}
+                  disabled={uploading}
+                >
+                  {profile.isFollowing ? (
+                    <>
+                      <Check size={16} /> Abonné
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} /> Suivre
+                    </>
+                  )}
+                </button>
               )}
             </div>
             {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
@@ -786,25 +786,40 @@ export default function ProfileUserPage() {
         <div className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-4">
             <div className="flex space-x-8">
-              {tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`py-4 px-2 border-b-2 font-medium transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'border-purple-500 text-purple-400'
-                      : 'border-transparent text-gray-300 hover:text-white hover:border-white/30'
-                  }`}
-                >
-                  <div className="flex items-center space-x-2">
-                    {tab.icon}
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="text-xs bg-white/10 px-2 py-1 rounded-full">
-                      {tab.count}
-                    </span>
-                  </div>
-                </button>
-              ))}
+              <button
+                onClick={() => setActiveTab('tracks')}
+                className={`py-4 px-2 border-b-2 font-medium transition-all duration-200 ${
+                  activeTab === 'tracks'
+                    ? 'border-purple-500 text-purple-400'
+                    : 'border-transparent text-gray-300 hover:text-white hover:border-white/30'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <Music size={20} />
+                  <span className="hidden sm:inline">Tracks</span>
+                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full">
+                    {profile?.tracks?.length || 0}
+                  </span>
+                </div>
+              </button>
+              <button
+                onClick={() => setActiveTab('playlists')}
+                className={`py-4 px-2 border-b-2 font-medium transition-all duration-200 ${
+                  activeTab === 'playlists'
+                    ? 'border-purple-500 text-purple-400'
+                    : 'border-transparent text-gray-300 hover:text-white hover:border-white/30'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                  <span className="hidden sm:inline">Playlists</span>
+                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full">
+                    {profile?.playlists?.length || 0}
+                  </span>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -1137,133 +1152,7 @@ export default function ProfileUserPage() {
               </div>
             )}
 
-            {activeTab === 'followers' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">Followers</h3>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      placeholder="Rechercher..."
-                      className="px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {followers.map((follower: any) => (
-                    <div key={follower._id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all duration-200">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {follower.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-white">{follower.username}</h4>
-                          <p className="text-sm text-gray-400">{follower.tracks?.length || 0} tracks</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {follower.isFollowing ? (
-                          <button
-                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-colors"
-                            onClick={() => handleFollowUser(follower._id)}
-                            disabled={followLoading === follower._id}
-                          >
-                            {followLoading === follower._id ? (
-                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              </div>
-                            ) : (
-                              'Ne plus suivre'
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
-                            onClick={() => handleFollowUser(follower._id)}
-                            disabled={followLoading === follower._id}
-                          >
-                            {followLoading === follower._id ? (
-                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              </div>
-                            ) : (
-                              'Suivre'
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {activeTab === 'following' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">Following</h3>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      placeholder="Rechercher..."
-                      className="px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-3">
-                  {following.map((followed: any) => (
-                    <div key={followed._id} className="flex items-center justify-between p-4 bg-white/5 rounded-xl hover:bg-white/10 transition-all duration-200">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center">
-                          <span className="text-white font-bold text-lg">
-                            {followed.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-white">{followed.username}</h4>
-                          <p className="text-sm text-gray-400">{followed.tracks?.length || 0} tracks</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {followed.isFollowing ? (
-                          <button
-                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg font-medium transition-colors"
-                            onClick={() => handleFollowUser(followed._id)}
-                            disabled={followLoading === followed._id}
-                          >
-                            {followLoading === followed._id ? (
-                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              </div>
-                            ) : (
-                              'Ne plus suivre'
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
-                            onClick={() => handleFollowUser(followed._id)}
-                            disabled={followLoading === followed._id}
-                          >
-                            {followLoading === followed._id ? (
-                              <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              </div>
-                            ) : (
-                              'Suivre'
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </main>
@@ -1414,163 +1303,7 @@ export default function ProfileUserPage() {
         )}
       </AnimatePresence>
 
-      {/* Modal Followers */}
-      <AnimatePresence>
-        {showFollowersModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowFollowersModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Abonnés ({profile?.followerCount})</h3>
-                <button
-                  onClick={() => setShowFollowersModal(false)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
 
-              <div className="space-y-3">
-                {followers.length > 0 ? (
-                  followers.map((follower: any) => (
-                    <div key={follower._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                          <span className="text-white font-bold">
-                            {follower.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-white">{follower.username}</h4>
-                          <p className="text-sm text-gray-400">{follower.tracks?.length || 0} tracks</p>
-                        </div>
-                      </div>
-                      {follower.isFollowing ? (
-                        <button
-                          className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center min-w-[90px]"
-                          onClick={() => handleFollowUser(follower._id)}
-                          disabled={followLoading === follower._id}
-                        >
-                          {followLoading === follower._id ? (
-                            <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            </div>
-                          ) : (
-                            'Ne plus suivre'
-                          )}
-                        </button>
-                      ) : (
-                        <button
-                          className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center min-w-[90px]"
-                          onClick={() => handleFollowUser(follower._id)}
-                          disabled={followLoading === follower._id}
-                        >
-                          {followLoading === follower._id ? (
-                            <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            </div>
-                          ) : (
-                            'Suivre'
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-400">Aucun abonné pour le moment</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal Following */}
-      <AnimatePresence>
-        {showFollowingModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowFollowingModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Abonnements ({profile?.followingCount})</h3>
-                <button
-                  onClick={() => setShowFollowingModal(false)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {following.length > 0 ? (
-                  following.map((followed: any) => (
-                    <div key={followed._id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-blue-500 flex items-center justify-center">
-                          <span className="text-white font-bold">
-                            {followed.username.charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-white">{followed.username}</h4>
-                          <p className="text-sm text-gray-400">{followed.tracks?.length || 0} tracks</p>
-                        </div>
-                      </div>
-                      <button
-                        className="px-3 py-1 bg-gray-600 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors flex items-center justify-center min-w-[90px]"
-                        onClick={() => handleFollowUser(followed._id)}
-                        disabled={followLoading === followed._id}
-                      >
-                        {followLoading === followed._id ? (
-                          <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          </div>
-                        ) : (
-                          'Ne plus suivre'
-                        )}
-                      </button>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8">
-                    <UserPlus className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-                    <p className="text-gray-400">Aucun abonnement pour le moment</p>
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Modal Création Playlist */}
       <AnimatePresence>
