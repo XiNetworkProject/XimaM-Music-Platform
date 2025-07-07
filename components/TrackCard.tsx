@@ -171,10 +171,10 @@ export default function TrackCard({
                 {track.title}
               </h3>
               <Link
-                href={`/profile/${track.artist.username}`}
+                href={`/profile/${track.artist?.username || 'unknown'}`}
                 className={`text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors ${sizeClasses[size].artist}`}
               >
-                {track.artist.name}
+                {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
               </Link>
             </div>
             

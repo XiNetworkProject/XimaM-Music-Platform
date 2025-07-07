@@ -306,11 +306,11 @@ export default function CommentSection({
             >
               <div className="flex gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white font-semibold">
-                  {comment.user.name[0].toUpperCase()}
+                  {comment.user?.name?.[0]?.toUpperCase() || 'U'}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="font-semibold">{comment.user.name}</span>
+                    <span className="font-semibold">{comment.user?.name || comment.user?.username || 'Utilisateur'}</span>
                     <span className="text-gray-500 text-sm">@{comment.user.username}</span>
                     <span className="text-gray-400 text-xs flex items-center gap-1">
                       <Clock size={12} />
@@ -449,9 +449,9 @@ export default function CommentSection({
                         <div key={reply._id} className="pl-4 border-l-2 border-purple-200 dark:border-purple-600 bg-gray-50 dark:bg-gray-700 rounded-r-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-6 h-6 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-semibold">
-                              {reply.user.name[0].toUpperCase()}
+                              {reply.user?.name?.[0]?.toUpperCase() || 'U'}
                             </div>
-                            <span className="font-semibold text-sm">{reply.user.name}</span>
+                            <span className="font-semibold text-sm">{reply.user?.name || reply.user?.username || 'Utilisateur'}</span>
                             <span className="text-gray-500 text-xs">@{reply.user.username}</span>
                             <span className="text-gray-400 text-xs flex items-center gap-1">
                               <Clock size={10} />
