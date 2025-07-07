@@ -82,7 +82,15 @@ export default function SubscriptionPlans() {
       
       if (response.ok) {
         const data = await response.json();
-        setSubscriptions(data);
+        // Vérification de sécurité des données
+        if (Array.isArray(data)) {
+          const validSubscriptions = data.filter(sub => sub && sub.name && sub.limits);
+          console.log('Abonnements valides:', validSubscriptions.length, 'sur', data.length);
+          setSubscriptions(validSubscriptions);
+        } else {
+          console.error('Données invalides reçues:', data);
+          setError('Format de données invalide');
+        }
       } else {
         setError('Erreur lors du chargement des abonnements');
       }
@@ -122,6 +130,8 @@ export default function SubscriptionPlans() {
   };
 
   const getPlanIcon = (planName: string) => {
+    if (!planName) return <Music size={24} />;
+    
     switch (planName) {
       case 'free': return <Music size={24} />;
       case 'starter': return <Zap size={24} />;
@@ -133,6 +143,8 @@ export default function SubscriptionPlans() {
   };
 
   const getPlanColor = (planName: string) => {
+    if (!planName) return 'from-gray-500 to-gray-600';
+    
     switch (planName) {
       case 'free': return 'from-gray-500 to-gray-600';
       case 'starter': return 'from-blue-500 to-cyan-500';
@@ -292,9 +304,16 @@ export default function SubscriptionPlans() {
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-              {subscriptions.map((plan, index) => (
+              {subscriptions.map((plan, index) => {
+                // Vérification de sécurité
+                if (!plan || !plan.name) {
+                  console.warn('Plan invalide détecté:', plan);
+                  return null;
+                }
+                
+                return (
               <motion.div
-                key={plan._id}
+                key={plan._id || index}
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
@@ -416,7 +435,8 @@ export default function SubscriptionPlans() {
                    plan.name === 'free' ? 'Plan actuel' : 'S\'abonner'}
                 </motion.button>
               </motion.div>
-            ))}
+                );
+              })}
             </div>
           )}
 
