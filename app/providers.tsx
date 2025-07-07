@@ -63,6 +63,7 @@ interface AudioPlayerContextType {
   setRepeat: (repeat: 'none' | 'one' | 'all') => void;
   playTrack: (trackIdOrTrack: string | Track) => Promise<void>;
   handleLike: (trackId: string) => void;
+  updatePlayCount: (trackId: string) => Promise<void>;
   closePlayer: () => void;
   // Nouvelles méthodes du service audio
   play: () => Promise<void>;
@@ -182,6 +183,38 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex, setCurrentTrackIndex]);
 
+  const updatePlayCount = useCallback(async (trackId: string) => {
+    try {
+      const response = await fetch(`/api/tracks/${trackId}/plays`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la mise à jour des écoutes');
+      }
+      
+      const data = await response.json();
+      
+      // Mettre à jour l'état avec le nouveau nombre d'écoutes
+      setAudioState(prev => {
+        const newTracks = prev.tracks.map((track) => {
+          if (track._id !== trackId) return track;
+          return { 
+            ...track, 
+            plays: data.plays || track.plays
+          };
+        });
+        return { ...prev, tracks: newTracks };
+      });
+      
+    } catch (error) {
+      console.error('Erreur mise à jour plays:', error);
+    }
+  }, []);
+
   const playTrack = useCallback(async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;
@@ -210,6 +243,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       // Utiliser directement le service audio
       await audioService.actions.loadTrack(trackData);
       await audioService.actions.play();
+      
+      // Incrémenter le nombre d'écoutes
+      await updatePlayCount(trackData._id);
       
       // Forcer la mise à jour de la notification
       setTimeout(() => {
@@ -249,19 +285,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Forcer le chargement et la lecture de la nouvelle piste
     try {
-    await audioService.actions.loadTrack(trackToPlay);
-    await audioService.actions.play();
-    
-    // Forcer la mise à jour de la notification
-    setTimeout(() => {
-      audioService.actions.forceUpdateNotification();
-    }, 100);
+      await audioService.actions.loadTrack(trackToPlay);
+      await audioService.actions.play();
+      
+      // Incrémenter le nombre d'écoutes
+      await updatePlayCount(trackToPlay._id);
+      
+      // Forcer la mise à jour de la notification
+      setTimeout(() => {
+        audioService.actions.forceUpdateNotification();
+      }, 100);
     } catch (error) {
       // Erreur silencieuse
     }
-  }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setShowPlayer, setIsMinimized]);
+  }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setShowPlayer, setIsMinimized, updatePlayCount]);
 
   const handleLike = useCallback(async (trackId: string) => {
+    // Optimistic update pour une meilleure UX
     setAudioState(prev => {
       const newTracks = prev.tracks.map((track) => {
         if (track._id !== trackId) return track;
@@ -282,11 +322,43 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           'Content-Type': 'application/json',
         },
       });
+      
       if (!response.ok) {
         throw new Error('Erreur lors du like');
       }
+      
+      // Récupérer la réponse pour synchroniser les vraies données
+      const data = await response.json();
+      
+      // Mettre à jour avec les vraies données de l'API
+      setAudioState(prev => {
+        const newTracks = prev.tracks.map((track) => {
+          if (track._id !== trackId) return track;
+          return { 
+            ...track, 
+            isLiked: data.isLiked,
+            likes: data.likes || track.likes // Utiliser les likes retournés par l'API
+          };
+        });
+        return { ...prev, tracks: newTracks };
+      });
+      
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur like:', error);
+      // En cas d'erreur, revenir à l'état précédent
+      setAudioState(prev => {
+        const newTracks = prev.tracks.map((track) => {
+          if (track._id !== trackId) return track;
+          return { 
+            ...track, 
+            isLiked: !track.isLiked, // Inverser pour revenir à l'état précédent
+            likes: track.isLiked 
+              ? track.likes.filter(id => id !== session?.user?.id)
+              : [...track.likes, session?.user?.id || '']
+          };
+        });
+        return { ...prev, tracks: newTracks };
+      });
     }
   }, [session?.user?.id]);
 
@@ -333,6 +405,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setRepeat,
     playTrack,
     handleLike,
+    updatePlayCount,
     closePlayer,
     // Méthodes du service audio
     play: audioService.actions.play,
@@ -360,6 +433,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setRepeat,
     playTrack,
     handleLike,
+    updatePlayCount,
     closePlayer,
     audioService.actions
   ]);

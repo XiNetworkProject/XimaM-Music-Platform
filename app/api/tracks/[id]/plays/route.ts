@@ -3,9 +3,8 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
-import User from '@/models/User';
 
-// POST - Liker/Unliker une piste
+// POST - Incrémenter le nombre d'écoutes
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -25,53 +24,34 @@ export async function POST(
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
-    // Vérifier si l'utilisateur a déjà liké
-    const isLiked = track.likes.includes(session.user.id);
-
-    if (isLiked) {
-      // Retirer le like
-      await Track.findByIdAndUpdate(trackId, {
-        $pull: { likes: session.user.id }
-      });
-    } else {
-      // Ajouter le like
-      await Track.findByIdAndUpdate(trackId, {
-        $addToSet: { likes: session.user.id }
-      });
-    }
-
-    // Récupérer la piste mise à jour
-    const updatedTrack = await Track.findById(trackId)
-      .populate('artist', 'name username avatar');
+    // Incrémenter le nombre d'écoutes
+    const updatedTrack = await Track.findByIdAndUpdate(
+      trackId,
+      { $inc: { plays: 1 } },
+      { new: true }
+    ).populate('artist', 'name username avatar');
 
     return NextResponse.json({
       success: true,
-      isLiked: !isLiked,
-      likes: updatedTrack.likes,
-      likesCount: updatedTrack.likes.length,
+      plays: updatedTrack.plays,
       track: updatedTrack
     });
 
   } catch (error) {
-    console.error('Erreur like/unlike:', error);
+    console.error('Erreur incrémentation plays:', error);
     return NextResponse.json(
-      { error: 'Erreur lors du like/unlike' },
+      { error: 'Erreur lors de l\'incrémentation des écoutes' },
       { status: 500 }
     );
   }
 }
 
-// GET - Vérifier si l'utilisateur a liké la piste
+// GET - Récupérer le nombre d'écoutes
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
     await dbConnect();
 
     const track = await Track.findById(params.id);
@@ -79,17 +59,14 @@ export async function GET(
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
-    const isLiked = track.likes.includes(session.user.id);
-
     return NextResponse.json({ 
-      liked: isLiked,
-      likesCount: track.likesCount
+      plays: track.plays || 0
     });
 
   } catch (error) {
-    console.error('Erreur vérification like:', error);
+    console.error('Erreur récupération plays:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la vérification' },
+      { error: 'Erreur lors de la récupération des écoutes' },
       { status: 500 }
     );
   }
