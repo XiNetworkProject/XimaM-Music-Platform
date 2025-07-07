@@ -10,11 +10,16 @@ const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔔 Webhook Stripe reçu');
     const body = await request.text();
     const headersList = await headers();
     const signature = headersList.get('stripe-signature');
 
+    console.log('📝 Signature présente:', !!signature);
+    console.log('🔑 Webhook secret configuré:', !!webhookSecret);
+
     if (!signature) {
+      console.log('❌ Signature manquante');
       return NextResponse.json({ error: 'Signature manquante' }, { status: 400 });
     }
 
@@ -28,33 +33,41 @@ export async function POST(request: NextRequest) {
 
     await dbConnect();
 
+    console.log('📋 Type d\'événement:', event.type);
+    
     switch (event.type) {
       case 'checkout.session.completed':
+        console.log('✅ Traitement checkout.session.completed');
         await handleCheckoutSessionCompleted(event.data.object);
         break;
 
       case 'customer.subscription.created':
+        console.log('✅ Traitement customer.subscription.created');
         await handleSubscriptionCreated(event.data.object);
         break;
 
       case 'customer.subscription.updated':
+        console.log('✅ Traitement customer.subscription.updated');
         await handleSubscriptionUpdated(event.data.object);
         break;
 
       case 'customer.subscription.deleted':
+        console.log('✅ Traitement customer.subscription.deleted');
         await handleSubscriptionDeleted(event.data.object);
         break;
 
       case 'invoice.payment_succeeded':
+        console.log('✅ Traitement invoice.payment_succeeded');
         await handlePaymentSucceeded(event.data.object);
         break;
 
       case 'invoice.payment_failed':
+        console.log('✅ Traitement invoice.payment_failed');
         await handlePaymentFailed(event.data.object);
         break;
 
       default:
-        console.log(`Événement non géré: ${event.type}`);
+        console.log(`⚠️ Événement non géré: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
