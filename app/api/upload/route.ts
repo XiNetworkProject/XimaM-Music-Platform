@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect, { isConnected } from '@/lib/db';
 import Track from '@/models/Track';
 import User from '@/models/User';
+import subscriptionService from '@/lib/subscriptionService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -47,6 +48,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Vérifier les limites d'abonnement
+    const uploadCheck = await subscriptionService.canPerformAction(session.user.id, 'uploads');
+    if (!uploadCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: uploadCheck.reason || 'Limite d\'upload atteinte',
+          usage: uploadCheck.usage
+        },
+        { status: 403 }
+      );
+    }
+
     // Créer la piste dans la base de données
     console.log('💾 Sauvegarde en base de données...');
     const track = new Track({
@@ -79,6 +92,9 @@ export async function POST(request: NextRequest) {
       $push: { tracks: track._id },
       $inc: { trackCount: 1 },
     });
+
+    // Incrémenter l'utilisation d'upload
+    await subscriptionService.incrementUsage(session.user.id, 'uploads');
 
     console.log('✅ Upload terminé avec succès');
     return NextResponse.json({

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
 import Comment from '@/models/Comment';
+import subscriptionService from '@/lib/subscriptionService';
 
 // POST - Ajouter un commentaire
 export async function POST(
@@ -22,6 +23,18 @@ export async function POST(
 
     if (!content || !content.trim()) {
       return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
+    }
+
+    // Vérifier les limites d'abonnement
+    const commentCheck = await subscriptionService.canPerformAction(session.user.id, 'comments');
+    if (!commentCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: commentCheck.reason || 'Limite de commentaires atteinte',
+          usage: commentCheck.usage
+        },
+        { status: 403 }
+      );
     }
 
     // Vérifier si la piste existe
@@ -43,6 +56,9 @@ export async function POST(
     await Track.findByIdAndUpdate(trackId, {
       $push: { comments: comment._id }
     });
+
+    // Incrémenter l'utilisation de commentaires
+    await subscriptionService.incrementUsage(session.user.id, 'comments');
 
     // Récupérer le commentaire avec les infos utilisateur
     const populatedComment = await Comment.findById(comment._id)

@@ -21,6 +21,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import BottomNav from '@/components/BottomNav';
+import SubscriptionLimits from '@/components/SubscriptionLimits';
 
 interface SettingSection {
   id: string;
@@ -165,6 +166,13 @@ export default function SettingsPage() {
           action: () => router.push('/library')
         },
         {
+          id: 'subscriptions',
+          label: 'Abonnements',
+          description: 'Gérer votre plan',
+          type: 'link',
+          action: () => router.push('/subscriptions')
+        },
+        {
           id: 'downloads',
           label: 'Téléchargements',
           description: 'Musique hors ligne',
@@ -306,6 +314,11 @@ export default function SettingsPage() {
                 <p className="text-sm text-white/40">{user?.email}</p>
               </div>
             </div>
+          </div>
+
+          {/* Limites d'abonnement */}
+          <div className="mb-8">
+            <SubscriptionLimits />
           </div>
 
           {/* Sections de paramètres */}
