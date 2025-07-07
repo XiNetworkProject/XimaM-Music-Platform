@@ -34,12 +34,33 @@ export async function GET() {
       console.log('📋 Détails abonnement:', {
         id: userSubscription._id,
         status: userSubscription.status,
-        subscription: userSubscription.subscription
+        subscription: userSubscription.subscription,
+        currentPeriodEnd: userSubscription.currentPeriodEnd
       });
     }
 
     if (!userSubscription) {
       console.log('⚠️ Aucun abonnement actif trouvé');
+      return NextResponse.json({
+        hasSubscription: false,
+        subscription: null,
+        usage: null
+      });
+    }
+
+    // Vérifier si l'abonnement est réellement expiré
+    const isExpired = userSubscription.currentPeriodEnd && 
+                     new Date(userSubscription.currentPeriodEnd) < new Date();
+    
+    if (isExpired) {
+      console.log('⚠️ Abonnement expiré selon la date, mise à jour du statut...');
+      
+      // Mettre à jour le statut en base
+      await UserSubscription.findByIdAndUpdate(userSubscription._id, {
+        status: 'expired'
+      });
+      
+      console.log('⚠️ Aucun abonnement actif trouvé (expiré)');
       return NextResponse.json({
         hasSubscription: false,
         subscription: null,
