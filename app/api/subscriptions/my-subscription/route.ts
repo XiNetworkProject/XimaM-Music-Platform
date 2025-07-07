@@ -49,13 +49,32 @@ export async function GET() {
     }
 
     // Vérifier si l'abonnement est réellement expiré
+    const now = new Date();
     const isExpired = userSubscription.currentPeriodEnd && 
-                     new Date(userSubscription.currentPeriodEnd) < new Date();
+                     new Date(userSubscription.currentPeriodEnd) < now;
+    const isTrialExpired = userSubscription.trialEnd && 
+                          new Date(userSubscription.trialEnd) < now;
     
-    if (isExpired) {
-      console.log('⚠️ Abonnement expiré selon la date, mise à jour du statut...');
+    // Si c'est un essai gratuit expiré, le marquer comme expiré
+    if (userSubscription.status === 'trial' && isTrialExpired) {
+      console.log('⚠️ Essai gratuit expiré, mise à jour du statut...');
       
-      // Mettre à jour le statut en base
+      await UserSubscription.findByIdAndUpdate(userSubscription._id, {
+        status: 'expired'
+      });
+      
+      console.log('⚠️ Aucun abonnement actif trouvé (essai expiré)');
+      return NextResponse.json({
+        hasSubscription: false,
+        subscription: null,
+        usage: null
+      });
+    }
+    
+    // Si c'est un abonnement actif expiré, le marquer comme expiré
+    if (userSubscription.status === 'active' && isExpired) {
+      console.log('⚠️ Abonnement actif expiré, mise à jour du statut...');
+      
       await UserSubscription.findByIdAndUpdate(userSubscription._id, {
         status: 'expired'
       });

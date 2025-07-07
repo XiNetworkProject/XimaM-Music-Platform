@@ -13,30 +13,55 @@ async function fixExpiredSubscriptions() {
     console.log('✅ Connexion à MongoDB établie');
     
     // Trouver tous les abonnements avec statut 'active' ou 'trial' mais expirés
-    const expiredSubscriptions = await UserSubscription.find({
-      status: { $in: ['active', 'trial'] },
-      currentPeriodEnd: { $lt: new Date() }
+    const now = new Date();
+    
+    // Abonnements actifs expirés
+    const expiredActiveSubscriptions = await UserSubscription.find({
+      status: 'active',
+      currentPeriodEnd: { $lt: now }
     });
     
+    // Essais gratuits expirés
+    const expiredTrialSubscriptions = await UserSubscription.find({
+      status: 'trial',
+      trialEnd: { $lt: now }
+    });
+    
+    const expiredSubscriptions = [...expiredActiveSubscriptions, ...expiredTrialSubscriptions];
+    
     console.log(`📊 ${expiredSubscriptions.length} abonnements expirés trouvés`);
+    console.log(`   - ${expiredActiveSubscriptions.length} abonnements actifs expirés`);
+    console.log(`   - ${expiredTrialSubscriptions.length} essais gratuits expirés`);
     
     if (expiredSubscriptions.length === 0) {
       console.log('✅ Aucun abonnement expiré à corriger');
       return;
     }
     
-    // Mettre à jour le statut de tous les abonnements expirés
-    const updateResult = await UserSubscription.updateMany(
+    // Mettre à jour le statut de tous les abonnements actifs expirés
+    const updateActiveResult = await UserSubscription.updateMany(
       {
-        status: { $in: ['active', 'trial'] },
-        currentPeriodEnd: { $lt: new Date() }
+        status: 'active',
+        currentPeriodEnd: { $lt: now }
       },
       {
         $set: { status: 'expired' }
       }
     );
     
-    console.log(`✅ ${updateResult.modifiedCount} abonnements mis à jour avec le statut 'expired'`);
+    // Mettre à jour le statut de tous les essais gratuits expirés
+    const updateTrialResult = await UserSubscription.updateMany(
+      {
+        status: 'trial',
+        trialEnd: { $lt: now }
+      },
+      {
+        $set: { status: 'expired' }
+      }
+    );
+    
+    console.log(`✅ ${updateActiveResult.modifiedCount} abonnements actifs mis à jour avec le statut 'expired'`);
+    console.log(`✅ ${updateTrialResult.modifiedCount} essais gratuits mis à jour avec le statut 'expired'`);
     
     // Afficher les détails des abonnements corrigés
     for (const sub of expiredSubscriptions) {

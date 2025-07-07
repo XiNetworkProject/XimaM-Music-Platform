@@ -232,9 +232,13 @@ export default function SubscriptionPlans() {
     const trialEnd = currentSubscription.userSubscription?.trialEnd;
     const currentPeriodEnd = currentSubscription.userSubscription?.currentPeriodEnd;
     
-    const isExpired = currentPeriodEnd && new Date(currentPeriodEnd) < new Date();
+    // Vérifier si l'abonnement est expiré en comparant avec la date actuelle
+    const now = new Date();
+    const isExpired = currentPeriodEnd && new Date(currentPeriodEnd) < now;
+    const isTrialExpired = trialEnd && new Date(trialEnd) < now;
     
-    if (status === 'trial' && trialEnd) {
+    // Cas 1: Essai gratuit actif
+    if (status === 'trial' && trialEnd && !isTrialExpired) {
       return {
         type: 'trial',
         text: `Essai gratuit jusqu'au ${new Date(trialEnd).toLocaleDateString('fr-FR')}`,
@@ -242,6 +246,16 @@ export default function SubscriptionPlans() {
       };
     }
     
+    // Cas 2: Essai gratuit expiré
+    if (status === 'trial' && isTrialExpired) {
+      return {
+        type: 'expired',
+        text: 'Essai gratuit expiré',
+        color: 'text-red-400'
+      };
+    }
+    
+    // Cas 3: Abonnement actif et non expiré
     if (status === 'active' && !isExpired) {
       return {
         type: 'active',
@@ -250,6 +264,7 @@ export default function SubscriptionPlans() {
       };
     }
     
+    // Cas 4: Abonnement expiré
     if (isExpired) {
       return {
         type: 'expired',
@@ -258,6 +273,7 @@ export default function SubscriptionPlans() {
       };
     }
     
+    // Cas 5: Autres statuts
     return {
       type: status,
       text: status === 'canceled' ? 'Annulé' : 'Inactif',
