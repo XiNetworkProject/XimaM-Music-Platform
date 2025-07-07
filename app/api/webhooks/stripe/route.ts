@@ -182,33 +182,63 @@ async function handleSubscriptionDeleted(subscription: any) {
 }
 
 async function handlePaymentSucceeded(invoice: any) {
-  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-  const { userId } = subscription.metadata;
+  console.log('🔍 Détails de la facture:', {
+    id: invoice.id,
+    subscription: invoice.subscription,
+    status: invoice.status
+  });
 
-  // Mettre à jour le statut du paiement
-  await Payment.findOneAndUpdate(
-    { stripeSubscriptionId: invoice.subscription },
-    { status: 'succeeded' }
-  );
+  if (!invoice.subscription) {
+    console.log('⚠️ Pas d\'abonnement associé à cette facture');
+    return;
+  }
 
-  console.log(`Paiement réussi pour l'abonnement de l'utilisateur ${userId}`);
+  try {
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+    const { userId } = subscription.metadata;
+
+    // Mettre à jour le statut du paiement
+    await Payment.findOneAndUpdate(
+      { stripeSubscriptionId: invoice.subscription },
+      { status: 'succeeded' }
+    );
+
+    console.log(`✅ Paiement réussi pour l'abonnement de l'utilisateur ${userId}`);
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération de l\'abonnement:', error);
+  }
 }
 
 async function handlePaymentFailed(invoice: any) {
-  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
-  const { userId } = subscription.metadata;
+  console.log('🔍 Détails de la facture échouée:', {
+    id: invoice.id,
+    subscription: invoice.subscription,
+    status: invoice.status
+  });
 
-  // Mettre à jour le statut du paiement
-  await Payment.findOneAndUpdate(
-    { stripeSubscriptionId: invoice.subscription },
-    { status: 'failed' }
-  );
+  if (!invoice.subscription) {
+    console.log('⚠️ Pas d\'abonnement associé à cette facture');
+    return;
+  }
 
-  // Marquer l'abonnement comme en retard de paiement
-  await UserSubscription.findOneAndUpdate(
-    { user: userId },
-    { status: 'past_due' }
-  );
+  try {
+    const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+    const { userId } = subscription.metadata;
 
-  console.log(`Paiement échoué pour l'abonnement de l'utilisateur ${userId}`);
+    // Mettre à jour le statut du paiement
+    await Payment.findOneAndUpdate(
+      { stripeSubscriptionId: invoice.subscription },
+      { status: 'failed' }
+    );
+
+    // Marquer l'abonnement comme en retard de paiement
+    await UserSubscription.findOneAndUpdate(
+      { user: userId },
+      { status: 'past_due' }
+    );
+
+    console.log(`❌ Paiement échoué pour l'abonnement de l'utilisateur ${userId}`);
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération de l\'abonnement:', error);
+  }
 } 
