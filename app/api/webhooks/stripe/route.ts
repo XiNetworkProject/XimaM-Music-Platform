@@ -96,12 +96,31 @@ async function handleCheckoutSessionCompleted(session: any) {
 async function handleSubscriptionCreated(subscription: any) {
   const { userId, subscriptionId, subscriptionType } = subscription.metadata;
 
+  console.log('🔍 Détails de l\'abonnement Stripe:', {
+    id: subscription.id,
+    status: subscription.status,
+    current_period_start: subscription.current_period_start,
+    current_period_end: subscription.current_period_end,
+    trial_end: subscription.trial_end
+  });
+
   // Récupérer les détails de l'abonnement
   const subscriptionDetails = await Subscription.findById(subscriptionId);
   if (!subscriptionDetails) {
     console.error(`Abonnement ${subscriptionId} non trouvé`);
     return;
   }
+
+  // Convertir les timestamps Stripe (secondes) en dates JavaScript
+  const currentPeriodStart = subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : new Date();
+  const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : new Date();
+  const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined;
+
+  console.log('📅 Dates converties:', {
+    currentPeriodStart: currentPeriodStart.toISOString(),
+    currentPeriodEnd: currentPeriodEnd.toISOString(),
+    trialEnd: trialEnd?.toISOString()
+  });
 
   // Créer ou mettre à jour l'abonnement utilisateur
   const userSubscription = await UserSubscription.findOneAndUpdate(
@@ -111,9 +130,9 @@ async function handleSubscriptionCreated(subscription: any) {
       stripeSubscriptionId: subscription.id,
       stripeCustomerId: subscription.customer,
       status: subscription.status === 'trialing' ? 'trial' : 'active',
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined,
+      currentPeriodStart: currentPeriodStart,
+      currentPeriodEnd: currentPeriodEnd,
+      trialEnd: trialEnd,
       usage: {
         uploads: 0,
         comments: 0,
@@ -124,24 +143,30 @@ async function handleSubscriptionCreated(subscription: any) {
     { upsert: true, new: true }
   );
 
-  console.log(`Abonnement créé pour l'utilisateur ${userId}: ${subscriptionType}`);
+  console.log(`✅ Abonnement créé pour l'utilisateur ${userId}: ${subscriptionType}`);
+  console.log('📊 Abonnement utilisateur:', userSubscription._id);
 }
 
 async function handleSubscriptionUpdated(subscription: any) {
   const { userId, subscriptionId } = subscription.metadata;
+
+  // Convertir les timestamps Stripe (secondes) en dates JavaScript
+  const currentPeriodStart = subscription.current_period_start ? new Date(subscription.current_period_start * 1000) : new Date();
+  const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end * 1000) : new Date();
+  const trialEnd = subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined;
 
   // Mettre à jour l'abonnement utilisateur
   await UserSubscription.findOneAndUpdate(
     { user: userId },
     {
       status: subscription.status === 'trialing' ? 'trial' : subscription.status,
-      currentPeriodStart: new Date(subscription.current_period_start * 1000),
-      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-      trialEnd: subscription.trial_end ? new Date(subscription.trial_end * 1000) : undefined,
+      currentPeriodStart: currentPeriodStart,
+      currentPeriodEnd: currentPeriodEnd,
+      trialEnd: trialEnd,
     }
   );
 
-  console.log(`Abonnement mis à jour pour l'utilisateur ${userId}`);
+  console.log(`✅ Abonnement mis à jour pour l'utilisateur ${userId}`);
 }
 
 async function handleSubscriptionDeleted(subscription: any) {

@@ -74,7 +74,6 @@ const UserSubscriptionSchema = new Schema<IUserSubscription>({
 });
 
 // Index pour optimiser les requêtes
-UserSubscriptionSchema.index({ user: 1 });
 UserSubscriptionSchema.index({ status: 1 });
 UserSubscriptionSchema.index({ currentPeriodEnd: 1 });
 
