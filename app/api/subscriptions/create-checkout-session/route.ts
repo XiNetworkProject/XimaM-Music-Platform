@@ -114,9 +114,15 @@ export async function POST(request: NextRequest) {
     if (existingUserSubscription?.stripeCustomerId) {
       try {
         customer = await stripe.customers.retrieve(existingUserSubscription.stripeCustomerId);
+        
+        // Vérifier que le customer n'est pas supprimé
+        if (customer.deleted) {
+          throw new Error('Customer supprimé');
+        }
+        
         console.log('✅ Customer Stripe existant récupéré:', customer.id);
       } catch (error) {
-        console.log('⚠️ Customer Stripe non trouvé, création d\'un nouveau...');
+        console.log('⚠️ Customer Stripe non trouvé ou supprimé, création d\'un nouveau...');
         // Le customer n'existe plus, on en crée un nouveau
         customer = await stripe.customers.create({
           email: session.user.email || undefined,
@@ -126,12 +132,12 @@ export async function POST(request: NextRequest) {
           },
         });
         
-        // Mettre à jour l'ID du customer en base
+        // Mettre à jour l'ID du customer en base et nettoyer l'ancien subscription ID
         await UserSubscription.findOneAndUpdate(
           { user: session.user.id },
           { 
             stripeCustomerId: customer.id,
-            $unset: { stripeSubscriptionId: 1 } // Nettoyer l'ancien subscription ID si présent
+            stripeSubscriptionId: undefined // Nettoyer l'ancien subscription ID
           },
           { upsert: true }
         );
