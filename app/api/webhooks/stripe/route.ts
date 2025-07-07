@@ -280,7 +280,18 @@ async function handleSubscriptionCreated(subscription: any) {
       subscription: subscriptionId,
       stripeSubscriptionId: subscription.id,
       stripeCustomerId: subscription.customer,
-      status: subscription.status === 'trialing' ? 'trial' : 'active',
+      status: (() => {
+        if (subscription.status === 'trialing') return 'trial';
+        if (subscription.status === 'active') {
+          // Si l'abonnement est actif, vérifier si l'essai est terminé
+          if (subscription.trial_end && subscription.trial_end < Math.floor(Date.now() / 1000)) {
+            return 'active'; // Essai terminé, abonnement actif
+          } else {
+            return 'trial'; // Encore en essai
+          }
+        }
+        return subscription.status === 'trialing' ? 'trial' : 'active';
+      })(),
       currentPeriodStart: currentPeriodStart,
       currentPeriodEnd: currentPeriodEnd,
       trialEnd: trialEnd,
@@ -343,7 +354,12 @@ async function handleSubscriptionUpdated(subscription: any) {
   if (subscription.status === 'trialing') {
     status = 'trial';
   } else if (subscription.status === 'active') {
-    status = 'active';
+    // Si l'abonnement est actif, vérifier si l'essai est terminé
+    if (subscription.trial_end && subscription.trial_end < Math.floor(Date.now() / 1000)) {
+      status = 'active'; // Essai terminé, abonnement actif
+    } else {
+      status = 'trial'; // Encore en essai
+    }
   } else if (subscription.status === 'canceled') {
     status = 'canceled';
   } else if (subscription.status === 'past_due') {
