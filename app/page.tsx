@@ -141,6 +141,53 @@ export default function HomePage() {
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
 
+  // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
+  useEffect(() => {
+    const updateTrackStats = async () => {
+      if (currentTrack && audioState.isPlaying) {
+        try {
+          const response = await fetch(`/api/tracks/${currentTrack._id}/plays`);
+          if (response.ok) {
+            const data = await response.json();
+            
+            // Mettre à jour les statistiques dans toutes les catégories
+            setCategories(prev => {
+              const newCategories = { ...prev };
+              Object.keys(newCategories).forEach(categoryKey => {
+                if (newCategories[categoryKey]) {
+                  newCategories[categoryKey] = {
+                    ...newCategories[categoryKey],
+                    tracks: newCategories[categoryKey].tracks.map(t => 
+                      t._id === currentTrack._id 
+                        ? { ...t, plays: data.plays || t.plays }
+                        : t
+                    )
+                  };
+                }
+              });
+              return newCategories;
+            });
+            
+            // Mettre à jour aussi les autres états de pistes
+            setDailyDiscoveries(prev => 
+              prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
+            );
+            setCollaborations(prev => 
+              prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
+            );
+          }
+        } catch (error) {
+          console.error('Erreur mise à jour stats:', error);
+        }
+      }
+    };
+
+    // Mettre à jour les stats quand une nouvelle piste commence à jouer
+    if (currentTrack && audioState.isPlaying) {
+      updateTrackStats();
+    }
+  }, [currentTrack?._id, audioState.isPlaying]);
+
   // Fonction optimisée pour charger les données avec cache
   const fetchCategoryData = useCallback(async (key: string, url: string) => {
     // Vérifier le cache d'abord
@@ -572,8 +619,51 @@ export default function HomePage() {
   }, [session]);
 
   // Fonction pour jouer une piste
-  const handlePlayTrack = useCallback((track: Track) => {
+  const handlePlayTrack = useCallback(async (track: Track) => {
+    // Jouer la piste
     playTrack(track);
+    
+    // Mettre à jour les statistiques d'écoute dans toutes les catégories
+    try {
+      const response = await fetch(`/api/tracks/${track._id}/plays`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Mettre à jour les statistiques dans toutes les catégories
+        setCategories(prev => {
+          const newCategories = { ...prev };
+          Object.keys(newCategories).forEach(categoryKey => {
+            if (newCategories[categoryKey]) {
+              newCategories[categoryKey] = {
+                ...newCategories[categoryKey],
+                tracks: newCategories[categoryKey].tracks.map(t => 
+                  t._id === track._id 
+                    ? { ...t, plays: data.plays || t.plays }
+                    : t
+                )
+              };
+            }
+          });
+          return newCategories;
+        });
+        
+        // Mettre à jour aussi les autres états de pistes
+        setDailyDiscoveries(prev => 
+          prev.map(t => t._id === track._id ? { ...t, plays: data.plays || t.plays } : t)
+        );
+        setCollaborations(prev => 
+          prev.map(t => t._id === track._id ? { ...t, plays: data.plays || t.plays } : t)
+        );
+      }
+    } catch (error) {
+      console.error('Erreur mise à jour plays:', error);
+    }
   }, [playTrack]);
 
   // Fonction pour gérer le changement de recherche avec debounce
