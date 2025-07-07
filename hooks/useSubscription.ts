@@ -28,6 +28,48 @@ interface UsageInfo {
   };
 }
 
+interface Subscription {
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  interval: string;
+  features: string[];
+  limits: {
+    uploads: number;
+    comments: number;
+    plays: number;
+    playlists: number;
+    audioQuality: string;
+    ads: boolean;
+    analytics: boolean;
+    collaborations: boolean;
+    apiAccess: boolean;
+    support: string;
+  };
+}
+
+interface UserSubscription {
+  id: string;
+  status: 'active' | 'trial' | 'canceled' | 'expired';
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  trialEnd?: string;
+  usage: {
+    uploads: number;
+    comments: number;
+    plays: number;
+    playlists: number;
+  };
+  stripeSubscriptionId?: string;
+}
+
+interface SubscriptionData {
+  hasSubscription: boolean;
+  subscription: Subscription | null;
+  userSubscription: UserSubscription | null;
+}
+
 interface CheckResult {
   allowed: boolean;
   reason?: string;
@@ -37,13 +79,31 @@ interface CheckResult {
 export function useSubscription() {
   const { data: session } = useSession();
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const fetchSubscriptionData = async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch('/api/subscriptions/my-subscription');
+      if (response.ok) {
+        const data = await response.json();
+        setSubscriptionData(data);
+        console.log('📊 Données d\'abonnement récupérées:', data);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'abonnement:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchUsageInfo = async () => {
     if (!session?.user?.id) return;
     
     try {
-      setLoading(true);
       const response = await fetch('/api/subscriptions/usage');
       if (response.ok) {
         const data = await response.json();
@@ -51,8 +111,6 @@ export function useSubscription() {
       }
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'utilisation:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -109,15 +167,18 @@ export function useSubscription() {
 
   useEffect(() => {
     if (session?.user?.id) {
+      fetchSubscriptionData();
       fetchUsageInfo();
     }
   }, [session]);
 
   return {
     usageInfo,
+    subscriptionData,
     loading,
     checkAction,
     incrementUsage,
     fetchUsageInfo,
+    fetchSubscriptionData,
   };
 } 
