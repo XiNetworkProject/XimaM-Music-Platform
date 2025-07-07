@@ -2,10 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useAudioPlayer } from '@/app/providers';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
+import InteractiveCounter from './InteractiveCounter';
+import CommentSection from './CommentSection';
 
 export default function FullScreenPlayer() {
   const { 
@@ -33,6 +35,7 @@ export default function FullScreenPlayer() {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showError, setShowError] = useState(false);
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
+  const [showComments, setShowComments] = useState(false);
   const volumeSliderRef = useRef<HTMLDivElement>(null);
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
@@ -267,10 +270,27 @@ export default function FullScreenPlayer() {
                 </button>
               </div>
               
-              {/* Centre : titre, artiste, animation d'onde/barre */}
+              {/* Centre : titre, artiste, animation d'onde/barre + statistiques */}
               <div className="flex flex-col items-center flex-1 justify-center">
                 <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center">{currentTrack.title}</span>
                 <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack.artist?.name || currentTrack.artist?.username}</span>
+                
+                {/* Statistiques de la piste */}
+                <div className="flex items-center space-x-6 mb-4 text-sm text-gray-400">
+                  <div className="flex items-center space-x-1">
+                    <Headphones size={16} />
+                    <span>{currentTrack.plays || 0}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <Heart size={16} />
+                    <span>{currentTrack.likes?.length || 0}</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <MessageCircle size={16} />
+                    <span>{currentTrack.comments?.length || 0}</span>
+                  </div>
+                </div>
+                
                 {audioState.isPlaying && !audioState.isLoading && (
                   <div className="flex space-x-1 mb-2">
                     <div className="w-1 h-4 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
@@ -352,11 +372,22 @@ export default function FullScreenPlayer() {
                   >
                     <Repeat size={22} />
                   </button>
+                  <InteractiveCounter
+                    type="likes"
+                    initialCount={currentTrack.likes?.length || 0}
+                    isActive={currentTrack.isLiked}
+                    onToggle={async (newState) => {
+                      await handleLike(currentTrack._id);
+                    }}
+                    size="sm"
+                    showIcon={true}
+                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                  />
                   <button 
-                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${currentTrack.isLiked ? 'text-red-400' : 'text-white/60'}`} 
-                    onClick={() => handleLike(currentTrack._id)}
+                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${showComments ? 'text-purple-400' : 'text-white/60'}`} 
+                    onClick={() => setShowComments(!showComments)}
                   >
-                    <Heart size={22} fill={currentTrack.isLiked ? 'currentColor' : 'none'} />
+                    <MessageCircle size={22} />
                   </button>
                   <div className="relative" ref={volumeSliderRef}>
                     <button 
@@ -381,6 +412,41 @@ export default function FullScreenPlayer() {
                   </div>
                 </div>
               </div>
+              
+              {/* Section commentaires */}
+              <AnimatePresence>
+                {showComments && (
+                  <motion.div
+                    className="absolute inset-0 bg-black/95 backdrop-blur-lg z-10"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <div className="flex flex-col h-full">
+                      {/* Header commentaires */}
+                      <div className="flex items-center justify-between p-4 border-b border-white/10">
+                        <h3 className="text-xl font-bold text-white">Commentaires</h3>
+                        <button
+                          className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                          onClick={() => setShowComments(false)}
+                        >
+                          <X size={20} className="text-white" />
+                        </button>
+                      </div>
+                      
+                      {/* Section commentaires */}
+                      <div className="flex-1 overflow-hidden">
+                        <CommentSection
+                          trackId={currentTrack._id}
+                          initialComments={[]}
+                          className="h-full"
+                        />
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           </motion.div>
         )}
