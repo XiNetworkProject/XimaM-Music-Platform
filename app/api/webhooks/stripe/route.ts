@@ -82,15 +82,87 @@ export async function POST(request: NextRequest) {
 }
 
 async function handleCheckoutSessionCompleted(session: any) {
-  const { userId, subscriptionId, subscriptionType } = session.metadata;
+  console.log('🔍 Détails de la session checkout:', {
+    id: session.id,
+    customer: session.customer,
+    subscription: session.subscription,
+    metadata: session.metadata
+  });
 
-  // Mettre à jour le statut du paiement
-  await Payment.findOneAndUpdate(
-    { stripePaymentIntentId: session.payment_intent },
-    { status: 'succeeded' }
-  );
+  const { userId, subscriptionId, subscriptionType } = session.metadata || {};
 
-  console.log(`Paiement réussi pour l'utilisateur ${userId}`);
+  // Si on a les métadonnées, créer l'abonnement directement
+  if (userId && subscriptionId) {
+    console.log('✅ Création de l\'abonnement depuis le checkout...');
+    
+    try {
+      // Récupérer les détails de l'abonnement
+      const subscriptionDetails = await Subscription.findById(subscriptionId);
+      if (!subscriptionDetails) {
+        console.error(`❌ Abonnement ${subscriptionId} non trouvé`);
+        return;
+      }
+
+      // Récupérer les détails de l'abonnement Stripe si disponible
+      let stripeSubscription: any = null;
+      if (session.subscription) {
+        try {
+          stripeSubscription = await stripe.subscriptions.retrieve(session.subscription);
+          console.log('📦 Abonnement Stripe récupéré:', stripeSubscription.id);
+        } catch (error) {
+          console.log('⚠️ Impossible de récupérer l\'abonnement Stripe:', (error as Error).message);
+        }
+      }
+
+      // Convertir les dates
+      const currentPeriodStart = stripeSubscription?.current_period_start ? 
+        new Date(stripeSubscription.current_period_start * 1000) : new Date();
+      const currentPeriodEnd = stripeSubscription?.current_period_end ? 
+        new Date(stripeSubscription.current_period_end * 1000) : 
+        new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      const trialEnd = stripeSubscription?.trial_end ? 
+        new Date(stripeSubscription.trial_end * 1000) : undefined;
+
+      // Créer ou mettre à jour l'abonnement utilisateur
+      const userSubscription = await UserSubscription.findOneAndUpdate(
+        { user: userId },
+        {
+          subscription: subscriptionId,
+          stripeSubscriptionId: session.subscription || null,
+          stripeCustomerId: session.customer,
+          status: stripeSubscription?.status === 'trialing' ? 'trial' : 'active',
+          currentPeriodStart: currentPeriodStart,
+          currentPeriodEnd: currentPeriodEnd,
+          trialEnd: trialEnd,
+          usage: {
+            uploads: 0,
+            comments: 0,
+            plays: 0,
+            playlists: 0,
+          },
+        },
+        { upsert: true, new: true }
+      );
+
+      console.log(`✅ Abonnement créé depuis checkout pour l'utilisateur ${userId}: ${subscriptionType}`);
+      console.log('📊 Abonnement utilisateur:', userSubscription._id);
+
+    } catch (error) {
+      console.error('❌ Erreur lors de la création de l\'abonnement:', error);
+    }
+  } else {
+    console.log('⚠️ Métadonnées manquantes dans le checkout, attente du webhook subscription.created');
+  }
+
+  // Mettre à jour le statut du paiement si il y en a un
+  if (session.payment_intent) {
+    await Payment.findOneAndUpdate(
+      { stripePaymentIntentId: session.payment_intent },
+      { status: 'succeeded' }
+    );
+  }
+
+  console.log(`Paiement réussi pour l'utilisateur ${userId || 'inconnu'}`);
 }
 
 async function handleSubscriptionCreated(subscription: any) {
