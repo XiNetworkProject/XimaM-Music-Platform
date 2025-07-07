@@ -6,11 +6,8 @@ export async function POST(request: NextRequest) {
   try {
     await dbConnect();
     
-    console.log('🔧 Initialisation des abonnements sur Vercel...');
-    
     // Supprimer les abonnements existants
     await Subscription.deleteMany({});
-    console.log('✅ Abonnements existants supprimés');
     
     // Créer les abonnements par défaut
     const subscriptions = [
@@ -164,34 +161,24 @@ export async function POST(request: NextRequest) {
       }
     ];
 
-    console.log('📝 Création des abonnements...');
     const createdSubscriptions = [];
     
     for (const subData of subscriptions) {
       const subscription = new Subscription(subData);
       await subscription.save();
       createdSubscriptions.push(subscription);
-      console.log(`✅ Abonnement ${subData.name} créé`);
     }
-
-    console.log('🎉 Initialisation terminée !');
     
-    // Vérifier que les abonnements sont bien sauvegardés
-    const savedSubscriptions = await Subscription.find({ isActive: true });
-    console.log('🔍 Vérification - Abonnements sauvegardés:', savedSubscriptions.map(s => ({ name: s.name, isActive: s.isActive })));
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Abonnements initialisés avec succès',
-      count: createdSubscriptions.length,
-      subscriptions: createdSubscriptions.map(sub => ({
-        name: sub.name,
-        price: sub.price,
-        features: sub.features.length,
-        isActive: sub.isActive
-      })),
-      savedCount: savedSubscriptions.length
-    });
+          return NextResponse.json({
+        success: true,
+        message: 'Abonnements initialisés avec succès',
+        count: createdSubscriptions.length,
+        subscriptions: createdSubscriptions.map(sub => ({
+          name: sub.name,
+          price: sub.price,
+          features: sub.features.length
+        }))
+      });
 
   } catch (error) {
     console.error('❌ Erreur lors de l\'initialisation:', error);
