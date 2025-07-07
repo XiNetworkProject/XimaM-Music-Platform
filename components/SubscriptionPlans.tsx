@@ -208,15 +208,31 @@ export default function SubscriptionPlans() {
   };
 
   const isCurrentPlan = (planName: string) => {
-    return currentSubscription?.hasSubscription && 
-           currentSubscription.subscription?.name === planName;
+    if (currentSubscription?.hasSubscription && currentSubscription.subscription?.name) {
+      return currentSubscription.subscription.name === planName;
+    }
+    
+    if (!currentSubscription?.hasSubscription && planName === 'free') {
+      return true;
+    }
+    
+    return false;
   };
 
   const getCurrentPlanStatus = () => {
-    if (!currentSubscription?.hasSubscription) return null;
+    if (!currentSubscription?.hasSubscription) {
+      return {
+        type: 'free',
+        text: 'Plan gratuit',
+        color: 'text-gray-400'
+      };
+    }
     
     const status = currentSubscription.userSubscription?.status;
     const trialEnd = currentSubscription.userSubscription?.trialEnd;
+    const currentPeriodEnd = currentSubscription.userSubscription?.currentPeriodEnd;
+    
+    const isExpired = currentPeriodEnd && new Date(currentPeriodEnd) < new Date();
     
     if (status === 'trial' && trialEnd) {
       return {
@@ -226,7 +242,7 @@ export default function SubscriptionPlans() {
       };
     }
     
-    if (status === 'active') {
+    if (status === 'active' && !isExpired) {
       return {
         type: 'active',
         text: 'Abonnement actif',
@@ -234,9 +250,17 @@ export default function SubscriptionPlans() {
       };
     }
     
+    if (isExpired) {
+      return {
+        type: 'expired',
+        text: 'Abonnement expiré',
+        color: 'text-red-400'
+      };
+    }
+    
     return {
       type: status,
-      text: status === 'canceled' ? 'Annulé' : 'Expiré',
+      text: status === 'canceled' ? 'Annulé' : 'Inactif',
       color: 'text-red-400'
     };
   };
@@ -619,7 +643,7 @@ export default function SubscriptionPlans() {
                     >
                       {selectedPlan === plan.name ? 'Chargement...' : 
                        isCurrent ? 'Plan actuel' : 
-                       plan.name === 'free' ? 'Plan actuel' : 'S\'abonner'}
+                       plan.name === 'free' ? 'Gratuit' : 'S\'abonner'}
                     </motion.button>
                   </motion.div>
                 );
