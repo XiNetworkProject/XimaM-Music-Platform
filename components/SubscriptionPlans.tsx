@@ -6,8 +6,8 @@ import { motion } from 'framer-motion';
 import { 
   Crown, Star, Zap, Music, Headphones, MessageCircle, 
   Upload, Play, Check, X, ChevronRight, Sparkles,
-  Shield, Users, Globe, Radio, Award, Target, CheckCircle,
-  XCircle, Minus, TrendingUp, BarChart3, Code, MessageSquare
+  Shield, Users, Globe, Radio, Award, Target, BadgeCheck,
+  BarChart3, Code, Mail, Volume2, Eye, EyeOff, Users2
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -22,7 +22,7 @@ interface Subscription {
     comments: number;
     plays: number;
     playlists: number;
-    audioQuality: string;
+    quality: string;
     ads: boolean;
     analytics: boolean;
     collaborations: boolean;
@@ -81,17 +81,16 @@ interface UsageInfo {
 export default function SubscriptionPlans() {
   const { data: session } = useSession();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [currentSubscription, setCurrentSubscription] = useState<UserSubscription | null>(null);
+  const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'cards' | 'comparison'>('cards');
 
   useEffect(() => {
     fetchSubscriptions();
-    fetchCurrentSubscription();
     if (session?.user?.id) {
+      fetchUserSubscription();
       fetchUsageInfo();
     }
   }, [session]);
@@ -123,16 +122,16 @@ export default function SubscriptionPlans() {
     }
   };
 
-  const fetchCurrentSubscription = async () => {
+  const fetchUserSubscription = async () => {
     try {
       const response = await fetch('/api/subscriptions/my-subscription');
       if (response.ok) {
         const data = await response.json();
-        setCurrentSubscription(data);
-        console.log('📊 Abonnement actuel récupéré:', data);
+        setUserSubscription(data);
+        console.log('📊 Abonnement utilisateur récupéré:', data);
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération de l\'abonnement actuel:', error);
+      console.error('Erreur lors de la récupération de l\'abonnement:', error);
     }
   };
 
@@ -191,13 +190,32 @@ export default function SubscriptionPlans() {
   };
 
   const isCurrentPlan = (planName: string) => {
-    return currentSubscription?.hasSubscription && 
-           currentSubscription.subscription?.name === planName;
+    return userSubscription?.hasSubscription && userSubscription.subscription?.name === planName;
   };
 
   const getCurrentPlanStatus = () => {
-    if (!currentSubscription?.hasSubscription) return 'free';
-    return currentSubscription.userSubscription?.status || 'active';
+    if (!userSubscription?.hasSubscription) return null;
+    
+    const status = userSubscription.userSubscription?.status;
+    const trialEnd = userSubscription.userSubscription?.trialEnd;
+    
+    if (status === 'trial' && trialEnd) {
+      return {
+        type: 'trial',
+        text: 'Essai gratuit',
+        color: 'text-blue-400',
+        endDate: new Date(trialEnd).toLocaleDateString('fr-FR')
+      };
+    } else if (status === 'active') {
+      return {
+        type: 'active',
+        text: 'Plan actuel',
+        color: 'text-green-400',
+        endDate: new Date(userSubscription.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')
+      };
+    }
+    
+    return null;
   };
 
   const handleSubscribe = async (planName: string) => {
@@ -241,119 +259,44 @@ export default function SubscriptionPlans() {
     }
   };
 
-  const getFeatureIcon = (feature: string) => {
-    if (feature.includes('upload')) return <Upload size={16} />;
-    if (feature.includes('comment')) return <MessageCircle size={16} />;
-    if (feature.includes('play')) return <Play size={16} />;
-    if (feature.includes('playlist')) return <Music size={16} />;
-    if (feature.includes('analytics')) return <BarChart3 size={16} />;
-    if (feature.includes('api')) return <Code size={16} />;
-    if (feature.includes('support')) return <MessageSquare size={16} />;
-    if (feature.includes('collaboration')) return <Users size={16} />;
-    return <Check size={16} />;
-  };
-
-  const renderFeatureComparison = () => {
-    const features = [
-      { name: 'Uploads/mois', key: 'uploads' },
-      { name: 'Commentaires/mois', key: 'comments' },
-      { name: 'Écoutes/mois', key: 'plays' },
-      { name: 'Playlists', key: 'playlists' },
-      { name: 'Qualité audio', key: 'audioQuality' },
-      { name: 'Sans publicités', key: 'ads' },
-      { name: 'Analytics avancés', key: 'analytics' },
-      { name: 'Collaborations', key: 'collaborations' },
-      { name: 'Accès API', key: 'apiAccess' },
-      { name: 'Support', key: 'support' }
-    ];
-
+  const renderFeatureComparison = (feature: string, plan: Subscription) => {
+    const hasFeature = plan.features.includes(feature);
+    const isCurrentPlanActive = isCurrentPlan(plan.name);
+    
     return (
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-700">
-              <th className="text-left py-3 px-4 text-gray-300 font-medium">Fonctionnalité</th>
-              {subscriptions.map(plan => (
-                <th key={plan._id} className="text-center py-3 px-4 text-white font-semibold">
-                  {plan.name === 'free' ? 'Gratuit' : 
-                   plan.name === 'starter' ? 'Starter' :
-                   plan.name === 'creator' ? 'Creator' :
-                   plan.name === 'pro' ? 'Pro' : 'Enterprise'}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {features.map((feature, index) => (
-              <tr key={feature.key} className={`border-b border-gray-800 ${index % 2 === 0 ? 'bg-white/5' : ''}`}>
-                <td className="py-3 px-4 text-gray-300 font-medium">
-                  {feature.name}
-                </td>
-                {subscriptions.map(plan => {
-                  let value = '';
-                  let icon = <Minus size={16} className="text-gray-500" />;
-                  
-                  switch (feature.key) {
-                    case 'uploads':
-                      value = formatLimit(plan.limits.uploads);
-                      break;
-                    case 'comments':
-                      value = formatLimit(plan.limits.comments);
-                      break;
-                    case 'plays':
-                      value = formatLimit(plan.limits.plays);
-                      break;
-                    case 'playlists':
-                      value = formatLimit(plan.limits.playlists);
-                      break;
-                    case 'audioQuality':
-                      value = getQualityLabel(plan.limits.audioQuality);
-                      break;
-                    case 'ads':
-                      icon = plan.limits.ads ? 
-                        <XCircle size={16} className="text-red-400" /> : 
-                        <CheckCircle size={16} className="text-green-400" />;
-                      value = plan.limits.ads ? 'Avec pubs' : 'Sans pubs';
-                      break;
-                    case 'analytics':
-                      icon = plan.limits.analytics ? 
-                        <CheckCircle size={16} className="text-green-400" /> : 
-                        <XCircle size={16} className="text-red-400" />;
-                      value = plan.limits.analytics ? 'Avancés' : 'Basiques';
-                      break;
-                    case 'collaborations':
-                      icon = plan.limits.collaborations ? 
-                        <CheckCircle size={16} className="text-green-400" /> : 
-                        <XCircle size={16} className="text-red-400" />;
-                      value = plan.limits.collaborations ? 'Oui' : 'Non';
-                      break;
-                    case 'apiAccess':
-                      icon = plan.limits.apiAccess ? 
-                        <CheckCircle size={16} className="text-green-400" /> : 
-                        <XCircle size={16} className="text-red-400" />;
-                      value = plan.limits.apiAccess ? 'Oui' : 'Non';
-                      break;
-                    case 'support':
-                      value = plan.limits.support;
-                      break;
-                  }
-                  
-                  return (
-                    <td key={plan._id} className="py-3 px-4 text-center">
-                      <div className="flex items-center justify-center space-x-2">
-                        {icon}
-                        <span className="text-white">{value}</span>
-                      </div>
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div key={feature} className="flex items-center justify-between text-sm py-1">
+        <span className="text-gray-300">{feature}</span>
+        <div className="flex items-center space-x-2">
+          {hasFeature ? (
+            <Check size={16} className="text-green-400" />
+          ) : (
+            <X size={16} className="text-red-400" />
+          )}
+          {isCurrentPlanActive && (
+            <BadgeCheck size={16} className="text-blue-400" />
+          )}
+        </div>
       </div>
     );
   };
+
+  const allFeatures = [
+    'Uploads illimités',
+    'Commentaires illimités',
+    'Écoutes illimitées',
+    'Playlists illimitées',
+    'Qualité audio Master',
+    'Sans publicités',
+    'Analytics avancées',
+    'Collaborations',
+    'Accès API',
+    'Support prioritaire',
+    'Téléchargements',
+    'Partage privé',
+    'Statistiques détaillées',
+    'Intégrations tierces',
+    'Backup automatique'
+  ];
 
   if (loading) {
     return (
@@ -387,6 +330,69 @@ export default function SubscriptionPlans() {
             </p>
           </motion.div>
 
+          {/* Current Plan Status */}
+          {userSubscription?.hasSubscription && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="glass-effect rounded-2xl p-6 mb-8 border border-blue-500/30"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500">
+                    <BadgeCheck size={20} className="text-white" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-white capitalize">
+                      {userSubscription.subscription?.name}
+                    </h2>
+                    <p className="text-gray-300">
+                      Votre plan actuel
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-sm font-medium ${getCurrentPlanStatus()?.color}`}>
+                    {getCurrentPlanStatus()?.text}
+                  </div>
+                  {getCurrentPlanStatus()?.endDate && (
+                    <div className="text-xs text-gray-400">
+                      Jusqu'au {getCurrentPlanStatus()?.endDate}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-white font-semibold">
+                    {userSubscription.userSubscription?.usage.uploads || 0}
+                  </div>
+                  <div className="text-gray-400">Uploads utilisés</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-white font-semibold">
+                    {userSubscription.userSubscription?.usage.comments || 0}
+                  </div>
+                  <div className="text-gray-400">Commentaires</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-white font-semibold">
+                    {userSubscription.userSubscription?.usage.plays || 0}
+                  </div>
+                  <div className="text-gray-400">Écoutes</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-white font-semibold">
+                    {userSubscription.userSubscription?.usage.playlists || 0}
+                  </div>
+                  <div className="text-gray-400">Playlists</div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* Error Display */}
           {error && (
             <motion.div
@@ -405,162 +411,133 @@ export default function SubscriptionPlans() {
             </motion.div>
           )}
 
-          {/* Usage Info */}
-          {usageInfo && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="glass-effect rounded-2xl p-6 mb-8"
-            >
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500">
-                  <Target size={20} className="text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-white">Votre utilisation actuelle</h2>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {Object.entries(usageInfo.current).map(([key, value], index) => {
-                  const limit = usageInfo.limits[key as keyof typeof usageInfo.limits];
-                  const percentage = usageInfo.percentage[key as keyof typeof usageInfo.percentage];
-                  const remaining = usageInfo.remaining[key as keyof typeof usageInfo.remaining];
-                  
-                  const label = key === 'uploads' ? 'Uploads' : 
-                               key === 'comments' ? 'Commentaires' :
-                               key === 'plays' ? 'Écoutes' : 'Playlists';
-                  
-                  const icon = key === 'uploads' ? <Upload size={16} /> :
-                              key === 'comments' ? <MessageCircle size={16} /> :
-                              key === 'plays' ? <Headphones size={16} /> : <Music size={16} />;
-
-                  return (
-                    <motion.div
-                      key={key}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
-                      className="text-center"
-                    >
-                      <div className="flex items-center justify-center space-x-2 mb-2">
-                        <div className="p-2 rounded-lg bg-white/10">
-                          {icon}
-                        </div>
-                      </div>
-                      <div className="text-2xl font-bold text-white mb-1">
-                        {value} / {formatLimit(limit)}
-                      </div>
-                      <div className="text-sm text-gray-300 mb-3">
-                        {label}
-                      </div>
-                      <div className="w-full bg-gray-700 rounded-full h-2">
-                        <div 
-                          className={`h-2 rounded-full transition-all duration-300 ${
-                            percentage >= 90 ? 'bg-red-500' :
-                            percentage >= 75 ? 'bg-yellow-500' :
-                            percentage >= 50 ? 'bg-blue-500' : 'bg-green-500'
-                          }`}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
-                        ></div>
-                      </div>
-                      {remaining !== -1 && remaining < 5 && (
-                        <div className="text-xs text-red-400 mt-2">
-                          ⚠️ Plus que {remaining} restant{remaining > 1 ? 's' : ''}
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Current Plan Status */}
-          {currentSubscription && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="glass-effect rounded-2xl p-6 mb-8"
-            >
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
-                  <CheckCircle size={20} className="text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-white">Votre plan actuel</h2>
-              </div>
-              
-              {currentSubscription.hasSubscription && currentSubscription.subscription ? (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="text-xl font-bold text-white capitalize">
-                      {currentSubscription.subscription.name === 'free' ? 'Gratuit' :
-                       currentSubscription.subscription.name === 'starter' ? 'Starter' :
-                       currentSubscription.subscription.name === 'creator' ? 'Creator' :
-                       currentSubscription.subscription.name === 'pro' ? 'Pro' : 'Enterprise'}
-                    </div>
-                    <div className="text-sm text-gray-300">
-                      {currentSubscription.subscription.price > 0 ? 
-                        `${currentSubscription.subscription.price}€/${currentSubscription.subscription.interval}` : 
-                        'Gratuit'}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      Statut: {currentSubscription.userSubscription?.status === 'trial' ? 'Essai gratuit' : 'Actif'}
-                      {currentSubscription.userSubscription?.trialEnd && (
-                        <span className="ml-2 text-blue-400">
-                          • Jusqu'au {new Date(currentSubscription.userSubscription.trialEnd).toLocaleDateString('fr-FR')}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm text-gray-300">Période actuelle</div>
-                    <div className="text-xs text-gray-400">
-                      {new Date(currentSubscription.userSubscription?.currentPeriodStart || '').toLocaleDateString('fr-FR')} - {new Date(currentSubscription.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <div className="text-xl font-bold text-white">Plan Gratuit</div>
-                  <div className="text-sm text-gray-300">Accès limité aux fonctionnalités de base</div>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* View Mode Toggle */}
+          {/* Feature Comparison Table */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex justify-center mb-8"
+            className="glass-effect rounded-2xl p-6 mb-8 overflow-x-auto"
           >
-            <div className="glass-effect rounded-xl p-1 flex">
-              <button
-                onClick={() => setViewMode('cards')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  viewMode === 'cards'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                Cartes
-              </button>
-              <button
-                onClick={() => setViewMode('comparison')}
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                  viewMode === 'comparison'
-                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white'
-                    : 'text-gray-300 hover:text-white'
-                }`}
-              >
-                Comparaison
-              </button>
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-blue-500">
+                <BarChart3 size={20} className="text-white" />
+              </div>
+              <h2 className="text-2xl font-bold text-white">Comparaison complète des fonctionnalités</h2>
+            </div>
+            
+            <div className="min-w-full">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-700">
+                    <th className="text-left py-3 px-4 text-gray-300 font-medium">Fonctionnalité</th>
+                    {subscriptions.map((plan) => (
+                      <th key={plan._id} className="text-center py-3 px-4 text-gray-300 font-medium">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-8 h-8 rounded-lg bg-gradient-to-r ${getPlanColor(plan.name)} flex items-center justify-center mb-2`}>
+                            {getPlanIcon(plan.name)}
+                          </div>
+                          <span className="text-sm capitalize">
+                            {plan.name === 'free' ? 'Gratuit' : plan.name}
+                          </span>
+                          {isCurrentPlan(plan.name) && (
+                            <div className="text-xs text-blue-400 mt-1">Actuel</div>
+                          )}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Limites de base */}
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 px-4 text-gray-300 font-medium">Uploads par mois</td>
+                    {subscriptions.map((plan) => (
+                      <td key={plan._id} className="text-center py-3 px-4">
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.uploads)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 px-4 text-gray-300 font-medium">Commentaires par mois</td>
+                    {subscriptions.map((plan) => (
+                      <td key={plan._id} className="text-center py-3 px-4">
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.comments)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 px-4 text-gray-300 font-medium">Écoutes par mois</td>
+                    {subscriptions.map((plan) => (
+                      <td key={plan._id} className="text-center py-3 px-4">
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.plays)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 px-4 text-gray-300 font-medium">Playlists</td>
+                    {subscriptions.map((plan) => (
+                      <td key={plan._id} className="text-center py-3 px-4">
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.playlists)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 px-4 text-gray-300 font-medium">Qualité audio</td>
+                    {subscriptions.map((plan) => (
+                      <td key={plan._id} className="text-center py-3 px-4">
+                        <span className="text-white font-semibold">
+                          {getQualityLabel(plan.limits.quality)}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                  
+                  {/* Fonctionnalités avancées */}
+                  {allFeatures.map((feature) => (
+                    <tr key={feature} className="border-b border-gray-800">
+                      <td className="py-3 px-4 text-gray-300">{feature}</td>
+                      {subscriptions.map((plan) => (
+                        <td key={plan._id} className="text-center py-3 px-4">
+                          <div className="flex items-center justify-center space-x-1">
+                            {plan.features.includes(feature) ? (
+                              <Check size={16} className="text-green-400" />
+                            ) : (
+                              <X size={16} className="text-red-400" />
+                            )}
+                            {isCurrentPlan(plan.name) && plan.features.includes(feature) && (
+                              <BadgeCheck size={14} className="text-blue-400" />
+                            )}
+                          </div>
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                  
+                  {/* Support */}
+                  <tr className="border-b border-gray-800">
+                    <td className="py-3 px-4 text-gray-300 font-medium">Support</td>
+                    {subscriptions.map((plan) => (
+                      <td key={plan._id} className="text-center py-3 px-4">
+                        <span className="text-white font-semibold">
+                          {plan.limits.support}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </motion.div>
 
-          {/* Subscription Plans */}
+          {/* Subscription Plans Cards */}
           {subscriptions.length === 0 && !loading && !error ? (
             <motion.div
               initial={{ opacity: 0, y: 30 }}
@@ -578,21 +555,6 @@ export default function SubscriptionPlans() {
                 Les plans d'abonnement ne sont pas encore configurés.
               </p>
             </motion.div>
-          ) : viewMode === 'comparison' ? (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="glass-effect rounded-2xl p-6"
-            >
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500">
-                  <BarChart3 size={20} className="text-white" />
-                </div>
-                <h2 className="text-2xl font-bold text-white">Comparaison détaillée</h2>
-              </div>
-              {renderFeatureComparison()}
-            </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {subscriptions.map((plan, index) => {
@@ -602,6 +564,7 @@ export default function SubscriptionPlans() {
                 }
                 
                 const isCurrent = isCurrentPlan(plan.name);
+                const currentStatus = getCurrentPlanStatus();
                 
                 return (
                   <motion.div
@@ -611,8 +574,8 @@ export default function SubscriptionPlans() {
                     transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
                     whileHover={{ y: -8, scale: 1.02 }}
                     className={`relative glass-effect rounded-2xl p-6 border-2 transition-all duration-300 ${
-                      isCurrent
-                        ? 'border-green-500 shadow-2xl shadow-green-500/25'
+                      isCurrent 
+                        ? 'border-blue-500 shadow-2xl shadow-blue-500/25' 
                         : plan.name === 'pro' 
                         ? 'border-yellow-500 shadow-2xl shadow-yellow-500/25' 
                         : 'border-transparent hover:border-white/20'
@@ -621,9 +584,9 @@ export default function SubscriptionPlans() {
                     {/* Current Plan Badge */}
                     {isCurrent && (
                       <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                        <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
-                          <CheckCircle size={16} />
-                          Plan actuel
+                        <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
+                          <BadgeCheck size={16} />
+                          {currentStatus?.text || 'Actuel'}
                         </div>
                       </div>
                     )}
@@ -657,66 +620,17 @@ export default function SubscriptionPlans() {
                       </div>
                     </div>
 
-                    {/* Limits */}
-                    <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Upload size={14} />
-                          <span>Uploads</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.uploads)}/mois
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <MessageCircle size={14} />
-                          <span>Commentaires</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.comments)}/mois
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Headphones size={14} />
-                          <span>Écoutes</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.plays)}/mois
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Music size={14} />
-                          <span>Playlists</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.playlists)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Radio size={14} />
-                          <span>Qualité</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {getQualityLabel(plan.limits.audioQuality)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Features */}
+                    {/* Key Features */}
                     <div className="space-y-2 mb-6">
-                      {plan.features.slice(0, 4).map((feature, featureIndex) => (
+                      {plan.features.slice(0, 3).map((feature, featureIndex) => (
                         <div key={featureIndex} className="flex items-center text-sm">
                           <Check size={16} className="text-green-400 mr-2 flex-shrink-0" />
                           <span className="text-gray-300">{feature}</span>
                         </div>
                       ))}
-                      {plan.features.length > 4 && (
+                      {plan.features.length > 3 && (
                         <div className="text-xs text-gray-400 text-center pt-2">
-                          +{plan.features.length - 4} autres fonctionnalités
+                          +{plan.features.length - 3} autres fonctionnalités
                         </div>
                       )}
                     </div>
@@ -729,7 +643,7 @@ export default function SubscriptionPlans() {
                       disabled={selectedPlan === plan.name || isCurrent}
                       className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
                         isCurrent
-                          ? 'bg-green-600 text-white cursor-not-allowed'
+                          ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white cursor-default'
                           : plan.name === 'pro'
                           ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600'
                           : plan.name === 'free'

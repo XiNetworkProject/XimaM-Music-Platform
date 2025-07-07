@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
 
     await dbConnect();
 
-    // Récupérer l'abonnement actuel de l'utilisateur
+    // Récupérer l'abonnement utilisateur actif
     const userSubscription = await UserSubscription.findOne({
-      userId: session.user.id,
+      user: session.user.id,
       status: { $in: ['active', 'trial'] }
-    }).populate('subscriptionId');
+    }).populate('subscription');
 
     if (!userSubscription) {
       return NextResponse.json({
@@ -32,38 +32,28 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Récupérer les détails de l'abonnement
-    const subscription = await Subscription.findById(userSubscription.subscriptionId);
-
-    if (!subscription) {
-      return NextResponse.json({
-        hasSubscription: false,
-        subscription: null,
-        userSubscription: null
-      });
-    }
-
-    return NextResponse.json({
+    const response = {
       hasSubscription: true,
-      subscription: {
-        _id: subscription._id,
-        name: subscription.name,
-        price: subscription.price,
-        currency: subscription.currency,
-        interval: subscription.interval,
-        limits: subscription.limits,
-        features: subscription.features
-      },
+      subscription: userSubscription.subscription,
       userSubscription: {
         id: userSubscription._id,
         status: userSubscription.status,
         currentPeriodStart: userSubscription.currentPeriodStart,
         currentPeriodEnd: userSubscription.currentPeriodEnd,
-        trialEnd: userSubscription.trialEnd,
+        trialEnd: userSubscription.status === 'trial' ? userSubscription.currentPeriodEnd : undefined,
         usage: userSubscription.usage,
         stripeSubscriptionId: userSubscription.stripeSubscriptionId
       }
+    };
+
+    console.log('📊 Abonnement utilisateur récupéré:', {
+      userId: session.user.id,
+      hasSubscription: response.hasSubscription,
+      subscriptionName: response.subscription?.name,
+      status: response.userSubscription?.status
     });
+
+    return NextResponse.json(response);
 
   } catch (error) {
     console.error('Erreur lors de la récupération de l\'abonnement:', error);
