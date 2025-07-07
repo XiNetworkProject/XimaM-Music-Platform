@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { 
   Crown, Star, Zap, Music, Headphones, MessageCircle, 
   Upload, Play, Check, X, ChevronRight, Sparkles,
-  Shield, Users, Globe, Radio, Award, Target
+  Shield, Users, Globe, Radio, Award, Target, CheckCircle
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -58,16 +58,56 @@ interface UsageInfo {
   };
 }
 
+interface CurrentSubscription {
+  hasSubscription: boolean;
+  subscription: {
+    id: string;
+    name: string;
+    price: number;
+    currency: string;
+    interval: string;
+    features: string[];
+    limits: {
+      uploads: number;
+      comments: number;
+      plays: number;
+      playlists: number;
+      audioQuality: string;
+      ads: boolean;
+      analytics: boolean;
+      collaborations: boolean;
+      apiAccess: boolean;
+      support: string;
+    };
+  } | null;
+  userSubscription: {
+    id: string;
+    status: 'active' | 'trial' | 'canceled' | 'expired';
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+    trialEnd?: string;
+    usage: {
+      uploads: number;
+      comments: number;
+      plays: number;
+      playlists: number;
+    };
+    stripeSubscriptionId?: string;
+  } | null;
+}
+
 export default function SubscriptionPlans() {
   const { data: session } = useSession();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
+  const [currentSubscription, setCurrentSubscription] = useState<CurrentSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSubscriptions();
+    fetchCurrentSubscription();
     if (session?.user?.id) {
       fetchUsageInfo();
     }
@@ -82,7 +122,6 @@ export default function SubscriptionPlans() {
       
       if (response.ok) {
         const data = await response.json();
-        // Vérification de sécurité des données
         if (Array.isArray(data)) {
           const validSubscriptions = data.filter(sub => sub && sub.name && sub.limits);
           console.log('Abonnements valides:', validSubscriptions.length, 'sur', data.length);
@@ -98,6 +137,19 @@ export default function SubscriptionPlans() {
       setError('Erreur de connexion');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchCurrentSubscription = async () => {
+    try {
+      const response = await fetch('/api/subscriptions/my-subscription');
+      if (response.ok) {
+        const data = await response.json();
+        setCurrentSubscription(data);
+        console.log('📊 Abonnement actuel récupéré:', data);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'abonnement actuel:', error);
     }
   };
 
@@ -155,19 +207,51 @@ export default function SubscriptionPlans() {
     }
   };
 
+  const isCurrentPlan = (planName: string) => {
+    return currentSubscription?.hasSubscription && 
+           currentSubscription.subscription?.name === planName;
+  };
+
+  const getCurrentPlanStatus = () => {
+    if (!currentSubscription?.hasSubscription) return null;
+    
+    const status = currentSubscription.userSubscription?.status;
+    const trialEnd = currentSubscription.userSubscription?.trialEnd;
+    
+    if (status === 'trial' && trialEnd) {
+      return {
+        type: 'trial',
+        text: `Essai gratuit jusqu'au ${new Date(trialEnd).toLocaleDateString('fr-FR')}`,
+        color: 'text-blue-400'
+      };
+    }
+    
+    if (status === 'active') {
+      return {
+        type: 'active',
+        text: 'Abonnement actif',
+        color: 'text-green-400'
+      };
+    }
+    
+    return {
+      type: status,
+      text: status === 'canceled' ? 'Annulé' : 'Expiré',
+      color: 'text-red-400'
+    };
+  };
+
   const handleSubscribe = async (planName: string) => {
     try {
       setSelectedPlan(planName);
       setError(null);
 
-      // Trouver l'abonnement correspondant
       const subscription = subscriptions.find(sub => sub.name === planName);
       if (!subscription) {
         setError('Abonnement non trouvé');
         return;
       }
 
-      // Créer la session de paiement
       const response = await fetch('/api/subscriptions/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -181,7 +265,6 @@ export default function SubscriptionPlans() {
       if (response.ok) {
         const { url } = await response.json();
         
-        // Rediriger vers Stripe Checkout
         if (url) {
           window.location.href = url;
         } else {
@@ -198,8 +281,6 @@ export default function SubscriptionPlans() {
       setSelectedPlan(null);
     }
   };
-
-
 
   if (loading) {
     return (
@@ -248,6 +329,59 @@ export default function SubscriptionPlans() {
                 <h2 className="text-2xl font-bold text-red-400">Erreur</h2>
               </div>
               <p className="text-red-300">{error}</p>
+            </motion.div>
+          )}
+
+          {/* Current Plan Status */}
+          {currentSubscription?.hasSubscription && (
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1 }}
+              className="glass-effect rounded-2xl p-6 mb-8 border-2 border-green-500/30"
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
+                  <CheckCircle size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">
+                    Votre abonnement actuel : {currentSubscription.subscription?.name ? currentSubscription.subscription.name.charAt(0).toUpperCase() + currentSubscription.subscription.name.slice(1) : 'Inconnu'}
+                  </h2>
+                  {getCurrentPlanStatus() && (
+                    <p className={`text-sm ${getCurrentPlanStatus()?.color}`}>
+                      {getCurrentPlanStatus()?.text}
+                    </p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <div className="text-gray-300">Période</div>
+                  <div className="text-white font-semibold">
+                    {new Date(currentSubscription.userSubscription?.currentPeriodStart || '').toLocaleDateString('fr-FR')} - {new Date(currentSubscription.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-300">Prix</div>
+                  <div className="text-white font-semibold">
+                    {currentSubscription.subscription?.price}€/{currentSubscription.subscription?.interval}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-300">Qualité audio</div>
+                  <div className="text-white font-semibold">
+                    {currentSubscription.subscription?.limits.audioQuality}
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-gray-300">Support</div>
+                  <div className="text-white font-semibold">
+                    {currentSubscription.subscription?.limits.support}
+                  </div>
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -338,141 +472,156 @@ export default function SubscriptionPlans() {
               <p className="text-gray-300 mb-6">
                 Les plans d'abonnement ne sont pas encore configurés.
               </p>
-
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
               {subscriptions.map((plan, index) => {
-                // Vérification de sécurité
                 if (!plan || !plan.name) {
                   console.warn('Plan invalide détecté:', plan);
                   return null;
                 }
                 
+                const isCurrent = isCurrentPlan(plan.name);
+                
                 return (
-              <motion.div
-                key={plan._id || index}
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
-                whileHover={{ y: -8, scale: 1.02 }}
-                className={`relative glass-effect rounded-2xl p-6 border-2 transition-all duration-300 ${
-                  plan.name === 'pro' 
-                    ? 'border-yellow-500 shadow-2xl shadow-yellow-500/25' 
-                    : 'border-transparent hover:border-white/20'
-                }`}
-              >
-                {/* Popular Badge */}
-                {plan.name === 'pro' && (
-                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                    <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
-                      <Star size={16} />
-                      Populaire
+                  <motion.div
+                    key={plan._id || index}
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
+                    whileHover={{ y: -8, scale: 1.02 }}
+                    className={`relative glass-effect rounded-2xl p-6 border-2 transition-all duration-300 ${
+                      isCurrent 
+                        ? 'border-green-500 shadow-2xl shadow-green-500/25' 
+                        : plan.name === 'pro' 
+                        ? 'border-yellow-500 shadow-2xl shadow-yellow-500/25' 
+                        : 'border-transparent hover:border-white/20'
+                    }`}
+                  >
+                    {/* Current Plan Badge */}
+                    {isCurrent && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <div className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
+                          <CheckCircle size={16} />
+                          Plan actuel
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Popular Badge */}
+                    {plan.name === 'pro' && !isCurrent && (
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <div className="bg-gradient-to-r from-yellow-500 to-orange-500 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2">
+                          <Star size={16} />
+                          Populaire
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Plan Header */}
+                    <div className="text-center mb-6">
+                      <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-r ${getPlanColor(plan.name)} flex items-center justify-center`}>
+                        {getPlanIcon(plan.name)}
+                      </div>
+                      <h3 className="text-2xl font-bold text-white capitalize mb-2">
+                        {plan.name === 'free' ? 'Gratuit' :
+                         plan.name === 'starter' ? 'Starter' :
+                         plan.name === 'creator' ? 'Creator' :
+                         plan.name === 'pro' ? 'Pro' : 'Enterprise'}
+                      </h3>
+                      <div className="text-4xl font-bold text-white mb-1">
+                        {plan.price === 0 ? 'Gratuit' : `${plan.price}€`}
+                      </div>
+                      <div className="text-gray-300 text-sm">
+                        par {plan.interval === 'month' ? 'mois' : 'an'}
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {/* Plan Header */}
-                <div className="text-center mb-6">
-                  <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-r ${getPlanColor(plan.name)} flex items-center justify-center`}>
-                    {getPlanIcon(plan.name)}
-                  </div>
-                  <h3 className="text-2xl font-bold text-white capitalize mb-2">
-                    {plan.name === 'free' ? 'Gratuit' :
-                     plan.name === 'starter' ? 'Starter' :
-                     plan.name === 'creator' ? 'Creator' :
-                     plan.name === 'pro' ? 'Pro' : 'Enterprise'}
-                  </h3>
-                  <div className="text-4xl font-bold text-white mb-1">
-                    {plan.price === 0 ? 'Gratuit' : `${plan.price}€`}
-                  </div>
-                  <div className="text-gray-300 text-sm">
-                    par {plan.interval === 'month' ? 'mois' : 'an'}
-                  </div>
-                </div>
-
-                {/* Limits */}
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300 flex items-center space-x-2">
-                      <Upload size={14} />
-                      <span>Uploads</span>
-                    </span>
-                    <span className="text-white font-semibold">
-                      {formatLimit(plan.limits.uploads)}/mois
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300 flex items-center space-x-2">
-                      <MessageCircle size={14} />
-                      <span>Commentaires</span>
-                    </span>
-                    <span className="text-white font-semibold">
-                      {formatLimit(plan.limits.comments)}/mois
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300 flex items-center space-x-2">
-                      <Headphones size={14} />
-                      <span>Écoutes</span>
-                    </span>
-                    <span className="text-white font-semibold">
-                      {formatLimit(plan.limits.plays)}/mois
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300 flex items-center space-x-2">
-                      <Music size={14} />
-                      <span>Playlists</span>
-                    </span>
-                    <span className="text-white font-semibold">
-                      {formatLimit(plan.limits.playlists)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-300 flex items-center space-x-2">
-                      <Radio size={14} />
-                      <span>Qualité</span>
-                    </span>
-                    <span className="text-white font-semibold">
-                      {getQualityLabel(plan.limits.quality)}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Features */}
-                <div className="space-y-2 mb-6">
-                  {plan.features.slice(0, 4).map((feature, featureIndex) => (
-                    <div key={featureIndex} className="flex items-center text-sm">
-                      <Check size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                      <span className="text-gray-300">{feature}</span>
+                    {/* Limits */}
+                    <div className="space-y-3 mb-6">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300 flex items-center space-x-2">
+                          <Upload size={14} />
+                          <span>Uploads</span>
+                        </span>
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.uploads)}/mois
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300 flex items-center space-x-2">
+                          <MessageCircle size={14} />
+                          <span>Commentaires</span>
+                        </span>
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.comments)}/mois
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300 flex items-center space-x-2">
+                          <Headphones size={14} />
+                          <span>Écoutes</span>
+                        </span>
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.plays)}/mois
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300 flex items-center space-x-2">
+                          <Music size={14} />
+                          <span>Playlists</span>
+                        </span>
+                        <span className="text-white font-semibold">
+                          {formatLimit(plan.limits.playlists)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-gray-300 flex items-center space-x-2">
+                          <Radio size={14} />
+                          <span>Qualité</span>
+                        </span>
+                        <span className="text-white font-semibold">
+                          {getQualityLabel(plan.limits.quality)}
+                        </span>
+                      </div>
                     </div>
-                  ))}
-                  {plan.features.length > 4 && (
-                    <div className="text-xs text-gray-400 text-center pt-2">
-                      +{plan.features.length - 4} autres fonctionnalités
-                    </div>
-                  )}
-                </div>
 
-                {/* Subscribe Button */}
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleSubscribe(plan.name)}
-                  disabled={selectedPlan === plan.name}
-                  className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
-                    plan.name === 'pro'
-                      ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600'
-                      : plan.name === 'free'
-                      ? 'bg-gray-600 text-white hover:bg-gray-700'
-                      : `bg-gradient-to-r ${getPlanColor(plan.name)} text-white hover:opacity-90`
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {selectedPlan === plan.name ? 'Chargement...' : 
-                   plan.name === 'free' ? 'Plan actuel' : 'S\'abonner'}
-                </motion.button>
-              </motion.div>
+                    {/* Features */}
+                    <div className="space-y-2 mb-6">
+                      {plan.features.slice(0, 4).map((feature, featureIndex) => (
+                        <div key={featureIndex} className="flex items-center text-sm">
+                          <Check size={16} className="text-green-400 mr-2 flex-shrink-0" />
+                          <span className="text-gray-300">{feature}</span>
+                        </div>
+                      ))}
+                      {plan.features.length > 4 && (
+                        <div className="text-xs text-gray-400 text-center pt-2">
+                          +{plan.features.length - 4} autres fonctionnalités
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Subscribe Button */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleSubscribe(plan.name)}
+                      disabled={selectedPlan === plan.name || isCurrent}
+                      className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
+                        isCurrent
+                          ? 'bg-green-600 text-white cursor-not-allowed'
+                          : plan.name === 'pro'
+                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600'
+                          : plan.name === 'free'
+                          ? 'bg-gray-600 text-white hover:bg-gray-700'
+                          : `bg-gradient-to-r ${getPlanColor(plan.name)} text-white hover:opacity-90`
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    >
+                      {selectedPlan === plan.name ? 'Chargement...' : 
+                       isCurrent ? 'Plan actuel' : 
+                       plan.name === 'free' ? 'Plan actuel' : 'S\'abonner'}
+                    </motion.button>
+                  </motion.div>
                 );
               })}
             </div>

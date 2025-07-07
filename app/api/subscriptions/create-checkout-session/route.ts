@@ -112,7 +112,31 @@ export async function POST(request: NextRequest) {
     const existingUserSubscription = await UserSubscription.findOne({ user: session.user.id });
     
     if (existingUserSubscription?.stripeCustomerId) {
-      customer = await stripe.customers.retrieve(existingUserSubscription.stripeCustomerId);
+      try {
+        customer = await stripe.customers.retrieve(existingUserSubscription.stripeCustomerId);
+        console.log('✅ Customer Stripe existant récupéré:', customer.id);
+      } catch (error) {
+        console.log('⚠️ Customer Stripe non trouvé, création d\'un nouveau...');
+        // Le customer n'existe plus, on en crée un nouveau
+        customer = await stripe.customers.create({
+          email: session.user.email || undefined,
+          name: session.user.name || undefined,
+          metadata: {
+            userId: session.user.id,
+          },
+        });
+        
+        // Mettre à jour l'ID du customer en base
+        await UserSubscription.findOneAndUpdate(
+          { user: session.user.id },
+          { 
+            stripeCustomerId: customer.id,
+            $unset: { stripeSubscriptionId: 1 } // Nettoyer l'ancien subscription ID si présent
+          },
+          { upsert: true }
+        );
+        console.log('✅ Nouveau customer Stripe créé:', customer.id);
+      }
     } else {
       customer = await stripe.customers.create({
         email: session.user.email || undefined,
@@ -121,6 +145,7 @@ export async function POST(request: NextRequest) {
           userId: session.user.id,
         },
       });
+      console.log('✅ Nouveau customer Stripe créé:', customer.id);
     }
 
     // Créer le produit et le prix Stripe s'ils n'existent pas
