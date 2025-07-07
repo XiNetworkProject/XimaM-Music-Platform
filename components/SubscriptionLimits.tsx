@@ -83,14 +83,20 @@ export default function SubscriptionLimits() {
 
   const fetchSubscriptionData = async () => {
     try {
+      console.log('🔄 Récupération des données d\'abonnement...');
       const response = await fetch('/api/subscriptions/my-subscription');
+      console.log('📡 Réponse API:', response.status, response.ok);
+      
       if (response.ok) {
         const data = await response.json();
-        setSubscriptionData(data);
         console.log('📊 Données d\'abonnement récupérées:', data);
+        setSubscriptionData(data);
+      } else {
+        const error = await response.json();
+        console.error('❌ Erreur API:', error);
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération de l\'abonnement:', error);
+      console.error('❌ Erreur lors de la récupération de l\'abonnement:', error);
     }
   };
 
