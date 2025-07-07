@@ -516,6 +516,50 @@ export function useAudioPlayer() {
   return context;
 }
 
+// Provider d'abonnement global
+function SubscriptionProvider({ children }: { children: React.ReactNode }) {
+  const { data: session } = useSession();
+  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchSubscriptionData = async () => {
+    if (!session?.user?.id) return;
+    
+    try {
+      setLoading(true);
+      const response = await fetch('/api/subscriptions/my-subscription');
+      if (response.ok) {
+        const data = await response.json();
+        setSubscriptionData(data);
+        console.log('🌍 Données d\'abonnement globales récupérées:', data);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de l\'abonnement global:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      fetchSubscriptionData();
+    }
+  }, [session]);
+
+  // Exposer les données d'abonnement globalement
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).globalSubscription = {
+        data: subscriptionData,
+        loading,
+        refresh: fetchSubscriptionData
+      };
+    }
+  }, [subscriptionData, loading]);
+
+  return <>{children}</>;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider 
@@ -524,8 +568,10 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     >
       <QueryClientProvider client={queryClient}>
         <AudioPlayerProvider>
-          {children}
-          <Toaster position="top-center" />
+          <SubscriptionProvider>
+            {children}
+            <Toaster position="top-center" />
+          </SubscriptionProvider>
         </AudioPlayerProvider>
       </QueryClientProvider>
     </SessionProvider>

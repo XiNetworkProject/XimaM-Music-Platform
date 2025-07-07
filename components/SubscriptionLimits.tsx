@@ -173,31 +173,81 @@ export default function SubscriptionLimits() {
       {/* Affichage de l'abonnement actuel */}
       {subscriptionData?.hasSubscription && subscriptionData.subscription && (
         <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-lg border border-blue-500/30">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-lg font-bold text-white capitalize">
-              {subscriptionData.subscription.name}
-            </h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(subscriptionData.userSubscription?.status || '')}`}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="text-xl font-bold text-white capitalize">
+                {subscriptionData.subscription.name}
+              </h3>
+              <div className="text-sm text-gray-300">
+                {subscriptionData.subscription.price > 0 ? (
+                  <span>{subscriptionData.subscription.price}€/{subscriptionData.subscription.interval}</span>
+                ) : (
+                  <span>Gratuit</span>
+                )}
+              </div>
+            </div>
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(subscriptionData.userSubscription?.status || '')}`}>
               {getStatusText(subscriptionData.userSubscription?.status || '')}
             </span>
           </div>
-          
-          <div className="text-sm text-gray-300 mb-2">
-            {subscriptionData.subscription.price > 0 ? (
-              <span>{subscriptionData.subscription.price}€/{subscriptionData.subscription.interval}</span>
-            ) : (
-              <span>Gratuit</span>
+
+          {/* Informations de période */}
+          <div className="space-y-2 mb-3">
+            <div className="text-xs text-gray-400">
+              <span className="font-medium">Période actuelle :</span> {new Date(subscriptionData.userSubscription?.currentPeriodStart || '').toLocaleDateString('fr-FR')} - {new Date(subscriptionData.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')}
+            </div>
+            
+            {subscriptionData.userSubscription?.trialEnd && (
+              <div className="text-xs text-blue-400">
+                ⏰ <span className="font-medium">Essai gratuit jusqu'au :</span> {new Date(subscriptionData.userSubscription.trialEnd).toLocaleDateString('fr-FR')}
+              </div>
+            )}
+
+            {subscriptionData.userSubscription?.status === 'trial' && (
+              <div className="text-xs text-yellow-400">
+                ⚠️ <span className="font-medium">Période d'essai active</span> - Renouvellement automatique à la fin
+              </div>
             )}
           </div>
 
-          {subscriptionData.userSubscription?.trialEnd && (
-            <div className="text-xs text-blue-400 mb-2">
-              ⏰ Essai gratuit jusqu'au {new Date(subscriptionData.userSubscription.trialEnd).toLocaleDateString('fr-FR')}
+          {/* Fonctionnalités incluses */}
+          <div className="mb-3">
+            <div className="text-xs font-medium text-gray-300 mb-2">Fonctionnalités incluses :</div>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              {subscriptionData.subscription.features.slice(0, 4).map((feature, index) => (
+                <div key={index} className="flex items-center text-gray-400">
+                  <span className="text-green-400 mr-1">✓</span>
+                  {feature}
+                </div>
+              ))}
             </div>
-          )}
+          </div>
 
+          {/* Qualité audio et autres détails */}
           <div className="text-xs text-gray-400">
-            Période : {new Date(subscriptionData.userSubscription?.currentPeriodStart || '').toLocaleDateString('fr-FR')} - {new Date(subscriptionData.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')}
+            <span className="font-medium">Qualité audio :</span> {subscriptionData.subscription.limits.audioQuality} • 
+            <span className="font-medium ml-2">Support :</span> {subscriptionData.subscription.limits.support}
+            {!subscriptionData.subscription.limits.ads && (
+              <span className="text-green-400 ml-2">• Sans publicités</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Affichage si pas d'abonnement */}
+      {!subscriptionData?.hasSubscription && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-gray-500/20 to-gray-600/20 rounded-lg border border-gray-500/30">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-bold text-white">Plan Gratuit</h3>
+            <span className="px-2 py-1 rounded-full text-xs font-medium text-gray-400">
+              Actif
+            </span>
+          </div>
+          <div className="text-sm text-gray-300 mb-2">
+            Accès limité aux fonctionnalités de base
+          </div>
+          <div className="text-xs text-gray-400">
+            Passez à un plan payant pour débloquer toutes les fonctionnalités
           </div>
         </div>
       )}
