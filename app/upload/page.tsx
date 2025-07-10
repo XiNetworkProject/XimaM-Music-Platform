@@ -276,6 +276,7 @@ export default function UploadPage() {
       
       toast.success('Musique uploadée avec succès !');
       router.push('/');
+      router.refresh();
     } catch (error) {
       // Fermer toutes les notifications de chargement en cas d'erreur
       toast.dismiss();
