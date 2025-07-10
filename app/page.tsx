@@ -1603,16 +1603,16 @@ export default function HomePage() {
                           </div>
                           {/* Titre */}
                           <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                            {track.title}
+                            {track.title || 'Titre inconnu'}
                           </h4>
                           {/* Artiste */}
                           <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                            {track.artist?.name || track.artist?.username}
+                            {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                           </p>
                           {/* Durée + Bouton play */}
                           <div className="flex items-center justify-center gap-2 mb-2">
                             <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                              {formatDuration(track.duration)}
+                              {typeof track.duration === 'number' && !isNaN(track.duration) ? formatDuration(track.duration) : '--:--'}
                             </span>
                             <motion.button
                               whileHover={{ scale: 1.1 }}
@@ -1634,11 +1634,11 @@ export default function HomePage() {
                           <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
                             <div className="flex items-center gap-1">
                               <Headphones size={12} />
-                              <span>{formatNumber(track.plays)}</span>
+                              <span>{typeof track.plays === 'number' ? track.plays : 0}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Heart size={12} />
-                              <span>{track.likes.length}</span>
+                              <span>{Array.isArray(track.likes) ? track.likes.length : 0}</span>
                             </div>
                           </div>
                         </div>
@@ -1864,11 +1864,11 @@ export default function HomePage() {
                     </div>
                     {/* Titre */}
                     <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                      {track.title}
+                      {track.title || 'Titre inconnu'}
                     </h4>
                     {/* Artiste */}
                     <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                      {track.artist?.name || track.artist?.username}
+                      {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                     </p>
                     {/* Durée + Bouton play */}
                     <div className="flex items-center justify-center gap-2 mb-2">
@@ -2303,8 +2303,8 @@ export default function HomePage() {
                         </div>
                       </div>
                       <div className="p-3 bg-black/80 backdrop-blur-sm">
-                        <h3 className="font-semibold text-white text-sm truncate">{track.title}</h3>
-                        <p className="text-gray-400 text-xs">{track.artist?.name || track.artist?.username}</p>
+                        <h3 className="font-semibold text-white text-sm truncate">{track.title || 'Titre inconnu'}</h3>
+                        <p className="text-gray-400 text-xs">{track.artist?.name || track.artist?.username || 'Artiste inconnu'}</p>
                         <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
                           <div className="flex items-center space-x-1">
                             <Headphones size={10} />
@@ -2402,11 +2402,11 @@ export default function HomePage() {
                       </div>
                       {/* Titre */}
                       <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                        {track.title}
+                        {track.title || 'Titre inconnu'}
                       </h4>
                       {/* Artiste */}
                       <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                        {track.artist?.name || track.artist?.username}
+                        {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                       </p>
                       {/* Durée + Bouton play */}
                       <div className="flex items-center justify-center gap-2 mb-2">
@@ -2513,7 +2513,7 @@ export default function HomePage() {
                       </div>
                       {/* Titre */}
                       <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                        {event.title}
+                        {event.title || 'Titre inconnu'}
                       </h4>
                       {/* Artiste */}
                       <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
@@ -3103,7 +3103,7 @@ export default function HomePage() {
                           <h3 
                             className="font-semibold text-white truncate mb-1 group-hover:text-purple-300 transition-colors cursor-pointer"
                           >
-                            {track.title}
+                            {track.title || 'Titre inconnu'}
                           </h3>
                           <p 
                             className="text-gray-300 text-sm truncate mb-3 cursor-pointer hover:text-purple-300 transition-colors"
