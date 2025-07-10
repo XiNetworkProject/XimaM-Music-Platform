@@ -283,83 +283,7 @@ export const useAudioService = () => {
     }
   }, []);
 
-  const handleTrackEnd = useCallback(() => {
-    if (repeat === 'one') {
-      if (audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {
-          // Erreur silencieuse
-        });
-      }
-    } else if (repeat === 'all' || queue.length > 1) {
-      nextTrack();
-    } else if (autoPlayEnabled && allTracks.length > 0) {
-      // Auto-play intelligent activé
-      if (allTracks.length === 0) {
-        loadAllTracks();
-      }
-      
-      // Sélection intelligente de la piste suivante
-      let autoPlayNextTrack: Track | null = null;
-      
-      // 1. Essayer une piste similaire
-      if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
-        const similarTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack!._id && 
-          track.genre && 
-          track.genre.some(g => state.currentTrack!.genre!.includes(g))
-        );
-        if (similarTracks.length > 0) {
-          autoPlayNextTrack = similarTracks[Math.floor(Math.random() * similarTracks.length)];
-          // Auto-play: Piste similaire sélectionnée
-        }
-      }
-      
-      // 2. Essayer une recommandation personnalisée
-      if (!autoPlayNextTrack && session && session.user && session.user.id) {
-        const recommendedTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack?._id && 
-          track.likes.includes(session.user.id)
-        );
-        if (recommendedTracks.length > 0) {
-          autoPlayNextTrack = recommendedTracks[Math.floor(Math.random() * recommendedTracks.length)];
-          // Auto-play: Recommandation personnalisée sélectionnée
-        }
-      }
-      
-      // 3. Essayer une piste populaire
-      if (!autoPlayNextTrack) {
-        const popularTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack?._id && 
-          track.likes.length > 5
-        );
-        if (popularTracks.length > 0) {
-          autoPlayNextTrack = popularTracks[Math.floor(Math.random() * popularTracks.length)];
-          // Auto-play: Piste populaire sélectionnée
-        }
-      }
-      
-      // 4. Piste aléatoire
-      if (!autoPlayNextTrack) {
-        const availableTracks = allTracks.filter(track => track._id !== state.currentTrack?._id);
-        if (availableTracks.length > 0) {
-          autoPlayNextTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
-          // Auto-play: Piste aléatoire sélectionnée
-        }
-      }
-      
-      if (autoPlayNextTrack) {
-        setState(prev => ({ ...prev, currentTrack: autoPlayNextTrack, isPlaying: true }));
-        setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
-        setAutoPlayEnabled(false);
-      } else {
-        // Auto-play: Aucune piste disponible
-        setState(prev => ({ ...prev, isPlaying: false }));
-      }
-    } else {
-      setState(prev => ({ ...prev, isPlaying: false }));
-    }
-  }, [repeat, queue.length, autoPlayEnabled, allTracks.length, state.currentTrack, session, allTracks, loadAllTracks]);
+
 
   const updateNotification = useCallback(() => {
     if (!('serviceWorker' in navigator) || !state.currentTrack || notificationPermission !== 'granted') {
@@ -1006,6 +930,96 @@ export const useAudioService = () => {
     loadAllTracks,
     reloadAllTracks,
   ]);
+
+  // Fonction pour gérer la fin d'une piste
+  const handleTrackEnd = useCallback(() => {
+    if (repeat === 'one') {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {
+          // Erreur silencieuse
+        });
+      }
+    } else if (repeat === 'all' || queue.length > 1) {
+      nextTrack();
+    } else {
+      // Auto-play automatique pour toutes les pistes (pas seulement les playlists)
+      if (allTracks.length === 0) {
+        loadAllTracks().then(() => {
+          // Après chargement, essayer de jouer une piste aléatoire
+          if (allTracks.length > 0) {
+            const randomTrack = allTracks[Math.floor(Math.random() * allTracks.length)];
+            loadTrack(randomTrack).then(() => {
+              play();
+              updatePlayCount(randomTrack._id);
+            });
+          }
+        });
+        return;
+      }
+      
+      // Sélection intelligente de la piste suivante
+      let autoPlayNextTrack: Track | null = null;
+      
+      // 1. Essayer une piste similaire
+      if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
+        const similarTracks = allTracks.filter(track => 
+          track._id !== state.currentTrack!._id && 
+          track.genre && 
+          track.genre.some(g => state.currentTrack!.genre!.includes(g))
+        );
+        if (similarTracks.length > 0) {
+          autoPlayNextTrack = similarTracks[Math.floor(Math.random() * similarTracks.length)];
+          // Auto-play: Piste similaire sélectionnée
+        }
+      }
+      
+      // 2. Essayer une recommandation personnalisée
+      if (!autoPlayNextTrack && session && session.user && session.user.id) {
+        const recommendedTracks = allTracks.filter(track => 
+          track._id !== state.currentTrack?._id && 
+          track.likes.includes(session.user.id)
+        );
+        if (recommendedTracks.length > 0) {
+          autoPlayNextTrack = recommendedTracks[Math.floor(Math.random() * recommendedTracks.length)];
+          // Auto-play: Recommandation personnalisée sélectionnée
+        }
+      }
+      
+      // 3. Essayer une piste populaire
+      if (!autoPlayNextTrack) {
+        const popularTracks = allTracks.filter(track => 
+          track._id !== state.currentTrack?._id && 
+          track.likes.length > 5
+        );
+        if (popularTracks.length > 0) {
+          autoPlayNextTrack = popularTracks[Math.floor(Math.random() * popularTracks.length)];
+          // Auto-play: Piste populaire sélectionnée
+        }
+      }
+      
+      // 4. Piste aléatoire (fallback)
+      if (!autoPlayNextTrack) {
+        const availableTracks = allTracks.filter(track => track._id !== state.currentTrack?._id);
+        if (availableTracks.length > 0) {
+          autoPlayNextTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
+          // Auto-play: Piste aléatoire sélectionnée
+        }
+      }
+      
+      if (autoPlayNextTrack) {
+        // Charger et jouer la nouvelle piste
+        loadTrack(autoPlayNextTrack).then(() => {
+          play();
+          updatePlayCount(autoPlayNextTrack._id);
+        });
+        setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
+      } else {
+        // Aucune piste disponible, arrêter la lecture
+        setState(prev => ({ ...prev, isPlaying: false }));
+      }
+    }
+  }, [repeat, queue.length, allTracks.length, state.currentTrack, session, allTracks, loadAllTracks, loadTrack, play, updatePlayCount, nextTrack]);
 
   return audioService;
 }; 
