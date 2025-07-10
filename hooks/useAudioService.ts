@@ -123,6 +123,8 @@ export const useAudioService = () => {
     }
   }, []);
 
+
+
   // Création et configuration de l'élément audio
   useEffect(() => {
     if (audioRef.current) return;
@@ -166,6 +168,7 @@ export const useAudioService = () => {
     };
 
     const handleEnded = () => {
+      console.log('🎵 Événement ended déclenché');
       handleTrackEnd();
     };
 
@@ -933,11 +936,13 @@ export const useAudioService = () => {
 
   // Fonction pour gérer la fin d'une piste
   const handleTrackEnd = useCallback(() => {
+    console.log('🎵 Fin de piste détectée, auto-play activé');
+    
     if (repeat === 'one') {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(() => {
-          // Erreur silencieuse
+          console.log('Erreur lors de la répétition de la piste');
         });
       }
     } else if (repeat === 'all' || queue.length > 1) {
@@ -945,10 +950,12 @@ export const useAudioService = () => {
     } else {
       // Auto-play automatique pour toutes les pistes (pas seulement les playlists)
       if (allTracks.length === 0) {
+        console.log('Chargement des pistes pour auto-play...');
         loadAllTracks().then(() => {
           // Après chargement, essayer de jouer une piste aléatoire
           if (allTracks.length > 0) {
             const randomTrack = allTracks[Math.floor(Math.random() * allTracks.length)];
+            console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
             loadTrack(randomTrack).then(() => {
               play();
               updatePlayCount(randomTrack._id);
@@ -970,7 +977,7 @@ export const useAudioService = () => {
         );
         if (similarTracks.length > 0) {
           autoPlayNextTrack = similarTracks[Math.floor(Math.random() * similarTracks.length)];
-          // Auto-play: Piste similaire sélectionnée
+          console.log('Auto-play: Piste similaire sélectionnée:', autoPlayNextTrack.title);
         }
       }
       
@@ -982,7 +989,7 @@ export const useAudioService = () => {
         );
         if (recommendedTracks.length > 0) {
           autoPlayNextTrack = recommendedTracks[Math.floor(Math.random() * recommendedTracks.length)];
-          // Auto-play: Recommandation personnalisée sélectionnée
+          console.log('Auto-play: Recommandation personnalisée sélectionnée:', autoPlayNextTrack.title);
         }
       }
       
@@ -994,7 +1001,7 @@ export const useAudioService = () => {
         );
         if (popularTracks.length > 0) {
           autoPlayNextTrack = popularTracks[Math.floor(Math.random() * popularTracks.length)];
-          // Auto-play: Piste populaire sélectionnée
+          console.log('Auto-play: Piste populaire sélectionnée:', autoPlayNextTrack.title);
         }
       }
       
@@ -1003,12 +1010,13 @@ export const useAudioService = () => {
         const availableTracks = allTracks.filter(track => track._id !== state.currentTrack?._id);
         if (availableTracks.length > 0) {
           autoPlayNextTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
-          // Auto-play: Piste aléatoire sélectionnée
+          console.log('Auto-play: Piste aléatoire sélectionnée:', autoPlayNextTrack.title);
         }
       }
       
       if (autoPlayNextTrack) {
         // Charger et jouer la nouvelle piste
+        console.log('🎵 Auto-play de la piste suivante:', autoPlayNextTrack.title);
         loadTrack(autoPlayNextTrack).then(() => {
           play();
           updatePlayCount(autoPlayNextTrack._id);
@@ -1016,6 +1024,7 @@ export const useAudioService = () => {
         setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
       } else {
         // Aucune piste disponible, arrêter la lecture
+        console.log('Aucune piste disponible pour auto-play');
         setState(prev => ({ ...prev, isPlaying: false }));
       }
     }
