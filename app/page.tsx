@@ -623,12 +623,13 @@ export default function HomePage() {
   }, []);
 
   const formatDuration = useCallback((seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
+    const mins = Math.floor((typeof seconds === 'number' && !isNaN(seconds)) ? seconds / 60 : 0);
+    const secs = Math.floor((typeof seconds === 'number' && !isNaN(seconds)) ? seconds % 60 : 0);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }, []);
 
   const formatNumber = useCallback((num: number) => {
+    if (typeof num !== 'number' || isNaN(num)) return '0';
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     } else if (num >= 1000) {
@@ -1612,7 +1613,7 @@ export default function HomePage() {
                           {/* Durée + Bouton play */}
                           <div className="flex items-center justify-center gap-2 mb-2">
                             <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                              {typeof track.duration === 'number' && !isNaN(track.duration) ? formatDuration(track.duration) : '--:--'}
+                              {formatDuration(track.duration)}
                             </span>
                             <motion.button
                               whileHover={{ scale: 1.1 }}
@@ -1634,7 +1635,7 @@ export default function HomePage() {
                           <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
                             <div className="flex items-center gap-1">
                               <Headphones size={12} />
-                              <span>{typeof track.plays === 'number' ? track.plays : 0}</span>
+                              <span>{formatNumber(track.plays)}</span>
                             </div>
                             <div className="flex items-center gap-1">
                               <Heart size={12} />
