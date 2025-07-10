@@ -47,7 +47,7 @@ interface CategoryData {
 
 // Cache simple pour les données
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
-const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes
+const CACHE_DURATION = 30 * 1000; // 30 secondes (réduit pour plus de réactivité)
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -137,6 +137,19 @@ export default function HomePage() {
     console.log('État du dialog:', showProgramDialog);
   }, [showProgramDialog]);
 
+  // Détecter si on vient d'un upload et forcer le rechargement
+  useEffect(() => {
+    const isFromUpload = sessionStorage.getItem('fromUpload');
+    if (isFromUpload === 'true') {
+      // Vider le cache et recharger les données
+      dataCache.clear();
+      sessionStorage.removeItem('fromUpload');
+      
+      // Recharger toutes les catégories
+      fetchAllCategories(true);
+    }
+  }, []);
+
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
@@ -189,10 +202,10 @@ export default function HomePage() {
   }, [currentTrack?._id, audioState.isPlaying]);
 
   // Fonction optimisée pour charger les données avec cache
-  const fetchCategoryData = useCallback(async (key: string, url: string) => {
-    // Vérifier le cache d'abord
+  const fetchCategoryData = useCallback(async (key: string, url: string, forceRefresh = false) => {
+    // Vérifier le cache d'abord (sauf si forceRefresh est true)
     const cached = dataCache.get(key);
-    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
           setCategories(prev => ({
             ...prev,
         [key]: { tracks: cached.tracks, loading: false, error: null }
@@ -457,46 +470,47 @@ export default function HomePage() {
     }
   }, []);
 
-  // Charger toutes les catégories
-  useEffect(() => {
-    const fetchAllCategories = async () => {
-      setLoading(true);
-      
-      const categoryApis = [
-        { key: 'trending', url: '/api/tracks/trending?limit=10' },
-        { key: 'popular', url: '/api/tracks/popular?limit=10' },
-        { key: 'recent', url: '/api/tracks/recent?limit=10' },
-        { key: 'mostLiked', url: '/api/tracks/most-liked?limit=10' },
-        { key: 'recommended', url: '/api/tracks/recommended?limit=10' },
-        { key: 'following', url: '/api/tracks/following?limit=10' }
-      ];
+  // Fonction pour charger toutes les catégories
+  const fetchAllCategories = useCallback(async (forceRefresh = false) => {
+    setLoading(true);
+    
+    const categoryApis = [
+      { key: 'trending', url: '/api/tracks/trending?limit=10' },
+      { key: 'popular', url: '/api/tracks/popular?limit=10' },
+      { key: 'recent', url: '/api/tracks/recent?limit=10' },
+      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=10' },
+      { key: 'recommended', url: '/api/tracks/recommended?limit=10' },
+      { key: 'following', url: '/api/tracks/following?limit=10' }
+    ];
 
-      // Charger les pistes en vedette en premier
-      await fetchCategoryData('featured', '/api/tracks/popular?limit=20');
+    // Charger les pistes en vedette en premier
+    await fetchCategoryData('featured', '/api/tracks/popular?limit=20', forceRefresh);
 
-      // Charger les autres catégories en parallèle
-      await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url)));
+    // Charger les autres catégories en parallèle
+    await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url, forceRefresh)));
 
-      // Charger les nouvelles données
-      await Promise.all([
-        fetchPopularUsers(),
-        fetchDailyDiscoveries(),
-        fetchWeeklyTrends(),
-        fetchCommunityPlaylists(),
-        fetchCollaborations(),
-        fetchLiveEvents(),
-        fetchCommunityStats(),
-        fetchPersonalRecommendations(),
-        fetchRecentActivity(),
-        fetchPopularPlaylists(),
-        fetchMusicGenres()
-      ]);
+    // Charger les nouvelles données
+    await Promise.all([
+      fetchPopularUsers(),
+      fetchDailyDiscoveries(),
+      fetchWeeklyTrends(),
+      fetchCommunityPlaylists(),
+      fetchCollaborations(),
+      fetchLiveEvents(),
+      fetchCommunityStats(),
+      fetchPersonalRecommendations(),
+      fetchRecentActivity(),
+      fetchPopularPlaylists(),
+      fetchMusicGenres()
+    ]);
 
-      setLoading(false);
-    };
-
-    fetchAllCategories();
+    setLoading(false);
   }, [fetchCategoryData, fetchPopularUsers, fetchDailyDiscoveries, fetchWeeklyTrends, fetchCommunityPlaylists, fetchCollaborations, fetchLiveEvents, fetchCommunityStats, fetchPersonalRecommendations, fetchRecentActivity, fetchPopularPlaylists, fetchMusicGenres]);
+
+  // Charger toutes les catégories au montage
+  useEffect(() => {
+    fetchAllCategories();
+  }, [fetchAllCategories]);
 
   // Fonction de rafraîchissement
   const handleRefresh = useCallback(async () => {

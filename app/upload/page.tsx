@@ -275,8 +275,13 @@ export default function UploadPage() {
       toast.dismiss(saveLoadingToast);
       
       toast.success('Musique uploadée avec succès !');
+      
+      // Marquer qu'on vient d'un upload pour forcer le rechargement
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('fromUpload', 'true');
+      }
+      
       router.push('/');
-      router.refresh();
     } catch (error) {
       // Fermer toutes les notifications de chargement en cas d'erreur
       toast.dismiss();
