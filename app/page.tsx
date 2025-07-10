@@ -119,6 +119,20 @@ export default function HomePage() {
   const [musicGenres, setMusicGenres] = useState<any[]>([]);
   const [genresLoading, setGenresLoading] = useState(false);
 
+  // Debug: Afficher l'état des catégories
+  useEffect(() => {
+    console.log('📊 État des catégories:', {
+      featured: categories.featured.tracks.length,
+      trending: categories.trending.tracks.length,
+      popular: categories.popular.tracks.length,
+      recent: categories.recent.tracks.length,
+      mostLiked: categories.mostLiked.tracks.length,
+      recommended: categories.recommended.tracks.length,
+      following: categories.following.tracks.length,
+      loading: loading
+    });
+  }, [categories, loading]);
+
   // État pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
   const [radioInfo, setRadioInfo] = useState({
@@ -192,54 +206,64 @@ export default function HomePage() {
 
   // Fonction optimisée pour charger les données avec cache
   const fetchCategoryData = useCallback(async (key: string, url: string, forceRefresh = false) => {
+    console.log(`🔄 Chargement ${key}:`, { forceRefresh, url });
+    
     // Vérifier le cache d'abord (sauf si forceRefresh est true)
     const cached = dataCache.get(key);
     if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-          setCategories(prev => ({
-            ...prev,
+      console.log(`📦 Utilisation cache pour ${key}:`, cached.tracks.length, 'pistes');
+      setCategories(prev => ({
+        ...prev,
         [key]: { tracks: cached.tracks, loading: false, error: null }
-          }));
+      }));
       return;
-      }
+    }
 
-        try {
-          setCategories(prev => ({
-            ...prev,
-            [key]: { ...prev[key], loading: true }
-          }));
+    try {
+      setCategories(prev => ({
+        ...prev,
+        [key]: { ...prev[key], loading: true }
+      }));
 
-          // Ajouter un timestamp pour éviter le cache navigateur
-          const urlWithTimestamp = forceRefresh ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}` : url;
-          const response = await fetch(urlWithTimestamp, {
-            headers: {
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache'
-            }
-          });
-          if (response.ok) {
-            const data = await response.json();
-            const tracksWithLikes = data.tracks.map((track: Track) => ({
-              ...track,
-              isLiked: track.likes.includes(user?.id || '')
-            }));
+      // Ajouter un timestamp pour éviter le cache navigateur
+      const urlWithTimestamp = forceRefresh ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}` : url;
+      console.log(`🌐 Requête API ${key}:`, urlWithTimestamp);
+      
+      const response = await fetch(urlWithTimestamp, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log(`✅ Réponse API ${key}:`, data.tracks?.length || 0, 'pistes');
         
+        const tracksWithLikes = data.tracks.map((track: Track) => ({
+          ...track,
+          isLiked: track.likes.includes(user?.id || '')
+        }));
+    
         // Mettre en cache
         dataCache.set(key, { tracks: tracksWithLikes, timestamp: Date.now() });
+        console.log(`💾 Cache mis à jour pour ${key}:`, tracksWithLikes.length, 'pistes');
         
-            setCategories(prev => ({
-              ...prev,
-              [key]: { tracks: tracksWithLikes, loading: false, error: null }
-            }));
-          } else {
+        setCategories(prev => ({
+          ...prev,
+          [key]: { tracks: tracksWithLikes, loading: false, error: null }
+        }));
+      } else {
+        console.error(`❌ Erreur API ${key}:`, response.status, response.statusText);
         throw new Error('Erreur de chargement');
-          }
-        } catch (error) {
-          // Erreur silencieuse
-          setCategories(prev => ({
-            ...prev,
-            [key]: { tracks: [], loading: false, error: 'Erreur de chargement' }
-          }));
-        }
+      }
+    } catch (error) {
+      console.error(`❌ Erreur chargement ${key}:`, error);
+      setCategories(prev => ({
+        ...prev,
+        [key]: { tracks: [], loading: false, error: 'Erreur de chargement' }
+      }));
+    }
   }, [user?.id]);
 
   // Fonction pour charger les utilisateurs populaires
@@ -468,6 +492,7 @@ export default function HomePage() {
 
   // Fonction pour charger toutes les catégories
   const fetchAllCategories = useCallback(async (forceRefresh = false) => {
+    console.log('🚀 Début chargement toutes les catégories:', { forceRefresh });
     setLoading(true);
     
     const categoryApis = [
@@ -479,28 +504,37 @@ export default function HomePage() {
       { key: 'following', url: '/api/tracks/following?limit=10' }
     ];
 
-    // Charger les pistes en vedette en premier
-    await fetchCategoryData('featured', '/api/tracks/popular?limit=20', forceRefresh);
+    try {
+      // Charger les pistes en vedette en premier
+      console.log('⭐ Chargement pistes en vedette...');
+      await fetchCategoryData('featured', '/api/tracks/popular?limit=20', forceRefresh);
 
-    // Charger les autres catégories en parallèle
-    await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url, forceRefresh)));
+      // Charger les autres catégories en parallèle
+      console.log('📊 Chargement autres catégories...');
+      await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url, forceRefresh)));
 
-    // Charger les nouvelles données
-    await Promise.all([
-      fetchPopularUsers(),
-      fetchDailyDiscoveries(),
-      fetchWeeklyTrends(),
-      fetchCommunityPlaylists(),
-      fetchCollaborations(),
-      fetchLiveEvents(),
-      fetchCommunityStats(),
-      fetchPersonalRecommendations(),
-      fetchRecentActivity(),
-      fetchPopularPlaylists(),
-      fetchMusicGenres()
-    ]);
+      // Charger les nouvelles données
+      console.log('🆕 Chargement données supplémentaires...');
+      await Promise.all([
+        fetchPopularUsers(),
+        fetchDailyDiscoveries(),
+        fetchWeeklyTrends(),
+        fetchCommunityPlaylists(),
+        fetchCollaborations(),
+        fetchLiveEvents(),
+        fetchCommunityStats(),
+        fetchPersonalRecommendations(),
+        fetchRecentActivity(),
+        fetchPopularPlaylists(),
+        fetchMusicGenres()
+      ]);
 
-    setLoading(false);
+      console.log('✅ Chargement terminé avec succès');
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement:', error);
+    } finally {
+      setLoading(false);
+    }
   }, [fetchCategoryData, fetchPopularUsers, fetchDailyDiscoveries, fetchWeeklyTrends, fetchCommunityPlaylists, fetchCollaborations, fetchLiveEvents, fetchCommunityStats, fetchPersonalRecommendations, fetchRecentActivity, fetchPopularPlaylists, fetchMusicGenres]);
 
   // Charger toutes les catégories au montage
