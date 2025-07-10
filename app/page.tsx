@@ -37,6 +37,7 @@ interface Track {
   description?: string;
   lyrics?: string;
   isLiked?: boolean;
+  isDiscovery?: boolean;
 }
 
 interface CategoryData {
@@ -1581,47 +1582,64 @@ export default function HomePage() {
                         whileHover={{ y: -4, scale: 1.02 }}
                         className="group cursor-pointer"
                       >
-                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
-                          <div className="relative w-20 h-20 mx-auto mt-2">
+                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
+                          {/* Badge Découverte */}
+                          {track.isDiscovery && (
+                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                              <Sparkles size={12} className="inline" />
+                              Découverte
+                            </div>
+                          )}
+                          {/* Image */}
+                          <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                             <img
                               src={track.coverUrl || '/default-cover.jpg'}
                               alt={track.title}
-                              className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-500"
+                              className="w-full h-full object-cover"
                               onError={(e) => {
                                 e.currentTarget.src = '/default-cover.jpg';
                               }}
                             />
-                            
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePlayTrack(track);
-                                }}
-                                className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
-                              >
-                                {currentTrack?._id === track._id && audioState.isPlaying ? (
-                                  <Pause size={14} fill="white" />
-                                ) : (
-                                  <Play size={14} fill="white" className="ml-0.5" />
-                                )}
-                              </motion.button>
-                            </div>
-
-                            <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
-                              {formatDuration(track.duration)}
-                            </div>
                           </div>
-
-                          <div className="p-2 text-center">
-                            <h4 className="font-semibold text-white truncate mb-0.5 text-[10px]">
-                              {track.title}
-                            </h4>
-                            <p className="text-gray-300 text-[9px] truncate">
-                              {track.artist?.name || track.artist?.username}
-                            </p>
+                          {/* Titre */}
+                          <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                            {track.title}
+                          </h4>
+                          {/* Artiste */}
+                          <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                            {track.artist?.name || track.artist?.username}
+                          </p>
+                          {/* Durée + Bouton play */}
+                          <div className="flex items-center justify-center gap-2 mb-2">
+                            <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                              {formatDuration(track.duration)}
+                            </span>
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePlayTrack(track);
+                              }}
+                              className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
+                            >
+                              {currentTrack?._id === track._id && audioState.isPlaying ? (
+                                <Pause size={18} fill="white" />
+                              ) : (
+                                <Play size={18} fill="white" className="ml-0.5" />
+                              )}
+                            </motion.button>
+                          </div>
+                          {/* Stats */}
+                          <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <Headphones size={12} />
+                              <span>{formatNumber(track.plays)}</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Heart size={12} />
+                              <span>{track.likes.length}</span>
+                            </div>
                           </div>
                         </div>
                       </motion.div>
@@ -1647,20 +1665,44 @@ export default function HomePage() {
                         whileHover={{ y: -4, scale: 1.02 }}
                         className="group cursor-pointer"
                       >
-                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 p-4 text-center">
-                          <div className="w-12 h-12 mx-auto mb-2 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
+                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
+                          {/* Badge Découverte */}
+                          {artist.isDiscovery && (
+                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                              <Sparkles size={12} className="inline" />
+                              Découverte
+                            </div>
+                          )}
+                          {/* Image */}
+                          <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                             <img
                               src={artist.avatar || '/default-avatar.png'}
                               alt={artist.name}
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-avatar.png';
+                              }}
                             />
                           </div>
-                          <h4 className="font-semibold text-white text-[10px] mb-0.5">
+                          {/* Nom */}
+                          <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
                             {artist.name}
                           </h4>
-                          <p className="text-gray-300 text-[9px]">
+                          {/* Pseudo */}
+                          <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
                             @{artist.username}
                           </p>
+                          {/* Stats */}
+                          <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <Headphones size={12} />
+                              <span>{formatNumber(artist.listeners)} auditeurs</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Heart size={12} />
+                              <span>{artist.likes.length} likes</span>
+                            </div>
+                          </div>
                         </div>
                       </motion.div>
                     ))}
@@ -1685,31 +1727,42 @@ export default function HomePage() {
                         whileHover={{ y: -4, scale: 1.02 }}
                         className="group cursor-pointer"
                       >
-                        <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300">
-                          <div className={`w-20 h-20 mx-auto mt-2 bg-gradient-to-br ${playlist.color} flex items-center justify-center relative rounded-md`}>
-                            <div className="text-xl">{playlist.emoji}</div>
-                            
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                              <motion.button
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
-                              >
-                                <Play size={14} fill="white" className="ml-0.5" />
-                              </motion.button>
+                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
+                          {/* Badge Découverte */}
+                          {playlist.isDiscovery && (
+                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                              <Sparkles size={12} className="inline" />
+                              Découverte
                             </div>
+                          )}
+                          {/* Image */}
+                          <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                            <img
+                              src={playlist.coverUrl || '/default-cover.jpg'}
+                              alt={playlist.title}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = '/default-cover.jpg';
+                              }}
+                            />
                           </div>
-                          
-                          <div className="p-2 text-center">
-                            <h4 className="font-semibold text-white text-[10px] truncate mb-0.5">
-                              {playlist.title}
-                            </h4>
-                            <p className="text-gray-300 text-[9px] mb-1">
-                              par {playlist.creator.name}
-                            </p>
-                            <div className="flex items-center justify-between text-[9px] text-gray-500">
-                              <span>{playlist.tracks} titres</span>
-                              <span>{playlist.likes} likes</span>
+                          {/* Titre */}
+                          <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                            {playlist.title}
+                          </h4>
+                          {/* Créateur */}
+                          <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                            par {playlist.creator.name}
+                          </p>
+                          {/* Stats */}
+                          <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                            <div className="flex items-center gap-1">
+                              <Music size={12} />
+                              <span>{playlist.trackCount} titres</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Heart size={12} />
+                              <span>{formatNumber(playlist.likes)}</span>
                             </div>
                           </div>
                         </div>
@@ -1790,78 +1843,63 @@ export default function HomePage() {
                   whileHover={{ y: -4, scale: 1.02 }}
                   className="group cursor-pointer"
                 >
-                  <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-yellow-500/5 to-orange-500/5 border border-yellow-500/20 hover:shadow-lg hover:shadow-yellow-500/10 transition-all duration-300">
-                    {/* Cover avec lazy loading */}
-                    <div className="relative w-20 h-20 mx-auto mt-2">
+                  <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
+                    {/* Badge Découverte */}
+                    {track.isDiscovery && (
+                      <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                        <Sparkles size={12} className="inline" />
+                        Découverte
+                      </div>
+                    )}
+                    {/* Image */}
+                    <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                       <img
                         src={track.coverUrl || '/default-cover.jpg'}
                         alt={track.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover"
                         onError={(e) => {
                           e.currentTarget.src = '/default-cover.jpg';
                         }}
                       />
-                      
-                      {/* Overlay avec bouton play */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePlayTrack(track);
-                          }}
-                          className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
-                        >
-                          {currentTrack?._id === track._id && audioState.isPlaying ? (
-                            <Pause size={14} fill="white" />
-                          ) : (
-                            <Play size={14} fill="white" className="ml-0.5" />
-                          )}
-                        </motion.button>
-                      </div>
-
-                      {/* Badge "Découverte" */}
-                      <div className="absolute top-1 left-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm font-medium">
-                        <Sparkles size={8} className="inline mr-0.5" />
-                        Découverte
-                      </div>
-
-                      {/* Badge durée */}
-                      <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
-                        {formatDuration(track.duration)}
-                      </div>
                     </div>
-
-                    {/* Info */}
-                    <div className="p-2 text-center">
-                      <h3 className="font-semibold text-white truncate mb-0.5 group-hover:text-yellow-300 transition-colors cursor-pointer text-[10px]">
-                        {track.title}
-                      </h3>
-                      <p className="text-gray-300 text-[9px] truncate mb-1 cursor-pointer hover:text-yellow-300 transition-colors">
-                        {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                      </p>
-                      
-                      {/* Stats */}
-                      <div className="flex items-center justify-between text-[9px] text-gray-500">
-                        <div className="flex items-center space-x-1">
-                          <Headphones size={8} />
-                          <span>{formatNumber(track.plays)}</span>
-                        </div>
-                        <div className="flex items-center space-x-1">
-                          <InteractiveCounter
-                            type="likes"
-                            initialCount={track.likes.length}
-                            isActive={track.isLiked || track.likes.includes(user?.id || '')}
-                            onToggle={async (newState) => {
-                              await handleLikeTrack(track._id, 'dailyDiscoveries', index);
-                            }}
-                            size="sm"
-                            showIcon={true}
-                            className="text-gray-500 hover:text-red-500"
-                          />
-                        </div>
+                    {/* Titre */}
+                    <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                      {track.title}
+                    </h4>
+                    {/* Artiste */}
+                    <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                      {track.artist?.name || track.artist?.username}
+                    </p>
+                    {/* Durée + Bouton play */}
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                        {formatDuration(track.duration)}
+                      </span>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePlayTrack(track);
+                        }}
+                        className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
+                      >
+                        {currentTrack?._id === track._id && audioState.isPlaying ? (
+                          <Pause size={18} fill="white" />
+                        ) : (
+                          <Play size={18} fill="white" className="ml-0.5" />
+                        )}
+                      </motion.button>
+                    </div>
+                    {/* Stats */}
+                    <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <Headphones size={12} />
+                        <span>{formatNumber(track.plays)}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Heart size={12} />
+                        <span>{track.likes.length}</span>
                       </div>
                     </div>
                   </div>
@@ -2343,77 +2381,63 @@ export default function HomePage() {
                     whileHover={{ y: -8, scale: 1.02 }}
                     className="group cursor-pointer"
                   >
-                    <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10 border border-blue-500/20 hover:shadow-2xl transition-all duration-300">
-                      {/* Cover avec lazy loading */}
-                      <div className="relative aspect-square">
+                    <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
+                      {/* Badge Découverte */}
+                      {track.isDiscovery && (
+                        <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                          <Sparkles size={12} className="inline" />
+                          Découverte
+                        </div>
+                      )}
+                      {/* Image */}
+                      <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                         <img
                           src={track.coverUrl || '/default-cover.jpg'}
                           alt={track.title}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                          className="w-full h-full object-cover"
                           onError={(e) => {
                             e.currentTarget.src = '/default-cover.jpg';
                           }}
                         />
-                        
-                        {/* Overlay avec bouton play */}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePlayTrack(track);
-                            }}
-                            className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
-                          >
-                            {currentTrack?._id === track._id && audioState.isPlaying ? (
-                              <Pause size={24} fill="white" />
-                            ) : (
-                              <Play size={24} fill="white" className="ml-1" />
-                            )}
-                          </motion.button>
-                        </div>
-
-                        {/* Badge "Collaboration" */}
-                        <div className="absolute top-2 left-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm font-semibold">
-                          🤝 Collab
-                        </div>
-
-                        {/* Badge durée */}
-                        <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                          {formatDuration(track.duration)}
-                        </div>
                       </div>
-
-                      {/* Info */}
-                      <div className="p-4">
-                        <h3 className="font-semibold text-white truncate mb-1 group-hover:text-blue-300 transition-colors cursor-pointer">
-                          {track.title}
-                        </h3>
-                        <p className="text-gray-300 text-sm truncate mb-3 cursor-pointer hover:text-blue-300 transition-colors">
-                          {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                        </p>
-                        
-                        {/* Stats */}
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center space-x-2">
-                            <Headphones size={12} />
-                            <span>{formatNumber(track.plays)}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <InteractiveCounter
-                              type="likes"
-                              initialCount={track.likes.length}
-                              isActive={track.isLiked || track.likes.includes(user?.id || '')}
-                              onToggle={async (newState) => {
-                                await handleLikeTrack(track._id, 'collaborations', index);
-                              }}
-                              size="sm"
-                              showIcon={true}
-                              className="text-gray-500 hover:text-red-500"
-                            />
-                          </div>
+                      {/* Titre */}
+                      <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                        {track.title}
+                      </h4>
+                      {/* Artiste */}
+                      <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                        {track.artist?.name || track.artist?.username}
+                      </p>
+                      {/* Durée + Bouton play */}
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                          {formatDuration(track.duration)}
+                        </span>
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayTrack(track);
+                          }}
+                          className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
+                        >
+                          {currentTrack?._id === track._id && audioState.isPlaying ? (
+                            <Pause size={18} fill="white" />
+                          ) : (
+                            <Play size={18} fill="white" className="ml-0.5" />
+                          )}
+                        </motion.button>
+                      </div>
+                      {/* Stats */}
+                      <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Headphones size={12} />
+                          <span>{formatNumber(track.plays)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart size={12} />
+                          <span>{track.likes.length}</span>
                         </div>
                       </div>
                     </div>
@@ -2468,42 +2492,65 @@ export default function HomePage() {
                     whileHover={{ y: -8, scale: 1.02 }}
                     className="group cursor-pointer"
                   >
-                    <div className={`relative rounded-xl overflow-hidden bg-gradient-to-br from-blue-500/10 to-indigo-500/10 hover:shadow-2xl transition-all duration-300 border border-blue-500/20`}>
-                      {/* Badge "LIVE" */}
-                      <div className="absolute top-3 left-3 z-20">
-                        <div className="flex items-center space-x-1 bg-red-500 text-white px-2 py-1 rounded-full text-xs font-semibold">
-                          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                          <span>LIVE</span>
+                    <div className={`relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]`}>
+                      {/* Badge Découverte */}
+                      {event.isDiscovery && (
+                        <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                          <Sparkles size={12} className="inline" />
+                          Découverte
                         </div>
+                      )}
+                      {/* Image */}
+                      <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                        <img
+                          src={event.coverUrl || '/default-cover.jpg'}
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = '/default-cover.jpg';
+                          }}
+                        />
                       </div>
-
-                      {/* Badge spectateurs */}
-                      <div className="absolute top-3 right-3 z-20">
-                        <div className="bg-black/60 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-medium">
-                          👥 {formatNumber(event.viewers)}
-                        </div>
-                      </div>
-
-                      {/* Contenu principal */}
-                      <div className="p-6 text-center">
-                        <div className="text-4xl mb-4">🎤</div>
-                        <h3 className="text-white font-semibold text-lg mb-2 group-hover:text-purple-200 transition-colors">
-                          {event.title}
-                        </h3>
-                        <p className="text-white/80 text-sm mb-3">par {event.artist.name}</p>
-                        
-                        {/* Bouton rejoindre */}
+                      {/* Titre */}
+                      <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                        {event.title}
+                      </h4>
+                      {/* Artiste */}
+                      <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                        par {event.artist.name}
+                      </p>
+                      {/* Durée + Bouton play */}
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                          {formatDuration(event.duration)}
+                        </span>
                         <motion.button
-                          whileHover={{ scale: 1.05 }}
+                          whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.95 }}
-                          className="w-full bg-white/20 backdrop-blur-sm text-white py-2 rounded-lg font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayTrack(event);
+                          }}
+                          className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
                         >
-                          Rejoindre le live
+                          {currentTrack?._id === event._id && audioState.isPlaying ? (
+                            <Pause size={18} fill="white" />
+                          ) : (
+                            <Play size={18} fill="white" className="ml-0.5" />
+                          )}
                         </motion.button>
                       </div>
-
-                      {/* Effet de brillance au survol */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
+                      {/* Stats */}
+                      <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                        <div className="flex items-center gap-1">
+                          <Headphones size={12} />
+                          <span>{formatNumber(event.viewers)} spectateurs</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Heart size={12} />
+                          <span>{formatNumber(event.likes)} likes</span>
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 ))}
