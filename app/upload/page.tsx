@@ -229,26 +229,28 @@ export default function UploadPage() {
 
     try {
       // Upload audio vers Cloudinary
-      toast.loading('Upload audio en cours...');
+      const audioLoadingToast = toast.loading('Upload audio en cours...');
       setUploadProgress(prev => ({ ...prev, audio: 25 }));
       
       const audioResult = await uploadToCloudinary(audioFile, 'video');
       setUploadProgress(prev => ({ ...prev, audio: 75 }));
+      toast.dismiss(audioLoadingToast);
 
       // Upload cover si fourni
       let coverResult = null;
       if (coverFile) {
-        toast.loading('Upload image de couverture...');
+        const coverLoadingToast = toast.loading('Upload image de couverture...');
         setUploadProgress(prev => ({ ...prev, cover: 25 }));
         
         coverResult = await uploadToCloudinary(coverFile, 'image');
         setUploadProgress(prev => ({ ...prev, cover: 75 }));
+        toast.dismiss(coverLoadingToast);
       }
 
       setUploadProgress({ audio: 100, cover: 100 });
 
       // Sauvegarder en base de données
-      toast.loading('Sauvegarde en cours...');
+      const saveLoadingToast = toast.loading('Sauvegarde en cours...');
       
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -265,14 +267,18 @@ export default function UploadPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
+        toast.dismiss(saveLoadingToast);
         throw new Error(errorData.error || 'Erreur lors de la sauvegarde');
       }
 
       const result = await response.json();
+      toast.dismiss(saveLoadingToast);
       
       toast.success('Musique uploadée avec succès !');
       router.push('/');
     } catch (error) {
+      // Fermer toutes les notifications de chargement en cas d'erreur
+      toast.dismiss();
       toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'upload');
       console.error('Upload error:', error);
     } finally {
