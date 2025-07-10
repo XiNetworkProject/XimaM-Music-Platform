@@ -951,22 +951,32 @@ export const useAudioService = () => {
       // Auto-play automatique pour toutes les pistes (pas seulement les playlists)
       if (allTracks.length === 0) {
         console.log('Chargement des pistes pour auto-play...');
-        loadAllTracks().then(() => {
+        loadAllTracks().then((loadedTracks) => {
+          console.log('Pistes chargées pour auto-play:', loadedTracks.length);
           // Après chargement, essayer de jouer une piste aléatoire
-          if (allTracks.length > 0) {
-            const randomTrack = allTracks[Math.floor(Math.random() * allTracks.length)];
+          if (loadedTracks && loadedTracks.length > 0) {
+            const randomTrack = loadedTracks[Math.floor(Math.random() * loadedTracks.length)];
             console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
             loadTrack(randomTrack).then(() => {
               play();
               updatePlayCount(randomTrack._id);
+            }).catch((error) => {
+              console.error('Erreur lors du chargement de la piste auto-play:', error);
             });
+          } else {
+            console.log('Aucune piste disponible après chargement');
+            setState(prev => ({ ...prev, isPlaying: false }));
           }
+        }).catch((error) => {
+          console.error('Erreur lors du chargement des pistes pour auto-play:', error);
+          setState(prev => ({ ...prev, isPlaying: false }));
         });
         return;
       }
       
       // Sélection intelligente de la piste suivante
       let autoPlayNextTrack: Track | null = null;
+      console.log('🎯 Sélection intelligente - Pistes disponibles:', allTracks.length);
       
       // 1. Essayer une piste similaire
       if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
@@ -975,6 +985,7 @@ export const useAudioService = () => {
           track.genre && 
           track.genre.some(g => state.currentTrack!.genre!.includes(g))
         );
+        console.log('🎵 Pistes similaires trouvées:', similarTracks.length);
         if (similarTracks.length > 0) {
           autoPlayNextTrack = similarTracks[Math.floor(Math.random() * similarTracks.length)];
           console.log('Auto-play: Piste similaire sélectionnée:', autoPlayNextTrack.title);
@@ -1020,6 +1031,26 @@ export const useAudioService = () => {
         loadTrack(autoPlayNextTrack).then(() => {
           play();
           updatePlayCount(autoPlayNextTrack._id);
+        }).catch((error) => {
+          console.error('Erreur lors du chargement de la piste auto-play:', error);
+          // Essayer une autre piste en cas d'erreur
+          const availableTracks = allTracks.filter(track => 
+            track._id !== state.currentTrack?._id && 
+            track._id !== autoPlayNextTrack._id
+          );
+          if (availableTracks.length > 0) {
+            const fallbackTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
+            console.log('🎵 Auto-play fallback:', fallbackTrack.title);
+            loadTrack(fallbackTrack).then(() => {
+              play();
+              updatePlayCount(fallbackTrack._id);
+            }).catch((fallbackError) => {
+              console.error('Erreur fallback auto-play:', fallbackError);
+              setState(prev => ({ ...prev, isPlaying: false }));
+            });
+          } else {
+            setState(prev => ({ ...prev, isPlaying: false }));
+          }
         });
         setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
       } else {
