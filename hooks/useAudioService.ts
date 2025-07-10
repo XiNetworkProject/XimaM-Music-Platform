@@ -19,6 +19,7 @@ interface Track {
   plays: number;
   isLiked?: boolean;
   genre?: string[];
+  createdAt?: string;
 }
 
 interface AudioServiceState {
@@ -426,6 +427,11 @@ export const useAudioService = () => {
     try {
       if (track) {
         await loadTrack(track);
+        
+        // Mettre à jour l'historique des pistes jouées
+        const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+        const updatedHistory = [...recentlyPlayed, track._id].slice(-10); // Garder les 10 dernières
+        localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
       }
       
       if (audioRef.current) {
@@ -990,10 +996,28 @@ export const useAudioService = () => {
       let autoPlayNextTrack: Track | null = null;
       console.log('🎯 Sélection intelligente - Pistes disponibles:', allTracks.length);
       
-      // 1. Essayer une piste similaire
-      if (state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
+      // Filtrer les pistes récemment jouées (éviter les répétitions)
+      const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+      const avoidTracks = [state.currentTrack?._id, ...recentlyPlayed.slice(-3)].filter(Boolean);
+      
+      console.log('🚫 Pistes à éviter (récemment jouées):', avoidTracks);
+      
+      // 1. Essayer une piste récente (priorité aux nouvelles)
+      const recentTracks = allTracks.filter(track => 
+        !avoidTracks.includes(track._id) &&
+        track.createdAt &&
+        new Date(track.createdAt) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) // 7 derniers jours
+      );
+      console.log('🆕 Pistes récentes disponibles:', recentTracks.length);
+      if (recentTracks.length > 0) {
+        autoPlayNextTrack = recentTracks[Math.floor(Math.random() * recentTracks.length)];
+        console.log('Auto-play: Piste récente sélectionnée:', autoPlayNextTrack.title);
+      }
+      
+      // 2. Essayer une piste similaire
+      if (!autoPlayNextTrack && state.currentTrack && state.currentTrack.genre && state.currentTrack.genre.length > 0) {
         const similarTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack!._id && 
+          !avoidTracks.includes(track._id) &&
           track.genre && 
           track.genre.some(g => state.currentTrack!.genre!.includes(g))
         );
@@ -1004,10 +1028,10 @@ export const useAudioService = () => {
         }
       }
       
-      // 2. Essayer une recommandation personnalisée
+      // 3. Essayer une recommandation personnalisée
       if (!autoPlayNextTrack && session && session.user && session.user.id) {
         const recommendedTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack?._id && 
+          !avoidTracks.includes(track._id) &&
           track.likes.includes(session.user.id)
         );
         if (recommendedTracks.length > 0) {
@@ -1016,10 +1040,10 @@ export const useAudioService = () => {
         }
       }
       
-      // 3. Essayer une piste populaire
+      // 4. Essayer une piste populaire
       if (!autoPlayNextTrack) {
         const popularTracks = allTracks.filter(track => 
-          track._id !== state.currentTrack?._id && 
+          !avoidTracks.includes(track._id) &&
           track.likes.length > 5
         );
         if (popularTracks.length > 0) {
@@ -1028,9 +1052,9 @@ export const useAudioService = () => {
         }
       }
       
-      // 4. Piste aléatoire (fallback)
+      // 5. Piste aléatoire (fallback)
       if (!autoPlayNextTrack) {
-        const availableTracks = allTracks.filter(track => track._id !== state.currentTrack?._id);
+        const availableTracks = allTracks.filter(track => !avoidTracks.includes(track._id));
         if (availableTracks.length > 0) {
           autoPlayNextTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
           console.log('Auto-play: Piste aléatoire sélectionnée:', autoPlayNextTrack.title);
@@ -1040,6 +1064,12 @@ export const useAudioService = () => {
       if (autoPlayNextTrack) {
         // Charger et jouer la nouvelle piste
         console.log('🎵 Auto-play de la piste suivante:', autoPlayNextTrack.title);
+        
+        // Mettre à jour l'historique des pistes jouées
+        const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+        const updatedHistory = [...recentlyPlayed, autoPlayNextTrack._id].slice(-10); // Garder les 10 dernières
+        localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+        
         loadTrack(autoPlayNextTrack).then(() => {
           play();
           updatePlayCount(autoPlayNextTrack._id);
