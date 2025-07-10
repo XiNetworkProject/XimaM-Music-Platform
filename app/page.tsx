@@ -137,18 +137,7 @@ export default function HomePage() {
     console.log('État du dialog:', showProgramDialog);
   }, [showProgramDialog]);
 
-  // Détecter si on vient d'un upload et forcer le rechargement
-  useEffect(() => {
-    const isFromUpload = sessionStorage.getItem('fromUpload');
-    if (isFromUpload === 'true') {
-      // Vider le cache et recharger les données
-      dataCache.clear();
-      sessionStorage.removeItem('fromUpload');
-      
-      // Recharger toutes les catégories
-      fetchAllCategories(true);
-    }
-  }, []);
+
 
   // Obtenir la piste actuelle
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -219,7 +208,14 @@ export default function HomePage() {
             [key]: { ...prev[key], loading: true }
           }));
 
-          const response = await fetch(url);
+          // Ajouter un timestamp pour éviter le cache navigateur
+          const urlWithTimestamp = forceRefresh ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}` : url;
+          const response = await fetch(urlWithTimestamp, {
+            headers: {
+              'Cache-Control': 'no-cache',
+              'Pragma': 'no-cache'
+            }
+          });
           if (response.ok) {
             const data = await response.json();
             const tracksWithLikes = data.tracks.map((track: Track) => ({
@@ -510,6 +506,30 @@ export default function HomePage() {
   // Charger toutes les catégories au montage
   useEffect(() => {
     fetchAllCategories();
+  }, [fetchAllCategories]);
+
+  // Détecter si on vient d'un upload et forcer le rechargement
+  useEffect(() => {
+    const isFromUpload = sessionStorage.getItem('fromUpload');
+    if (isFromUpload === 'true') {
+      console.log('🔄 Détection upload - Rechargement forcé des données');
+      // Vider le cache et recharger les données
+      dataCache.clear();
+      sessionStorage.removeItem('fromUpload');
+      
+      // Recharger toutes les catégories
+      fetchAllCategories(true);
+    }
+  }, [fetchAllCategories]);
+
+  // Rechargement automatique périodique pour maintenir les données à jour
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('🔄 Rechargement automatique des données...');
+      fetchAllCategories(true);
+    }, 60000); // Recharger toutes les minutes
+
+    return () => clearInterval(interval);
   }, [fetchAllCategories]);
 
   // Fonction de rafraîchissement

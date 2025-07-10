@@ -67,7 +67,13 @@ export async function GET(request: NextRequest) {
       }
     ]);
 
-    return NextResponse.json({ tracks });
+    return NextResponse.json({ tracks }, {
+      headers: {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    });
   } catch (error) {
     console.error('Erreur récupération pistes populaires:', error);
     return NextResponse.json(
