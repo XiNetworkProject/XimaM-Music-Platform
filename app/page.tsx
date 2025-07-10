@@ -12,7 +12,8 @@ import {
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Disc3, Mic2, RefreshCw, Share2, Eye, 
-  Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity, X
+  Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity, X,
+  Newspaper, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -1714,60 +1715,60 @@ export default function HomePage() {
               {/* Résultats playlists */}
               {searchResults.playlists.length > 0 && (
                 <div className="mb-8">
-                  <h3 className="text-white font-semibold text-lg mb-4 flex items-center">
-                    <Music size={20} className="mr-2 text-green-400" />
-                    Playlists ({searchResults.playlists.length})
+                  <h3 className="text-white font-semibold text-xl mb-6 flex items-center gap-2">
+                    <Music size={24} className="text-green-400" />
+                    Playlists populaires ({searchResults.playlists.length})
                   </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                     {searchResults.playlists.map((playlist: any, index: number) => (
-                      <motion.div
+                      <div
                         key={playlist._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ y: -4, scale: 1.02 }}
-                        className="group cursor-pointer"
+                        className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-green-500 cursor-pointer"
+                        tabIndex={0}
+                        aria-label={`Playlist : ${playlist.title || 'Titre inconnu'} par ${playlist.creator?.name || 'Créateur inconnu'}`}
                       >
-                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
-                          {/* Badge Découverte */}
-                          {playlist.isDiscovery && (
-                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                              <Sparkles size={12} className="inline" />
-                              Découverte
-                            </div>
-                          )}
-                          {/* Image */}
-                          <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                            <img
-                              src={playlist.coverUrl || '/default-cover.jpg'}
-                              alt={playlist.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/default-cover.jpg';
-                              }}
-                            />
+                        {/* Image */}
+                        <div className="w-28 h-28 rounded-xl overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-green-500/20 to-emerald-500/20">
+                          <img
+                            src={playlist.coverUrl || '/default-cover.jpg'}
+                            alt={playlist.title || 'Titre inconnu'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = '/default-cover.jpg';
+                            }}
+                          />
+                        </div>
+                        {/* Titre */}
+                        <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                          {playlist.title || 'Titre inconnu'}
+                        </h4>
+                        {/* Créateur */}
+                        <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                          par {playlist.creator?.name || 'Créateur inconnu'}
+                        </p>
+                        {/* Bouton play */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePlayTrack(playlist.tracks?.[0]);
+                          }}
+                          className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center text-white shadow transition focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
+                          aria-label={`Écouter la playlist ${playlist.title || 'Titre inconnu'}`}
+                        >
+                          <Play size={18} className="ml-0.5" />
+                        </button>
+                        {/* Stats */}
+                        <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Music size={12} />
+                            <span>{playlist.trackCount || 0} titres</span>
                           </div>
-                          {/* Titre */}
-                          <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                            {playlist.title}
-                          </h4>
-                          {/* Créateur */}
-                          <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                            par {playlist.creator.name}
-                          </p>
-                          {/* Stats */}
-                          <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Music size={12} />
-                              <span>{playlist.trackCount} titres</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Heart size={12} />
-                              <span>{formatNumber(playlist.likes)}</span>
-                            </div>
+                          <div className="flex items-center gap-1">
+                            <Heart size={12} />
+                            <span>{formatNumber(playlist.likes)}</span>
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -1804,110 +1805,90 @@ export default function HomePage() {
         </motion.div>
       </section>
 
-      {/* Section Découvertes du Jour - Design futuriste */}
+      {/* Section Découvertes du Jour - Design Spotify compact */}
       {dailyDiscoveries.length > 0 && (
-        <section className="container mx-auto px-6 py-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-6"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30">
-                  <Gift size={20} className="text-yellow-400" />
+        <section className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Gift size={28} className="text-yellow-400" />
+              <div>
+                <h2 className="text-2xl font-bold text-white">Découvertes du Jour</h2>
+                <p className="text-gray-400 text-sm">Nos coups de cœur sélectionnés rien que pour vous</p>
+              </div>
+            </div>
+            <button
+              className="text-purple-400 hover:text-purple-300 font-medium text-sm px-4 py-2 rounded-lg border border-purple-500/30 bg-purple-900/10 transition"
+            >
+              Voir tout
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {dailyDiscoveries.map((track, index) => (
+              <div
+                key={track._id}
+                className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500"
+                tabIndex={0}
+                aria-label={`Découverte : ${track.title || 'Titre inconnu'} par ${track.artist?.name || track.artist?.username || 'Artiste inconnu'}`}
+              >
+                {/* Badge Découverte */}
+                <div className="absolute top-4 left-4 z-10">
+                  <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold flex items-center gap-1">
+                    <Sparkles size={12} className="inline" /> Découverte
+                  </span>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Découvertes du Jour</h2>
-                  <p className="text-gray-400 text-sm">Nos coups de cœur sélectionnés</p>
+                {/* Image */}
+                <div className="w-28 h-28 rounded-xl overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                  <img
+                    src={track.coverUrl || '/default-cover.jpg'}
+                    alt={track.title || 'Titre inconnu'}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.currentTarget.src = '/default-cover.jpg';
+                    }}
+                  />
+                </div>
+                {/* Titre */}
+                <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                  {track.title || 'Titre inconnu'}
+                </h4>
+                {/* Artiste */}
+                <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                  {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                </p>
+                {/* Durée + Bouton play */}
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                    {formatDuration(track.duration)}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayTrack(track);
+                    }}
+                    className="w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white shadow transition focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    aria-label={`Écouter ${track.title || 'Titre inconnu'}`}
+                  >
+                    {currentTrack?._id === track._id && audioState.isPlaying ? (
+                      <Pause size={18} />
+                    ) : (
+                      <Play size={18} className="ml-0.5" />
+                    )}
+                  </button>
+                </div>
+                {/* Stats */}
+                <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                  <div className="flex items-center gap-1">
+                    <Headphones size={12} />
+                    <span>{formatNumber(track.plays)}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Heart size={12} />
+                    <span>{track.likes.length}</span>
+                  </div>
                 </div>
               </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="text-purple-400 hover:text-purple-300 font-medium text-sm"
-              >
-                Voir tout
-              </motion.button>
-            </div>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {dailyDiscoveries.map((track, index) => (
-                <motion.div
-                  key={track._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -4, scale: 1.02 }}
-                  className="group cursor-pointer"
-                >
-                  <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
-                    {/* Badge Découverte */}
-                    {track.isDiscovery && (
-                      <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                        <Sparkles size={12} className="inline" />
-                        Découverte
-                      </div>
-                    )}
-                    {/* Image */}
-                    <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                      <img
-                        src={track.coverUrl || '/default-cover.jpg'}
-                        alt={track.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = '/default-cover.jpg';
-                        }}
-                      />
-                    </div>
-                    {/* Titre */}
-                    <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                      {track.title || 'Titre inconnu'}
-                    </h4>
-                    {/* Artiste */}
-                    <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                      {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                    </p>
-                    {/* Durée + Bouton play */}
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                        {formatDuration(track.duration)}
-                      </span>
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePlayTrack(track);
-                        }}
-                        className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
-                      >
-                        {currentTrack?._id === track._id && audioState.isPlaying ? (
-                          <Pause size={18} fill="white" />
-                        ) : (
-                          <Play size={18} fill="white" className="ml-0.5" />
-                        )}
-                      </motion.button>
-                    </div>
-                    {/* Stats */}
-                    <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Headphones size={12} />
-                        <span>{formatNumber(track.plays)}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Heart size={12} />
-                        <span>{track.likes.length}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </motion.div>
+            ))}
+          </div>
         </section>
       )}
 
@@ -1981,41 +1962,39 @@ export default function HomePage() {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {popularUsers.map((user, index) => (
-                  <motion.div
+                  <div
                     key={user._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '50px' }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                    whileHover={{ y: -2, scale: 1.02 }}
-                    className="group cursor-pointer text-center"
+                    className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer text-center"
+                    tabIndex={0}
+                    aria-label={`Artiste : ${user.name || user.username}`}
                     onClick={() => router.push(`/profile/${user.username}`)}
                   >
-                    <div className="relative mb-2">
+                    {/* Avatar */}
+                    <div className="relative mb-3">
                       <img
                         src={user.avatar || '/default-avatar.png'}
                         alt={user.name || user.username}
-                        className="w-16 h-16 rounded-full mx-auto object-cover group-hover:ring-2 ring-purple-500/50 transition-all duration-300"
+                        className="w-20 h-20 rounded-full mx-auto object-cover group-hover:ring-2 ring-purple-500/50 transition-all duration-300"
                       />
-                      <motion.button
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.9 }}
+                      <button
                         onClick={(e) => {
                           e.stopPropagation();
                           // Logique follow/unfollow ici
                         }}
-                        className="absolute bottom-0 right-0 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                        className="absolute bottom-1 right-1 w-8 h-8 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white shadow opacity-0 group-hover:opacity-100 transition-opacity duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        aria-label={`Suivre ${user.name || user.username}`}
                       >
-                        <UserPlus size={12} className="text-white" />
-                      </motion.button>
+                        <UserPlus size={16} />
+                      </button>
                     </div>
-                    <h3 className="font-medium text-white text-xs truncate">{user.name || user.username}</h3>
+                    <h3 className="font-semibold text-white text-base truncate w-full mb-0.5">{user.name || user.username}</h3>
+                    <p className="text-gray-400 text-xs mb-1">@{user.username}</p>
                     <p className="text-gray-400 text-xs">{user.followers?.length || 0} abonnés</p>
-                  </motion.div>
-              ))}
-            </div>
+                  </div>
+                ))}
+              </div>
             )}
           </motion.div>
         </section>
@@ -2249,97 +2228,98 @@ export default function HomePage() {
         </section>
 
         {/* Section Créations Récentes */}
-        <section className="container mx-auto px-8">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Nouvelles Créations</h2>
-                <p className="text-gray-400">Les dernières créations partagées par la communauté</p>
-              </div>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="text-purple-400 hover:text-purple-300 font-medium"
-              >
-                Voir tout
-              </motion.button>
+        <section className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Nouvelles Créations</h2>
+              <p className="text-gray-400">Les dernières créations partagées par la communauté</p>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {dailyDiscoveries.length > 0 ? (
-                dailyDiscoveries.map((track, index) => (
-                  <motion.div
-                    key={track._id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '50px' }}
-                    transition={{ duration: 0.4, delay: index * 0.1 }}
-                    whileHover={{ y: -8, scale: 1.02 }}
-                    className="group cursor-pointer"
-                  >
-                    <div className="relative rounded-xl overflow-hidden">
-                      <div className="aspect-square bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center relative">
-                        <img
-                          src={track.coverUrl || '/default-cover.jpg'}
-                          alt={track.title}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = '/default-cover.jpg';
-                          }}
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handlePlayTrack(track)}
-                            className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
-                          >
-                            <Play size={20} fill="white" className="ml-1" />
-                          </motion.button>
-                        </div>
-                      </div>
-                      <div className="p-3 bg-black/80 backdrop-blur-sm">
-                        <h3 className="font-semibold text-white text-sm truncate">{track.title || 'Titre inconnu'}</h3>
-                        <p className="text-gray-400 text-xs">{track.artist?.name || track.artist?.username || 'Artiste inconnu'}</p>
-                        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-                          <div className="flex items-center space-x-1">
-                            <Headphones size={10} />
-                            <span>{formatNumber(track.plays)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <Heart size={10} />
-                            <span>{formatNumber(track.likes.length)}</span>
-                          </div>
-                        </div>
-                      </div>
+            <button
+              className="text-purple-400 hover:text-purple-300 font-medium text-sm px-4 py-2 rounded-lg border border-purple-500/30 bg-purple-900/10 transition"
+            >
+              Voir tout
+            </button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            {dailyDiscoveries.length > 0 ? (
+              dailyDiscoveries.map((track, index) => (
+                <div
+                  key={track._id}
+                  className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer"
+                  tabIndex={0}
+                  aria-label={`Création : ${track.title || 'Titre inconnu'} par ${track.artist?.name || track.artist?.username || 'Artiste inconnu'}`}
+                >
+                  {/* Image */}
+                  <div className="w-28 h-28 rounded-xl overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                    <img
+                      src={track.coverUrl || '/default-cover.jpg'}
+                      alt={track.title || 'Titre inconnu'}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = '/default-cover.jpg';
+                      }}
+                    />
+                  </div>
+                  {/* Titre */}
+                  <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
+                    {track.title || 'Titre inconnu'}
+                  </h4>
+                  {/* Artiste */}
+                  <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
+                    {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                  </p>
+                  {/* Durée + Bouton play */}
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                      {formatDuration(track.duration)}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayTrack(track);
+                      }}
+                      className="w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white shadow transition focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      aria-label={`Écouter ${track.title || 'Titre inconnu'}`}
+                    >
+                      {currentTrack?._id === track._id && audioState.isPlaying ? (
+                        <Pause size={18} />
+                      ) : (
+                        <Play size={18} className="ml-0.5" />
+                      )}
+                    </button>
+                  </div>
+                  {/* Stats */}
+                  <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      <Headphones size={12} />
+                      <span>{formatNumber(track.plays)}</span>
                     </div>
-                  </motion.div>
-                ))
-              ) : (
-                // Skeleton loading si pas de données
-                [...Array(6)].map((_, index) => (
-                  <div key={index} className="animate-pulse">
-                    <div className="relative rounded-xl overflow-hidden">
-                      <div className="aspect-square bg-gray-800"></div>
-                      <div className="p-3 bg-gray-800">
-                        <div className="h-4 bg-gray-700 rounded mb-1"></div>
-                        <div className="h-3 bg-gray-700 rounded w-2/3 mb-2"></div>
-                        <div className="flex justify-between">
-                          <div className="h-3 bg-gray-700 rounded w-1/3"></div>
-                          <div className="h-3 bg-gray-700 rounded w-1/4"></div>
-                        </div>
+                    <div className="flex items-center gap-1">
+                      <Heart size={12} />
+                      <span>{Array.isArray(track.likes) ? track.likes.length : 0}</span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              // Skeleton loading si pas de données
+              [...Array(6)].map((_, index) => (
+                <div key={index} className="animate-pulse">
+                  <div className="relative rounded-xl overflow-hidden">
+                    <div className="aspect-square bg-gray-800"></div>
+                    <div className="p-3 bg-gray-800">
+                      <div className="h-4 bg-gray-700 rounded mb-1"></div>
+                      <div className="h-3 bg-gray-700 rounded w-2/3 mb-2"></div>
+                      <div className="flex justify-between">
+                        <div className="h-3 bg-gray-700 rounded w-1/3"></div>
+                        <div className="h-3 bg-gray-700 rounded w-1/4"></div>
                       </div>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
-          </motion.div>
+                </div>
+              ))
+            )}
+          </div>
         </section>
 
         {/* Section Collaborations Récentes */}
@@ -2570,9 +2550,14 @@ export default function HomePage() {
             className="mb-8"
           >
             <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white">Actualités</h2>
-                <p className="text-gray-400">Les dernières nouvelles de la communauté</p>
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500">
+                  <Newspaper size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">📰 Actualités</h2>
+                  <p className="text-gray-400">Les dernières nouvelles de la communauté</p>
+                </div>
               </div>
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -2582,24 +2567,28 @@ export default function HomePage() {
                 Voir tout
               </motion.button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
                 { 
                   title: 'Nouvelle fonctionnalité : Playlists collaboratives', 
                   excerpt: 'Créez et partagez des playlists avec vos amis en temps réel',
                   date: 'Il y a 2 jours',
+                  icon: Users,
                   color: 'from-purple-500 to-pink-500'
                 },
                 { 
                   title: 'Artiste de la semaine : Luna Sky', 
                   excerpt: 'Découvrez cette artiste émergente et ses derniers titres',
                   date: 'Il y a 5 jours',
+                  icon: Star,
                   color: 'from-blue-500 to-cyan-500'
                 },
                 { 
                   title: 'Mise à jour de l\'application', 
                   excerpt: 'Nouvelles fonctionnalités et améliorations de performance',
                   date: 'Il y a 1 semaine',
+                  icon: Download,
                   color: 'from-green-500 to-emerald-500'
                 }
               ].map((news, index) => (
@@ -2609,15 +2598,42 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: '50px' }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  whileHover={{ y: -5, scale: 1.02 }}
+                  whileHover={{ y: -4, scale: 1.02 }}
                   className="group cursor-pointer"
                 >
-                  <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${news.color} hover:shadow-2xl transition-all duration-300`}>
-                    <div className="absolute inset-0 bg-black/20 rounded-2xl group-hover:bg-black/10 transition-colors"></div>
-                    <div className="relative z-10">
-                      <h3 className="text-white font-semibold mb-2 group-hover:text-purple-200 transition-colors">{news.title}</h3>
-                      <p className="text-white/80 text-sm mb-3">{news.excerpt}</p>
-                      <p className="text-white/60 text-xs">{news.date}</p>
+                  <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
+                    {/* Badge Nouveau */}
+                    <div className="absolute top-3 right-3 bg-gradient-to-r from-green-400 to-emerald-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10">
+                      Nouveau
+                    </div>
+                    
+                    {/* Icône */}
+                    <div className={`w-12 h-12 rounded-lg mb-3 flex items-center justify-center bg-gradient-to-br ${news.color}`}>
+                      <news.icon size={20} className="text-white" />
+                    </div>
+                    
+                    {/* Titre */}
+                    <h3 className="font-semibold text-white text-sm mb-2 line-clamp-2 group-hover:text-purple-200 transition-colors">
+                      {news.title || 'Titre inconnu'}
+                    </h3>
+                    
+                    {/* Extrait */}
+                    <p className="text-gray-300 text-xs mb-3 line-clamp-2">
+                      {news.excerpt || 'Aucune description disponible'}
+                    </p>
+                    
+                    {/* Date */}
+                    <div className="flex items-center justify-between w-full pt-2 border-t border-gray-700">
+                      <span className="text-gray-400 text-xs">
+                        {news.date || 'Date inconnue'}
+                      </span>
+                      <motion.button
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="text-purple-400 hover:text-purple-300 text-xs font-medium"
+                      >
+                        Lire plus →
+                      </motion.button>
                     </div>
                   </div>
                 </motion.div>
@@ -2635,17 +2651,24 @@ export default function HomePage() {
             transition={{ duration: 0.6 }}
             className="mb-8"
           >
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-4">Notre Communauté en Chiffres</h2>
-              <p className="text-gray-400 text-lg">Découvrez l'impact de notre plateforme musicale</p>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-4">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
+                  <BarChart3 size={24} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">📊 Statistiques Communauté</h2>
+                  <p className="text-gray-400">Découvrez l'impact de notre plateforme</p>
+                </div>
+              </div>
             </div>
             
             {statsLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {communityStats.map((stat, index) => (
                   <motion.div
                     key={stat.label}
@@ -2653,66 +2676,40 @@ export default function HomePage() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true, margin: '50px' }}
                     transition={{ duration: 0.4, delay: index * 0.1 }}
-                    whileHover={{ y: -5, scale: 1.02 }}
+                    whileHover={{ y: -4, scale: 1.02 }}
                     className="group cursor-pointer text-center"
                   >
-                    <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${stat.color} hover:shadow-2xl transition-all duration-300 border border-white/10 overflow-hidden`}>
-                      {/* Effet de particules animées */}
-                      <div className="absolute inset-0 opacity-20">
-                        {[...Array(3)].map((_, i) => (
-                          <motion.div
-                            key={i}
-                            className="absolute w-2 h-2 bg-white rounded-full"
-                            animate={{
-                              x: [0, 100, 0],
-                              y: [0, -50, 0],
-                              opacity: [0, 1, 0],
-                            }}
-                            transition={{
-                              duration: 3 + i,
-                              repeat: Infinity,
-                              delay: i * 0.5,
-                            }}
-                            style={{
-                              left: Math.random() * 100 + '%',
-                              top: Math.random() * 100 + '%',
-                            }}
-                          />
-                        ))}
+                    <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
+                      {/* Icône */}
+                      <div className="w-12 h-12 rounded-lg mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500 mx-auto">
+                        {stat.icon === 'Music' && <Music size={20} className="text-white" />}
+                        {stat.icon === 'Users' && <Users size={20} className="text-white" />}
+                        {stat.icon === 'Heart' && <Heart size={20} className="text-white" />}
+                        {stat.icon === 'Headphones' && <Headphones size={20} className="text-white" />}
                       </div>
-
-                      <div className="relative z-10">
-                        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                          {stat.icon === 'Music' && <Music size={28} className="text-white" />}
-                          {stat.icon === 'Users' && <Users size={28} className="text-white" />}
-                          {stat.icon === 'Heart' && <Heart size={28} className="text-white" />}
-                          {stat.icon === 'Headphones' && <Headphones size={28} className="text-white" />}
-                        </div>
-                        
-                        <motion.div 
-                          className="text-3xl font-bold text-white mb-2"
-                          initial={{ scale: 0 }}
-                          whileInView={{ scale: 1 }}
-                          viewport={{ once: true }}
-                          transition={{ duration: 0.5, delay: index * 0.1 + 0.3 }}
-                        >
-                          {stat.value}
-                        </motion.div>
-                        
-                        <div className="text-white font-semibold mb-1">{stat.label}</div>
-                        <div className="text-white/70 text-sm">{stat.growth}</div>
+                      
+                      {/* Valeur */}
+                      <div className="text-2xl font-bold text-white mb-1">
+                        {stat.value || '0'}
                       </div>
-
-                      {/* Effet de brillance au survol */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
+                      
+                      {/* Label */}
+                      <div className="text-white font-medium text-sm mb-1">
+                        {stat.label || 'Statistique'}
+                      </div>
+                      
+                      {/* Croissance */}
+                      <div className="text-gray-400 text-xs">
+                        {stat.growth || '+0% ce mois'}
+                      </div>
                     </div>
                   </motion.div>
                 ))}
               </div>
             )}
 
-            {/* Statistiques supplémentaires */}
-            <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Statistiques supplémentaires compactes */}
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
               {[
                 { 
                   title: 'Temps d\'écoute moyen', 
@@ -2739,14 +2736,14 @@ export default function HomePage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true, margin: '50px' }}
                   transition={{ duration: 0.4, delay: index * 0.1 }}
-                  className="flex items-center space-x-4 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
+                  className="flex items-center space-x-3 p-3 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300"
                 >
-                  <div className={`p-3 rounded-lg bg-gradient-to-r ${stat.color}`}>
-                    <stat.icon size={20} className="text-white" />
+                  <div className={`p-2 rounded-lg bg-gradient-to-r ${stat.color}`}>
+                    <stat.icon size={16} className="text-white" />
                   </div>
-                  <div>
-                    <div className="text-white font-semibold">{stat.value}</div>
-                    <div className="text-gray-400 text-sm">{stat.title}</div>
+                  <div className="flex-1">
+                    <div className="text-white font-semibold text-sm">{stat.value}</div>
+                    <div className="text-gray-400 text-xs">{stat.title}</div>
                   </div>
                 </motion.div>
               ))}
@@ -2754,7 +2751,7 @@ export default function HomePage() {
           </motion.div>
         </section>
 
-        {/* Section Recommandations Personnalisées - Design futuriste */}
+        {/* Section Recommandations Personnalisées */}
         {session && (
           <section className="container mx-auto px-8">
             <motion.div
@@ -2785,13 +2782,13 @@ export default function HomePage() {
               </div>
 
               {recommendationsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+                <div className="flex items-center justify-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                 </div>
               ) : (
                 <>
-                  {/* Cartes de recommandations */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Cartes de recommandations compactes */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {personalRecommendations.map((rec, index) => (
                       <motion.div
                         key={rec.title}
@@ -2799,47 +2796,53 @@ export default function HomePage() {
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true, margin: '50px' }}
                         transition={{ duration: 0.4, delay: index * 0.1 }}
-                        whileHover={{ y: -8, scale: 1.02 }}
+                        whileHover={{ y: -4, scale: 1.02 }}
                         className="group cursor-pointer"
                       >
-                        <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${rec.color} hover:shadow-2xl transition-all duration-300 border border-white/10 overflow-hidden`}>
+                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
                           {/* Badge de confiance */}
-                          <div className="absolute top-4 right-4">
-                            <div className="bg-white/20 backdrop-blur-sm text-white px-2 py-1 rounded-full text-xs font-semibold">
-                              {rec.confidence}
+                          <div className="absolute top-3 right-3">
+                            <div className="bg-gradient-to-r from-green-400 to-emerald-400 text-white px-2 py-0.5 rounded-full text-xs font-semibold">
+                              {rec.confidence || '95%'}
                             </div>
                           </div>
 
-                          {/* Type de recommandation */}
-                          <div className="text-white/80 text-sm font-medium mb-3">{rec.type}</div>
-
                           {/* Icône */}
-                          <div className="mb-4">
-                            {rec.icon === 'UserPlus' && <UserPlus size={32} className="text-white" />}
-                            {rec.icon === 'TrendingUp' && <TrendingUp size={32} className="text-white" />}
-                            {rec.icon === 'Sparkles' && <Sparkles size={32} className="text-white" />}
+                          <div className="w-12 h-12 rounded-lg mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500 to-pink-500">
+                            {rec.icon === 'UserPlus' && <UserPlus size={20} className="text-white" />}
+                            {rec.icon === 'TrendingUp' && <TrendingUp size={20} className="text-white" />}
+                            {rec.icon === 'Sparkles' && <Sparkles size={20} className="text-white" />}
+                          </div>
+
+                          {/* Type de recommandation */}
+                          <div className="text-purple-400 text-xs font-medium mb-2">
+                            {rec.type || 'Recommandation'}
                           </div>
 
                           {/* Contenu */}
-                          <h3 className="text-white font-semibold text-lg mb-2 group-hover:text-purple-200 transition-colors">
-                            {rec.title}
+                          <h3 className="font-semibold text-white text-sm mb-2 line-clamp-2 group-hover:text-purple-200 transition-colors">
+                            {rec.title || 'Titre de recommandation'}
                           </h3>
-                          <p className="text-white/80 text-sm mb-4">{rec.description}</p>
+                          <p className="text-gray-300 text-xs mb-3 line-clamp-2">
+                            {rec.description || 'Description de la recommandation'}
+                          </p>
 
-                          {/* Tracks recommandées */}
+                          {/* Tracks recommandées compactes */}
                           {rec.tracks && rec.tracks.length > 0 && (
-                            <div className="space-y-2 mb-4">
+                            <div className="space-y-1 mb-3">
                               {rec.tracks.slice(0, 2).map((track: Track) => (
-                                <div key={track._id} className="flex items-center space-x-2 p-2 bg-white/10 rounded-lg">
+                                <div key={track._id} className="flex items-center space-x-2 p-1.5 bg-white/5 rounded">
                                   <img
                                     src={track.coverUrl || '/default-cover.jpg'}
                                     alt={track.title}
-                                    className="w-8 h-8 rounded object-cover"
+                                    className="w-6 h-6 rounded object-cover"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-white text-xs font-medium truncate">{track.title}</p>
-                                    <p className="text-white/70 text-xs truncate">
-                                      {track.artist?.name || track.artist?.username}
+                                    <p className="text-white text-xs font-medium truncate">
+                                      {track.title || 'Titre inconnu'}
+                                    </p>
+                                    <p className="text-gray-400 text-xs truncate">
+                                      {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                                     </p>
                                   </div>
                                   <motion.button
@@ -2849,9 +2852,9 @@ export default function HomePage() {
                                       e.stopPropagation();
                                       handlePlayTrack(track);
                                     }}
-                                    className="w-6 h-6 bg-white/20 rounded-full flex items-center justify-center"
+                                    className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center"
                                   >
-                                    <Play size={10} fill="white" className="ml-0.5" />
+                                    <Play size={8} fill="white" className="ml-0.5" />
                                   </motion.button>
                                 </div>
                               ))}
@@ -2862,23 +2865,20 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="w-full bg-white/20 backdrop-blur-sm text-white py-2 rounded-lg font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
+                            className="w-full bg-white/20 backdrop-blur-sm text-white py-1.5 rounded-lg text-xs font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
                           >
-                            Découvrir
+                            Découvrir →
                           </motion.button>
-
-                          {/* Effet de brillance au survol */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 transform -skew-x-12 -translate-x-full group-hover:translate-x-full"></div>
                         </div>
                       </motion.div>
                     ))}
                   </div>
 
-                  {/* Insights personnalisés */}
+                  {/* Insights personnalisés compacts */}
                   {userPreferences && (
-                    <div className="mt-8 p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-                      <h3 className="text-white font-semibold text-lg mb-4">Vos Insights Musicaux</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="mt-6 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
+                      <h3 className="text-white font-semibold text-sm mb-3">Vos Insights Musicaux</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {[
                           { 
                             label: 'Genres préférés', 
@@ -2902,12 +2902,12 @@ export default function HomePage() {
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true, margin: '50px' }}
                             transition={{ duration: 0.4, delay: index * 0.1 }}
-                            className="flex items-center space-x-3"
+                            className="flex items-center space-x-2"
                           >
-                            <insight.icon size={20} className="text-purple-400" />
-                            <div>
-                              <div className="text-white font-medium">{insight.value}</div>
-                              <div className="text-gray-400 text-sm">{insight.label}</div>
+                            <insight.icon size={16} className="text-purple-400" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-white font-medium text-xs truncate">{insight.value}</div>
+                              <div className="text-gray-400 text-xs truncate">{insight.label}</div>
                             </div>
                           </motion.div>
                         ))}
@@ -2920,7 +2920,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Section Activité Récente - Design futuriste */}
+        {/* Section Activité Récente */}
         {recentActivity.followedActivities.length > 0 && (
           <section className="container mx-auto px-8">
             <motion.div
@@ -2949,18 +2949,18 @@ export default function HomePage() {
                 </motion.button>
               </div>
               
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {activityLoading ? (
-                  // Skeleton loading pour l'activité
+                  // Skeleton loading compact pour l'activité
                   [...Array(3)].map((_, index) => (
                     <div key={index} className="animate-pulse">
-                      <div className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg">
-                        <div className="w-12 h-12 bg-gray-700 rounded-full"></div>
+                      <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
+                        <div className="w-8 h-8 bg-gray-700 rounded-full"></div>
                         <div className="flex-1">
-                          <div className="h-4 bg-gray-700 rounded mb-2"></div>
-                          <div className="h-3 bg-gray-700 rounded w-2/3"></div>
+                          <div className="h-3 bg-gray-700 rounded mb-1"></div>
+                          <div className="h-2 bg-gray-700 rounded w-1/2"></div>
                         </div>
-                        <div className="h-3 bg-gray-700 rounded w-16"></div>
+                        <div className="h-2 bg-gray-700 rounded w-12"></div>
                       </div>
                     </div>
                   ))
@@ -2972,25 +2972,37 @@ export default function HomePage() {
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true, margin: '50px' }}
                       transition={{ duration: 0.4, delay: index * 0.1 }}
-                      className="flex items-center space-x-4 p-4 bg-gray-800/50 rounded-lg hover:bg-gray-800/70 transition-colors cursor-pointer"
+                      whileHover={{ y: -2, scale: 1.01 }}
+                      className="flex items-center space-x-3 p-3 bg-white/10 dark:bg-gray-800/60 border border-gray-700 rounded-lg hover:bg-white/15 transition-all duration-200 cursor-pointer"
                     >
-                      <div className={`w-12 h-12 rounded-full bg-gradient-to-br ${activity.color} flex items-center justify-center`}>
+                      {/* Avatar */}
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
                         <img
-                          src={activity.avatar}
-                          alt={activity.artist}
-                          className="w-full h-full rounded-full object-cover"
+                          src={activity.avatar || '/default-avatar.png'}
+                          alt={activity.artist || 'Utilisateur'}
+                          className="w-full h-full object-cover"
                           onError={(e) => {
                             e.currentTarget.src = '/default-avatar.png';
                           }}
                         />
                       </div>
-                      <div className="flex-1">
-                        <p className="text-white font-medium">
-                          <span className="text-purple-400">{activity.artist}</span> {activity.action}
+                      
+                      {/* Contenu */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white font-medium text-sm truncate">
+                          <span className="text-purple-400">
+                            {activity.artist || 'Utilisateur'}
+                          </span> {activity.action || 'a partagé'}
                         </p>
-                        <p className="text-gray-400 text-sm">{activity.track}</p>
+                        <p className="text-gray-400 text-xs truncate">
+                          {activity.track || 'une musique'}
+                        </p>
                       </div>
-                      <span className="text-gray-500 text-sm">{activity.time}</span>
+                      
+                      {/* Temps */}
+                      <span className="text-gray-500 text-xs flex-shrink-0">
+                        {activity.time || 'À l\'instant'}
+                      </span>
                     </motion.div>
                   ))
                 )}
@@ -3043,7 +3055,7 @@ export default function HomePage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                   {tracks.map((track, index) => (
                     <motion.div
                       key={track._id}
@@ -3051,86 +3063,80 @@ export default function HomePage() {
                       whileInView={{ opacity: 1, y: 0 }}
                       viewport={{ once: true, margin: '50px' }}
                       transition={{ duration: 0.4, delay: index * 0.05 }}
-                      whileHover={{ y: -8, scale: 1.02 }}
+                      whileHover={{ y: -4, scale: 1.02 }}
                       className="group cursor-pointer"
                     >
-                      <div className={`relative rounded-xl overflow-hidden hover:shadow-2xl transition-all duration-300 ${config.bgColor} ${config.borderColor} border`}>
-                        {/* Cover avec lazy loading */}
-                        <div className="relative aspect-square">
+                      <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
+                        {/* Badge Découverte */}
+                        {track.isDiscovery && (
+                          <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                            <Sparkles size={12} className="inline" />
+                            Découverte
+                          </div>
+                        )}
+                        
+                        {/* Image */}
+                        <div className="w-20 h-20 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                           <img
                             src={track.coverUrl || '/default-cover.jpg'}
-                            alt={track.title}
-                            loading="lazy"
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                            alt={track.title || 'Titre inconnu'}
+                            className="w-full h-full object-cover"
                             onError={(e) => {
                               e.currentTarget.src = '/default-cover.jpg';
                             }}
                           />
-                          
-                          {/* Overlay avec bouton play */}
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePlayTrack(track);
-                              }}
-                              className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
-                            >
-                              {currentTrack?._id === track._id && audioState.isPlaying ? (
-                                <Pause size={24} fill="white" />
-                              ) : (
-                                <Play size={24} fill="white" className="ml-1" />
-                              )}
-                            </motion.button>
-                          </div>
-
-                          {/* Badge durée */}
-                          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                            {formatDuration(track.duration)}
-                          </div>
-
-                          {/* Badge date pour les récentes */}
-                          {config.key === 'recent' && (
-                            <div className="absolute top-2 left-2 bg-green-500/90 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
-                              {formatDate(track.createdAt)}
-                            </div>
-                          )}
                         </div>
-
-                        {/* Info */}
-                        <div className="p-4">
-                          <h3 
-                            className="font-semibold text-white truncate mb-1 group-hover:text-purple-300 transition-colors cursor-pointer"
+                        
+                        {/* Titre */}
+                        <h3 className="font-semibold text-white text-sm mb-1 truncate">
+                          {track.title || 'Titre inconnu'}
+                        </h3>
+                        
+                        {/* Artiste */}
+                        <p className="text-gray-300 text-xs mb-2 truncate">
+                          {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                        </p>
+                        
+                        {/* Durée + Bouton play */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                            {formatDuration(track.duration)}
+                          </span>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePlayTrack(track);
+                            }}
+                            className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
                           >
-                            {track.title || 'Titre inconnu'}
-                          </h3>
-                          <p 
-                            className="text-gray-300 text-sm truncate mb-3 cursor-pointer hover:text-purple-300 transition-colors"
-                          >
-                            {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                          </p>
-                          
-                          {/* Stats */}
-                          <div className="flex items-center justify-between text-xs text-gray-500">
-                            <div className="flex items-center space-x-2">
-                              <Headphones size={12} />
-                              <span>{formatNumber(track.plays)}</span>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={track.likes.length}
-                                isActive={track.isLiked || track.likes.includes(user?.id || '')}
-                                onToggle={async (newState) => {
-                                  await handleLikeTrack(track._id, config.key, index);
-                                }}
-                                size="sm"
-                                showIcon={true}
-                                className="text-gray-500 hover:text-red-500"
-                              />
-                            </div>
+                            {currentTrack?._id === track._id && audioState.isPlaying ? (
+                              <Pause size={14} fill="white" />
+                            ) : (
+                              <Play size={14} fill="white" className="ml-0.5" />
+                            )}
+                          </motion.button>
+                        </div>
+                        
+                        {/* Stats */}
+                        <div className="flex items-center justify-between w-full pt-2 border-t border-gray-700 text-xs text-gray-400">
+                          <div className="flex items-center gap-1">
+                            <Headphones size={12} />
+                            <span>{formatNumber(track.plays)}</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <InteractiveCounter
+                              type="likes"
+                              initialCount={track.likes.length}
+                              isActive={track.isLiked || track.likes.includes(user?.id || '')}
+                              onToggle={async (newState) => {
+                                await handleLikeTrack(track._id, config.key, index);
+                              }}
+                              size="sm"
+                              showIcon={true}
+                              className="text-gray-400 hover:text-red-500"
+                            />
                           </div>
                         </div>
                       </div>
