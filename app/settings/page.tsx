@@ -52,6 +52,24 @@ export default function SettingsPage() {
     privacy: 'Public'
   });
 
+  // Affichage si non connecté
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <h2 className="text-2xl font-bold text-purple-400 mb-4 flex items-center gap-2">
+          <Settings size={28} className="text-purple-400" /> Paramètres
+        </h2>
+        <p className="text-gray-300 mb-6 text-center">Vous devez être connecté pour accéder à vos paramètres.</p>
+        <button
+          onClick={() => router.push('/auth/signin')}
+          className="px-6 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold shadow transition-all"
+        >
+          Se connecter
+        </button>
+      </div>
+    );
+  }
+
   const settingSections: SettingSection[] = [
     {
       id: 'account',
