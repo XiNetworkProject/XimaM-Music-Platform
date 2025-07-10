@@ -42,11 +42,11 @@ async function checkAndUpdateServiceWorker() {
         });
       });
       
-      // Recharger la page après un délai
-      setTimeout(() => {
-        console.log('🔄 Rechargement de la page pour appliquer les mises à jour...');
-        window.location.reload();
-      }, 1000);
+      // Désactivé : reload automatique supprimé
+      // setTimeout(() => {
+      //   console.log('🔄 Rechargement de la page pour appliquer les mises à jour...');
+      //   window.location.reload();
+      // }, 1000);
       
       return;
     }
@@ -151,8 +151,9 @@ function initAutoUpdate() {
   // Écouter les événements de mise à jour
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      console.log('🔄 Contrôleur Service Worker changé, rechargement...');
-      window.location.reload();
+      // Désactivé : reload automatique supprimé
+      // console.log('🔄 Contrôleur Service Worker changé, rechargement...');
+      // window.location.reload();
     });
   }
   
