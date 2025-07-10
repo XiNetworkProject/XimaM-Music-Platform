@@ -1571,7 +1571,7 @@ export default function HomePage() {
                     <Music size={20} className="mr-2 text-purple-400" />
                     Créations ({searchResults.tracks.length})
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {searchResults.tracks.map((track: Track, index: number) => (
                       <motion.div
                         key={track._id}
@@ -1637,7 +1637,7 @@ export default function HomePage() {
                     <Users size={20} className="mr-2 text-blue-400" />
                     Artistes ({searchResults.artists.length})
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {searchResults.artists.map((artist: any, index: number) => (
                       <motion.div
                         key={artist._id}
@@ -1675,7 +1675,7 @@ export default function HomePage() {
                     <Music size={20} className="mr-2 text-green-400" />
                     Playlists ({searchResults.playlists.length})
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                     {searchResults.playlists.map((playlist: any, index: number) => (
                       <motion.div
                         key={playlist._id}
@@ -1779,7 +1779,7 @@ export default function HomePage() {
               </motion.button>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {dailyDiscoveries.map((track, index) => (
                 <motion.div
                   key={track._id}
@@ -1942,7 +1942,7 @@ export default function HomePage() {
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
                 {popularUsers.map((user, index) => (
                   <motion.div
                     key={user._id}
@@ -2009,7 +2009,7 @@ export default function HomePage() {
               </motion.button>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {weeklyTrends.length > 0 ? (
                 weeklyTrends.map((trend, index) => (
                   <motion.div
@@ -2231,7 +2231,7 @@ export default function HomePage() {
                 Voir tout
               </motion.button>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {dailyDiscoveries.length > 0 ? (
                 dailyDiscoveries.map((track, index) => (
                   <motion.div
@@ -2332,7 +2332,7 @@ export default function HomePage() {
                 </motion.button>
               </div>
               
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                 {collaborations.map((track, index) => (
                   <motion.div
                     key={track._id}
@@ -2597,7 +2597,7 @@ export default function HomePage() {
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                 {communityStats.map((stat, index) => (
                   <motion.div
                     key={stat.label}
@@ -2995,7 +2995,7 @@ export default function HomePage() {
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
                   {tracks.map((track, index) => (
                     <motion.div
                       key={track._id}
@@ -3104,7 +3104,7 @@ export default function HomePage() {
             className="mb-8"
           >
             <h2 className="text-2xl font-bold text-white mb-6">Explorer par Style</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {genresLoading ? (
                 // Skeleton loading pour les genres
                 [...Array(6)].map((_, index) => (
@@ -3176,7 +3176,7 @@ export default function HomePage() {
               </motion.button>
             </div>
             
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {playlistsLoading ? (
                 // Skeleton loading pour les playlists
                 [...Array(4)].map((_, index) => (
