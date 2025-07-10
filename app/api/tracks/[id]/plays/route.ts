@@ -3,6 +3,12 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
+import subscriptionService from '@/lib/subscriptionService';
+
+// S'assurer que tous les modèles sont enregistrés
+import '@/models/Track';
+import '@/models/Subscription';
+import '@/models/UserSubscription';
 
 // POST - Incrémenter le nombre d'écoutes
 export async function POST(
@@ -24,12 +30,27 @@ export async function POST(
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
+    // Vérifier les limites d'abonnement pour les écoutes
+    const playCheck = await subscriptionService.canPerformAction(session.user.id, 'plays');
+    if (!playCheck.allowed) {
+      return NextResponse.json(
+        { 
+          error: playCheck.reason || 'Limite d\'écoutes atteinte',
+          usage: playCheck.usage
+        },
+        { status: 403 }
+      );
+    }
+
     // Incrémenter le nombre d'écoutes
     const updatedTrack = await Track.findByIdAndUpdate(
       trackId,
       { $inc: { plays: 1 } },
       { new: true }
     ).populate('artist', 'name username avatar');
+
+    // Incrémenter l'utilisation d'écoutes de l'utilisateur
+    await subscriptionService.incrementUsage(session.user.id, 'plays');
 
     return NextResponse.json({
       success: true,
