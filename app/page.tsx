@@ -496,12 +496,12 @@ export default function HomePage() {
     setLoading(true);
     
     const categoryApis = [
-      { key: 'trending', url: '/api/tracks/trending?limit=10' },
-      { key: 'popular', url: '/api/tracks/popular?limit=10' },
-      { key: 'recent', url: '/api/tracks/recent?limit=10' },
-      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=10' },
-      { key: 'recommended', url: '/api/tracks/recommended?limit=10' },
-      { key: 'following', url: '/api/tracks/following?limit=10' }
+      { key: 'trending', url: '/api/tracks/trending?limit=50' },
+      { key: 'popular', url: '/api/tracks/popular?limit=50' },
+      { key: 'recent', url: '/api/tracks/recent?limit=50' },
+      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=50' },
+      { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
+      { key: 'following', url: '/api/tracks/following?limit=50' }
     ];
 
     try {
@@ -572,13 +572,13 @@ export default function HomePage() {
     dataCache.clear();
     
     const categoryApis = [
-      { key: 'featured', url: '/api/tracks/popular?limit=20' },
-      { key: 'trending', url: '/api/tracks/trending?limit=10' },
-      { key: 'popular', url: '/api/tracks/popular?limit=10' },
-      { key: 'recent', url: '/api/tracks/recent?limit=10' },
-      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=10' },
-      { key: 'recommended', url: '/api/tracks/recommended?limit=10' },
-      { key: 'following', url: '/api/tracks/following?limit=10' }
+      { key: 'featured', url: '/api/tracks/popular?limit=50' },
+      { key: 'trending', url: '/api/tracks/trending?limit=50' },
+      { key: 'popular', url: '/api/tracks/popular?limit=50' },
+      { key: 'recent', url: '/api/tracks/recent?limit=50' },
+      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=50' },
+      { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
+      { key: 'following', url: '/api/tracks/following?limit=50' }
     ];
 
     await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url)));

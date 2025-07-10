@@ -251,13 +251,13 @@ export const useAudioService = () => {
     try {
       console.log('🎵 Service audio: Chargement de toutes les pistes...');
       
-      // Charger les pistes depuis les mêmes APIs que la page
+      // Charger les pistes depuis les mêmes APIs que la page (sans limite)
       const apis = [
-        '/api/tracks/popular?limit=20',
-        '/api/tracks/trending?limit=10',
-        '/api/tracks/recent?limit=10',
-        '/api/tracks/most-liked?limit=10',
-        '/api/tracks/recommended?limit=10'
+        '/api/tracks/popular?limit=1000',
+        '/api/tracks/trending?limit=1000',
+        '/api/tracks/recent?limit=1000',
+        '/api/tracks/most-liked?limit=1000',
+        '/api/tracks/recommended?limit=1000'
       ];
       
       const allTracksPromises = apis.map(async (url) => {
