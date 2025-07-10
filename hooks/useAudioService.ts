@@ -570,6 +570,24 @@ export const useAudioService = () => {
     }
   }, []);
 
+  // Fonction pour incrémenter les écoutes
+  const updatePlayCount = useCallback(async (trackId: string) => {
+    try {
+      const response = await fetch(`/api/tracks/${trackId}/plays`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (!response.ok) {
+        console.error('Erreur lors de la mise à jour des écoutes');
+      }
+    } catch (error) {
+      console.error('Erreur mise à jour plays:', error);
+    }
+  }, []);
+
   const nextTrack = useCallback(() => {
     const currentQueue = shuffle ? shuffledQueue : queue;
     
@@ -599,6 +617,8 @@ export const useAudioService = () => {
     loadTrack(nextTrack).then(() => {
       if (state.isPlaying) {
         play();
+        // Incrémenter les écoutes pour la nouvelle piste
+        updatePlayCount(nextTrack._id);
       }
     });
       return;
@@ -702,6 +722,8 @@ export const useAudioService = () => {
     loadTrack(prevTrack).then(() => {
       if (state.isPlaying) {
         play();
+        // Incrémenter les écoutes pour la nouvelle piste
+        updatePlayCount(prevTrack._id);
       }
     });
       return;
