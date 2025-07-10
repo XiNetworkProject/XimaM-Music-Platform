@@ -5,6 +5,11 @@ import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
 import subscriptionService from '@/lib/subscriptionService';
 
+// S'assurer que tous les modèles sont enregistrés
+import '@/models/Track';
+import '@/models/Subscription';
+import '@/models/UserSubscription';
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }

@@ -6,6 +6,12 @@ import Track from '@/models/Track';
 import User from '@/models/User';
 import subscriptionService from '@/lib/subscriptionService';
 
+// S'assurer que tous les modèles sont enregistrés
+import '@/models/Track';
+import '@/models/User';
+import '@/models/Subscription';
+import '@/models/UserSubscription';
+
 export async function POST(request: NextRequest) {
   try {
     // Vérifier l'authentification

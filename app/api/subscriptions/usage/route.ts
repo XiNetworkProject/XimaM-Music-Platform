@@ -3,6 +3,10 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import subscriptionService from '@/lib/subscriptionService';
 
+// S'assurer que tous les modèles sont enregistrés
+import '@/models/Subscription';
+import '@/models/UserSubscription';
+
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);

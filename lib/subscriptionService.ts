@@ -4,6 +4,10 @@ import Subscription from '@/models/Subscription';
 import { IUserSubscription } from '@/models/UserSubscription';
 import { ISubscription } from '@/models/Subscription';
 
+// S'assurer que les modèles sont enregistrés
+import '@/models/Subscription';
+import '@/models/UserSubscription';
+
 export interface SubscriptionLimits {
   uploads: number;
   comments: number;

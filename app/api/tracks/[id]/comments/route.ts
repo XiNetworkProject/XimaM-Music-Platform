@@ -6,6 +6,12 @@ import Track from '@/models/Track';
 import Comment from '@/models/Comment';
 import subscriptionService from '@/lib/subscriptionService';
 
+// S'assurer que tous les modèles sont enregistrés
+import '@/models/Track';
+import '@/models/Comment';
+import '@/models/Subscription';
+import '@/models/UserSubscription';
+
 // POST - Ajouter un commentaire
 export async function POST(
   request: NextRequest,
