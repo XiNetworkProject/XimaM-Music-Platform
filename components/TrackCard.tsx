@@ -53,11 +53,11 @@ export default function TrackCard({
 
   const sizeClasses = {
     sm: {
-      card: 'p-2 w-32 h-48',
-      image: 'w-24 h-24',
-      title: 'text-xs',
-      artist: 'text-[11px]',
-      duration: 'text-[11px]'
+      card: 'p-1.5 w-28 h-40',
+      image: 'w-20 h-20',
+      title: 'text-[10px]',
+      artist: 'text-[9px]',
+      duration: 'text-[9px]'
     },
     md: {
       card: 'p-4',
@@ -108,7 +108,7 @@ export default function TrackCard({
       onHoverEnd={() => setIsHovered(false)}
       className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700 ${sizeClasses[size].card} ${className}`}
     >
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-center gap-1.5">
         {/* Image de couverture avec bouton play */}
         <div className="relative group">
           <div className={`${sizeClasses[size].image} relative overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700`}>
@@ -137,14 +137,14 @@ export default function TrackCard({
                 >
                   <motion.button
                     onClick={handlePlayPause}
-                    className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-colors"
+                    className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
                     {isCurrentlyPlaying ? (
-                      <Pause size={14} fill="currentColor" />
+                      <Pause size={12} fill="currentColor" />
                     ) : (
-                      <Play size={14} fill="currentColor" className="ml-0.5" />
+                      <Play size={12} fill="currentColor" className="ml-0.5" />
                     )}
                   </motion.button>
                 </motion.div>
@@ -175,13 +175,13 @@ export default function TrackCard({
             <div className="flex items-center gap-2 text-gray-500 justify-center mt-1">
               <span className={`${sizeClasses[size].duration}`}>{formatDuration(track.duration)}</span>
               <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
-                <MoreVertical size={12} />
+                <MoreVertical size={10} />
               </button>
             </div>
           </div>
           {/* Statistiques sociales */}
           {showStats && (
-            <div className="mt-2">
+            <div className="mt-1.5">
               <SocialStats
                 trackId={track._id}
                 initialStats={{
