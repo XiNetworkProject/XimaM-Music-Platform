@@ -1582,11 +1582,11 @@ export default function HomePage() {
                         className="group cursor-pointer"
                       >
                         <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/5 to-pink-500/5 border border-purple-500/20 hover:shadow-lg hover:shadow-purple-500/10 transition-all duration-300">
-                          <div className="relative aspect-square">
+                          <div className="relative w-20 h-20 mx-auto mt-2">
                             <img
                               src={track.coverUrl || '/default-cover.jpg'}
                               alt={track.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                              className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-500"
                               onError={(e) => {
                                 e.currentTarget.src = '/default-cover.jpg';
                               }}
@@ -1600,26 +1600,26 @@ export default function HomePage() {
                                   e.stopPropagation();
                                   handlePlayTrack(track);
                                 }}
-                                className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+                                className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
                               >
                                 {currentTrack?._id === track._id && audioState.isPlaying ? (
-                                  <Pause size={18} fill="white" />
+                                  <Pause size={14} fill="white" />
                                 ) : (
-                                  <Play size={18} fill="white" className="ml-0.5" />
+                                  <Play size={14} fill="white" className="ml-0.5" />
                                 )}
                               </motion.button>
                             </div>
 
-                            <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                            <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
                               {formatDuration(track.duration)}
                             </div>
                           </div>
 
-                          <div className="p-3">
-                            <h4 className="font-semibold text-white truncate mb-1 text-sm">
+                          <div className="p-2 text-center">
+                            <h4 className="font-semibold text-white truncate mb-0.5 text-[10px]">
                               {track.title}
                             </h4>
-                            <p className="text-gray-300 text-xs truncate">
+                            <p className="text-gray-300 text-[9px] truncate">
                               {track.artist?.name || track.artist?.username}
                             </p>
                           </div>
@@ -1648,17 +1648,17 @@ export default function HomePage() {
                         className="group cursor-pointer"
                       >
                         <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-blue-500/5 to-cyan-500/5 border border-blue-500/20 hover:shadow-lg hover:shadow-blue-500/10 transition-all duration-300 p-4 text-center">
-                          <div className="w-16 h-16 mx-auto mb-3 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
+                          <div className="w-12 h-12 mx-auto mb-2 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-cyan-500">
                             <img
                               src={artist.avatar || '/default-avatar.png'}
                               alt={artist.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
-                          <h4 className="font-semibold text-white text-sm mb-1">
+                          <h4 className="font-semibold text-white text-[10px] mb-0.5">
                             {artist.name}
                           </h4>
-                          <p className="text-gray-300 text-xs">
+                          <p className="text-gray-300 text-[9px]">
                             @{artist.username}
                           </p>
                         </div>
@@ -1686,28 +1686,28 @@ export default function HomePage() {
                         className="group cursor-pointer"
                       >
                         <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-green-500/5 to-emerald-500/5 border border-green-500/20 hover:shadow-lg hover:shadow-green-500/10 transition-all duration-300">
-                          <div className={`aspect-square bg-gradient-to-br ${playlist.color} flex items-center justify-center relative`}>
-                            <div className="text-3xl">{playlist.emoji}</div>
+                          <div className={`w-20 h-20 mx-auto mt-2 bg-gradient-to-br ${playlist.color} flex items-center justify-center relative rounded-md`}>
+                            <div className="text-xl">{playlist.emoji}</div>
                             
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                               <motion.button
                                 whileHover={{ scale: 1.1 }}
                                 whileTap={{ scale: 0.9 }}
-                                className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
+                                className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
                               >
-                                <Play size={20} fill="white" className="ml-1" />
+                                <Play size={14} fill="white" className="ml-0.5" />
                               </motion.button>
                             </div>
                           </div>
                           
-                          <div className="p-3">
-                            <h4 className="font-semibold text-white text-sm truncate mb-1">
+                          <div className="p-2 text-center">
+                            <h4 className="font-semibold text-white text-[10px] truncate mb-0.5">
                               {playlist.title}
                             </h4>
-                            <p className="text-gray-300 text-xs mb-2">
+                            <p className="text-gray-300 text-[9px] mb-1">
                               par {playlist.creator.name}
                             </p>
-                            <div className="flex items-center justify-between text-xs text-gray-500">
+                            <div className="flex items-center justify-between text-[9px] text-gray-500">
                               <span>{playlist.tracks} titres</span>
                               <span>{playlist.likes} likes</span>
                             </div>
@@ -1792,12 +1792,12 @@ export default function HomePage() {
                 >
                   <div className="relative rounded-lg overflow-hidden bg-gradient-to-br from-yellow-500/5 to-orange-500/5 border border-yellow-500/20 hover:shadow-lg hover:shadow-yellow-500/10 transition-all duration-300">
                     {/* Cover avec lazy loading */}
-                    <div className="relative aspect-square">
+                    <div className="relative w-20 h-20 mx-auto mt-2">
                       <img
                         src={track.coverUrl || '/default-cover.jpg'}
                         alt={track.title}
                         loading="lazy"
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
                           e.currentTarget.src = '/default-cover.jpg';
                         }}
@@ -1812,41 +1812,41 @@ export default function HomePage() {
                             e.stopPropagation();
                             handlePlayTrack(track);
                           }}
-                          className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
+                          className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200"
                         >
                           {currentTrack?._id === track._id && audioState.isPlaying ? (
-                            <Pause size={18} fill="white" />
+                            <Pause size={14} fill="white" />
                           ) : (
-                            <Play size={18} fill="white" className="ml-0.5" />
+                            <Play size={14} fill="white" className="ml-0.5" />
                           )}
                         </motion.button>
                       </div>
 
                       {/* Badge "Découverte" */}
-                      <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm font-medium">
-                        <Sparkles size={10} className="inline mr-1" />
+                      <div className="absolute top-1 left-1 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm font-medium">
+                        <Sparkles size={8} className="inline mr-0.5" />
                         Découverte
                       </div>
 
                       {/* Badge durée */}
-                      <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded-full backdrop-blur-sm">
+                      <div className="absolute top-1 right-1 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded-full backdrop-blur-sm">
                         {formatDuration(track.duration)}
                       </div>
                     </div>
 
                     {/* Info */}
-                    <div className="p-3">
-                      <h3 className="font-semibold text-white truncate mb-1 group-hover:text-yellow-300 transition-colors cursor-pointer text-sm">
+                    <div className="p-2 text-center">
+                      <h3 className="font-semibold text-white truncate mb-0.5 group-hover:text-yellow-300 transition-colors cursor-pointer text-[10px]">
                         {track.title}
                       </h3>
-                      <p className="text-gray-300 text-xs truncate mb-2 cursor-pointer hover:text-yellow-300 transition-colors">
+                      <p className="text-gray-300 text-[9px] truncate mb-1 cursor-pointer hover:text-yellow-300 transition-colors">
                         {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                       </p>
                       
                       {/* Stats */}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
+                      <div className="flex items-center justify-between text-[9px] text-gray-500">
                         <div className="flex items-center space-x-1">
-                          <Headphones size={10} />
+                          <Headphones size={8} />
                           <span>{formatNumber(track.plays)}</span>
                         </div>
                         <div className="flex items-center space-x-1">
