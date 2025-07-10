@@ -249,39 +249,51 @@ export const useAudioService = () => {
   // Charger automatiquement toutes les pistes disponibles
   const loadAllTracks = useCallback(async () => {
     try {
-      // Chargement de toutes les pistes disponibles
-      const response = await fetch('/api/tracks');
+      console.log('🎵 Service audio: Chargement de toutes les pistes...');
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Données reçues de l'API
-        let tracks: Track[] = [];
-        
-        if (Array.isArray(data)) {
-          tracks = data;
-          // Pistes chargées
-        } else if (data.tracks && Array.isArray(data.tracks)) {
-          tracks = data.tracks;
-          // Pistes chargées (propriété tracks)
-        } else if (data.data && Array.isArray(data.data)) {
-          tracks = data.data;
-          // Pistes chargées (propriété data)
-        } else {
-          // Format de données invalide
-          return [];
+      // Charger les pistes depuis les mêmes APIs que la page
+      const apis = [
+        '/api/tracks/popular?limit=20',
+        '/api/tracks/trending?limit=10',
+        '/api/tracks/recent?limit=10',
+        '/api/tracks/most-liked?limit=10',
+        '/api/tracks/recommended?limit=10'
+      ];
+      
+      const allTracksPromises = apis.map(async (url) => {
+        try {
+          const response = await fetch(url);
+          if (response.ok) {
+            const data = await response.json();
+            return data.tracks || [];
+          }
+        } catch (error) {
+          console.error('Erreur chargement API:', url, error);
         }
-        
-        setAllTracks(tracks);
-        
-        // État allTracks mis à jour
-        return tracks;
-      } else {
-        // Erreur chargement pistes
         return [];
-      }
+      });
+      
+      const allTracksArrays = await Promise.all(allTracksPromises);
+      
+      // Combiner toutes les pistes et supprimer les doublons
+      const tracksMap = new Map<string, Track>();
+      
+      allTracksArrays.forEach(tracks => {
+        tracks.forEach((track: Track) => {
+          if (!tracksMap.has(track._id)) {
+            tracksMap.set(track._id, track);
+          }
+        });
+      });
+      
+      const uniqueTracks = Array.from(tracksMap.values());
+      console.log('🎵 Service audio: Pistes uniques chargées:', uniqueTracks.length);
+      
+      setAllTracks(uniqueTracks);
+      return uniqueTracks;
+      
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur chargement pistes service audio:', error);
       return [];
     }
   }, []);
