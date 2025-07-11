@@ -1,13 +1,10 @@
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const next = require('next');
+const { parse } = require('url');
 
-// Configuration pour la production
 const dev = process.env.NODE_ENV !== 'production';
-const hostname = 'localhost';
-const port = process.env.PORT || 3000;
-
-const app = next({ dev, hostname, port });
+const app = next({ dev });
 const handle = app.getRequestHandler();
 
 // Stockage en mémoire pour les connexions actives
@@ -16,8 +13,25 @@ const typingUsers = new Map(); // conversationId -> Set of userIds
 const onlineUsers = new Set();
 
 app.prepare().then(() => {
-  const server = createServer((req, res) => {
-    handle(req, res);
+  const server = createServer(async (req, res) => {
+    try {
+      const parsedUrl = parse(req.url, true);
+      const { pathname } = parsedUrl;
+
+      // Gérer les routes API WebSocket
+      if (pathname === '/api/socketio') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'WebSocket endpoint' }));
+        return;
+      }
+
+      // Gérer toutes les autres routes avec Next.js
+      await handle(req, res, parsedUrl);
+    } catch (err) {
+      console.error('Erreur serveur:', err);
+      res.statusCode = 500;
+      res.end('Erreur serveur');
+    }
   });
 
   const io = new Server(server, {
@@ -146,8 +160,9 @@ app.prepare().then(() => {
     });
   });
 
-  server.listen(port, hostname, () => {
-    console.log(`🚀 Serveur démarré sur http://${hostname}:${port}`);
-    console.log(`🔌 WebSocket disponible sur ws://${hostname}:${port}`);
+  const PORT = process.env.PORT || 3000;
+  server.listen(PORT, () => {
+    console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+    console.log(`🔌 WebSocket disponible sur ws://localhost:${PORT}`);
   });
 }); 
