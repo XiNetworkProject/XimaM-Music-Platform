@@ -444,7 +444,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Zone de saisie modernisée */}
-      <div className="w-full px-2 py-4 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center space-x-2 rounded-t-2xl shadow-2xl sticky bottom-0 z-10">
+      <div className="w-full px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl sticky bottom-0 z-10">
         <button
           className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
           onClick={() => fileInputRef.current?.click()}
@@ -469,7 +469,7 @@ export default function ConversationPage() {
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
           placeholder="Tapez votre message..."
-          className="flex-1 px-4 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
+          className="flex-1 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
           disabled={uploading}
         />
         <button
