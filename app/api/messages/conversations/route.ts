@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Conversation from '@/models/Conversation';
+import Message from '@/models/Message'; // <-- Ajouté pour Mongoose populate
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
