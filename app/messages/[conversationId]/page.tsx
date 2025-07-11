@@ -330,7 +330,7 @@ export default function ConversationPage() {
   const otherUser = getOtherParticipant();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col pb-24">
+    <div className="flex flex-col min-h-screen">
       {/* Header modernisé */}
       <div className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-md border-b border-white/20 rounded-b-2xl shadow-lg">
         <div className="flex items-center space-x-3">
