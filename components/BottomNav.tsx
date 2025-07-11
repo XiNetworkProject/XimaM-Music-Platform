@@ -106,13 +106,7 @@ export default function BottomNav() {
           {navItems.map((item) => (
             <motion.button
               key={item.path}
-              onClick={() => {
-                if (item.label === 'Messages' && item.badge) {
-                  setShowNotifications(!showNotifications);
-                } else {
-                  handleNavClick(item.path);
-                }
-              }}
+              onClick={() => handleNavClick(item.path)}
               className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all relative ${
                 item.active 
                   ? 'text-purple-400 bg-purple-500/20' 
