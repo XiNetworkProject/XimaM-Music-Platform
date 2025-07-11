@@ -90,10 +90,10 @@ function MessageInputBar({
       {/* Bouton microphone ou prévisualisation */}
       {!recordingPreview ? (
         <button
-          className={`p-2 rounded-full transition-all duration-200 shadow-md flex-shrink-0 relative ${
+          className={`p-2 rounded-full transition-all duration-300 shadow-md flex-shrink-0 relative ${
             isRecording 
-              ? 'bg-red-500 hover:bg-red-600 scale-110' 
-              : 'bg-white/20 hover:bg-white/30'
+              ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-500/50' 
+              : 'bg-white/20 hover:bg-white/30 hover:scale-105'
           }`}
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
@@ -102,29 +102,38 @@ function MessageInputBar({
           onTouchEnd={stopRecording}
           title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
         >
-          <Mic size={18} className="text-purple-300" />
-          {/* Animation d'enregistrement */}
+          <Mic size={18} className={`transition-colors ${isRecording ? 'text-white' : 'text-purple-300'}`} />
+          {/* Animation d'enregistrement améliorée */}
           {isRecording && (
             <div className="absolute -top-1 -right-1 flex space-x-0.5">
-              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
-              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
             </div>
           )}
         </button>
       ) : (
-        // Interface de prévisualisation compacte
-        <div className="flex items-center space-x-1 bg-purple-600/20 rounded-lg px-2 py-1 flex-shrink-0">
+        // Interface de prévisualisation améliorée
+        <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 rounded-lg px-3 py-2 flex-shrink-0 border border-purple-400/30">
           <button
-            className="p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            className={`p-2 rounded-full transition-all duration-200 ${
+              isPreviewPlaying 
+                ? 'bg-red-500 hover:bg-red-600 scale-110' 
+                : 'bg-white/20 hover:bg-white/30'
+            }`}
             onClick={isPreviewPlaying ? stopPreview : playPreview}
             title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
           >
-            {isPreviewPlaying ? <Pause size={14} /> : <Play size={14} />}
+            {isPreviewPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
-          <span className="text-white font-mono text-xs">
-            {formatRecordingDuration(recordingDuration)}
-          </span>
+          <div className="flex flex-col">
+            <span className="text-white font-mono text-xs">
+              {formatRecordingDuration(recordingDuration)}
+            </span>
+            <span className="text-white/60 text-xs">
+              Prévisualisation
+            </span>
+          </div>
         </div>
       )}
       
@@ -1213,15 +1222,59 @@ Paramètres Linux à vérifier :
     console.log('=== FIN STOP RECORDING ===');
   };
 
+  // Référence pour l'audio en cours de lecture
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const playAudio = (audioUrl: string, messageId: string) => {
+    console.log('🎵 playAudio appelé pour:', messageId);
+    
+    // Si on clique sur le même message qui est en cours de lecture
     if (playingAudio === messageId) {
+      console.log('⏸️ Pause de l\'audio en cours');
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current.currentTime = 0;
+      }
       setPlayingAudio(null);
-    } else {
-      setPlayingAudio(messageId);
-      const audio = new Audio(audioUrl);
-      audio.onended = () => setPlayingAudio(null);
-      audio.play();
+      currentAudioRef.current = null;
+      return;
     }
+    
+    // Arrêter l'audio précédent s'il y en a un
+    if (currentAudioRef.current) {
+      console.log('🛑 Arrêt de l\'audio précédent');
+      currentAudioRef.current.pause();
+      currentAudioRef.current.currentTime = 0;
+    }
+    
+    // Créer un nouvel élément audio
+    const audio = new Audio(audioUrl);
+    currentAudioRef.current = audio;
+    setPlayingAudio(messageId);
+    
+    // Gestion des événements audio
+    audio.onended = () => {
+      console.log('✅ Audio terminé');
+      setPlayingAudio(null);
+      currentAudioRef.current = null;
+    };
+    
+    audio.onerror = (error) => {
+      console.error('❌ Erreur lecture audio:', error);
+      setPlayingAudio(null);
+      currentAudioRef.current = null;
+      toast.error('Erreur lors de la lecture de l\'audio');
+    };
+    
+    // Démarrer la lecture
+    audio.play().then(() => {
+      console.log('✅ Lecture audio démarrée');
+    }).catch(error => {
+      console.error('❌ Erreur démarrage lecture:', error);
+      setPlayingAudio(null);
+      currentAudioRef.current = null;
+      toast.error('Erreur lors de la lecture de l\'audio');
+    });
   };
 
   const formatTime = (seconds: number) => {
@@ -1347,16 +1400,36 @@ Paramètres Linux à vérifier :
                       </div>
                     )}
                     {message.type === 'audio' && (
-                      <div className="mt-2 flex items-center space-x-2">
+                      <div className="mt-2 flex items-center space-x-3 bg-white/10 rounded-lg p-3">
                         <button
                           onClick={() => playAudio(message.content, message._id)}
-                          className="p-2 rounded-full bg-purple-500 hover:bg-purple-600 shadow-md"
+                          className={`p-3 rounded-full transition-all duration-200 shadow-lg ${
+                            playingAudio === message._id 
+                              ? 'bg-red-500 hover:bg-red-600 scale-110' 
+                              : 'bg-purple-500 hover:bg-purple-600'
+                          }`}
+                          title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
                         >
-                          {playingAudio === message._id ? <Pause size={20} /> : <Play size={20} />}
+                          {playingAudio === message._id ? <Pause size={18} /> : <Play size={18} />}
                         </button>
-                        <span className="text-xs text-white/70 font-mono">
-                          {message.duration ? formatTime(message.duration) : 'Audio'}
-                        </span>
+                        
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium text-white">
+                              Message vocal
+                            </span>
+                            <span className="text-xs text-white/70 font-mono">
+                              {message.duration ? formatTime(message.duration) : 'Audio'}
+                            </span>
+                          </div>
+                          
+                          {/* Barre de progression audio */}
+                          {playingAudio === message._id && (
+                            <div className="mt-2 w-full bg-white/20 rounded-full h-1">
+                              <div className="bg-purple-400 h-1 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                     <div className="flex justify-end mt-1">
