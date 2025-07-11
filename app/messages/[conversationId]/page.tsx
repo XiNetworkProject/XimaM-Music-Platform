@@ -34,7 +34,6 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
-import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Message {
   _id: string;
@@ -288,7 +287,7 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
     >
       {/* Barres de visualisation animées améliorées */}
       <div className="flex items-end space-x-1 h-8">
-        {[...Array(8)].map((item, index) => (
+        {[...Array(8)].map((_, index) => (
           <motion.div
             key={index}
             className="w-1 bg-gradient-to-t from-purple-400 via-pink-400 to-indigo-400 rounded-full"
@@ -718,26 +717,6 @@ export default function ConversationPage() {
   const audioChunksRef = useRef<Blob[]>([]);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // WebSocket pour les communications en temps réel
-  const {
-    isConnected: wsConnected,
-    sendTyping,
-    sendNewMessage,
-    sendMessageSeen,
-    onTyping,
-    onNewMessage,
-    onMessageSeen
-  } = useWebSocket();
-
-  // États pour les interactions en temps réel
-  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
-  const [realTimeMessages, setRealTimeMessages] = useState<Message[]>([]);
-  const [messageReadStatuses, setMessageReadStatuses] = useState<Map<string, string[]>>(new Map());
-
-  // État pour le statut de frappe local
-  const [isLocalTyping, setIsLocalTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   // Vérifier la disponibilité du microphone au chargement
   useEffect(() => {
     const checkMicrophoneAvailability = async () => {
@@ -886,34 +865,9 @@ export default function ConversationPage() {
       const data = await response.json();
 
       if (response.ok) {
-        // Notifier les autres via WebSocket
-        sendNewMessage(conversationId, data.message);
-        
-        // Ajouter le message localement avec animation
-        const newMessage: Message = {
-          _id: data.message._id,
-          sender: data.message.sender,
-          type: data.message.type,
-          content: data.message.content,
-          duration: data.message.duration,
-          seenBy: data.message.seenBy || [],
-          createdAt: data.message.createdAt
-        };
-
-        setMessages(prev => [...prev, newMessage]);
+        setMessages(prev => [...prev, data.message]);
         setNewMessage('');
-
-        // Marquer comme lu automatiquement
-        sendMessageSeen(conversationId, [data.message._id]);
-
-        // Scroll vers le bas
-        setTimeout(() => {
-          const messagesContainer = document.getElementById('messages-container');
-          if (messagesContainer) {
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-          }
-        }, 100);
-
+        markAsSeen();
       } else {
         console.error('Erreur envoi message:', data);
         toast.error(data.error || 'Erreur lors de l\'envoi');
@@ -1862,6 +1816,7 @@ Paramètres Linux à vérifier :
 
   // Gérer le statut de frappe
   const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTyping = useCallback(() => {
     if (!isTyping) {
@@ -1889,67 +1844,6 @@ Paramètres Linux à vérifier :
       }
     };
   }, []);
-
-  // Gérer les messages WebSocket
-  useEffect(() => {
-    // Gérer les messages de frappe
-    onTyping((userId, conversationId, isTyping) => {
-      if (conversationId === params?.conversationId) {
-        setTypingUsers(prev => {
-          const newSet = new Set(prev);
-          if (isTyping) {
-            newSet.add(userId);
-          } else {
-            newSet.delete(userId);
-          }
-          return newSet;
-        });
-      }
-    });
-
-    // Gérer les nouveaux messages
-    onNewMessage((userId, conversationId, messageData) => {
-      if (conversationId === params?.conversationId) {
-        const newMessage: Message = {
-          _id: messageData._id || `temp-${Date.now()}`,
-          sender: messageData.sender,
-          type: messageData.type,
-          content: messageData.content,
-          duration: messageData.duration,
-          seenBy: messageData.seenBy || [],
-          createdAt: messageData.createdAt || new Date().toISOString()
-        };
-
-        setMessages(prev => [...prev, newMessage]);
-        
-        // Animation pour le nouveau message
-        setTimeout(() => {
-          const messageElement = document.getElementById(`message-${newMessage._id}`);
-          if (messageElement) {
-            messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
-          }
-        }, 100);
-      }
-    });
-
-    // Gérer les notifications de lecture
-    onMessageSeen((userId, conversationId, messageIds) => {
-      if (conversationId === params?.conversationId) {
-        setMessageReadStatuses(prev => {
-          const newStatuses = new Map(prev);
-          messageIds.forEach(messageId => {
-            const currentSeenBy = newStatuses.get(messageId) || [];
-            if (!currentSeenBy.includes(userId)) {
-              newStatuses.set(messageId, [...currentSeenBy, userId]);
-            }
-          });
-          return newStatuses;
-        });
-      }
-    });
-  }, [onTyping, onNewMessage, onMessageSeen, params?.conversationId]);
-
-
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
@@ -2023,7 +1917,7 @@ Paramètres Linux à vérifier :
       {/* Messages scrollable avec padding pour header et BottomNav+input */}
       <div className="pt-20 pb-32 px-4 flex flex-col space-y-6 overflow-y-auto h-screen">
         {/* Indicateur de frappe */}
-        {typingUsers.size > 0 && (
+        {onlineStatus.isTyping && (
           <motion.div
             className="flex justify-start px-6"
             initial={{ opacity: 0, y: 10 }}
@@ -2090,7 +1984,6 @@ Paramètres Linux à vérifier :
                 return (
                 <motion.div
                   key={message._id}
-                  id={`message-${message._id}`}
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -2184,7 +2077,7 @@ Paramètres Linux à vérifier :
                                   transition={{ delay: 0.3 }}
                                 >
                                   <div className="flex items-end space-x-1 h-5">
-                                    {[...Array(5)].map((item, index) => (
+                                    {[...Array(5)].map((_, index) => (
                                       <motion.div
                                         key={index}
                                         className="w-1 bg-purple-400/50 rounded-full"

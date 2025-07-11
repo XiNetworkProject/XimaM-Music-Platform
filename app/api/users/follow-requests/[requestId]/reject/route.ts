@@ -43,7 +43,10 @@ export async function POST(
     }
 
     // Supprimer la demande de suivi
-    await currentUser.removeFollowRequest(requestingUser._id.toString());
+    currentUser.followRequests = currentUser.followRequests.filter(
+      (id: any) => id.toString() !== requestingUser._id.toString()
+    );
+    await currentUser.save();
 
     return NextResponse.json({
       success: true,

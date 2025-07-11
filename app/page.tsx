@@ -1435,7 +1435,7 @@ export default function HomePage() {
 
           {/* Grille de points animés */}
           <div className="absolute inset-0 opacity-30">
-            {[...Array(20)].map((item, i) => (
+            {[...Array(20)].map((_, i) => (
               <motion.div
                 key={i}
                 className="absolute w-1 h-1 bg-purple-400 rounded-full"
@@ -1623,7 +1623,7 @@ export default function HomePage() {
 
                 {/* Indicateurs */}
                 <div className="flex items-center space-x-1.5">
-                  {featuredTracks.map((track, index) => (
+                  {featuredTracks.map((_, index) => (
                     <motion.button
                       key={index}
                       whileHover={{ scale: 1.2 }}
@@ -2692,7 +2692,7 @@ export default function HomePage() {
               ))
             ) : (
               // Skeleton loading si pas de données
-              [...Array(6)].map((item, index) => (
+              [...Array(6)].map((_, index) => (
                 <div key={index} className="animate-pulse">
                   <div className="relative rounded-xl overflow-hidden">
                     <div className="aspect-square bg-gray-800"></div>

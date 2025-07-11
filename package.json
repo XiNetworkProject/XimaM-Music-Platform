@@ -8,8 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "websocket": "node server/start-websocket.js",
-    "dev:full": "concurrently \"npm run dev\" \"npm run websocket\""
+    "type-check": "tsc --noEmit",
+    "deploy": "node scripts/deploy-vercel.js"
   },
   "dependencies": {
     "@capacitor/android": "^7.4.0",
@@ -50,8 +50,6 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "stripe": "^18.3.0",
-    "concurrently": "^8.2.2",
-    "ws": "^8.14.2",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.3.0",
     "typescript": "^5.0.0",

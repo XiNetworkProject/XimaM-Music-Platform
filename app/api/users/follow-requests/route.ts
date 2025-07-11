@@ -118,7 +118,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Ajouter la demande de suivi
-    await targetUser.addFollowRequest(currentUser._id.toString());
+    if (!targetUser.followRequests) {
+      targetUser.followRequests = [];
+    }
+    targetUser.followRequests.push(currentUser._id);
+    await targetUser.save();
 
     return NextResponse.json({
       success: true,
