@@ -599,18 +599,17 @@ export const useAudioService = () => {
 
     const nextTrack = currentQueue[nextIndex];
     setCurrentIndex(nextIndex);
-    loadTrack(nextTrack).then(() => {
-      if (state.isPlaying) {
-        play();
-        // Incrémenter les écoutes pour la nouvelle piste
-        updatePlayCount(nextTrack._id);
-        
-        // Émettre un événement pour synchroniser les compteurs d'écoutes
-        window.dispatchEvent(new CustomEvent('trackPlayed', {
-          detail: { trackId: nextTrack._id }
-        }));
-      }
-    });
+            loadTrack(nextTrack).then(() => {
+          if (state.isPlaying) {
+            play();
+            // updatePlayCount est déjà appelé dans la fonction play()
+            
+            // Émettre un événement pour synchroniser les compteurs d'écoutes
+            window.dispatchEvent(new CustomEvent('trackPlayed', {
+              detail: { trackId: nextTrack._id }
+            }));
+          }
+        });
       return;
     }
     
@@ -709,18 +708,17 @@ export const useAudioService = () => {
 
     const prevTrack = currentQueue[prevIndex];
     setCurrentIndex(prevIndex);
-    loadTrack(prevTrack).then(() => {
-      if (state.isPlaying) {
-        play();
-        // Incrémenter les écoutes pour la nouvelle piste
-        updatePlayCount(prevTrack._id);
-        
-        // Émettre un événement pour synchroniser les compteurs d'écoutes
-        window.dispatchEvent(new CustomEvent('trackPlayed', {
-          detail: { trackId: prevTrack._id }
-        }));
-      }
-    });
+            loadTrack(prevTrack).then(() => {
+          if (state.isPlaying) {
+            play();
+            // updatePlayCount est déjà appelé dans la fonction play()
+            
+            // Émettre un événement pour synchroniser les compteurs d'écoutes
+            window.dispatchEvent(new CustomEvent('trackPlayed', {
+              detail: { trackId: prevTrack._id }
+            }));
+          }
+        });
       return;
     }
     
@@ -1027,7 +1025,7 @@ export const useAudioService = () => {
             console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
             loadTrack(randomTrack).then(() => {
               play();
-              updatePlayCount(randomTrack._id);
+              // updatePlayCount est déjà appelé dans la fonction play()
             }).catch((error) => {
               console.error('Erreur lors du chargement de la piste auto-play:', error);
             });
@@ -1122,7 +1120,7 @@ export const useAudioService = () => {
         
         loadTrack(autoPlayNextTrack).then(() => {
           play();
-          updatePlayCount(autoPlayNextTrack._id);
+          // updatePlayCount est déjà appelé dans la fonction play()
         }).catch((error) => {
           console.error('Erreur lors du chargement de la piste auto-play:', error);
           // Essayer une autre piste en cas d'erreur
@@ -1135,7 +1133,7 @@ export const useAudioService = () => {
             console.log('🎵 Auto-play fallback:', fallbackTrack.title);
             loadTrack(fallbackTrack).then(() => {
               play();
-              updatePlayCount(fallbackTrack._id);
+              // updatePlayCount est déjà appelé dans la fonction play()
             }).catch((fallbackError) => {
               console.error('Erreur fallback auto-play:', fallbackError);
               setState(prev => ({ ...prev, isPlaying: false }));
