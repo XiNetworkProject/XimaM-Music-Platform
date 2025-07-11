@@ -13,7 +13,7 @@ import {
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Disc3, Mic2, RefreshCw, Share2, Eye, 
   Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity, X,
-  Newspaper, Download
+  Newspaper, Download, ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -697,6 +697,18 @@ export default function HomePage() {
               ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
               : track
           )
+        );
+
+        // Mettre à jour les recommandations personnalisées
+        setPersonalRecommendations(prev => 
+          prev.map(rec => ({
+            ...rec,
+            tracks: rec.tracks?.map((t: Track) => 
+              t._id === trackId 
+                ? { ...t, isLiked: data.isLiked, likes: data.likes || t.likes }
+                : t
+            ) || []
+          }))
         );
       }
     } catch (error) {
@@ -2445,73 +2457,134 @@ export default function HomePage() {
                             {rec.description || 'Description de la recommandation'}
                           </p>
 
-                          {/* Tracks recommandées compactes */}
+                          {/* Tracks recommandées compactes avec interactions */}
                           {rec.tracks && rec.tracks.length > 0 && (
                             <div className="space-y-1 mb-3">
-                              {rec.tracks.slice(0, 2).map((track: Track) => (
-                                <div key={track._id} className="flex items-center space-x-2 p-1.5 bg-white/5 rounded">
+                              {rec.tracks.slice(0, 2).map((track: Track, trackIndex: number) => (
+                                <motion.div 
+                                  key={track._id} 
+                                  className="flex items-center space-x-2 p-1.5 bg-white/5 rounded hover:bg-white/10 transition-all duration-200 cursor-pointer group"
+                                  whileHover={{ scale: 1.02 }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePlayTrack(track);
+                                  }}
+                                >
                                   <img
                                     src={track.coverUrl || '/default-cover.jpg'}
                                     alt={track.title}
                                     className="w-6 h-6 rounded object-cover"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-white text-xs font-medium truncate">
+                                    <p className="text-white text-xs font-medium truncate group-hover:text-purple-200 transition-colors">
                                       {track.title || 'Titre inconnu'}
                                     </p>
                                     <p className="text-gray-400 text-xs truncate">
                                       {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                                     </p>
                                   </div>
-                                  <motion.button
-                                    whileHover={{ scale: 1.1 }}
-                                    whileTap={{ scale: 0.9 }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handlePlayTrack(track);
-                                    }}
-                                    className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center"
-                                  >
-                                    <Play size={8} fill="white" className="ml-0.5" />
-                                  </motion.button>
-                                </div>
+                                  <div className="flex items-center space-x-1">
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handlePlayTrack(track);
+                                      }}
+                                      className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                                    >
+                                      <Play size={8} fill="white" className="ml-0.5" />
+                                    </motion.button>
+                                    <motion.button
+                                      whileHover={{ scale: 1.1 }}
+                                      whileTap={{ scale: 0.9 }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleLikeTrack(track._id, 'recommendations', index);
+                                      }}
+                                      className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                                    >
+                                      <Heart size={8} fill={track.isLiked ? 'currentColor' : 'none'} className={track.isLiked ? 'text-red-400' : 'text-white'} />
+                                    </motion.button>
+                                  </div>
+                                </motion.div>
                               ))}
+                              {rec.tracks.length > 2 && (
+                                <div className="text-center pt-1">
+                                  <span className="text-gray-400 text-xs">
+                                    +{rec.tracks.length - 2} autres recommandations
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           )}
 
-                          {/* Bouton d'action */}
+                          {/* Bouton d'action fonctionnel */}
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            className="w-full bg-white/20 backdrop-blur-sm text-white py-1.5 rounded-lg text-xs font-medium hover:bg-white/30 transition-all duration-300 border border-white/20"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              // Action basée sur le type de recommandation
+                              if (rec.type === 'Basé sur vos goûts') {
+                                // Naviguer vers la page de découverte avec filtres
+                                router.push(`/discover?filter=similar&genres=${rec.metrics?.topGenres?.join(',') || ''}`);
+                              } else if (rec.type === 'Nouveautés populaires') {
+                                // Naviguer vers les tendances
+                                router.push('/discover?filter=trending');
+                              } else if (rec.type === 'Recommandations personnalisées') {
+                                // Jouer la première piste recommandée
+                                if (rec.tracks && rec.tracks.length > 0) {
+                                  handlePlayTrack(rec.tracks[0]);
+                                }
+                              } else {
+                                // Action par défaut : naviguer vers la découverte
+                                router.push('/discover');
+                              }
+                            }}
+                            className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm text-white py-2 rounded-lg text-xs font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 flex items-center justify-center space-x-1"
                           >
-                            Découvrir →
+                            <span>Découvrir</span>
+                            <ChevronRight size={12} />
                           </motion.button>
                         </div>
                       </motion.div>
                     ))}
                   </div>
 
-                  {/* Insights personnalisés compacts */}
+                  {/* Insights personnalisés compacts avec actions */}
                   {userPreferences && (
                     <div className="mt-6 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10">
-                      <h3 className="text-white font-semibold text-sm mb-3">Vos Insights Musicaux</h3>
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-white font-semibold text-sm">Vos Insights Musicaux</h3>
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => router.push('/profile/edit')}
+                          className="text-purple-400 hover:text-purple-300 text-xs font-medium"
+                        >
+                          Personnaliser
+                        </motion.button>
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {[
                           { 
                             label: 'Genres préférés', 
                             value: userPreferences.topGenres?.slice(0, 2).join(', ') || 'Aucun', 
-                            icon: Music 
+                            icon: Music,
+                            action: () => router.push('/discover?filter=genres')
                           },
                           { 
                             label: 'Créations aimées', 
                             value: `${userPreferences.totalLiked || 0} titres`, 
-                            icon: Heart 
+                            icon: Heart,
+                            action: () => router.push('/library?filter=liked')
                           },
                           { 
                             label: 'Artiste favori', 
                             value: userPreferences.favoriteArtist || 'Aucun', 
-                            icon: Star 
+                            icon: Star,
+                            action: () => router.push(`/profile/${userPreferences.favoriteArtist?.toLowerCase().replace(/\s+/g, '-')}`)
                           }
                         ].map((insight, index) => (
                           <motion.div
@@ -2520,15 +2593,48 @@ export default function HomePage() {
                             whileInView={{ opacity: 1, x: 0 }}
                             viewport={{ once: true, margin: '50px' }}
                             transition={{ duration: 0.4, delay: index * 0.1 }}
-                            className="flex items-center space-x-2"
+                            whileHover={{ scale: 1.02 }}
+                            className="flex items-center space-x-2 p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-all duration-200 cursor-pointer"
+                            onClick={insight.action}
                           >
                             <insight.icon size={16} className="text-purple-400" />
                             <div className="flex-1 min-w-0">
                               <div className="text-white font-medium text-xs truncate">{insight.value}</div>
                               <div className="text-gray-400 text-xs truncate">{insight.label}</div>
                             </div>
+                            <ChevronRight size={12} className="text-gray-400" />
                           </motion.div>
                         ))}
+                      </div>
+                      
+                      {/* Actions rapides */}
+                      <div className="mt-4 pt-3 border-t border-white/10">
+                        <div className="flex flex-wrap gap-2">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => router.push('/discover')}
+                            className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30 hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300"
+                          >
+                            Découvrir plus
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => router.push('/upload')}
+                            className="px-3 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 text-xs rounded-full border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300"
+                          >
+                            Partager ma musique
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={fetchPersonalRecommendations}
+                            className="px-3 py-1.5 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 text-blue-300 text-xs rounded-full border border-blue-500/30 hover:from-blue-500/30 hover:to-cyan-500/30 transition-all duration-300"
+                          >
+                            Actualiser
+                          </motion.button>
+                        </div>
                       </div>
                     </div>
                   )}
