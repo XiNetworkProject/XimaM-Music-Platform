@@ -439,20 +439,18 @@ export default function ConversationPage() {
         
         // Forcer l'affichage de la zone de saisie si la conversation est acceptée ou si on est en train de charger
         return (
-          <div className="p-4 bg-white/10 backdrop-blur-sm border-t border-white/20 border-red-500 border-4">
-            <div className="text-red-500 font-bold mb-2">ZONE DE SAISIE VISIBLE</div>
+          <div className="p-2 bg-gradient-to-r from-purple-900/80 to-blue-900/80 rounded-2xl shadow-lg mb-2 flex flex-col gap-2 border border-white/10">
             <div className="flex items-center space-x-2">
               {/* Media options */}
               <div className="relative">
                 <button
                   onClick={() => setShowMediaOptions(!showMediaOptions)}
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors shadow"
                 >
                   <MoreVertical size={20} className="text-white" />
                 </button>
-                
                 {showMediaOptions && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-white/20 backdrop-blur-sm rounded-lg p-2 space-y-1">
+                  <div className="absolute bottom-full left-0 mb-2 bg-white/20 backdrop-blur-sm rounded-lg p-2 space-y-1 shadow-lg">
                     <button
                       onClick={() => {
                         fileInputRef.current?.setAttribute('data-type', 'image');
@@ -486,7 +484,7 @@ export default function ConversationPage() {
                 onMouseLeave={stopRecording}
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
-                className={`p-2 rounded-full transition-colors ${
+                className={`p-2 rounded-full transition-colors shadow ${
                   isRecording 
                     ? 'bg-red-500 hover:bg-red-600' 
                     : 'bg-white/10 hover:bg-white/20'
@@ -502,15 +500,16 @@ export default function ConversationPage() {
                 onChange={(e) => setNewMessage(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
                 placeholder="Tapez votre message..."
-                className="flex-1 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="flex-1 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow"
                 disabled={uploading}
+                style={{ minWidth: 0 }}
               />
 
               {/* Send button */}
               <button
                 onClick={handleSendText}
                 disabled={!newMessage.trim() || uploading}
-                className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+                className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow"
               >
                 <Send size={20} className="text-white" />
               </button>

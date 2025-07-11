@@ -154,75 +154,55 @@ export default function FullScreenPlayer() {
     <>
       {/* Mini-player */}
       <motion.div
-        className="glass-player relative"
+        className="glass-player fixed bottom-0 left-0 right-0 z-[90] flex items-center px-2 py-2 bg-gradient-to-r from-purple-900/80 to-blue-900/80 shadow-lg backdrop-blur-lg"
         style={{
-          display: showFull ? 'none' : 'flex'
+          display: showFull ? 'none' : 'flex',
+          borderTopLeftRadius: '1.5rem',
+          borderTopRightRadius: '1.5rem',
+          minHeight: '56px',
         }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        onClick={() => setShowFull(true)}
       >
-        {/* Particules volantes AUTOUR du mini player quand en lecture */}
-        <FloatingParticles 
-          isPlaying={audioState.isPlaying && !audioState.isLoading} 
-        />
-        
         <img 
           src={currentTrack?.coverUrl || '/default-cover.jpg'} 
           alt={currentTrack?.title || 'Track'} 
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0 relative z-10" 
+          className="w-10 h-10 rounded-lg object-cover mr-2 flex-shrink-0 relative z-10" 
           loading="lazy"
         />
         <div className="flex-1 min-w-0 relative z-10">
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <span className="truncate font-semibold text-white text-xs sm:text-sm">{currentTrack?.title || 'Titre inconnu'}</span>
-            {/* Animation d'onde/barre */}
+          <div className="flex items-center space-x-2">
+            <span className="truncate font-semibold text-white text-sm">{currentTrack?.title || 'Titre inconnu'}</span>
             {audioState.isPlaying && !audioState.isLoading && (
-              <div className="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
-                <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
-                <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.4s' }}></div>
+              <div className="flex space-x-1 flex-shrink-0">
+                <div className="w-1 h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
+                <div className="w-1 h-3 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1 h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.4s' }}></div>
               </div>
             )}
           </div>
-          <span className="text-xs text-gray-300 truncate text-xs sm:text-xs">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+          <span className="text-xs text-gray-300 truncate">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
         </div>
-        
-        {/* Indicateur de chargement */}
-        {audioState.isLoading && (
-          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 relative z-10">
-            <Loader2 size={16} className="text-white animate-spin" />
-          </div>
-        )}
-        
-        {/* Indicateur d'erreur */}
-        {showError && (
-          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 relative z-10">
-            <AlertCircle size={16} className="text-red-400" />
-          </div>
-        )}
-        
-        {/* Message d'aide pour première lecture mobile */}
-        {audioState.error && audioState.error.includes('Première lecture') && (
-          <div className="ml-2 px-2 py-1 bg-blue-500/20 rounded text-xs text-blue-300 max-w-32 relative z-10">
-            Cliquez sur play
-          </div>
-        )}
-        
         <button
-          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
+          className="ml-2 flex items-center justify-center w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
           onClick={e => { e.stopPropagation(); togglePlay(); }}
           disabled={audioState.isLoading}
         >
           {audioState.isLoading ? (
-            <Loader2 size={14} className="text-white animate-spin sm:w-[18px] sm:h-[18px]" />
+            <Loader2 size={18} className="text-white animate-spin" />
           ) : audioState.isPlaying ? (
-            <Pause size={14} className="text-white sm:w-[18px] sm:h-[18px]" />
+            <Pause size={18} className="text-white" />
           ) : (
-            <Play size={14} className="text-white sm:w-[18px] sm:h-[18px]" />
+            <Play size={18} className="text-white" />
           )}
+        </button>
+        <button
+          className="ml-2 flex items-center justify-center w-8 h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 relative z-10"
+          onClick={e => { e.stopPropagation(); setShowFull(true); }}
+        >
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path d="M7 10V7a3 3 0 0 1 3-3h7m0 0v7m0-7-7 7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
       </motion.div>
 
@@ -250,7 +230,7 @@ export default function FullScreenPlayer() {
               exit={{ scale: 0.9, opacity: 0 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Header : jaquette grande + bouton fermer */}
+              {/* Header : jaquette grande + bouton fermer + bouton minimiser */}
               <div className="relative w-full flex flex-col items-center mt-4">
                 <motion.img 
                   src={currentTrack?.coverUrl || '/default-cover.jpg'} 
@@ -266,7 +246,17 @@ export default function FullScreenPlayer() {
                   }}
                   onClick={() => setShowFull(false)}
                 >
-                  <X size={22} className="text-white" />
+                  <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </button>
+                <button
+                  className="absolute w-10 h-10 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                  style={{
+                    top: '-20px',
+                    left: '20px'
+                  }}
+                  onClick={() => setShowFull(false)}
+                >
+                  <svg width="22" height="22" fill="none" viewBox="0 0 24 24"><path d="M20 14v3a3 3 0 0 1-3 3h-7m0 0v-7m0 7 7-7" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </button>
               </div>
               
