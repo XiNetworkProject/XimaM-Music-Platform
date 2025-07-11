@@ -2295,8 +2295,17 @@ export default function HomePage() {
                       <span>{formatNumber(track.plays)}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <Heart size={12} />
-                      <span>{Array.isArray(track.likes) ? track.likes.length : 0}</span>
+                      <InteractiveCounter
+                        type="likes"
+                        initialCount={Array.isArray(track.likes) ? track.likes.length : 0}
+                        isActive={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
+                        onToggle={async (newState) => {
+                          await handleLikeTrack(track._id, 'dailyDiscoveries', index);
+                        }}
+                        size="sm"
+                        showIcon={true}
+                        className="text-gray-400 hover:text-red-500"
+                      />
                     </div>
                   </div>
                 </div>
@@ -2559,7 +2568,7 @@ export default function HomePage() {
                                         await handleLikeTrack(track._id, 'recommendations', index);
                                       }}
                                       showIcon={true}
-                                      className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors !p-0"
+                                      className="w-5 h-5 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
                                     />
                                   </div>
                                 </motion.div>
@@ -2697,96 +2706,7 @@ export default function HomePage() {
           </section>
         )}
 
-        {/* Section Activité Récente */}
-        {recentActivity.followedActivities.length > 0 && (
-          <section className="container mx-auto px-8">
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '50px' }}
-              transition={{ duration: 0.6 }}
-              className="mb-8"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
-                    <Activity size={24} className="text-white" />
-                  </div>
-                  <div>
-                    <h2 className="text-2xl font-bold text-white">📱 Activité Récente</h2>
-                    <p className="text-gray-400">Ce qui se passe dans votre réseau</p>
-                  </div>
-                </div>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="text-purple-400 hover:text-purple-300 font-medium"
-                >
-                  Voir tout
-                </motion.button>
-              </div>
-              
-              <div className="space-y-3">
-                {activityLoading ? (
-                  // Skeleton loading compact pour l'activité
-                  [...Array(3)].map((_, index) => (
-                    <div key={index} className="animate-pulse">
-                      <div className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
-                        <div className="w-8 h-8 bg-gray-700 rounded-full"></div>
-                        <div className="flex-1">
-                          <div className="h-3 bg-gray-700 rounded mb-1"></div>
-                          <div className="h-2 bg-gray-700 rounded w-1/2"></div>
-                        </div>
-                        <div className="h-2 bg-gray-700 rounded w-12"></div>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  recentActivity.followedActivities.slice(0, 5).map((activity: any, index: number) => (
-                    <motion.div
-                      key={index}
-                      initial={{ opacity: 0, x: -20 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true, margin: '50px' }}
-                      transition={{ duration: 0.4, delay: index * 0.1 }}
-                      whileHover={{ y: -2, scale: 1.01 }}
-                      className="flex items-center space-x-3 p-3 bg-white/10 dark:bg-gray-800/60 border border-gray-700 rounded-lg hover:bg-white/15 transition-all duration-200 cursor-pointer"
-                    >
-                      {/* Avatar */}
-                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                        <img
-                          src={activity.avatar || '/default-avatar.png'}
-                          alt={activity.artist || 'Utilisateur'}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = '/default-avatar.png';
-                          }}
-                        />
-                      </div>
-                      
-                      {/* Contenu */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white font-medium text-sm truncate">
-                          <span className="text-purple-400">
-                            {activity.artist || 'Utilisateur'}
-                          </span> {activity.action || 'a partagé'}
-                        </p>
-                        <p className="text-gray-400 text-xs truncate">
-                          {activity.track || 'une musique'}
-                        </p>
-                      </div>
-                      
-                      {/* Temps */}
-                      <span className="text-gray-500 text-xs flex-shrink-0">
-                        {activity.time || 'À l\'instant'}
-                      </span>
-                    </motion.div>
-                  ))
-                )}
-              </div>
-            </motion.div>
-          </section>
-        )}
+
 
         {/* Sections de catégories existantes améliorées */}
         {categoryConfigs.map((config, configIndex) => {
