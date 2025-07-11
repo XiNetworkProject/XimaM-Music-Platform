@@ -21,6 +21,7 @@ export interface IUser extends Document {
   };
   followers: mongoose.Types.ObjectId[];
   following: mongoose.Types.ObjectId[];
+  followRequests: mongoose.Types.ObjectId[];
   tracks: mongoose.Types.ObjectId[];
   playlists: mongoose.Types.ObjectId[];
   likes: mongoose.Types.ObjectId[];
@@ -119,6 +120,10 @@ const UserSchema = new Schema<IUser>({
     ref: 'User'
   }],
   following: [{
+    type: Schema.Types.ObjectId,
+    ref: 'User'
+  }],
+  followRequests: [{
     type: Schema.Types.ObjectId,
     ref: 'User'
   }],
@@ -241,6 +246,19 @@ UserSchema.methods.addFollower = function(userId: string) {
 
 UserSchema.methods.removeFollower = function(userId: string) {
   this.followers = this.followers.filter((id: mongoose.Types.ObjectId) => id.toString() !== userId);
+  return this.save();
+};
+
+UserSchema.methods.addFollowRequest = function(userId: string) {
+  if (!this.followRequests.includes(userId)) {
+    this.followRequests.push(userId);
+    return this.save();
+  }
+  return Promise.resolve(this);
+};
+
+UserSchema.methods.removeFollowRequest = function(userId: string) {
+  this.followRequests = this.followRequests.filter((id: mongoose.Types.ObjectId) => id.toString() !== userId);
   return this.save();
 };
 

@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import User from '@/models/User';
 
-// POST /api/users/follow-requests/[requestId]/reject - Rejeter une demande de suivi
+// POST /api/users/follow-requests/[requestId]/accept - Accepter une demande de suivi
 export async function POST(
   request: NextRequest,
   { params }: { params: { requestId: string } }
@@ -42,18 +42,31 @@ export async function POST(
       );
     }
 
-    // Supprimer la demande de suivi
+    // Accepter la demande de suivi
+    // 1. Supprimer la demande de la liste des demandes
     await currentUser.removeFollowRequest(requestingUser._id.toString());
+
+    // 2. Ajouter l'utilisateur demandeur aux followers
+    if (!currentUser.followers.includes(requestingUser._id)) {
+      currentUser.followers.push(requestingUser._id);
+      await currentUser.save();
+    }
+
+    // 3. Ajouter l'utilisateur actuel aux following de l'utilisateur demandeur
+    if (!requestingUser.following.includes(currentUser._id)) {
+      requestingUser.following.push(currentUser._id);
+      await requestingUser.save();
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Demande de suivi refusée'
+      message: 'Demande de suivi acceptée'
     });
 
   } catch (error) {
-    console.error('Erreur rejet demande de suivi:', error);
+    console.error('Erreur acceptation demande de suivi:', error);
     return NextResponse.json(
-      { error: 'Erreur lors du rejet de la demande' },
+      { error: 'Erreur lors de l\'acceptation de la demande' },
       { status: 500 }
     );
   }
