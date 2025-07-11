@@ -509,7 +509,7 @@ export default function HomePage() {
     try {
       // Charger les pistes en vedette en premier
       console.log('⭐ Chargement pistes en vedette...');
-      await fetchCategoryData('featured', '/api/tracks/popular?limit=20', forceRefresh);
+      await fetchCategoryData('featured', '/api/tracks/featured?limit=5', forceRefresh);
 
       // Charger les autres catégories en parallèle
       console.log('📊 Chargement autres catégories...');
@@ -574,7 +574,6 @@ export default function HomePage() {
     dataCache.clear();
     
     const categoryApis = [
-      { key: 'featured', url: '/api/tracks/popular?limit=50' },
       { key: 'trending', url: '/api/tracks/trending?limit=50' },
       { key: 'popular', url: '/api/tracks/popular?limit=50' },
       { key: 'recent', url: '/api/tracks/recent?limit=50' },

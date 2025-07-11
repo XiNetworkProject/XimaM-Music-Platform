@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
 import User from '@/models/User';
+import { RecommendationEngine } from '@/lib/recommendationEngine';
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,66 +28,47 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Récupérer les tracks que l'utilisateur a aimées
+    // Récupérer toutes les pistes pour l'algorithme
+    const allTracks = await Track.find()
+      .populate('artist', 'name username avatar')
+      .lean() as any[];
+
+    // Récupérer les pistes que l'utilisateur a aimées
     const likedTracks = await Track.find({
       likes: user._id
-    }).populate('artist', 'name username avatar');
+    }).populate('artist', 'name username avatar') as any[];
 
-    // Analyser les genres préférés
-    const genrePreferences = likedTracks.reduce((acc: any, track) => {
-      if (track.genre) {
-        track.genre.forEach((genre: string) => {
-          acc[genre] = (acc[genre] || 0) + 1;
-        });
-      }
-      return acc;
-    }, {});
+    // Utiliser le moteur de recommandations amélioré
+    const personalRecommendations = RecommendationEngine.getPersonalRecommendations(
+      allTracks,
+      likedTracks,
+      15
+    );
 
-    // Trouver les genres les plus populaires
-    const topGenres = Object.entries(genrePreferences)
-      .sort(([,a], [,b]) => (b as number) - (a as number))
-      .slice(0, 3)
-      .map(([genre]) => genre);
+    // Diversifier les recommandations
+    const diversifiedRecommendations = RecommendationEngine.diversifyRecommendations(
+      personalRecommendations,
+      3
+    );
 
-    // Recommandations basées sur les genres préférés
-    const genreRecommendations = await Track.find({
-      genre: { $in: topGenres },
-      likes: { $ne: user._id }, // Exclure les tracks déjà aimées
-      _id: { $nin: likedTracks.map(t => t._id) } // Exclure les tracks déjà vues
-    })
-    .populate('artist', 'name username avatar')
-    .sort({ plays: -1, createdAt: -1 })
-    .limit(6);
+    // Analyser les préférences utilisateur
+    const userPreferences = RecommendationEngine.analyzeUserPreferences(likedTracks);
 
-    // Recommandations d'artistes similaires
-    const likedArtists = Array.from(new Set(likedTracks.map(track => track.artist._id.toString())));
-    const artistRecommendations = await Track.find({
-      'artist._id': { $nin: likedArtists },
-      likes: { $ne: user._id }
-    })
-    .populate('artist', 'name username avatar')
-    .sort({ plays: -1 })
-    .limit(4);
-
-    // Recommandations de nouveautés populaires
-    const recentRecommendations = await Track.find({
-      likes: { $ne: user._id },
-      _id: { $nin: likedTracks.map(t => t._id) }
-    })
-    .populate('artist', 'name username avatar')
-    .sort({ createdAt: -1, plays: -1 })
-    .limit(4);
-
-    // Créer les cartes de recommandations
+    // Créer les cartes de recommandations avec des métriques détaillées
     const recommendations = [
       {
         type: 'Basé sur vos goûts',
         title: 'Artistes similaires',
-        description: `Découvrez des artistes dans vos genres préférés: ${topGenres.slice(0, 2).join(', ')}`,
+        description: `Découvrez des artistes dans vos genres préférés: ${Object.keys(userPreferences.genres).slice(0, 2).join(', ')}`,
         confidence: '92%',
         color: 'from-purple-500 to-pink-500',
         icon: 'UserPlus',
-        tracks: artistRecommendations.slice(0, 3)
+        tracks: diversifiedRecommendations.slice(0, 3),
+        metrics: {
+          totalLiked: userPreferences.totalTracks,
+          topGenres: Object.keys(userPreferences.genres).slice(0, 3),
+          avgPlays: Math.round(userPreferences.avgPlays)
+        }
       },
       {
         type: 'Nouveautés populaires',
@@ -95,7 +77,11 @@ export async function GET(request: NextRequest) {
         confidence: '88%',
         color: 'from-blue-500 to-cyan-500',
         icon: 'TrendingUp',
-        tracks: recentRecommendations.slice(0, 3)
+        tracks: RecommendationEngine.getTrendingTracks(allTracks, 3),
+        metrics: {
+          algorithm: 'trending_v2',
+          factors: ['récence', 'engagement', 'qualité']
+        }
       },
       {
         type: 'Recommandations personnalisées',
@@ -104,16 +90,42 @@ export async function GET(request: NextRequest) {
         confidence: '95%',
         color: 'from-green-500 to-emerald-500',
         icon: 'Sparkles',
-        tracks: genreRecommendations.slice(0, 3)
+        tracks: diversifiedRecommendations.slice(3, 6),
+        metrics: {
+          analyzedTracks: userPreferences.totalTracks,
+          favoriteArtist: likedTracks[0]?.artist?.name || 'Aucun',
+          avgLikes: Math.round(userPreferences.avgLikes)
+        }
       }
     ];
+
+    // Log des recommandations pour debug
+    console.log('🎯 Recommandations personnalisées:', {
+      user: user.email,
+      totalLiked: userPreferences.totalTracks,
+      topGenres: Object.keys(userPreferences.genres).slice(0, 3),
+      recommendationsCount: diversifiedRecommendations.length,
+      algorithm: 'personal_v2'
+    });
 
     return NextResponse.json({ 
       recommendations,
       userPreferences: {
-        topGenres,
-        totalLiked: likedTracks.length,
-        favoriteArtist: likedTracks[0]?.artist?.name || 'Aucun'
+        topGenres: Object.keys(userPreferences.genres).slice(0, 5),
+        totalLiked: userPreferences.totalTracks,
+        favoriteArtist: likedTracks[0]?.artist?.name || 'Aucun',
+        avgPlays: Math.round(userPreferences.avgPlays),
+        avgLikes: Math.round(userPreferences.avgLikes),
+        analyzedTracks: likedTracks.length
+      },
+      algorithm: 'personal_v2',
+      factors: {
+        genreMatch: 'poids 10',
+        artistMatch: 'poids 15',
+        recency: 'poids 5',
+        popularity: 'poids 3',
+        engagement: 'poids 4',
+        quality: 'poids 2'
       }
     });
   } catch (error) {
