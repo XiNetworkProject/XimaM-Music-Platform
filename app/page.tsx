@@ -120,6 +120,10 @@ export default function HomePage() {
   // État pour les genres musicaux
   const [musicGenres, setMusicGenres] = useState<any[]>([]);
   const [genresLoading, setGenresLoading] = useState(false);
+  
+  // État pour les interactions de la section Créer & Découvrir
+  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
+  const [showQuickStats, setShowQuickStats] = useState(false);
 
   // Debug: Afficher l'état des catégories
   useEffect(() => {
@@ -969,6 +973,17 @@ export default function HomePage() {
   };
 
   // Fonction pour gérer la lecture/arrêt de la radio
+  // Fonction pour gérer les interactions de la section Créer & Découvrir
+  const handleCardInteraction = (cardType: string, action: 'hover' | 'click') => {
+    if (action === 'hover') {
+      setHoveredCard(cardType);
+      setShowQuickStats(true);
+    } else {
+      setHoveredCard(null);
+      setShowQuickStats(false);
+    }
+  };
+
   const handleRadioToggle = async () => {
     if (isRadioPlaying) {
       // Arrêter la radio via le service audio
@@ -2031,31 +2046,238 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '50px' }}
             transition={{ duration: 0.6 }}
-            className="mb-6"
+            className="mb-8"
           >
-            <h2 className="text-xl font-bold text-white mb-4">Créer & Découvrir</h2>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
+                  <Sparkles size={24} className="text-purple-400" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-white">Créer & Découvrir</h2>
+                  <p className="text-gray-400 text-sm">Explorez et partagez votre passion musicale</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { icon: Mic2, label: 'Partager ma musique', color: 'from-purple-500/20 to-pink-500/20', borderColor: 'border-purple-500/30', iconColor: 'text-purple-400', href: '/upload' },
-                { icon: Music, label: 'Découvrir', color: 'from-green-500/20 to-emerald-500/20', borderColor: 'border-green-500/30', iconColor: 'text-green-400', href: '/discover' },
-                { icon: Users, label: 'Communauté', color: 'from-orange-500/20 to-red-500/20', borderColor: 'border-orange-500/30', iconColor: 'text-orange-400', href: '/community' }
+                { 
+                  icon: Mic2, 
+                  label: 'Partager ma musique', 
+                  description: 'Uploadez vos créations et partagez-les avec le monde',
+                  color: 'from-purple-500/20 to-pink-500/20', 
+                  borderColor: 'border-purple-500/30', 
+                  iconColor: 'text-purple-400', 
+                  bgGradient: 'from-purple-500/10 to-pink-500/10',
+                  href: '/upload',
+                  features: ['Upload illimité', 'Qualité HD', 'Monétisation']
+                },
+                { 
+                  icon: Compass, 
+                  label: 'Découvrir', 
+                  description: 'Explorez de nouveaux artistes et genres musicaux',
+                  color: 'from-green-500/20 to-emerald-500/20', 
+                  borderColor: 'border-green-500/30', 
+                  iconColor: 'text-green-400', 
+                  bgGradient: 'from-green-500/10 to-emerald-500/10',
+                  href: '/discover',
+                  features: ['Recommandations IA', 'Nouveautés', 'Playlists personnalisées']
+                },
+                { 
+                  icon: Users, 
+                  label: 'Communauté', 
+                  description: 'Rejoignez une communauté passionnée de musique',
+                  color: 'from-orange-500/20 to-red-500/20', 
+                  borderColor: 'border-orange-500/30', 
+                  iconColor: 'text-orange-400', 
+                  bgGradient: 'from-orange-500/10 to-red-500/10',
+                  href: '/community',
+                  features: ['Artistes émergents', 'Événements live', 'Collaborations']
+                },
+                { 
+                  icon: Radio, 
+                  label: 'Radio Live', 
+                  description: 'Écoutez Mixx Party Radio en direct',
+                  color: 'from-cyan-500/20 to-blue-500/20', 
+                  borderColor: 'border-cyan-500/30', 
+                  iconColor: 'text-cyan-400', 
+                  bgGradient: 'from-cyan-500/10 to-blue-500/10',
+                  href: '#radio',
+                  features: ['En direct 24/7', 'Musique électronique', 'Chat en temps réel']
+                }
               ].map((item, index) => (
                 <motion.div
                   key={item.label}
-                  whileHover={{ scale: 1.02, y: -2 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  whileHover={{ scale: 1.02, y: -4 }}
                   whileTap={{ scale: 0.98 }}
                   className="group cursor-pointer"
+                  onMouseEnter={() => handleCardInteraction(item.label, 'hover')}
+                  onMouseLeave={() => handleCardInteraction(item.label, 'click')}
+                  onClick={() => {
+                    if (item.href === '#radio') {
+                      // Scroll vers la section radio
+                      document.getElementById('radio')?.scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                      router.push(item.href);
+                    }
+                  }}
                 >
-                  <div className={`relative p-4 rounded-lg bg-gradient-to-br ${item.color} hover:shadow-lg transition-all duration-300 border ${item.borderColor}`}>
-                    <div className="absolute inset-0 bg-black/5 rounded-lg group-hover:bg-black/10 transition-colors"></div>
-                    <div className="relative z-10 text-center">
-                      <item.icon size={24} className={`mx-auto mb-2 ${item.iconColor}`} />
-                      <p className="text-white font-medium text-sm">{item.label}</p>
+                  <div className={`relative h-full p-6 rounded-2xl bg-gradient-to-br ${item.bgGradient} hover:shadow-2xl transition-all duration-300 border ${item.borderColor} group-hover:border-opacity-60 ${hoveredCard === item.label ? 'ring-2 ring-purple-500/50' : ''}`}>
+                    {/* Effet de lueur au hover */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    
+                    {/* Indicateur de carte active */}
+                    {hoveredCard === item.label && (
+                      <motion.div
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center"
+                      >
+                        <Sparkles size={12} className="text-white" />
+                      </motion.div>
+                    )}
+                    
+                    <div className="relative z-10">
+                      {/* Header avec icône */}
+                      <div className="flex items-center space-x-3 mb-4">
+                        <div className={`p-3 rounded-xl bg-gradient-to-br ${item.color} border ${item.borderColor}`}>
+                          <item.icon size={24} className={item.iconColor} />
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-bold text-white mb-1">{item.label}</h3>
+                          <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Liste des fonctionnalités */}
+                      <div className="space-y-2 mb-4">
+                        {item.features.map((feature, featureIndex) => (
+                          <div key={featureIndex} className="flex items-center space-x-2">
+                            <div className="w-1.5 h-1.5 bg-gradient-to-r from-white/60 to-white/40 rounded-full"></div>
+                            <span className="text-gray-300 text-xs">{feature}</span>
+                          </div>
+                        ))}
+                      </div>
+                      
+                                             {/* Bouton d'action */}
+                       <div className="flex items-center justify-between">
+                         <motion.button
+                           whileHover={{ scale: 1.05 }}
+                           whileTap={{ scale: 0.95 }}
+                           className={`flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r ${item.color} border ${item.borderColor} text-white font-medium text-sm hover:shadow-lg transition-all duration-200`}
+                         >
+                           <span>Explorer</span>
+                           <ArrowRight size={16} />
+                         </motion.button>
+                         
+                         {/* Indicateur de popularité */}
+                         <div className="flex items-center space-x-1 text-xs text-gray-400">
+                           <TrendingUp size={12} />
+                           <span>Populaire</span>
+                         </div>
+                       </div>
+                       
+                       {/* Fonctionnalités avancées au survol */}
+                       <AnimatePresence>
+                         {hoveredCard === item.label && (
+                           <motion.div
+                             initial={{ opacity: 0, height: 0 }}
+                             animate={{ opacity: 1, height: 'auto' }}
+                             exit={{ opacity: 0, height: 0 }}
+                             className="mt-4 pt-4 border-t border-white/10"
+                           >
+                             <div className="flex items-center justify-between text-xs text-gray-400">
+                               <span>Fonctionnalités avancées</span>
+                               <div className="flex items-center space-x-1">
+                                 <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
+                                 <span>Disponible</span>
+                               </div>
+                             </div>
+                           </motion.div>
+                         )}
+                       </AnimatePresence>
+                    </div>
+                    
+                    {/* Effet de particules au hover */}
+                    <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                        <div className="absolute top-2 right-2 w-2 h-2 bg-white/20 rounded-full animate-pulse"></div>
+                        <div className="absolute bottom-4 left-3 w-1 h-1 bg-white/30 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
+                        <div className="absolute top-1/2 right-4 w-1.5 h-1.5 bg-white/25 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
+                      </div>
                     </div>
                   </div>
                 </motion.div>
               ))}
             </div>
+            
+                         {/* Section de statistiques rapides */}
+             <motion.div
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ delay: 0.4 }}
+               className="mt-8"
+             >
+               <div className="flex items-center justify-between mb-4">
+                 <h3 className="text-lg font-semibold text-white">Statistiques en temps réel</h3>
+                 <div className="flex items-center space-x-2 text-xs text-gray-400">
+                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                   <span>Live</span>
+                 </div>
+               </div>
+               
+               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                 {[
+                   { icon: Music, label: 'Tracks', value: '2.5K+', color: 'text-purple-400', trend: '+12%' },
+                   { icon: Users, label: 'Artistes', value: '500+', color: 'text-green-400', trend: '+8%' },
+                   { icon: Headphones, label: 'Écoutes', value: '50K+', color: 'text-orange-400', trend: '+25%' },
+                   { icon: Heart, label: 'Likes', value: '10K+', color: 'text-pink-400', trend: '+15%' }
+                 ].map((stat, index) => (
+                   <motion.div
+                     key={stat.label}
+                     initial={{ opacity: 0, scale: 0.8 }}
+                     animate={{ opacity: 1, scale: 1 }}
+                     transition={{ delay: 0.5 + index * 0.1 }}
+                     whileHover={{ scale: 1.05, y: -2 }}
+                     className="text-center p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-200 group"
+                   >
+                     <stat.icon size={20} className={`mx-auto mb-2 ${stat.color} group-hover:scale-110 transition-transform duration-200`} />
+                     <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
+                     <div className="text-gray-400 text-sm mb-2">{stat.label}</div>
+                     <div className="flex items-center justify-center space-x-1 text-xs">
+                       <TrendingUp size={12} className="text-green-400" />
+                       <span className="text-green-400 font-medium">{stat.trend}</span>
+                     </div>
+                   </motion.div>
+                 ))}
+               </div>
+               
+               {/* Barre de progression globale */}
+               <motion.div
+                 initial={{ opacity: 0, width: 0 }}
+                 animate={{ opacity: 1, width: '100%' }}
+                 transition={{ delay: 0.8, duration: 1 }}
+                 className="mt-6 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20"
+               >
+                 <div className="flex items-center justify-between mb-2">
+                   <span className="text-white font-medium">Progression de la communauté</span>
+                   <span className="text-purple-400 text-sm">75%</span>
+                 </div>
+                 <div className="w-full bg-white/10 rounded-full h-2">
+                   <motion.div
+                     initial={{ width: 0 }}
+                     animate={{ width: '75%' }}
+                     transition={{ delay: 1, duration: 1.5 }}
+                     className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+                   ></motion.div>
+                 </div>
+                 <p className="text-gray-400 text-xs mt-2">Objectif : 10K utilisateurs actifs</p>
+               </motion.div>
+             </motion.div>
           </motion.div>
         </section>
 
@@ -2132,7 +2354,7 @@ export default function HomePage() {
 
 
         {/* Section Radio Mixx Party - Style Futuriste */}
-        <section className="container mx-auto px-4 sm:px-8">
+        <section id="radio" className="container mx-auto px-4 sm:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
