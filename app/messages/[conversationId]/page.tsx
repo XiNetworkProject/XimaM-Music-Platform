@@ -18,7 +18,14 @@ import {
   Check,
   Clock,
   Paperclip,
-  Settings
+  Settings,
+  Heart,
+  Smile,
+  Camera,
+  Phone,
+  Video as VideoIcon,
+  MessageCircle,
+  User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
@@ -49,7 +56,7 @@ interface Conversation {
   accepted: boolean;
 }
 
-// Composant d'animation de visualisation audio
+// Composant d'animation de visualisation audio amélioré
 const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration: number }) => {
   const [currentTime, setCurrentTime] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -69,9 +76,9 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
           if (prev >= duration) {
             return duration;
           }
-          return prev + 0.05; // Plus précis pour une animation fluide
+          return prev + 0.05;
         });
-      }, 50); // Mise à jour plus fréquente
+      }, 50);
     } else {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
@@ -90,27 +97,32 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="flex items-center space-x-2">
-      {/* Barres de visualisation animées */}
-      <div className="flex items-end space-x-0.5 h-6">
-        {[...Array(6)].map((_, index) => (
+    <motion.div 
+      className="flex items-center space-x-3"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* Barres de visualisation animées améliorées */}
+      <div className="flex items-end space-x-1 h-8">
+        {[...Array(8)].map((_, index) => (
           <motion.div
             key={index}
-            className="w-1 bg-gradient-to-t from-purple-400 to-purple-300 rounded-full"
+            className="w-1 bg-gradient-to-t from-purple-400 via-pink-400 to-indigo-400 rounded-full"
             animate={{
               height: isPlaying 
-                ? [3, 12, 6, 18, 8, 24][index % 6] 
-                : 3
+                ? [4, 16, 8, 24, 12, 32, 6, 28][index % 8] 
+                : 4
             }}
             transition={{
-              duration: 0.4,
+              duration: 0.5,
               repeat: isPlaying ? Infinity : 0,
               repeatType: "reverse",
-              delay: index * 0.15,
+              delay: index * 0.1,
               ease: "easeInOut"
             }}
             style={{
-              height: isPlaying ? undefined : '3px'
+              height: isPlaying ? undefined : '4px'
             }}
           />
         ))}
@@ -118,12 +130,12 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
       
       {/* Barre de progression avec temps */}
       <div className="flex-1">
-        <div className="w-full bg-white/20 rounded-full h-1.5 mb-1">
+        <div className="w-full bg-white/10 rounded-full h-2 mb-2">
           <motion.div 
-            className="bg-gradient-to-r from-purple-400 to-indigo-400 h-1.5 rounded-full shadow-lg"
+            className="bg-gradient-to-r from-purple-400 via-pink-400 to-indigo-400 h-2 rounded-full shadow-lg"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.05 }}
+            transition={{ duration: 0.1 }}
           />
         </div>
         <div className="flex justify-between text-xs text-white/70">
@@ -131,9 +143,59 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
           <span>{formatTimeLocal(duration)}</span>
         </div>
       </div>
+    </motion.div>
+  );
+};
+
+// Composant pour les indicateurs de statut des messages
+const MessageStatus = ({ message, isOwnMessage }: { message: Message; isOwnMessage: boolean }) => {
+  if (!isOwnMessage) return null;
+
+  const isSeen = message.seenBy.length > 1; // Plus que l'expéditeur
+
+  return (
+    <div className="flex items-center space-x-1 mt-1">
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        {isSeen ? (
+          <div className="flex items-center space-x-1">
+            <Check size={12} className="text-blue-400" />
+            <span className="text-xs text-white/50">Vu</span>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-1">
+            <Check size={12} className="text-white/30" />
+            <span className="text-xs text-white/30">Envoyé</span>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 };
+
+// Composant pour l'avatar avec statut en ligne
+const UserAvatar = ({ user, isOnline = false }: { user: any; isOnline?: boolean }) => (
+  <div className="relative">
+    <motion.img
+      src={user.avatar || '/default-avatar.png'}
+      alt={user.name}
+      className="w-12 h-12 rounded-full object-cover border-2 border-purple-400 shadow-lg"
+      whileHover={{ scale: 1.05 }}
+      transition={{ duration: 0.2 }}
+    />
+    {isOnline && (
+      <motion.div
+        className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.3 }}
+      />
+    )}
+  </div>
+);
 
 // Fonction pour formater la durée d'enregistrement
 const formatRecordingDuration = (seconds: number) => {
@@ -142,6 +204,7 @@ const formatRecordingDuration = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
+// Composant de la barre d'envoi améliorée
 function MessageInputBar({
   newMessage,
   setNewMessage,
@@ -163,138 +226,173 @@ function MessageInputBar({
   cancelRecording
 }: any) {
   return (
-    <div className="fixed bottom-16 left-0 w-full z-40 px-2 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-2 rounded-t-2xl shadow-2xl">
-      {/* Bouton pièce jointe */}
-      <button
-        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md flex-shrink-0"
-        onClick={() => fileInputRef.current?.click()}
-        title="Envoyer un média"
-      >
-        <Paperclip size={18} className="text-purple-300" />
-      </button>
-      
-      {/* Bouton microphone ou prévisualisation */}
-      {!recordingPreview ? (
-        <button
-          className={`p-2 rounded-full transition-all duration-300 shadow-md flex-shrink-0 relative ${
-            isRecording 
-              ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-500/50' 
-              : 'bg-white/20 hover:bg-white/30 hover:scale-105'
-          }`}
-          onMouseDown={startRecording}
-          onMouseUp={stopRecording}
-          onMouseLeave={stopRecording}
-          onTouchStart={startRecording}
-          onTouchEnd={stopRecording}
-          title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
+    <motion.div 
+      className="fixed bottom-16 left-0 w-full z-40 px-3 py-3 bg-gradient-to-r from-purple-900/80 via-indigo-900/80 to-purple-900/80 backdrop-blur-xl border-t border-purple-400/30 rounded-t-3xl shadow-2xl"
+      initial={{ y: 100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+      <div className="flex items-center gap-3">
+        {/* Bouton pièce jointe avec animation */}
+        <motion.button
+          className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30 flex-shrink-0"
+          onClick={() => fileInputRef.current?.click()}
+          title="Envoyer un média"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
         >
-          <Mic size={18} className={`transition-colors ${isRecording ? 'text-white' : 'text-purple-300'}`} />
-          {/* Animation d'enregistrement améliorée */}
-          {isRecording && (
-            <div className="absolute -top-1 -right-1 flex space-x-0.5">
-              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
-              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-              <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-            </div>
-          )}
-        </button>
-      ) : (
-        // Interface de prévisualisation améliorée
-        <div className="flex items-center space-x-2 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 rounded-lg px-3 py-2 flex-shrink-0 border border-purple-400/30">
-          <button
-            className={`p-2 rounded-full transition-all duration-200 ${
-              isPreviewPlaying 
-                ? 'bg-red-500 hover:bg-red-600 scale-110' 
-                : 'bg-white/20 hover:bg-white/30'
+          <Paperclip size={18} className="text-purple-300" />
+        </motion.button>
+        
+        {/* Bouton microphone ou prévisualisation amélioré */}
+        {!recordingPreview ? (
+          <motion.button
+            className={`p-3 rounded-full transition-all duration-300 shadow-lg flex-shrink-0 relative ${
+              isRecording 
+                ? 'bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 scale-110 shadow-red-500/50' 
+                : 'bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 border border-purple-400/30'
             }`}
-            onClick={isPreviewPlaying ? stopPreview : playPreview}
-            title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
+            onMouseDown={startRecording}
+            onMouseUp={stopRecording}
+            onMouseLeave={stopRecording}
+            onTouchStart={startRecording}
+            onTouchEnd={stopRecording}
+            title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
+            whileHover={{ scale: isRecording ? 1.1 : 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            {isPreviewPlaying ? <Pause size={16} /> : <Play size={16} />}
-          </button>
-          <div className="flex flex-col">
-            <span className="text-white font-mono text-xs">
-              {formatRecordingDuration(recordingDuration)}
-            </span>
-            <span className="text-white/60 text-xs">
-              Prévisualisation
-            </span>
-          </div>
-        </div>
-      )}
-      
-      {/* Zone de saisie de texte - priorité maximale */}
-      <input
-        type="text"
-        value={newMessage}
-        onChange={(e) => setNewMessage(e.target.value)}
-        onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
-        placeholder="Tapez votre message..."
-        className="flex-1 min-w-0 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md text-sm"
-        disabled={uploading || isRecording}
-      />
-      
-      {/* Boutons d'action - côté droit */}
-      <div className="flex items-center gap-1 flex-shrink-0">
-        {/* Boutons de diagnostic - seulement si pas en enregistrement */}
-        {!isRecording && !recordingPreview && (
-          <>
-            <button
-              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
-              onClick={testMicrophoneAccess}
-              title="Tester le microphone"
+            <Mic size={18} className={`transition-colors ${isRecording ? 'text-white' : 'text-purple-300'}`} />
+            {/* Animation d'enregistrement améliorée */}
+            {isRecording && (
+              <motion.div 
+                className="absolute -top-1 -right-1 flex space-x-0.5"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+              </motion.div>
+            )}
+          </motion.button>
+        ) : (
+          // Interface de prévisualisation améliorée
+          <motion.div 
+            className="flex items-center space-x-3 bg-gradient-to-r from-purple-600/40 to-indigo-600/40 rounded-xl px-4 py-3 flex-shrink-0 border border-purple-400/40"
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <motion.button
+              className={`p-2 rounded-full transition-all duration-200 ${
+                isPreviewPlaying 
+                  ? 'bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 scale-110' 
+                  : 'bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30'
+              }`}
+              onClick={isPreviewPlaying ? stopPreview : playPreview}
+              title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
-              <Volume2 size={16} className="text-purple-300" />
-            </button>
-            <button
-              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
-              onClick={showSystemInfo}
-              title="Informations système"
-            >
-              <Settings size={16} className="text-purple-300" />
-            </button>
-          </>
+              {isPreviewPlaying ? <Pause size={16} /> : <Play size={16} />}
+            </motion.button>
+            <div className="flex flex-col">
+              <span className="text-white font-mono text-sm">
+                {formatRecordingDuration(recordingDuration)}
+              </span>
+              <span className="text-white/60 text-xs">
+                Prévisualisation
+              </span>
+            </div>
+          </motion.div>
         )}
         
-        {/* Bouton d'envoi ou actions d'enregistrement */}
-        {recordingPreview ? (
-          <>
-            <button
-              className="p-2 rounded-full bg-red-500 hover:bg-red-600 transition-colors shadow-md"
-              onClick={cancelRecording}
-              title="Annuler"
-            >
-              <X size={18} className="text-white" />
-            </button>
-            <button
-              className="p-2 rounded-full bg-green-500 hover:bg-green-600 transition-colors shadow-md"
-              onClick={sendRecording}
+        {/* Zone de saisie de texte améliorée */}
+        <motion.input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
+          placeholder="Tapez votre message..."
+          className="flex-1 min-w-0 px-4 py-3 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-purple-400/30 rounded-2xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 shadow-lg text-sm"
+          disabled={uploading || isRecording}
+          whileFocus={{ scale: 1.02 }}
+          transition={{ duration: 0.2 }}
+        />
+        
+        {/* Boutons d'action améliorés */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Boutons de diagnostic - seulement si pas en enregistrement */}
+          {!isRecording && !recordingPreview && (
+            <AnimatePresence>
+              <motion.button
+                className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+                onClick={testMicrophoneAccess}
+                title="Tester le microphone"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+              >
+                <Volume2 size={16} className="text-purple-300" />
+              </motion.button>
+            </AnimatePresence>
+          )}
+          
+          {/* Bouton d'envoi ou actions d'enregistrement */}
+          {recordingPreview ? (
+            <AnimatePresence>
+              <motion.button
+                className="p-3 rounded-full bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg"
+                onClick={cancelRecording}
+                title="Annuler"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+              >
+                <X size={18} className="text-white" />
+              </motion.button>
+              <motion.button
+                className="p-3 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg"
+                onClick={sendRecording}
+                title="Envoyer"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0, opacity: 0 }}
+              >
+                <Send size={18} className="text-white" />
+              </motion.button>
+            </AnimatePresence>
+          ) : (
+            <motion.button
+              onClick={handleSendText}
+              disabled={!newMessage.trim() || uploading || isRecording}
+              className="p-3 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 shadow-lg"
               title="Envoyer"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               <Send size={18} className="text-white" />
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={handleSendText}
-            disabled={!newMessage.trim() || uploading || isRecording}
-            className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
-            title="Envoyer"
-          >
-            <Send size={18} className="text-white" />
-          </button>
-        )}
+            </motion.button>
+          )}
+        </div>
+        
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*,audio/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
       </div>
-      
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/*,audio/*"
-        onChange={handleFileSelect}
-        className="hidden"
-      />
-    </div>
+    </motion.div>
   );
 }
 
@@ -1399,154 +1497,243 @@ Paramètres Linux à vérifier :
       {/* Élément audio caché pour la prévisualisation */}
       <audio ref={previewAudioRef} className="hidden" />
       
-      {/* Header fixed */}
-      <div className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 bg-white/10 backdrop-blur-md border-b border-white/20 rounded-b-2xl shadow-lg">
+      {/* Header fixed amélioré */}
+      <motion.div 
+        className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/80 via-indigo-900/80 to-purple-900/80 backdrop-blur-xl border-b border-purple-400/30 rounded-b-3xl shadow-2xl"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
         <div className="flex items-center space-x-3">
-          <button
+          <motion.button
             onClick={() => router.back()}
-            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+            className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             <ArrowLeft size={20} className="text-white" />
-          </button>
+          </motion.button>
           {otherUser ? (
-            <div className="flex items-center space-x-3">
-              <img
-                src={otherUser.avatar || '/default-avatar.png'}
-                alt={otherUser.name}
-                className="w-12 h-12 rounded-full object-cover border-2 border-purple-400 shadow-md"
-              />
+            <motion.div 
+              className="flex items-center space-x-3"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <UserAvatar user={otherUser} isOnline={true} />
               <div>
                 <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
-                <p className="text-xs text-purple-200 font-mono">@{otherUser.username}</p>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                  <p className="text-xs text-purple-200 font-mono">En ligne</p>
+                </div>
               </div>
-            </div>
+            </motion.div>
           ) : conversationLoading ? (
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gray-600 rounded-full animate-pulse"></div>
+            <motion.div 
+              className="flex items-center space-x-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-full animate-pulse border border-purple-400/30"></div>
               <div>
-                <div className="h-4 bg-gray-600 rounded w-24 animate-pulse"></div>
-                <div className="h-3 bg-gray-700 rounded w-16 mt-1 animate-pulse"></div>
+                <div className="h-4 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded w-24 animate-pulse"></div>
+                <div className="h-3 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 rounded w-16 mt-1 animate-pulse"></div>
               </div>
-            </div>
+            </motion.div>
           ) : (
-            <div className="flex items-center space-x-3">
-              <div className="w-12 h-12 bg-gray-600 rounded-full"></div>
+            <motion.div 
+              className="flex items-center space-x-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-full border border-purple-400/30"></div>
               <div>
                 <h2 className="font-semibold text-white">Utilisateur</h2>
                 <p className="text-xs text-purple-200">Chargement...</p>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
-        <button className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md">
+        <motion.button 
+          className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
           <MoreVertical size={20} className="text-white" />
-        </button>
-      </div>
+        </motion.button>
+      </motion.div>
 
       {/* Messages scrollable avec padding pour header et BottomNav+input */}
-      <div className="pt-20 pb-32 px-2 flex flex-col space-y-4 overflow-y-auto h-screen">
+      <div className="pt-20 pb-32 px-4 flex flex-col space-y-6 overflow-y-auto h-screen">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-          </div>
+          <motion.div 
+            className="flex items-center justify-center py-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="relative">
+              <div className="animate-spin rounded-full h-12 w-12 border-2 border-purple-400 border-t-transparent"></div>
+              <div className="absolute inset-0 animate-spin rounded-full h-12 w-12 border-2 border-indigo-400 border-t-transparent" style={{ animationDelay: '-0.5s' }}></div>
+            </div>
+          </motion.div>
         ) : (
           <AnimatePresence>
             {messages.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">
-                <p>Aucun message pour cette conversation. Commencez une discussion !</p>
-              </div>
-            ) : (
-              messages.map((message) => (
-                <motion.div
-                  key={message._id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${message.sender._id === session.user?.id ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-xl backdrop-blur-md transition-all
-                      ${message.sender._id === session.user?.id
-                        ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-500 text-white border-2 border-purple-400'
-                        : 'bg-white/10 text-white border border-white/20'}
-                    `}
-                    style={{ wordBreak: 'break-word' }}
+              <motion.div 
+                className="text-center text-gray-400 py-12"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                <div className="flex flex-col items-center space-y-4">
+                  <motion.div
+                    className="w-16 h-16 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-full flex items-center justify-center border border-purple-400/30"
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.5 }}
                   >
-                    {/* Message content */}
-                    {message.type === 'text' && (
-                      <p className="text-base leading-relaxed">{message.content}</p>
-                    )}
-                    {message.type === 'image' && (
-                      <div className="mt-2 rounded-xl overflow-hidden shadow-lg border-2 border-purple-300">
-                        <img src={message.content} alt="Image envoyée" className="w-64 h-64 object-cover" />
-                      </div>
-                    )}
-                    {message.type === 'video' && (
-                      <div className="mt-2 rounded-xl overflow-hidden shadow-lg border-2 border-purple-300">
-                        <video src={message.content} controls className="w-64 h-64 object-cover" />
-                      </div>
-                    )}
-                    {message.type === 'audio' && (
-                      <div className="mt-2 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-xl p-4 border border-purple-400/30">
-                        <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => playAudio(message.content, message._id)}
-                            className={`p-3 rounded-full transition-all duration-200 shadow-lg ${
-                              playingAudio === message._id 
-                                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-500/50' 
-                                : 'bg-purple-500 hover:bg-purple-600 shadow-purple-500/50'
-                            }`}
-                            title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
-                          >
-                            {playingAudio === message._id ? <Pause size={18} /> : <Play size={18} />}
-                          </button>
-                          
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm font-medium text-white flex items-center">
-                                <Volume2 size={14} className="mr-1" />
-                                Message vocal
-                              </span>
-                              <span className="text-xs text-white/70 font-mono">
-                                {message.duration ? formatTime(message.duration) : 'Audio'}
-                              </span>
-                            </div>
+                    <MessageCircle size={24} className="text-purple-300" />
+                  </motion.div>
+                  <p className="text-lg font-medium">Aucun message</p>
+                  <p className="text-sm text-gray-500">Commencez une discussion !</p>
+                </div>
+              </motion.div>
+            ) : (
+              messages.map((message, index) => {
+                const isOwnMessage = message.sender._id === session.user?.id;
+                return (
+                  <motion.div
+                    key={message._id}
+                    initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    transition={{ 
+                      duration: 0.4, 
+                      delay: index * 0.1,
+                      ease: "easeOut"
+                    }}
+                    className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <motion.div
+                      className={`max-w-xs lg:max-w-md px-6 py-4 rounded-3xl shadow-2xl backdrop-blur-xl transition-all duration-300
+                        ${isOwnMessage
+                          ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-500 text-white border-2 border-purple-400 shadow-purple-500/25'
+                          : 'bg-gradient-to-br from-white/10 to-white/5 text-white border border-purple-400/30 shadow-lg'}
+                      `}
+                      style={{ wordBreak: 'break-word' }}
+                      whileHover={{ scale: 1.02 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      {/* Message content */}
+                      {message.type === 'text' && (
+                        <p className="text-base leading-relaxed">{message.content}</p>
+                      )}
+                      {message.type === 'image' && (
+                        <motion.div 
+                          className="mt-3 rounded-2xl overflow-hidden shadow-xl border-2 border-purple-300"
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <img src={message.content} alt="Image envoyée" className="w-64 h-64 object-cover" />
+                        </motion.div>
+                      )}
+                      {message.type === 'video' && (
+                        <motion.div 
+                          className="mt-3 rounded-2xl overflow-hidden shadow-xl border-2 border-purple-300"
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <video src={message.content} controls className="w-64 h-64 object-cover" />
+                        </motion.div>
+                      )}
+                      {message.type === 'audio' && (
+                        <motion.div 
+                          className="mt-3 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 rounded-2xl p-5 border border-purple-400/40"
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.2 }}
+                        >
+                          <div className="flex items-center space-x-4">
+                            <motion.button
+                              onClick={() => playAudio(message.content, message._id)}
+                              className={`p-4 rounded-full transition-all duration-300 shadow-xl ${
+                                playingAudio === message._id 
+                                  ? 'bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 scale-110 shadow-red-500/50' 
+                                  : 'bg-gradient-to-br from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 shadow-purple-500/50'
+                              }`}
+                              title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                            >
+                              {playingAudio === message._id ? <Pause size={20} /> : <Play size={20} />}
+                            </motion.button>
                             
-                            {/* Visualiseur audio animé */}
-                            {playingAudio === message._id && (
-                              <div className="mt-3">
-                                <AudioVisualizer isPlaying={playingAudio === message._id} duration={message.duration || 0} />
-                              </div>
-                            )}
-                            
-                            {/* Indicateur statique quand pas en lecture */}
-                            {playingAudio !== message._id && (
-                              <div className="flex items-center space-x-1 mt-2">
-                                <div className="flex items-end space-x-0.5 h-4">
-                                  {[...Array(4)].map((_, index) => (
-                                    <div
-                                      key={index}
-                                      className="w-0.5 bg-purple-400/50 rounded-full"
-                                      style={{ height: '4px' }}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-xs text-white/50 ml-2">
-                                  Cliquez pour écouter
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-medium text-white flex items-center">
+                                  <Volume2 size={16} className="mr-2" />
+                                  Message vocal
+                                </span>
+                                <span className="text-xs text-white/70 font-mono">
+                                  {message.duration ? formatTime(message.duration) : 'Audio'}
                                 </span>
                               </div>
-                            )}
+                              
+                              {/* Visualiseur audio animé */}
+                              {playingAudio === message._id && (
+                                <div className="mt-4">
+                                  <AudioVisualizer isPlaying={playingAudio === message._id} duration={message.duration || 0} />
+                                </div>
+                              )}
+                              
+                              {/* Indicateur statique quand pas en lecture */}
+                              {playingAudio !== message._id && (
+                                <motion.div 
+                                  className="flex items-center space-x-2 mt-3"
+                                  initial={{ opacity: 0 }}
+                                  animate={{ opacity: 1 }}
+                                  transition={{ delay: 0.3 }}
+                                >
+                                  <div className="flex items-end space-x-1 h-5">
+                                    {[...Array(5)].map((_, index) => (
+                                      <motion.div
+                                        key={index}
+                                        className="w-1 bg-purple-400/50 rounded-full"
+                                        style={{ height: '5px' }}
+                                        initial={{ height: '5px' }}
+                                        animate={{ height: ['5px', '15px', '5px'] }}
+                                        transition={{ 
+                                          duration: 1.5, 
+                                          repeat: Infinity, 
+                                          delay: index * 0.2 
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-white/50">
+                                    Cliquez pour écouter
+                                  </span>
+                                </motion.div>
+                              )}
+                            </div>
                           </div>
-                        </div>
+                        </motion.div>
+                      )}
+                      
+                      {/* Statut du message et heure */}
+                      <div className="flex justify-between items-center mt-3">
+                        <MessageStatus message={message} isOwnMessage={isOwnMessage} />
+                        <span className="text-xs text-white/60 font-mono">
+                          {formatMessageTime(message.createdAt)}
+                        </span>
                       </div>
-                    )}
-                    <div className="flex justify-end mt-1">
-                      <span className="text-[10px] text-purple-200 font-mono">
-                        {formatMessageTime(message.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))
+                    </motion.div>
+                  </motion.div>
+                );
+              })
             )}
           </AnimatePresence>
         )}
