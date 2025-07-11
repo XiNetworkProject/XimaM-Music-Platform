@@ -47,9 +47,9 @@ interface CategoryData {
   error: string | null;
 }
 
-// Cache simple pour les données
+// Cache simple pour les données (sans les écoutes pour éviter les désynchronisations)
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
-const CACHE_DURATION = 10 * 1000; // 10 secondes (réduit pour éviter les données obsolètes)
+const CACHE_DURATION = 5 * 1000; // 5 secondes (réduit encore plus pour éviter les données obsolètes)
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -215,9 +215,12 @@ export default function HomePage() {
   const fetchCategoryData = useCallback(async (key: string, url: string, forceRefresh = false) => {
     console.log(`🔄 Chargement ${key}:`, { forceRefresh, url });
     
+    // Toujours forcer le refresh pour éviter les désynchronisations d'écoutes
+    const shouldForceRefresh = forceRefresh || key === 'featured' || key === 'trending' || key === 'popular';
+    
     // Vérifier le cache d'abord (sauf si forceRefresh est true)
     const cached = dataCache.get(key);
-    if (!forceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    if (!shouldForceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       console.log(`📦 Utilisation cache pour ${key}:`, cached.tracks.length, 'pistes');
       setCategories(prev => ({
         ...prev,
@@ -252,7 +255,7 @@ export default function HomePage() {
           isLiked: track.likes.includes(user?.id || '')
         }));
     
-        // Mettre en cache
+        // Mettre en cache (mais les écoutes seront toujours récupérées fraîches)
         dataCache.set(key, { tracks: tracksWithLikes, timestamp: Date.now() });
         console.log(`💾 Cache mis à jour pour ${key}:`, tracksWithLikes.length, 'pistes');
         
@@ -272,6 +275,61 @@ export default function HomePage() {
       }));
     }
   }, [user?.id]);
+
+  // Fonction pour rafraîchir les écoutes de toutes les pistes
+  const refreshAllPlays = useCallback(async () => {
+    console.log('🔄 Rafraîchissement global des écoutes...');
+    
+    // Récupérer les écoutes fraîches pour toutes les pistes affichées
+    const allTracks = Object.values(categories).flatMap(cat => cat.tracks);
+    const uniqueTrackIds = Array.from(new Set(allTracks.map(t => t._id)));
+    
+    const playsPromises = uniqueTrackIds.map(async (trackId) => {
+      try {
+        const response = await fetch(`/api/tracks/${trackId}/plays`);
+        if (response.ok) {
+          const data = await response.json();
+          return { trackId, plays: data.plays };
+        }
+      } catch (error) {
+        console.error(`❌ Erreur récupération écoutes pour ${trackId}:`, error);
+      }
+      return null;
+    });
+    
+    const playsResults = await Promise.all(playsPromises);
+    const playsMap = new Map(
+      playsResults.filter(r => r !== null).map(r => [r!.trackId, r!.plays])
+    );
+    
+    // Mettre à jour toutes les catégories avec les écoutes fraîches
+    setCategories(prev => {
+      const newCategories = { ...prev };
+      Object.keys(newCategories).forEach(categoryKey => {
+        if (newCategories[categoryKey] && newCategories[categoryKey].tracks) {
+          newCategories[categoryKey] = {
+            ...newCategories[categoryKey],
+            tracks: newCategories[categoryKey].tracks.map(track => ({
+              ...track,
+              plays: playsMap.get(track._id) || track.plays
+            }))
+          };
+        }
+      });
+      return newCategories;
+    });
+    
+    console.log('✅ Écoutes rafraîchies pour', playsMap.size, 'pistes');
+  }, [categories]);
+
+  // Rafraîchir les écoutes périodiquement
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshAllPlays();
+    }, 30000); // Toutes les 30 secondes
+    
+    return () => clearInterval(interval);
+  }, [refreshAllPlays]);
 
   // Fonction pour charger les utilisateurs populaires
   const fetchPopularUsers = useCallback(async () => {
