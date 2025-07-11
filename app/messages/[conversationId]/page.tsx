@@ -49,6 +49,124 @@ interface Conversation {
   accepted: boolean;
 }
 
+// Fonction pour formater la durée d'enregistrement
+const formatRecordingDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
+
+// Composant pour l'interface d'enregistrement vocal
+function VoiceRecordingInterface({
+  isRecording,
+  recordingDuration,
+  recordingPreview,
+  isPreviewPlaying,
+  onStartRecording,
+  onStopRecording,
+  onPlayPreview,
+  onStopPreview,
+  onSendRecording,
+  onCancelRecording
+}: {
+  isRecording: boolean;
+  recordingDuration: number;
+  recordingPreview: string | null;
+  isPreviewPlaying: boolean;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
+  onPlayPreview: () => void;
+  onStopPreview: () => void;
+  onSendRecording: () => void;
+  onCancelRecording: () => void;
+}) {
+  return (
+    <div className="fixed bottom-16 left-0 w-full z-50 px-4 py-3 bg-gradient-to-r from-purple-900/95 to-indigo-900/95 backdrop-blur-md border-t border-purple-400/30 rounded-t-2xl shadow-2xl">
+      {!recordingPreview ? (
+        // Interface d'enregistrement
+        <div className="flex items-center justify-center space-x-4">
+          <div className="flex items-center space-x-3">
+            {/* Animation d'enregistrement */}
+            {isRecording && (
+              <div className="flex space-x-1">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+              </div>
+            )}
+            
+            {/* Durée d'enregistrement */}
+            {isRecording && (
+              <span className="text-white font-mono text-sm">
+                {formatRecordingDuration(recordingDuration)}
+              </span>
+            )}
+          </div>
+          
+          {/* Bouton d'enregistrement */}
+          <button
+            className={`p-4 rounded-full transition-all duration-200 shadow-lg ${
+              isRecording 
+                ? 'bg-red-500 hover:bg-red-600 scale-110' 
+                : 'bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
+            }`}
+            onMouseDown={onStartRecording}
+            onMouseUp={onStopRecording}
+            onMouseLeave={onStopRecording}
+            onTouchStart={onStartRecording}
+            onTouchEnd={onStopRecording}
+            title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
+          >
+            <Mic size={24} className="text-white" />
+          </button>
+          
+          {/* Instructions */}
+          <span className="text-white/80 text-sm">
+            {isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
+          </span>
+        </div>
+      ) : (
+        // Interface de prévisualisation
+        <div className="flex items-center justify-center space-x-4">
+          {/* Bouton play/pause */}
+          <button
+            className="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            onClick={isPreviewPlaying ? onStopPreview : onPlayPreview}
+            title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
+          >
+            {isPreviewPlaying ? <Pause size={20} /> : <Play size={20} />}
+          </button>
+          
+          {/* Durée de l'enregistrement */}
+          <span className="text-white font-mono text-sm">
+            {formatRecordingDuration(recordingDuration)}
+          </span>
+          
+          {/* Boutons d'action */}
+          <div className="flex space-x-2">
+            <button
+              className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 transition-colors text-white text-sm"
+              onClick={onCancelRecording}
+              title="Annuler"
+            >
+              <X size={16} />
+            </button>
+            
+            <button
+              className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors text-white text-sm flex items-center space-x-1"
+              onClick={onSendRecording}
+              title="Envoyer"
+            >
+              <Send size={16} />
+              <span>Envoyer</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MessageInputBar({
   newMessage,
   setNewMessage,
@@ -60,7 +178,8 @@ function MessageInputBar({
   stopRecording,
   uploading,
   testMicrophoneAccess,
-  showSystemInfo
+  showSystemInfo,
+  recordingPreview
 }: any) {
   return (
     <div className="fixed bottom-16 left-0 w-full z-40 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
@@ -71,17 +190,22 @@ function MessageInputBar({
       >
         <Paperclip size={20} className="text-purple-300" />
       </button>
-      <button
-        className={`p-2 rounded-full transition-colors shadow-md ${isRecording ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'}`}
-        onMouseDown={startRecording}
-        onMouseUp={stopRecording}
-        onMouseLeave={stopRecording}
-        onTouchStart={startRecording}
-        onTouchEnd={stopRecording}
-        title="Message vocal"
-      >
-        <Mic size={20} className="text-purple-300" />
-      </button>
+      
+      {/* Masquer le bouton microphone si une prévisualisation est active */}
+      {!recordingPreview && (
+        <button
+          className={`p-2 rounded-full transition-colors shadow-md ${isRecording ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'}`}
+          onMouseDown={startRecording}
+          onMouseUp={stopRecording}
+          onMouseLeave={stopRecording}
+          onTouchStart={startRecording}
+          onTouchEnd={stopRecording}
+          title="Message vocal"
+        >
+          <Mic size={20} className="text-purple-300" />
+        </button>
+      )}
+      
       <button
         className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
         onClick={testMicrophoneAccess}
@@ -141,10 +265,18 @@ export default function ConversationPage() {
   const [uploading, setUploading] = useState(false);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   
+  // Nouveaux états pour l'enregistrement vocal amélioré
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [recordingPreview, setRecordingPreview] = useState<string | null>(null);
+  const [isPreviewPlaying, setIsPreviewPlaying] = useState(false);
+  const [recordingStartTime, setRecordingStartTime] = useState<number | null>(null);
+  const [recordingInterval, setRecordingInterval] = useState<NodeJS.Timeout | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Vérifier la disponibilité du microphone au chargement
   useEffect(() => {
@@ -427,6 +559,81 @@ export default function ConversationPage() {
     } else {
       handleFileUpload(file, type);
     }
+  };
+
+  // Fonction pour démarrer le compteur de durée
+  const startRecordingTimer = () => {
+    const startTime = Date.now();
+    setRecordingStartTime(startTime);
+    setRecordingDuration(0);
+    
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startTime) / 1000);
+      setRecordingDuration(elapsed);
+    }, 1000);
+    
+    setRecordingInterval(interval);
+  };
+
+  // Fonction pour arrêter le compteur de durée
+  const stopRecordingTimer = () => {
+    if (recordingInterval) {
+      clearInterval(recordingInterval);
+      setRecordingInterval(null);
+    }
+    setRecordingStartTime(null);
+  };
+
+  // Fonction pour jouer la prévisualisation
+  const playPreview = () => {
+    if (previewAudioRef.current && recordingPreview) {
+      previewAudioRef.current.src = recordingPreview;
+      previewAudioRef.current.play();
+      setIsPreviewPlaying(true);
+      
+      previewAudioRef.current.onended = () => {
+        setIsPreviewPlaying(false);
+      };
+    }
+  };
+
+  // Fonction pour arrêter la prévisualisation
+  const stopPreview = () => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.currentTime = 0;
+      setIsPreviewPlaying(false);
+    }
+  };
+
+  // Fonction pour envoyer l'enregistrement
+  const sendRecording = () => {
+    if (recordingPreview) {
+      // Créer un fichier à partir de l'URL de prévisualisation
+      fetch(recordingPreview)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], `audio_${Date.now()}.webm`, { type: 'audio/webm' });
+          handleFileUpload(file, 'audio');
+          
+          // Réinitialiser les états
+          setRecordingPreview(null);
+          setRecordingDuration(0);
+          stopPreview();
+        })
+        .catch(error => {
+          console.error('Erreur lors de l\'envoi de l\'enregistrement:', error);
+          toast.error('Erreur lors de l\'envoi de l\'enregistrement');
+        });
+    }
+  };
+
+  // Fonction pour annuler l'enregistrement
+  const cancelRecording = () => {
+    setRecordingPreview(null);
+    setRecordingDuration(0);
+    stopPreview();
+    stopRecordingTimer();
   };
 
   // Fonction pour afficher les informations système
@@ -779,6 +986,7 @@ Paramètres Linux à vérifier :
         console.log('🎙️ Enregistrement démarré');
         setIsRecording(true);
         toast.success('Enregistrement en cours...');
+        startRecordingTimer(); // Démarrer le compteur de durée
       };
 
       mediaRecorderRef.current.onstop = async () => {
@@ -787,8 +995,9 @@ Paramètres Linux à vérifier :
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           console.log('📁 Blob audio créé:', audioBlob.size, 'bytes');
           
-          const file = new File([audioBlob], `audio_${Date.now()}.webm`, { type: 'audio/webm' });
-          console.log('📄 Fichier audio créé:', file.name, file.size, 'bytes');
+          // Créer une URL de prévisualisation
+          const previewUrl = URL.createObjectURL(audioBlob);
+          setRecordingPreview(previewUrl);
           
           // Arrêter le stream
           stream.getTracks().forEach(track => {
@@ -796,8 +1005,11 @@ Paramètres Linux à vérifier :
             console.log('🔇 Track arrêtée:', track.kind);
           });
           
-          console.log('📤 Upload du fichier audio...');
-          handleFileUpload(file, 'audio');
+          // Arrêter le compteur de durée
+          stopRecordingTimer();
+          
+          console.log('✅ Prévisualisation créée');
+          toast.success('Enregistrement terminé. Écoutez avant d\'envoyer.');
           
         } catch (error) {
           console.error('❌ Erreur lors du traitement audio:', error);
@@ -933,6 +1145,9 @@ Paramètres Linux à vérifier :
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
+      {/* Élément audio caché pour la prévisualisation */}
+      <audio ref={previewAudioRef} className="hidden" />
+      
       {/* Header fixed */}
       <div className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 bg-white/10 backdrop-blur-md border-b border-white/20 rounded-b-2xl shadow-lg">
         <div className="flex items-center space-x-3">
@@ -1058,6 +1273,21 @@ Paramètres Linux à vérifier :
         uploading={uploading}
         testMicrophoneAccess={testMicrophoneAccess}
         showSystemInfo={showSystemInfo}
+        recordingPreview={recordingPreview}
+      />
+
+      {/* Composant pour l'interface d'enregistrement vocal */}
+      <VoiceRecordingInterface
+        isRecording={isRecording}
+        recordingDuration={recordingDuration}
+        recordingPreview={recordingPreview}
+        isPreviewPlaying={isPreviewPlaying}
+        onStartRecording={startRecording}
+        onStopRecording={stopRecording}
+        onPlayPreview={playPreview}
+        onStopPreview={stopPreview}
+        onSendRecording={sendRecording}
+        onCancelRecording={cancelRecording}
       />
     </div>
   );
