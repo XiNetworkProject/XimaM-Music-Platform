@@ -15,8 +15,24 @@ export async function GET(request: NextRequest, { params }: { params: { conversa
     }
 
     const { conversationId } = params;
+    console.log('🔍 Récupération messages pour conversation:', conversationId);
+    console.log('👤 Utilisateur:', session.user.id);
+    
     const conversation = await Conversation.findById(conversationId);
-    if (!conversation || !conversation.participants.includes(session.user.id)) {
+    if (!conversation) {
+      console.log('❌ Conversation non trouvée');
+      return NextResponse.json({ error: 'Conversation non trouvée' }, { status: 404 });
+    }
+    
+    console.log('✅ Conversation trouvée:', {
+      id: conversation._id,
+      participants: conversation.participants,
+      accepted: conversation.accepted,
+      userInParticipants: conversation.participants.includes(session.user.id)
+    });
+
+    if (!conversation.participants.includes(session.user.id)) {
+      console.log('❌ Utilisateur pas dans les participants');
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
@@ -25,6 +41,7 @@ export async function GET(request: NextRequest, { params }: { params: { conversa
       .sort({ createdAt: 1 })
       .lean();
 
+    console.log('📨 Messages trouvés:', messages.length);
     return NextResponse.json({ messages });
   } catch (error) {
     console.error('Erreur récupération messages:', error);
@@ -42,9 +59,31 @@ export async function POST(request: NextRequest, { params }: { params: { convers
     }
 
     const { conversationId } = params;
+    console.log('📤 Envoi message pour conversation:', conversationId);
+    console.log('👤 Utilisateur:', session.user.id);
+    
     const conversation = await Conversation.findById(conversationId);
-    if (!conversation || !conversation.participants.includes(session.user.id) || !conversation.accepted) {
+    if (!conversation) {
+      console.log('❌ Conversation non trouvée');
+      return NextResponse.json({ error: 'Conversation non trouvée' }, { status: 404 });
+    }
+    
+    console.log('✅ Conversation trouvée:', {
+      id: conversation._id,
+      participants: conversation.participants,
+      accepted: conversation.accepted,
+      userInParticipants: conversation.participants.includes(session.user.id)
+    });
+
+    if (!conversation.participants.includes(session.user.id)) {
+      console.log('❌ Utilisateur pas dans les participants');
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
+    }
+
+    // Vérifier que la conversation est acceptée pour l'envoi
+    if (!conversation.accepted) {
+      console.log('❌ Conversation non acceptée');
+      return NextResponse.json({ error: 'Conversation non acceptée' }, { status: 403 });
     }
 
     const { type, content, duration } = await request.json();
@@ -74,6 +113,7 @@ export async function POST(request: NextRequest, { params }: { params: { convers
     conversation.lastMessage = message._id;
     await conversation.save();
 
+    console.log('✅ Message envoyé avec succès');
     return NextResponse.json({ success: true, message: populatedMessage });
   } catch (error) {
     console.error('Erreur envoi message:', error);

@@ -81,18 +81,21 @@ export default function ConversationPage() {
 
   const fetchMessages = async () => {
     try {
+      console.log('🔄 Chargement des messages pour conversation:', conversationId);
       const response = await fetch(`/api/messages/${conversationId}`);
       const data = await response.json();
       
+      console.log('📥 Réponse API:', { status: response.status, data });
+      
       if (response.ok) {
         setMessages(data.messages || []);
-        // TODO: Charger les infos de la conversation
+        console.log('✅ Messages chargés:', data.messages?.length || 0);
       } else {
-        console.error('Erreur API:', data);
+        console.error('❌ Erreur API:', data);
         toast.error(data.error || 'Erreur lors du chargement des messages');
       }
     } catch (error) {
-      console.error('Erreur fetch messages:', error);
+      console.error('❌ Erreur fetch messages:', error);
       toast.error('Erreur de connexion');
     } finally {
       setLoading(false);
