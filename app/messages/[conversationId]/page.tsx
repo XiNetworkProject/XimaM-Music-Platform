@@ -330,9 +330,9 @@ export default function ConversationPage() {
   const otherUser = getOtherParticipant();
 
   return (
-    <div className="flex flex-col min-h-screen pb-20 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
-      {/* Header sticky */}
-      <div className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-md border-b border-white/20 rounded-b-2xl shadow-lg sticky top-0 z-20">
+    <div className="relative min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
+      {/* Header fixed */}
+      <div className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 bg-white/10 backdrop-blur-md border-b border-white/20 rounded-b-2xl shadow-lg">
         <div className="flex items-center space-x-3">
           <button
             onClick={() => router.back()}
@@ -375,8 +375,8 @@ export default function ConversationPage() {
         </button>
       </div>
 
-      {/* Messages scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages scrollable avec padding pour header et barre d’envoi */}
+      <div className="pt-20 pb-20 px-2 flex flex-col space-y-4 overflow-y-auto h-screen">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -443,8 +443,8 @@ export default function ConversationPage() {
         )}
       </div>
 
-      {/* Zone de saisie sticky */}
-      <div className="w-full px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl sticky bottom-0 z-20">
+      {/* Barre d’envoi fixed */}
+      <div className="fixed bottom-0 left-0 w-full z-30 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
         <button
           className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
           onClick={() => fileInputRef.current?.click()}
