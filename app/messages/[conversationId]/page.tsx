@@ -129,6 +129,56 @@ export default function ConversationPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
+  // Vérifier la disponibilité du microphone au chargement
+  useEffect(() => {
+    const checkMicrophoneAvailability = async () => {
+      console.log('🔍 Vérification disponibilité microphone...');
+      
+      try {
+        // Vérifier si l'API est supportée
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          console.warn('⚠️ API MediaDevices non supportée');
+          return;
+        }
+
+        // Vérifier les permissions
+        if (navigator.permissions) {
+          try {
+            const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+            console.log('🔐 État permission microphone:', permission.state);
+            
+            if (permission.state === 'granted') {
+              console.log('✅ Permission microphone accordée');
+            } else if (permission.state === 'denied') {
+              console.warn('❌ Permission microphone refusée');
+            } else {
+              console.log('⏳ Permission microphone en attente');
+            }
+          } catch (permError) {
+            console.warn('⚠️ Impossible de vérifier les permissions:', permError);
+          }
+        }
+
+        // Lister les périphériques audio
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const audioDevices = devices.filter(device => device.kind === 'audioinput');
+          console.log('🎤 Périphériques audio disponibles:', audioDevices.length);
+          audioDevices.forEach(device => {
+            console.log('  -', device.label || 'Microphone inconnu');
+          });
+        } catch (enumError) {
+          console.warn('⚠️ Impossible de lister les périphériques:', enumError);
+        }
+
+      } catch (error) {
+        console.error('❌ Erreur vérification microphone:', error);
+      }
+    };
+
+    checkMicrophoneAvailability();
+  }, []);
+
   // Charger les messages
   useEffect(() => {
     if (session?.user && conversationId) {
@@ -360,34 +410,180 @@ export default function ConversationPage() {
   };
 
   const startRecording = async () => {
+    console.log('=== DEBUT START RECORDING ===');
+    console.log('🎤 Tentative d\'accès au microphone...');
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorderRef.current = new MediaRecorder(stream);
+      // Vérifier si l'API MediaDevices est supportée
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error('❌ API MediaDevices non supportée');
+        toast.error('Enregistrement audio non supporté sur ce navigateur');
+        return;
+      }
+
+      console.log('✅ API MediaDevices supportée');
+
+      // Vérifier les permissions existantes
+      if (navigator.permissions) {
+        try {
+          const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+          console.log('🔐 Permission microphone:', permission.state);
+          
+          if (permission.state === 'denied') {
+            console.error('❌ Permission microphone refusée');
+            toast.error('Permission microphone refusée. Veuillez autoriser l\'accès au microphone dans les paramètres du navigateur.');
+            return;
+          }
+        } catch (permError) {
+          console.warn('⚠️ Impossible de vérifier les permissions:', permError);
+        }
+      }
+
+      // Demander l'accès au microphone avec des options spécifiques
+      const constraints = {
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 44100,
+          channelCount: 1
+        }
+      };
+
+      console.log('🎤 Demande d\'accès avec contraintes:', constraints);
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('✅ Stream audio obtenu:', stream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled })));
+
+      // Créer le MediaRecorder avec des options spécifiques
+      let options: MediaRecorderOptions = {
+        audioBitsPerSecond: 128000
+      };
+
+      // Vérifier si webm/opus est supporté
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        options.mimeType = 'audio/webm;codecs=opus';
+        console.log('✅ WebM/Opus supporté');
+      } else {
+        console.warn('⚠️ WebM/Opus non supporté, utilisation du format par défaut');
+      }
+
+      console.log('🎙️ Création MediaRecorder avec options:', options);
+      mediaRecorderRef.current = new MediaRecorder(stream, options);
       audioChunksRef.current = [];
 
+      // Événements du MediaRecorder
       mediaRecorderRef.current.ondataavailable = (event) => {
+        console.log('📦 Données audio reçues:', event.data.size, 'bytes');
         audioChunksRef.current.push(event.data);
       };
 
-      mediaRecorderRef.current.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
-        const file = new File([audioBlob], 'audio.wav', { type: 'audio/wav' });
-        handleFileUpload(file, 'audio');
+      mediaRecorderRef.current.onstart = () => {
+        console.log('🎙️ Enregistrement démarré');
+        setIsRecording(true);
+        toast.success('Enregistrement en cours...');
       };
 
-      mediaRecorderRef.current.start();
-      setIsRecording(true);
+      mediaRecorderRef.current.onstop = async () => {
+        console.log('🛑 Enregistrement arrêté, traitement...');
+        try {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          console.log('📁 Blob audio créé:', audioBlob.size, 'bytes');
+          
+          const file = new File([audioBlob], `audio_${Date.now()}.webm`, { type: 'audio/webm' });
+          console.log('📄 Fichier audio créé:', file.name, file.size, 'bytes');
+          
+          // Arrêter le stream
+          stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('🔇 Track arrêtée:', track.kind);
+          });
+          
+          console.log('📤 Upload du fichier audio...');
+          handleFileUpload(file, 'audio');
+          
+        } catch (error) {
+          console.error('❌ Erreur lors du traitement audio:', error);
+          toast.error('Erreur lors du traitement de l\'enregistrement');
+        }
+      };
+
+      mediaRecorderRef.current.onerror = (event) => {
+        console.error('❌ Erreur MediaRecorder:', event);
+        toast.error('Erreur lors de l\'enregistrement');
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      // Démarrer l'enregistrement
+      console.log('▶️ Démarrage de l\'enregistrement...');
+      mediaRecorderRef.current.start(1000); // Collecter les données toutes les secondes
+      
     } catch (error) {
-      toast.error('Erreur d\'accès au microphone');
+      console.error('❌ Erreur startRecording:', error);
+      
+      // Messages d'erreur spécifiques selon le type d'erreur
+      if (error instanceof Error) {
+        const errorName = error.name;
+        const errorMessage = error.message;
+        
+        console.error('Type d\'erreur:', errorName);
+        console.error('Message d\'erreur:', errorMessage);
+        
+        if (errorName === 'NotAllowedError' || errorMessage.includes('Permission')) {
+          toast.error('Accès au microphone refusé. Veuillez autoriser l\'accès dans les paramètres du navigateur.');
+        } else if (errorName === 'NotFoundError' || errorMessage.includes('not found')) {
+          toast.error('Aucun microphone détecté. Veuillez connecter un microphone.');
+        } else if (errorName === 'NotReadableError' || errorMessage.includes('busy')) {
+          toast.error('Microphone occupé par une autre application.');
+        } else if (errorName === 'NotSupportedError') {
+          toast.error('Enregistrement audio non supporté sur ce navigateur.');
+        } else {
+          toast.error(`Erreur d'accès au microphone: ${errorMessage}`);
+        }
+      } else {
+        toast.error('Erreur d\'accès au microphone');
+      }
+    } finally {
+      console.log('=== FIN START RECORDING ===');
     }
   };
 
   const stopRecording = () => {
+    console.log('=== DEBUT STOP RECORDING ===');
+    
     if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
-      setIsRecording(false);
+      try {
+        console.log('🛑 Arrêt de l\'enregistrement...');
+        
+        // Arrêter l'enregistrement
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.stop();
+          console.log('✅ MediaRecorder arrêté');
+        } else {
+          console.warn('⚠️ MediaRecorder déjà arrêté, état:', mediaRecorderRef.current.state);
+        }
+        
+        // Arrêter le stream audio
+        if (mediaRecorderRef.current.stream) {
+          mediaRecorderRef.current.stream.getTracks().forEach(track => {
+            track.stop();
+            console.log('🔇 Track audio arrêtée:', track.kind);
+          });
+        }
+        
+        setIsRecording(false);
+        console.log('✅ État recording mis à false');
+        
+      } catch (error) {
+        console.error('❌ Erreur lors de l\'arrêt de l\'enregistrement:', error);
+        toast.error('Erreur lors de l\'arrêt de l\'enregistrement');
+        setIsRecording(false);
+      }
+    } else {
+      console.log('ℹ️ Pas d\'enregistrement en cours à arrêter');
     }
+    
+    console.log('=== FIN STOP RECORDING ===');
   };
 
   const playAudio = (audioUrl: string, messageId: string) => {
