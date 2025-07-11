@@ -448,17 +448,42 @@ export default function ConversationPage() {
       console.log('📤 Upload vers Cloudinary...');
       console.log('URL:', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
 
-      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
-        method: 'POST',
-        body: formData,
-      });
+      // Timeout plus long pour mobile
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes
 
-      console.log('📥 Réponse Cloudinary status:', uploadResponse.status);
+      let uploadResponse;
+      try {
+        uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error('❌ Erreur upload Cloudinary:', errorText);
-        throw new Error('Erreur lors de l\'upload vers Cloudinary');
+        clearTimeout(timeoutId);
+        console.log('📥 Réponse Cloudinary status:', uploadResponse.status);
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('❌ Erreur upload Cloudinary:', errorText);
+          
+          // Messages d'erreur spécifiques
+          if (uploadResponse.status === 413) {
+            throw new Error('Fichier trop volumineux pour l\'upload');
+          } else if (uploadResponse.status === 400) {
+            throw new Error('Format de fichier non supporté');
+          } else if (uploadResponse.status >= 500) {
+            throw new Error('Erreur serveur Cloudinary, réessayez plus tard');
+          } else {
+            throw new Error('Erreur lors de l\'upload vers Cloudinary');
+          }
+        }
+      } catch (error) {
+        clearTimeout(timeoutId);
+        if (error instanceof Error && error.name === 'AbortError') {
+          throw new Error('Timeout lors de l\'upload (connexion lente)');
+        }
+        throw error;
       }
 
       const uploadResult = await uploadResponse.json();
@@ -517,6 +542,13 @@ export default function ConversationPage() {
 
   // Fonction pour démarrer le compteur de durée
   const startRecordingTimer = () => {
+    console.log('⏱️ startRecordingTimer appelé');
+    // Arrêter l'ancien timer s'il existe
+    if (recordingInterval) {
+      clearInterval(recordingInterval);
+      setRecordingInterval(null);
+    }
+    
     const startTime = Date.now();
     setRecordingStartTime(startTime);
     setRecordingDuration(0);
@@ -527,15 +559,21 @@ export default function ConversationPage() {
     }, 1000);
     
     setRecordingInterval(interval);
+    console.log('✅ Timer démarré');
   };
 
   // Fonction pour arrêter le compteur de durée
   const stopRecordingTimer = () => {
+    console.log('⏹️ stopRecordingTimer appelé');
     if (recordingInterval) {
       clearInterval(recordingInterval);
       setRecordingInterval(null);
+      console.log('✅ Timer arrêté');
+    } else {
+      console.log('ℹ️ Aucun timer à arrêter');
     }
     setRecordingStartTime(null);
+    setRecordingDuration(0);
   };
 
   // Fonction pour jouer la prévisualisation
@@ -545,16 +583,39 @@ export default function ConversationPage() {
     console.log('🔊 previewAudioRef.current:', previewAudioRef.current);
     
     if (previewAudioRef.current && recordingPreview) {
-      previewAudioRef.current.src = recordingPreview;
-      previewAudioRef.current.play();
-      setIsPreviewPlaying(true);
-      
-      previewAudioRef.current.onended = () => {
-        setIsPreviewPlaying(false);
-      };
-      console.log('✅ Prévisualisation lancée');
+      try {
+        previewAudioRef.current.src = recordingPreview;
+        
+        // Gestion spéciale pour mobile
+        const playPromise = previewAudioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              setIsPreviewPlaying(true);
+              console.log('✅ Prévisualisation lancée');
+            })
+            .catch(error => {
+              console.error('❌ Erreur lecture prévisualisation:', error);
+              toast.error('Erreur lors de la lecture de la prévisualisation');
+            });
+        }
+        
+        previewAudioRef.current.onended = () => {
+          setIsPreviewPlaying(false);
+        };
+        
+        previewAudioRef.current.onerror = (error) => {
+          console.error('❌ Erreur audio:', error);
+          setIsPreviewPlaying(false);
+        };
+        
+      } catch (error) {
+        console.error('❌ Erreur lors de la lecture:', error);
+        toast.error('Erreur lors de la lecture de la prévisualisation');
+      }
     } else {
       console.warn('⚠️ Impossible de lancer la prévisualisation');
+      toast.error('Aucun enregistrement à écouter');
     }
   };
 
