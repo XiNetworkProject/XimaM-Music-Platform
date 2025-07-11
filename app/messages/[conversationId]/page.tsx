@@ -25,7 +25,12 @@ import {
   Phone,
   Video as VideoIcon,
   MessageCircle,
-  User
+  User,
+  Eye,
+  EyeOff,
+  Wifi,
+  WifiOff,
+  Activity
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
@@ -55,6 +60,141 @@ interface Conversation {
   }>;
   accepted: boolean;
 }
+
+interface OnlineStatus {
+  userId: string;
+  isOnline: boolean;
+  lastSeen: Date;
+  isTyping: boolean;
+}
+
+// Hook personnalisé pour la gestion de la présence en ligne
+const useOnlineStatus = (conversationId: string, otherUserId: string) => {
+  const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({
+    userId: otherUserId,
+    isOnline: false,
+    lastSeen: new Date(),
+    isTyping: false
+  });
+  const [isConnected, setIsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Simuler une connexion WebSocket (en production, utilisez un vrai serveur WebSocket)
+    const connectWebSocket = () => {
+      console.log('🔌 Tentative de connexion WebSocket...');
+      
+      // Simulation d'une connexion WebSocket
+      setIsConnected(true);
+      
+      // Simuler la réception de statuts en ligne
+      const simulateOnlineStatus = () => {
+        const isOnline = Math.random() > 0.3; // 70% de chance d'être en ligne
+        const isTyping = Math.random() > 0.8; // 20% de chance de taper
+        
+        setOnlineStatus(prev => ({
+          ...prev,
+          isOnline,
+          isTyping,
+          lastSeen: isOnline ? new Date() : new Date(Date.now() - Math.random() * 300000) // 0-5 min
+        }));
+      };
+
+      // Simuler les mises à jour de statut
+      simulateOnlineStatus();
+      const statusInterval = setInterval(simulateOnlineStatus, 10000); // Toutes les 10 secondes
+
+      // Heartbeat pour maintenir la connexion
+      heartbeatRef.current = setInterval(() => {
+        console.log('💓 Heartbeat...');
+      }, 30000);
+
+      return () => {
+        clearInterval(statusInterval);
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+        }
+      };
+    };
+
+    const cleanup = connectWebSocket();
+
+    return cleanup;
+  }, [conversationId, otherUserId]);
+
+  // Fonction pour envoyer le statut de frappe
+  const sendTypingStatus = useCallback((isTyping: boolean) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'typing',
+        conversationId,
+        isTyping
+      }));
+    }
+  }, [conversationId]);
+
+  return {
+    onlineStatus,
+    isConnected,
+    sendTypingStatus
+  };
+};
+
+// Hook personnalisé pour la gestion du statut de lecture
+const useMessageReadStatus = (conversationId: string) => {
+  const [readStatuses, setReadStatuses] = useState<Map<string, string[]>>(new Map());
+  const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
+
+  // Marquer les messages comme lus
+  const markMessagesAsRead = useCallback(async (messageIds: string[]) => {
+    if (isMarkingAsRead || messageIds.length === 0) return;
+
+    setIsMarkingAsRead(true);
+    try {
+      const response = await fetch(`/api/messages/${conversationId}/seen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageIds })
+      });
+
+      if (response.ok) {
+        console.log('✅ Messages marqués comme lus');
+        // Mettre à jour le statut local
+        setReadStatuses(prev => {
+          const newStatuses = new Map(prev);
+          messageIds.forEach(id => {
+            newStatuses.set(id, [...(newStatuses.get(id) || []), 'current-user-id']);
+          });
+          return newStatuses;
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur marquage comme lu:', error);
+    } finally {
+      setIsMarkingAsRead(false);
+    }
+  }, [conversationId, isMarkingAsRead]);
+
+  // Observer les messages pour marquer comme lus
+  const observeMessages = useCallback((messages: Message[]) => {
+    const unreadMessages = messages.filter(msg => 
+      msg.sender._id !== 'current-user-id' && 
+      !msg.seenBy.includes('current-user-id')
+    );
+
+    if (unreadMessages.length > 0) {
+      const messageIds = unreadMessages.map(msg => msg._id);
+      markMessagesAsRead(messageIds);
+    }
+  }, [markMessagesAsRead]);
+
+  return {
+    readStatuses,
+    observeMessages,
+    markMessagesAsRead
+  };
+};
 
 // Composant d'animation de visualisation audio amélioré
 const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration: number }) => {
@@ -147,37 +287,120 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
   );
 };
 
-// Composant pour les indicateurs de statut des messages
-const MessageStatus = ({ message, isOwnMessage }: { message: Message; isOwnMessage: boolean }) => {
+// Composant pour les indicateurs de statut des messages amélioré
+const MessageStatus = ({ message, isOwnMessage, readStatuses }: { 
+  message: Message; 
+  isOwnMessage: boolean;
+  readStatuses: Map<string, string[]>;
+}) => {
   if (!isOwnMessage) return null;
 
-  const isSeen = message.seenBy.length > 1; // Plus que l'expéditeur
+  const messageReadStatus = readStatuses.get(message._id) || message.seenBy;
+  const isSeen = messageReadStatus.length > 1; // Plus que l'expéditeur
+  const seenCount = messageReadStatus.length - 1; // Exclure l'expéditeur
 
   return (
-    <div className="flex items-center space-x-1 mt-1">
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.2 }}
-      >
-        {isSeen ? (
-          <div className="flex items-center space-x-1">
-            <Check size={12} className="text-blue-400" />
-            <span className="text-xs text-white/50">Vu</span>
-          </div>
-        ) : (
-          <div className="flex items-center space-x-1">
-            <Check size={12} className="text-white/30" />
-            <span className="text-xs text-white/30">Envoyé</span>
-          </div>
-        )}
-      </motion.div>
-    </div>
+    <motion.div 
+      className="flex items-center space-x-2 mt-2"
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.3 }}
+    >
+      {isSeen ? (
+        <div className="flex items-center space-x-1">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Eye size={12} className="text-blue-400" />
+          </motion.div>
+          <span className="text-xs text-blue-400 font-medium">
+            Vu{seenCount > 1 ? ` (${seenCount})` : ''}
+          </span>
+        </div>
+      ) : (
+        <div className="flex items-center space-x-1">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Check size={12} className="text-white/50" />
+          </motion.div>
+          <span className="text-xs text-white/50">Envoyé</span>
+        </div>
+      )}
+    </motion.div>
   );
 };
 
-// Composant pour l'avatar avec statut en ligne
-const UserAvatar = ({ user, isOnline = false }: { user: any; isOnline?: boolean }) => (
+// Composant pour afficher le statut en ligne avec plus de détails
+const OnlineStatusIndicator = ({ onlineStatus, isConnected }: { onlineStatus: OnlineStatus; isConnected: boolean }) => {
+  const formatLastSeen = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 1) return 'À l\'instant';
+    if (minutes < 60) return `Il y a ${minutes} min`;
+    if (minutes < 1440) return `Il y a ${Math.floor(minutes / 60)}h`;
+    return `Il y a ${Math.floor(minutes / 1440)}j`;
+  };
+
+  return (
+    <motion.div 
+      className="flex items-center space-x-2"
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: 0.3 }}
+    >
+      {onlineStatus.isOnline ? (
+        <div className="flex items-center space-x-2">
+          <motion.div
+            className="w-2 h-2 bg-green-500 rounded-full"
+            animate={{ scale: [1, 1.2, 1] }}
+            transition={{ duration: 2, repeat: Infinity }}
+          />
+          <span className="text-xs text-green-400 font-medium">En ligne</span>
+          {onlineStatus.isTyping && (
+            <motion.div
+              className="flex items-center space-x-1"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            >
+              <Activity size={12} className="text-purple-400 animate-pulse" />
+              <span className="text-xs text-purple-400">écrit...</span>
+            </motion.div>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-gray-400 rounded-full" />
+          <span className="text-xs text-gray-400">
+            Vu {formatLastSeen(onlineStatus.lastSeen)}
+          </span>
+        </div>
+      )}
+      
+      {/* Indicateur de connexion WebSocket */}
+      <motion.div
+        className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.5 }}
+      />
+    </motion.div>
+  );
+};
+
+// Composant pour l'avatar avec statut en ligne amélioré
+const UserAvatar = ({ user, onlineStatus, isConnected }: { 
+  user: any; 
+  onlineStatus: OnlineStatus;
+  isConnected: boolean;
+}) => (
   <div className="relative">
     <motion.img
       src={user.avatar || '/default-avatar.png'}
@@ -186,14 +409,38 @@ const UserAvatar = ({ user, isOnline = false }: { user: any; isOnline?: boolean 
       whileHover={{ scale: 1.05 }}
       transition={{ duration: 0.2 }}
     />
-    {isOnline && (
+    
+    {/* Indicateur de statut en ligne */}
+    {onlineStatus.isOnline && (
       <motion.div
-        className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"
+        className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-lg"
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
         transition={{ delay: 0.3 }}
       />
     )}
+    
+    {/* Indicateur de frappe */}
+    {onlineStatus.isTyping && (
+      <motion.div
+        className="absolute -top-1 -left-1 w-6 h-6 bg-purple-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0 }}
+      >
+        <Activity size={10} className="text-white animate-pulse" />
+      </motion.div>
+    )}
+    
+    {/* Indicateur de connexion WebSocket */}
+    <motion.div
+      className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
+        isConnected ? 'bg-green-500' : 'bg-red-500'
+      }`}
+      initial={{ scale: 0 }}
+      animate={{ scale: 1 }}
+      transition={{ delay: 0.5 }}
+    />
   </div>
 );
 
@@ -223,7 +470,8 @@ function MessageInputBar({
   playPreview,
   stopPreview,
   sendRecording,
-  cancelRecording
+  cancelRecording,
+  handleTyping
 }: any) {
   return (
     <motion.div 
@@ -312,7 +560,10 @@ function MessageInputBar({
         <motion.input
           type="text"
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={(e) => {
+            setNewMessage(e.target.value);
+            handleTyping(); // Déclencher le statut de frappe
+          }}
           onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
           placeholder="Tapez votre message..."
           className="flex-1 min-w-0 px-4 py-3 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-purple-400/30 rounded-2xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 shadow-lg text-sm"
@@ -1031,13 +1282,23 @@ Paramètres Linux à vérifier :
         
         if (errorName === 'NotAllowedError') {
           const { browser, instructions } = getBrowserInstructions();
+          console.log(`🔧 Instructions pour ${browser}:`, instructions);
+          
           toast.error(
-            `Test échoué: Permission refusée (${browser}). ${instructions}`,
-            { duration: 15000 }
+            `Accès microphone refusé (${browser}). ${instructions}`,
+            { duration: 8000 }
           );
+        } else if (errorName === 'NotFoundError' || errorMessage.includes('not found')) {
+          toast.error('Aucun microphone détecté. Veuillez connecter un microphone.');
+        } else if (errorName === 'NotReadableError' || errorMessage.includes('busy')) {
+          toast.error('Microphone occupé par une autre application.');
+        } else if (errorName === 'NotSupportedError') {
+          toast.error('Enregistrement audio non supporté sur ce navigateur.');
         } else {
-          toast.error(`Test microphone échoué: ${errorMessage}`);
+          toast.error(`Erreur d'accès au microphone: ${errorMessage}`);
         }
+      } else {
+        toast.error('Erreur d\'accès au microphone');
       }
       
       return false;
@@ -1491,6 +1752,46 @@ Paramètres Linux à vérifier :
   }
 
   const otherUser = getOtherParticipant();
+  const { onlineStatus, isConnected, sendTypingStatus } = useOnlineStatus(conversationId, otherUser?._id || '');
+  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId);
+
+  // Observer les messages pour marquer comme lus
+  useEffect(() => {
+    if (messages.length > 0) {
+      observeMessages(messages);
+    }
+  }, [messages, observeMessages]);
+
+  // Gérer le statut de frappe
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTyping = useCallback(() => {
+    if (!isTyping) {
+      setIsTyping(true);
+      sendTypingStatus(true);
+    }
+
+    // Réinitialiser le timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Arrêter la frappe après 3 secondes d'inactivité
+    typingTimeoutRef.current = setTimeout(() => {
+      setIsTyping(false);
+      sendTypingStatus(false);
+    }, 3000);
+  }, [isTyping, sendTypingStatus]);
+
+  // Nettoyer le timeout au démontage
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
@@ -1520,13 +1821,10 @@ Paramètres Linux à vérifier :
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
             >
-              <UserAvatar user={otherUser} isOnline={true} />
+              <UserAvatar user={otherUser} onlineStatus={onlineStatus} isConnected={isConnected} />
               <div>
                 <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <p className="text-xs text-purple-200 font-mono">En ligne</p>
-                </div>
+                <OnlineStatusIndicator onlineStatus={onlineStatus} isConnected={isConnected} />
               </div>
             </motion.div>
           ) : conversationLoading ? (
@@ -1566,6 +1864,35 @@ Paramètres Linux à vérifier :
 
       {/* Messages scrollable avec padding pour header et BottomNav+input */}
       <div className="pt-20 pb-32 px-4 flex flex-col space-y-6 overflow-y-auto h-screen">
+        {/* Indicateur de frappe */}
+        {onlineStatus.isTyping && (
+          <motion.div
+            className="flex justify-start px-6"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <motion.div
+              className="flex items-center space-x-2 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-2xl px-4 py-2 border border-purple-400/30"
+              initial={{ scale: 0.8 }}
+              animate={{ scale: 1 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div
+                className="flex items-end space-x-1 h-4"
+                animate={{ opacity: [0.5, 1, 0.5] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+              >
+                <div className="w-1 h-2 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+                <div className="w-1 h-3 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1 h-1 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+              </motion.div>
+              <span className="text-xs text-purple-300 font-medium">
+                {otherUser?.name || 'Quelqu\'un'} écrit...
+              </span>
+            </motion.div>
+          </motion.div>
+        )}
         {loading ? (
           <motion.div 
             className="flex items-center justify-center py-8"
@@ -1725,7 +2052,7 @@ Paramètres Linux à vérifier :
                       
                       {/* Statut du message et heure */}
                       <div className="flex justify-between items-center mt-3">
-                        <MessageStatus message={message} isOwnMessage={isOwnMessage} />
+                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} />
                         <span className="text-xs text-white/60 font-mono">
                           {formatMessageTime(message.createdAt)}
                         </span>
@@ -1760,6 +2087,7 @@ Paramètres Linux à vérifier :
         stopPreview={stopPreview}
         sendRecording={sendRecording}
         cancelRecording={cancelRecording}
+        handleTyping={handleTyping}
       />
     </div>
   );
