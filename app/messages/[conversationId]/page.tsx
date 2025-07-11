@@ -1029,9 +1029,24 @@ Paramètres Linux à vérifier :
 
       mediaRecorderRef.current.onstop = async () => {
         console.log('🛑 Enregistrement arrêté, traitement...');
+        console.log('📦 Nombre de chunks audio:', audioChunksRef.current.length);
+        console.log('📦 Taille totale des chunks:', audioChunksRef.current.reduce((total, chunk) => total + chunk.size, 0), 'bytes');
+        
         try {
+          if (audioChunksRef.current.length === 0) {
+            console.warn('⚠️ Aucune donnée audio enregistrée');
+            toast.error('Aucun son détecté. Vérifiez votre microphone.');
+            return;
+          }
+          
           const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
           console.log('📁 Blob audio créé:', audioBlob.size, 'bytes');
+          
+          if (audioBlob.size === 0) {
+            console.warn('⚠️ Blob audio vide');
+            toast.error('Enregistrement vide. Vérifiez votre microphone.');
+            return;
+          }
           
           // Créer une URL de prévisualisation
           const previewUrl = URL.createObjectURL(audioBlob);
@@ -1042,9 +1057,6 @@ Paramètres Linux à vérifier :
             track.stop();
             console.log('🔇 Track arrêtée:', track.kind);
           });
-          
-          // Arrêter le compteur de durée
-          stopRecordingTimer();
           
           console.log('✅ Prévisualisation créée');
           toast.success('Enregistrement terminé. Écoutez avant d\'envoyer.');
@@ -1064,6 +1076,15 @@ Paramètres Linux à vérifier :
       // Démarrer l'enregistrement
       console.log('▶️ Démarrage de l\'enregistrement...');
       mediaRecorderRef.current.start(1000); // Collecter les données toutes les secondes
+      
+      // Vérifier que l'enregistrement a bien démarré
+      setTimeout(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+          console.log('✅ Enregistrement confirmé en cours');
+        } else {
+          console.warn('⚠️ Enregistrement non démarré, état:', mediaRecorderRef.current?.state);
+        }
+      }, 100);
       
     } catch (error) {
       console.error('❌ Erreur startRecording:', error);
@@ -1127,13 +1148,20 @@ Paramètres Linux à vérifier :
         setIsRecording(false);
         console.log('✅ État recording mis à false');
         
+        // IMPORTANT: Arrêter le timer
+        stopRecordingTimer();
+        console.log('⏹️ Timer arrêté après enregistrement');
+        
       } catch (error) {
         console.error('❌ Erreur lors de l\'arrêt de l\'enregistrement:', error);
         toast.error('Erreur lors de l\'arrêt de l\'enregistrement');
         setIsRecording(false);
+        stopRecordingTimer(); // Arrêter le timer même en cas d'erreur
       }
     } else {
       console.log('ℹ️ Pas d\'enregistrement en cours à arrêter');
+      // Arrêter le timer même si pas d'enregistrement en cours
+      stopRecordingTimer();
     }
     
     console.log('=== FIN STOP RECORDING ===');
