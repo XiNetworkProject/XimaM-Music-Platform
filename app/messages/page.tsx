@@ -400,9 +400,10 @@ export default function MessagesPage() {
                   const otherUser = getOtherParticipant(conversation);
                   if (!otherUser) return null;
 
-                  // Simuler un statut en ligne (en production, utilisez les vrais données)
-                  const isOnline = Math.random() > 0.3;
-                  const isTyping = Math.random() > 0.8;
+                  // Pour l'instant, on ne simule pas de statuts en ligne
+                  // En production, vous devriez recevoir les vrais statuts du serveur
+                  const isOnline = false; // Par défaut, on suppose que l'utilisateur est hors ligne
+                  const isTyping = false; // Pas de frappe simulée
 
                   return (
                                           <motion.div

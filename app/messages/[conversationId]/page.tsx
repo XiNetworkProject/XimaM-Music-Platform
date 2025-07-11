@@ -81,29 +81,21 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // Simuler une connexion WebSocket (en production, utilisez un vrai serveur WebSocket)
+    // Pour l'instant, on simule une connexion mais sans fausses données
     const connectWebSocket = () => {
       console.log('🔌 Tentative de connexion WebSocket...');
       
-      // Simulation d'une connexion WebSocket
+      // Simulation d'une connexion WebSocket (en production, utilisez un vrai serveur WebSocket)
       setIsConnected(true);
       
-      // Simuler la réception de statuts en ligne
-      const simulateOnlineStatus = () => {
-        const isOnline = Math.random() > 0.3; // 70% de chance d'être en ligne
-        const isTyping = Math.random() > 0.8; // 20% de chance de taper
-        
-        setOnlineStatus(prev => ({
-          ...prev,
-          isOnline,
-          isTyping,
-          lastSeen: isOnline ? new Date() : new Date(Date.now() - Math.random() * 300000) // 0-5 min
-        }));
-      };
-
-      // Simuler les mises à jour de statut
-      simulateOnlineStatus();
-      const statusInterval = setInterval(simulateOnlineStatus, 10000); // Toutes les 10 secondes
+      // Pour l'instant, on ne simule pas de statuts en ligne
+      // En production, vous devriez recevoir les vrais statuts du serveur WebSocket
+      setOnlineStatus(prev => ({
+        ...prev,
+        isOnline: false, // Par défaut, on suppose que l'utilisateur est hors ligne
+        isTyping: false,
+        lastSeen: new Date(Date.now() - 300000) // Il y a 5 minutes par défaut
+      }));
 
       // Heartbeat pour maintenir la connexion
       heartbeatRef.current = setInterval(() => {
@@ -111,7 +103,6 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
       }, 30000);
 
       return () => {
-        clearInterval(statusInterval);
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
         }
