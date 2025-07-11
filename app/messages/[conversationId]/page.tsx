@@ -85,12 +85,14 @@ export default function ConversationPage() {
       const data = await response.json();
       
       if (response.ok) {
-        setMessages(data.messages);
+        setMessages(data.messages || []);
         // TODO: Charger les infos de la conversation
       } else {
-        toast.error('Erreur lors du chargement des messages');
+        console.error('Erreur API:', data);
+        toast.error(data.error || 'Erreur lors du chargement des messages');
       }
     } catch (error) {
+      console.error('Erreur fetch messages:', error);
       toast.error('Erreur de connexion');
     } finally {
       setLoading(false);
@@ -115,15 +117,18 @@ export default function ConversationPage() {
         body: JSON.stringify({ type, content, duration }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
-        const { message } = await response.json();
-        setMessages(prev => [...prev, message]);
+        setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         markAsSeen();
       } else {
-        toast.error('Erreur lors de l\'envoi');
+        console.error('Erreur envoi message:', data);
+        toast.error(data.error || 'Erreur lors de l\'envoi');
       }
     } catch (error) {
+      console.error('Erreur envoi message:', error);
       toast.error('Erreur de connexion');
     }
   };
