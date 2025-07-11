@@ -109,35 +109,40 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
 
   // Écouter les événements de frappe
   useEffect(() => {
-    onUserTyping((data: TypingStatus) => {
+    const handleUserTyping = (data: TypingStatus) => {
       if (data.userId === otherUserId && data.conversationId === conversationId) {
         setOnlineStatus(prev => ({
           ...prev,
           isTyping: data.isTyping
         }));
       }
-    });
+    };
+
+    onUserTyping(handleUserTyping);
   }, [otherUserId, conversationId, onUserTyping]);
 
   // Écouter les changements de statut en ligne
   useEffect(() => {
-    onUserOnline((data) => {
+    const handleUserOnline = (data: { userId: string; isOnline: boolean }) => {
       if (data.userId === otherUserId) {
         setOnlineStatus(prev => ({
           ...prev,
           isOnline: data.isOnline
         }));
       }
-    });
+    };
 
-    onUserOffline((data) => {
+    const handleUserOffline = (data: { userId: string; isOnline: boolean }) => {
       if (data.userId === otherUserId) {
         setOnlineStatus(prev => ({
           ...prev,
           isOnline: data.isOnline
         }));
       }
-    });
+    };
+
+    onUserOnline(handleUserOnline);
+    onUserOffline(handleUserOffline);
   }, [otherUserId, onUserOnline, onUserOffline]);
 
   // Fonction pour envoyer le statut de frappe
@@ -1816,7 +1821,7 @@ Paramètres Linux à vérifier :
 
   // Écouter les nouveaux messages en temps réel
   useEffect(() => {
-    onMessageReceived((message: NewMessage) => {
+    const handleMessageReceived = (message: NewMessage) => {
       console.log('📨 Nouveau message reçu en temps réel:', message);
       
       // Ajouter le nouveau message à la liste
@@ -1826,17 +1831,21 @@ Paramètres Linux à vérifier :
       if (session?.user?.id && !message.seenBy.includes(session.user.id)) {
         wsSendMessageSeen(message._id, conversationId, [...message.seenBy, session.user.id]);
       }
-    });
+    };
+
+    onMessageReceived(handleMessageReceived);
   }, [onMessageReceived, conversationId, session?.user?.id, wsSendMessageSeen]);
 
   // Écouter les changements de statut de frappe
   useEffect(() => {
-    onUserTyping((data: TypingStatus) => {
+    const handleUserTyping = (data: TypingStatus) => {
       if (data.userId === otherUser?._id && data.conversationId === conversationId) {
         console.log('⌨️ Frappe détectée:', data);
         // Le statut de frappe est déjà géré par le hook useOnlineStatus
       }
-    });
+    };
+
+    onUserTyping(handleUserTyping);
   }, [onUserTyping, otherUser?._id, conversationId]);
 
   // Gérer le statut de frappe

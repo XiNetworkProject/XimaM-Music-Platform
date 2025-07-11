@@ -56,7 +56,7 @@ interface UseWebSocketReturn {
 }
 
 export const useWebSocket = (): UseWebSocketReturn => {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -143,8 +143,10 @@ export const useWebSocket = (): UseWebSocketReturn => {
     socketRef.current = socket;
   }, [session?.user?.id]);
 
-  // Initialiser la connexion au montage
+  // Initialiser la connexion au montage seulement si la session est chargée
   useEffect(() => {
+    if (status === 'loading') return; // Attendre que la session soit chargée
+    
     if (session?.user?.id) {
       initializeSocket();
     }
@@ -156,14 +158,16 @@ export const useWebSocket = (): UseWebSocketReturn => {
         socketRef.current = null;
       }
     };
-  }, [session?.user?.id, initializeSocket]);
+  }, [session?.user?.id, status, initializeSocket]);
 
   // Réauthentifier quand la session change
   useEffect(() => {
+    if (status === 'loading') return; // Attendre que la session soit chargée
+    
     if (socketRef.current?.connected && session?.user?.id && !isAuthenticated) {
       socketRef.current.emit('authenticate', session.user.id);
     }
-  }, [session?.user?.id, isAuthenticated]);
+  }, [session?.user?.id, isAuthenticated, status]);
 
   const joinConversation = useCallback((conversationId: string) => {
     if (socketRef.current?.connected) {
