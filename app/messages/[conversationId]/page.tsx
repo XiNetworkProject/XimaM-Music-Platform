@@ -375,7 +375,7 @@ export default function ConversationPage() {
         </button>
       </div>
 
-      {/* Messages scrollable avec padding pour header et barre d’envoi */}
+      {/* Messages scrollable avec padding pour header et BottomNav */}
       <div className="pt-20 pb-20 px-2 flex flex-col space-y-4 overflow-y-auto h-screen">
         {loading ? (
           <div className="flex items-center justify-center py-8">
@@ -443,8 +443,8 @@ export default function ConversationPage() {
         )}
       </div>
 
-      {/* Barre d’envoi fixed */}
-      <div className="fixed bottom-0 left-0 w-full z-30 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
+      {/* Barre d’envoi sticky juste au-dessus de la BottomNav */}
+      <div className="sticky bottom-0 z-30 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
         <button
           className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
           onClick={() => fileInputRef.current?.click()}
