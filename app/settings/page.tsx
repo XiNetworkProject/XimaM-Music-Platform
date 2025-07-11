@@ -100,6 +100,27 @@ export default function SettingsPage() {
       ]
     },
     {
+      id: 'requests',
+      title: 'Demandes',
+      icon: Bell,
+      items: [
+        {
+          id: 'follow-requests',
+          label: 'Demandes de suivi',
+          description: 'Gérer les demandes reçues',
+          type: 'link',
+          action: () => router.push('/requests')
+        },
+        {
+          id: 'message-requests',
+          label: 'Demandes de messagerie',
+          description: 'Conversations en attente',
+          type: 'link',
+          action: () => router.push('/requests?tab=messages')
+        }
+      ]
+    },
+    {
       id: 'preferences',
       title: 'Préférences',
       icon: Settings,

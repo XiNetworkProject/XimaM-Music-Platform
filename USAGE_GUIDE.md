@@ -1,185 +1,189 @@
-# Guide d'utilisation XimaM - Accès aux fonctionnalités
+# 📖 Guide d'Utilisation - XimaM
 
-## 🎵 **Navigation principale**
+## 🚀 Accès Rapide aux Fonctionnalités
 
-### **Accueil** (`/`)
-- Page d'accueil avec découverte de musique
-- Lecteur audio intégré
-- Statistiques communautaires
+### 📱 Navigation Principale
 
-### **Découvrir** (`/discover`)
-- Exploration de nouveaux artistes
-- Recherche avancée
-- Filtres par genre
+**Barre de navigation inférieure :**
+- 🏠 **Accueil** - Page principale avec découvertes
+- 🔍 **Découvrir** - Explorer de nouveaux artistes et musiques
+- 📚 **Bibliothèque** - Vos playlists et favoris
+- 💬 **Messages** - Conversations et demandes (avec indicateur de notifications)
+- ⚙️ **Paramètres** - Configuration et gestion du compte
+- 👤 **Profil** - Votre profil utilisateur
 
-### **Bibliothèque** (`/library`)
-- Vos playlists personnelles
-- Tracks likées
-- Historique d'écoute
+### ⚙️ Accès aux Paramètres
 
-### **Messages** (`/messages`)
-- Conversations privées
-- Demandes d'acceptation
-- Envoi de messages texte, images, vidéos, vocaux
-- **Indicateur rouge** : Nombre de demandes en attente
+**Méthodes d'accès :**
+1. **Via la navigation** : Cliquez sur l'icône ⚙️ dans la barre inférieure
+2. **Via le profil** : Accédez à votre profil puis cliquez sur "Paramètres"
+3. **Accès direct** : Allez sur `/settings`
 
-### **Profil** (`/profile/[username]`)
-- Votre profil personnel
-- Statistiques détaillées
-- Gestion des tracks et playlists
+**Sections disponibles :**
+- 👤 **Compte** - Informations personnelles
+- 🔔 **Demandes** - Gérer les demandes de suivi et messagerie
+- ⚙️ **Préférences** - Configuration de l'interface
+- 🔒 **Confidentialité** - Paramètres de visibilité
+- 🎵 **Contenu** - Upload et bibliothèque
+- 🆘 **Support** - Aide et contact
 
----
+## 🔔 Système de Demandes
 
-## ⚙️ **Accès aux paramètres**
+### 📋 Gestion des Demandes
 
-### **Méthode 1 : Via la page profil**
-1. Cliquez sur **"Profil"** dans la navigation
-2. Cliquez sur **"Modifier le profil"**
-3. Accédez aux paramètres avancés
+**Accès aux demandes :**
+1. **Via les paramètres** : Section "Demandes" → "Demandes de suivi" ou "Demandes de messagerie"
+2. **Accès direct** : Allez sur `/requests`
+3. **Via les notifications** : Cliquez sur l'indicateur de notifications dans Messages
 
-### **Méthode 2 : Directement**
-- Allez sur `/settings` dans votre navigateur
-- Ou ajoutez un lien dans votre profil
+**Types de demandes :**
+- 👥 **Demandes de suivi** - Utilisateurs qui veulent vous suivre
+- 💬 **Demandes de messagerie** - Conversations en attente d'acceptation
 
-### **Paramètres disponibles :**
-- **Compte** : Modifier profil, nom d'utilisateur, email
-- **Préférences** : Mode sombre, notifications, lecture auto, qualité
-- **Confidentialité** : Profil public/privé, activité visible
-- **Contenu** : Upload, bibliothèque, abonnements
-- **Support** : Aide, conditions, déconnexion
+### ✅ Actions Disponibles
 
----
+**Pour les demandes de suivi :**
+- ✅ **Accepter** - Suivre l'utilisateur en retour
+- ❌ **Refuser** - Décliner la demande
+- 💬 **Message** - Envoyer une demande de conversation
 
-## 💬 **Système de messagerie**
+**Pour les demandes de messagerie :**
+- ✅ **Accepter** - Ouvrir la conversation
+- ❌ **Refuser** - Supprimer la demande
 
-### **Envoyer un message à quelqu'un :**
-1. **Via le profil** : Cliquez sur **"Message"** sur le profil d'un utilisateur
-2. **Via la navigation** : Cliquez sur **"Messages"** puis recherchez l'utilisateur
+## 💬 Système de Messagerie
 
-### **Gérer les demandes :**
-1. Cliquez sur **"Messages"** dans la navigation
-2. Les demandes en attente ont un **badge orange**
-3. Cliquez sur **✅** pour accepter ou **❌** pour refuser
+### 🚀 Démarrage d'une Conversation
 
-### **Types de messages supportés :**
-- **Texte** : Messages écrits
-- **Images** : Photos et GIFs
-- **Vidéos** : Maximum 1 minute
-- **Vocaux** : Enregistrement en temps réel
+**Méthodes pour démarrer une conversation :**
 
-### **Indicateurs visuels :**
-- **Badge rouge** sur "Messages" = Demandes en attente
-- **Badge orange** sur conversation = Demande non acceptée
-- **Icône de caméra** = Message vocal
+1. **Via un profil utilisateur :**
+   - Allez sur le profil d'un utilisateur
+   - Cliquez sur le bouton "Message"
+   - Envoyez une demande de conversation
 
----
+2. **Via les demandes reçues :**
+   - Allez dans `/requests`
+   - Acceptez une demande de messagerie
+   - La conversation s'ouvre automatiquement
 
-## 👥 **Demandes de suivi (Follow)**
+3. **Via les conversations existantes :**
+   - Allez dans `/messages`
+   - Cliquez sur une conversation existante
 
-### **Suivre quelqu'un :**
+### 📱 Interface de Messagerie
+
+**Fonctionnalités disponibles :**
+- 💬 **Messages texte** - Communication écrite
+- 🖼️ **Images** - Partage de photos
+- 🎥 **Vidéos** - Clips vidéo (1 min max)
+- 🎤 **Messages vocaux** - Enregistrements audio
+- ✅ **Marquage lu** - Indicateurs de lecture
+- 🔔 **Notifications temps réel** - SSE pour les nouveaux messages
+
+## 👥 Système de Suivi
+
+### 🔄 Demande de Suivi
+
+**Pour suivre un utilisateur :**
 1. Allez sur le profil de l'utilisateur
-2. Cliquez sur **"Suivre"** (bouton violet)
-3. Le bouton devient **"Abonné"** (rose)
+2. Cliquez sur "Suivre"
+3. L'utilisateur reçoit une demande
+4. Une fois acceptée, vous pouvez voir leurs publications
 
-### **Gérer vos abonnements :**
-1. Allez sur votre profil
-2. Section **"Abonnés/Abonnements"**
-3. Cliquez sur **"Se désabonner"** si nécessaire
+**Pour gérer les demandes reçues :**
+1. Allez dans `/requests` ou via Paramètres → Demandes
+2. Acceptez ou refusez les demandes
+3. Optionnel : Envoyez un message pour démarrer une conversation
 
-### **Notifications de suivi :**
-- Notifications toast pour nouveaux abonnés
-- Compteur d'abonnés mis à jour en temps réel
-- Activité visible dans le profil
+### 📊 Statistiques Sociales
 
----
+**Informations disponibles :**
+- 👥 **Abonnés** - Nombre de personnes qui vous suivent
+- 👤 **Abonnements** - Nombre de personnes que vous suivez
+- 🎵 **Titres** - Nombre de musiques partagées
+- ❤️ **Likes** - Total des likes reçus
+- ▶️ **Écoutes** - Nombre total d'écoutes
 
-## 🎯 **Fonctionnalités avancées**
+## 🎵 Gestion du Contenu
 
-### **Upload de musique :**
-1. Allez sur `/upload`
-2. Glissez-déposez vos fichiers
-3. Remplissez les métadonnées
-4. Publiez votre création
+### 📤 Upload de Musique
 
-### **Création de playlists :**
-1. Dans votre profil, onglet **"Playlists"**
-2. Cliquez sur **"+"** pour créer
-3. Ajoutez des tracks depuis votre bibliothèque
+**Processus d'upload :**
+1. Allez dans `/upload` ou via Paramètres → Contenu → Upload
+2. Sélectionnez votre fichier audio
+3. Remplissez les informations (titre, artiste, genre)
+4. Ajoutez une image de couverture
+5. Publiez votre création
 
-### **Édition de profil :**
-1. Dans votre profil, cliquez sur **"Modifier"**
-2. Changez avatar, bannière, bio
-3. Ajoutez vos réseaux sociaux
-4. Sauvegardez les modifications
+### 📚 Bibliothèque Personnelle
 
----
+**Organisation :**
+- 🎵 **Mes titres** - Musiques que vous avez uploadées
+- ❤️ **Favoris** - Titres que vous avez likés
+- 📋 **Playlists** - Collections personnalisées
+- 📥 **Téléchargements** - Musique hors ligne
 
-## 🔔 **Notifications et alertes**
+## 🔧 Configuration Avancée
 
-### **Types de notifications :**
-- **Nouveau message** : 💬 + nom de l'expéditeur
-- **Nouvelle demande** : 👋 Demande de conversation
-- **Demande acceptée** : ✅ Demande acceptée
-- **Nouveau follower** : 👤 + nom de l'utilisateur
+### ⚙️ Paramètres de Confidentialité
 
-### **Indicateurs visuels :**
-- **Badge rouge** : Demandes en attente
-- **Badge orange** : Demande de conversation
-- **Badge vert** : Nouveau message
-- **Badge bleu** : Nouveau follower
+**Options disponibles :**
+- 🌍 **Profil public** - Visible par tous
+- 🔒 **Profil privé** - Visible par les abonnés uniquement
+- 👥 **Amis uniquement** - Visible par les personnes que vous suivez
 
----
+### 🔔 Notifications
 
-## 🚀 **Raccourcis utiles**
+**Types de notifications :**
+- 👥 **Nouveaux abonnés** - Quand quelqu'un vous suit
+- ❤️ **Nouveaux likes** - Quand quelqu'un like votre musique
+- 💬 **Nouveaux messages** - Messages non lus
+- 🔔 **Demandes** - Demandes de suivi/messagerie
 
-### **Navigation rapide :**
-- **Profil** : Navigation → Profil
-- **Messages** : Navigation → Messages
-- **Paramètres** : `/settings`
-- **Upload** : `/upload`
-- **Bibliothèque** : Navigation → Bibliothèque
+### 🎨 Personnalisation
 
-### **Actions rapides :**
-- **Message** : Bouton sur profil utilisateur
-- **Suivre** : Bouton sur profil utilisateur
-- **Modifier** : Bouton dans votre profil
-- **Créer playlist** : Bouton "+" dans profil
+**Options d'interface :**
+- 🌙 **Mode sombre** - Interface sombre
+- 🔔 **Notifications** - Activer/désactiver les notifications
+- ▶️ **Lecture automatique** - Lancer la musique automatiquement
+- 🎵 **Haute qualité** - Streaming en haute qualité
+- 🌍 **Langue** - Français, English, Español
 
----
+## 🆘 Support et Aide
 
-## 🛠️ **Dépannage**
+### 📞 Contact
 
-### **Problème : Page se recharge**
-- Vérifiez que vous êtes connecté
-- Rechargez la page
-- Vérifiez votre connexion internet
+**Méthodes de contact :**
+- 📧 **Email** - Via les paramètres → Support → Nous contacter
+- 💬 **Chat** - Support en temps réel (si disponible)
+- 📖 **FAQ** - Questions fréquentes dans le centre d'aide
 
-### **Problème : Messages ne s'envoient pas**
-- Vérifiez que la conversation est acceptée
-- Vérifiez la taille des fichiers (max 50MB)
-- Vérifiez la durée des vidéos (max 1 min)
+### 🐛 Dépannage
 
-### **Problème : Upload échoue**
-- Vérifiez le format des fichiers
-- Vérifiez la taille (max 50MB)
-- Vérifiez votre abonnement
+**Problèmes courants :**
+- **Erreurs de connexion** - Vérifiez votre connexion internet
+- **Problèmes d'upload** - Vérifiez le format et la taille du fichier
+- **Notifications manquantes** - Vérifiez les paramètres de notifications
+- **Messages non envoyés** - Vérifiez que la conversation est acceptée
 
----
+## 🎯 Conseils d'Utilisation
 
-## 📱 **Optimisations mobiles**
+### 💡 Optimisation de l'Expérience
 
-### **Interface adaptative :**
-- Navigation en bas sur mobile
-- Boutons tactiles optimisés
-- Enregistrement vocal par appui long
-- Swipe pour naviguer
+1. **Activez les notifications** pour ne manquer aucune interaction
+2. **Utilisez le mode sombre** pour une meilleure expérience visuelle
+3. **Organisez votre bibliothèque** avec des playlists thématiques
+4. **Interagissez avec la communauté** en suivant d'autres artistes
+5. **Partagez régulièrement** pour développer votre audience
 
-### **Performance :**
-- Cache intelligent des pages
-- Chargement progressif
-- Optimisations audio pour mobile
-- Service Worker pour hors ligne
+### 🔒 Sécurité et Confidentialité
+
+1. **Vérifiez vos paramètres de confidentialité** régulièrement
+2. **N'acceptez que les demandes** de personnes que vous connaissez
+3. **Signalez les comportements inappropriés** via le support
+4. **Protégez vos informations personnelles** en limitant leur visibilité
 
 ---
 
-**💡 Conseil :** Utilisez les badges de notification pour ne manquer aucune interaction ! 🎵✨ 
+*Dernière mise à jour : ${new Date().toLocaleDateString('fr-FR')}* 
