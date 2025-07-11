@@ -55,6 +55,7 @@ export default function ConversationPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(true);
+  const [conversationLoading, setConversationLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [showMediaOptions, setShowMediaOptions] = useState(false);
@@ -90,6 +91,9 @@ export default function ConversationPage() {
       if (response.ok) {
         setMessages(data.messages || []);
         console.log('✅ Messages chargés:', data.messages?.length || 0);
+        
+        // Charger aussi les infos de la conversation
+        await fetchConversationInfo();
       } else {
         console.error('❌ Erreur API:', data);
         toast.error(data.error || 'Erreur lors du chargement des messages');
@@ -99,6 +103,26 @@ export default function ConversationPage() {
       toast.error('Erreur de connexion');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchConversationInfo = async () => {
+    try {
+      setConversationLoading(true);
+      const response = await fetch(`/api/messages/conversations`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        const currentConversation = data.conversations.find((conv: any) => conv._id === conversationId);
+        if (currentConversation) {
+          setConversation(currentConversation);
+          console.log('✅ Conversation chargée:', currentConversation);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement conversation:', error);
+    } finally {
+      setConversationLoading(false);
     }
   };
 
@@ -247,7 +271,8 @@ export default function ConversationPage() {
   };
 
   const getOtherParticipant = () => {
-    return conversation?.participants.find(p => p._id !== session?.user?.id);
+    if (!conversation || !session?.user?.id) return null;
+    return conversation.participants.find(p => p._id !== session.user.id);
   };
 
   if (!session?.user) {
@@ -273,7 +298,7 @@ export default function ConversationPage() {
           >
             <ArrowLeft size={20} className="text-white" />
           </button>
-          {otherUser && (
+          {otherUser ? (
             <div className="flex items-center space-x-3">
               <img
                 src={otherUser.avatar || '/default-avatar.png'}
@@ -283,6 +308,22 @@ export default function ConversationPage() {
               <div>
                 <h2 className="font-semibold text-white">{otherUser.name}</h2>
                 <p className="text-sm text-gray-300">@{otherUser.username}</p>
+              </div>
+            </div>
+          ) : conversationLoading ? (
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-600 rounded-full animate-pulse"></div>
+              <div>
+                <div className="h-4 bg-gray-600 rounded w-24 animate-pulse"></div>
+                <div className="h-3 bg-gray-700 rounded w-16 mt-1 animate-pulse"></div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-600 rounded-full"></div>
+              <div>
+                <h2 className="font-semibold text-white">Utilisateur</h2>
+                <p className="text-sm text-gray-300">Chargement...</p>
               </div>
             </div>
           )}
@@ -300,65 +341,71 @@ export default function ConversationPage() {
           </div>
         ) : (
           <AnimatePresence>
-            {messages.map((message) => (
-              <motion.div
-                key={message._id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`flex ${message.sender._id === session.user?.id ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-xs lg:max-w-md ${message.sender._id === session.user?.id ? 'bg-purple-600' : 'bg-white/10'} rounded-2xl px-4 py-2 backdrop-blur-sm`}>
-                  {/* Message content */}
-                  {message.type === 'text' && (
-                    <p className="text-white">{message.content}</p>
-                  )}
-                  
-                  {message.type === 'image' && (
-                    <img
-                      src={message.content}
-                      alt="Image"
-                      className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                      onClick={() => window.open(message.content, '_blank')}
-                    />
-                  )}
-                  
-                  {message.type === 'video' && (
-                    <video
-                      src={message.content}
-                      controls
-                      className="rounded-lg max-w-full h-auto"
-                      preload="metadata"
-                    />
-                  )}
-                  
-                  {message.type === 'audio' && (
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => playAudio(message.content, message._id)}
-                        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-                      >
-                        {playingAudio === message._id ? (
-                          <Pause size={16} className="text-white" />
-                        ) : (
-                          <Play size={16} className="text-white" />
-                        )}
-                      </button>
-                      <div className="flex-1 bg-white/20 rounded-full h-2">
-                        <div className="bg-white h-2 rounded-full" style={{ width: '0%' }}></div>
+            {messages.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">
+                <p>Aucun message pour cette conversation. Commencez une discussion !</p>
+              </div>
+            ) : (
+              messages.map((message) => (
+                <motion.div
+                  key={message._id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${message.sender._id === session.user?.id ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-xs lg:max-w-md ${message.sender._id === session.user?.id ? 'bg-purple-600' : 'bg-white/10'} rounded-2xl px-4 py-2 backdrop-blur-sm`}>
+                    {/* Message content */}
+                    {message.type === 'text' && (
+                      <p className="text-white">{message.content}</p>
+                    )}
+                    
+                    {message.type === 'image' && (
+                      <img
+                        src={message.content}
+                        alt="Image"
+                        className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(message.content, '_blank')}
+                      />
+                    )}
+                    
+                    {message.type === 'video' && (
+                      <video
+                        src={message.content}
+                        controls
+                        className="rounded-lg max-w-full h-auto"
+                        preload="metadata"
+                      />
+                    )}
+                    
+                    {message.type === 'audio' && (
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => playAudio(message.content, message._id)}
+                          className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                        >
+                          {playingAudio === message._id ? (
+                            <Pause size={16} className="text-white" />
+                          ) : (
+                            <Play size={16} className="text-white" />
+                          )}
+                        </button>
+                        <div className="flex-1 bg-white/20 rounded-full h-2">
+                          <div className="bg-white h-2 rounded-full" style={{ width: '0%' }}></div>
+                        </div>
+                        <span className="text-xs text-white">
+                          {message.duration ? formatTime(message.duration) : '--:--'}
+                        </span>
                       </div>
-                      <span className="text-xs text-white">
-                        {message.duration ? formatTime(message.duration) : '--:--'}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* Message time */}
-                  <p className="text-xs text-gray-300 mt-1">
-                    {formatMessageTime(message.createdAt)}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+                    )}
+                    
+                    {/* Message time */}
+                    <p className="text-xs text-gray-300 mt-1">
+                      {formatMessageTime(message.createdAt)}
+                    </p>
+                  </div>
+                </motion.div>
+              ))
+            )}
           </AnimatePresence>
         )}
         <div ref={messagesEndRef} />
