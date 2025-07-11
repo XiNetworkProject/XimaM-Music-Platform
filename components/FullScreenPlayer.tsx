@@ -154,12 +154,10 @@ export default function FullScreenPlayer() {
     <>
       {/* Mini-player */}
       <motion.div
-        className="glass-player fixed bottom-0 left-0 right-0 z-[90] flex items-center px-2 py-2 bg-gradient-to-r from-purple-900/80 to-blue-900/80 shadow-lg backdrop-blur-lg"
+        className="glass-player fixed bottom-0 left-0 right-0 z-[90] flex items-center px-2 py-1 bg-black/80 backdrop-blur-lg border-t border-white/10"
         style={{
           display: showFull ? 'none' : 'flex',
-          borderTopLeftRadius: '1.5rem',
-          borderTopRightRadius: '1.5rem',
-          minHeight: '56px',
+          minHeight: '44px',
         }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
