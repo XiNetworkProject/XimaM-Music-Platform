@@ -57,7 +57,8 @@ function MessageInputBar({
   isRecording,
   startRecording,
   stopRecording,
-  uploading
+  uploading,
+  testMicrophoneAccess
 }: any) {
   return (
     <div className="fixed bottom-16 left-0 w-full z-40 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
@@ -78,6 +79,13 @@ function MessageInputBar({
         title="Message vocal"
       >
         <Mic size={20} className="text-purple-300" />
+      </button>
+      <button
+        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+        onClick={testMicrophoneAccess}
+        title="Tester le microphone"
+      >
+        <Volume2 size={20} className="text-purple-300" />
       </button>
       <input
         type="text"
@@ -409,6 +417,147 @@ export default function ConversationPage() {
     }
   };
 
+  // Fonction de test microphone pour diagnostic
+  const testMicrophoneAccess = async () => {
+    console.log('🧪 Test d\'accès microphone...');
+    
+    try {
+      // Test 1: Vérifier les périphériques
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioDevices = devices.filter(device => device.kind === 'audioinput');
+      console.log('🎤 Périphériques audio trouvés:', audioDevices.length);
+      
+      if (audioDevices.length === 0) {
+        console.error('❌ Aucun périphérique audio détecté');
+        toast.error('Aucun microphone détecté sur votre appareil');
+        return false;
+      }
+      
+      // Test 2: Essayer d'obtenir un stream
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log('✅ Stream audio obtenu avec succès');
+      
+      // Test 3: Vérifier que le stream fonctionne
+      const tracks = stream.getTracks();
+      console.log('📊 Tracks audio:', tracks.map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
+      
+      // Arrêter le stream de test
+      tracks.forEach(track => track.stop());
+      
+      console.log('✅ Test microphone réussi');
+      toast.success('Microphone fonctionne correctement');
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Test microphone échoué:', error);
+      
+      if (error instanceof Error) {
+        const errorName = error.name;
+        const errorMessage = error.message;
+        
+        if (errorName === 'NotAllowedError') {
+          const { browser, instructions } = getBrowserInstructions();
+          toast.error(
+            `Test échoué: Permission refusée (${browser}). ${instructions}`,
+            { duration: 10000 }
+          );
+        } else {
+          toast.error(`Test microphone échoué: ${errorMessage}`);
+        }
+      }
+      
+      return false;
+    }
+  };
+
+  // Fonction pour détecter le navigateur et afficher des instructions spécifiques
+  const getBrowserInstructions = () => {
+    const userAgent = navigator.userAgent;
+    let browser = 'unknown';
+    let instructions = '';
+
+    if (userAgent.includes('Chrome')) {
+      browser = 'Chrome';
+      instructions = `
+1. Cliquez sur l'icône de cadenas 🔒 dans la barre d'adresse
+2. Autorisez l'accès au microphone
+3. Rafraîchissez la page
+4. Si le problème persiste, vérifiez les paramètres système de votre appareil
+      `;
+    } else if (userAgent.includes('Firefox')) {
+      browser = 'Firefox';
+      instructions = `
+1. Cliquez sur l'icône de cadenas 🔒 dans la barre d'adresse
+2. Autorisez l'accès au microphone
+3. Rafraîchissez la page
+4. Vérifiez aussi les paramètres système
+      `;
+    } else if (userAgent.includes('Safari')) {
+      browser = 'Safari';
+      instructions = `
+1. Allez dans Préférences > Sites web > Microphone
+2. Autorisez l'accès pour ce site
+3. Rafraîchissez la page
+4. Vérifiez les paramètres système de votre Mac
+      `;
+    } else if (userAgent.includes('Edge')) {
+      browser = 'Edge';
+      instructions = `
+1. Cliquez sur l'icône de cadenas 🔒 dans la barre d'adresse
+2. Autorisez l'accès au microphone
+3. Rafraîchissez la page
+4. Vérifiez les paramètres système Windows
+      `;
+    } else {
+      instructions = `
+1. Vérifiez les permissions microphone dans votre navigateur
+2. Autorisez l'accès au microphone pour ce site
+3. Vérifiez les paramètres système de votre appareil
+4. Rafraîchissez la page après avoir modifié les paramètres
+      `;
+    }
+
+    return { browser, instructions };
+  };
+
+  // Fonction pour forcer la demande de permission microphone
+  const requestMicrophonePermission = async () => {
+    console.log('🔐 Demande explicite de permission microphone...');
+    
+    try {
+      // Essayer d'abord avec des contraintes minimales
+      const basicStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: true 
+      });
+      
+      console.log('✅ Permission accordée avec contraintes basiques');
+      basicStream.getTracks().forEach(track => track.stop());
+      return true;
+      
+    } catch (basicError) {
+      console.warn('⚠️ Échec avec contraintes basiques:', basicError);
+      
+      try {
+        // Essayer avec des contraintes encore plus minimales
+        const minimalStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        });
+        
+        console.log('✅ Permission accordée avec contraintes minimales');
+        minimalStream.getTracks().forEach(track => track.stop());
+        return true;
+        
+      } catch (minimalError) {
+        console.error('❌ Échec même avec contraintes minimales:', minimalError);
+        return false;
+      }
+    }
+  };
+
   const startRecording = async () => {
     console.log('=== DEBUT START RECORDING ===');
     console.log('🎤 Tentative d\'accès au microphone...');
@@ -437,6 +586,13 @@ export default function ConversationPage() {
         } catch (permError) {
           console.warn('⚠️ Impossible de vérifier les permissions:', permError);
         }
+      }
+
+      // Essayer d'abord de demander explicitement la permission
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        toast.error('Impossible d\'obtenir l\'accès au microphone. Vérifiez les paramètres de votre navigateur et système.');
+        return;
       }
 
       // Demander l'accès au microphone avec des options spécifiques
@@ -530,7 +686,13 @@ export default function ConversationPage() {
         console.error('Message d\'erreur:', errorMessage);
         
         if (errorName === 'NotAllowedError' || errorMessage.includes('Permission')) {
-          toast.error('Accès au microphone refusé. Veuillez autoriser l\'accès dans les paramètres du navigateur.');
+          const { browser, instructions } = getBrowserInstructions();
+          console.log(`🔧 Instructions pour ${browser}:`, instructions);
+          
+          toast.error(
+            `Accès microphone refusé (${browser}). ${instructions}`,
+            { duration: 8000 }
+          );
         } else if (errorName === 'NotFoundError' || errorMessage.includes('not found')) {
           toast.error('Aucun microphone détecté. Veuillez connecter un microphone.');
         } else if (errorName === 'NotReadableError' || errorMessage.includes('busy')) {
@@ -753,6 +915,7 @@ export default function ConversationPage() {
         startRecording={startRecording}
         stopRecording={stopRecording}
         uploading={uploading}
+        testMicrophoneAccess={testMicrophoneAccess}
       />
     </div>
   );
