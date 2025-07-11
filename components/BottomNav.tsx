@@ -21,7 +21,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const { notifications } = useMessageNotifications();
-  const [showNotifications, setShowNotifications] = useState(false);
+  // Calculer le nombre de notifications pertinentes (messages ou demandes non lues)
+  const unreadCount = notifications.filter(n => n.type === 'new_message' || n.type === 'new_request').length;
 
   const navItems = [
     {
@@ -47,7 +48,7 @@ export default function BottomNav() {
       label: 'Messages',
       path: '/messages',
       active: pathname.startsWith('/messages'),
-      badge: notifications.length > 0 ? notifications.length : undefined
+      badge: unreadCount > 0 ? unreadCount : undefined
     },
     {
       icon: Settings,
@@ -72,33 +73,6 @@ export default function BottomNav() {
   return (
     <>
       {/* Notifications Popup */}
-      {showNotifications && notifications.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-          className="fixed bottom-20 left-4 right-4 z-50 glass-effect rounded-xl p-4 max-w-sm mx-auto"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold text-white">Nouvelles notifications</h3>
-            <button
-              onClick={() => setShowNotifications(false)}
-              className="text-white/60 hover:text-white"
-            >
-              ×
-            </button>
-          </div>
-          <div className="space-y-2">
-            {notifications.slice(0, 3).map((notification, index) => (
-              <div key={index} className="text-sm text-white/80">
-                {notification.type === 'new_message' && `Nouveau message de ${notification.senderName}`}
-                {notification.type === 'new_request' && 'Nouvelle demande de conversation'}
-                {notification.type === 'request_accepted' && 'Demande acceptée'}
-              </div>
-            ))}
-          </div>
-        </motion.div>
-      )}
 
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-lg border-t border-white/10">

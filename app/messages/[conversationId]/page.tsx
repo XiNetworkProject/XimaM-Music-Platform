@@ -295,7 +295,7 @@ export default function ConversationPage() {
   const otherUser = getOtherParticipant();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col pb-24">
       {/* Header */}
       <div className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-sm border-b border-white/20">
         <div className="flex items-center space-x-3">
