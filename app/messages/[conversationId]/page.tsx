@@ -267,7 +267,7 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
     >
       {/* Barres de visualisation animées améliorées */}
       <div className="flex items-end space-x-1 h-8">
-        {[...Array(8)].map((_, index) => (
+        {[...Array(8)].map((item, index) => (
           <motion.div
             key={index}
             className="w-1 bg-gradient-to-t from-purple-400 via-pink-400 to-indigo-400 rounded-full"
@@ -2111,7 +2111,7 @@ Paramètres Linux à vérifier :
                                   transition={{ delay: 0.3 }}
                                 >
                                   <div className="flex items-end space-x-1 h-5">
-                                    {[...Array(5)].map((_, index) => (
+                                    {[...Array(5)].map((item, index) => (
                                       <motion.div
                                         key={index}
                                         className="w-1 bg-purple-400/50 rounded-full"
