@@ -142,13 +142,13 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
 };
 
 // Hook personnalisé pour la gestion du statut de lecture
-const useMessageReadStatus = (conversationId: string) => {
+const useMessageReadStatus = (conversationId: string, currentUserId: string) => {
   const [readStatuses, setReadStatuses] = useState<Map<string, string[]>>(new Map());
   const [isMarkingAsRead, setIsMarkingAsRead] = useState(false);
 
   // Marquer les messages comme lus
   const markMessagesAsRead = useCallback(async (messageIds: string[]) => {
-    if (isMarkingAsRead || messageIds.length === 0) return;
+    if (isMarkingAsRead || messageIds.length === 0 || !currentUserId) return;
 
     setIsMarkingAsRead(true);
     try {
@@ -164,7 +164,10 @@ const useMessageReadStatus = (conversationId: string) => {
         setReadStatuses(prev => {
           const newStatuses = new Map(prev);
           messageIds.forEach(id => {
-            newStatuses.set(id, [...(newStatuses.get(id) || []), 'current-user-id']);
+            const currentSeenBy = newStatuses.get(id) || [];
+            if (!currentSeenBy.includes(currentUserId)) {
+              newStatuses.set(id, [...currentSeenBy, currentUserId]);
+            }
           });
           return newStatuses;
         });
@@ -174,20 +177,22 @@ const useMessageReadStatus = (conversationId: string) => {
     } finally {
       setIsMarkingAsRead(false);
     }
-  }, [conversationId, isMarkingAsRead]);
+  }, [conversationId, isMarkingAsRead, currentUserId]);
 
   // Observer les messages pour marquer comme lus
   const observeMessages = useCallback((messages: Message[]) => {
+    if (!currentUserId) return;
+    
     const unreadMessages = messages.filter(msg => 
-      msg.sender._id !== 'current-user-id' && 
-      !msg.seenBy.includes('current-user-id')
+      msg.sender._id !== currentUserId && 
+      !msg.seenBy.includes(currentUserId)
     );
 
     if (unreadMessages.length > 0) {
       const messageIds = unreadMessages.map(msg => msg._id);
       markMessagesAsRead(messageIds);
     }
-  }, [markMessagesAsRead]);
+  }, [markMessagesAsRead, currentUserId]);
 
   return {
     readStatuses,
@@ -288,16 +293,21 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
 };
 
 // Composant pour les indicateurs de statut des messages amélioré
-const MessageStatus = ({ message, isOwnMessage, readStatuses }: { 
+const MessageStatus = ({ message, isOwnMessage, readStatuses, currentUserId }: { 
   message: Message; 
   isOwnMessage: boolean;
   readStatuses: Map<string, string[]>;
+  currentUserId: string;
 }) => {
   if (!isOwnMessage) return null;
 
+  // Utiliser les données du message ou les statuts locaux
   const messageReadStatus = readStatuses.get(message._id) || message.seenBy;
-  const isSeen = messageReadStatus.length > 1; // Plus que l'expéditeur
-  const seenCount = messageReadStatus.length - 1; // Exclure l'expéditeur
+  
+  // Compter uniquement les autres utilisateurs qui ont vu le message (exclure l'expéditeur)
+  const otherViewers = messageReadStatus.filter(id => id !== message.sender._id);
+  const isSeen = otherViewers.length > 0;
+  const seenCount = otherViewers.length;
 
   return (
     <motion.div 
@@ -794,9 +804,20 @@ export default function ConversationPage() {
 
   const markAsSeen = async () => {
     try {
-      await fetch(`/api/messages/${conversationId}/seen`, {
-        method: 'POST',
-      });
+      // Ne marquer comme lu que si on a des messages non lus
+      if (!session?.user?.id) return;
+      
+      const unreadMessages = messages.filter(msg => 
+        msg.sender._id !== session.user.id && 
+        !msg.seenBy.includes(session.user.id)
+      );
+
+      if (unreadMessages.length > 0) {
+        console.log('📖 Marquage comme lu de', unreadMessages.length, 'messages');
+        await fetch(`/api/messages/${conversationId}/seen`, {
+          method: 'POST',
+        });
+      }
     } catch (error) {
       console.error('Erreur marquage comme lu:', error);
     }
@@ -1753,7 +1774,7 @@ Paramètres Linux à vérifier :
 
   const otherUser = getOtherParticipant();
   const { onlineStatus, isConnected, sendTypingStatus } = useOnlineStatus(conversationId, otherUser?._id || '');
-  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId);
+  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session.user.id);
 
   // Observer les messages pour marquer comme lus
   useEffect(() => {
@@ -2052,7 +2073,7 @@ Paramètres Linux à vérifier :
                       
                       {/* Statut du message et heure */}
                       <div className="flex justify-between items-center mt-3">
-                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} />
+                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} currentUserId={session.user.id} />
                         <span className="text-xs text-white/60 font-mono">
                           {formatMessageTime(message.createdAt)}
                         </span>
@@ -2066,7 +2087,7 @@ Paramètres Linux à vérifier :
         )}
       </div>
 
-      {/* Barre d’envoi indépendante, juste au-dessus de la BottomNav */}
+      {/* Barre d'envoi indépendante, juste au-dessus de la BottomNav */}
       {/* Barre d'envoi améliorée avec enregistrement vocal intégré */}
       <MessageInputBar
         newMessage={newMessage}
