@@ -439,7 +439,8 @@ export default function ConversationPage() {
         
         // Forcer l'affichage de la zone de saisie si la conversation est acceptée ou si on est en train de charger
         return (
-          <div className="p-4 bg-white/10 backdrop-blur-sm border-t border-white/20">
+          <div className="p-4 bg-white/10 backdrop-blur-sm border-t border-white/20 border-red-500 border-4">
+            <div className="text-red-500 font-bold mb-2">ZONE DE SAISIE VISIBLE</div>
             <div className="flex items-center space-x-2">
               {/* Media options */}
               <div className="relative">
