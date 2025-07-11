@@ -146,7 +146,7 @@ export default function FullScreenPlayer() {
   }, [currentTrack?._id, audioState.tracks, audioState.currentTrackIndex]);
 
   // Mini-player (toujours visible en bas)
-  if (!audioState.showPlayer || !currentTrack || !currentTrack.title) {
+  if (!audioState.showPlayer || !currentTrack) {
     return null;
   }
 
