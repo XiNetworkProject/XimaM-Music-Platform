@@ -236,24 +236,42 @@ export default function ConversationPage() {
   };
 
   const handleFileUpload = async (file: File, type: 'image' | 'video' | 'audio') => {
+    console.log('=== DEBUT HANDLE FILE UPLOAD ===');
+    console.log('📁 Fichier:', { name: file.name, type: file.type, size: file.size });
+    console.log('🎯 Type demandé:', type);
+    
     setUploading(true);
     try {
       // 1. Obtenir la signature d'upload
       const timestamp = Math.round(new Date().getTime() / 1000);
       const publicId = `message_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
+      const requestBody = { timestamp, publicId, type };
+      console.log('📤 Envoi requête signature:', requestBody);
+      
       const signatureResponse = await fetch('/api/messages/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp, publicId, type }),
+        body: JSON.stringify(requestBody),
       });
+
+      console.log('📥 Réponse signature status:', signatureResponse.status);
 
       if (!signatureResponse.ok) {
         const errorData = await signatureResponse.json();
+        console.error('❌ Erreur signature:', errorData);
         throw new Error(errorData.error || 'Erreur lors de la génération de la signature');
       }
 
-      const { signature, apiKey, cloudName, resourceType } = await signatureResponse.json();
+      const signatureData = await signatureResponse.json();
+      console.log('✅ Signature reçue:', { 
+        hasSignature: !!signatureData.signature,
+        hasApiKey: !!signatureData.apiKey,
+        hasCloudName: !!signatureData.cloudName,
+        resourceType: signatureData.resourceType
+      });
+
+      const { signature, apiKey, cloudName, resourceType } = signatureData;
 
       // 2. Upload direct vers Cloudinary
       const formData = new FormData();
@@ -271,27 +289,39 @@ export default function ConversationPage() {
         formData.append('format', type === 'video' ? 'mp4' : 'mp3');
       }
 
+      console.log('📤 Upload vers Cloudinary...');
+      console.log('URL:', `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`);
+
       const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
         method: 'POST',
         body: formData,
       });
 
+      console.log('📥 Réponse Cloudinary status:', uploadResponse.status);
+
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error('Erreur upload Cloudinary:', errorText);
+        console.error('❌ Erreur upload Cloudinary:', errorText);
         throw new Error('Erreur lors de l\'upload vers Cloudinary');
       }
 
       const uploadResult = await uploadResponse.json();
+      console.log('✅ Upload Cloudinary réussi:', { 
+        public_id: uploadResult.public_id,
+        secure_url: uploadResult.secure_url,
+        duration: uploadResult.duration
+      });
       
       // 3. Envoyer le message avec l'URL uploadée
+      console.log('📤 Envoi message avec URL uploadée...');
       sendMessage(type, uploadResult.secure_url, uploadResult.duration);
       
     } catch (error) {
-      console.error('Erreur upload fichier:', error);
+      console.error('❌ Erreur upload fichier:', error);
       toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'upload');
     } finally {
       setUploading(false);
+      console.log('=== FIN HANDLE FILE UPLOAD ===');
     }
   };
 
@@ -299,7 +329,19 @@ export default function ConversationPage() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    const type = event.target.getAttribute('data-type') as 'image' | 'video' | 'audio';
+    // Déterminer le type automatiquement en fonction du type MIME
+    let type: 'image' | 'video' | 'audio';
+    
+    if (file.type.startsWith('image/')) {
+      type = 'image';
+    } else if (file.type.startsWith('video/')) {
+      type = 'video';
+    } else if (file.type.startsWith('audio/')) {
+      type = 'audio';
+    } else {
+      toast.error('Type de fichier non supporté');
+      return;
+    }
     
     // Validation de la durée pour vidéo/audio
     if (type === 'video' || type === 'audio') {
