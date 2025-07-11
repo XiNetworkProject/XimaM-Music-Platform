@@ -1765,14 +1765,14 @@ Paramètres Linux à vérifier :
 
   const otherUser = getOtherParticipant();
   const { onlineStatus, isConnected, sendTypingStatus } = useOnlineStatus(conversationId, otherUser?._id || '');
-  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session.user.id);
+  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session?.user?.id || '');
 
   // Observer les messages pour marquer comme lus
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 && session?.user?.id) {
       observeMessages(messages);
     }
-  }, [messages, observeMessages]);
+  }, [messages, observeMessages, session?.user?.id]);
 
   // Gérer le statut de frappe
   const [isTyping, setIsTyping] = useState(false);
@@ -1940,7 +1940,7 @@ Paramètres Linux à vérifier :
               </motion.div>
             ) : (
               messages.map((message, index) => {
-                const isOwnMessage = message.sender._id === session.user?.id;
+                const isOwnMessage = message.sender._id === session?.user?.id;
                 return (
                   <motion.div
                     key={message._id}
@@ -2064,7 +2064,7 @@ Paramètres Linux à vérifier :
                       
                       {/* Statut du message et heure */}
                       <div className="flex justify-between items-center mt-3">
-                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} currentUserId={session.user.id} />
+                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} currentUserId={session?.user?.id || ''} />
                         <span className="text-xs text-white/60 font-mono">
                           {formatMessageTime(message.createdAt)}
                         </span>
