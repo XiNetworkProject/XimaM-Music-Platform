@@ -124,6 +124,36 @@ export default function HomePage() {
   // État pour les interactions de la section Créer & Découvrir
   const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [showQuickStats, setShowQuickStats] = useState(false);
+  
+  // Interface pour les statistiques en temps réel
+  interface RealTimeStats {
+    tracks: number;
+    artists: number;
+    totalPlays: number;
+    totalLikes: number;
+    loading: boolean;
+    error: string | null;
+  }
+
+  // État pour les vraies statistiques en temps réel
+  const [realTimeStats, setRealTimeStats] = useState<RealTimeStats>({
+    tracks: 0,
+    artists: 0,
+    totalPlays: 0,
+    totalLikes: 0,
+    loading: false,
+    error: null
+  });
+
+  // Charger les statistiques en temps réel
+  useEffect(() => {
+    fetchRealTimeStats();
+    
+    // Mettre à jour les statistiques toutes les 30 secondes
+    const interval = setInterval(fetchRealTimeStats, 30000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   // Debug: Afficher l'état des catégories
   useEffect(() => {
@@ -973,6 +1003,38 @@ export default function HomePage() {
   };
 
   // Fonction pour gérer la lecture/arrêt de la radio
+  // Fonction pour récupérer les vraies statistiques
+  const fetchRealTimeStats = async () => {
+    setRealTimeStats(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const response = await fetch('/api/stats/community');
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setRealTimeStats({
+            tracks: result.data.tracks || 0,
+            artists: result.data.artists || 0,
+            totalPlays: result.data.totalPlays || 0,
+            totalLikes: result.data.totalLikes || 0,
+            loading: false,
+            error: null
+          });
+        } else {
+          throw new Error(result.error || 'Erreur lors de la récupération des statistiques');
+        }
+      } else {
+        throw new Error('Erreur lors de la récupération des statistiques');
+      }
+    } catch (error) {
+      console.error('Erreur statistiques:', error);
+      setRealTimeStats(prev => ({
+        ...prev,
+        loading: false,
+        error: error instanceof Error ? error.message : 'Erreur inconnue'
+      }));
+    }
+  };
+
   // Fonction pour gérer les interactions de la section Créer & Découvrir
   const handleCardInteraction = (cardType: string, action: 'hover' | 'click') => {
     if (action === 'hover') {
@@ -2224,18 +2286,71 @@ export default function HomePage() {
              >
                <div className="flex items-center justify-between mb-4">
                  <h3 className="text-lg font-semibold text-white">Statistiques en temps réel</h3>
-                 <div className="flex items-center space-x-2 text-xs text-gray-400">
-                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                   <span>Live</span>
+                 <div className="flex items-center space-x-3">
+                   {realTimeStats.loading ? (
+                     <div className="flex items-center space-x-2 text-blue-400">
+                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                       <span>Mise à jour...</span>
+                     </div>
+                   ) : realTimeStats.error ? (
+                     <div className="flex items-center space-x-2 text-red-400">
+                       <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                       <span>Erreur</span>
+                     </div>
+                   ) : (
+                     <div className="flex items-center space-x-2 text-green-400">
+                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                       <span>Live</span>
+                     </div>
+                   )}
+                   
+                   <motion.button
+                     whileHover={{ scale: 1.05 }}
+                     whileTap={{ scale: 0.95 }}
+                     onClick={fetchRealTimeStats}
+                     disabled={realTimeStats.loading}
+                     className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
+                     title="Actualiser les statistiques"
+                   >
+                     <RefreshCw size={14} className={`text-gray-400 ${realTimeStats.loading ? 'animate-spin' : ''}`} />
+                   </motion.button>
                  </div>
                </div>
                
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                  {[
-                   { icon: Music, label: 'Tracks', value: '2.5K+', color: 'text-purple-400', trend: '+12%' },
-                   { icon: Users, label: 'Artistes', value: '500+', color: 'text-green-400', trend: '+8%' },
-                   { icon: Headphones, label: 'Écoutes', value: '50K+', color: 'text-orange-400', trend: '+25%' },
-                   { icon: Heart, label: 'Likes', value: '10K+', color: 'text-pink-400', trend: '+15%' }
+                   { 
+                     icon: Music, 
+                     label: 'Tracks', 
+                     value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.tracks), 
+                     color: 'text-purple-400', 
+                     trend: realTimeStats.loading ? '' : '+12%',
+                     loading: realTimeStats.loading
+                   },
+                   { 
+                     icon: Users, 
+                     label: 'Artistes', 
+                     value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.artists), 
+                     color: 'text-green-400', 
+                     trend: realTimeStats.loading ? '' : '+8%',
+                     loading: realTimeStats.loading
+                   },
+                   { 
+                     icon: Headphones, 
+                     label: 'Écoutes', 
+                     value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.totalPlays), 
+                     color: 'text-orange-400', 
+                     trend: realTimeStats.loading ? '' : '+25%',
+                     loading: realTimeStats.loading
+                   },
+                   { 
+                     icon: Heart, 
+                     label: 'Likes', 
+                     value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.totalLikes), 
+                     color: 'text-pink-400', 
+                     trend: realTimeStats.loading ? '' : '+15%',
+                     loading: realTimeStats.loading
+                   }
                  ].map((stat, index) => (
                    <motion.div
                      key={stat.label}
@@ -2245,13 +2360,23 @@ export default function HomePage() {
                      whileHover={{ scale: 1.05, y: -2 }}
                      className="text-center p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-200 group"
                    >
-                     <stat.icon size={20} className={`mx-auto mb-2 ${stat.color} group-hover:scale-110 transition-transform duration-200`} />
-                     <div className="text-2xl font-bold text-white mb-1">{stat.value}</div>
-                     <div className="text-gray-400 text-sm mb-2">{stat.label}</div>
-                     <div className="flex items-center justify-center space-x-1 text-xs">
-                       <TrendingUp size={12} className="text-green-400" />
-                       <span className="text-green-400 font-medium">{stat.trend}</span>
+                     <stat.icon size={20} className={`mx-auto mb-2 ${stat.color} group-hover:scale-110 transition-transform duration-200 ${stat.loading ? 'animate-pulse' : ''}`} />
+                     <div className="text-2xl font-bold text-white mb-1">
+                       {stat.loading ? (
+                         <div className="flex items-center justify-center">
+                           <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+                         </div>
+                       ) : (
+                         stat.value
+                       )}
                      </div>
+                     <div className="text-gray-400 text-sm mb-2">{stat.label}</div>
+                     {!stat.loading && (
+                       <div className="flex items-center justify-center space-x-1 text-xs">
+                         <TrendingUp size={12} className="text-green-400" />
+                         <span className="text-green-400 font-medium">{stat.trend}</span>
+                       </div>
+                     )}
                    </motion.div>
                  ))}
                </div>
@@ -2265,17 +2390,21 @@ export default function HomePage() {
                >
                  <div className="flex items-center justify-between mb-2">
                    <span className="text-white font-medium">Progression de la communauté</span>
-                   <span className="text-purple-400 text-sm">75%</span>
+                   <span className="text-purple-400 text-sm">
+                     {realTimeStats.loading ? '...' : `${Math.min(100, Math.round((realTimeStats.artists / 1000) * 100))}%`}
+                   </span>
                  </div>
                  <div className="w-full bg-white/10 rounded-full h-2">
                    <motion.div
                      initial={{ width: 0 }}
-                     animate={{ width: '75%' }}
+                     animate={{ width: realTimeStats.loading ? '0%' : `${Math.min(100, Math.round((realTimeStats.artists / 1000) * 100))}%` }}
                      transition={{ delay: 1, duration: 1.5 }}
                      className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
                    ></motion.div>
                  </div>
-                 <p className="text-gray-400 text-xs mt-2">Objectif : 10K utilisateurs actifs</p>
+                 <p className="text-gray-400 text-xs mt-2">
+                   {realTimeStats.loading ? 'Chargement...' : `${realTimeStats.artists} artistes actifs sur 1000 objectif`}
+                 </p>
                </motion.div>
              </motion.div>
           </motion.div>
@@ -2353,157 +2482,119 @@ export default function HomePage() {
 
 
 
-        {/* Section Radio Mixx Party - Style Futuriste */}
+        {/* Section Radio Mixx Party - Compacte et Accessible */}
         <section id="radio" className="container mx-auto px-4 sm:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '50px' }}
             transition={{ duration: 0.6 }}
-            className="mb-8"
+            className="mb-6"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <div className="relative">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                    <Radio size={20} className="sm:w-6 sm:h-6 text-white" />
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                </div>
-                <div>
-                  <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    Mixx Party Radio
-                  </h2>
-                  <p className="text-gray-400 text-sm sm:text-base lg:text-lg">Le meilleur de la musique électronique et dance</p>
-                </div>
-              </div>
+            {/* Header compact */}
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <div className="relative">
-                  <div className="flex items-center space-x-1 sm:space-x-2 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm border border-cyan-500/30 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
-                    <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                    <span className="text-cyan-400 text-xs sm:text-sm font-semibold tracking-wider">EN DIRECT</span>
+                  <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <Radio size={20} className="text-white" />
                   </div>
-                  <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-full blur-sm animate-pulse"></div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                    Mixx Party Radio
+                  </h2>
+                  <p className="text-gray-400 text-sm">Musique électronique en direct</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm border border-cyan-500/30 px-2 py-1 rounded-full">
+                  <div className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                  <span className="text-cyan-400 text-xs font-semibold">LIVE</span>
                 </div>
               </div>
             </div>
             
+            {/* Carte radio compacte */}
             <div className="relative group">
-              {/* Effet de fond futuriste */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl sm:rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
               
-              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 lg:p-8 overflow-hidden">
-                {/* Effet de grille futuriste */}
-                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 to-purple-500/5 opacity-50"></div>
+              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl p-4 overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
                 
-                <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center space-y-4 sm:space-y-0 sm:space-x-4 lg:space-x-6 mb-4 sm:mb-6">
-                      {/* Logo avec effet futuriste */}
-                      <div className="relative self-center sm:self-start">
-                        <div className="w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl sm:rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl shadow-purple-500/30">
-                          <img
-                            src="/mixxparty1.png"
-                            alt="Mixx Party"
-                            className="w-12 h-12 sm:w-14 sm:h-14 lg:w-16 lg:h-16 object-contain"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                            }}
-                          />
-                          <Radio size={24} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white hidden" />
-                        </div>
-                        {/* Effet de lueur */}
-                        <div className="absolute -inset-1 sm:-inset-2 bg-gradient-to-r from-cyan-400/30 via-purple-500/30 to-pink-500/30 rounded-xl sm:rounded-2xl blur-lg animate-pulse"></div>
-                      </div>
-                      
-                      <div className="flex-1 text-center sm:text-left">
-                        <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-white mb-1 sm:mb-2 tracking-wide">{radioInfo.name}</h3>
-                        <p className="text-gray-300 text-sm sm:text-base mb-2 sm:mb-3 leading-relaxed">{radioInfo.description}</p>
-                        <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 lg:space-x-6 text-xs sm:text-sm">
-                          <div className="flex items-center space-x-1 sm:space-x-2 text-cyan-400">
-                            <Headphones size={12} className="sm:w-4 sm:h-4" />
-                            <span className="font-medium">{formatNumber(radioInfo.listeners)} auditeurs</span>
-                          </div>
-                          <div className="flex items-center space-x-1 sm:space-x-2 text-green-400">
-                            <div className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
-                            <span className="font-medium">En direct</span>
-                          </div>
-                        </div>
+                <div className="flex items-center justify-between">
+                  {/* Informations principales */}
+                  <div className="flex items-center space-x-3 flex-1">
+                    {/* Logo compact */}
+                    <div className="relative">
+                      <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
+                        <img
+                          src="/mixxparty1.png"
+                          alt="Mixx Party"
+                          className="w-8 h-8 object-contain"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                          }}
+                        />
+                        <Radio size={16} className="text-white hidden" />
                       </div>
                     </div>
                     
-                    {/* Section "En cours de lecture" modernisée */}
-                    <div className="bg-gradient-to-r from-white/5 to-white/10 backdrop-blur-sm border border-white/20 rounded-xl sm:rounded-2xl p-3 sm:p-4 lg:p-5 mb-4 sm:mb-6">
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                        <div className="flex-1">
-                          <p className="text-gray-400 text-xs sm:text-sm font-medium tracking-wide mb-1">EN COURS DE LECTURE</p>
-                          <p className="text-white font-semibold text-sm sm:text-base lg:text-lg break-words">{radioInfo.currentTrack}</p>
+                    {/* Détails */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-white font-semibold text-sm mb-1 truncate">{radioInfo.name}</h3>
+                      <p className="text-gray-300 text-xs mb-2 truncate">{radioInfo.description}</p>
+                      <div className="flex items-center space-x-3 text-xs">
+                        <div className="flex items-center space-x-1 text-cyan-400">
+                          <Headphones size={10} />
+                          <span>{formatNumber(radioInfo.listeners)}</span>
                         </div>
-                        <div className="flex items-center space-x-2 sm:space-x-3 self-start sm:self-center">
-                          <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-red-400 to-pink-500 rounded-full animate-pulse"></div>
-                          <span className="text-red-400 text-xs sm:text-sm font-bold tracking-wider">LIVE</span>
+                        <div className="flex items-center space-x-1 text-green-400">
+                          <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
+                          <span>En direct</span>
                         </div>
                       </div>
                     </div>
                   </div>
                   
-                  {/* Bouton de lecture futuriste */}
-                  <div className="flex flex-col items-center space-y-3 sm:space-y-4 lg:ml-8">
+                  {/* Bouton de lecture compact */}
+                  <div className="flex flex-col items-center space-y-2">
                     <motion.button
-                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={handleRadioToggle}
-                      className={`relative w-16 h-16 sm:w-18 sm:h-18 lg:w-20 lg:h-20 rounded-xl sm:rounded-2xl flex items-center justify-center transition-all duration-500 ${
+                      className={`relative w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300 ${
                         isRadioPlaying 
-                          ? 'bg-gradient-to-br from-red-500 to-pink-500 shadow-2xl shadow-red-500/40' 
-                          : 'bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 shadow-2xl shadow-purple-500/40 hover:shadow-purple-500/60'
+                          ? 'bg-gradient-to-br from-red-500 to-pink-500 shadow-lg shadow-red-500/40' 
+                          : 'bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60'
                       }`}
                     >
-                      {/* Effet de lueur */}
-                      <div className={`absolute -inset-1 sm:-inset-2 rounded-xl sm:rounded-2xl blur-lg transition-all duration-500 ${
-                        isRadioPlaying 
-                          ? 'bg-gradient-to-r from-red-500/30 to-pink-500/30 animate-pulse' 
-                          : 'bg-gradient-to-r from-cyan-400/30 via-purple-500/30 to-pink-500/30'
-                      }`}></div>
-                      
                       {isRadioPlaying ? (
-                        <Pause size={20} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white relative z-10" />
+                        <Pause size={16} className="text-white" />
                       ) : (
-                        <Play size={20} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 text-white relative z-10 ml-0.5 sm:ml-1" />
+                        <Play size={16} className="text-white ml-0.5" />
                       )}
                     </motion.button>
                     
-                    <div className="text-center">
-                      <p className="text-white font-semibold text-xs sm:text-sm tracking-wide">
-                        {isRadioPlaying ? 'Écouter' : 'Écouter'}
-                      </p>
-                      <p className="text-gray-400 text-xs font-medium">Mixx Party</p>
-                    </div>
+                    <p className="text-white text-xs font-medium">Mixx Party</p>
                   </div>
                 </div>
                 
-                {/* Section infos en bas */}
-                <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-white/10">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
-                    <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 lg:space-x-6 text-xs sm:text-sm">
-                      <div className="flex items-center space-x-1 sm:space-x-2 text-gray-300">
-                        <Users size={12} className="sm:w-4 sm:h-4" />
-                        <span className="font-medium">{formatNumber(radioInfo.listeners)} auditeurs actifs</span>
-                      </div>
-                      <div className="flex items-center space-x-1 sm:space-x-2 text-gray-300">
-                        <Clock size={12} className="sm:w-4 sm:h-4" />
-                        <span className="font-medium">24h/24</span>
-                      </div>
+                {/* Piste en cours - compacte */}
+                <div className="mt-3 pt-3 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-gray-400 text-xs font-medium mb-1">EN COURS</p>
+                      <p className="text-white font-medium text-sm truncate">{radioInfo.currentTrack}</p>
                     </div>
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setShowProgramDialog(true)}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-xl text-purple-300 text-sm font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 cursor-pointer z-10"
+                      className="px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg text-purple-300 text-xs font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300"
                     >
-                      Informations en temps réel
+                      Plus d'infos
                     </motion.button>
                   </div>
                 </div>
@@ -3153,14 +3244,14 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Dialog de Programmation Radio */}
+      {/* Dialog Radio - Compact et Accessible */}
       <AnimatePresence>
         {showProgramDialog && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
             onClick={() => setShowProgramDialog(false)}
           >
             <motion.div
@@ -3168,142 +3259,135 @@ export default function HomePage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-4xl max-h-[80vh] sm:max-h-[80vh] overflow-hidden"
+              className="relative w-full max-w-md max-h-[70vh] overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              {/* Effet de fond futuriste */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-3xl blur-xl"></div>
-              <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden flex flex-col h-full">
-                {/* Header du dialog */}
-                <div className="relative p-3 sm:p-6 border-b border-white/10 flex-shrink-0">
+              {/* Effet de fond */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-lg"></div>
+              <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden flex flex-col h-full">
+                {/* Header compact */}
+                <div className="relative p-4 border-b border-white/10 flex-shrink-0">
                   <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
                   
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 sm:space-x-4">
+                    <div className="flex items-center space-x-3">
                       <div className="relative">
-                        <div className="w-8 h-8 sm:w-12 sm:h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                          <Radio size={16} className="sm:w-6 sm:h-6 text-white" />
+                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                          <Radio size={20} className="text-white" />
                         </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
                       </div>
                       <div>
-                        <h2 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                        <h2 className="text-lg font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                           Mixx Party Radio
                         </h2>
-                        <p className="text-gray-400 text-xs sm:text-sm">Informations en temps réel</p>
+                        <p className="text-gray-400 text-xs">Informations en temps réel</p>
                       </div>
                     </div>
                     
-                    <div className="flex items-center space-x-2 sm:space-x-3">
+                    <div className="flex items-center space-x-2">
                       <motion.button
-                        whileHover={{ scale: 1.05, rotate: 180 }}
+                        whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={fetchRadioInfo}
                         disabled={programLoading}
-                        className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-xl flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
+                        className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
                       >
-                        <RefreshCw size={16} className={`sm:w-5 sm:h-5 text-white ${programLoading ? 'animate-spin' : ''}`} />
+                        <RefreshCw size={16} className={`text-white ${programLoading ? 'animate-spin' : ''}`} />
                       </motion.button>
                       
                       <motion.button
-                        whileHover={{ scale: 1.1, rotate: 90 }}
-                        whileTap={{ scale: 0.9 }}
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={() => setShowProgramDialog(false)}
-                        className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-red-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
+                        className="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
                       >
-                        <X size={16} className="sm:w-5 sm:h-5 text-white" />
+                        <X size={16} className="text-white" />
                       </motion.button>
                     </div>
                   </div>
                 </div>
-                {/* Contenu scrollable */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-6 pb-32 sm:pb-24" style={{ minHeight: 0 }}>
+                
+                {/* Contenu compact */}
+                <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: 0 }}>
                   {programLoading ? (
-                    <div className="flex items-center justify-center h-48 sm:h-64">
+                    <div className="flex items-center justify-center h-32">
                       <div className="text-center">
-                        <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                        <p className="text-gray-400 text-sm sm:text-base">Chargement des informations...</p>
+                        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+                        <p className="text-gray-400 text-sm">Chargement...</p>
                       </div>
                     </div>
                   ) : realRadioProgram.length > 0 ? (
-                    <div className="space-y-4 sm:space-y-6">
+                    <div className="space-y-4">
                       {realRadioProgram.map((radioInfo: any, index: number) => (
                         <motion.div
                           key={index}
-                          initial={{ opacity: 0, y: 20 }}
+                          initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="space-y-4 sm:space-y-6"
+                          className="space-y-3"
                         >
-                          {/* Piste actuelle */}
-                          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-2xl p-4 sm:p-6 border border-cyan-500/30">
-                            <div className="flex items-center space-x-2 sm:space-x-3 mb-3 sm:mb-4">
-                              <div className="w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse"></div>
-                              <h3 className="text-base sm:text-lg font-bold text-white">Piste actuelle</h3>
+                          {/* Piste actuelle - compacte */}
+                          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-xl p-3 border border-cyan-500/30">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <div className="w-2 h-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse"></div>
+                              <h3 className="text-sm font-bold text-white">En cours</h3>
                             </div>
                             
-                            <div className="space-y-3 sm:space-y-4">
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-white font-semibold text-base sm:text-lg truncate">{radioInfo.currentTrack.title}</p>
-                                  <p className="text-cyan-400 text-sm sm:text-base truncate">{radioInfo.currentTrack.artist}</p>
+                                  <p className="text-white font-semibold text-sm truncate">{radioInfo.currentTrack.title}</p>
+                                  <p className="text-cyan-400 text-xs truncate">{radioInfo.currentTrack.artist}</p>
                                 </div>
-                                <span className="inline-block px-2 py-1 sm:px-3 sm:py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse self-start sm:self-center">
-                                  EN DIRECT
+                                <span className="inline-block px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse ml-2">
+                                  LIVE
                                 </span>
                               </div>
                               
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-xs sm:text-sm">
-                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
-                                  <p className="text-gray-400 text-xs sm:text-sm">Genre</p>
-                                  <p className="text-white font-medium truncate">{radioInfo.currentTrack.genre}</p>
-                                </div>
-                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
-                                  <p className="text-gray-400 text-xs sm:text-sm">Auditeurs</p>
+                              <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div className="bg-black/20 rounded-lg p-2">
+                                  <p className="text-gray-400 text-xs">Auditeurs</p>
                                   <p className="text-white font-medium">{formatNumber(radioInfo.stats.listeners)}</p>
                                 </div>
-                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
-                                  <p className="text-gray-400 text-xs sm:text-sm">Qualité</p>
+                                <div className="bg-black/20 rounded-lg p-2">
+                                  <p className="text-gray-400 text-xs">Qualité</p>
                                   <p className="text-white font-medium">{radioInfo.stats.bitrate}kbps</p>
-                                </div>
-                                <div className="bg-black/20 rounded-lg p-2 sm:p-3">
-                                  <p className="text-gray-400 text-xs sm:text-sm">Statut</p>
-                                  <p className="text-white font-medium truncate">{radioInfo.stats.uptime}</p>
                                 </div>
                               </div>
                             </div>
                           </div>
 
-                          {/* Description de la radio */}
-                          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl p-4 sm:p-6 border border-purple-500/30">
-                            <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">À propos de Mixx Party Radio</h3>
-                            <p className="text-gray-300 text-sm sm:text-base mb-4">{radioInfo.description}</p>
+                          {/* Description - compacte */}
+                          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl p-3 border border-purple-500/30">
+                            <h3 className="text-sm font-bold text-white mb-2">À propos</h3>
+                            <p className="text-gray-300 text-xs mb-3 leading-relaxed">{radioInfo.description}</p>
                             
-                            <div className="space-y-2 sm:space-y-3">
-                              {radioInfo.features.map((feature: string, featureIndex: number) => (
-                                <div key={featureIndex} className="flex items-center space-x-2 sm:space-x-3">
-                                  <span className="text-xl sm:text-2xl flex-shrink-0">{feature.split(' ')[0]}</span>
-                                  <span className="text-gray-300 text-sm sm:text-base">{feature.split(' ').slice(1).join(' ')}</span>
+                            <div className="space-y-1">
+                              {radioInfo.features.slice(0, 3).map((feature: string, featureIndex: number) => (
+                                <div key={featureIndex} className="flex items-center space-x-2">
+                                  <span className="text-lg flex-shrink-0">{feature.split(' ')[0]}</span>
+                                  <span className="text-gray-300 text-xs">{feature.split(' ').slice(1).join(' ')}</span>
                                 </div>
                               ))}
                             </div>
                           </div>
 
-                          {/* Statistiques */}
-                          <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-2xl p-4 sm:p-6 border border-pink-500/30">
-                            <h3 className="text-base sm:text-lg font-bold text-white mb-3 sm:mb-4">Statistiques</h3>
-                            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                          {/* Statistiques - compactes */}
+                          <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-xl p-3 border border-pink-500/30">
+                            <h3 className="text-sm font-bold text-white mb-2">Statistiques</h3>
+                            <div className="grid grid-cols-2 gap-3">
                               <div className="text-center">
-                                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
+                                <div className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
                                   {formatNumber(radioInfo.stats.listeners)}
                                 </div>
-                                <p className="text-gray-400 text-xs sm:text-sm">Auditeurs</p>
+                                <p className="text-gray-400 text-xs">Auditeurs</p>
                               </div>
                               <div className="text-center">
-                                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                                <div className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
                                   {radioInfo.stats.bitrate}
                                 </div>
-                                <p className="text-gray-400 text-xs sm:text-sm">kbps</p>
+                                <p className="text-gray-400 text-xs">kbps</p>
                               </div>
                             </div>
                           </div>
@@ -3311,24 +3395,23 @@ export default function HomePage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center text-gray-400 py-8">
-                      <p className="text-sm sm:text-base">Aucune information disponible</p>
+                    <div className="text-center text-gray-400 py-6">
+                      <p className="text-sm">Aucune information disponible</p>
                     </div>
                   )}
                 </div>
-                {/* Footer du dialog */}
-                <div className="p-3 sm:p-6 border-t border-white/10 flex-shrink-0 bg-black/80">
-                  <div className="flex flex-col sm:flex-row items-center justify-between space-y-3 sm:space-y-0">
-                    <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-4 text-xs sm:text-sm">
-                      <div className="flex items-center space-x-2 text-cyan-400">
-                        <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                        <span className="font-medium">Programme en direct 24h/24</span>
+                
+                {/* Footer compact */}
+                <div className="p-4 border-t border-white/10 flex-shrink-0 bg-black/80">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 text-xs">
+                      <div className="flex items-center space-x-1 text-cyan-400">
+                        <div className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                        <span>24h/24</span>
                       </div>
-                      <div className="flex items-center space-x-2 text-green-400">
-                        <div className="w-2 h-2 bg-gradient-to-r from-green-400 to-cyan-400 rounded-full animate-pulse"></div>
-                        <span className="font-medium">
-                          {realRadioProgram.length > 0 ? 'Programmation en temps réel' : 'Programmation par défaut'}
-                        </span>
+                      <div className="flex items-center space-x-1 text-green-400">
+                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                        <span>En direct</span>
                       </div>
                     </div>
                     
@@ -3336,7 +3419,7 @@ export default function HomePage() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setShowProgramDialog(false)}
-                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-semibold px-4 sm:px-6 py-2 rounded-xl transition-all duration-300 shadow-lg shadow-cyan-500/30 text-sm sm:text-base"
+                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/30 text-sm"
                     >
                       Fermer
                     </motion.button>

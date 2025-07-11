@@ -1,78 +1,86 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
 import User from '@/models/User';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     await dbConnect();
 
-    // Récupérer les statistiques en temps réel
+    // Récupérer les statistiques depuis la base de données
     const [
-      totalTracks,
-      totalUsers,
-      totalLikes,
-      totalPlays
+      tracksCount,
+      artistsCount,
+      totalPlays,
+      totalLikes
     ] = await Promise.all([
+      // Nombre total de tracks
       Track.countDocuments(),
-      User.countDocuments(),
+      
+      // Nombre d'artistes uniques
+      User.countDocuments({ isArtist: true }),
+      
+      // Total des écoutes
       Track.aggregate([
-        { $group: { _id: null, totalLikes: { $sum: { $size: '$likes' } } } }
-      ]),
+        {
+          $group: {
+            _id: null,
+            totalPlays: { $sum: '$plays' }
+          }
+        }
+      ]).then((result: any[]) => result[0]?.totalPlays || 0),
+      
+      // Total des likes
       Track.aggregate([
-        { $group: { _id: null, totalPlays: { $sum: '$plays' } } }
-      ])
+        {
+          $group: {
+            _id: null,
+            totalLikes: { $sum: { $size: '$likes' } }
+          }
+        }
+      ]).then((result: any[]) => result[0]?.totalLikes || 0)
     ]);
 
-    // Calculer les totaux
-    const totalLikesCount = totalLikes[0]?.totalLikes || 0;
-    const totalPlaysCount = totalPlays[0]?.totalPlays || 0;
+    // Calculer les tendances (simulation pour l'instant)
+    const trends = {
+      tracks: Math.floor(Math.random() * 20) + 5, // +5 à +25%
+      artists: Math.floor(Math.random() * 15) + 3, // +3 à +18%
+      totalPlays: Math.floor(Math.random() * 30) + 10, // +10 à +40%
+      totalLikes: Math.floor(Math.random() * 25) + 8 // +8 à +33%
+    };
 
-    // Statistiques avec formatage
-    const stats = [
-      {
-        icon: 'Music',
-        label: 'Créations',
-        value: totalTracks.toLocaleString('fr-FR'),
-        color: 'from-purple-500 to-pink-500',
-        growth: '+12% ce mois'
-      },
-      {
-        icon: 'Users',
-        label: 'Artistes',
-        value: totalUsers.toLocaleString('fr-FR'),
-        color: 'from-blue-500 to-cyan-500',
-        growth: '+8% ce mois'
-      },
-      {
-        icon: 'Heart',
-        label: 'Likes',
-        value: totalLikesCount >= 1000000 
-          ? (totalLikesCount / 1000000).toFixed(1) + 'M'
-          : totalLikesCount >= 1000 
-            ? (totalLikesCount / 1000).toFixed(1) + 'K'
-            : totalLikesCount.toString(),
-        color: 'from-pink-500 to-rose-500',
-        growth: '+15% ce mois'
-      },
-      {
-        icon: 'Headphones',
-        label: 'Écoutes',
-        value: totalPlaysCount >= 1000000 
-          ? (totalPlaysCount / 1000000).toFixed(1) + 'M'
-          : totalPlaysCount >= 1000 
-            ? (totalPlaysCount / 1000).toFixed(1) + 'K'
-            : totalPlaysCount.toString(),
-        color: 'from-green-500 to-emerald-500',
-        growth: '+23% ce mois'
+    return NextResponse.json({
+      success: true,
+      data: {
+        tracks: tracksCount,
+        artists: artistsCount,
+        totalPlays: totalPlays,
+        totalLikes: totalLikes,
+        trends,
+        lastUpdated: new Date().toISOString()
       }
-    ];
+    });
 
-    return NextResponse.json({ stats });
   } catch (error) {
-    console.error('Erreur statistiques communauté:', error);
+    console.error('Erreur lors de la récupération des statistiques:', error);
     return NextResponse.json(
-      { error: 'Erreur lors du chargement des statistiques' },
+      { 
+        success: false, 
+        error: 'Erreur lors de la récupération des statistiques',
+        data: {
+          tracks: 0,
+          artists: 0,
+          totalPlays: 0,
+          totalLikes: 0,
+          trends: {
+            tracks: 0,
+            artists: 0,
+            totalPlays: 0,
+            totalLikes: 0
+          },
+          lastUpdated: new Date().toISOString()
+        }
+      },
       { status: 500 }
     );
   }
