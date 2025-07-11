@@ -3263,7 +3263,7 @@ export default function HomePage() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-md max-h-[70vh] overflow-hidden"
+              className="relative w-full max-w-md max-h-[60vh] overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               {/* Effet de fond */}
@@ -3313,7 +3313,12 @@ export default function HomePage() {
                 </div>
                 
                 {/* Contenu compact */}
-                <div className="flex-1 overflow-y-auto p-4" style={{ minHeight: 0 }}>
+                <div className="flex-1 overflow-y-auto p-4 pb-2 scrollbar-thin scrollbar-thumb-cyan-500/30 scrollbar-track-transparent" style={{ minHeight: 0, maxHeight: 'calc(60vh - 120px)' }}>
+                  {/* Indicateur de scroll */}
+                  <div className="text-center mb-2">
+                    <div className="w-8 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full mx-auto opacity-60"></div>
+                  </div>
+                  
                   {programLoading ? (
                     <div className="flex items-center justify-center h-32">
                       <div className="text-center">
@@ -3322,14 +3327,14 @@ export default function HomePage() {
                       </div>
                     </div>
                   ) : realRadioProgram.length > 0 ? (
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       {realRadioProgram.map((radioInfo: any, index: number) => (
                         <motion.div
                           key={index}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          className="space-y-3"
+                          className="space-y-2"
                         >
                           {/* Piste actuelle - compacte */}
                           <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-xl p-3 border border-cyan-500/30">
@@ -3338,7 +3343,7 @@ export default function HomePage() {
                               <h3 className="text-sm font-bold text-white">En cours</h3>
                             </div>
                             
-                            <div className="space-y-2">
+                            <div className="space-y-1.5">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-white font-semibold text-sm truncate">{radioInfo.currentTrack.title}</p>
@@ -3349,7 +3354,7 @@ export default function HomePage() {
                                 </span>
                               </div>
                               
-                              <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="grid grid-cols-2 gap-1.5 text-xs">
                                 <div className="bg-black/20 rounded-lg p-2">
                                   <p className="text-gray-400 text-xs">Auditeurs</p>
                                   <p className="text-white font-medium">{formatNumber(radioInfo.stats.listeners)}</p>
@@ -3367,7 +3372,7 @@ export default function HomePage() {
                             <h3 className="text-sm font-bold text-white mb-2">À propos</h3>
                             <p className="text-gray-300 text-xs mb-3 leading-relaxed">{radioInfo.description}</p>
                             
-                            <div className="space-y-1">
+                            <div className="space-y-0.5">
                               {radioInfo.features.slice(0, 3).map((feature: string, featureIndex: number) => (
                                 <div key={featureIndex} className="flex items-center space-x-2">
                                   <span className="text-lg flex-shrink-0">{feature.split(' ')[0]}</span>
@@ -3380,7 +3385,7 @@ export default function HomePage() {
                           {/* Statistiques - compactes */}
                           <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-xl p-3 border border-pink-500/30">
                             <h3 className="text-sm font-bold text-white mb-2">Statistiques</h3>
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-2 gap-2">
                               <div className="text-center">
                                 <div className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
                                   {formatNumber(radioInfo.stats.listeners)}
@@ -3406,16 +3411,16 @@ export default function HomePage() {
                 </div>
                 
                 {/* Footer compact */}
-                <div className="p-4 border-t border-white/10 flex-shrink-0 bg-black/80">
+                <div className="p-3 border-t border-white/10 flex-shrink-0 bg-black/80">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3 text-xs">
+                    <div className="flex items-center space-x-2 text-xs">
                       <div className="flex items-center space-x-1 text-cyan-400">
                         <div className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
                         <span>24h/24</span>
                       </div>
                       <div className="flex items-center space-x-1 text-green-400">
                         <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                        <span>En direct</span>
+                        <span>Live</span>
                       </div>
                     </div>
                     
@@ -3423,7 +3428,7 @@ export default function HomePage() {
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
                       onClick={() => setShowProgramDialog(false)}
-                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-medium px-4 py-2 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/30 text-sm"
+                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-medium px-3 py-1.5 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/30 text-xs"
                     >
                       Fermer
                     </motion.button>
