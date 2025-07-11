@@ -50,7 +50,18 @@ export async function POST(
     }
 
     // Vérifier les limites d'abonnement pour les écoutes
+    if (!subscriptionService) {
+      console.error('❌ subscriptionService est undefined');
+      return NextResponse.json(
+        { error: 'Erreur de configuration du service d\'abonnement' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`🔍 Vérification des limites pour ${userId} - action: plays`);
     const playCheck = await subscriptionService.canPerformAction(userId, 'plays');
+    console.log(`📊 Résultat vérification:`, playCheck);
+    
     if (!playCheck.allowed) {
       return NextResponse.json(
         { 

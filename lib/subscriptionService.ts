@@ -62,26 +62,46 @@ class SubscriptionService {
 
   // Récupérer les limites d'un abonnement
   async getSubscriptionLimits(userId: string): Promise<SubscriptionLimits | null> {
-    const userSub = await this.getUserSubscription(userId);
-    
-    if (!userSub) {
-      // Retourner les limites gratuites par défaut
-      return {
-        uploads: 3,
-        comments: 10,
-        plays: 50,
-        playlists: 2,
-        quality: '128kbps',
-        ads: true,
-        analytics: 'none',
-        collaborations: false,
-        apiAccess: false,
-        support: 'community'
-      };
-    }
+    try {
+      console.log(`📋 getSubscriptionLimits appelé pour ${userId}`);
+      
+      const userSub = await this.getUserSubscription(userId);
+      console.log(`👤 UserSubscription trouvé:`, userSub ? 'Oui' : 'Non');
+      
+      if (!userSub) {
+        // Retourner les limites gratuites par défaut
+        const defaultLimits = {
+          uploads: 3,
+          comments: 10,
+          plays: 50,
+          playlists: 2,
+          quality: '128kbps',
+          ads: true,
+          analytics: 'none',
+          collaborations: false,
+          apiAccess: false,
+          support: 'community'
+        };
+        console.log(`📊 Limites gratuites retournées pour ${userId}:`, defaultLimits);
+        return defaultLimits;
+      }
 
-    const subscription = userSub.subscription as unknown as ISubscription;
-    return subscription.limits;
+      const subscription = userSub.subscription as unknown as ISubscription;
+      console.log(`📊 Abonnement trouvé pour ${userId}:`, {
+        subscriptionId: subscription._id,
+        limits: subscription.limits
+      });
+      
+      if (!subscription.limits) {
+        console.error(`❌ Limites manquantes pour l'abonnement de ${userId}`);
+        return null;
+      }
+      
+      return subscription.limits;
+    } catch (error) {
+      console.error(`❌ Erreur dans getSubscriptionLimits pour ${userId}:`, error);
+      return null;
+    }
   }
 
   // Vérifier si une action est autorisée
@@ -89,44 +109,71 @@ class SubscriptionService {
     userId: string, 
     action: 'uploads' | 'comments' | 'plays' | 'playlists'
   ): Promise<{ allowed: boolean; reason?: string; usage?: UsageInfo }> {
-    const userSub = await this.getUserSubscription(userId);
-    
-    if (!userSub) {
-      // Utilisateur sans abonnement actif
-      const limits = await this.getSubscriptionLimits(userId);
-      if (!limits) {
+    try {
+      console.log(`🔍 canPerformAction appelé pour ${userId} - action: ${action}`);
+      
+      const userSub = await this.getUserSubscription(userId);
+      console.log(`👤 UserSubscription trouvé:`, userSub ? 'Oui' : 'Non');
+      
+      if (!userSub) {
+        // Utilisateur sans abonnement actif
+        console.log(`📋 Récupération des limites gratuites pour ${userId}`);
+        const limits = await this.getSubscriptionLimits(userId);
+        console.log(`📊 Limites récupérées:`, limits);
+        
+        if (!limits) {
+          console.error(`❌ Impossible de récupérer les limites pour ${userId}`);
+          return {
+            allowed: false,
+            reason: 'Impossible de récupérer les limites d\'abonnement.'
+          };
+        }
+        
+        const usage = await this.getUsageInfo(userId);
+        console.log(`📈 Usage actuel:`, usage.current[action], `Limite:`, limits[action]);
+        
+        if (usage.current[action] >= limits[action]) {
+          console.log(`🚫 Limite ${action} atteinte pour ${userId}`);
+          return {
+            allowed: false,
+            reason: `Limite ${action} atteinte. Passez à un abonnement supérieur.`,
+            usage
+          };
+        }
+        
+        console.log(`✅ Action ${action} autorisée pour ${userId} (gratuit)`);
+        return { allowed: true, usage };
+      }
+
+      const subscription = userSub.subscription as unknown as ISubscription;
+      const limits = subscription.limits;
+      const usage = userSub.usage;
+      
+      console.log(`📊 Abonnement trouvé pour ${userId}:`, {
+        subscriptionId: subscription._id,
+        limits,
+        currentUsage: usage
+      });
+
+      // Vérifier si la limite est atteinte (-1 = illimité)
+      if (limits[action] !== -1 && usage[action] >= limits[action]) {
+        console.log(`🚫 Limite ${action} atteinte pour ${userId} (abonné)`);
         return {
           allowed: false,
-          reason: 'Impossible de récupérer les limites d\'abonnement.'
+          reason: `Limite ${action} de votre abonnement atteinte.`,
+          usage: await this.getUsageInfo(userId)
         };
       }
-      const usage = await this.getUsageInfo(userId);
-      
-      if (usage.current[action] >= limits[action]) {
-        return {
-          allowed: false,
-          reason: `Limite ${action} atteinte. Passez à un abonnement supérieur.`,
-          usage
-        };
-      }
-      
-      return { allowed: true, usage };
-    }
 
-    const subscription = userSub.subscription as unknown as ISubscription;
-    const limits = subscription.limits;
-    const usage = userSub.usage;
-
-    // Vérifier si la limite est atteinte (-1 = illimité)
-    if (limits[action] !== -1 && usage[action] >= limits[action]) {
+      console.log(`✅ Action ${action} autorisée pour ${userId} (abonné)`);
+      return { allowed: true, usage: await this.getUsageInfo(userId) };
+    } catch (error) {
+      console.error(`❌ Erreur dans canPerformAction pour ${userId}:`, error);
       return {
         allowed: false,
-        reason: `Limite ${action} de votre abonnement atteinte.`,
-        usage: await this.getUsageInfo(userId)
+        reason: 'Erreur lors de la vérification des limites d\'abonnement.'
       };
     }
-
-    return { allowed: true, usage: await this.getUsageInfo(userId) };
   }
 
   // Incrémenter l'utilisation
