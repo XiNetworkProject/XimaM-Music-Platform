@@ -559,14 +559,14 @@ export default function HomePage() {
   }, [fetchAllCategories]);
 
   // Rechargement automatique périodique pour maintenir les données à jour
-  useEffect(() => {
-    const interval = setInterval(() => {
-      console.log('🔄 Rechargement automatique des données...');
-      fetchAllCategories(true);
-    }, 60000); // Recharger toutes les minutes
-
-    return () => clearInterval(interval);
-  }, [fetchAllCategories]);
+  // useEffect(() => {
+  //   const interval = setInterval(() => {
+  //     console.log('🔄 Rechargement automatique des données...');
+  //     fetchAllCategories(true);
+  //   }, 60000); // Recharger toutes les minutes
+  //
+  //   return () => clearInterval(interval);
+  // }, [fetchAllCategories]);
 
   // Fonction de rafraîchissement
   const handleRefresh = useCallback(async () => {
