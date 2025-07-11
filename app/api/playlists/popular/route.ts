@@ -16,7 +16,17 @@ export async function GET(request: NextRequest) {
     const popularTracks = await Track.find()
       .sort({ plays: -1, likes: -1 })
       .limit(50)
-      .populate('artist', 'name username avatar');
+      .populate('artist', 'name username avatar')
+      .lean();
+
+    // Vérifier que popularTracks existe et n'est pas vide
+    if (!popularTracks || popularTracks.length === 0) {
+      console.log('Aucune piste trouvée, utilisation de playlists par défaut');
+      return NextResponse.json({
+        playlists: [],
+        total: 0
+      });
+    }
 
     // Créer des playlists thématiques basées sur les genres et popularité
     const playlists = [
@@ -29,8 +39,8 @@ export async function GET(request: NextRequest) {
           username: 'musiclover',
           avatar: '/default-avatar.png'
         },
-        tracks: popularTracks.slice(0, 8),
-        trackCount: 8,
+        tracks: popularTracks.slice(0, Math.min(8, popularTracks.length)),
+        trackCount: Math.min(8, popularTracks.length),
         likes: 156,
         plays: 2340,
         color: 'from-purple-500 to-pink-500',
@@ -48,8 +58,8 @@ export async function GET(request: NextRequest) {
           username: 'chillmaster',
           avatar: '/default-avatar.png'
         },
-        tracks: popularTracks.slice(8, 16),
-        trackCount: 8,
+        tracks: popularTracks.slice(8, Math.min(16, popularTracks.length)),
+        trackCount: Math.min(8, Math.max(0, popularTracks.length - 8)),
         likes: 89,
         plays: 1567,
         color: 'from-blue-500 to-cyan-500',
@@ -67,8 +77,8 @@ export async function GET(request: NextRequest) {
           username: 'fitnessguru',
           avatar: '/default-avatar.png'
         },
-        tracks: popularTracks.slice(16, 24),
-        trackCount: 8,
+        tracks: popularTracks.slice(16, Math.min(24, popularTracks.length)),
+        trackCount: Math.min(8, Math.max(0, popularTracks.length - 16)),
         likes: 234,
         plays: 3421,
         color: 'from-orange-500 to-red-500',
@@ -86,8 +96,8 @@ export async function GET(request: NextRequest) {
           username: 'nightowl',
           avatar: '/default-avatar.png'
         },
-        tracks: popularTracks.slice(24, 32),
-        trackCount: 8,
+        tracks: popularTracks.slice(24, Math.min(32, popularTracks.length)),
+        trackCount: Math.min(8, Math.max(0, popularTracks.length - 24)),
         likes: 67,
         plays: 1234,
         color: 'from-indigo-500 to-purple-500',
@@ -105,8 +115,8 @@ export async function GET(request: NextRequest) {
           username: 'summerbeats',
           avatar: '/default-avatar.png'
         },
-        tracks: popularTracks.slice(32, 40),
-        trackCount: 8,
+        tracks: popularTracks.slice(32, Math.min(40, popularTracks.length)),
+        trackCount: Math.min(8, Math.max(0, popularTracks.length - 32)),
         likes: 189,
         plays: 2789,
         color: 'from-yellow-500 to-orange-500',
@@ -124,8 +134,8 @@ export async function GET(request: NextRequest) {
           username: 'studybuddy',
           avatar: '/default-avatar.png'
         },
-        tracks: popularTracks.slice(40, 48),
-        trackCount: 8,
+        tracks: popularTracks.slice(40, Math.min(48, popularTracks.length)),
+        trackCount: Math.min(8, Math.max(0, popularTracks.length - 40)),
         likes: 145,
         plays: 1987,
         color: 'from-green-500 to-emerald-500',
@@ -146,7 +156,11 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Erreur playlists populaires:', error);
     return NextResponse.json(
-      { error: 'Erreur lors du chargement des playlists' },
+      { 
+        error: 'Erreur lors du chargement des playlists',
+        playlists: [],
+        total: 0
+      },
       { status: 500 }
     );
   }

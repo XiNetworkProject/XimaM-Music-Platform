@@ -211,11 +211,11 @@ export default function HomePage() {
                   if (newCategories[categoryKey] && newCategories[categoryKey].tracks) {
                     newCategories[categoryKey] = {
                       ...newCategories[categoryKey],
-                      tracks: newCategories[categoryKey].tracks.map(t => 
-                        t._id === currentTrack._id 
-                          ? { ...t, plays: data.plays || t.plays }
-                          : t
-                      )
+                                    tracks: newCategories[categoryKey].tracks?.map(t =>
+                t._id === currentTrack._id 
+                  ? { ...t, plays: data.plays || t.plays }
+                  : t
+              ) || []
                     };
                   }
                 });
@@ -224,10 +224,10 @@ export default function HomePage() {
               
               // Mettre à jour aussi les autres états de pistes de manière atomique
               setDailyDiscoveries(prev => 
-                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
+                prev?.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t) || []
               );
               setCollaborations(prev => 
-                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
+                prev?.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t) || []
               );
             }
           }, 1000); // Attendre 1 seconde avant de mettre à jour les stats
@@ -316,9 +316,9 @@ export default function HomePage() {
     
     // Récupérer les écoutes fraîches pour toutes les pistes affichées
     const allTracks = Object.values(categories).flatMap(cat => cat.tracks);
-    const uniqueTrackIds = Array.from(new Set(allTracks.map(t => t._id)));
+            const uniqueTrackIds = Array.from(new Set(allTracks?.map(t => t._id) || []));
     
-    const playsPromises = uniqueTrackIds.map(async (trackId) => {
+            const playsPromises = uniqueTrackIds?.map(async (trackId) => {
       try {
         const response = await fetch(`/api/tracks/${trackId}/plays`);
         if (response.ok) {
@@ -332,9 +332,9 @@ export default function HomePage() {
     });
     
     const playsResults = await Promise.all(playsPromises);
-    const playsMap = new Map(
-      playsResults.filter(r => r !== null).map(r => [r!.trackId, r!.plays])
-    );
+            const playsMap = new Map(
+          playsResults?.filter(r => r !== null).map(r => [r!.trackId, r!.plays]) || []
+        );
     
     // Mettre à jour toutes les catégories avec les écoutes fraîches
     setCategories(prev => {
@@ -343,7 +343,7 @@ export default function HomePage() {
         if (newCategories[categoryKey] && newCategories[categoryKey].tracks) {
           newCategories[categoryKey] = {
             ...newCategories[categoryKey],
-            tracks: newCategories[categoryKey].tracks.map(track => ({
+            tracks: newCategories[categoryKey].tracks?.map(track => ({
               ...track,
               plays: playsMap.get(track._id) || track.plays
             }))
@@ -564,10 +564,14 @@ export default function HomePage() {
       const response = await fetch('/api/playlists/popular?limit=6');
       if (response.ok) {
         const data = await response.json();
-        setPopularPlaylists(data.playlists);
+        setPopularPlaylists(data.playlists || []);
+      } else {
+        console.error('Erreur API playlists populaires:', response.status);
+        setPopularPlaylists([]);
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('Erreur chargement playlists:', error);
+      setPopularPlaylists([]);
     } finally {
       setPlaylistsLoading(false);
     }
@@ -1744,7 +1748,7 @@ export default function HomePage() {
                     Créations ({searchResults.tracks.length})
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {searchResults.tracks.map((track: Track, index: number) => (
+                    {searchResults.tracks?.map((track: Track, index: number) => (
                       <motion.div
                         key={track._id}
                         initial={{ opacity: 0, y: 20 }}
@@ -1836,7 +1840,7 @@ export default function HomePage() {
                     Artistes ({searchResults.artists.length})
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {searchResults.artists.map((artist: any, index: number) => (
+                    {searchResults.artists?.map((artist: any, index: number) => (
                       <motion.div
                         key={artist._id}
                         initial={{ opacity: 0, y: 20 }}
@@ -1908,7 +1912,7 @@ export default function HomePage() {
                     Playlists populaires ({searchResults.playlists.length})
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {searchResults.playlists.map((playlist: any, index: number) => (
+                    {searchResults.playlists?.map((playlist: any, index: number) => (
                       <div
                         key={playlist._id}
                         className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-green-500 cursor-pointer"
@@ -2021,7 +2025,7 @@ export default function HomePage() {
             </button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {dailyDiscoveries.map((track, index) => (
+            {dailyDiscoveries?.map((track, index) => (
               <div
                 key={track._id}
                 className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500"
@@ -2444,7 +2448,7 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {popularUsers.map((user, index) => (
+                {popularUsers?.map((user, index) => (
                   <div
                     key={user._id}
                     className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer text-center"
@@ -2740,7 +2744,7 @@ export default function HomePage() {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {communityStats.map((stat, index) => (
+                {communityStats?.map((stat, index) => (
                   <motion.div
                     key={stat.label}
                     initial={{ opacity: 0, y: 20 }}
@@ -2860,7 +2864,7 @@ export default function HomePage() {
                 <>
                   {/* Cartes de recommandations compactes */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {personalRecommendations.map((rec, index) => (
+                    {personalRecommendations?.map((rec, index) => (
                       <motion.div
                         key={rec.title}
                         initial={{ opacity: 0, y: 20 }}
@@ -3129,7 +3133,7 @@ export default function HomePage() {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                  {tracks.map((track, index) => (
+                  {tracks?.map((track, index) => (
                     <motion.div
                       key={track._id}
                       initial={{ opacity: 0, y: 20 }}
