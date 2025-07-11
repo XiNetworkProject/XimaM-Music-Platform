@@ -13,6 +13,7 @@ import {
   MessageCircle
 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Accueil' },
@@ -29,11 +30,18 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
 
   // Navigation optimisée avec cache
   const handleNavigation = useCallback((path: string) => {
     // Vérifier si on est déjà sur cette page
     if (pathname === path) return;
+
+    // Si c'est le profil, rediriger vers le profil de l'utilisateur connecté
+    if (path === '/profile' && session?.user?.username) {
+      router.push(`/profile/${session.user.username}`);
+      return;
+    }
 
     // Précharger la page si elle n'est pas en cache
     if (!pageCache.has(path)) {
@@ -58,7 +66,7 @@ export default function BottomNav() {
 
     // Navigation fluide avec transition
     router.push(path, { scroll: false });
-  }, [router, pathname]);
+  }, [router, pathname, session?.user?.username]);
 
   // Fonction optimisée pour déterminer si un élément est actif
   const isItemActive = useCallback((itemPath: string) => {
