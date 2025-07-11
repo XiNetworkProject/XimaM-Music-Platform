@@ -9,6 +9,34 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+  
+  /* Système de couleurs moderne */
+  --primary: #667eea;
+  --primary-dark: #5a67d8;
+  --secondary: #764ba2;
+  --accent: #f093fb;
+  --success: #48bb78;
+  --warning: #ed8936;
+  --error: #f56565;
+  --info: #4299e1;
+  
+  /* Gradients modernes */
+  --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  --gradient-secondary: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  --gradient-accent: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+  --gradient-dark: linear-gradient(135deg, #1e1e2e 0%, #2d2d44 100%);
+  --gradient-glass: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+  
+  /* Effets glassmorphism */
+  --glass-bg: rgba(255, 255, 255, 0.1);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --glass-blur: blur(20px);
+  
+  /* Animations */
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -32,6 +60,7 @@ body {
   font-family: 'Inter', sans-serif;
   background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
   color: #ffffff;
+  scroll-behavior: smooth;
 }
 
 body {
@@ -48,6 +77,28 @@ body {
   position: relative;
 }
 
+/* Effet de particules en arrière-plan */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: -1;
+  animation: backgroundFloat 20s ease-in-out infinite;
+}
+
+@keyframes backgroundFloat {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(1deg); }
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -59,7 +110,7 @@ a {
   }
 }
 
-/* Scrollbar personnalisée */
+/* Scrollbar moderne */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -70,64 +121,530 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--gradient-primary);
   border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  transition: var(--transition-normal);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  background: var(--gradient-secondary);
+  background-clip: content-box;
 }
 
-/* Classes utilitaires de base */
+/* Animations modernes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(1deg); }
+}
+
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.4); }
+  50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.8), 0 0 60px rgba(240, 147, 251, 0.4); }
+}
+
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes morph {
+  0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+  50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Classes utilitaires modernes */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: var(--transition-normal);
+}
+
+.glass-effect:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Styles pour le lecteur audio */
-.glass-player {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+.gradient-text-secondary {
+  background: var(--gradient-secondary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-/* Animation simple pour le lecteur */
+.gradient-text-accent {
+  background: var(--gradient-accent);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Cards modernes */
+.card-modern {
+  @apply rounded-3xl p-6 transition-all duration-300;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.card-modern:hover::before {
+  left: 100%;
+}
+
+.card-modern:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Boutons modernes */
+.btn-modern {
+  @apply px-6 py-3 rounded-2xl font-semibold transition-all duration-300;
+  background: var(--gradient-primary);
+  border: none;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.btn-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.btn-modern:hover::before {
+  left: 100%;
+}
+
+.btn-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  @apply px-6 py-3 rounded-2xl font-semibold transition-all duration-300;
+  background: var(--gradient-secondary);
+  border: none;
+  color: white;
+  box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(79, 172, 254, 0.4);
+}
+
+/* Inputs modernes */
+.input-modern {
+  @apply px-4 py-3 rounded-2xl border-0 outline-none transition-all duration-300;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  color: white;
+}
+
+.input-modern:focus {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.input-modern::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Player audio moderne */
+.glass-player {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: 20px;
+  transition: var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-player::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--gradient-glass);
+  pointer-events: none;
+}
+
+.glass-player:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Animation d'onde pour l'audio */
 @keyframes pulse-wave {
-  0%, 100% {
-    transform: scaleY(1);
+  0% {
+    transform: scale(1);
+    opacity: 1;
   }
   50% {
-    transform: scaleY(1.5);
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 
 .animate-pulse-wave {
-  animation: pulse-wave 1s ease-in-out infinite;
+  animation: pulse-wave 1.5s ease-in-out infinite;
 }
 
-/* Responsive */
+/* Animation de flottement pour les covers */
+@keyframes cover-float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: translateY(-5px) rotate(1deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(0deg);
+  }
+  75% {
+    transform: translateY(-5px) rotate(-1deg);
+  }
+}
+
+.cover-float-animation {
+  animation: cover-float 6s ease-in-out infinite;
+}
+
+/* Effet shimmer pour la progression */
+@keyframes progress-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  background-size: 200% 100%;
+  animation: progress-shimmer 2s infinite;
+}
+
+/* Particules flottantes */
+@keyframes particle-float {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+    opacity: 0.7;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(90deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-40px) translateX(-5px) rotate(180deg);
+    opacity: 0.5;
+  }
+  75% {
+    transform: translateY(-20px) translateX(-15px) rotate(270deg);
+    opacity: 0.8;
+  }
+}
+
+.particle-glow {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--gradient-primary);
+  border-radius: 50%;
+  animation: particle-float 4s ease-in-out infinite;
+  filter: blur(1px);
+}
+
+@keyframes particle-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.5);
+    opacity: 1;
+  }
+}
+
+.particle-pulse {
+  animation: particle-pulse 2s ease-in-out infinite;
+}
+
+/* Responsive design moderne */
 @media (max-width: 768px) {
   .mobile-hidden {
     display: none;
   }
   
   .mobile-full {
-    width: 100%;
+    width: 100vw;
     height: 100vh;
   }
   
   .glass-player {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(25px);
+    border-radius: 15px;
+    margin: 0 10px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
+  
+  .glass-player button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  
+  .text-xs {
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* Animations d'entrée */
+.slide-in-up {
+  animation: slideInUp 0.6s ease-out;
+}
+
+.fade-in-scale {
+  animation: fadeInScale 0.4s ease-out;
+}
+
+/* Effets de hover avancés */
+.hover-lift {
+  transition: var(--transition-normal);
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.hover-glow {
+  transition: var(--transition-normal);
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+}
+
+/* Loading spinner moderne */
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top: 3px solid;
+  border-image: var(--gradient-primary) 1;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Masquer la scrollbar pour le carrousel */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Effet de focus amélioré */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-black;
+}
+
+/* Animation de fade in améliorée */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Effet de hover pour les cartes amélioré */
+.card-hover {
+  @apply transition-all duration-300 ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-hover::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.5s;
+}
+
+.card-hover:hover::before {
+  left: 100%;
+}
+
+.card-hover:hover {
+  @apply transform scale-105 shadow-2xl;
+}
+
+/* Gradient de fond pour les boutons */
+.btn-gradient {
+  background: var(--gradient-primary);
+  border: none;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+}
+
+/* Slider moderne */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.2);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.slider:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.slider-value {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--gradient-primary);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
 } 

@@ -146,7 +146,7 @@ export default function FullScreenPlayer() {
   }, [currentTrack?._id, audioState.tracks, audioState.currentTrackIndex]);
 
   // Mini-player (toujours visible en bas)
-  if (!audioState.showPlayer || !currentTrack) {
+  if (!currentTrack) {
     return null;
   }
 
@@ -154,7 +154,7 @@ export default function FullScreenPlayer() {
     <>
       {/* Mini-player */}
       <motion.div
-        className="glass-player relative"
+        className="glass-player fixed bottom-20 left-4 right-4 z-50 flex items-center p-3"
         style={{
           display: showFull ? 'none' : 'flex'
         }}
