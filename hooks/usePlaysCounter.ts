@@ -17,6 +17,7 @@ export function usePlaysCounter(
     enableAutoUpdate = true
   } = options;
 
+  // Utiliser initialPlays uniquement à l'initialisation
   const [plays, setPlays] = useState(initialPlays);
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
@@ -25,6 +26,7 @@ export function usePlaysCounter(
   const updateTimer = useRef<NodeJS.Timeout | null>(null);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
+  const hasFetched = useRef(false);
 
   // Fonction pour formater le nombre
   const formatNumber = useCallback((num: number) => {
@@ -47,11 +49,11 @@ export function usePlaysCounter(
       const response = await fetch(`/api/tracks/${trackId}/plays`);
       if (response.ok) {
         const data = await response.json();
-        const newPlays = data.plays || plays;
-        
-        if (isMounted.current) {
-          setPlays(newPlays);
+        const newPlays = data.plays;
+        if (typeof newPlays === 'number' && isMounted.current) {
+          setPlays(prev => (newPlays > prev ? newPlays : prev)); // Ne jamais redescendre
           setLastUpdate(Date.now());
+          hasFetched.current = true;
         }
       } else {
         throw new Error('Erreur lors de la récupération des écoutes');
@@ -65,7 +67,7 @@ export function usePlaysCounter(
         setIsUpdating(false);
       }
     }
-  }, [trackId, plays, isUpdating]);
+  }, [trackId, isUpdating]);
 
   // Fonction pour incrémenter les écoutes
   const incrementPlays = useCallback(async () => {
@@ -90,11 +92,11 @@ export function usePlaysCounter(
 
         if (response.ok) {
           const data = await response.json();
-          const newPlays = data.plays || plays + 1;
-          
-          if (isMounted.current) {
-            setPlays(newPlays);
+          const newPlays = data.plays;
+          if (typeof newPlays === 'number' && isMounted.current) {
+            setPlays(prev => (newPlays > prev ? newPlays : prev + 1));
             setLastUpdate(Date.now());
+            hasFetched.current = true;
           }
         } else {
           throw new Error('Erreur lors de l\'incrémentation des écoutes');
@@ -109,7 +111,7 @@ export function usePlaysCounter(
         }
       }
     }, debounceDelay);
-  }, [trackId, plays, isUpdating, debounceDelay]);
+  }, [trackId, isUpdating, debounceDelay]);
 
   // Mise à jour automatique des écoutes
   useEffect(() => {
@@ -141,12 +143,13 @@ export function usePlaysCounter(
     };
   }, []);
 
-  // Mise à jour initiale si les écoutes initiales sont différentes
+  // Initialisation : si le trackId change, on réinitialise plays à initialPlays
   useEffect(() => {
-    if (initialPlays !== plays) {
-      setPlays(initialPlays);
-    }
-  }, [initialPlays]);
+    setPlays(initialPlays);
+    hasFetched.current = false;
+  }, [trackId]);
+
+  // (SUPPRIMÉ) Synchronisation avec initialPlays : on ne doit plus jamais écraser plays par initialPlays après le premier render
 
   return {
     plays,
