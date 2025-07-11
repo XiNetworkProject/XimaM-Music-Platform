@@ -7,6 +7,7 @@ import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
 import BottomNav from '@/components/BottomNav';
 import InteractiveCounter from '@/components/InteractiveCounter';
+import SocialStats from '@/components/SocialStats';
 import { 
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
@@ -167,31 +168,34 @@ export default function HomePage() {
           if (response.ok) {
             const data = await response.json();
             
-            // Mettre à jour les statistiques dans toutes les catégories
-            setCategories(prev => {
-              const newCategories = { ...prev };
-              Object.keys(newCategories).forEach(categoryKey => {
-                if (newCategories[categoryKey]) {
-                  newCategories[categoryKey] = {
-                    ...newCategories[categoryKey],
-                    tracks: newCategories[categoryKey].tracks.map(t => 
-                      t._id === currentTrack._id 
-                        ? { ...t, plays: data.plays || t.plays }
-                        : t
-                    )
-                  };
-                }
+            // Vérifier que les données sont valides
+            if (data.plays && typeof data.plays === 'number' && data.plays >= 0) {
+              // Mettre à jour les statistiques dans toutes les catégories
+              setCategories(prev => {
+                const newCategories = { ...prev };
+                Object.keys(newCategories).forEach(categoryKey => {
+                  if (newCategories[categoryKey]) {
+                    newCategories[categoryKey] = {
+                      ...newCategories[categoryKey],
+                      tracks: newCategories[categoryKey].tracks.map(t => 
+                        t._id === currentTrack._id 
+                          ? { ...t, plays: data.plays }
+                          : t
+                      )
+                    };
+                  }
+                });
+                return newCategories;
               });
-              return newCategories;
-            });
-            
-            // Mettre à jour aussi les autres états de pistes
-            setDailyDiscoveries(prev => 
-              prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
-            );
-            setCollaborations(prev => 
-              prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
-            );
+              
+              // Mettre à jour aussi les autres états de pistes
+              setDailyDiscoveries(prev => 
+                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays } : t)
+              );
+              setCollaborations(prev => 
+                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays } : t)
+              );
+            }
           }
         } catch (error) {
           console.error('Erreur mise à jour stats:', error);
@@ -200,9 +204,14 @@ export default function HomePage() {
     };
 
     // Mettre à jour les stats quand une nouvelle piste commence à jouer
-    if (currentTrack && audioState.isPlaying) {
-      updateTrackStats();
-    }
+    // Ajouter un délai pour éviter les mises à jour multiples
+    const timeoutId = setTimeout(() => {
+      if (currentTrack && audioState.isPlaying) {
+        updateTrackStats();
+      }
+    }, 1000); // Délai d'1 seconde pour éviter les mises à jour multiples
+
+    return () => clearTimeout(timeoutId);
   }, [currentTrack?._id, audioState.isPlaying]);
 
   // Fonction optimisée pour charger les données avec cache
@@ -750,31 +759,34 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         
-        // Mettre à jour les statistiques dans toutes les catégories
-        setCategories(prev => {
-          const newCategories = { ...prev };
-          Object.keys(newCategories).forEach(categoryKey => {
-            if (newCategories[categoryKey]) {
-              newCategories[categoryKey] = {
-                ...newCategories[categoryKey],
-                tracks: newCategories[categoryKey].tracks.map(t => 
-                  t._id === track._id 
-                    ? { ...t, plays: data.plays || t.plays }
-                    : t
-                )
-              };
-            }
+        // Vérifier que les données sont valides
+        if (data.plays && typeof data.plays === 'number' && data.plays >= 0) {
+          // Mettre à jour les statistiques dans toutes les catégories
+          setCategories(prev => {
+            const newCategories = { ...prev };
+            Object.keys(newCategories).forEach(categoryKey => {
+              if (newCategories[categoryKey]) {
+                newCategories[categoryKey] = {
+                  ...newCategories[categoryKey],
+                  tracks: newCategories[categoryKey].tracks.map(t => 
+                    t._id === track._id 
+                      ? { ...t, plays: data.plays }
+                      : t
+                  )
+                };
+              }
+            });
+            return newCategories;
           });
-          return newCategories;
-        });
-        
-        // Mettre à jour aussi les autres états de pistes
-        setDailyDiscoveries(prev => 
-          prev.map(t => t._id === track._id ? { ...t, plays: data.plays || t.plays } : t)
-        );
-        setCollaborations(prev => 
-          prev.map(t => t._id === track._id ? { ...t, plays: data.plays || t.plays } : t)
-        );
+          
+          // Mettre à jour aussi les autres états de pistes
+          setDailyDiscoveries(prev => 
+            prev.map(t => t._id === track._id ? { ...t, plays: data.plays } : t)
+          );
+          setCollaborations(prev => 
+            prev.map(t => t._id === track._id ? { ...t, plays: data.plays } : t)
+          );
+        }
       }
     } catch (error) {
       console.error('Erreur mise à jour plays:', error);

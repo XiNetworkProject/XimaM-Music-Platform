@@ -1,244 +1,190 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
+import { Heart, MessageCircle, Play, Eye } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Heart, MessageCircle, Users, UserPlus, TrendingUp } from 'lucide-react';
-import InteractiveCounter from './InteractiveCounter';
-import { useSocialInteractions } from '@/hooks/useSocialInteractions';
 
 interface SocialStatsProps {
-  trackId?: string;
-  userId?: string;
-  initialStats?: {
-    likes?: number;
-    comments?: number;
-    followers?: number;
-    following?: number;
+  trackId: string;
+  initialStats: {
+    likes: number;
+    comments: number;
+    plays?: number;
   };
-  showLabels?: boolean;
   size?: 'sm' | 'md' | 'lg';
-  layout?: 'horizontal' | 'vertical' | 'grid';
-  className?: string;
+  showPlays?: boolean;
   onStatsUpdate?: (stats: any) => void;
-  // Ajout pour mode contrôlé
-  likes?: number;
-  isLiked?: boolean;
-  onToggle?: () => void;
 }
 
 export default function SocialStats({
   trackId,
-  userId,
-  initialStats = {},
-  showLabels = true,
-  size = 'md',
-  layout = 'horizontal',
-  className = '',
-  onStatsUpdate,
-  // Ajout pour mode contrôlé
-  likes: controlledLikes,
-  isLiked: controlledIsLiked,
-  onToggle: controlledOnToggle,
+  initialStats,
+  size = 'sm',
+  showPlays = true,
+  onStatsUpdate
 }: SocialStatsProps) {
-  const {
-    stats,
-    isLiked,
-    isFollowing,
-    isLoading,
-    handleLike,
-    handleFollow,
-    refreshStats
-  } = useSocialInteractions({
-    trackId,
-    userId,
-    initialStats,
-    onStatsUpdate
-  });
+  const [stats, setStats] = useState(initialStats);
+  const [isLiked, setIsLiked] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  // Mode contrôlé pour les likes
-  const useControlledLikes = typeof controlledLikes === 'number' && typeof controlledIsLiked === 'boolean' && typeof controlledOnToggle === 'function';
+  // Validation des données initiales
+  const validateStats = useCallback((data: any) => {
+    return {
+      likes: typeof data.likes === 'number' && data.likes >= 0 ? data.likes : 0,
+      comments: typeof data.comments === 'number' && data.comments >= 0 ? data.comments : 0,
+      plays: typeof data.plays === 'number' && data.plays >= 0 ? data.plays : 0
+    };
+  }, []);
 
-  const layoutClasses = {
-    horizontal: 'flex items-center gap-4',
-    vertical: 'flex flex-col gap-3',
-    grid: 'grid grid-cols-2 gap-3'
-  };
+  // Mettre à jour les stats avec validation
+  const updateStats = useCallback((newStats: any) => {
+    const validatedStats = validateStats(newStats);
+    setStats(validatedStats);
+    if (onStatsUpdate) {
+      onStatsUpdate(validatedStats);
+    }
+  }, [validateStats, onStatsUpdate]);
 
-  const sizeClasses = {
-    sm: 'text-xs',
-    md: 'text-sm',
-    lg: 'text-base'
-  };
+  // Charger les vraies statistiques depuis l'API
+  const loadRealStats = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/tracks/${trackId}`);
+      if (response.ok) {
+        const data = await response.json();
+        const validatedStats = validateStats({
+          likes: data.likes?.length || 0,
+          comments: data.comments?.length || 0,
+          plays: data.plays || 0
+        });
+        updateStats(validatedStats);
+      }
+    } catch (error) {
+      console.error('Erreur chargement stats:', error);
+    }
+  }, [trackId, validateStats, updateStats]);
 
-  const iconSizes = {
-    sm: 14,
-    md: 16,
-    lg: 20
-  };
+  // Charger les stats au montage
+  useEffect(() => {
+    loadRealStats();
+  }, [loadRealStats]);
 
-  const formatNumber = (num: number) => {
+  // Fonction pour formater les nombres
+  const formatNumber = useCallback((num: number) => {
+    if (typeof num !== 'number' || isNaN(num) || num < 0) return '0';
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     } else if (num >= 1000) {
       return (num / 1000).toFixed(1) + 'K';
     }
     return num.toString();
+  }, []);
+
+  // Gérer le like
+  const handleLike = useCallback(async () => {
+    if (isUpdating) return;
+    
+    setIsUpdating(true);
+    const newLikeState = !isLiked;
+    
+    // Optimistic update
+    setIsLiked(newLikeState);
+    setStats(prev => ({
+      ...prev,
+      likes: newLikeState ? prev.likes + 1 : Math.max(0, prev.likes - 1)
+    }));
+
+    try {
+      const response = await fetch(`/api/tracks/${trackId}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Synchroniser avec les vraies données
+        updateStats({
+          likes: data.likes?.length || 0,
+          comments: stats.comments,
+          plays: stats.plays
+        });
+        setIsLiked(data.isLiked || false);
+      } else {
+        // Revenir à l'état précédent en cas d'erreur
+        setIsLiked(!newLikeState);
+        setStats(prev => ({
+          ...prev,
+          likes: newLikeState ? Math.max(0, prev.likes - 1) : prev.likes + 1
+        }));
+      }
+    } catch (error) {
+      console.error('Erreur like:', error);
+      // Revenir à l'état précédent
+      setIsLiked(!newLikeState);
+      setStats(prev => ({
+        ...prev,
+        likes: newLikeState ? Math.max(0, prev.likes - 1) : prev.likes + 1
+      }));
+    } finally {
+      setIsUpdating(false);
+    }
+  }, [trackId, isLiked, isUpdating, stats.comments, stats.plays, updateStats]);
+
+  const sizeClasses = {
+    sm: {
+      container: 'flex items-center gap-2 text-xs',
+      icon: 'w-3 h-3',
+      text: 'text-xs'
+    },
+    md: {
+      container: 'flex items-center gap-3 text-sm',
+      icon: 'w-4 h-4',
+      text: 'text-sm'
+    },
+    lg: {
+      container: 'flex items-center gap-4 text-base',
+      icon: 'w-5 h-5',
+      text: 'text-base'
+    }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className={`${layoutClasses[layout]} ${className}`}
-    >
+    <div className={sizeClasses[size].container}>
       {/* Likes */}
-      {trackId && (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.1 }}
-          className="flex items-center gap-2"
-        >
-          <InteractiveCounter
-            type="likes"
-            initialCount={useControlledLikes ? controlledLikes! : stats.likes}
-            isActive={useControlledLikes ? controlledIsLiked! : isLiked}
-            onToggle={useControlledLikes ? async () => controlledOnToggle!() : handleLike}
-            size={size}
-            disabled={isLoading}
-            className="hover:bg-red-50 dark:hover:bg-red-900/20"
-          />
-          {showLabels && (
-            <span className={`text-gray-600 dark:text-gray-400 ${sizeClasses[size]}`}>
-              J'aime
-            </span>
-          )}
-        </motion.div>
-      )}
+      <motion.button
+        onClick={handleLike}
+        disabled={isUpdating}
+        className={`flex items-center gap-1 transition-colors ${
+          isLiked ? 'text-red-500' : 'text-gray-400 hover:text-red-400'
+        }`}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <Heart 
+          size={sizeClasses[size].icon} 
+          className={isLiked ? 'fill-current' : ''}
+        />
+        <span className={sizeClasses[size].text}>
+          {formatNumber(stats.likes)}
+        </span>
+      </motion.button>
 
       {/* Commentaires */}
-      {trackId && (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center gap-2"
-        >
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-blue-600">
-            <MessageCircle size={iconSizes[size]} />
-            <span className={`font-medium ${sizeClasses[size]}`}>
-              {formatNumber(stats.comments)}
-            </span>
-          </div>
-          {showLabels && (
-            <span className={`text-gray-600 dark:text-gray-400 ${sizeClasses[size]}`}>
-              Commentaires
-            </span>
-          )}
-        </motion.div>
+      <div className="flex items-center gap-1 text-gray-400">
+        <MessageCircle size={sizeClasses[size].icon} />
+        <span className={sizeClasses[size].text}>
+          {formatNumber(stats.comments)}
+        </span>
+      </div>
+
+      {/* Écoutes */}
+      {showPlays && (
+        <div className="flex items-center gap-1 text-gray-400">
+          <Play size={sizeClasses[size].icon} />
+          <span className={sizeClasses[size].text}>
+            {formatNumber(stats.plays || 0)}
+          </span>
+        </div>
       )}
-
-      {/* Abonnés */}
-      {userId && (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.3 }}
-          className="flex items-center gap-2"
-        >
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-green-600">
-            <Users size={iconSizes[size]} />
-            <span className={`font-medium ${sizeClasses[size]}`}>
-              {formatNumber(stats.followers)}
-            </span>
-          </div>
-          {showLabels && (
-            <span className={`text-gray-600 dark:text-gray-400 ${sizeClasses[size]}`}>
-              Abonnés
-            </span>
-          )}
-        </motion.div>
-      )}
-
-      {/* Abonnements */}
-      {userId && (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.4 }}
-          className="flex items-center gap-2"
-        >
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-full text-purple-600">
-            <UserPlus size={iconSizes[size]} />
-            <span className={`font-medium ${sizeClasses[size]}`}>
-              {formatNumber(stats.following)}
-            </span>
-          </div>
-          {showLabels && (
-            <span className={`text-gray-600 dark:text-gray-400 ${sizeClasses[size]}`}>
-              Abonnements
-            </span>
-          )}
-        </motion.div>
-      )}
-
-      {/* Bouton Follow */}
-      {userId && (
-        <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <InteractiveCounter
-            type="followers"
-            initialCount={0}
-            isActive={isFollowing}
-            onToggle={handleFollow}
-            size={size}
-            disabled={isLoading}
-            className="bg-purple-600 text-white hover:bg-purple-700"
-          />
-        </motion.div>
-      )}
-
-      {/* Indicateur de tendance */}
-      <AnimatePresence>
-        {stats.likes > 0 && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0 }}
-            className="flex items-center gap-1 text-orange-500"
-          >
-            <TrendingUp size={iconSizes[size]} />
-            <span className={`font-medium ${sizeClasses[size]}`}>
-              Populaire
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Bouton de rafraîchissement */}
-      <motion.button
-        onClick={refreshStats}
-        className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        title="Rafraîchir les statistiques"
-      >
-        <svg
-          className={`${sizeClasses[size]} ${isLoading ? 'animate-spin' : ''}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-          />
-        </svg>
-      </motion.button>
-    </motion.div>
+    </div>
   );
 } 

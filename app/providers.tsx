@@ -216,17 +216,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       
       const data = await response.json();
       
-      // Mettre à jour l'état avec le nouveau nombre d'écoutes
-      setAudioState(prev => {
-        const newTracks = prev.tracks.map((track) => {
-          if (track._id !== trackId) return track;
-          return { 
-            ...track, 
-            plays: data.plays || track.plays
-          };
+      // Vérifier que les données sont valides avant de mettre à jour l'état
+      if (data.plays && typeof data.plays === 'number' && data.plays >= 0) {
+        // Mettre à jour l'état avec le nouveau nombre d'écoutes
+        setAudioState(prev => {
+          const newTracks = prev.tracks.map((track) => {
+            if (track._id !== trackId) return track;
+            return { 
+              ...track, 
+              plays: data.plays
+            };
+          });
+          return { ...prev, tracks: newTracks };
         });
-        return { ...prev, tracks: newTracks };
-      });
+      }
       
     } catch (error) {
       console.error('Erreur mise à jour plays:', error);

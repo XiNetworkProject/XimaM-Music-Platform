@@ -517,7 +517,14 @@ export const useAudioService = () => {
 
   // Fonction pour incrémenter les écoutes
   const updatePlayCount = useCallback(async (trackId: string) => {
+    // Éviter les appels multiples pour la même piste
+    if (lastTrackId.current === trackId) {
+      return;
+    }
+    
     try {
+      lastTrackId.current = trackId;
+      
       const response = await fetch(`/api/tracks/${trackId}/plays`, {
         method: 'POST',
         headers: {
@@ -528,8 +535,15 @@ export const useAudioService = () => {
       if (!response.ok) {
         console.error('Erreur lors de la mise à jour des écoutes');
       }
+      
+      // Réinitialiser après un délai pour permettre de nouveaux appels
+      setTimeout(() => {
+        lastTrackId.current = null;
+      }, 2000);
+      
     } catch (error) {
       console.error('Erreur mise à jour plays:', error);
+      lastTrackId.current = null;
     }
   }, []);
 

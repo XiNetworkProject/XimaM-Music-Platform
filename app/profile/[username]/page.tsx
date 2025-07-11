@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
-import { useAuth } from '@/hooks/useAuth';
+import InteractiveCounter from '@/components/InteractiveCounter';
 import SocialStats from '@/components/SocialStats';
 import UserProfileCard from '@/components/UserProfileCard';
 
@@ -682,15 +682,14 @@ export default function ProfileUserPage() {
             {/* Statistiques avec nouveaux composants */}
             <div className="mt-3">
               <SocialStats
-                userId={profile._id}
+                trackId={profile._id}
                 initialStats={{
-                  followers: profile.followerCount || 0,
-                  following: profile.followingCount || 0
+                  likes: profile.likeCount || 0,
+                  comments: profile.commentCount || 0,
+                  plays: profile.totalPlays || 0
                 }}
                 size="sm"
-                showLabels={true}
-                layout="horizontal"
-                className="justify-center"
+                showPlays={true}
               />
             </div>
             
@@ -907,13 +906,16 @@ export default function ProfileUserPage() {
                               {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
                             </p>
                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                              <SocialStats
-                                likes={track.likes.length}
-                                isLiked={track.isLiked}
-                                onToggle={() => handleLikeTrack(track._id)}
-                                initialStats={{ comments: track.comments?.length || 0 }}
-                                showLabels={false}
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={track.likes.length}
+                                isActive={track.isLiked}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track._id);
+                                }}
                                 size="sm"
+                                showIcon={true}
+                                disabled={likeLoading === track._id}
                                 className="hover:text-pink-400 transition-colors"
                               />
                               <span>{track.plays} écoutes</span>
@@ -1026,13 +1028,16 @@ export default function ProfileUserPage() {
                               {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
                             </p>
                             <div className="flex items-center space-x-6 mt-2 text-sm text-gray-500">
-                              <SocialStats
-                                likes={track.likes.length}
-                                isLiked={track.isLiked}
-                                onToggle={() => handleLikeTrack(track._id)}
-                                initialStats={{ comments: track.comments?.length || 0 }}
-                                showLabels={false}
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={track.likes.length}
+                                isActive={track.isLiked}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track._id);
+                                }}
                                 size="sm"
+                                showIcon={true}
+                                disabled={likeLoading === track._id}
                                 className="hover:text-pink-400 transition-colors"
                               />
                               <span>{track.plays} écoutes</span>
