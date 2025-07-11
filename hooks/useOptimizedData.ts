@@ -1,145 +1,121 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
-interface TrackStats {
-  likes: number;
-  comments: number;
-  plays: number;
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  version: number;
 }
 
-interface UseOptimizedDataOptions {
-  trackId: string;
-  initialStats: TrackStats;
-  refreshInterval?: number;
-  enableCache?: boolean;
+interface OptimizedDataOptions {
+  cacheDuration?: number;
+  debounceDelay?: number;
+  maxRetries?: number;
 }
 
-export function useOptimizedData({
-  trackId,
-  initialStats,
-  refreshInterval = 30000, // 30 secondes
-  enableCache = true
-}: UseOptimizedDataOptions) {
-  const [stats, setStats] = useState<TrackStats>(initialStats);
-  const [isLoading, setIsLoading] = useState(false);
+export function useOptimizedData<T>(
+  key: string,
+  fetchFn: () => Promise<T>,
+  options: OptimizedDataOptions = {}
+) {
+  const {
+    cacheDuration = 30000, // 30 secondes
+    debounceDelay = 500,
+    maxRetries = 3
+  } = options;
+
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastUpdateRef = useRef<number>(0);
-  const cacheRef = useRef<Map<string, { data: TrackStats; timestamp: number }>>(new Map());
+  const [version, setVersion] = useState(0);
+  
+  const cache = useRef<Map<string, CacheEntry<T>>>(new Map());
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  const retryCount = useRef(0);
 
-  // Validation des données
-  const validateStats = useCallback((data: any): TrackStats => {
-    return {
-      likes: typeof data.likes === 'number' && data.likes >= 0 ? data.likes : 0,
-      comments: typeof data.comments === 'number' && data.comments >= 0 ? data.comments : 0,
-      plays: typeof data.plays === 'number' && data.plays >= 0 ? data.plays : 0
-    };
-  }, []);
-
-  // Charger les données depuis l'API
-  const loadStats = useCallback(async (forceRefresh = false) => {
-    const now = Date.now();
-    const cacheKey = `stats_${trackId}`;
-    const cached = cacheRef.current.get(cacheKey);
-
-    // Vérifier le cache si activé et pas de refresh forcé
-    if (enableCache && !forceRefresh && cached && (now - cached.timestamp) < refreshInterval) {
-      setStats(cached.data);
+  const fetchData = useCallback(async (forceRefresh = false) => {
+    // Vérifier le cache
+    const cached = cache.current.get(key);
+    if (!forceRefresh && cached && Date.now() - cached.timestamp < cacheDuration) {
+      setData(cached.data);
+      setVersion(cached.version);
       return;
     }
 
-    // Éviter les requêtes multiples
-    if (isLoading && !forceRefresh) return;
-
-    setIsLoading(true);
+    setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/tracks/${trackId}`);
-      if (response.ok) {
-        const data = await response.json();
-        const validatedStats = validateStats({
-          likes: data.likes?.length || 0,
-          comments: data.comments?.length || 0,
-          plays: data.plays || 0
-        });
+      const result = await fetchFn();
+      
+      // Mettre en cache
+      cache.current.set(key, {
+        data: result,
+        timestamp: Date.now(),
+        version: version + 1
+      });
 
-        setStats(validatedStats);
-        lastUpdateRef.current = now;
-
-        // Mettre en cache
-        if (enableCache) {
-          cacheRef.current.set(cacheKey, {
-            data: validatedStats,
-            timestamp: now
-          });
-        }
-      } else {
-        throw new Error('Erreur lors du chargement des statistiques');
-      }
+      setData(result);
+      setVersion(version + 1);
+      retryCount.current = 0;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erreur inconnue');
-      console.error('Erreur chargement stats:', err);
+      
+      // Retry automatique
+      if (retryCount.current < maxRetries) {
+        retryCount.current++;
+        setTimeout(() => fetchData(forceRefresh), 1000 * retryCount.current);
+      }
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
-  }, [trackId, refreshInterval, enableCache, isLoading, validateStats]);
+  }, [key, fetchFn, cacheDuration, version, maxRetries]);
 
-  // Mettre à jour une statistique spécifique
-  const updateStat = useCallback((key: keyof TrackStats, value: number) => {
-    setStats(prev => ({
-      ...prev,
-      [key]: Math.max(0, value) // Empêcher les valeurs négatives
-    }));
-  }, []);
+  const refresh = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
 
-  // Mettre à jour les statistiques avec validation
-  const updateStats = useCallback((newStats: Partial<TrackStats>) => {
-    setStats(prev => {
-      const updated = { ...prev };
-      Object.entries(newStats).forEach(([key, value]) => {
-        if (typeof value === 'number' && value >= 0) {
-          updated[key as keyof TrackStats] = value;
-        }
-      });
-      return updated;
+    debounceTimer.current = setTimeout(() => {
+      fetchData(true);
+    }, debounceDelay);
+  }, [fetchData, debounceDelay]);
+
+  const updateData = useCallback((updater: (prev: T | null) => T) => {
+    setData(prev => {
+      const newData = updater(prev);
+      if (newData) {
+        cache.current.set(key, {
+          data: newData,
+          timestamp: Date.now(),
+          version: version + 1
+        });
+        setVersion(version + 1);
+      }
+      return newData;
     });
-  }, []);
+  }, [key, version]);
 
   // Charger les données au montage
   useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    fetchData();
+  }, [fetchData]);
 
-  // Rafraîchissement automatique
+  // Nettoyer le timer au démontage
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadStats();
-    }, refreshInterval);
-
-    return () => clearInterval(interval);
-  }, [loadStats, refreshInterval]);
-
-  // Nettoyer le cache périodiquement
-  useEffect(() => {
-    const cleanupInterval = setInterval(() => {
-      const now = Date.now();
-      const entries = Array.from(cacheRef.current.entries());
-      entries.forEach(([key, value]) => {
-        if (now - value.timestamp > refreshInterval * 2) {
-          cacheRef.current.delete(key);
-        }
-      });
-    }, refreshInterval);
-
-    return () => clearInterval(cleanupInterval);
-  }, [refreshInterval]);
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, []);
 
   return {
-    stats,
-    isLoading,
+    data,
+    loading,
     error,
-    loadStats,
-    updateStat,
-    updateStats,
-    lastUpdate: lastUpdateRef.current
+    version,
+    refresh,
+    updateData,
+    fetchData
   };
 } 

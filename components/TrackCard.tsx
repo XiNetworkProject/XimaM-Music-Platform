@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, Heart, MessageCircle, Share2, MoreVertical, Clock } from 'lucide-react';
+import { Play, Pause, Heart, MessageCircle, Share2, MoreVertical, Clock, Headphones } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import SocialStats from './SocialStats';
 import CommentSection from './CommentSection';
 import { useAudioService } from '@/hooks/useAudioService';
+import { usePlaysCounter } from '@/hooks/usePlaysCounter';
 
 interface Track {
   _id: string;
@@ -34,6 +35,38 @@ interface TrackCardProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   onTrackUpdate?: (track: Track) => void;
+}
+
+// Composant pour afficher les écoutes de manière stable
+function PlaysCounter({ trackId, initialPlays, size = 'sm' }: { 
+  trackId: string; 
+  initialPlays: number; 
+  size?: 'sm' | 'md' | 'lg';
+}) {
+  const {
+    formattedPlays,
+    isUpdating,
+    error
+  } = usePlaysCounter(trackId, initialPlays, {
+    updateInterval: 30000, // 30 secondes
+    debounceDelay: 1000,
+    enableAutoUpdate: true
+  });
+
+  return (
+    <div className="flex items-center gap-1 text-gray-500">
+      <Headphones size={size === 'sm' ? 12 : size === 'md' ? 14 : 16} />
+      <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'}`}>
+        {formattedPlays}
+      </span>
+      {isUpdating && (
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+      )}
+      {error && (
+        <div className="w-2 h-2 bg-red-500 rounded-full" title={error} />
+      )}
+    </div>
+  );
 }
 
 export default function TrackCard({
@@ -174,6 +207,7 @@ export default function TrackCard({
             </Link>
             <div className="flex items-center gap-2 text-gray-500 justify-center mt-1">
               <span className={`${sizeClasses[size].duration}`}>{formatDuration(track.duration)}</span>
+              <PlaysCounter trackId={track._id} initialPlays={track.plays} size={size} />
               <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                 <MoreVertical size={10} />
               </button>

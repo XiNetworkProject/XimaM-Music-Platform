@@ -78,6 +78,9 @@ export const useAudioService = () => {
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [isFirstPlay, setIsFirstPlay] = useState(true);
 
+  // Système de suivi des écoutes pour éviter les doublons
+  const [trackedPlays, setTrackedPlays] = useState<Set<string>>(new Set());
+  
   // Initialisation du service worker et des notifications
   useEffect(() => {
     if (isInitialized.current) return;
@@ -515,37 +518,47 @@ export const useAudioService = () => {
     }
   }, []);
 
-  // Fonction pour incrémenter les écoutes
+  // Fonction pour incrémenter les écoutes avec debounce et suivi
   const updatePlayCount = useCallback(async (trackId: string) => {
-    // Éviter les appels multiples pour la même piste
-    if (lastTrackId.current === trackId) {
+    // Éviter les doublons pour la même piste
+    if (trackedPlays.has(trackId)) {
       return;
     }
     
-    try {
-      lastTrackId.current = trackId;
-      
-      const response = await fetch(`/api/tracks/${trackId}/plays`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        console.error('Erreur lors de la mise à jour des écoutes');
+    // Marquer cette piste comme en cours de mise à jour
+    setTrackedPlays(prev => new Set([...Array.from(prev), trackId]));
+    
+    // Utiliser un debounce pour éviter les appels multiples
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/tracks/${trackId}/plays`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          console.error('Erreur lors de la mise à jour des écoutes');
+        } else {
+          console.log(`✅ Écoutes mises à jour pour la piste ${trackId}`);
+        }
+      } catch (error) {
+        console.error('Erreur mise à jour plays:', error);
+      } finally {
+        // Retirer la piste du suivi après un délai
+        setTimeout(() => {
+          setTrackedPlays(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(trackId);
+            return newSet;
+          });
+        }, 2000); // Attendre 2 secondes avant de permettre une nouvelle mise à jour
       }
-      
-      // Réinitialiser après un délai pour permettre de nouveaux appels
-      setTimeout(() => {
-        lastTrackId.current = null;
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Erreur mise à jour plays:', error);
-      lastTrackId.current = null;
-    }
-  }, []);
+    }, 1000); // Attendre 1 seconde avant d'incrémenter
+    
+    return () => clearTimeout(timeoutId);
+  }, [trackedPlays]);
 
   const nextTrack = useCallback(() => {
     const currentQueue = shuffle ? shuffledQueue : queue;

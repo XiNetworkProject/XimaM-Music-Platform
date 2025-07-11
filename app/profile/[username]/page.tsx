@@ -682,14 +682,15 @@ export default function ProfileUserPage() {
             {/* Statistiques avec nouveaux composants */}
             <div className="mt-3">
               <SocialStats
-                trackId={profile._id}
+                userId={profile._id}
                 initialStats={{
-                  likes: profile.likeCount || 0,
-                  comments: profile.commentCount || 0,
-                  plays: profile.totalPlays || 0
+                  followers: profile.followerCount || 0,
+                  following: profile.followingCount || 0
                 }}
                 size="sm"
-                showPlays={true}
+                showLabels={true}
+                layout="horizontal"
+                className="justify-center"
               />
             </div>
             

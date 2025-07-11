@@ -164,22 +164,22 @@ export default function HomePage() {
     const updateTrackStats = async () => {
       if (currentTrack && audioState.isPlaying) {
         try {
-          const response = await fetch(`/api/tracks/${currentTrack._id}/plays`);
-          if (response.ok) {
-            const data = await response.json();
-            
-            // Vérifier que les données sont valides
-            if (data.plays && typeof data.plays === 'number' && data.plays >= 0) {
-              // Mettre à jour les statistiques dans toutes les catégories
+          // Utiliser un debounce pour éviter les appels multiples
+          const timeoutId = setTimeout(async () => {
+            const response = await fetch(`/api/tracks/${currentTrack._id}/plays`);
+            if (response.ok) {
+              const data = await response.json();
+              
+              // Mettre à jour les statistiques dans toutes les catégories de manière atomique
               setCategories(prev => {
                 const newCategories = { ...prev };
                 Object.keys(newCategories).forEach(categoryKey => {
-                  if (newCategories[categoryKey]) {
+                  if (newCategories[categoryKey] && newCategories[categoryKey].tracks) {
                     newCategories[categoryKey] = {
                       ...newCategories[categoryKey],
                       tracks: newCategories[categoryKey].tracks.map(t => 
                         t._id === currentTrack._id 
-                          ? { ...t, plays: data.plays }
+                          ? { ...t, plays: data.plays || t.plays }
                           : t
                       )
                     };
@@ -188,15 +188,17 @@ export default function HomePage() {
                 return newCategories;
               });
               
-              // Mettre à jour aussi les autres états de pistes
+              // Mettre à jour aussi les autres états de pistes de manière atomique
               setDailyDiscoveries(prev => 
-                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays } : t)
+                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
               );
               setCollaborations(prev => 
-                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays } : t)
+                prev.map(t => t._id === currentTrack._id ? { ...t, plays: data.plays || t.plays } : t)
               );
             }
-          }
+          }, 1000); // Attendre 1 seconde avant de mettre à jour les stats
+          
+          return () => clearTimeout(timeoutId);
         } catch (error) {
           console.error('Erreur mise à jour stats:', error);
         }
@@ -204,14 +206,9 @@ export default function HomePage() {
     };
 
     // Mettre à jour les stats quand une nouvelle piste commence à jouer
-    // Ajouter un délai pour éviter les mises à jour multiples
-    const timeoutId = setTimeout(() => {
-      if (currentTrack && audioState.isPlaying) {
-        updateTrackStats();
-      }
-    }, 1000); // Délai d'1 seconde pour éviter les mises à jour multiples
-
-    return () => clearTimeout(timeoutId);
+    if (currentTrack && audioState.isPlaying) {
+      updateTrackStats();
+    }
   }, [currentTrack?._id, audioState.isPlaying]);
 
   // Fonction optimisée pour charger les données avec cache
@@ -759,34 +756,31 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         
-        // Vérifier que les données sont valides
-        if (data.plays && typeof data.plays === 'number' && data.plays >= 0) {
-          // Mettre à jour les statistiques dans toutes les catégories
-          setCategories(prev => {
-            const newCategories = { ...prev };
-            Object.keys(newCategories).forEach(categoryKey => {
-              if (newCategories[categoryKey]) {
-                newCategories[categoryKey] = {
-                  ...newCategories[categoryKey],
-                  tracks: newCategories[categoryKey].tracks.map(t => 
-                    t._id === track._id 
-                      ? { ...t, plays: data.plays }
-                      : t
-                  )
-                };
-              }
-            });
-            return newCategories;
+        // Mettre à jour les statistiques dans toutes les catégories
+        setCategories(prev => {
+          const newCategories = { ...prev };
+          Object.keys(newCategories).forEach(categoryKey => {
+            if (newCategories[categoryKey]) {
+              newCategories[categoryKey] = {
+                ...newCategories[categoryKey],
+                tracks: newCategories[categoryKey].tracks.map(t => 
+                  t._id === track._id 
+                    ? { ...t, plays: data.plays || t.plays }
+                    : t
+                )
+              };
+            }
           });
-          
-          // Mettre à jour aussi les autres états de pistes
-          setDailyDiscoveries(prev => 
-            prev.map(t => t._id === track._id ? { ...t, plays: data.plays } : t)
-          );
-          setCollaborations(prev => 
-            prev.map(t => t._id === track._id ? { ...t, plays: data.plays } : t)
-          );
-        }
+          return newCategories;
+        });
+        
+        // Mettre à jour aussi les autres états de pistes
+        setDailyDiscoveries(prev => 
+          prev.map(t => t._id === track._id ? { ...t, plays: data.plays || t.plays } : t)
+        );
+        setCollaborations(prev => 
+          prev.map(t => t._id === track._id ? { ...t, plays: data.plays || t.plays } : t)
+        );
       }
     } catch (error) {
       console.error('Erreur mise à jour plays:', error);

@@ -42,23 +42,6 @@ export async function POST(
       );
     }
 
-    // Vérifier si l'utilisateur a déjà écouté cette piste récemment (éviter les spam)
-    const userKey = `plays_${session.user.id}_${trackId}`;
-    const now = Date.now();
-    const lastPlayTime = (global as any)[userKey] || 0;
-    
-    // Limiter à une écoute par minute par utilisateur par piste
-    if (now - lastPlayTime < 60000) {
-      return NextResponse.json({
-        success: true,
-        plays: track.plays,
-        track: track
-      });
-    }
-    
-    // Marquer le temps d'écoute
-    (global as any)[userKey] = now;
-
     // Incrémenter le nombre d'écoutes
     const updatedTrack = await Track.findByIdAndUpdate(
       trackId,
