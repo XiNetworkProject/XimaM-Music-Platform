@@ -26,6 +26,18 @@ function formatDuration(duration: number | undefined): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+// Ajout d'une fonction utilitaire pour obtenir le username à partir de l'id
+async function getUsernameFromId(userId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/users/${userId}`);
+    if (!res.ok) return null;
+    const user = await res.json();
+    return user.username;
+  } catch {
+    return null;
+  }
+}
+
 export default function ProfileUserPage() {
   const { username } = useParams();
   const { data: session } = useSession();
@@ -547,9 +559,11 @@ export default function ProfileUserPage() {
 
   // Suivre/Ne plus suivre un utilisateur depuis les modals
   const handleFollowUser = async (userId: string) => {
+    const username = await getUsernameFromId(userId);
+    if (!username) return;
     setFollowLoading(userId);
     try {
-      const res = await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+      const res = await fetch(`/api/users/${username}/follow`, { method: 'POST' });
       await res.json();
       // Refresh profil pour mettre à jour les listes
       const profileRes = await fetch(`/api/users/${username}`);

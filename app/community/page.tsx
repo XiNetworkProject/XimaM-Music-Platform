@@ -205,13 +205,27 @@ export default function CommunityPage() {
     await fetch(`/api/playlists/${playlistId}/like`, { method: 'POST' });
   };
 
-  // Follow/unfollow user
+  // Ajout d'une fonction utilitaire pour obtenir le username à partir de l'id
+  async function getUsernameFromId(userId: string): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/users/${userId}`);
+      if (!res.ok) return null;
+      const user = await res.json();
+      return user.username;
+    } catch {
+      return null;
+    }
+  }
+
+  // Remplacer tous les fetch `/api/users/${userId}/follow` par la version username
   const toggleFollow = async (userId: string) => {
     setUsers(prev => prev.map(u => u._id === userId ? {
       ...u,
       isFollowing: !u.isFollowing
     } : u));
-    await fetch(`/api/users/${userId}/follow`, { method: 'POST' });
+    const username = await getUsernameFromId(userId);
+    if (!username) return;
+    await fetch(`/api/users/${username}/follow`, { method: 'POST' });
   };
 
   // Formatage

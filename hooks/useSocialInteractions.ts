@@ -17,6 +17,18 @@ interface UseSocialInteractionsProps {
   onStatsUpdate?: (stats: SocialStats) => void;
 }
 
+// Ajout d'une fonction utilitaire pour obtenir le username à partir de l'id
+async function getUsernameFromId(userId: string): Promise<string | null> {
+  try {
+    const res = await fetch(`/api/users/${userId}`);
+    if (!res.ok) return null;
+    const user = await res.json();
+    return user.username;
+  } catch {
+    return null;
+  }
+}
+
 export function useSocialInteractions({
   trackId,
   userId,
@@ -56,7 +68,9 @@ export function useSocialInteractions({
 
       // Vérifier si l'utilisateur est suivi
       if (userId) {
-        const followResponse = await fetch(`/api/users/${userId}/follow`);
+        const username = await getUsernameFromId(userId);
+        if (!username) return;
+        const followResponse = await fetch(`/api/users/${username}/follow`);
         if (followResponse.ok) {
           const followData = await followResponse.json();
           setIsFollowing(followData.following || false);
@@ -97,7 +111,9 @@ export function useSocialInteractions({
 
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/users/${userId}/follow`, {
+      const username = await getUsernameFromId(userId);
+      if (!username) throw new Error('Utilisateur introuvable');
+      const response = await fetch(`/api/users/${username}/follow`, {
         method: 'POST',
       });
 
@@ -182,7 +198,9 @@ export function useSocialInteractions({
       }
 
       if (userId) {
-        const userResponse = await fetch(`/api/users/${userId}`);
+        const username = await getUsernameFromId(userId);
+        if (!username) return;
+        const userResponse = await fetch(`/api/users/${username}`);
         if (userResponse.ok) {
           const user = await userResponse.json();
           setStats(prev => ({
