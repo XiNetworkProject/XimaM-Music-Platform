@@ -12,15 +12,18 @@ import {
   MessageCircle, 
   Settings,
   Bell,
-  Plus
+  Plus,
+  Music
 } from 'lucide-react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
+import { useAudioPlayer } from '@/app/providers';
 
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
   const { notifications } = useMessageNotifications();
+  const { audioState, setShowPlayer } = useAudioPlayer();
   // Calculer le nombre de notifications pertinentes (messages ou demandes non lues)
   const unreadCount = notifications.filter(n => n.type === 'new_message' || n.type === 'new_request').length;
 
@@ -77,6 +80,18 @@ export default function BottomNav() {
       {/* Bottom Navigation */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-lg border-t border-white/10">
         <div className="flex items-center justify-around px-4 py-2">
+          {/* Bouton musique pour rouvrir le lecteur */}
+          {!audioState.showPlayer && (
+            <motion.button
+              onClick={() => setShowPlayer(true)}
+              className="flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all text-purple-400 bg-purple-500/20 mr-2"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <Music size={22} />
+              <span className="text-xs mt-1">Lecteur</span>
+            </motion.button>
+          )}
           {navItems.map((item) => (
             <motion.button
               key={item.path}
