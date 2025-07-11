@@ -56,117 +56,6 @@ const formatRecordingDuration = (seconds: number) => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Composant pour l'interface d'enregistrement vocal
-function VoiceRecordingInterface({
-  isRecording,
-  recordingDuration,
-  recordingPreview,
-  isPreviewPlaying,
-  onStartRecording,
-  onStopRecording,
-  onPlayPreview,
-  onStopPreview,
-  onSendRecording,
-  onCancelRecording
-}: {
-  isRecording: boolean;
-  recordingDuration: number;
-  recordingPreview: string | null;
-  isPreviewPlaying: boolean;
-  onStartRecording: () => void;
-  onStopRecording: () => void;
-  onPlayPreview: () => void;
-  onStopPreview: () => void;
-  onSendRecording: () => void;
-  onCancelRecording: () => void;
-}) {
-  return (
-    <div className="fixed bottom-16 left-0 w-full z-50 px-4 py-3 bg-gradient-to-r from-purple-900/95 to-indigo-900/95 backdrop-blur-md border-t border-purple-400/30 rounded-t-2xl shadow-2xl">
-      {!recordingPreview ? (
-        // Interface d'enregistrement
-        <div className="flex items-center justify-center space-x-4">
-          <div className="flex items-center space-x-3">
-            {/* Animation d'enregistrement */}
-            {isRecording && (
-              <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-              </div>
-            )}
-            
-            {/* Durée d'enregistrement */}
-            {isRecording && (
-              <span className="text-white font-mono text-sm">
-                {formatRecordingDuration(recordingDuration)}
-              </span>
-            )}
-          </div>
-          
-          {/* Bouton d'enregistrement */}
-          <button
-            className={`p-4 rounded-full transition-all duration-200 shadow-lg ${
-              isRecording 
-                ? 'bg-red-500 hover:bg-red-600 scale-110' 
-                : 'bg-gradient-to-br from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700'
-            }`}
-            onMouseDown={onStartRecording}
-            onMouseUp={onStopRecording}
-            onMouseLeave={onStopRecording}
-            onTouchStart={onStartRecording}
-            onTouchEnd={onStopRecording}
-            title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
-          >
-            <Mic size={24} className="text-white" />
-          </button>
-          
-          {/* Instructions */}
-          <span className="text-white/80 text-sm">
-            {isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
-          </span>
-        </div>
-      ) : (
-        // Interface de prévisualisation
-        <div className="flex items-center justify-center space-x-4">
-          {/* Bouton play/pause */}
-          <button
-            className="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-            onClick={isPreviewPlaying ? onStopPreview : onPlayPreview}
-            title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
-          >
-            {isPreviewPlaying ? <Pause size={20} /> : <Play size={20} />}
-          </button>
-          
-          {/* Durée de l'enregistrement */}
-          <span className="text-white font-mono text-sm">
-            {formatRecordingDuration(recordingDuration)}
-          </span>
-          
-          {/* Boutons d'action */}
-          <div className="flex space-x-2">
-            <button
-              className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 transition-colors text-white text-sm"
-              onClick={onCancelRecording}
-              title="Annuler"
-            >
-              <X size={16} />
-            </button>
-            
-            <button
-              className="px-4 py-2 rounded-lg bg-green-500 hover:bg-green-600 transition-colors text-white text-sm flex items-center space-x-1"
-              onClick={onSendRecording}
-              title="Envoyer"
-            >
-              <Send size={16} />
-              <span>Envoyer</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function MessageInputBar({
   newMessage,
   setNewMessage,
@@ -179,7 +68,13 @@ function MessageInputBar({
   uploading,
   testMicrophoneAccess,
   showSystemInfo,
-  recordingPreview
+  recordingPreview,
+  recordingDuration,
+  isPreviewPlaying,
+  playPreview,
+  stopPreview,
+  sendRecording,
+  cancelRecording
 }: any) {
   return (
     <div className="fixed bottom-16 left-0 w-full z-40 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
@@ -191,21 +86,48 @@ function MessageInputBar({
         <Paperclip size={20} className="text-purple-300" />
       </button>
       
-      {/* Masquer le bouton microphone si une prévisualisation est active */}
-      {!recordingPreview && (
+      {/* Bouton microphone amélioré avec animations */}
+      {!recordingPreview ? (
         <button
-          className={`p-2 rounded-full transition-colors shadow-md ${isRecording ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'}`}
+          className={`p-2 rounded-full transition-all duration-200 shadow-md ${
+            isRecording 
+              ? 'bg-red-500 hover:bg-red-600 scale-110' 
+              : 'bg-white/20 hover:bg-white/30'
+          }`}
           onMouseDown={startRecording}
           onMouseUp={stopRecording}
           onMouseLeave={stopRecording}
           onTouchStart={startRecording}
           onTouchEnd={stopRecording}
-          title="Message vocal"
+          title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
         >
           <Mic size={20} className="text-purple-300" />
+          {/* Animation d'enregistrement */}
+          {isRecording && (
+            <div className="absolute -top-1 -right-1 flex space-x-0.5">
+              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+              <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+            </div>
+          )}
         </button>
+      ) : (
+        // Interface de prévisualisation intégrée
+        <div className="flex items-center space-x-2 bg-purple-600/20 rounded-lg px-2 py-1">
+          <button
+            className="p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+            onClick={isPreviewPlaying ? stopPreview : playPreview}
+            title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
+          >
+            {isPreviewPlaying ? <Pause size={16} /> : <Play size={16} />}
+          </button>
+          <span className="text-white font-mono text-xs">
+            {formatRecordingDuration(recordingDuration)}
+          </span>
+        </div>
       )}
       
+      {/* Boutons de diagnostic */}
       <button
         className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
         onClick={testMicrophoneAccess}
@@ -220,6 +142,8 @@ function MessageInputBar({
       >
         <Settings size={20} className="text-purple-300" />
       </button>
+      
+      {/* Zone de saisie de texte */}
       <input
         type="text"
         value={newMessage}
@@ -227,16 +151,38 @@ function MessageInputBar({
         onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
         placeholder="Tapez votre message..."
         className="flex-1 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
-        disabled={uploading}
+        disabled={uploading || isRecording}
       />
-      <button
-        onClick={handleSendText}
-        disabled={!newMessage.trim() || uploading}
-        className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
-        title="Envoyer"
-      >
-        <Send size={20} className="text-white" />
-      </button>
+      
+      {/* Bouton d'envoi ou actions d'enregistrement */}
+      {recordingPreview ? (
+        <div className="flex space-x-1">
+          <button
+            className="p-2 rounded-full bg-red-500 hover:bg-red-600 transition-colors shadow-md"
+            onClick={cancelRecording}
+            title="Annuler"
+          >
+            <X size={20} className="text-white" />
+          </button>
+          <button
+            className="p-2 rounded-full bg-green-500 hover:bg-green-600 transition-colors shadow-md"
+            onClick={sendRecording}
+            title="Envoyer"
+          >
+            <Send size={20} className="text-white" />
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={handleSendText}
+          disabled={!newMessage.trim() || uploading || isRecording}
+          className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
+          title="Envoyer"
+        >
+          <Send size={20} className="text-white" />
+        </button>
+      )}
+      
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -1261,6 +1207,7 @@ Paramètres Linux à vérifier :
       </div>
 
       {/* Barre d’envoi indépendante, juste au-dessus de la BottomNav */}
+      {/* Barre d'envoi améliorée avec enregistrement vocal intégré */}
       <MessageInputBar
         newMessage={newMessage}
         setNewMessage={setNewMessage}
@@ -1274,20 +1221,12 @@ Paramètres Linux à vérifier :
         testMicrophoneAccess={testMicrophoneAccess}
         showSystemInfo={showSystemInfo}
         recordingPreview={recordingPreview}
-      />
-
-      {/* Composant pour l'interface d'enregistrement vocal */}
-      <VoiceRecordingInterface
-        isRecording={isRecording}
         recordingDuration={recordingDuration}
-        recordingPreview={recordingPreview}
         isPreviewPlaying={isPreviewPlaying}
-        onStartRecording={startRecording}
-        onStopRecording={stopRecording}
-        onPlayPreview={playPreview}
-        onStopPreview={stopPreview}
-        onSendRecording={sendRecording}
-        onCancelRecording={cancelRecording}
+        playPreview={playPreview}
+        stopPreview={stopPreview}
+        sendRecording={sendRecording}
+        cancelRecording={cancelRecording}
       />
     </div>
   );
