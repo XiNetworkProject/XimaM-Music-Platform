@@ -1017,6 +1017,8 @@ Paramètres Linux à vérifier :
       // Événements du MediaRecorder
       mediaRecorderRef.current.ondataavailable = (event) => {
         console.log('📦 Données audio reçues:', event.data.size, 'bytes');
+        console.log('📦 Type MIME:', event.data.type);
+        console.log('📦 Taille du chunk:', event.data.size, 'bytes');
         audioChunksRef.current.push(event.data);
       };
 
@@ -1052,6 +1054,24 @@ Paramètres Linux à vérifier :
           const previewUrl = URL.createObjectURL(audioBlob);
           setRecordingPreview(previewUrl);
           
+          // Test de lecture de l'audio enregistré
+          const testAudio = new Audio(previewUrl);
+          testAudio.onloadedmetadata = () => {
+            console.log('🎵 Audio test - Durée:', testAudio.duration, 'secondes');
+            console.log('🎵 Audio test - Taille:', audioBlob.size, 'bytes');
+            
+            // Test de lecture
+            testAudio.play().then(() => {
+              console.log('✅ Audio test - Lecture réussie');
+            }).catch(error => {
+              console.error('❌ Audio test - Erreur lecture:', error);
+            });
+          };
+          
+          testAudio.onerror = (error) => {
+            console.error('❌ Audio test - Erreur chargement:', error);
+          };
+          
           // Arrêter le stream
           stream.getTracks().forEach(track => {
             track.stop();
@@ -1085,6 +1105,32 @@ Paramètres Linux à vérifier :
           console.warn('⚠️ Enregistrement non démarré, état:', mediaRecorderRef.current?.state);
         }
       }, 100);
+      
+      // Test de niveau audio pour diagnostiquer
+      const audioContext = new AudioContext();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(stream);
+      microphone.connect(analyser);
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      const checkAudioLevel = () => {
+        if (isRecording) {
+          analyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+          console.log('🎵 Niveau audio moyen:', average);
+          
+          if (average > 10) {
+            console.log('✅ Son détecté par le microphone');
+          } else {
+            console.log('🔇 Aucun son détecté par le microphone');
+          }
+          
+          setTimeout(checkAudioLevel, 1000);
+        }
+      };
+      
+      setTimeout(checkAudioLevel, 500);
       
     } catch (error) {
       console.error('❌ Erreur startRecording:', error);
