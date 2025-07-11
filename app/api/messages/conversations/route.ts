@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db';
-import Conversation from '@/models/Conversation';
-import Message from '@/models/Message'; // <-- Ajouté pour Mongoose populate
-import User from '@/models/User'; // <-- Ajouté pour Mongoose populate
+import { initializeModels } from '@/lib/models';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
@@ -15,6 +13,12 @@ export async function GET(request: NextRequest) {
     console.log('📡 Tentative de connexion MongoDB...');
     await dbConnect();
     console.log('✅ Connexion MongoDB établie');
+    
+    // Initialiser tous les modèles pour éviter MissingSchemaError
+    console.log('📋 Initialisation des modèles...');
+    const models = initializeModels();
+    const { Conversation } = models;
+    console.log('✅ Modèles initialisés');
     
     // Vérification de la session
     console.log('🔐 Vérification session utilisateur...');
