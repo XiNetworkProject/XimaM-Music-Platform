@@ -49,15 +49,17 @@ export function usePlaysCounter(
     setError(null);
 
     try {
+      console.log(`🔄 Récupération écoutes pour ${trackId}...`);
       const response = await fetch(`/api/tracks/${trackId}/plays`);
       if (response.ok) {
         const data = await response.json();
         const newPlays = data.plays;
         if (typeof newPlays === 'number' && isMounted.current) {
+          const oldPlays = plays;
           setPlays(newPlays); // Toujours utiliser la valeur de l'API
           setLastUpdate(Date.now());
           hasFetched.current = true;
-          console.log(`📊 Écoutes récupérées pour ${trackId}: ${newPlays}`);
+          console.log(`📊 Écoutes récupérées pour ${trackId}: ${oldPlays} → ${newPlays}`);
         }
       } else {
         throw new Error('Erreur lors de la récupération des écoutes');
@@ -65,14 +67,14 @@ export function usePlaysCounter(
     } catch (err) {
       if (isMounted.current) {
         setError(err instanceof Error ? err.message : 'Erreur inconnue');
-        console.error('❌ Erreur récupération écoutes:', err);
+        console.error(`❌ Erreur récupération écoutes pour ${trackId}:`, err);
       }
     } finally {
       if (isMounted.current) {
         setIsUpdating(false);
       }
     }
-  }, [trackId, isUpdating]);
+  }, [trackId, isUpdating, plays]);
 
   // Fonction pour incrémenter les écoutes
   const incrementPlays = useCallback(async () => {
@@ -129,10 +131,12 @@ export function usePlaysCounter(
 
     const handleAudioEvent = (event: CustomEvent) => {
       if (event.detail?.trackId === trackId) {
-        // Rafraîchir les écoutes quand une piste commence à jouer
+        console.log(`🎵 Événement trackPlayed reçu pour ${trackId}, rafraîchissement des écoutes...`);
+        // Rafraîchir les écoutes immédiatement puis après un délai
+        fetchPlays();
         setTimeout(() => {
           fetchPlays();
-        }, 2000); // Attendre 2 secondes pour laisser le temps à l'API de s'incrémenter
+        }, 3000); // Attendre 3 secondes pour laisser le temps à l'API de s'incrémenter
       }
     };
 

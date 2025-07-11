@@ -55,11 +55,11 @@ function PlaysCounter({ trackId, size = 'sm' }: {
   return (
     <div className="flex items-center gap-1 text-gray-500">
       <Headphones size={size === 'sm' ? 12 : size === 'md' ? 14 : 16} />
-      <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'}`}>
+      <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'} ${isUpdating ? 'text-blue-500' : ''}`}>
         {formattedPlays}
       </span>
       {isUpdating && (
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" title="Mise à jour en cours..." />
       )}
       {error && (
         <div className="w-2 h-2 bg-red-500 rounded-full" title={error} />
