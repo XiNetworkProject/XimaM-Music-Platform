@@ -430,11 +430,14 @@ export const useAudioService = () => {
   const updatePlayCount = useCallback(async (trackId: string) => {
     // Éviter les doublons pour la même piste
     if (trackedPlays.has(trackId)) {
+      console.log(`🚫 Écoutes déjà en cours pour ${trackId}, ignoré`);
       return;
     }
     
     // Marquer cette piste comme en cours de mise à jour
     setTrackedPlays(prev => new Set([...Array.from(prev), trackId]));
+    
+    console.log(`🔄 Début incrémentation écoutes pour ${trackId}`);
     
     // Utiliser un debounce pour éviter les appels multiples
     const timeoutId = setTimeout(async () => {
@@ -447,23 +450,25 @@ export const useAudioService = () => {
         });
         
         if (!response.ok) {
-          console.error('Erreur lors de la mise à jour des écoutes');
+          console.error(`❌ Erreur lors de la mise à jour des écoutes pour ${trackId}:`, response.status);
         } else {
-          console.log(`✅ Écoutes mises à jour pour la piste ${trackId}`);
+          const data = await response.json();
+          console.log(`✅ Écoutes mises à jour pour la piste ${trackId}: ${data.plays}`);
         }
       } catch (error) {
-        console.error('Erreur mise à jour plays:', error);
+        console.error(`❌ Erreur mise à jour plays pour ${trackId}:`, error);
       } finally {
-        // Retirer la piste du suivi après un délai
+        // Retirer la piste du suivi après un délai plus long
         setTimeout(() => {
           setTrackedPlays(prev => {
             const newSet = new Set(prev);
             newSet.delete(trackId);
+            console.log(`🔓 Verrou libéré pour ${trackId}`);
             return newSet;
           });
-        }, 2000); // Attendre 2 secondes avant de permettre une nouvelle mise à jour
+        }, 5000); // Attendre 5 secondes avant de permettre une nouvelle mise à jour
       }
-    }, 1000); // Attendre 1 seconde avant d'incrémenter
+    }, 2000); // Attendre 2 secondes avant d'incrémenter
     
     return () => clearTimeout(timeoutId);
   }, [trackedPlays]);

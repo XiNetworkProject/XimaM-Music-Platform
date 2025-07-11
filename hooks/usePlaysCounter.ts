@@ -87,6 +87,8 @@ export function usePlaysCounter(
       setIsUpdating(true);
       setError(null);
 
+      console.log(`🔄 Hook: Début incrémentation écoutes pour ${trackId}`);
+
       try {
         const response = await fetch(`/api/tracks/${trackId}/plays`, {
           method: 'POST',
@@ -102,15 +104,16 @@ export function usePlaysCounter(
             setPlays(newPlays); // Toujours utiliser la valeur de l'API
             setLastUpdate(Date.now());
             hasFetched.current = true;
-            console.log(`✅ Écoutes incrémentées pour ${trackId}: ${newPlays}`);
+            console.log(`✅ Hook: Écoutes incrémentées pour ${trackId}: ${newPlays}`);
           }
         } else {
-          throw new Error('Erreur lors de l\'incrémentation des écoutes');
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Erreur lors de l\'incrémentation des écoutes');
         }
       } catch (err) {
         if (isMounted.current) {
           setError(err instanceof Error ? err.message : 'Erreur inconnue');
-          console.error('❌ Erreur incrémentation écoutes:', err);
+          console.error(`❌ Hook: Erreur incrémentation écoutes pour ${trackId}:`, err);
         }
       } finally {
         if (isMounted.current) {

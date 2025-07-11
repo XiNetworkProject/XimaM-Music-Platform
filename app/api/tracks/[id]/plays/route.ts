@@ -10,6 +10,10 @@ import '@/models/Track';
 import '@/models/Subscription';
 import '@/models/UserSubscription';
 
+// Système de verrous pour éviter les doublons d'incrémentation
+const playLocks = new Map<string, { timestamp: number; userId: string }>();
+const LOCK_DURATION = 5000; // 5 secondes
+
 // POST - Incrémenter le nombre d'écoutes
 export async function POST(
   request: NextRequest,
@@ -23,6 +27,7 @@ export async function POST(
 
     await dbConnect();
     const trackId = params.id;
+    const userId = session.user.id;
 
     // Vérifier si la piste existe
     const track = await Track.findById(trackId);
@@ -30,8 +35,22 @@ export async function POST(
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
+    // Vérifier le verrou pour éviter les doublons
+    const lockKey = `${trackId}-${userId}`;
+    const existingLock = playLocks.get(lockKey);
+    const now = Date.now();
+    
+    if (existingLock && (now - existingLock.timestamp) < LOCK_DURATION) {
+      console.log(`🔒 Verrou actif pour ${trackId} par ${userId}, écoutes non incrémentées`);
+      return NextResponse.json({
+        success: true,
+        plays: track.plays,
+        message: 'Écoutes déjà incrémentées récemment'
+      });
+    }
+
     // Vérifier les limites d'abonnement pour les écoutes
-    const playCheck = await subscriptionService.canPerformAction(session.user.id, 'plays');
+    const playCheck = await subscriptionService.canPerformAction(userId, 'plays');
     if (!playCheck.allowed) {
       return NextResponse.json(
         { 
@@ -42,6 +61,9 @@ export async function POST(
       );
     }
 
+    // Placer le verrou
+    playLocks.set(lockKey, { timestamp: now, userId });
+
     // Incrémenter le nombre d'écoutes
     const updatedTrack = await Track.findByIdAndUpdate(
       trackId,
@@ -50,7 +72,9 @@ export async function POST(
     ).populate('artist', 'name username avatar');
 
     // Incrémenter l'utilisation d'écoutes de l'utilisateur
-    await subscriptionService.incrementUsage(session.user.id, 'plays');
+    await subscriptionService.incrementUsage(userId, 'plays');
+
+    console.log(`✅ Écoutes incrémentées pour ${trackId} par ${userId}: ${updatedTrack.plays}`);
 
     return NextResponse.json({
       success: true,
