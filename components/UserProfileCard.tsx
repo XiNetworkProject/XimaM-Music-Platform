@@ -2,354 +2,307 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Users, Music, Heart, Play, Plus, Check, Star, MapPin, Globe, Instagram, Twitter, Youtube } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { formatNumber, formatDate } from '@/lib/utils';
+import { User, Music, Heart, Users, Calendar, MapPin, Link as LinkIcon, Edit, Settings } from 'lucide-react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useSession } from 'next-auth/react';
+import SocialStats from './SocialStats';
 
-interface UserProfileCardProps {
-  user: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-    banner?: string;
-    bio?: string;
-    location?: string;
-    website?: string;
-    socialLinks?: {
-      instagram?: string;
-      twitter?: string;
-      youtube?: string;
-    };
-    followers: string[];
-    following: string[];
-    tracks: string[];
-    totalPlays: number;
-    totalLikes: number;
-    isVerified: boolean;
-    isArtist: boolean;
-    artistName?: string;
-    createdAt: string;
-  };
-  variant?: 'default' | 'compact' | 'featured';
-  showActions?: boolean;
-  className?: string;
+interface UserProfile {
+  _id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  banner?: string;
+  bio?: string;
+  location?: string;
+  website?: string;
+  isVerified: boolean;
+  followerCount: number;
+  followingCount: number;
+  trackCount: number;
+  playlistCount: number;
+  totalPlays: number;
+  totalLikes: number;
+  createdAt: string;
+  isFollowing: boolean;
 }
 
-export default function UserProfileCard({ 
-  user, 
-  variant = 'default',
+interface UserProfileCardProps {
+  user: UserProfile;
+  showActions?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+  onProfileUpdate?: (user: UserProfile) => void;
+}
+
+export default function UserProfileCard({
+  user,
   showActions = true,
-  className = ''
+  size = 'md',
+  className = '',
+  onProfileUpdate
 }: UserProfileCardProps) {
-  const router = useRouter();
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [showSocialLinks, setShowSocialLinks] = useState(false);
+  const { data: session } = useSession();
+  const [isEditing, setIsEditing] = useState(false);
+  const isOwnProfile = session?.user?.id === user._id;
 
-  const handleFollow = async () => {
-    try {
-      const response = await fetch(`/api/users/${user._id}/follow`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (response.ok) {
-        setIsFollowing(!isFollowing);
-      }
-    } catch (error) {
-      console.error('Erreur follow:', error);
+  const sizeClasses = {
+    sm: {
+      container: 'p-4',
+      avatar: 'w-16 h-16',
+      banner: 'h-20',
+      name: 'text-lg',
+      username: 'text-sm',
+      bio: 'text-sm'
+    },
+    md: {
+      container: 'p-6',
+      avatar: 'w-20 h-20',
+      banner: 'h-24',
+      name: 'text-xl',
+      username: 'text-base',
+      bio: 'text-base'
+    },
+    lg: {
+      container: 'p-8',
+      avatar: 'w-24 h-24',
+      banner: 'h-32',
+      name: 'text-2xl',
+      username: 'text-lg',
+      bio: 'text-lg'
     }
   };
 
-  const handleProfileClick = () => {
-    router.push(`/profile/${user.username}`);
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long'
+    });
   };
 
-  const cardVariants = {
-    default: 'p-6 rounded-3xl',
-    compact: 'p-4 rounded-2xl',
-    featured: 'p-8 rounded-3xl'
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
   };
 
-  const imageSizes = {
-    default: 'w-20 h-20',
-    compact: 'w-16 h-16',
-    featured: 'w-32 h-32'
+  const handleStatsUpdate = (stats: any) => {
+    if (onProfileUpdate) {
+      onProfileUpdate({
+        ...user,
+        followerCount: stats.followers || user.followerCount,
+        followingCount: stats.following || user.followingCount
+      });
+    }
   };
 
   return (
     <motion.div
-      className={`card-modern ${cardVariants[variant]} ${className}`}
-      onHoverStart={() => setIsHovered(true)}
-      onHoverEnd={() => setIsHovered(false)}
-      whileHover={{ y: -5, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
+      className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden ${sizeClasses[size].container} ${className}`}
     >
-      {/* Effet de particules en arrière-plan */}
-      <AnimatePresence>
-        {isHovered && (
-          <div className="absolute inset-0 overflow-hidden rounded-3xl">
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={`particle-${i}`}
-                className="absolute w-1 h-1 bg-white/20 rounded-full"
-                initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
-                animate={{
-                  x: [0, Math.random() * 100 - 50],
-                  y: [0, Math.random() * 100 - 50],
-                  opacity: [0, 1, 0],
-                  scale: [0, 1, 0],
-                }}
-                transition={{
-                  duration: 2,
-                  repeat: Infinity,
-                  delay: i * 0.3,
-                  ease: "easeInOut"
-                }}
-                style={{
-                  left: `${20 + i * 30}%`,
-                  top: '50%',
-                }}
-              />
-            ))}
-          </div>
+      {/* Bannière */}
+      <div className={`relative ${sizeClasses[size].banner} bg-gradient-to-r from-purple-500 to-pink-500`}>
+        {user.banner && (
+          <Image
+            src={user.banner}
+            alt="Bannière"
+            fill
+            className="object-cover"
+          />
         )}
-      </AnimatePresence>
+        
+        {/* Avatar */}
+        <div className={`absolute -bottom-8 left-6 ${sizeClasses[size].avatar} rounded-full border-4 border-white dark:border-gray-800 bg-white dark:bg-gray-800 overflow-hidden`}>
+          {user.avatar ? (
+            <Image
+              src={user.avatar}
+              alt={user.name}
+              fill
+              className="object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <User className="text-white" size={size === 'sm' ? 20 : size === 'md' ? 24 : 28} />
+            </div>
+          )}
+        </div>
 
-      <div className="relative z-10">
-        {/* Header avec avatar et infos principales */}
-        <div className="flex items-start space-x-4">
-          {/* Avatar avec animation */}
-          <motion.div 
-            className={`relative ${imageSizes[variant]} rounded-2xl overflow-hidden group cursor-pointer`}
-            whileHover={{ scale: 1.05, rotate: 2 }}
-            transition={{ duration: 0.3 }}
-            onClick={handleProfileClick}
+        {/* Badge vérifié */}
+        {user.isVerified && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"
           >
-            {user.avatar ? (
-              <img
-                src={user.avatar}
-                alt={user.name}
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <User size={32} className="text-white" />
-              </div>
-            )}
-
-            {/* Badge vérifié */}
-            {user.isVerified && (
-              <motion.div
-                className="absolute -top-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <Check size={12} className="text-white" />
-              </motion.div>
-            )}
-
-            {/* Badge artiste */}
-            {user.isArtist && (
-              <motion.div
-                className="absolute -bottom-1 -left-1 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center"
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ delay: 0.3 }}
-              >
-                <Star size={12} className="text-white" />
-              </motion.div>
-            )}
+            <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+            </svg>
           </motion.div>
+        )}
 
-          {/* Informations utilisateur */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <motion.h3 
-                  className="font-bold text-white text-lg sm:text-xl truncate"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
+        {/* Actions */}
+        {showActions && (
+          <div className="absolute top-2 right-2 flex gap-2">
+            {isOwnProfile ? (
+              <>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
+                  onClick={() => setIsEditing(true)}
                 >
-                  {user.name}
-                  {user.isArtist && user.artistName && (
-                    <span className="text-purple-400 ml-2">({user.artistName})</span>
-                  )}
-                </motion.h3>
-                
-                <motion.p 
-                  className="text-gray-400 text-sm sm:text-base"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  @{user.username}
-                </motion.p>
-
-                {user.bio && (
-                  <motion.p 
-                    className="text-gray-300 text-sm mt-2 line-clamp-2"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    {user.bio}
-                  </motion.p>
-                )}
-
-                {/* Localisation et site web */}
-                <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                  {user.location && (
-                    <div className="flex items-center space-x-1">
-                      <MapPin size={12} />
-                      <span>{user.location}</span>
-                    </div>
-                  )}
-                  {user.website && (
-                    <div className="flex items-center space-x-1">
-                      <Globe size={12} />
-                      <span>{user.website}</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Actions */}
-              {showActions && (
-                <div className="flex items-center space-x-2 ml-4">
+                  <Edit size={16} />
+                </motion.button>
+                <Link href="/settings">
                   <motion.button
-                    onClick={handleFollow}
-                    className={`px-4 py-2 rounded-2xl font-semibold transition-all duration-200 ${
-                      isFollowing 
-                        ? 'bg-gray-600 text-white' 
-                        : 'bg-purple-500 text-white hover:bg-purple-600'
-                    }`}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
+                    className="p-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors"
                   >
-                    {isFollowing ? (
-                      <div className="flex items-center space-x-1">
-                        <Check size={16} />
-                        <span>Suivi</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center space-x-1">
-                        <Plus size={16} />
-                        <span>Suivre</span>
-                      </div>
-                    )}
+                    <Settings size={16} />
                   </motion.button>
-                </div>
-              )}
-            </div>
-
-            {/* Statistiques */}
-            <motion.div 
-              className="flex items-center space-x-6 mt-4"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <div className="flex items-center space-x-2">
-                <Users size={16} className="text-blue-400" />
-                <div>
-                  <div className="text-white font-semibold">{formatNumber(user.followers.length)}</div>
-                  <div className="text-xs text-gray-400">Abonnés</div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Music size={16} className="text-green-400" />
-                <div>
-                  <div className="text-white font-semibold">{formatNumber(user.tracks.length)}</div>
-                  <div className="text-xs text-gray-400">Pistes</div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Play size={16} className="text-purple-400" />
-                <div>
-                  <div className="text-white font-semibold">{formatNumber(user.totalPlays)}</div>
-                  <div className="text-xs text-gray-400">Écoutes</div>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Heart size={16} className="text-red-400" />
-                <div>
-                  <div className="text-white font-semibold">{formatNumber(user.totalLikes)}</div>
-                  <div className="text-xs text-gray-400">Likes</div>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Liens sociaux */}
-            {user.socialLinks && Object.keys(user.socialLinks).length > 0 && (
-              <motion.div 
-                className="flex items-center space-x-3 mt-4"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                {user.socialLinks.instagram && (
-                  <motion.a
-                    href={user.socialLinks.instagram}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:scale-110 transition-all duration-200"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Instagram size={16} />
-                  </motion.a>
-                )}
-
-                {user.socialLinks.twitter && (
-                  <motion.a
-                    href={user.socialLinks.twitter}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-full bg-blue-500 text-white hover:scale-110 transition-all duration-200"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Twitter size={16} />
-                  </motion.a>
-                )}
-
-                {user.socialLinks.youtube && (
-                  <motion.a
-                    href={user.socialLinks.youtube}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 rounded-full bg-red-500 text-white hover:scale-110 transition-all duration-200"
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    <Youtube size={16} />
-                  </motion.a>
-                )}
-              </motion.div>
+                </Link>
+              </>
+            ) : (
+              <SocialStats
+                userId={user._id}
+                initialStats={{
+                  followers: user.followerCount,
+                  following: user.followingCount
+                }}
+                size="sm"
+                showLabels={false}
+                onStatsUpdate={handleStatsUpdate}
+              />
             )}
+          </div>
+        )}
+      </div>
 
-            {/* Date d'inscription */}
-            <motion.div 
-              className="text-xs text-gray-500 mt-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
+      {/* Informations du profil */}
+      <div className="mt-8 space-y-4">
+        {/* Nom et nom d'utilisateur */}
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className={`font-bold text-gray-900 dark:text-white ${sizeClasses[size].name}`}>
+              {user.name}
+            </h1>
+            {user.isVerified && (
+              <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+              </div>
+            )}
+          </div>
+          <p className={`text-gray-600 dark:text-gray-400 ${sizeClasses[size].username}`}>
+            @{user.username}
+          </p>
+        </div>
+
+        {/* Bio */}
+        {user.bio && (
+          <p className={`text-gray-700 dark:text-gray-300 ${sizeClasses[size].bio}`}>
+            {user.bio}
+          </p>
+        )}
+
+        {/* Informations supplémentaires */}
+        <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+          {user.location && (
+            <div className="flex items-center gap-1">
+              <MapPin size={14} />
+              <span>{user.location}</span>
+            </div>
+          )}
+          
+          {user.website && (
+            <a
+              href={user.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
             >
-              Membre depuis {formatDate(user.createdAt)}
-            </motion.div>
+              <LinkIcon size={14} />
+              <span>Site web</span>
+            </a>
+          )}
+          
+          <div className="flex items-center gap-1">
+            <Calendar size={14} />
+            <span>Membre depuis {formatDate(user.createdAt)}</span>
           </div>
         </div>
+
+        {/* Statistiques */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-purple-600 mb-1">
+              <Music size={16} />
+              <span className="font-semibold">{formatNumber(user.trackCount)}</span>
+            </div>
+            <span className="text-xs text-gray-500">Pistes</span>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-green-600 mb-1">
+              <Users size={16} />
+              <span className="font-semibold">{formatNumber(user.followerCount)}</span>
+            </div>
+            <span className="text-xs text-gray-500">Abonnés</span>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-blue-600 mb-1">
+              <Heart size={16} />
+              <span className="font-semibold">{formatNumber(user.totalLikes)}</span>
+            </div>
+            <span className="text-xs text-gray-500">J'aime</span>
+          </div>
+          
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-1 text-orange-600 mb-1">
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" />
+              </svg>
+              <span className="font-semibold">{formatNumber(user.totalPlays)}</span>
+            </div>
+            <span className="text-xs text-gray-500">Écoutes</span>
+          </div>
+        </div>
+
+        {/* Actions principales */}
+        {showActions && !isOwnProfile && (
+          <div className="flex gap-3 pt-4">
+            <SocialStats
+              userId={user._id}
+              initialStats={{
+                followers: user.followerCount,
+                following: user.followingCount
+              }}
+              size="md"
+              showLabels={true}
+              onStatsUpdate={handleStatsUpdate}
+            />
+            
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              Voir les pistes
+            </motion.button>
+          </div>
+        )}
       </div>
     </motion.div>
   );

@@ -9,47 +9,17 @@ import {
   Users, 
   User,
   Settings,
-  Heart,
-  Radio
+  Library, 
+  MessageCircle
 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 
 const navItems = [
-  {
-    id: 'home',
-    label: 'Accueil',
-    icon: Home,
-    path: '/',
-    color: 'from-purple-500 to-pink-500'
-  },
-  {
-    id: 'discover',
-    label: 'Découvrir',
-    icon: Search,
-    path: '/discover',
-    color: 'from-blue-500 to-cyan-500'
-  },
-  {
-    id: 'library',
-    label: 'Bibliothèque',
-    icon: Music,
-    path: '/library',
-    color: 'from-green-500 to-emerald-500'
-  },
-  {
-    id: 'community',
-    label: 'Communauté',
-    icon: Users,
-    path: '/community',
-    color: 'from-orange-500 to-red-500'
-  },
-  {
-    id: 'profile',
-    label: 'Profil',
-    icon: User,
-    path: '/settings',
-    color: 'from-indigo-500 to-purple-500'
-  },
+  { href: '/', icon: Home, label: 'Accueil' },
+  { href: '/discover', icon: Search, label: 'Découvrir' },
+  { href: '/library', icon: Library, label: 'Bibliothèque' },
+  { href: '/messages', icon: MessageCircle, label: 'Messages' },
+  { href: '/profile', icon: User, label: 'Profil' },
 ];
 
 // Cache pour les pages visitées
@@ -121,48 +91,45 @@ export default function BottomNav() {
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
-        {/* Effet de glassmorphism avec gradient amélioré */}
+        {/* Effet de glassmorphism avec gradient */}
         <div className="relative">
-          {/* Fond avec effet de flou et gradient moderne */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/80 to-transparent backdrop-blur-2xl" />
+          {/* Fond avec effet de flou et gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent backdrop-blur-xl" />
       
-          {/* Ligne de séparation avec effet lumineux animé */}
-          <div className="absolute top-0 left-0 right-0 h-px">
-            <div className="h-full bg-gradient-to-r from-transparent via-purple-500/60 to-transparent animate-pulse" />
-          </div>
+          {/* Ligne de séparation avec effet lumineux */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-purple-500/50 to-transparent" />
           
           {/* Conteneur principal */}
-          <div className="relative px-4 py-4">
+          <div className="relative px-4 py-3">
             <div className="flex items-center justify-around max-w-md mx-auto">
               {navItems.map((item, index) => {
-                const isActive = isItemActive(item.path);
-                const IconComponent = item.icon;
+                const isActive = isItemActive(item.href);
             
-                return (
-                  <motion.button
-                    key={item.id}
-                    onClick={() => handleNavigation(item.path)}
-                    className="relative flex flex-col items-center space-y-2 px-4 py-3 rounded-3xl transition-all duration-300 group"
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
-                    initial={{ opacity: 0, y: 20 }}
+            return (
+              <motion.button
+                key={item.href}
+                onClick={() => handleNavigation(item.href)}
+                    className="relative flex flex-col items-center space-y-1 px-3 py-2 rounded-2xl transition-all duration-200 group"
+                    whileHover={{ scale: 1.05, y: -1 }}
+                whileTap={{ scale: 0.95 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1, duration: 0.4 }}
-                  >
-                    {/* Indicateur actif avec animation améliorée */}
+                    transition={{ delay: index * 0.05, duration: 0.3 }}
+              >
+                    {/* Indicateur actif avec animation optimisée */}
                     <AnimatePresence mode="wait">
-                      {isActive && (
-                        <motion.div
-                          key={`active-${item.id}-${pathname}`}
-                          className={`absolute inset-0 bg-gradient-to-r ${item.color} rounded-3xl border border-white/20 shadow-lg`}
-                          initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
-                          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                          exit={{ opacity: 0, scale: 0.8, rotate: 5 }}
+                {isActive && (
+                  <motion.div
+                          key={`active-${item.href}-${pathname}`}
+                          className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl border border-purple-500/30"
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.8 }}
                           transition={{ 
                             type: "spring", 
                             stiffness: 400, 
                             damping: 25,
-                            duration: 0.3
+                            duration: 0.2
                           }}
                         />
                       )}
@@ -171,90 +138,129 @@ export default function BottomNav() {
                     {/* Effet de particules optimisé pour l'élément actif */}
                     <AnimatePresence>
                       {isActive && (
-                        <div className="absolute inset-0 overflow-hidden rounded-3xl">
-                          {[...Array(5)].map((_, i) => (
+                        <div className="absolute inset-0 overflow-hidden rounded-2xl">
+                          {[...Array(3)].map((_, i) => (
                             <motion.div
-                              key={`${item.id}-particle-${i}-${pathname}`}
-                              className="absolute w-1 h-1 bg-white/60 rounded-full"
-                              initial={{ x: 0, y: 0, opacity: 0, scale: 0 }}
+                              key={`${item.href}-particle-${i}-${pathname}`}
+                              className="absolute w-1 h-1 bg-purple-400 rounded-full"
+                              initial={{ x: 0, y: 0, opacity: 0 }}
                               animate={{
-                                x: [0, Math.random() * 30 - 15],
-                                y: [0, Math.random() * 30 - 15],
+                                x: [0, Math.random() * 20 - 10],
+                                y: [0, Math.random() * 20 - 10],
                                 opacity: [0, 1, 0],
-                                scale: [0, 1, 0],
                               }}
                               transition={{
-                                duration: 2.5,
+                                duration: 2,
                                 repeat: Infinity,
-                                delay: i * 0.2,
+                                delay: i * 0.3,
                                 ease: "easeInOut"
                               }}
                               style={{
-                                left: `${20 + i * 15}%`,
+                                left: `${20 + i * 20}%`,
                                 top: '50%',
                               }}
-                            />
+                  />
                           ))}
                         </div>
                       )}
                     </AnimatePresence>
                 
-                    {/* Icône avec animation améliorée */}
+                    {/* Icône avec animation optimisée */}
                     <motion.div 
                       className="relative z-10"
-                      key={`${item.id}-icon-${pathname}`}
+                      key={`${item.href}-icon-${pathname}`}
                       initial={isActive ? { scale: 1, rotate: 0 } : { scale: 1, rotate: 0 }}
                       animate={isActive ? { 
-                        scale: [1, 1.15, 1],
-                        rotate: [0, 5, -5, 0]
+                        scale: [1, 1.1, 1],
+                        rotate: [0, 2, -2, 0]
                       } : {
                         scale: 1,
                         rotate: 0
                       }}
-                      transition={{
-                        duration: 0.6,
-                        ease: "easeInOut"
+                      transition={{ 
+                        duration: 0.6, 
+                        repeat: isActive ? Infinity : 0, 
+                        repeatDelay: 2,
+                        type: "spring",
+                        stiffness: 300
                       }}
                     >
-                      <IconComponent 
-                        size={24} 
-                        className={`transition-all duration-300 ${
+                  <item.icon 
+                        size={22} 
+                        className={`transition-all duration-200 ${
                           isActive 
-                            ? 'text-white drop-shadow-lg' 
-                            : 'text-gray-400 group-hover:text-white'
-                        }`}
-                      />
+                            ? 'text-purple-400 drop-shadow-lg' 
+                            : 'text-white/60 group-hover:text-white/80'
+                    }`} 
+                  />
+                      
+                      {/* Effet de glow optimisé pour l'icône active */}
+                      <AnimatePresence>
+                        {isActive && (
+                          <motion.div
+                            key={`${item.href}-glow-${pathname}`}
+                            className="absolute inset-0 bg-purple-400 rounded-full blur-md opacity-30"
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: [1, 1.2, 1], opacity: 0.3 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ duration: 0.4, repeat: Infinity, repeatDelay: 1.5 }}
+                          />
+                        )}
+                      </AnimatePresence>
                     </motion.div>
-                    
-                    {/* Label avec animation */}
+                
+                    {/* Label avec animation optimisée */}
                     <motion.span 
-                      className={`text-xs font-medium transition-all duration-300 ${
+                      key={`${item.href}-label-${pathname}`}
+                      className={`text-xs font-medium transition-all duration-200 relative z-10 ${
                         isActive 
-                          ? 'text-white font-semibold' 
-                          : 'text-gray-400 group-hover:text-white'
-                      }`}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 + 0.2 }}
-                    >
-                      {item.label}
+                          ? 'text-purple-400 font-semibold' 
+                          : 'text-white/60 group-hover:text-white/80'
+                  }`}
+                      initial={isActive ? { y: 0, scale: 1 } : { y: 0, scale: 1 }}
+                      animate={isActive ? { 
+                        y: [0, -1, 0],
+                        scale: [1, 1.02, 1]
+                      } : {
+                        y: 0,
+                        scale: 1
+                      }}
+                      transition={{ 
+                        duration: 0.6, 
+                        repeat: isActive ? Infinity : 0, 
+                        repeatDelay: 2,
+                        type: "spring",
+                        stiffness: 300
+                      }}
+                >
+                  {item.label}
                     </motion.span>
                     
-                    {/* Indicateur de notification (optionnel) */}
-                    {item.id === 'community' && (
-                      <motion.div
-                        className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{ delay: 0.5 }}
-                      />
-                    )}
-                  </motion.button>
-                );
-              })}
-            </div>
-          </div>
+                    {/* Effet de hover avec gradient */}
+                    <motion.div
+                      className="absolute inset-0 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    />
+              </motion.button>
+            );
+          })}
         </div>
+      </div>
+          
+          {/* Effet de bordure inférieure avec animation optimisée */}
+          <div className="absolute bottom-0 left-0 right-0 h-px">
+            <motion.div
+              className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500"
+              animate={{ 
+                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'] 
+              }}
+              transition={{ 
+                duration: 4, 
+                repeat: Infinity, 
+                ease: 'linear' 
+              }}
+            />
+          </div>
+    </div>
       </motion.div>
     </>
   );
