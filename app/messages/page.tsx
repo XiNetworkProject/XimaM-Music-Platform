@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 interface Conversation {
   _id: string;
@@ -181,6 +182,8 @@ const RequestActions = ({
   </motion.div>
 );
 
+
+
 export default function MessagesPage() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -189,6 +192,17 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+
+  // Collecter tous les IDs d'utilisateurs des conversations
+  const userIds = conversations
+    .map(conv => {
+      const otherUser = getOtherParticipant(conv);
+      return otherUser?._id;
+    })
+    .filter(Boolean) as string[];
+
+  // Utiliser le nouveau hook pour les statuts en ligne
+  const { onlineStatuses, isLoading: statusLoading, formatLastSeen } = useOnlineStatus(userIds);
 
   // Charger les conversations
   useEffect(() => {
@@ -400,10 +414,10 @@ export default function MessagesPage() {
                   const otherUser = getOtherParticipant(conversation);
                   if (!otherUser) return null;
 
-                  // Pour l'instant, on ne simule pas de statuts en ligne
-                  // En production, vous devriez recevoir les vrais statuts du serveur
-                  const isOnline = false; // Par défaut, on suppose que l'utilisateur est hors ligne
-                  const isTyping = false; // Pas de frappe simulée
+                  // Trouver le statut en ligne pour cet utilisateur
+                  const userStatus = onlineStatuses.find(status => status.userId === otherUser._id);
+                  const isOnline = userStatus?.isOnline || false;
+                  const isTyping = false; // Pas de frappe simulée pour l'instant
 
                   return (
                                           <motion.div

@@ -80,22 +80,66 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Fonction pour déterminer si un utilisateur est en ligne basé sur son lastSeen
+  const determineOnlineStatus = useCallback((lastSeen: Date) => {
+    const now = new Date();
+    const timeDiff = now.getTime() - lastSeen.getTime();
+    const minutesDiff = timeDiff / (1000 * 60);
+    
+    // Considérer en ligne si vu il y a moins de 5 minutes
+    return minutesDiff < 5;
+  }, []);
+
+  // Fonction pour formater le lastSeen de manière plus intelligente
+  const formatLastSeen = useCallback((lastSeen: Date) => {
+    const now = new Date();
+    const timeDiff = now.getTime() - lastSeen.getTime();
+    const minutesDiff = timeDiff / (1000 * 60);
+    const hoursDiff = minutesDiff / 60;
+    const daysDiff = hoursDiff / 24;
+
+    if (minutesDiff < 1) return 'À l\'instant';
+    if (minutesDiff < 60) return `Il y a ${Math.floor(minutesDiff)} min`;
+    if (hoursDiff < 24) return `Il y a ${Math.floor(hoursDiff)}h`;
+    if (daysDiff < 7) return `Il y a ${Math.floor(daysDiff)}j`;
+    return `Il y a ${Math.floor(daysDiff)}j`;
+  }, []);
+
   useEffect(() => {
-    // Pour l'instant, on simule une connexion mais sans fausses données
+    // Simuler une connexion WebSocket plus réaliste
     const connectWebSocket = () => {
       console.log('🔌 Tentative de connexion WebSocket...');
       
-      // Simulation d'une connexion WebSocket (en production, utilisez un vrai serveur WebSocket)
+      // Simulation d'une connexion WebSocket
       setIsConnected(true);
       
-      // Pour l'instant, on ne simule pas de statuts en ligne
-      // En production, vous devriez recevoir les vrais statuts du serveur WebSocket
-      setOnlineStatus(prev => ({
-        ...prev,
-        isOnline: false, // Par défaut, on suppose que l'utilisateur est hors ligne
-        isTyping: false,
-        lastSeen: new Date(Date.now() - 300000) // Il y a 5 minutes par défaut
-      }));
+      // Simuler un statut en ligne basé sur l'activité récente
+      // En production, vous recevriez ces données du serveur WebSocket
+      const simulateOnlineStatus = () => {
+        const now = new Date();
+        const randomActivity = Math.random();
+        
+        // 30% de chance d'être en ligne (plus réaliste)
+        const isOnline = randomActivity < 0.3;
+        
+        // Simuler un lastSeen basé sur l'activité
+        const lastSeen = isOnline 
+          ? new Date(now.getTime() - Math.random() * 300000) // Entre maintenant et 5 min
+          : new Date(now.getTime() - (5 + Math.random() * 60) * 60000); // Entre 5 min et 1h
+        
+        setOnlineStatus(prev => ({
+          ...prev,
+          isOnline,
+          lastSeen,
+          isTyping: false
+        }));
+      };
+
+      // Simuler le statut initial
+      simulateOnlineStatus();
+
+      // Mettre à jour le statut toutes les 30 secondes
+      const statusInterval = setInterval(simulateOnlineStatus, 30000);
 
       // Heartbeat pour maintenir la connexion
       heartbeatRef.current = setInterval(() => {
@@ -106,6 +150,7 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
         }
+        clearInterval(statusInterval);
       };
     };
 
@@ -128,7 +173,8 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
   return {
     onlineStatus,
     isConnected,
-    sendTypingStatus
+    sendTypingStatus,
+    formatLastSeen
   };
 };
 
@@ -337,17 +383,11 @@ const MessageStatus = ({ message, isOwnMessage, readStatuses, currentUserId }: {
 };
 
 // Composant pour afficher le statut en ligne avec plus de détails
-const OnlineStatusIndicator = ({ onlineStatus, isConnected }: { onlineStatus: OnlineStatus; isConnected: boolean }) => {
-  const formatLastSeen = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 1) return 'À l\'instant';
-    if (minutes < 60) return `Il y a ${minutes} min`;
-    if (minutes < 1440) return `Il y a ${Math.floor(minutes / 60)}h`;
-    return `Il y a ${Math.floor(minutes / 1440)}j`;
-  };
+const OnlineStatusIndicator = ({ onlineStatus, isConnected, formatLastSeen }: { 
+  onlineStatus: OnlineStatus; 
+  isConnected: boolean;
+  formatLastSeen: (date: Date) => string;
+}) => {
 
   return (
     <motion.div 
@@ -1764,7 +1804,7 @@ Paramètres Linux à vérifier :
   }
 
   const otherUser = getOtherParticipant();
-  const { onlineStatus, isConnected, sendTypingStatus } = useOnlineStatus(conversationId, otherUser?._id || '');
+  const { onlineStatus, isConnected, sendTypingStatus, formatLastSeen } = useOnlineStatus(conversationId, otherUser?._id || '');
   const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session?.user?.id || '');
 
   // Observer les messages pour marquer comme lus
@@ -1836,7 +1876,7 @@ Paramètres Linux à vérifier :
               <UserAvatar user={otherUser} onlineStatus={onlineStatus} isConnected={isConnected} />
               <div>
                 <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
-                <OnlineStatusIndicator onlineStatus={onlineStatus} isConnected={isConnected} />
+                <OnlineStatusIndicator onlineStatus={onlineStatus} isConnected={isConnected} formatLastSeen={formatLastSeen} />
               </div>
             </motion.div>
           ) : conversationLoading ? (
