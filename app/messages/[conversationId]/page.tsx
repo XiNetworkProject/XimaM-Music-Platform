@@ -17,7 +17,8 @@ import {
   X,
   Check,
   Clock,
-  Paperclip
+  Paperclip,
+  Settings
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
@@ -58,7 +59,8 @@ function MessageInputBar({
   startRecording,
   stopRecording,
   uploading,
-  testMicrophoneAccess
+  testMicrophoneAccess,
+  showSystemInfo
 }: any) {
   return (
     <div className="fixed bottom-16 left-0 w-full z-40 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
@@ -86,6 +88,13 @@ function MessageInputBar({
         title="Tester le microphone"
       >
         <Volume2 size={20} className="text-purple-300" />
+      </button>
+      <button
+        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+        onClick={showSystemInfo}
+        title="Informations système"
+      >
+        <Settings size={20} className="text-purple-300" />
       </button>
       <input
         type="text"
@@ -417,6 +426,126 @@ export default function ConversationPage() {
     }
   };
 
+  // Fonction pour afficher les informations système
+  const showSystemInfo = () => {
+    const userAgent = navigator.userAgent;
+    const platform = navigator.platform;
+    const language = navigator.language;
+    const cookieEnabled = navigator.cookieEnabled;
+    const onLine = navigator.onLine;
+    
+    console.log('💻 Informations système:');
+    console.log('  - User Agent:', userAgent);
+    console.log('  - Platform:', platform);
+    console.log('  - Language:', language);
+    console.log('  - Cookies:', cookieEnabled);
+    console.log('  - Online:', onLine);
+    console.log('  - HTTPS:', window.location.protocol === 'https:');
+    console.log('  - Hostname:', window.location.hostname);
+    
+    // Détecter le système d'exploitation
+    let os = 'Unknown';
+    if (userAgent.includes('Windows')) os = 'Windows';
+    else if (userAgent.includes('Mac')) os = 'macOS';
+    else if (userAgent.includes('Linux')) os = 'Linux';
+    else if (userAgent.includes('Android')) os = 'Android';
+    else if (userAgent.includes('iOS')) os = 'iOS';
+    
+    console.log('  - OS:', os);
+    
+    // Instructions spécifiques au système
+    let systemInstructions = '';
+    if (os === 'Windows') {
+      systemInstructions = `
+Paramètres Windows à vérifier :
+1. Paramètres > Confidentialité > Microphone
+2. Autoriser les applications à accéder au microphone
+3. Vérifiez que Chrome a l'autorisation
+4. Redémarrez Chrome après modification
+      `;
+    } else if (os === 'macOS') {
+      systemInstructions = `
+Paramètres macOS à vérifier :
+1. Préférences Système > Sécurité et confidentialité > Microphone
+2. Autorisez Chrome dans la liste
+3. Redémarrez Chrome après modification
+4. Vérifiez aussi les paramètres de confidentialité
+      `;
+    } else if (os === 'Linux') {
+      systemInstructions = `
+Paramètres Linux à vérifier :
+1. Vérifiez les permissions PulseAudio/ALSA
+2. Testez avec : pactl list sources
+3. Vérifiez que votre utilisateur est dans le groupe audio
+4. Redémarrez Chrome après modification
+      `;
+    }
+    
+    console.log('🔧 Instructions système:', systemInstructions);
+    
+    toast.error(
+      `Système détecté: ${os}. ${systemInstructions}`,
+      { duration: 20000 }
+    );
+  };
+
+  // Fonction pour essayer différentes méthodes d'accès au microphone
+  const tryMultipleMicrophoneAccess = async () => {
+    console.log('🔄 Essai de multiples méthodes d\'accès microphone...');
+    
+    const methods = [
+      {
+        name: 'Méthode basique',
+        constraints: { audio: true }
+      },
+      {
+        name: 'Méthode sans contraintes',
+        constraints: { audio: {} }
+      },
+      {
+        name: 'Méthode avec contraintes minimales',
+        constraints: { 
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false
+          }
+        }
+      },
+      {
+        name: 'Méthode avec contraintes avancées',
+        constraints: { 
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            sampleRate: 22050,
+            channelCount: 1
+          }
+        }
+      }
+    ];
+
+    for (const method of methods) {
+      try {
+        console.log(`🎤 Essai: ${method.name}`);
+        const stream = await navigator.mediaDevices.getUserMedia(method.constraints);
+        console.log(`✅ Succès avec ${method.name}`);
+        
+        // Arrêter le stream de test
+        stream.getTracks().forEach(track => track.stop());
+        return { success: true, method: method.name };
+        
+      } catch (error) {
+        console.warn(`❌ Échec avec ${method.name}:`, error);
+        continue;
+      }
+    }
+    
+    console.error('❌ Toutes les méthodes ont échoué');
+    return { success: false, method: 'Aucune' };
+  };
+
   // Fonction de test microphone pour diagnostic
   const testMicrophoneAccess = async () => {
     console.log('🧪 Test d\'accès microphone...');
@@ -433,20 +562,24 @@ export default function ConversationPage() {
         return false;
       }
       
-      // Test 2: Essayer d'obtenir un stream
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      console.log('✅ Stream audio obtenu avec succès');
+      // Test 2: Essayer les méthodes multiples
+      const result = await tryMultipleMicrophoneAccess();
       
-      // Test 3: Vérifier que le stream fonctionne
-      const tracks = stream.getTracks();
-      console.log('📊 Tracks audio:', tracks.map(t => ({ kind: t.kind, enabled: t.enabled, readyState: t.readyState })));
-      
-      // Arrêter le stream de test
-      tracks.forEach(track => track.stop());
-      
-      console.log('✅ Test microphone réussi');
-      toast.success('Microphone fonctionne correctement');
-      return true;
+      if (result.success) {
+        console.log('✅ Test microphone réussi avec:', result.method);
+        toast.success(`Microphone fonctionne avec ${result.method}`);
+        return true;
+      } else {
+        console.error('❌ Toutes les méthodes d\'accès ont échoué');
+        
+        // Afficher des instructions spécifiques
+        const { browser, instructions } = getBrowserInstructions();
+        toast.error(
+          `Test échoué: Permission refusée (${browser}). ${instructions}`,
+          { duration: 15000 }
+        );
+        return false;
+      }
       
     } catch (error) {
       console.error('❌ Test microphone échoué:', error);
@@ -459,7 +592,7 @@ export default function ConversationPage() {
           const { browser, instructions } = getBrowserInstructions();
           toast.error(
             `Test échoué: Permission refusée (${browser}). ${instructions}`,
-            { duration: 10000 }
+            { duration: 15000 }
           );
         } else {
           toast.error(`Test microphone échoué: ${errorMessage}`);
@@ -481,8 +614,13 @@ export default function ConversationPage() {
       instructions = `
 1. Cliquez sur l'icône de cadenas 🔒 dans la barre d'adresse
 2. Autorisez l'accès au microphone
-3. Rafraîchissez la page
-4. Si le problème persiste, vérifiez les paramètres système de votre appareil
+3. Vérifiez que le site est en HTTPS (pas HTTP)
+4. Allez dans chrome://settings/content/microphone
+5. Vérifiez que ce site n'est pas bloqué
+6. Rafraîchissez la page
+7. Si le problème persiste, vérifiez les paramètres système de votre appareil
+8. Sur Windows : Paramètres > Confidentialité > Microphone
+9. Sur Mac : Préférences Système > Sécurité et confidentialité > Microphone
       `;
     } else if (userAgent.includes('Firefox')) {
       browser = 'Firefox';
@@ -916,6 +1054,7 @@ export default function ConversationPage() {
         stopRecording={stopRecording}
         uploading={uploading}
         testMicrophoneAccess={testMicrophoneAccess}
+        showSystemInfo={showSystemInfo}
       />
     </div>
   );
