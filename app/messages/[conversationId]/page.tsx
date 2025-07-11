@@ -176,24 +176,58 @@ export default function ConversationPage() {
   const handleFileUpload = async (file: File, type: 'image' | 'video' | 'audio') => {
     setUploading(true);
     try {
+      // 1. Obtenir la signature d'upload
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const publicId = `message_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const signatureResponse = await fetch('/api/messages/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp, publicId, type }),
+      });
+
+      if (!signatureResponse.ok) {
+        const errorData = await signatureResponse.json();
+        throw new Error(errorData.error || 'Erreur lors de la génération de la signature');
+      }
+
+      const { signature, apiKey, cloudName, resourceType } = await signatureResponse.json();
+
+      // 2. Upload direct vers Cloudinary
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('type', type);
+      formData.append('folder', `messages/${session?.user?.id}`);
+      formData.append('public_id', publicId);
+      formData.append('resource_type', resourceType);
+      formData.append('timestamp', timestamp.toString());
+      formData.append('api_key', apiKey);
+      formData.append('signature', signature);
 
-      const response = await fetch('/api/messages/upload', {
+      // Options spécifiques pour vidéo/audio
+      if (type === 'video' || type === 'audio') {
+        formData.append('duration_limit', '60');
+        formData.append('format', type === 'video' ? 'mp4' : 'mp3');
+      }
+
+      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
         method: 'POST',
         body: formData,
       });
 
-      const data = await response.json();
-      
-      if (response.ok) {
-        sendMessage(type, data.url, data.duration);
-      } else {
-        toast.error(data.error || 'Erreur lors de l\'upload');
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('Erreur upload Cloudinary:', errorText);
+        throw new Error('Erreur lors de l\'upload vers Cloudinary');
       }
+
+      const uploadResult = await uploadResponse.json();
+      
+      // 3. Envoyer le message avec l'URL uploadée
+      sendMessage(type, uploadResult.secure_url, uploadResult.duration);
+      
     } catch (error) {
-      toast.error('Erreur de connexion');
+      console.error('Erreur upload fichier:', error);
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'upload');
     } finally {
       setUploading(false);
     }
