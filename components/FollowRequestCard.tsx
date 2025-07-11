@@ -36,7 +36,7 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
     
     setActionLoading('accept');
     try {
-      const res = await fetch(`/api/users/${request.from._id}/follow`, {
+      const res = await fetch(`/api/users/${request.from.username}/follow`, {
         method: 'POST',
       });
       
