@@ -41,8 +41,8 @@ export default function FloatingParticles({ isPlaying, className = '' }: Floatin
       return;
     }
 
-        // Créer 8 particules discrètes autour du mini player
-    const newParticles: Particle[] = Array.from({ length: 8 }, (item, index) => {
+    // Créer 8 particules discrètes autour du mini player
+    const newParticles: Particle[] = Array.from({ length: 8 }, (_, index) => {
       // Positionner les particules plus proches du player
       let x, y;
       const side = Math.floor(Math.random() * 4); // 0: haut, 1: droite, 2: bas, 3: gauche

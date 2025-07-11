@@ -1,264 +1,214 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 
-export interface TypingStatus {
+interface WebSocketMessage {
+  type: 'typing' | 'stop_typing' | 'new_message' | 'message_seen' | 'presence';
   userId: string;
-  conversationId: string;
-  isTyping: boolean;
-}
-
-export interface MessageStatus {
-  messageId: string;
-  conversationId: string;
-  seenBy: string[];
-  seenAt: Date;
-}
-
-export interface OnlineStatus {
-  userId: string;
-  isOnline: boolean;
-  lastSeen: Date;
-}
-
-export interface NewMessage {
-  _id: string;
-  conversationId: string;
-  sender: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
-  type: 'text' | 'image' | 'video' | 'audio';
-  content: string;
-  duration?: number;
-  seenBy: string[];
-  createdAt: string;
+  conversationId?: string;
+  isTyping?: boolean;
+  message?: any;
+  messageIds?: string[];
+  isOnline?: boolean;
 }
 
 interface UseWebSocketReturn {
-  socket: Socket | null;
   isConnected: boolean;
-  isAuthenticated: boolean;
-  joinConversation: (conversationId: string) => void;
-  leaveConversation: (conversationId: string) => void;
-  sendTypingStatus: (conversationId: string, isTyping: boolean) => void;
-  sendNewMessage: (message: NewMessage) => void;
-  sendMessageSeen: (messageId: string, conversationId: string, seenBy: string[]) => void;
-  updateOnlineStatus: (status: OnlineStatus) => void;
-  onMessageReceived: (callback: (message: NewMessage) => void) => void;
-  onUserTyping: (callback: (data: TypingStatus) => void) => void;
-  onMessageSeen: (callback: (data: MessageStatus) => void) => void;
-  onOnlineStatusChanged: (callback: (status: OnlineStatus) => void) => void;
-  onUserOnline: (callback: (data: { userId: string; isOnline: boolean }) => void) => void;
-  onUserOffline: (callback: (data: { userId: string; isOnline: boolean }) => void) => void;
+  sendMessage: (message: WebSocketMessage) => void;
+  sendTyping: (conversationId: string, isTyping: boolean) => void;
+  sendNewMessage: (conversationId: string, messageData: any) => void;
+  sendMessageSeen: (conversationId: string, messageIds: string[]) => void;
+  onMessage: (callback: (message: WebSocketMessage) => void) => void;
+  onTyping: (callback: (userId: string, conversationId: string, isTyping: boolean) => void) => void;
+  onNewMessage: (callback: (userId: string, conversationId: string, message: any) => void) => void;
+  onMessageSeen: (callback: (userId: string, conversationId: string, messageIds: string[]) => void) => void;
+  onPresence: (callback: (userId: string, isOnline: boolean) => void) => void;
 }
 
 export const useWebSocket = (): UseWebSocketReturn => {
-  const { data: session, status } = useSession();
-  const socketRef = useRef<Socket | null>(null);
+  const { data: session } = useSession();
   const [isConnected, setIsConnected] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const callbacksRef = useRef<{
-    messageReceived?: (message: NewMessage) => void;
-    userTyping?: (data: TypingStatus) => void;
-    messageSeen?: (data: MessageStatus) => void;
-    onlineStatusChanged?: (status: OnlineStatus) => void;
-    userOnline?: (data: { userId: string; isOnline: boolean }) => void;
-    userOffline?: (data: { userId: string; isOnline: boolean }) => void;
-  }>({});
+  const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Callbacks pour les différents types de messages
+  const messageCallbacks = useRef<((message: WebSocketMessage) => void)[]>([]);
+  const typingCallbacks = useRef<((userId: string, conversationId: string, isTyping: boolean) => void)[]>([]);
+  const newMessageCallbacks = useRef<((userId: string, conversationId: string, message: any) => void)[]>([]);
+  const messageSeenCallbacks = useRef<((userId: string, conversationId: string, messageIds: string[]) => void)[]>([]);
+  const presenceCallbacks = useRef<((userId: string, isOnline: boolean) => void)[]>([]);
 
-  // Initialiser la connexion WebSocket
-  const initializeSocket = useCallback(() => {
-    if (socketRef.current?.connected) {
-      return;
+  // Fonction pour se connecter au WebSocket
+  const connect = useCallback(() => {
+    if (!session?.user?.id) return;
+
+    try {
+      const wsUrl = `ws://localhost:3001?userId=${session.user.id}`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('🔌 WebSocket connecté');
+        setIsConnected(true);
+        
+        // Démarrer le heartbeat
+        heartbeatRef.current = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 30000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const message: WebSocketMessage = JSON.parse(event.data);
+          console.log('📨 Message WebSocket reçu:', message);
+
+          // Appeler tous les callbacks de message générique
+          messageCallbacks.current.forEach(callback => callback(message));
+
+          // Appeler les callbacks spécifiques selon le type
+          switch (message.type) {
+            case 'typing':
+            case 'stop_typing':
+              typingCallbacks.current.forEach(callback => 
+                callback(message.userId, message.conversationId!, message.isTyping!)
+              );
+              break;
+            case 'new_message':
+              newMessageCallbacks.current.forEach(callback => 
+                callback(message.userId, message.conversationId!, message.message!)
+              );
+              break;
+            case 'message_seen':
+              messageSeenCallbacks.current.forEach(callback => 
+                callback(message.userId, message.conversationId!, message.messageIds!)
+              );
+              break;
+            case 'presence':
+              presenceCallbacks.current.forEach(callback => 
+                callback(message.userId, message.isOnline!)
+              );
+              break;
+          }
+        } catch (error) {
+          console.error('❌ Erreur parsing message WebSocket:', error);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('🔌 WebSocket déconnecté');
+        setIsConnected(false);
+        
+        // Nettoyer le heartbeat
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+          heartbeatRef.current = null;
+        }
+
+        // Tentative de reconnexion après 3 secondes
+        reconnectTimeoutRef.current = setTimeout(() => {
+          console.log('🔄 Tentative de reconnexion WebSocket...');
+          connect();
+        }, 3000);
+      };
+
+      ws.onerror = (error) => {
+        console.error('❌ Erreur WebSocket:', error);
+      };
+
+      wsRef.current = ws;
+    } catch (error) {
+      console.error('❌ Erreur connexion WebSocket:', error);
     }
-
-    console.log('🔌 Initialisation de la connexion WebSocket...');
-    
-    const socket = io(process.env.NEXTAUTH_URL || 'http://localhost:3000', {
-      autoConnect: true,
-      reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-    });
-
-    socket.on('connect', () => {
-      console.log('✅ WebSocket connecté:', socket.id);
-      setIsConnected(true);
-      
-      // Authentifier l'utilisateur si connecté
-      if (session?.user?.id) {
-        socket.emit('authenticate', session.user.id);
-      }
-    });
-
-    socket.on('disconnect', () => {
-      console.log('❌ WebSocket déconnecté');
-      setIsConnected(false);
-      setIsAuthenticated(false);
-    });
-
-    socket.on('authenticated', (data: { success: boolean }) => {
-      console.log('🔐 Utilisateur authentifié sur WebSocket');
-      setIsAuthenticated(true);
-    });
-
-    socket.on('messageReceived', (message: NewMessage) => {
-      console.log('📨 Nouveau message reçu:', message._id);
-      callbacksRef.current.messageReceived?.(message);
-    });
-
-    socket.on('userTyping', (data: TypingStatus) => {
-      console.log('⌨️ Frappe détectée:', data);
-      callbacksRef.current.userTyping?.(data);
-    });
-
-    socket.on('messageSeen', (data: MessageStatus) => {
-      console.log('👁️ Message vu:', data.messageId);
-      callbacksRef.current.messageSeen?.(data);
-    });
-
-    socket.on('onlineStatusChanged', (status: OnlineStatus) => {
-      console.log('🟢 Statut en ligne changé:', status);
-      callbacksRef.current.onlineStatusChanged?.(status);
-    });
-
-    socket.on('userOnline', (data: { userId: string; isOnline: boolean }) => {
-      console.log('🟢 Utilisateur en ligne:', data.userId);
-      callbacksRef.current.userOnline?.(data);
-    });
-
-    socket.on('userOffline', (data: { userId: string; isOnline: boolean }) => {
-      console.log('🔴 Utilisateur hors ligne:', data.userId);
-      callbacksRef.current.userOffline?.(data);
-    });
-
-    socket.on('heartbeat', (data: { timestamp: number }) => {
-      // Répondre au heartbeat pour maintenir la connexion
-      socket.emit('heartbeat', { timestamp: Date.now() });
-    });
-
-    socketRef.current = socket;
   }, [session?.user?.id]);
 
-  // Initialiser la connexion au montage seulement si la session est chargée
+  // Fonction pour envoyer un message
+  const sendMessage = useCallback((message: WebSocketMessage) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(message));
+    }
+  }, []);
+
+  // Fonction pour envoyer le statut de frappe
+  const sendTyping = useCallback((conversationId: string, isTyping: boolean) => {
+    sendMessage({
+      type: isTyping ? 'typing' : 'stop_typing',
+      userId: session?.user?.id || '',
+      conversationId,
+      isTyping
+    });
+  }, [sendMessage, session?.user?.id]);
+
+  // Fonction pour envoyer un nouveau message
+  const sendNewMessage = useCallback((conversationId: string, messageData: any) => {
+    sendMessage({
+      type: 'new_message',
+      userId: session?.user?.id || '',
+      conversationId,
+      message: messageData
+    });
+  }, [sendMessage, session?.user?.id]);
+
+  // Fonction pour envoyer le statut de lecture
+  const sendMessageSeen = useCallback((conversationId: string, messageIds: string[]) => {
+    sendMessage({
+      type: 'message_seen',
+      userId: session?.user?.id || '',
+      conversationId,
+      messageIds
+    });
+  }, [sendMessage, session?.user?.id]);
+
+  // Fonctions pour enregistrer les callbacks
+  const onMessage = useCallback((callback: (message: WebSocketMessage) => void) => {
+    messageCallbacks.current.push(callback);
+  }, []);
+
+  const onTyping = useCallback((callback: (userId: string, conversationId: string, isTyping: boolean) => void) => {
+    typingCallbacks.current.push(callback);
+  }, []);
+
+  const onNewMessage = useCallback((callback: (userId: string, conversationId: string, message: any) => void) => {
+    newMessageCallbacks.current.push(callback);
+  }, []);
+
+  const onMessageSeen = useCallback((callback: (userId: string, conversationId: string, messageIds: string[]) => void) => {
+    messageSeenCallbacks.current.push(callback);
+  }, []);
+
+  const onPresence = useCallback((callback: (userId: string, isOnline: boolean) => void) => {
+    presenceCallbacks.current.push(callback);
+  }, []);
+
+  // Se connecter au montage et se déconnecter au démontage
   useEffect(() => {
-    if (status === 'loading') return; // Attendre que la session soit chargée
-    
     if (session?.user?.id) {
-      initializeSocket();
+      connect();
     }
 
     return () => {
-      if (socketRef.current) {
-        console.log('🔌 Fermeture de la connexion WebSocket');
-        socketRef.current.disconnect();
-        socketRef.current = null;
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
       }
     };
-  }, [session?.user?.id, status, initializeSocket]);
-
-  // Réauthentifier quand la session change
-  useEffect(() => {
-    if (status === 'loading') return; // Attendre que la session soit chargée
-    
-    if (socketRef.current?.connected && session?.user?.id && !isAuthenticated) {
-      socketRef.current.emit('authenticate', session.user.id);
-    }
-  }, [session?.user?.id, isAuthenticated, status]);
-
-  const joinConversation = useCallback((conversationId: string) => {
-    if (socketRef.current?.connected) {
-      console.log('💬 Rejoindre conversation:', conversationId);
-      socketRef.current.emit('joinConversation', conversationId);
-    }
-  }, []);
-
-  const leaveConversation = useCallback((conversationId: string) => {
-    if (socketRef.current?.connected) {
-      console.log('👋 Quitter conversation:', conversationId);
-      socketRef.current.emit('leaveConversation', conversationId);
-    }
-  }, []);
-
-  const sendTypingStatus = useCallback((conversationId: string, isTyping: boolean) => {
-    if (socketRef.current?.connected && session?.user?.id) {
-      console.log('⌨️ Envoyer statut de frappe:', { conversationId, isTyping });
-      socketRef.current.emit('typing', {
-        userId: session.user.id,
-        conversationId,
-        isTyping
-      });
-    }
-  }, [session?.user?.id]);
-
-  const sendNewMessage = useCallback((message: NewMessage) => {
-    if (socketRef.current?.connected) {
-      console.log('📨 Envoyer nouveau message:', message._id);
-      socketRef.current.emit('newMessage', message);
-    }
-  }, []);
-
-  const sendMessageSeen = useCallback((messageId: string, conversationId: string, seenBy: string[]) => {
-    if (socketRef.current?.connected) {
-      console.log('👁️ Envoyer message vu:', messageId);
-      socketRef.current.emit('messageSeen', {
-        messageId,
-        conversationId,
-        seenBy,
-        seenAt: new Date()
-      });
-    }
-  }, []);
-
-  const updateOnlineStatus = useCallback((status: OnlineStatus) => {
-    if (socketRef.current?.connected) {
-      console.log('🟢 Mettre à jour statut en ligne:', status.userId);
-      socketRef.current.emit('updateOnlineStatus', status);
-    }
-  }, []);
-
-  const onMessageReceived = useCallback((callback: (message: NewMessage) => void) => {
-    callbacksRef.current.messageReceived = callback;
-  }, []);
-
-  const onUserTyping = useCallback((callback: (data: TypingStatus) => void) => {
-    callbacksRef.current.userTyping = callback;
-  }, []);
-
-  const onMessageSeen = useCallback((callback: (data: MessageStatus) => void) => {
-    callbacksRef.current.messageSeen = callback;
-  }, []);
-
-  const onOnlineStatusChanged = useCallback((callback: (status: OnlineStatus) => void) => {
-    callbacksRef.current.onlineStatusChanged = callback;
-  }, []);
-
-  const onUserOnline = useCallback((callback: (data: { userId: string; isOnline: boolean }) => void) => {
-    callbacksRef.current.userOnline = callback;
-  }, []);
-
-  const onUserOffline = useCallback((callback: (data: { userId: string; isOnline: boolean }) => void) => {
-    callbacksRef.current.userOffline = callback;
-  }, []);
+  }, [session?.user?.id, connect]);
 
   return {
-    socket: socketRef.current,
     isConnected,
-    isAuthenticated,
-    joinConversation,
-    leaveConversation,
-    sendTypingStatus,
+    sendMessage,
+    sendTyping,
     sendNewMessage,
     sendMessageSeen,
-    updateOnlineStatus,
-    onMessageReceived,
-    onUserTyping,
+    onMessage,
+    onTyping,
+    onNewMessage,
     onMessageSeen,
-    onOnlineStatusChanged,
-    onUserOnline,
-    onUserOffline,
+    onPresence
   };
 }; 

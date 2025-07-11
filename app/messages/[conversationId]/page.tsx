@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
-import { useWebSocket, NewMessage, TypingStatus } from '@/hooks/useWebSocket';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
 interface Message {
   _id: string;
@@ -69,15 +69,27 @@ interface OnlineStatus {
   isTyping: boolean;
 }
 
-// Hook personnalisé pour la gestion de la présence en ligne avec WebSocket
+// Hook personnalisé pour la gestion de la présence en ligne
 const useOnlineStatus = (conversationId: string, otherUserId: string) => {
-  const { socket, isConnected, joinConversation, leaveConversation, onUserTyping, onUserOnline, onUserOffline } = useWebSocket();
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({
     userId: otherUserId,
     isOnline: false,
     lastSeen: new Date(),
     isTyping: false
   });
+  const [isConnected, setIsConnected] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fonction pour déterminer si un utilisateur est en ligne basé sur son lastSeen
+  const determineOnlineStatus = useCallback((lastSeen: Date) => {
+    const now = new Date();
+    const timeDiff = now.getTime() - lastSeen.getTime();
+    const minutesDiff = timeDiff / (1000 * 60);
+    
+    // Considérer en ligne si vu il y a moins de 5 minutes
+    return minutesDiff < 5;
+  }, []);
 
   // Fonction pour formater le lastSeen de manière plus intelligente
   const formatLastSeen = useCallback((lastSeen: Date) => {
@@ -94,61 +106,70 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
     return `Il y a ${Math.floor(daysDiff)}j`;
   }, []);
 
-  // Rejoindre la conversation au montage
   useEffect(() => {
-    if (conversationId) {
-      joinConversation(conversationId);
-    }
-
-    return () => {
-      if (conversationId) {
-        leaveConversation(conversationId);
-      }
-    };
-  }, [conversationId, joinConversation, leaveConversation]);
-
-  // Écouter les événements de frappe
-  useEffect(() => {
-    const handleUserTyping = (data: TypingStatus) => {
-      if (data.userId === otherUserId && data.conversationId === conversationId) {
+    // Simuler une connexion WebSocket plus réaliste
+    const connectWebSocket = () => {
+      console.log('🔌 Tentative de connexion WebSocket...');
+      
+      // Simulation d'une connexion WebSocket
+      setIsConnected(true);
+      
+      // Simuler un statut en ligne basé sur l'activité récente
+      // En production, vous recevriez ces données du serveur WebSocket
+      const simulateOnlineStatus = () => {
+        const now = new Date();
+        const randomActivity = Math.random();
+        
+        // 30% de chance d'être en ligne (plus réaliste)
+        const isOnline = randomActivity < 0.3;
+        
+        // Simuler un lastSeen basé sur l'activité
+        const lastSeen = isOnline 
+          ? new Date(now.getTime() - Math.random() * 300000) // Entre maintenant et 5 min
+          : new Date(now.getTime() - (5 + Math.random() * 60) * 60000); // Entre 5 min et 1h
+        
         setOnlineStatus(prev => ({
           ...prev,
-          isTyping: data.isTyping
+          isOnline,
+          lastSeen,
+          isTyping: false
         }));
-      }
+      };
+
+      // Simuler le statut initial
+      simulateOnlineStatus();
+
+      // Mettre à jour le statut toutes les 30 secondes
+      const statusInterval = setInterval(simulateOnlineStatus, 30000);
+
+      // Heartbeat pour maintenir la connexion
+      heartbeatRef.current = setInterval(() => {
+        console.log('💓 Heartbeat...');
+      }, 30000);
+
+      return () => {
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+        }
+        clearInterval(statusInterval);
+      };
     };
 
-    onUserTyping(handleUserTyping);
-  }, [otherUserId, conversationId, onUserTyping]);
+    const cleanup = connectWebSocket();
 
-  // Écouter les changements de statut en ligne
-  useEffect(() => {
-    const handleUserOnline = (data: { userId: string; isOnline: boolean }) => {
-      if (data.userId === otherUserId) {
-        setOnlineStatus(prev => ({
-          ...prev,
-          isOnline: data.isOnline
-        }));
-      }
-    };
-
-    const handleUserOffline = (data: { userId: string; isOnline: boolean }) => {
-      if (data.userId === otherUserId) {
-        setOnlineStatus(prev => ({
-          ...prev,
-          isOnline: data.isOnline
-        }));
-      }
-    };
-
-    onUserOnline(handleUserOnline);
-    onUserOffline(handleUserOffline);
-  }, [otherUserId, onUserOnline, onUserOffline]);
+    return cleanup;
+  }, [conversationId, otherUserId]);
 
   // Fonction pour envoyer le statut de frappe
   const sendTypingStatus = useCallback((isTyping: boolean) => {
-    // Cette fonction sera gérée par le hook useWebSocket
-  }, []);
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'typing',
+        conversationId,
+        isTyping
+      }));
+    }
+  }, [conversationId]);
 
   return {
     onlineStatus,
@@ -267,7 +288,7 @@ const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration
     >
       {/* Barres de visualisation animées améliorées */}
       <div className="flex items-end space-x-1 h-8">
-        {[...Array(8)].map((item, index) => (
+        {[...Array(8)].map((_, index) => (
           <motion.div
             key={index}
             className="w-1 bg-gradient-to-t from-purple-400 via-pink-400 to-indigo-400 rounded-full"
@@ -505,8 +526,8 @@ function MessageInputBar({
         {/* Bouton pièce jointe avec animation */}
         <motion.button
           className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30 flex-shrink-0"
-          onClick={() => fileInputRef.current?.click()}
-          title="Envoyer un média"
+        onClick={() => fileInputRef.current?.click()}
+        title="Envoyer un média"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -521,11 +542,11 @@ function MessageInputBar({
                 ? 'bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 scale-110 shadow-red-500/50' 
                 : 'bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 border border-purple-400/30'
             }`}
-            onMouseDown={startRecording}
-            onMouseUp={stopRecording}
-            onMouseLeave={stopRecording}
-            onTouchStart={startRecording}
-            onTouchEnd={stopRecording}
+        onMouseDown={startRecording}
+        onMouseUp={stopRecording}
+        onMouseLeave={stopRecording}
+        onTouchStart={startRecording}
+        onTouchEnd={stopRecording}
             title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
             whileHover={{ scale: isRecording ? 1.1 : 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -579,14 +600,14 @@ function MessageInputBar({
         
         {/* Zone de saisie de texte améliorée */}
         <motion.input
-          type="text"
-          value={newMessage}
+        type="text"
+        value={newMessage}
           onChange={(e) => {
             setNewMessage(e.target.value);
             handleTyping(); // Déclencher le statut de frappe
           }}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
-          placeholder="Tapez votre message..."
+        onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
+        placeholder="Tapez votre message..."
           className="flex-1 min-w-0 px-4 py-3 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-purple-400/30 rounded-2xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 shadow-lg text-sm"
           disabled={uploading || isRecording}
           whileFocus={{ scale: 1.02 }}
@@ -643,10 +664,10 @@ function MessageInputBar({
             </AnimatePresence>
           ) : (
             <motion.button
-              onClick={handleSendText}
+        onClick={handleSendText}
               disabled={!newMessage.trim() || uploading || isRecording}
               className="p-3 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-all duration-300 shadow-lg"
-              title="Envoyer"
+        title="Envoyer"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -655,15 +676,15 @@ function MessageInputBar({
           )}
         </div>
         
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*,audio/*"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-      </div>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*,audio/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+    </div>
     </motion.div>
   );
 }
@@ -696,6 +717,26 @@ export default function ConversationPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // WebSocket pour les communications en temps réel
+  const {
+    isConnected: wsConnected,
+    sendTyping,
+    sendNewMessage,
+    sendMessageSeen,
+    onTyping,
+    onNewMessage,
+    onMessageSeen
+  } = useWebSocket();
+
+  // États pour les interactions en temps réel
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
+  const [realTimeMessages, setRealTimeMessages] = useState<Message[]>([]);
+  const [messageReadStatuses, setMessageReadStatuses] = useState<Map<string, string[]>>(new Map());
+
+  // État pour le statut de frappe local
+  const [isLocalTyping, setIsLocalTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Vérifier la disponibilité du microphone au chargement
   useEffect(() => {
@@ -825,9 +866,9 @@ export default function ConversationPage() {
 
       if (unreadMessages.length > 0) {
         console.log('📖 Marquage comme lu de', unreadMessages.length, 'messages');
-        await fetch(`/api/messages/${conversationId}/seen`, {
-          method: 'POST',
-        });
+      await fetch(`/api/messages/${conversationId}/seen`, {
+        method: 'POST',
+      });
       }
     } catch (error) {
       console.error('Erreur marquage comme lu:', error);
@@ -845,23 +886,34 @@ export default function ConversationPage() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log('✅ Message envoyé:', data.message);
+        // Notifier les autres via WebSocket
+        sendNewMessage(conversationId, data.message);
         
-        // Ajouter le message à la liste locale
-        setMessages(prev => [...prev, data.message]);
+        // Ajouter le message localement avec animation
+        const newMessage: Message = {
+          _id: data.message._id,
+          sender: data.message.sender,
+          type: data.message.type,
+          content: data.message.content,
+          duration: data.message.duration,
+          seenBy: data.message.seenBy || [],
+          createdAt: data.message.createdAt
+        };
+
+        setMessages(prev => [...prev, newMessage]);
         setNewMessage('');
-        markAsSeen();
-        
-        // Envoyer via WebSocket pour les autres participants
-        wsSendNewMessage(data.message);
-        
-        // Arrêter la frappe
-        if (typingTimeoutRef.current) {
-          clearTimeout(typingTimeoutRef.current);
-        }
-        setIsTyping(false);
-        wsSendTypingStatus(conversationId, false);
-        
+
+        // Marquer comme lu automatiquement
+        sendMessageSeen(conversationId, [data.message._id]);
+
+        // Scroll vers le bas
+        setTimeout(() => {
+          const messagesContainer = document.getElementById('messages-container');
+          if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }
+        }, 100);
+
       } else {
         console.error('Erreur envoi message:', data);
         toast.error(data.error || 'Erreur lors de l\'envoi');
@@ -945,16 +997,16 @@ export default function ConversationPage() {
       let uploadResponse;
       try {
         uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
-          method: 'POST',
-          body: formData,
+        method: 'POST',
+        body: formData,
           signal: controller.signal,
-        });
+      });
 
         clearTimeout(timeoutId);
         console.log('📥 Réponse Cloudinary status:', uploadResponse.status);
 
-        if (!uploadResponse.ok) {
-          const errorText = await uploadResponse.text();
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
           console.error('❌ Erreur upload Cloudinary:', errorText);
           
           // Messages d'erreur spécifiques
@@ -965,7 +1017,7 @@ export default function ConversationPage() {
           } else if (uploadResponse.status >= 500) {
             throw new Error('Erreur serveur Cloudinary, réessayez plus tard');
           } else {
-            throw new Error('Erreur lors de l\'upload vers Cloudinary');
+        throw new Error('Erreur lors de l\'upload vers Cloudinary');
           }
         }
       } catch (error) {
@@ -1581,7 +1633,7 @@ Paramètres Linux à vérifier :
           console.log('✅ Prévisualisation créée');
           toast.success('Enregistrement terminé. Écoutez avant d\'envoyer.');
           
-        } catch (error) {
+    } catch (error) {
           console.error('❌ Erreur lors du traitement audio:', error);
           toast.error('Erreur lors du traitement de l\'enregistrement');
         }
@@ -1661,7 +1713,7 @@ Paramètres Linux à vérifier :
           toast.error(`Erreur d'accès au microphone: ${errorMessage}`);
         }
       } else {
-        toast.error('Erreur d\'accès au microphone');
+      toast.error('Erreur d\'accès au microphone');
       }
     } finally {
       console.log('=== FIN START RECORDING ===');
@@ -1677,7 +1729,7 @@ Paramètres Linux à vérifier :
         
         // Arrêter l'enregistrement
         if (mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stop();
           console.log('✅ MediaRecorder arrêté');
         } else {
           console.warn('⚠️ MediaRecorder déjà arrêté, état:', mediaRecorderRef.current.state);
@@ -1691,7 +1743,7 @@ Paramètres Linux à vérifier :
           });
         }
         
-        setIsRecording(false);
+      setIsRecording(false);
         console.log('✅ État recording mis à false');
         
         // IMPORTANT: Arrêter le timer
@@ -1800,17 +1852,6 @@ Paramètres Linux à vérifier :
   const otherUser = getOtherParticipant();
   const { onlineStatus, isConnected, sendTypingStatus, formatLastSeen } = useOnlineStatus(conversationId, otherUser?._id || '');
   const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session?.user?.id || '');
-  
-  // WebSocket hooks
-  const { 
-    socket, 
-    isConnected: wsConnected, 
-    sendTypingStatus: wsSendTypingStatus, 
-    sendNewMessage: wsSendNewMessage,
-    sendMessageSeen: wsSendMessageSeen,
-    onMessageReceived,
-    onUserTyping
-  } = useWebSocket();
 
   // Observer les messages pour marquer comme lus
   useEffect(() => {
@@ -1819,43 +1860,13 @@ Paramètres Linux à vérifier :
     }
   }, [messages, observeMessages, session?.user?.id]);
 
-  // Écouter les nouveaux messages en temps réel
-  useEffect(() => {
-    const handleMessageReceived = (message: NewMessage) => {
-      console.log('📨 Nouveau message reçu en temps réel:', message);
-      
-      // Ajouter le nouveau message à la liste
-      setMessages(prev => [...prev, message]);
-      
-      // Marquer comme lu automatiquement
-      if (session?.user?.id && !message.seenBy.includes(session.user.id)) {
-        wsSendMessageSeen(message._id, conversationId, [...message.seenBy, session.user.id]);
-      }
-    };
-
-    onMessageReceived(handleMessageReceived);
-  }, [onMessageReceived, conversationId, session?.user?.id, wsSendMessageSeen]);
-
-  // Écouter les changements de statut de frappe
-  useEffect(() => {
-    const handleUserTyping = (data: TypingStatus) => {
-      if (data.userId === otherUser?._id && data.conversationId === conversationId) {
-        console.log('⌨️ Frappe détectée:', data);
-        // Le statut de frappe est déjà géré par le hook useOnlineStatus
-      }
-    };
-
-    onUserTyping(handleUserTyping);
-  }, [onUserTyping, otherUser?._id, conversationId]);
-
   // Gérer le statut de frappe
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleTyping = useCallback(() => {
     if (!isTyping) {
       setIsTyping(true);
-      wsSendTypingStatus(conversationId, true);
+      sendTypingStatus(true);
     }
 
     // Réinitialiser le timeout
@@ -1866,9 +1877,9 @@ Paramètres Linux à vérifier :
     // Arrêter la frappe après 3 secondes d'inactivité
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      wsSendTypingStatus(conversationId, false);
+      sendTypingStatus(false);
     }, 3000);
-  }, [isTyping, wsSendTypingStatus, conversationId]);
+  }, [isTyping, sendTypingStatus]);
 
   // Nettoyer le timeout au démontage
   useEffect(() => {
@@ -1878,6 +1889,67 @@ Paramètres Linux à vérifier :
       }
     };
   }, []);
+
+  // Gérer les messages WebSocket
+  useEffect(() => {
+    // Gérer les messages de frappe
+    onTyping((userId, conversationId, isTyping) => {
+      if (conversationId === params?.conversationId) {
+        setTypingUsers(prev => {
+          const newSet = new Set(prev);
+          if (isTyping) {
+            newSet.add(userId);
+          } else {
+            newSet.delete(userId);
+          }
+          return newSet;
+        });
+      }
+    });
+
+    // Gérer les nouveaux messages
+    onNewMessage((userId, conversationId, messageData) => {
+      if (conversationId === params?.conversationId) {
+        const newMessage: Message = {
+          _id: messageData._id || `temp-${Date.now()}`,
+          sender: messageData.sender,
+          type: messageData.type,
+          content: messageData.content,
+          duration: messageData.duration,
+          seenBy: messageData.seenBy || [],
+          createdAt: messageData.createdAt || new Date().toISOString()
+        };
+
+        setMessages(prev => [...prev, newMessage]);
+        
+        // Animation pour le nouveau message
+        setTimeout(() => {
+          const messageElement = document.getElementById(`message-${newMessage._id}`);
+          if (messageElement) {
+            messageElement.scrollIntoView({ behavior: 'smooth', block: 'end' });
+          }
+        }, 100);
+      }
+    });
+
+    // Gérer les notifications de lecture
+    onMessageSeen((userId, conversationId, messageIds) => {
+      if (conversationId === params?.conversationId) {
+        setMessageReadStatuses(prev => {
+          const newStatuses = new Map(prev);
+          messageIds.forEach(messageId => {
+            const currentSeenBy = newStatuses.get(messageId) || [];
+            if (!currentSeenBy.includes(userId)) {
+              newStatuses.set(messageId, [...currentSeenBy, userId]);
+            }
+          });
+          return newStatuses;
+        });
+      }
+    });
+  }, [onTyping, onNewMessage, onMessageSeen, params?.conversationId]);
+
+
 
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
@@ -1951,7 +2023,7 @@ Paramètres Linux à vérifier :
       {/* Messages scrollable avec padding pour header et BottomNav+input */}
       <div className="pt-20 pb-32 px-4 flex flex-col space-y-6 overflow-y-auto h-screen">
         {/* Indicateur de frappe */}
-        {onlineStatus.isTyping && (
+        {typingUsers.size > 0 && (
           <motion.div
             className="flex justify-start px-6"
             initial={{ opacity: 0, y: 10 }}
@@ -1988,7 +2060,7 @@ Paramètres Linux à vérifier :
             <div className="relative">
               <div className="animate-spin rounded-full h-12 w-12 border-2 border-purple-400 border-t-transparent"></div>
               <div className="absolute inset-0 animate-spin rounded-full h-12 w-12 border-2 border-indigo-400 border-t-transparent" style={{ animationDelay: '-0.5s' }}></div>
-            </div>
+          </div>
           </motion.div>
         ) : (
           <AnimatePresence>
@@ -2010,14 +2082,15 @@ Paramètres Linux à vérifier :
                   </motion.div>
                   <p className="text-lg font-medium">Aucun message</p>
                   <p className="text-sm text-gray-500">Commencez une discussion !</p>
-                </div>
+              </div>
               </motion.div>
             ) : (
               messages.map((message, index) => {
                 const isOwnMessage = message.sender._id === session?.user?.id;
                 return (
-                  <motion.div
-                    key={message._id}
+                <motion.div
+                  key={message._id}
+                  id={`message-${message._id}`}
                     initial={{ opacity: 0, y: 20, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -2033,36 +2106,36 @@ Paramètres Linux à vérifier :
                         ${isOwnMessage
                           ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-500 text-white border-2 border-purple-400 shadow-purple-500/25'
                           : 'bg-gradient-to-br from-white/10 to-white/5 text-white border border-purple-400/30 shadow-lg'}
-                      `}
-                      style={{ wordBreak: 'break-word' }}
+                    `}
+                    style={{ wordBreak: 'break-word' }}
                       whileHover={{ scale: 1.02 }}
                       transition={{ duration: 0.2 }}
-                    >
-                      {/* Message content */}
-                      {message.type === 'text' && (
-                        <p className="text-base leading-relaxed">{message.content}</p>
-                      )}
-                      {message.type === 'image' && (
+                  >
+                    {/* Message content */}
+                    {message.type === 'text' && (
+                      <p className="text-base leading-relaxed">{message.content}</p>
+                    )}
+                    {message.type === 'image' && (
                         <motion.div 
                           className="mt-3 rounded-2xl overflow-hidden shadow-xl border-2 border-purple-300"
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ delay: 0.2 }}
                         >
-                          <img src={message.content} alt="Image envoyée" className="w-64 h-64 object-cover" />
+                        <img src={message.content} alt="Image envoyée" className="w-64 h-64 object-cover" />
                         </motion.div>
-                      )}
-                      {message.type === 'video' && (
+                    )}
+                    {message.type === 'video' && (
                         <motion.div 
                           className="mt-3 rounded-2xl overflow-hidden shadow-xl border-2 border-purple-300"
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ delay: 0.2 }}
                         >
-                          <video src={message.content} controls className="w-64 h-64 object-cover" />
+                        <video src={message.content} controls className="w-64 h-64 object-cover" />
                         </motion.div>
-                      )}
-                      {message.type === 'audio' && (
+                    )}
+                    {message.type === 'audio' && (
                         <motion.div 
                           className="mt-3 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 rounded-2xl p-5 border border-purple-400/40"
                           initial={{ scale: 0.9, opacity: 0 }}
@@ -2071,7 +2144,7 @@ Paramètres Linux à vérifier :
                         >
                           <div className="flex items-center space-x-4">
                             <motion.button
-                              onClick={() => playAudio(message.content, message._id)}
+                          onClick={() => playAudio(message.content, message._id)}
                               className={`p-4 rounded-full transition-all duration-300 shadow-xl ${
                                 playingAudio === message._id 
                                   ? 'bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 scale-110 shadow-red-500/50' 
@@ -2080,8 +2153,8 @@ Paramètres Linux à vérifier :
                               title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
-                            >
-                              {playingAudio === message._id ? <Pause size={20} /> : <Play size={20} />}
+                        >
+                          {playingAudio === message._id ? <Pause size={20} /> : <Play size={20} />}
                             </motion.button>
                             
                             <div className="flex-1">
@@ -2090,17 +2163,17 @@ Paramètres Linux à vérifier :
                                   <Volume2 size={16} className="mr-2" />
                                   Message vocal
                                 </span>
-                                <span className="text-xs text-white/70 font-mono">
-                                  {message.duration ? formatTime(message.duration) : 'Audio'}
-                                </span>
+                        <span className="text-xs text-white/70 font-mono">
+                          {message.duration ? formatTime(message.duration) : 'Audio'}
+                        </span>
                               </div>
                               
                               {/* Visualiseur audio animé */}
                               {playingAudio === message._id && (
                                 <div className="mt-4">
                                   <AudioVisualizer isPlaying={playingAudio === message._id} duration={message.duration || 0} />
-                                </div>
-                              )}
+                      </div>
+                    )}
                               
                               {/* Indicateur statique quand pas en lecture */}
                               {playingAudio !== message._id && (
@@ -2111,7 +2184,7 @@ Paramètres Linux à vérifier :
                                   transition={{ delay: 0.3 }}
                                 >
                                   <div className="flex items-end space-x-1 h-5">
-                                    {[...Array(5)].map((item, index) => (
+                                    {[...Array(5)].map((_, index) => (
                                       <motion.div
                                         key={index}
                                         className="w-1 bg-purple-400/50 rounded-full"
@@ -2128,12 +2201,12 @@ Paramètres Linux à vérifier :
                                   </div>
                                   <span className="text-xs text-white/50">
                                     Cliquez pour écouter
-                                  </span>
+                      </span>
                                 </motion.div>
                               )}
-                            </div>
-                          </div>
-                        </motion.div>
+                    </div>
+                  </div>
+                </motion.div>
                       )}
                       
                       {/* Statut du message et heure */}
