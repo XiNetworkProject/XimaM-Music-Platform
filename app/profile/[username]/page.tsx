@@ -4,11 +4,12 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown } from 'lucide-react';
+import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import InteractiveCounter from '@/components/InteractiveCounter';
 import SocialStats from '@/components/SocialStats';
 import UserProfileCard from '@/components/UserProfileCard';
+import toast from 'react-hot-toast';
 
 const socialIcons = {
   instagram: Instagram,
@@ -143,6 +144,36 @@ export default function ProfileUserPage() {
         followerCount: prev.followerCount + (data.action === 'followed' ? 1 : -1),
       }));
     } catch (e) {}
+  };
+
+  // Gestion demande de messagerie
+  const handleMessageRequest = async () => {
+    if (!session?.user) {
+      router.push('/auth/signin');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/messages/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipientId: profile._id }),
+      });
+
+      if (res.ok) {
+        toast.success('Demande de conversation envoyée');
+      } else {
+        const data = await res.json();
+        if (data.error === 'Conversation déjà existante') {
+          // Rediriger vers la conversation existante
+          router.push(`/messages/${data.conversationId}`);
+        } else {
+          toast.error(data.error || 'Erreur lors de l\'envoi de la demande');
+        }
+      }
+    } catch (error) {
+      toast.error('Erreur de connexion');
+    }
   };
 
   // Gestion édition profil
@@ -757,25 +788,34 @@ export default function ProfileUserPage() {
                   <Edit3 size={16} /> Modifier le profil
                 </button>
               ) : (
-                <button
-                  className={`flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all ${
-                    profile.isFollowing 
-                      ? 'bg-pink-600 text-white hover:bg-pink-700' 
-                      : 'bg-purple-600 text-white hover:bg-purple-700'
-                  }`}
-                  onClick={handleFollow}
-                  disabled={uploading}
-                >
-                  {profile.isFollowing ? (
-                    <>
-                      <Check size={16} /> Abonné
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus size={16} /> Suivre
-                    </>
-                  )}
-                </button>
+                <>
+                  <button
+                    className={`flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all ${
+                      profile.isFollowing 
+                        ? 'bg-pink-600 text-white hover:bg-pink-700' 
+                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                    }`}
+                    onClick={handleFollow}
+                    disabled={uploading}
+                  >
+                    {profile.isFollowing ? (
+                      <>
+                        <Check size={16} /> Abonné
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} /> Suivre
+                      </>
+                    )}
+                  </button>
+                  <button
+                    className="flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all bg-blue-600 text-white hover:bg-blue-700"
+                    onClick={handleMessageRequest}
+                    disabled={uploading}
+                  >
+                    <MessageCircle size={16} /> Message
+                  </button>
+                </>
               )}
             </div>
             {error && <div className="text-red-400 text-sm mt-2">{error}</div>}

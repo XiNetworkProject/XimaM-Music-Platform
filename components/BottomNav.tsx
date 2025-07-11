@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import { useState, useEffect } from 'react';
 
 const navItems = [
   { href: '/', icon: Home, label: 'Accueil' },
@@ -31,6 +32,28 @@ export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [pendingRequests, setPendingRequests] = useState(0);
+
+  // Vérifier les demandes en attente
+  useEffect(() => {
+    if (session?.user) {
+      checkPendingRequests();
+    }
+  }, [session]);
+
+  const checkPendingRequests = async () => {
+    try {
+      const response = await fetch('/api/messages/conversations');
+      const data = await response.json();
+      
+      if (response.ok) {
+        const pending = data.conversations.filter((conv: any) => !conv.accepted).length;
+        setPendingRequests(pending);
+      }
+    } catch (error) {
+      // Erreur silencieuse
+    }
+  };
 
   // Navigation optimisée avec cache
   const handleNavigation = useCallback((path: string) => {
@@ -222,16 +245,16 @@ export default function BottomNav() {
                       key={`${item.href}-label-${pathname}`}
                       className={`text-xs font-medium transition-all duration-200 relative z-10 ${
                         isActive 
-                          ? 'text-purple-400 font-semibold' 
+                          ? 'text-purple-400' 
                           : 'text-white/60 group-hover:text-white/80'
-                  }`}
-                      initial={isActive ? { y: 0, scale: 1 } : { y: 0, scale: 1 }}
+                      }`}
+                      initial={isActive ? { scale: 1, y: 0 } : { scale: 1, y: 0 }}
                       animate={isActive ? { 
-                        y: [0, -1, 0],
-                        scale: [1, 1.02, 1]
+                        scale: [1, 1.1, 1],
+                        y: [0, -2, 0]
                       } : {
-                        y: 0,
-                        scale: 1
+                        scale: 1,
+                        y: 0
                       }}
                       transition={{ 
                         duration: 0.6, 
@@ -240,8 +263,14 @@ export default function BottomNav() {
                         type: "spring",
                         stiffness: 300
                       }}
-                >
-                  {item.label}
+                    >
+                      {item.label}
+                      {/* Indicateur de notifications pour les messages */}
+                      {item.href === '/messages' && pendingRequests > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                          {pendingRequests}
+                        </span>
+                      )}
                     </motion.span>
                     
                     {/* Effet de hover avec gradient */}
