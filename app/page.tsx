@@ -2495,17 +2495,16 @@ export default function HomePage() {
                                     >
                                       <Play size={8} fill="white" className="ml-0.5" />
                                     </motion.button>
-                                    <motion.button
-                                      whileHover={{ scale: 1.1 }}
-                                      whileTap={{ scale: 0.9 }}
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleLikeTrack(track._id, 'recommendations', index);
+                                    <InteractiveCounter
+                                      type="likes"
+                                      initialCount={track.likes?.length || 0}
+                                      isActive={track.isLiked || track.likes?.includes(user?.id || '')}
+                                      onToggle={async (newState) => {
+                                        await handleLikeTrack(track._id, 'recommendations', index);
                                       }}
+                                      showIcon={true}
                                       className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
-                                    >
-                                      <Heart size={8} fill={track.isLiked ? 'currentColor' : 'none'} className={track.isLiked ? 'text-red-400' : 'text-white'} />
-                                    </motion.button>
+                                    />
                                   </div>
                                 </motion.div>
                               ))}
@@ -2533,10 +2532,8 @@ export default function HomePage() {
                                 // Naviguer vers les tendances
                                 router.push('/discover?filter=trending');
                               } else if (rec.type === 'Recommandations personnalisées') {
-                                // Jouer la première piste recommandée
-                                if (rec.tracks && rec.tracks.length > 0) {
-                                  handlePlayTrack(rec.tracks[0]);
-                                }
+                                // Naviguer vers la page de découverte avec filtres personnalisés
+                                router.push('/discover?filter=personal');
                               } else {
                                 // Action par défaut : naviguer vers la découverte
                                 router.push('/discover');
