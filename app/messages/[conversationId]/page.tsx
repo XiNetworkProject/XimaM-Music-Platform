@@ -20,6 +20,7 @@ import {
   Paperclip
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import React from 'react';
 
 interface Message {
   _id: string;
@@ -45,6 +46,66 @@ interface Conversation {
     avatar?: string;
   }>;
   accepted: boolean;
+}
+
+function MessageInputBar({
+  newMessage,
+  setNewMessage,
+  handleSendText,
+  handleFileSelect,
+  fileInputRef,
+  isRecording,
+  startRecording,
+  stopRecording,
+  uploading
+}: any) {
+  return (
+    <div className="fixed bottom-16 left-0 w-full z-40 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
+      <button
+        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+        onClick={() => fileInputRef.current?.click()}
+        title="Envoyer un média"
+      >
+        <Paperclip size={20} className="text-purple-300" />
+      </button>
+      <button
+        className={`p-2 rounded-full transition-colors shadow-md ${isRecording ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'}`}
+        onMouseDown={startRecording}
+        onMouseUp={stopRecording}
+        onMouseLeave={stopRecording}
+        onTouchStart={startRecording}
+        onTouchEnd={stopRecording}
+        title="Message vocal"
+      >
+        <Mic size={20} className="text-purple-300" />
+      </button>
+      <input
+        type="text"
+        value={newMessage}
+        onChange={(e) => setNewMessage(e.target.value)}
+        onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
+        placeholder="Tapez votre message..."
+        className="flex-1 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
+        disabled={uploading}
+      />
+      <button
+        onClick={handleSendText}
+        disabled={!newMessage.trim() || uploading}
+        className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
+        title="Envoyer"
+      >
+        <Send size={20} className="text-white" />
+      </button>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*,audio/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+    </div>
+  );
 }
 
 export default function ConversationPage() {
@@ -375,8 +436,8 @@ export default function ConversationPage() {
         </button>
       </div>
 
-      {/* Messages scrollable avec padding pour header et BottomNav */}
-      <div className="pt-20 pb-20 px-2 flex flex-col space-y-4 overflow-y-auto h-screen">
+      {/* Messages scrollable avec padding pour header et BottomNav+input */}
+      <div className="pt-20 pb-32 px-2 flex flex-col space-y-4 overflow-y-auto h-screen">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
@@ -443,52 +504,18 @@ export default function ConversationPage() {
         )}
       </div>
 
-      {/* Barre d’envoi sticky juste au-dessus de la BottomNav */}
-      <div className="sticky bottom-0 z-30 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
-        <button
-          className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
-          onClick={() => fileInputRef.current?.click()}
-          title="Envoyer un média"
-        >
-          <Paperclip size={20} className="text-purple-300" />
-        </button>
-        <button
-          className={`p-2 rounded-full transition-colors shadow-md ${isRecording ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'}`}
-          onMouseDown={startRecording}
-          onMouseUp={stopRecording}
-          onMouseLeave={stopRecording}
-          onTouchStart={startRecording}
-          onTouchEnd={stopRecording}
-          title="Message vocal"
-        >
-          <Mic size={20} className="text-purple-300" />
-        </button>
-        <input
-          type="text"
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
-          placeholder="Tapez votre message..."
-          className="flex-1 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
-          disabled={uploading}
-        />
-        <button
-          onClick={handleSendText}
-          disabled={!newMessage.trim() || uploading}
-          className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
-          title="Envoyer"
-        >
-          <Send size={20} className="text-white" />
-        </button>
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,video/*,audio/*"
-          onChange={handleFileSelect}
-          className="hidden"
-        />
-      </div>
+      {/* Barre d’envoi indépendante, juste au-dessus de la BottomNav */}
+      <MessageInputBar
+        newMessage={newMessage}
+        setNewMessage={setNewMessage}
+        handleSendText={handleSendText}
+        handleFileSelect={handleFileSelect}
+        fileInputRef={fileInputRef}
+        isRecording={isRecording}
+        startRecording={startRecording}
+        stopRecording={stopRecording}
+        uploading={uploading}
+      />
     </div>
   );
 } 
