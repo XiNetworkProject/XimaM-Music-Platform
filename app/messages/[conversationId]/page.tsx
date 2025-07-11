@@ -77,19 +77,20 @@ function MessageInputBar({
   cancelRecording
 }: any) {
   return (
-    <div className="fixed bottom-16 left-0 w-full z-40 px-0 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-1 rounded-t-2xl shadow-2xl">
+    <div className="fixed bottom-16 left-0 w-full z-40 px-2 py-2 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center gap-2 rounded-t-2xl shadow-2xl">
+      {/* Bouton pièce jointe */}
       <button
-        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md flex-shrink-0"
         onClick={() => fileInputRef.current?.click()}
         title="Envoyer un média"
       >
-        <Paperclip size={20} className="text-purple-300" />
+        <Paperclip size={18} className="text-purple-300" />
       </button>
       
-      {/* Bouton microphone amélioré avec animations */}
+      {/* Bouton microphone ou prévisualisation */}
       {!recordingPreview ? (
         <button
-          className={`p-2 rounded-full transition-all duration-200 shadow-md ${
+          className={`p-2 rounded-full transition-all duration-200 shadow-md flex-shrink-0 relative ${
             isRecording 
               ? 'bg-red-500 hover:bg-red-600 scale-110' 
               : 'bg-white/20 hover:bg-white/30'
@@ -101,7 +102,7 @@ function MessageInputBar({
           onTouchEnd={stopRecording}
           title={isRecording ? 'Relâchez pour arrêter' : 'Maintenez pour enregistrer'}
         >
-          <Mic size={20} className="text-purple-300" />
+          <Mic size={18} className="text-purple-300" />
           {/* Animation d'enregistrement */}
           {isRecording && (
             <div className="absolute -top-1 -right-1 flex space-x-0.5">
@@ -112,14 +113,14 @@ function MessageInputBar({
           )}
         </button>
       ) : (
-        // Interface de prévisualisation intégrée
-        <div className="flex items-center space-x-2 bg-purple-600/20 rounded-lg px-2 py-1">
+        // Interface de prévisualisation compacte
+        <div className="flex items-center space-x-1 bg-purple-600/20 rounded-lg px-2 py-1 flex-shrink-0">
           <button
             className="p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
             onClick={isPreviewPlaying ? stopPreview : playPreview}
             title={isPreviewPlaying ? 'Arrêter' : 'Écouter'}
           >
-            {isPreviewPlaying ? <Pause size={16} /> : <Play size={16} />}
+            {isPreviewPlaying ? <Pause size={14} /> : <Play size={14} />}
           </button>
           <span className="text-white font-mono text-xs">
             {formatRecordingDuration(recordingDuration)}
@@ -127,61 +128,68 @@ function MessageInputBar({
         </div>
       )}
       
-      {/* Boutons de diagnostic */}
-      <button
-        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
-        onClick={testMicrophoneAccess}
-        title="Tester le microphone"
-      >
-        <Volume2 size={20} className="text-purple-300" />
-      </button>
-      <button
-        className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
-        onClick={showSystemInfo}
-        title="Informations système"
-      >
-        <Settings size={20} className="text-purple-300" />
-      </button>
-      
-      {/* Zone de saisie de texte */}
+      {/* Zone de saisie de texte - priorité maximale */}
       <input
         type="text"
         value={newMessage}
         onChange={(e) => setNewMessage(e.target.value)}
         onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
         placeholder="Tapez votre message..."
-        className="flex-1 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
+        className="flex-1 min-w-0 px-3 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md text-sm"
         disabled={uploading || isRecording}
       />
       
-      {/* Bouton d'envoi ou actions d'enregistrement */}
-      {recordingPreview ? (
-        <div className="flex space-x-1">
+      {/* Boutons d'action - côté droit */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {/* Boutons de diagnostic - seulement si pas en enregistrement */}
+        {!isRecording && !recordingPreview && (
+          <>
+            <button
+              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+              onClick={testMicrophoneAccess}
+              title="Tester le microphone"
+            >
+              <Volume2 size={16} className="text-purple-300" />
+            </button>
+            <button
+              className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+              onClick={showSystemInfo}
+              title="Informations système"
+            >
+              <Settings size={16} className="text-purple-300" />
+            </button>
+          </>
+        )}
+        
+        {/* Bouton d'envoi ou actions d'enregistrement */}
+        {recordingPreview ? (
+          <>
+            <button
+              className="p-2 rounded-full bg-red-500 hover:bg-red-600 transition-colors shadow-md"
+              onClick={cancelRecording}
+              title="Annuler"
+            >
+              <X size={18} className="text-white" />
+            </button>
+            <button
+              className="p-2 rounded-full bg-green-500 hover:bg-green-600 transition-colors shadow-md"
+              onClick={sendRecording}
+              title="Envoyer"
+            >
+              <Send size={18} className="text-white" />
+            </button>
+          </>
+        ) : (
           <button
-            className="p-2 rounded-full bg-red-500 hover:bg-red-600 transition-colors shadow-md"
-            onClick={cancelRecording}
-            title="Annuler"
-          >
-            <X size={20} className="text-white" />
-          </button>
-          <button
-            className="p-2 rounded-full bg-green-500 hover:bg-green-600 transition-colors shadow-md"
-            onClick={sendRecording}
+            onClick={handleSendText}
+            disabled={!newMessage.trim() || uploading || isRecording}
+            className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
             title="Envoyer"
           >
-            <Send size={20} className="text-white" />
+            <Send size={18} className="text-white" />
           </button>
-        </div>
-      ) : (
-        <button
-          onClick={handleSendText}
-          disabled={!newMessage.trim() || uploading || isRecording}
-          className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
-          title="Envoyer"
-        >
-          <Send size={20} className="text-white" />
-        </button>
-      )}
+        )}
+      </div>
       
       {/* Hidden file input */}
       <input
@@ -532,6 +540,10 @@ export default function ConversationPage() {
 
   // Fonction pour jouer la prévisualisation
   const playPreview = () => {
+    console.log('🎵 playPreview appelé');
+    console.log('📁 recordingPreview:', recordingPreview);
+    console.log('🔊 previewAudioRef.current:', previewAudioRef.current);
+    
     if (previewAudioRef.current && recordingPreview) {
       previewAudioRef.current.src = recordingPreview;
       previewAudioRef.current.play();
@@ -540,46 +552,65 @@ export default function ConversationPage() {
       previewAudioRef.current.onended = () => {
         setIsPreviewPlaying(false);
       };
+      console.log('✅ Prévisualisation lancée');
+    } else {
+      console.warn('⚠️ Impossible de lancer la prévisualisation');
     }
   };
 
   // Fonction pour arrêter la prévisualisation
   const stopPreview = () => {
+    console.log('⏹️ stopPreview appelé');
     if (previewAudioRef.current) {
       previewAudioRef.current.pause();
       previewAudioRef.current.currentTime = 0;
       setIsPreviewPlaying(false);
+      console.log('✅ Prévisualisation arrêtée');
+    } else {
+      console.warn('⚠️ Aucun élément audio à arrêter');
     }
   };
 
   // Fonction pour envoyer l'enregistrement
   const sendRecording = () => {
+    console.log('📤 sendRecording appelé');
+    console.log('📁 recordingPreview:', recordingPreview);
+    
     if (recordingPreview) {
+      console.log('🔄 Création du fichier audio...');
       // Créer un fichier à partir de l'URL de prévisualisation
       fetch(recordingPreview)
         .then(res => res.blob())
         .then(blob => {
+          console.log('📦 Blob créé:', blob.size, 'bytes');
           const file = new File([blob], `audio_${Date.now()}.webm`, { type: 'audio/webm' });
+          console.log('📁 Fichier créé:', file.name, file.size, 'bytes');
+          
           handleFileUpload(file, 'audio');
           
           // Réinitialiser les états
           setRecordingPreview(null);
           setRecordingDuration(0);
           stopPreview();
+          console.log('✅ Enregistrement envoyé et états réinitialisés');
         })
         .catch(error => {
-          console.error('Erreur lors de l\'envoi de l\'enregistrement:', error);
+          console.error('❌ Erreur lors de l\'envoi de l\'enregistrement:', error);
           toast.error('Erreur lors de l\'envoi de l\'enregistrement');
         });
+    } else {
+      console.warn('⚠️ Aucun enregistrement à envoyer');
     }
   };
 
   // Fonction pour annuler l'enregistrement
   const cancelRecording = () => {
+    console.log('❌ cancelRecording appelé');
     setRecordingPreview(null);
     setRecordingDuration(0);
     stopPreview();
     stopRecordingTimer();
+    console.log('✅ Enregistrement annulé et états réinitialisés');
   };
 
   // Fonction pour afficher les informations système
