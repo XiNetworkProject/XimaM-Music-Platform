@@ -2548,7 +2548,7 @@ export default function HomePage() {
                                       {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                                     </p>
                                   </div>
-                                  <div className="flex items-center space-x-1">
+                                  <div className="flex items-center space-x-1 gap-1">
                                     <motion.button
                                       whileHover={{ scale: 1.1 }}
                                       whileTap={{ scale: 0.9 }}
@@ -2568,7 +2568,7 @@ export default function HomePage() {
                                         await handleLikeTrack(track._id, 'recommendations', index);
                                       }}
                                       showIcon={true}
-                                      className="w-5 h-5 bg-white/20 rounded-full hover:bg-white/30 transition-colors"
+                                      className="w-5 h-5 bg-white/20 rounded-full hover:bg-white/30 transition-colors text-white"
                                     />
                                   </div>
                                 </motion.div>
