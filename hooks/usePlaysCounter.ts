@@ -4,6 +4,7 @@ interface PlaysCounterOptions {
   updateInterval?: number;
   debounceDelay?: number;
   enableAutoUpdate?: boolean;
+  syncWithAudioService?: boolean;
 }
 
 export function usePlaysCounter(
@@ -14,7 +15,8 @@ export function usePlaysCounter(
   const {
     updateInterval = 30000, // 30 secondes
     debounceDelay = 1000,
-    enableAutoUpdate = true
+    enableAutoUpdate = true,
+    syncWithAudioService = true
   } = options;
 
   // Ignorer initialPlays et toujours récupérer la valeur fraîche depuis l'API
@@ -27,6 +29,7 @@ export function usePlaysCounter(
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   const isMounted = useRef(true);
   const hasFetched = useRef(false);
+  const lastTrackId = useRef<string | null>(null);
 
   // Fonction pour formater le nombre
   const formatNumber = useCallback((num: number) => {
@@ -54,6 +57,7 @@ export function usePlaysCounter(
           setPlays(newPlays); // Toujours utiliser la valeur de l'API
           setLastUpdate(Date.now());
           hasFetched.current = true;
+          console.log(`📊 Écoutes récupérées pour ${trackId}: ${newPlays}`);
         }
       } else {
         throw new Error('Erreur lors de la récupération des écoutes');
@@ -61,6 +65,7 @@ export function usePlaysCounter(
     } catch (err) {
       if (isMounted.current) {
         setError(err instanceof Error ? err.message : 'Erreur inconnue');
+        console.error('❌ Erreur récupération écoutes:', err);
       }
     } finally {
       if (isMounted.current) {
@@ -97,6 +102,7 @@ export function usePlaysCounter(
             setPlays(newPlays); // Toujours utiliser la valeur de l'API
             setLastUpdate(Date.now());
             hasFetched.current = true;
+            console.log(`✅ Écoutes incrémentées pour ${trackId}: ${newPlays}`);
           }
         } else {
           throw new Error('Erreur lors de l\'incrémentation des écoutes');
@@ -104,6 +110,7 @@ export function usePlaysCounter(
       } catch (err) {
         if (isMounted.current) {
           setError(err instanceof Error ? err.message : 'Erreur inconnue');
+          console.error('❌ Erreur incrémentation écoutes:', err);
         }
       } finally {
         if (isMounted.current) {
@@ -112,6 +119,27 @@ export function usePlaysCounter(
       }
     }, debounceDelay);
   }, [trackId, isUpdating, debounceDelay]);
+
+  // Synchronisation avec le service audio
+  useEffect(() => {
+    if (!syncWithAudioService) return;
+
+    const handleAudioEvent = (event: CustomEvent) => {
+      if (event.detail?.trackId === trackId) {
+        // Rafraîchir les écoutes quand une piste commence à jouer
+        setTimeout(() => {
+          fetchPlays();
+        }, 2000); // Attendre 2 secondes pour laisser le temps à l'API de s'incrémenter
+      }
+    };
+
+    // Écouter les événements de lecture audio
+    window.addEventListener('trackPlayed', handleAudioEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('trackPlayed', handleAudioEvent as EventListener);
+    };
+  }, [trackId, syncWithAudioService, fetchPlays]);
 
   // Mise à jour automatique des écoutes
   useEffect(() => {
@@ -145,8 +173,11 @@ export function usePlaysCounter(
 
   // Réinitialiser quand le trackId change
   useEffect(() => {
-    setPlays(0);
-    hasFetched.current = false;
+    if (lastTrackId.current !== trackId) {
+      setPlays(0);
+      hasFetched.current = false;
+      lastTrackId.current = trackId;
+    }
   }, [trackId]);
 
   // Récupérer immédiatement la valeur fraîche au montage

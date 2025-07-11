@@ -49,12 +49,6 @@ export async function GET(
       isLiked = track.likes.includes(session.user.id);
     }
 
-    // Incrémenter le nombre d'écoutes
-    console.log('API Track - Incrémentation des écoutes...');
-    await Track.findByIdAndUpdate(trackId, {
-      $inc: { plays: 1 }
-    });
-
     console.log('API Track - Réponse envoyée avec succès');
     return NextResponse.json({
       track: {

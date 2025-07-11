@@ -426,6 +426,48 @@ export const useAudioService = () => {
     }
   }, [state.currentTrack, state.currentTime, recommendations]);
 
+  // Fonction pour incrémenter les écoutes avec debounce et suivi
+  const updatePlayCount = useCallback(async (trackId: string) => {
+    // Éviter les doublons pour la même piste
+    if (trackedPlays.has(trackId)) {
+      return;
+    }
+    
+    // Marquer cette piste comme en cours de mise à jour
+    setTrackedPlays(prev => new Set([...Array.from(prev), trackId]));
+    
+    // Utiliser un debounce pour éviter les appels multiples
+    const timeoutId = setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/tracks/${trackId}/plays`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (!response.ok) {
+          console.error('Erreur lors de la mise à jour des écoutes');
+        } else {
+          console.log(`✅ Écoutes mises à jour pour la piste ${trackId}`);
+        }
+      } catch (error) {
+        console.error('Erreur mise à jour plays:', error);
+      } finally {
+        // Retirer la piste du suivi après un délai
+        setTimeout(() => {
+          setTrackedPlays(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(trackId);
+            return newSet;
+          });
+        }, 2000); // Attendre 2 secondes avant de permettre une nouvelle mise à jour
+      }
+    }, 1000); // Attendre 1 seconde avant d'incrémenter
+    
+    return () => clearTimeout(timeoutId);
+  }, [trackedPlays]);
+
   const play = useCallback(async (track?: Track) => {
     try {
       if (track) {
@@ -435,6 +477,14 @@ export const useAudioService = () => {
         const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
         const updatedHistory = [...recentlyPlayed, track._id].slice(-10); // Garder les 10 dernières
         localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+        
+        // Incrémenter les écoutes pour la piste qui commence à jouer
+        updatePlayCount(track._id);
+        
+        // Émettre un événement pour synchroniser les compteurs d'écoutes
+        window.dispatchEvent(new CustomEvent('trackPlayed', {
+          detail: { trackId: track._id }
+        }));
       }
       
       if (audioRef.current) {
@@ -459,7 +509,7 @@ export const useAudioService = () => {
     } catch (error) {
       // Erreur silencieuse
     }
-  }, [loadTrack, isFirstPlay]);
+  }, [loadTrack, isFirstPlay, updatePlayCount]);
 
   const pause = useCallback(() => {
     if (audioRef.current) {
@@ -518,48 +568,6 @@ export const useAudioService = () => {
     }
   }, []);
 
-  // Fonction pour incrémenter les écoutes avec debounce et suivi
-  const updatePlayCount = useCallback(async (trackId: string) => {
-    // Éviter les doublons pour la même piste
-    if (trackedPlays.has(trackId)) {
-      return;
-    }
-    
-    // Marquer cette piste comme en cours de mise à jour
-    setTrackedPlays(prev => new Set([...Array.from(prev), trackId]));
-    
-    // Utiliser un debounce pour éviter les appels multiples
-    const timeoutId = setTimeout(async () => {
-      try {
-        const response = await fetch(`/api/tracks/${trackId}/plays`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-        if (!response.ok) {
-          console.error('Erreur lors de la mise à jour des écoutes');
-        } else {
-          console.log(`✅ Écoutes mises à jour pour la piste ${trackId}`);
-        }
-      } catch (error) {
-        console.error('Erreur mise à jour plays:', error);
-      } finally {
-        // Retirer la piste du suivi après un délai
-        setTimeout(() => {
-          setTrackedPlays(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(trackId);
-            return newSet;
-          });
-        }, 2000); // Attendre 2 secondes avant de permettre une nouvelle mise à jour
-      }
-    }, 1000); // Attendre 1 seconde avant d'incrémenter
-    
-    return () => clearTimeout(timeoutId);
-  }, [trackedPlays]);
-
   const nextTrack = useCallback(() => {
     const currentQueue = shuffle ? shuffledQueue : queue;
     
@@ -591,6 +599,11 @@ export const useAudioService = () => {
         play();
         // Incrémenter les écoutes pour la nouvelle piste
         updatePlayCount(nextTrack._id);
+        
+        // Émettre un événement pour synchroniser les compteurs d'écoutes
+        window.dispatchEvent(new CustomEvent('trackPlayed', {
+          detail: { trackId: nextTrack._id }
+        }));
       }
     });
       return;
@@ -696,6 +709,11 @@ export const useAudioService = () => {
         play();
         // Incrémenter les écoutes pour la nouvelle piste
         updatePlayCount(prevTrack._id);
+        
+        // Émettre un événement pour synchroniser les compteurs d'écoutes
+        window.dispatchEvent(new CustomEvent('trackPlayed', {
+          detail: { trackId: prevTrack._id }
+        }));
       }
     });
       return;
