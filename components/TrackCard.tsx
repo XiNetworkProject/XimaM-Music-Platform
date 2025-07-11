@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, Heart, MessageCircle, Share2, MoreVertical, Clock, Headphones } from 'lucide-react';
 import Image from 'next/image';
@@ -8,7 +8,6 @@ import Link from 'next/link';
 import SocialStats from './SocialStats';
 import CommentSection from './CommentSection';
 import { useAudioService } from '@/hooks/useAudioService';
-import { usePlaysCounter } from '@/hooks/usePlaysCounter';
 
 interface Track {
   _id: string;
@@ -38,32 +37,27 @@ interface TrackCardProps {
 }
 
 // Composant pour afficher les écoutes de manière stable
-function PlaysCounter({ trackId, size = 'sm' }: { 
+function PlaysCounter({ trackId, plays, size = 'sm' }: { 
   trackId: string; 
+  plays: number;
   size?: 'sm' | 'md' | 'lg';
 }) {
-  const {
-    formattedPlays,
-    isUpdating,
-    error
-  } = usePlaysCounter(trackId, 0, { // Utiliser 0 comme valeur initiale, le hook récupérera la vraie valeur
-    updateInterval: 30000, // 30 secondes
-    debounceDelay: 1000,
-    enableAutoUpdate: true
-  });
+  // Formater le nombre d'écoutes
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M';
+    } else if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K';
+    }
+    return num.toString();
+  };
 
   return (
     <div className="flex items-center gap-1 text-gray-500">
       <Headphones size={size === 'sm' ? 12 : size === 'md' ? 14 : 16} />
-      <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'} ${isUpdating ? 'text-blue-500' : ''}`}>
-        {formattedPlays}
+      <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'}`}>
+        {formatNumber(plays)}
       </span>
-      {isUpdating && (
-        <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" title="Mise à jour en cours..." />
-      )}
-      {error && (
-        <div className="w-2 h-2 bg-red-500 rounded-full" title={error} />
-      )}
     </div>
   );
 }
@@ -206,7 +200,7 @@ export default function TrackCard({
             </Link>
             <div className="flex items-center gap-2 text-gray-500 justify-center mt-1">
               <span className={`${sizeClasses[size].duration}`}>{formatDuration(track.duration)}</span>
-              <PlaysCounter trackId={track._id} size={size} />
+              <PlaysCounter trackId={track._id} plays={track.plays || 0} size={size} />
               <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                 <MoreVertical size={10} />
               </button>
