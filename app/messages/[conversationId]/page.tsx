@@ -72,7 +72,7 @@ interface OnlineStatus {
 const useOnlineStatus = (conversationId: string, otherUserId: string) => {
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({
     userId: otherUserId,
-    isOnline: false,
+    isOnline: false, // Par défaut hors ligne
     lastSeen: new Date(),
     isTyping: false
   });
@@ -80,77 +80,37 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
   const wsRef = useRef<WebSocket | null>(null);
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Fonction pour déterminer si un utilisateur est en ligne basé sur son lastSeen
-  const determineOnlineStatus = useCallback((lastSeen: Date) => {
-    const now = new Date();
-    const timeDiff = now.getTime() - lastSeen.getTime();
-    const minutesDiff = timeDiff / (1000 * 60);
-    
-    // Considérer en ligne si vu il y a moins de 5 minutes
-    return minutesDiff < 5;
-  }, []);
-
-  // Fonction pour formater le lastSeen de manière plus intelligente
-  const formatLastSeen = useCallback((lastSeen: Date) => {
-    const now = new Date();
-    const timeDiff = now.getTime() - lastSeen.getTime();
-    const minutesDiff = timeDiff / (1000 * 60);
-    const hoursDiff = minutesDiff / 60;
-    const daysDiff = hoursDiff / 24;
-
-    if (minutesDiff < 1) return 'À l\'instant';
-    if (minutesDiff < 60) return `Il y a ${Math.floor(minutesDiff)} min`;
-    if (hoursDiff < 24) return `Il y a ${Math.floor(hoursDiff)}h`;
-    if (daysDiff < 7) return `Il y a ${Math.floor(daysDiff)}j`;
-    return `Il y a ${Math.floor(daysDiff)}j`;
-  }, []);
-
   useEffect(() => {
-    // Simuler une connexion WebSocket plus réaliste
+    // TODO: Implémenter un vrai serveur WebSocket pour les statuts en temps réel
+    // Pour l'instant, on utilise des valeurs par défaut réalistes
     const connectWebSocket = () => {
-      console.log('🔌 Tentative de connexion WebSocket...');
+      console.log('🔌 Simulation WebSocket (statuts par défaut)...');
       
       // Simulation d'une connexion WebSocket
       setIsConnected(true);
       
-      // Simuler un statut en ligne basé sur l'activité récente
-      // En production, vous recevriez ces données du serveur WebSocket
-      const simulateOnlineStatus = () => {
-        const now = new Date();
-        const randomActivity = Math.random();
-        
-        // 30% de chance d'être en ligne (plus réaliste)
-        const isOnline = randomActivity < 0.3;
-        
-        // Simuler un lastSeen basé sur l'activité
-        const lastSeen = isOnline 
-          ? new Date(now.getTime() - Math.random() * 300000) // Entre maintenant et 5 min
-          : new Date(now.getTime() - (5 + Math.random() * 60) * 60000); // Entre 5 min et 1h
-        
+      // Utiliser des valeurs par défaut réalistes au lieu de valeurs aléatoires
+      const setDefaultStatus = () => {
         setOnlineStatus(prev => ({
           ...prev,
-          isOnline,
-          lastSeen,
-          isTyping: false
+          isOnline: false, // Par défaut hors ligne
+          isTyping: false, // Par défaut pas en train de taper
+          lastSeen: new Date(Date.now() - Math.random() * 300000) // Vu il y a 0-5 min
         }));
       };
 
-      // Simuler le statut initial
-      simulateOnlineStatus();
-
-      // Mettre à jour le statut toutes les 30 secondes
-      const statusInterval = setInterval(simulateOnlineStatus, 30000);
-
-      // Heartbeat pour maintenir la connexion
+      // Définir le statut par défaut
+      setDefaultStatus();
+      
+      // Heartbeat pour maintenir la connexion simulée
       heartbeatRef.current = setInterval(() => {
-        console.log('💓 Heartbeat...');
+        console.log('💓 Heartbeat simulé...');
       }, 30000);
 
       return () => {
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
         }
-        clearInterval(statusInterval);
       };
     };
 
@@ -161,6 +121,9 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
 
   // Fonction pour envoyer le statut de frappe
   const sendTypingStatus = useCallback((isTyping: boolean) => {
+    // TODO: Implémenter l'envoi réel du statut de frappe via WebSocket
+    console.log('⌨️ Statut de frappe:', isTyping);
+    
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'typing',
@@ -173,8 +136,7 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
   return {
     onlineStatus,
     isConnected,
-    sendTypingStatus,
-    formatLastSeen
+    sendTypingStatus
   };
 };
 
@@ -383,11 +345,17 @@ const MessageStatus = ({ message, isOwnMessage, readStatuses, currentUserId }: {
 };
 
 // Composant pour afficher le statut en ligne avec plus de détails
-const OnlineStatusIndicator = ({ onlineStatus, isConnected, formatLastSeen }: { 
-  onlineStatus: OnlineStatus; 
-  isConnected: boolean;
-  formatLastSeen: (date: Date) => string;
-}) => {
+const OnlineStatusIndicator = ({ onlineStatus, isConnected }: { onlineStatus: OnlineStatus; isConnected: boolean }) => {
+  const formatLastSeen = (date: Date) => {
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    
+    if (minutes < 1) return 'À l\'instant';
+    if (minutes < 60) return `Il y a ${minutes} min`;
+    if (minutes < 1440) return `Il y a ${Math.floor(minutes / 60)}h`;
+    return `Il y a ${Math.floor(minutes / 1440)}j`;
+  };
 
   return (
     <motion.div 
@@ -1804,15 +1772,15 @@ Paramètres Linux à vérifier :
   }
 
   const otherUser = getOtherParticipant();
-  const { onlineStatus, isConnected, sendTypingStatus, formatLastSeen } = useOnlineStatus(conversationId, otherUser?._id || '');
-  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session?.user?.id || '');
+  const { onlineStatus, isConnected, sendTypingStatus } = useOnlineStatus(conversationId, otherUser?._id || '');
+  const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session.user.id);
 
   // Observer les messages pour marquer comme lus
   useEffect(() => {
-    if (messages.length > 0 && session?.user?.id) {
+    if (messages.length > 0) {
       observeMessages(messages);
     }
-  }, [messages, observeMessages, session?.user?.id]);
+  }, [messages, observeMessages]);
 
   // Gérer le statut de frappe
   const [isTyping, setIsTyping] = useState(false);
@@ -1876,7 +1844,7 @@ Paramètres Linux à vérifier :
               <UserAvatar user={otherUser} onlineStatus={onlineStatus} isConnected={isConnected} />
               <div>
                 <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
-                <OnlineStatusIndicator onlineStatus={onlineStatus} isConnected={isConnected} formatLastSeen={formatLastSeen} />
+                <OnlineStatusIndicator onlineStatus={onlineStatus} isConnected={isConnected} />
               </div>
             </motion.div>
           ) : conversationLoading ? (
@@ -1980,7 +1948,7 @@ Paramètres Linux à vérifier :
               </motion.div>
             ) : (
               messages.map((message, index) => {
-                const isOwnMessage = message.sender._id === session?.user?.id;
+                const isOwnMessage = message.sender._id === session.user?.id;
                 return (
                 <motion.div
                   key={message._id}
@@ -2104,7 +2072,7 @@ Paramètres Linux à vérifier :
                       
                       {/* Statut du message et heure */}
                       <div className="flex justify-between items-center mt-3">
-                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} currentUserId={session?.user?.id || ''} />
+                        <MessageStatus message={message} isOwnMessage={isOwnMessage} readStatuses={readStatuses} currentUserId={session.user.id} />
                         <span className="text-xs text-white/60 font-mono">
                           {formatMessageTime(message.createdAt)}
                         </span>

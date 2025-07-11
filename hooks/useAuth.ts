@@ -2,27 +2,26 @@
 
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 
 export function useAuth() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
 
-  // Toujours initialiser les valeurs dans le même ordre
   const isAuthenticated = status === 'authenticated';
   const isLoading = status === 'loading';
   const isUnauthenticated = status === 'unauthenticated';
 
-  const logout = useCallback(async () => {
+  const logout = async () => {
     await signOut({ redirect: false });
     router.push('/auth/signin');
-  }, [router]);
+  };
 
-  const refreshSession = useCallback(async () => {
+  const refreshSession = async () => {
     await update();
-  }, [update]);
+  };
 
-  const requireAuth = useCallback((callback?: () => void) => {
+  const requireAuth = (callback?: () => void) => {
     if (!isLoading && !isAuthenticated) {
       router.push('/auth/signin');
       return false;
@@ -31,19 +30,17 @@ export function useAuth() {
       callback();
     }
     return true;
-  }, [isLoading, isAuthenticated, router]);
+  };
 
-  // Debug: log les changements de session (seulement en développement)
+  // Debug: log les changements de session
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔄 useAuth - Status changé:', { 
-        status, 
-        isAuthenticated, 
-        hasUser: !!session?.user,
-        userEmail: session?.user?.email 
-      });
-    }
-  }, [status, session, isAuthenticated]);
+    console.log('🔄 useAuth - Status changé:', { 
+      status, 
+      isAuthenticated, 
+      hasUser: !!session?.user,
+      userEmail: session?.user?.email 
+    });
+  }, [status, session]);
 
   return {
     session,
