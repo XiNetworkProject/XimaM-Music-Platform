@@ -49,6 +49,92 @@ interface Conversation {
   accepted: boolean;
 }
 
+// Composant d'animation de visualisation audio
+const AudioVisualizer = ({ isPlaying, duration }: { isPlaying: boolean; duration: number }) => {
+  const [currentTime, setCurrentTime] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fonction locale pour formater le temps
+  const formatTimeLocal = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    if (isPlaying) {
+      setCurrentTime(0);
+      intervalRef.current = setInterval(() => {
+        setCurrentTime(prev => {
+          if (prev >= duration) {
+            return duration;
+          }
+          return prev + 0.05; // Plus précis pour une animation fluide
+        });
+      }, 50); // Mise à jour plus fréquente
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      setCurrentTime(0);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isPlaying, duration]);
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div className="flex items-center space-x-2">
+      {/* Barres de visualisation animées */}
+      <div className="flex items-end space-x-0.5 h-6">
+        {[...Array(6)].map((_, index) => (
+          <motion.div
+            key={index}
+            className="w-1 bg-gradient-to-t from-purple-400 to-purple-300 rounded-full"
+            animate={{
+              height: isPlaying 
+                ? [3, 12, 6, 18, 8, 24][index % 6] 
+                : 3
+            }}
+            transition={{
+              duration: 0.4,
+              repeat: isPlaying ? Infinity : 0,
+              repeatType: "reverse",
+              delay: index * 0.15,
+              ease: "easeInOut"
+            }}
+            style={{
+              height: isPlaying ? undefined : '3px'
+            }}
+          />
+        ))}
+      </div>
+      
+      {/* Barre de progression avec temps */}
+      <div className="flex-1">
+        <div className="w-full bg-white/20 rounded-full h-1.5 mb-1">
+          <motion.div 
+            className="bg-gradient-to-r from-purple-400 to-indigo-400 h-1.5 rounded-full shadow-lg"
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 0.05 }}
+          />
+        </div>
+        <div className="flex justify-between text-xs text-white/70">
+          <span>{formatTimeLocal(currentTime)}</span>
+          <span>{formatTimeLocal(duration)}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Fonction pour formater la durée d'enregistrement
 const formatRecordingDuration = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -1400,35 +1486,56 @@ Paramètres Linux à vérifier :
                       </div>
                     )}
                     {message.type === 'audio' && (
-                      <div className="mt-2 flex items-center space-x-3 bg-white/10 rounded-lg p-3">
-                        <button
-                          onClick={() => playAudio(message.content, message._id)}
-                          className={`p-3 rounded-full transition-all duration-200 shadow-lg ${
-                            playingAudio === message._id 
-                              ? 'bg-red-500 hover:bg-red-600 scale-110' 
-                              : 'bg-purple-500 hover:bg-purple-600'
-                          }`}
-                          title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
-                        >
-                          {playingAudio === message._id ? <Pause size={18} /> : <Play size={18} />}
-                        </button>
-                        
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <span className="text-sm font-medium text-white">
-                              Message vocal
-                            </span>
-                            <span className="text-xs text-white/70 font-mono">
-                              {message.duration ? formatTime(message.duration) : 'Audio'}
-                            </span>
-                          </div>
+                      <div className="mt-2 bg-gradient-to-r from-purple-600/20 to-indigo-600/20 rounded-xl p-4 border border-purple-400/30">
+                        <div className="flex items-center space-x-3">
+                          <button
+                            onClick={() => playAudio(message.content, message._id)}
+                            className={`p-3 rounded-full transition-all duration-200 shadow-lg ${
+                              playingAudio === message._id 
+                                ? 'bg-red-500 hover:bg-red-600 scale-110 shadow-red-500/50' 
+                                : 'bg-purple-500 hover:bg-purple-600 shadow-purple-500/50'
+                            }`}
+                            title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
+                          >
+                            {playingAudio === message._id ? <Pause size={18} /> : <Play size={18} />}
+                          </button>
                           
-                          {/* Barre de progression audio */}
-                          {playingAudio === message._id && (
-                            <div className="mt-2 w-full bg-white/20 rounded-full h-1">
-                              <div className="bg-purple-400 h-1 rounded-full animate-pulse" style={{ width: '100%' }}></div>
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm font-medium text-white flex items-center">
+                                <Volume2 size={14} className="mr-1" />
+                                Message vocal
+                              </span>
+                              <span className="text-xs text-white/70 font-mono">
+                                {message.duration ? formatTime(message.duration) : 'Audio'}
+                              </span>
                             </div>
-                          )}
+                            
+                            {/* Visualiseur audio animé */}
+                            {playingAudio === message._id && (
+                              <div className="mt-3">
+                                <AudioVisualizer isPlaying={playingAudio === message._id} duration={message.duration || 0} />
+                              </div>
+                            )}
+                            
+                            {/* Indicateur statique quand pas en lecture */}
+                            {playingAudio !== message._id && (
+                              <div className="flex items-center space-x-1 mt-2">
+                                <div className="flex items-end space-x-0.5 h-4">
+                                  {[...Array(4)].map((_, index) => (
+                                    <div
+                                      key={index}
+                                      className="w-0.5 bg-purple-400/50 rounded-full"
+                                      style={{ height: '4px' }}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-xs text-white/50 ml-2">
+                                  Cliquez pour écouter
+                                </span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )}
