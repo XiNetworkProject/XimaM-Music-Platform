@@ -353,7 +353,10 @@ export default function ConversationPage() {
       // Options spécifiques pour vidéo/audio
       if (type === 'video' || type === 'audio') {
         formData.append('duration_limit', '60');
-        formData.append('format', type === 'video' ? 'mp4' : 'mp3');
+        // Ajouter le format seulement s'il est inclus dans la signature
+        if (type === 'audio') {
+          formData.append('format', 'mp3');
+        }
       }
 
       console.log('📤 Upload vers Cloudinary...');

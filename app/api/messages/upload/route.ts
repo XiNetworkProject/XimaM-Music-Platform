@@ -64,11 +64,16 @@ export async function POST(request: NextRequest) {
     console.log('✅ Type de fichier validé:', { type, resourceType });
 
     // Générer la signature pour l'upload direct
-    const params = {
+    const params: any = {
       folder: `messages/${session.user.id}`,
       public_id: publicId,
       timestamp: timestamp,
     };
+
+    // Ajouter le format pour l'audio (inclus dans la signature)
+    if (type === 'audio') {
+      params.format = 'mp3';
+    }
 
     console.log('🔐 Paramètres pour signature:', params);
     const signature = generateUploadSignature(params);
