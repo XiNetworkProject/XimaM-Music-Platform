@@ -16,7 +16,8 @@ import {
   Volume2,
   X,
   Check,
-  Clock
+  Clock,
+  Paperclip
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -330,12 +331,12 @@ export default function ConversationPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex flex-col pb-24">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-sm border-b border-white/20">
+      {/* Header modernisé */}
+      <div className="flex items-center justify-between p-4 bg-white/10 backdrop-blur-md border-b border-white/20 rounded-b-2xl shadow-lg">
         <div className="flex items-center space-x-3">
           <button
             onClick={() => router.back()}
-            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+            className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
           >
             <ArrowLeft size={20} className="text-white" />
           </button>
@@ -344,16 +345,16 @@ export default function ConversationPage() {
               <img
                 src={otherUser.avatar || '/default-avatar.png'}
                 alt={otherUser.name}
-                className="w-10 h-10 rounded-full object-cover"
+                className="w-12 h-12 rounded-full object-cover border-2 border-purple-400 shadow-md"
               />
               <div>
-                <h2 className="font-semibold text-white">{otherUser.name}</h2>
-                <p className="text-sm text-gray-300">@{otherUser.username}</p>
+                <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
+                <p className="text-xs text-purple-200 font-mono">@{otherUser.username}</p>
               </div>
             </div>
           ) : conversationLoading ? (
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-600 rounded-full animate-pulse"></div>
+              <div className="w-12 h-12 bg-gray-600 rounded-full animate-pulse"></div>
               <div>
                 <div className="h-4 bg-gray-600 rounded w-24 animate-pulse"></div>
                 <div className="h-3 bg-gray-700 rounded w-16 mt-1 animate-pulse"></div>
@@ -361,20 +362,20 @@ export default function ConversationPage() {
             </div>
           ) : (
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gray-600 rounded-full"></div>
+              <div className="w-12 h-12 bg-gray-600 rounded-full"></div>
               <div>
                 <h2 className="font-semibold text-white">Utilisateur</h2>
-                <p className="text-sm text-gray-300">Chargement...</p>
+                <p className="text-xs text-purple-200">Chargement...</p>
               </div>
             </div>
           )}
         </div>
-        <button className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+        <button className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md">
           <MoreVertical size={20} className="text-white" />
         </button>
       </div>
 
-      {/* Messages */}
+      {/* Messages modernisés */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
@@ -394,173 +395,100 @@ export default function ConversationPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex ${message.sender._id === session.user?.id ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-xs lg:max-w-md ${message.sender._id === session.user?.id ? 'bg-purple-600' : 'bg-white/10'} rounded-2xl px-4 py-2 backdrop-blur-sm`}>
+                  <div
+                    className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl shadow-xl backdrop-blur-md transition-all
+                      ${message.sender._id === session.user?.id
+                        ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-500 text-white border-2 border-purple-400'
+                        : 'bg-white/10 text-white border border-white/20'}
+                    `}
+                    style={{ wordBreak: 'break-word' }}
+                  >
                     {/* Message content */}
                     {message.type === 'text' && (
-                      <p className="text-white">{message.content}</p>
+                      <p className="text-base leading-relaxed">{message.content}</p>
                     )}
-                    
                     {message.type === 'image' && (
-                      <img
-                        src={message.content}
-                        alt="Image"
-                        className="rounded-lg max-w-full h-auto cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(message.content, '_blank')}
-                      />
+                      <div className="mt-2 rounded-xl overflow-hidden shadow-lg border-2 border-purple-300">
+                        <img src={message.content} alt="Image envoyée" className="w-64 h-64 object-cover" />
+                      </div>
                     )}
-                    
                     {message.type === 'video' && (
-                      <video
-                        src={message.content}
-                        controls
-                        className="rounded-lg max-w-full h-auto"
-                        preload="metadata"
-                      />
+                      <div className="mt-2 rounded-xl overflow-hidden shadow-lg border-2 border-purple-300">
+                        <video src={message.content} controls className="w-64 h-64 object-cover" />
+                      </div>
                     )}
-                    
                     {message.type === 'audio' && (
-                      <div className="flex items-center space-x-2">
+                      <div className="mt-2 flex items-center space-x-2">
                         <button
                           onClick={() => playAudio(message.content, message._id)}
-                          className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                          className="p-2 rounded-full bg-purple-500 hover:bg-purple-600 shadow-md"
                         >
-                          {playingAudio === message._id ? (
-                            <Pause size={16} className="text-white" />
-                          ) : (
-                            <Play size={16} className="text-white" />
-                          )}
+                          {playingAudio === message._id ? <Pause size={20} /> : <Play size={20} />}
                         </button>
-                        <div className="flex-1 bg-white/20 rounded-full h-2">
-                          <div className="bg-white h-2 rounded-full" style={{ width: '0%' }}></div>
-                        </div>
-                        <span className="text-xs text-white">
-                          {message.duration ? formatTime(message.duration) : '--:--'}
+                        <span className="text-xs text-white/70 font-mono">
+                          {message.duration ? formatTime(message.duration) : 'Audio'}
                         </span>
                       </div>
                     )}
-                    
-                    {/* Message time */}
-                    <p className="text-xs text-gray-300 mt-1">
-                      {formatMessageTime(message.createdAt)}
-                    </p>
+                    <div className="flex justify-end mt-1">
+                      <span className="text-[10px] text-purple-200 font-mono">
+                        {formatMessageTime(message.createdAt)}
+                      </span>
+                    </div>
                   </div>
                 </motion.div>
               ))
             )}
           </AnimatePresence>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      {(() => {
-        console.log('🔍 Rendu zone de saisie:', {
-          conversation: !!conversation,
-          accepted: conversation?.accepted,
-          loading: loading,
-          conversationLoading: conversationLoading
-        });
-        
-        if (conversation && !conversation.accepted) {
-          return (
-            <div className="p-4 bg-white/10 backdrop-blur-sm border-t border-white/20">
-              <div className="text-center text-gray-400">
-                <p>En attente d'acceptation de la demande de conversation...</p>
-              </div>
-            </div>
-          );
-        }
-        
-        // Forcer l'affichage de la zone de saisie si la conversation est acceptée ou si on est en train de charger
-        return (
-          <div className="p-4 bg-white/10 backdrop-blur-sm border-t border-white/20 border-red-500 border-4">
-            <div className="text-red-500 font-bold mb-2">ZONE DE SAISIE VISIBLE</div>
-            <div className="flex items-center space-x-2">
-              {/* Media options */}
-              <div className="relative">
-                <button
-                  onClick={() => setShowMediaOptions(!showMediaOptions)}
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <MoreVertical size={20} className="text-white" />
-                </button>
-                
-                {showMediaOptions && (
-                  <div className="absolute bottom-full left-0 mb-2 bg-white/20 backdrop-blur-sm rounded-lg p-2 space-y-1">
-                    <button
-                      onClick={() => {
-                        fileInputRef.current?.setAttribute('data-type', 'image');
-                        fileInputRef.current?.click();
-                        setShowMediaOptions(false);
-                      }}
-                      className="flex items-center space-x-2 w-full px-3 py-2 rounded hover:bg-white/20 transition-colors"
-                    >
-                      <Image size={16} className="text-white" />
-                      <span className="text-white text-sm">Image</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        fileInputRef.current?.setAttribute('data-type', 'video');
-                        fileInputRef.current?.click();
-                        setShowMediaOptions(false);
-                      }}
-                      className="flex items-center space-x-2 w-full px-3 py-2 rounded hover:bg-white/20 transition-colors"
-                    >
-                      <Video size={16} className="text-white" />
-                      <span className="text-white text-sm">Vidéo</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Audio recording */}
-              <button
-                onMouseDown={startRecording}
-                onMouseUp={stopRecording}
-                onMouseLeave={stopRecording}
-                onTouchStart={startRecording}
-                onTouchEnd={stopRecording}
-                className={`p-2 rounded-full transition-colors ${
-                  isRecording 
-                    ? 'bg-red-500 hover:bg-red-600' 
-                    : 'bg-white/10 hover:bg-white/20'
-                }`}
-              >
-                <Mic size={20} className="text-white" />
-              </button>
-
-              {/* Text input */}
-              <input
-                type="text"
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
-                placeholder="Tapez votre message..."
-                className="flex-1 px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                disabled={uploading}
-              />
-
-              {/* Send button */}
-              <button
-                onClick={handleSendText}
-                disabled={!newMessage.trim() || uploading}
-                className="p-2 rounded-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
-              >
-                <Send size={20} className="text-white" />
-              </button>
-            </div>
-
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*,audio/*"
-              onChange={handleFileSelect}
-              className="hidden"
-            />
-          </div>
-        );
-      })()}
+      {/* Zone de saisie modernisée */}
+      <div className="w-full px-2 py-4 bg-white/10 backdrop-blur-md border-t border-white/20 flex items-center space-x-2 rounded-t-2xl shadow-2xl sticky bottom-0 z-10">
+        <button
+          className="p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors shadow-md"
+          onClick={() => fileInputRef.current?.click()}
+          title="Envoyer un média"
+        >
+          <Paperclip size={20} className="text-purple-300" />
+        </button>
+        <button
+          className={`p-2 rounded-full transition-colors shadow-md ${isRecording ? 'bg-red-500' : 'bg-white/20 hover:bg-white/30'}`}
+          onMouseDown={startRecording}
+          onMouseUp={stopRecording}
+          onMouseLeave={stopRecording}
+          onTouchStart={startRecording}
+          onTouchEnd={stopRecording}
+          title="Message vocal"
+        >
+          <Mic size={20} className="text-purple-300" />
+        </button>
+        <input
+          type="text"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
+          placeholder="Tapez votre message..."
+          className="flex-1 px-4 py-2 bg-white/20 backdrop-blur-sm border border-white/20 rounded-xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-md"
+          disabled={uploading}
+        />
+        <button
+          onClick={handleSendText}
+          disabled={!newMessage.trim() || uploading}
+          className="p-2 rounded-full bg-gradient-to-br from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors shadow-md"
+          title="Envoyer"
+        >
+          <Send size={20} className="text-white" />
+        </button>
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,video/*,audio/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+      </div>
     </div>
   );
 } 
