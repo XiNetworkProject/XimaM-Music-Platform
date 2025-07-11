@@ -78,7 +78,6 @@ export const useWebSocket = (): UseWebSocketReturn => {
     console.log('🔌 Initialisation de la connexion WebSocket...');
     
     const socket = io(process.env.NEXTAUTH_URL || 'http://localhost:3000', {
-      path: '/api/socketio',
       autoConnect: true,
       reconnection: true,
       reconnectionDelay: 1000,

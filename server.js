@@ -2,8 +2,12 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const next = require('next');
 
+// Configuration pour la production
 const dev = process.env.NODE_ENV !== 'production';
-const app = next({ dev });
+const hostname = 'localhost';
+const port = process.env.PORT || 3000;
+
+const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 // Stockage en mémoire pour les connexions actives
@@ -142,9 +146,8 @@ app.prepare().then(() => {
     });
   });
 
-  const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => {
-    console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-    console.log(`🔌 WebSocket disponible sur ws://localhost:${PORT}`);
+  server.listen(port, hostname, () => {
+    console.log(`🚀 Serveur démarré sur http://${hostname}:${port}`);
+    console.log(`🔌 WebSocket disponible sur ws://${hostname}:${port}`);
   });
 }); 

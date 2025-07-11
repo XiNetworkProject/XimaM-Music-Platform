@@ -1,8 +1,26 @@
 {
   "version": 2,
-  "functions": {
-    "app/api/upload/route.ts": {
-      "maxDuration": 60
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node"
     }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/server.js"
+    }
+  ],
+  "env": {
+    "NEXTAUTH_URL": "@nextauth_url",
+    "NEXTAUTH_SECRET": "@nextauth_secret",
+    "MONGODB_URI": "@mongodb_uri",
+    "CLOUDINARY_CLOUD_NAME": "@cloudinary_cloud_name",
+    "CLOUDINARY_API_KEY": "@cloudinary_api_key",
+    "CLOUDINARY_API_SECRET": "@cloudinary_api_secret",
+    "STRIPE_SECRET_KEY": "@stripe_secret_key",
+    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret",
+    "STRIPE_PUBLISHABLE_KEY": "@stripe_publishable_key"
   }
 } 
