@@ -36,7 +36,7 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
     
     setActionLoading('accept');
     try {
-      const res = await fetch(`/api/users/${request.from.username}/follow`, {
+      const res = await fetch(`/api/users/${request.from._id}/follow`, {
         method: 'POST',
       });
       
@@ -92,7 +92,12 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
       } else {
         const data = await res.json();
         if (data.error === 'Conversation déjà existante') {
-          router.push(`/messages/${data.conversationId}`);
+          if (data.accepted) {
+            router.push(`/messages/${data.conversationId}`);
+            toast.success('Redirection vers la conversation existante');
+          } else {
+            toast('Demande de conversation déjà envoyée, en attente d\'acceptation', { icon: 'ℹ️' });
+          }
         } else {
           toast.error(data.error || 'Erreur lors de l\'envoi de la demande');
         }

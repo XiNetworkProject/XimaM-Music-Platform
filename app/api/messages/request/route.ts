@@ -23,7 +23,11 @@ export async function POST(request: NextRequest) {
     participants: { $all: [session.user.id, recipientId] }
   });
   if (existing) {
-    return NextResponse.json({ error: 'Conversation déjà existante', conversationId: existing._id }, { status: 409 });
+    return NextResponse.json({ 
+      error: 'Conversation déjà existante', 
+      conversationId: existing._id.toString(),
+      accepted: existing.accepted 
+    }, { status: 409 });
   }
 
   // Créer la conversation (acceptée = false)
