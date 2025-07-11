@@ -17,8 +17,8 @@ export function usePlaysCounter(
     enableAutoUpdate = true
   } = options;
 
-  // Utiliser initialPlays uniquement à l'initialisation
-  const [plays, setPlays] = useState(initialPlays);
+  // Ignorer initialPlays et toujours récupérer la valeur fraîche depuis l'API
+  const [plays, setPlays] = useState(0); // Toujours commencer à 0
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdate, setLastUpdate] = useState(Date.now());
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +51,7 @@ export function usePlaysCounter(
         const data = await response.json();
         const newPlays = data.plays;
         if (typeof newPlays === 'number' && isMounted.current) {
-          setPlays(prev => (newPlays > prev ? newPlays : prev)); // Ne jamais redescendre
+          setPlays(newPlays); // Toujours utiliser la valeur de l'API
           setLastUpdate(Date.now());
           hasFetched.current = true;
         }
@@ -94,7 +94,7 @@ export function usePlaysCounter(
           const data = await response.json();
           const newPlays = data.plays;
           if (typeof newPlays === 'number' && isMounted.current) {
-            setPlays(prev => (newPlays > prev ? newPlays : prev + 1));
+            setPlays(newPlays); // Toujours utiliser la valeur de l'API
             setLastUpdate(Date.now());
             hasFetched.current = true;
           }
@@ -143,13 +143,18 @@ export function usePlaysCounter(
     };
   }, []);
 
-  // Initialisation : si le trackId change, on réinitialise plays à initialPlays
+  // Réinitialiser quand le trackId change
   useEffect(() => {
-    setPlays(initialPlays);
+    setPlays(0);
     hasFetched.current = false;
   }, [trackId]);
 
-  // (SUPPRIMÉ) Synchronisation avec initialPlays : on ne doit plus jamais écraser plays par initialPlays après le premier render
+  // Récupérer immédiatement la valeur fraîche au montage
+  useEffect(() => {
+    if (trackId && !hasFetched.current) {
+      fetchPlays();
+    }
+  }, [trackId, fetchPlays]);
 
   return {
     plays,

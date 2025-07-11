@@ -38,16 +38,15 @@ interface TrackCardProps {
 }
 
 // Composant pour afficher les écoutes de manière stable
-function PlaysCounter({ trackId, initialPlays, size = 'sm' }: { 
+function PlaysCounter({ trackId, size = 'sm' }: { 
   trackId: string; 
-  initialPlays: number; 
   size?: 'sm' | 'md' | 'lg';
 }) {
   const {
     formattedPlays,
     isUpdating,
     error
-  } = usePlaysCounter(trackId, initialPlays, {
+  } = usePlaysCounter(trackId, 0, { // Utiliser 0 comme valeur initiale, le hook récupérera la vraie valeur
     updateInterval: 30000, // 30 secondes
     debounceDelay: 1000,
     enableAutoUpdate: true
@@ -207,7 +206,7 @@ export default function TrackCard({
             </Link>
             <div className="flex items-center gap-2 text-gray-500 justify-center mt-1">
               <span className={`${sizeClasses[size].duration}`}>{formatDuration(track.duration)}</span>
-              <PlaysCounter trackId={track._id} initialPlays={track.plays} size={size} />
+              <PlaysCounter trackId={track._id} size={size} />
               <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                 <MoreVertical size={10} />
               </button>

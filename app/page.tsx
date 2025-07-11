@@ -49,7 +49,7 @@ interface CategoryData {
 
 // Cache simple pour les données
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
-const CACHE_DURATION = 30 * 1000; // 30 secondes (réduit pour plus de réactivité)
+const CACHE_DURATION = 10 * 1000; // 10 secondes (réduit pour éviter les données obsolètes)
 
 export default function HomePage() {
   const { data: session } = useSession();
