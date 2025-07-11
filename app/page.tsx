@@ -699,6 +699,24 @@ export default function HomePage() {
           )
         );
 
+        // Mettre à jour les pistes en vedette
+        setCategories(prev => {
+          const newCategories = { ...prev };
+          Object.keys(newCategories).forEach(categoryKey => {
+            if (newCategories[categoryKey]) {
+              newCategories[categoryKey] = {
+                ...newCategories[categoryKey],
+                tracks: newCategories[categoryKey].tracks.map(track => 
+                  track._id === trackId 
+                    ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+                    : track
+                )
+              };
+            }
+          });
+          return newCategories;
+        });
+
         // Mettre à jour les recommandations personnalisées
         setPersonalRecommendations(prev => 
           prev.map(rec => ({
@@ -1650,8 +1668,17 @@ export default function HomePage() {
                               <span>{formatNumber(track.plays)}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Heart size={12} />
-                              <span>{Array.isArray(track.likes) ? track.likes.length : 0}</span>
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={Array.isArray(track.likes) ? track.likes.length : 0}
+                                isActive={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track._id, 'searchResults', index);
+                                }}
+                                size="sm"
+                                showIcon={true}
+                                className="text-gray-400 hover:text-red-500"
+                              />
                             </div>
                           </div>
                         </div>
@@ -1712,8 +1739,18 @@ export default function HomePage() {
                               <span>{formatNumber(artist.listeners)} auditeurs</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <Heart size={12} />
-                              <span>{artist.likes.length} likes</span>
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={artist.likes?.length || 0}
+                                isActive={artist.isLiked || (Array.isArray(artist.likes) && artist.likes.includes(user?.id || ''))}
+                                onToggle={async (newState) => {
+                                  // Logique pour liker un artiste
+                                  console.log('Like artiste:', artist._id);
+                                }}
+                                size="sm"
+                                showIcon={true}
+                                className="text-gray-400 hover:text-red-500"
+                              />
                             </div>
                           </div>
                         </div>
@@ -1775,8 +1812,18 @@ export default function HomePage() {
                             <span>{playlist.trackCount || 0} titres</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <Heart size={12} />
-                            <span>{formatNumber(playlist.likes)}</span>
+                            <InteractiveCounter
+                              type="likes"
+                              initialCount={playlist.likes?.length || 0}
+                              isActive={playlist.isLiked || (Array.isArray(playlist.likes) && playlist.likes.includes(user?.id || ''))}
+                              onToggle={async (newState) => {
+                                // Logique pour liker une playlist
+                                console.log('Like playlist:', playlist._id);
+                              }}
+                              size="sm"
+                              showIcon={true}
+                              className="text-gray-400 hover:text-red-500"
+                            />
                           </div>
                         </div>
                       </div>
@@ -1886,15 +1933,24 @@ export default function HomePage() {
                     )}
                   </button>
                 </div>
-                {/* Stats */}
+                {/* Stats avec likes fonctionnels */}
                 <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
                   <div className="flex items-center gap-1">
                     <Headphones size={12} />
                     <span>{formatNumber(track.plays)}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Heart size={12} />
-                    <span>{track.likes.length}</span>
+                    <InteractiveCounter
+                      type="likes"
+                      initialCount={track.likes?.length || 0}
+                      isActive={track.isLiked || track.likes?.includes(user?.id || '')}
+                      onToggle={async (newState) => {
+                        await handleLikeTrack(track._id, 'dailyDiscoveries', index);
+                      }}
+                      size="sm"
+                      showIcon={true}
+                      className="text-gray-400 hover:text-red-500"
+                    />
                   </div>
                 </div>
               </div>
@@ -2503,7 +2559,7 @@ export default function HomePage() {
                                         await handleLikeTrack(track._id, 'recommendations', index);
                                       }}
                                       showIcon={true}
-                                      className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors"
+                                      className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition-colors !p-0"
                                     />
                                   </div>
                                 </motion.div>
