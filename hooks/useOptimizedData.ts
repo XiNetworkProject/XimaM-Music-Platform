@@ -99,14 +99,14 @@ export function useOptimizedData<T>(
   useEffect(() => {
     fetchData();
   }, [fetchData]);
-
+    
   // Nettoyer le timer au démontage
   useEffect(() => {
     return () => {
       if (debounceTimer.current) {
         clearTimeout(debounceTimer.current);
       }
-    };
+      };
   }, []);
 
   return {
