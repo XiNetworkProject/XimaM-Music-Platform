@@ -19,6 +19,10 @@ interface SocialStatsProps {
   layout?: 'horizontal' | 'vertical' | 'grid';
   className?: string;
   onStatsUpdate?: (stats: any) => void;
+  // Ajout pour mode contrôlé
+  likes?: number;
+  isLiked?: boolean;
+  onToggle?: () => void;
 }
 
 export default function SocialStats({
@@ -29,7 +33,11 @@ export default function SocialStats({
   size = 'md',
   layout = 'horizontal',
   className = '',
-  onStatsUpdate
+  onStatsUpdate,
+  // Ajout pour mode contrôlé
+  likes: controlledLikes,
+  isLiked: controlledIsLiked,
+  onToggle: controlledOnToggle,
 }: SocialStatsProps) {
   const {
     stats,
@@ -45,6 +53,9 @@ export default function SocialStats({
     initialStats,
     onStatsUpdate
   });
+
+  // Mode contrôlé pour les likes
+  const useControlledLikes = typeof controlledLikes === 'number' && typeof controlledIsLiked === 'boolean' && typeof controlledOnToggle === 'function';
 
   const layoutClasses = {
     horizontal: 'flex items-center gap-4',
@@ -89,9 +100,9 @@ export default function SocialStats({
         >
           <InteractiveCounter
             type="likes"
-            initialCount={stats.likes}
-            isActive={isLiked}
-            onToggle={handleLike}
+            initialCount={useControlledLikes ? controlledLikes! : stats.likes}
+            isActive={useControlledLikes ? controlledIsLiked! : isLiked}
+            onToggle={useControlledLikes ? async () => controlledOnToggle!() : handleLike}
             size={size}
             disabled={isLoading}
             className="hover:bg-red-50 dark:hover:bg-red-900/20"

@@ -357,8 +357,8 @@ export default function DiscoverPage() {
               <TrendingUp className="w-8 h-8 text-green-400 mx-auto mb-2" />
               <div className="text-2xl font-bold">{formatNumber(tracks.reduce((sum, track) => sum + track.comments.length, 0))}</div>
               <div className="text-white/60 text-sm">Commentaires</div>
+            </div>
           </div>
-        </div>
 
           {/* Résultats */}
           <div className="glass-effect rounded-xl p-6">
@@ -467,31 +467,30 @@ export default function DiscoverPage() {
                       
                           {/* Actions */}
                           <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <button
-                                onClick={() => handleLikeTrack(track._id)}
-                                className={`p-2 rounded-full transition-all duration-300 ${
-                                  track.isLiked
-                                    ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
-                                    : 'bg-white/10 hover:bg-white/20 text-white/60 hover:text-white'
-                          }`}
-                        >
-                                <Heart size={14} fill={track.isLiked ? 'currentColor' : 'none'} />
-                        </button>
-                        
+                            <div className="flex items-center space-x-2">
+                              <SocialStats
+                                likes={track.likes.length}
+                                isLiked={track.isLiked || track.likes.includes(session?.user?.id || '')}
+                                onToggle={() => handleLikeTrack(track._id)}
+                                initialStats={{ comments: track.comments.length }}
+                                showLabels={false}
+                                size="sm"
+                                className="p-2 rounded-full transition-all duration-300"
+                              />
+                              
                               <button 
                                 onClick={() => handleShare(track)}
                                 className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all duration-300 text-white/60 hover:text-white"
                               >
-                          <Share2 size={14} />
-                        </button>
+                                <Share2 size={14} />
+                              </button>
                             </div>
-                        
+                            
                             <button className="text-xs text-white/60 hover:text-purple-300 transition-colors">
                               Voir plus
-                        </button>
-                      </div>
-                    </div>
+                            </button>
+                          </div>
+                  </div>
                       </motion.div>
                     ))}
                   </AnimatePresence>

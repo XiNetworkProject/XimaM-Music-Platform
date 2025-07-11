@@ -6,7 +6,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
 import BottomNav from '@/components/BottomNav';
-import InteractiveCounter from '@/components/InteractiveCounter';
 import SocialStats from '@/components/SocialStats';
 import { 
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
@@ -1434,15 +1433,13 @@ export default function HomePage() {
                           </motion.button>
 
                           {/* Bouton Like avec nouveau composant */}
-                          <InteractiveCounter
-                            type="likes"
-                            initialCount={featuredTracks[currentSlide].likes.length}
-                            isActive={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
-                            onToggle={async (newState) => {
-                              await handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', currentSlide);
-                            }}
+                          <SocialStats
+                            likes={featuredTracks[currentSlide].likes.length}
+                            isLiked={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
+                            onToggle={() => handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', currentSlide)}
+                            initialStats={{ comments: featuredTracks[currentSlide].comments.length }}
+                            showLabels={false}
                             size="md"
-                            showIcon={true}
                             className="px-4 py-3 rounded-full font-semibold transition-all duration-300 backdrop-blur-sm text-white bg-white/10 border border-white/20 hover:bg-white/20"
                           />
 
@@ -1668,15 +1665,13 @@ export default function HomePage() {
                               <span>{formatNumber(track.plays)}</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                                isActive={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
-                                onToggle={async (newState) => {
-                                  await handleLikeTrack(track._id, 'searchResults', index);
-                                }}
+                              <SocialStats
+                                likes={Array.isArray(track.likes) ? track.likes.length : 0}
+                                isLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
+                                onToggle={() => handleLikeTrack(track._id, 'searchResults', index)}
+                                initialStats={{ comments: track.comments?.length || 0 }}
+                                showLabels={false}
                                 size="sm"
-                                showIcon={true}
                                 className="text-gray-400 hover:text-red-500"
                               />
                             </div>
@@ -1739,16 +1734,13 @@ export default function HomePage() {
                               <span>{formatNumber(artist.listeners)} auditeurs</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={artist.likes?.length || 0}
-                                isActive={artist.isLiked || (Array.isArray(artist.likes) && artist.likes.includes(user?.id || ''))}
-                                onToggle={async (newState) => {
-                                  // Logique pour liker un artiste
-                                  console.log('Like artiste:', artist._id);
-                                }}
+                              <SocialStats
+                                likes={artist.likes?.length || 0}
+                                isLiked={artist.isLiked || (Array.isArray(artist.likes) && artist.likes.includes(user?.id || ''))}
+                                onToggle={() => handleLikeTrack(artist._id, 'artists', index)}
+                                initialStats={{ comments: artist.comments?.length || 0 }}
+                                showLabels={false}
                                 size="sm"
-                                showIcon={true}
                                 className="text-gray-400 hover:text-red-500"
                               />
                             </div>
@@ -1812,16 +1804,13 @@ export default function HomePage() {
                             <span>{playlist.trackCount || 0} titres</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <InteractiveCounter
-                              type="likes"
-                              initialCount={playlist.likes?.length || 0}
-                              isActive={playlist.isLiked || (Array.isArray(playlist.likes) && playlist.likes.includes(user?.id || ''))}
-                              onToggle={async (newState) => {
-                                // Logique pour liker une playlist
-                                console.log('Like playlist:', playlist._id);
-                              }}
+                            <SocialStats
+                              likes={playlist.likes?.length || 0}
+                              isLiked={playlist.isLiked || (Array.isArray(playlist.likes) && playlist.likes.includes(user?.id || ''))}
+                              onToggle={() => handleLikeTrack(playlist._id, 'playlists', index)}
+                              initialStats={{ comments: playlist.comments?.length || 0 }}
+                              showLabels={false}
                               size="sm"
-                              showIcon={true}
                               className="text-gray-400 hover:text-red-500"
                             />
                           </div>
@@ -1940,15 +1929,13 @@ export default function HomePage() {
                     <span>{formatNumber(track.plays)}</span>
                   </div>
                   <div className="flex items-center gap-1">
-                    <InteractiveCounter
-                      type="likes"
-                      initialCount={track.likes?.length || 0}
-                      isActive={track.isLiked || track.likes?.includes(user?.id || '')}
-                      onToggle={async (newState) => {
-                        await handleLikeTrack(track._id, 'dailyDiscoveries', index);
-                      }}
+                    <SocialStats
+                      likes={Array.isArray(track.likes) ? track.likes.length : 0}
+                      isLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
+                      onToggle={() => handleLikeTrack(track._id, 'dailyDiscoveries', index)}
+                      initialStats={{ comments: track.comments?.length || 0 }}
+                      showLabels={false}
                       size="sm"
-                      showIcon={true}
                       className="text-gray-400 hover:text-red-500"
                     />
                   </div>
@@ -2295,15 +2282,13 @@ export default function HomePage() {
                       <span>{formatNumber(track.plays)}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <InteractiveCounter
-                        type="likes"
-                        initialCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                        isActive={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
-                        onToggle={async (newState) => {
-                          await handleLikeTrack(track._id, 'dailyDiscoveries', index);
-                        }}
+                      <SocialStats
+                        likes={Array.isArray(track.likes) ? track.likes.length : 0}
+                        isLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
+                        onToggle={() => handleLikeTrack(track._id, 'dailyDiscoveries', index)}
+                        initialStats={{ comments: track.comments?.length || 0 }}
+                        showLabels={false}
                         size="sm"
-                        showIcon={true}
                         className="text-gray-400 hover:text-red-500"
                       />
                     </div>
@@ -2560,14 +2545,13 @@ export default function HomePage() {
                                     >
                                       <Play size={8} fill="white" className="ml-0.5" />
                                     </motion.button>
-                                    <InteractiveCounter
-                                      type="likes"
-                                      initialCount={track.likes?.length || 0}
-                                      isActive={track.isLiked || track.likes?.includes(user?.id || '')}
-                                      onToggle={async (newState) => {
-                                        await handleLikeTrack(track._id, 'recommendations', index);
-                                      }}
-                                      showIcon={true}
+                                    <SocialStats
+                                      likes={track.likes?.length || 0}
+                                      isLiked={track.isLiked || track.likes?.includes(user?.id || '')}
+                                      onToggle={() => handleLikeTrack(track._id, 'recommendations', index)}
+                                      initialStats={{ comments: track.comments?.length || 0 }}
+                                      showLabels={false}
+                                      size="sm"
                                       className="w-5 h-5 bg-white/20 rounded-full hover:bg-white/30 transition-colors text-white"
                                     />
                                   </div>
@@ -2823,15 +2807,13 @@ export default function HomePage() {
                             <span>{formatNumber(track.plays)}</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <InteractiveCounter
-                              type="likes"
-                              initialCount={track.likes.length}
-                              isActive={track.isLiked || track.likes.includes(user?.id || '')}
-                              onToggle={async (newState) => {
-                                await handleLikeTrack(track._id, config.key, index);
-                              }}
+                            <SocialStats
+                              likes={track.likes.length}
+                              isLiked={track.isLiked || track.likes.includes(user?.id || '')}
+                              onToggle={() => handleLikeTrack(track._id, config.key, index)}
+                              initialStats={{ comments: track.comments?.length || 0 }}
+                              showLabels={false}
                               size="sm"
-                              showIcon={true}
                               className="text-gray-400 hover:text-red-500"
                             />
                           </div>

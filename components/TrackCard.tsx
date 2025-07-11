@@ -34,6 +34,10 @@ interface TrackCardProps {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   onTrackUpdate?: (track: Track) => void;
+  // Ajout pour mode contrôlé
+  likes?: number;
+  isLiked?: boolean;
+  onToggleLike?: () => void;
 }
 
 export default function TrackCard({
@@ -42,7 +46,11 @@ export default function TrackCard({
   showStats = true,
   size = 'sm',
   className = '',
-  onTrackUpdate
+  onTrackUpdate,
+  // Ajout pour mode contrôlé
+  likes: controlledLikes,
+  isLiked: controlledIsLiked,
+  onToggleLike: controlledOnToggleLike,
 }: TrackCardProps) {
   const { state, actions } = useAudioService();
   const [showCommentSection, setShowCommentSection] = useState(false);
@@ -185,10 +193,14 @@ export default function TrackCard({
               <SocialStats
                 trackId={track._id}
                 initialStats={{
-                  likes: track.likes.length,
+                  likes: typeof controlledLikes === 'number' ? controlledLikes : track.likes.length,
                   comments: track.comments.length
                 }}
                 size="sm"
+                // Mode contrôlé
+                likes={typeof controlledLikes === 'number' ? controlledLikes : undefined}
+                isLiked={typeof controlledIsLiked === 'boolean' ? controlledIsLiked : undefined}
+                onToggle={typeof controlledOnToggleLike === 'function' ? controlledOnToggleLike : undefined}
               />
             </div>
           )}
