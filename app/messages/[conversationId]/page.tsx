@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
+import { useWebSocket, NewMessage, TypingStatus } from '@/hooks/useWebSocket';
 
 interface Message {
   _id: string;
@@ -68,27 +69,15 @@ interface OnlineStatus {
   isTyping: boolean;
 }
 
-// Hook personnalisé pour la gestion de la présence en ligne
+// Hook personnalisé pour la gestion de la présence en ligne avec WebSocket
 const useOnlineStatus = (conversationId: string, otherUserId: string) => {
+  const { socket, isConnected, joinConversation, leaveConversation, onUserTyping, onUserOnline, onUserOffline } = useWebSocket();
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({
     userId: otherUserId,
     isOnline: false,
     lastSeen: new Date(),
     isTyping: false
   });
-  const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
-  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Fonction pour déterminer si un utilisateur est en ligne basé sur son lastSeen
-  const determineOnlineStatus = useCallback((lastSeen: Date) => {
-    const now = new Date();
-    const timeDiff = now.getTime() - lastSeen.getTime();
-    const minutesDiff = timeDiff / (1000 * 60);
-    
-    // Considérer en ligne si vu il y a moins de 5 minutes
-    return minutesDiff < 5;
-  }, []);
 
   // Fonction pour formater le lastSeen de manière plus intelligente
   const formatLastSeen = useCallback((lastSeen: Date) => {
@@ -105,70 +94,56 @@ const useOnlineStatus = (conversationId: string, otherUserId: string) => {
     return `Il y a ${Math.floor(daysDiff)}j`;
   }, []);
 
+  // Rejoindre la conversation au montage
   useEffect(() => {
-    // Simuler une connexion WebSocket plus réaliste
-    const connectWebSocket = () => {
-      console.log('🔌 Tentative de connexion WebSocket...');
-      
-      // Simulation d'une connexion WebSocket
-      setIsConnected(true);
-      
-      // Simuler un statut en ligne basé sur l'activité récente
-      // En production, vous recevriez ces données du serveur WebSocket
-      const simulateOnlineStatus = () => {
-        const now = new Date();
-        const randomActivity = Math.random();
-        
-        // 30% de chance d'être en ligne (plus réaliste)
-        const isOnline = randomActivity < 0.3;
-        
-        // Simuler un lastSeen basé sur l'activité
-        const lastSeen = isOnline 
-          ? new Date(now.getTime() - Math.random() * 300000) // Entre maintenant et 5 min
-          : new Date(now.getTime() - (5 + Math.random() * 60) * 60000); // Entre 5 min et 1h
-        
+    if (conversationId) {
+      joinConversation(conversationId);
+    }
+
+    return () => {
+      if (conversationId) {
+        leaveConversation(conversationId);
+      }
+    };
+  }, [conversationId, joinConversation, leaveConversation]);
+
+  // Écouter les événements de frappe
+  useEffect(() => {
+    onUserTyping((data: TypingStatus) => {
+      if (data.userId === otherUserId && data.conversationId === conversationId) {
         setOnlineStatus(prev => ({
           ...prev,
-          isOnline,
-          lastSeen,
-          isTyping: false
+          isTyping: data.isTyping
         }));
-      };
+      }
+    });
+  }, [otherUserId, conversationId, onUserTyping]);
 
-      // Simuler le statut initial
-      simulateOnlineStatus();
+  // Écouter les changements de statut en ligne
+  useEffect(() => {
+    onUserOnline((data) => {
+      if (data.userId === otherUserId) {
+        setOnlineStatus(prev => ({
+          ...prev,
+          isOnline: data.isOnline
+        }));
+      }
+    });
 
-      // Mettre à jour le statut toutes les 30 secondes
-      const statusInterval = setInterval(simulateOnlineStatus, 30000);
-
-      // Heartbeat pour maintenir la connexion
-      heartbeatRef.current = setInterval(() => {
-        console.log('💓 Heartbeat...');
-      }, 30000);
-
-      return () => {
-        if (heartbeatRef.current) {
-          clearInterval(heartbeatRef.current);
-        }
-        clearInterval(statusInterval);
-      };
-    };
-
-    const cleanup = connectWebSocket();
-
-    return cleanup;
-  }, [conversationId, otherUserId]);
+    onUserOffline((data) => {
+      if (data.userId === otherUserId) {
+        setOnlineStatus(prev => ({
+          ...prev,
+          isOnline: data.isOnline
+        }));
+      }
+    });
+  }, [otherUserId, onUserOnline, onUserOffline]);
 
   // Fonction pour envoyer le statut de frappe
   const sendTypingStatus = useCallback((isTyping: boolean) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'typing',
-        conversationId,
-        isTyping
-      }));
-    }
-  }, [conversationId]);
+    // Cette fonction sera gérée par le hook useWebSocket
+  }, []);
 
   return {
     onlineStatus,
@@ -865,9 +840,23 @@ export default function ConversationPage() {
       const data = await response.json();
 
       if (response.ok) {
+        console.log('✅ Message envoyé:', data.message);
+        
+        // Ajouter le message à la liste locale
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
         markAsSeen();
+        
+        // Envoyer via WebSocket pour les autres participants
+        wsSendNewMessage(data.message);
+        
+        // Arrêter la frappe
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
+        }
+        setIsTyping(false);
+        wsSendTypingStatus(conversationId, false);
+        
       } else {
         console.error('Erreur envoi message:', data);
         toast.error(data.error || 'Erreur lors de l\'envoi');
@@ -1806,6 +1795,17 @@ Paramètres Linux à vérifier :
   const otherUser = getOtherParticipant();
   const { onlineStatus, isConnected, sendTypingStatus, formatLastSeen } = useOnlineStatus(conversationId, otherUser?._id || '');
   const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session?.user?.id || '');
+  
+  // WebSocket hooks
+  const { 
+    socket, 
+    isConnected: wsConnected, 
+    sendTypingStatus: wsSendTypingStatus, 
+    sendNewMessage: wsSendNewMessage,
+    sendMessageSeen: wsSendMessageSeen,
+    onMessageReceived,
+    onUserTyping
+  } = useWebSocket();
 
   // Observer les messages pour marquer comme lus
   useEffect(() => {
@@ -1814,6 +1814,31 @@ Paramètres Linux à vérifier :
     }
   }, [messages, observeMessages, session?.user?.id]);
 
+  // Écouter les nouveaux messages en temps réel
+  useEffect(() => {
+    onMessageReceived((message: NewMessage) => {
+      console.log('📨 Nouveau message reçu en temps réel:', message);
+      
+      // Ajouter le nouveau message à la liste
+      setMessages(prev => [...prev, message]);
+      
+      // Marquer comme lu automatiquement
+      if (session?.user?.id && !message.seenBy.includes(session.user.id)) {
+        wsSendMessageSeen(message._id, conversationId, [...message.seenBy, session.user.id]);
+      }
+    });
+  }, [onMessageReceived, conversationId, session?.user?.id, wsSendMessageSeen]);
+
+  // Écouter les changements de statut de frappe
+  useEffect(() => {
+    onUserTyping((data: TypingStatus) => {
+      if (data.userId === otherUser?._id && data.conversationId === conversationId) {
+        console.log('⌨️ Frappe détectée:', data);
+        // Le statut de frappe est déjà géré par le hook useOnlineStatus
+      }
+    });
+  }, [onUserTyping, otherUser?._id, conversationId]);
+
   // Gérer le statut de frappe
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1821,7 +1846,7 @@ Paramètres Linux à vérifier :
   const handleTyping = useCallback(() => {
     if (!isTyping) {
       setIsTyping(true);
-      sendTypingStatus(true);
+      wsSendTypingStatus(conversationId, true);
     }
 
     // Réinitialiser le timeout
@@ -1832,9 +1857,9 @@ Paramètres Linux à vérifier :
     // Arrêter la frappe après 3 secondes d'inactivité
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
-      sendTypingStatus(false);
+      wsSendTypingStatus(conversationId, false);
     }, 3000);
-  }, [isTyping, sendTypingStatus]);
+  }, [isTyping, wsSendTypingStatus, conversationId]);
 
   // Nettoyer le timeout au démontage
   useEffect(() => {
