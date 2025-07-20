@@ -19,6 +19,11 @@ export async function POST(
     await dbConnect();
     const trackId = params.id;
 
+    // Validation de l'ID
+    if (!trackId || trackId.length !== 24) {
+      return NextResponse.json({ error: 'ID de piste invalide' }, { status: 400 });
+    }
+
     // Vérifier si la piste existe
     const track = await Track.findById(trackId);
     if (!track) {
@@ -26,23 +31,49 @@ export async function POST(
     }
 
     // Vérifier si l'utilisateur a déjà liké
-    const isLiked = track.likes.includes(session.user.id);
+    const isLiked = track.likes.some((likeId: any) => likeId.toString() === session.user.id);
 
+    let updatedTrack;
+    
     if (isLiked) {
       // Retirer le like
-      await Track.findByIdAndUpdate(trackId, {
-        $pull: { likes: session.user.id }
-      });
+      updatedTrack = await Track.findByIdAndUpdate(
+        trackId,
+        { $pull: { likes: session.user.id } },
+        { new: true }
+      ).populate('artist', 'name username avatar');
     } else {
       // Ajouter le like
-      await Track.findByIdAndUpdate(trackId, {
-        $addToSet: { likes: session.user.id }
-      });
+      updatedTrack = await Track.findByIdAndUpdate(
+        trackId,
+        { $addToSet: { likes: session.user.id } },
+        { new: true }
+      ).populate('artist', 'name username avatar');
     }
 
-    // Récupérer la piste mise à jour
-    const updatedTrack = await Track.findById(trackId)
-      .populate('artist', 'name username avatar');
+    if (!updatedTrack) {
+      return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
+    }
+
+    // Mettre à jour les statistiques de l'utilisateur si nécessaire
+    try {
+      const user = await User.findById(session.user.id);
+      if (user) {
+        if (isLiked) {
+          // Retirer de la liste des likes de l'utilisateur
+          user.likes = user.likes.filter((likeId: any) => likeId.toString() !== trackId);
+        } else {
+          // Ajouter à la liste des likes de l'utilisateur
+          if (!user.likes.some((likeId: any) => likeId.toString() === trackId)) {
+            user.likes.push(trackId);
+          }
+        }
+        await user.save();
+      }
+    } catch (userError) {
+      console.error('Erreur mise à jour utilisateur:', userError);
+      // Ne pas faire échouer la requête principale
+    }
 
     return NextResponse.json({
       success: true,

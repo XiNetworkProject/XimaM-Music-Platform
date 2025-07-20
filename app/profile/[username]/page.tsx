@@ -6,9 +6,12 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
+import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
+import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
 import InteractiveCounter from '@/components/InteractiveCounter';
 import SocialStats from '@/components/SocialStats';
 import UserProfileCard from '@/components/UserProfileCard';
+import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
 import toast from 'react-hot-toast';
 
 const socialIcons = {
@@ -43,6 +46,10 @@ export default function ProfileUserPage() {
   const { data: session } = useSession();
   const router = useRouter();
   const { playTrack, audioState } = useAudioPlayer();
+  
+  // Utiliser les nouveaux systèmes de likes et écoutes pour la synchronisation temps réel
+  const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
+  const { incrementPlaysBatch, isBatchLoading: isPlaysLoading } = useBatchPlaysSystem();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -82,6 +89,9 @@ export default function ProfileUserPage() {
 
   // État pour l'affichage des tracks
   const [trackViewMode, setTrackViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // État pour les tracks de l'utilisateur avec synchronisation temps réel
+  const [userTracks, setUserTracks] = useState<any[]>([]);
 
   // Charger le profil utilisateur
   useEffect(() => {
@@ -104,6 +114,8 @@ export default function ProfileUserPage() {
         
         setProfile(data);
         setEditData({ ...data });
+        // Mettre à jour les tracks avec synchronisation temps réel
+        setUserTracks(data.tracks || []);
       } catch (e: any) {
         setError(e.message || 'Erreur lors du chargement du profil');
       } finally {
@@ -157,6 +169,37 @@ export default function ProfileUserPage() {
       }));
     } catch (e) {}
   };
+
+  // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
+  useEffect(() => {
+    // Écouter les événements de lecture
+    const handleTrackPlayed = (event: CustomEvent) => {
+      const { trackId } = event.detail;
+      setUserTracks(prev => prev.map(track => 
+        track._id === trackId 
+          ? { ...track, plays: track.plays + 1 }
+          : track
+      ));
+    };
+
+    const handleTrackChanged = (event: CustomEvent) => {
+      const { trackId, plays } = event.detail;
+      setUserTracks(prev => prev.map(track => 
+        track._id === trackId 
+          ? { ...track, plays: plays || track.plays }
+          : track
+      ));
+    };
+
+    // Ajouter les écouteurs d'événements
+    window.addEventListener('trackPlayed', handleTrackPlayed as EventListener);
+    window.addEventListener('trackChanged', handleTrackChanged as EventListener);
+
+    return () => {
+      window.removeEventListener('trackPlayed', handleTrackPlayed as EventListener);
+      window.removeEventListener('trackChanged', handleTrackChanged as EventListener);
+    };
+  }, []);
 
   // Gestion demande de messagerie
   const handleMessageRequest = async () => {
@@ -322,7 +365,6 @@ export default function ProfileUserPage() {
   ];
 
   // Données pour les onglets (simulées pour l'instant)
-  const userTracks = profile?.tracks || [];
   const userPlaylists = profile?.playlists || [];
   const followers = profile?.followers || [];
   const following = profile?.following || [];
@@ -434,19 +476,15 @@ export default function ProfileUserPage() {
     if (!session?.user) return;
     setLikeLoading(trackId);
     try {
-      const res = await fetch(`/api/tracks/${trackId}/like`, { method: 'POST' });
-      if (!res.ok) throw new Error('Erreur like');
-      const data = await res.json();
+      // Utiliser le système batch pour la synchronisation temps réel
+      await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
       
       // Mettre à jour l'état local
-      setProfile((prev: any) => ({
-        ...prev,
-        tracks: prev.tracks.map((track: any) => 
-          track._id === trackId 
-            ? { ...track, isLiked: data.isLiked, likes: data.isLiked ? [...track.likes, session.user.id] : track.likes.filter((id: string) => id !== session.user.id) }
-            : track
-        )
-      }));
+      setUserTracks(prev => prev.map(track => 
+        track._id === trackId 
+          ? { ...track, isLiked: !track.isLiked, likes: track.isLiked ? track.likes.filter((id: string) => id !== session?.user?.id) : [...track.likes, session?.user?.id || ''] }
+          : track
+      ));
     } catch (e: any) {
       setError(e.message || 'Erreur like');
     } finally {
@@ -973,7 +1011,14 @@ export default function ProfileUserPage() {
                                 disabled={likeLoading === track._id}
                                 className="hover:text-pink-400 transition-colors"
                               />
-                              <span>{track.plays} écoutes</span>
+                              <AnimatedPlaysCounter
+                                value={track.plays}
+                                size="sm"
+                                variant="minimal"
+                                showIcon={false}
+                                animation="slide"
+                                className="text-gray-500"
+                              />
                             </div>
                           </div>
                           
@@ -1095,7 +1140,14 @@ export default function ProfileUserPage() {
                                 disabled={likeLoading === track._id}
                                 className="hover:text-pink-400 transition-colors"
                               />
-                              <span>{track.plays} écoutes</span>
+                              <AnimatedPlaysCounter
+                                value={track.plays}
+                                size="sm"
+                                variant="minimal"
+                                showIcon={false}
+                                animation="slide"
+                                className="text-gray-500"
+                              />
                               <span>{formatDuration(track.duration)}</span>
                             </div>
                           </div>

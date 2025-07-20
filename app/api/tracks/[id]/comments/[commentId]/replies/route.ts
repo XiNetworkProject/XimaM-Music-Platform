@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Comment from '@/models/Comment';
 import Track from '@/models/Track';
+import contentModerator from '@/lib/contentModeration';
 
 // POST - Ajouter une réponse à un commentaire
 export async function POST(
@@ -24,6 +25,21 @@ export async function POST(
       return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
     }
 
+    // Modération du contenu
+    const moderationResult = contentModerator.analyzeContent(content.trim());
+    
+    if (!moderationResult.isClean) {
+      return NextResponse.json({
+        error: 'Contenu inapproprié détecté',
+        details: {
+          score: moderationResult.score,
+          flags: moderationResult.flags,
+          suggestions: moderationResult.suggestions,
+          censoredText: moderationResult.censoredText
+        }
+      }, { status: 400 });
+    }
+
     // Vérifier si la piste existe
     const track = await Track.findById(trackId);
     if (!track) {
@@ -42,6 +58,8 @@ export async function POST(
       user: session.user.id,
       track: trackId,
       parentComment: commentId,
+      moderationScore: moderationResult.score,
+      isModerated: true,
     });
 
     await reply.save();

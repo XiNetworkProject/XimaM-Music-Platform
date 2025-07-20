@@ -34,6 +34,8 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import React from 'react';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
+import RealTimeStatus from '@/components/RealTimeStatus';
 
 interface Message {
   _id: string;
@@ -64,74 +66,76 @@ interface Conversation {
 interface OnlineStatus {
   userId: string;
   isOnline: boolean;
-  lastSeen: Date;
+  lastSeen: Date | string;
   isTyping: boolean;
+  lastActivity?: Date | string;
 }
 
 // Hook personnalisé pour la gestion de la présence en ligne
-const useOnlineStatus = (conversationId: string, otherUserId: string) => {
+const useConversationOnlineStatus = (conversationId: string, otherUserId: string) => {
   const [onlineStatus, setOnlineStatus] = useState<OnlineStatus>({
     userId: otherUserId,
-    isOnline: false, // Par défaut hors ligne
-    lastSeen: new Date(),
+    isOnline: false,
+    lastSeen: new Date().toISOString(),
     isTyping: false
   });
   const [isConnected, setIsConnected] = useState(false);
-  const wsRef = useRef<WebSocket | null>(null);
-  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    // TODO: Implémenter un vrai serveur WebSocket pour les statuts en temps réel
-    // Pour l'instant, on utilise des valeurs par défaut réalistes
-    const connectWebSocket = () => {
-      console.log('🔌 Simulation WebSocket (statuts par défaut)...');
-      
-      // Simulation d'une connexion WebSocket
-      setIsConnected(true);
-      
-      // Utiliser des valeurs par défaut réalistes au lieu de valeurs aléatoires
-      const setDefaultStatus = () => {
-        setOnlineStatus(prev => ({
-          ...prev,
-          isOnline: false, // Par défaut hors ligne
-          isTyping: false, // Par défaut pas en train de taper
-          lastSeen: new Date(Date.now() - Math.random() * 300000) // Vu il y a 0-5 min
-        }));
-      };
+  // Fonction pour récupérer le vrai statut depuis l'API
+  const fetchOnlineStatus = useCallback(async () => {
+    if (!otherUserId) return;
 
-      // Définir le statut par défaut
-      setDefaultStatus();
-      
-      // Heartbeat pour maintenir la connexion simulée
-      heartbeatRef.current = setInterval(() => {
-        console.log('💓 Heartbeat simulé...');
-      }, 30000);
-
-      return () => {
-        if (heartbeatRef.current) {
-          clearInterval(heartbeatRef.current);
+    try {
+      const response = await fetch(`/api/users/online-status?userId=${otherUserId}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status) {
+          setOnlineStatus({
+            userId: otherUserId,
+            isOnline: data.status.isOnline,
+            lastSeen: data.status.lastSeen,
+            isTyping: data.status.isTyping || false,
+            lastActivity: data.status.lastActivity
+          });
         }
-      };
-    };
-
-    const cleanup = connectWebSocket();
-
-    return cleanup;
-  }, [conversationId, otherUserId]);
+      }
+    } catch (error) {
+      console.error('Erreur récupération statut:', error);
+    }
+  }, [otherUserId]);
 
   // Fonction pour envoyer le statut de frappe
-  const sendTypingStatus = useCallback((isTyping: boolean) => {
-    // TODO: Implémenter l'envoi réel du statut de frappe via WebSocket
-    console.log('⌨️ Statut de frappe:', isTyping);
-    
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify({
-        type: 'typing',
-        conversationId,
-        isTyping
-      }));
+  const sendTypingStatus = useCallback(async (isTyping: boolean) => {
+    try {
+      await fetch('/api/users/typing-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isTyping,
+          conversationId
+        })
+      });
+    } catch (error) {
+      console.error('Erreur envoi statut frappe:', error);
     }
   }, [conversationId]);
+
+  // Récupérer le statut initial et mettre en place le polling
+  useEffect(() => {
+    if (otherUserId) {
+      fetchOnlineStatus();
+      
+      // Polling toutes les 10 secondes pour les mises à jour
+      const interval = setInterval(fetchOnlineStatus, 10000);
+      
+      return () => clearInterval(interval);
+    }
+  }, [otherUserId, fetchOnlineStatus]);
+
+  // Se connecter automatiquement
+  useEffect(() => {
+    setIsConnected(true);
+  }, []);
 
   return {
     onlineStatus,
@@ -346,15 +350,28 @@ const MessageStatus = ({ message, isOwnMessage, readStatuses, currentUserId }: {
 
 // Composant pour afficher le statut en ligne avec plus de détails
 const OnlineStatusIndicator = ({ onlineStatus, isConnected }: { onlineStatus: OnlineStatus; isConnected: boolean }) => {
-  const formatLastSeen = (date: Date) => {
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const minutes = Math.floor(diff / 60000);
-    
-    if (minutes < 1) return 'À l\'instant';
-    if (minutes < 60) return `Il y a ${minutes} min`;
-    if (minutes < 1440) return `Il y a ${Math.floor(minutes / 60)}h`;
-    return `Il y a ${Math.floor(minutes / 1440)}j`;
+  const formatLastSeen = (date: Date | string) => {
+    try {
+      // Convertir en objet Date si c'est une string
+      const dateObj = typeof date === 'string' ? new Date(date) : date;
+      
+      // Vérifier que c'est une date valide
+      if (!dateObj || isNaN(dateObj.getTime())) {
+        return 'Statut inconnu';
+      }
+      
+      const now = new Date();
+      const diff = now.getTime() - dateObj.getTime();
+      const minutes = Math.floor(diff / 60000);
+      
+      if (minutes < 1) return 'À l\'instant';
+      if (minutes < 60) return `Il y a ${minutes} min`;
+      if (minutes < 1440) return `Il y a ${Math.floor(minutes / 60)}h`;
+      return `Il y a ${Math.floor(minutes / 1440)}j`;
+    } catch (error) {
+      console.error('Erreur formatage date:', error);
+      return 'Statut inconnu';
+    }
   };
 
   return (
@@ -745,8 +762,20 @@ export default function ConversationPage() {
 
   // Auto-scroll vers le bas
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (messages.length > 0) {
+      // Scroll immédiat au chargement des messages
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
   }, [messages]);
+
+  // Scroll vers le bas quand on envoie un nouveau message
+  useEffect(() => {
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages.length]);
 
   const fetchMessages = async () => {
     try {
@@ -1772,7 +1801,7 @@ Paramètres Linux à vérifier :
   }
 
   const otherUser = getOtherParticipant();
-  const { onlineStatus, isConnected, sendTypingStatus } = useOnlineStatus(conversationId, otherUser?._id || '');
+  const { onlineStatus, isConnected, sendTypingStatus } = useConversationOnlineStatus(conversationId, otherUser?._id || '');
   const { readStatuses, observeMessages, markMessagesAsRead } = useMessageReadStatus(conversationId, session.user.id);
 
   // Observer les messages pour marquer comme lus
@@ -1781,6 +1810,66 @@ Paramètres Linux à vérifier :
       observeMessages(messages);
     }
   }, [messages, observeMessages]);
+
+  // Se connecter automatiquement au statut en ligne
+  useEffect(() => {
+    if (session?.user?.id) {
+      // Marquer comme en ligne quand on ouvre une conversation
+      const connectUser = async () => {
+        try {
+          const deviceInfo = {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+          };
+
+          await fetch('/api/users/online-status', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceInfo })
+          });
+
+          console.log('✅ Utilisateur connecté au statut en ligne');
+        } catch (error) {
+          console.error('❌ Erreur connexion statut en ligne:', error);
+        }
+      };
+
+      connectUser();
+
+      // Heartbeat toutes les 30 secondes pour maintenir la connexion
+      const heartbeatInterval = setInterval(async () => {
+        try {
+          await fetch('/api/users/online-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isOnline: true })
+          });
+        } catch (error) {
+          console.error('❌ Erreur heartbeat:', error);
+        }
+      }, 30000);
+
+      // Marquer comme hors ligne quand on quitte la page
+      const handleBeforeUnload = () => {
+        navigator.sendBeacon('/api/users/online-status', JSON.stringify({ isOnline: false }));
+      };
+
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      
+      return () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        clearInterval(heartbeatInterval);
+        
+        // Marquer comme hors ligne quand on quitte la conversation
+        fetch('/api/users/online-status', {
+          method: 'DELETE'
+        }).catch(error => {
+          console.error('❌ Erreur déconnexion statut en ligne:', error);
+        });
+      };
+    }
+  }, [session?.user?.id]);
 
   // Gérer le statut de frappe
   const [isTyping, setIsTyping] = useState(false);
@@ -1844,7 +1933,7 @@ Paramètres Linux à vérifier :
               <UserAvatar user={otherUser} onlineStatus={onlineStatus} isConnected={isConnected} />
               <div>
                 <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
-                <OnlineStatusIndicator onlineStatus={onlineStatus} isConnected={isConnected} />
+                <RealTimeStatus userId={otherUser._id} showDebug={true} />
               </div>
             </motion.div>
           ) : conversationLoading ? (
@@ -2084,6 +2173,9 @@ Paramètres Linux à vérifier :
             )}
           </AnimatePresence>
         )}
+        
+        {/* Élément de référence pour le scroll automatique */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Barre d'envoi indépendante, juste au-dessus de la BottomNav */}

@@ -2,8 +2,10 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, MessageCircle, Users, UserPlus, TrendingUp } from 'lucide-react';
-import InteractiveCounter from './InteractiveCounter';
 import { useSocialInteractions } from '@/hooks/useSocialInteractions';
+import { useTrackLike } from '@/contexts/LikeContext';
+import { useTrackPlays } from '@/contexts/PlaysContext';
+import { AnimatedLikeCounter, AnimatedPlaysCounter, AnimatedSubscriptionCounter } from './AnimatedCounter';
 
 interface SocialStatsProps {
   trackId?: string;
@@ -87,15 +89,17 @@ export default function SocialStats({
           transition={{ delay: 0.1 }}
           className="flex items-center gap-2"
         >
-          <InteractiveCounter
-            type="likes"
-            initialCount={stats.likes}
-            isActive={isLiked}
-            onToggle={handleLike}
-            size={size}
-            disabled={isLoading}
-            className="hover:bg-red-50 dark:hover:bg-red-900/20"
-          />
+          <div onClick={handleLike} className="cursor-pointer">
+            <AnimatedLikeCounter
+              value={stats.likes}
+              isLiked={isLiked}
+              size={size}
+              variant="minimal"
+              showIcon={true}
+              icon={<Heart size={iconSizes[size]} />}
+              className="hover:bg-red-50 dark:hover:bg-red-900/20"
+            />
+          </div>
           {showLabels && (
             <span className={`text-gray-600 dark:text-gray-400 ${sizeClasses[size]}`}>
               J'aime
@@ -177,15 +181,17 @@ export default function SocialStats({
           animate={{ scale: 1 }}
           transition={{ delay: 0.5 }}
         >
-          <InteractiveCounter
-            type="followers"
-            initialCount={0}
-            isActive={isFollowing}
-            onToggle={handleFollow}
-            size={size}
-            disabled={isLoading}
-            className="bg-purple-600 text-white hover:bg-purple-700"
-          />
+          <div onClick={handleFollow} className="cursor-pointer">
+            <AnimatedSubscriptionCounter
+              value={0}
+              isActive={isFollowing}
+              size={size}
+              variant="minimal"
+              showIcon={true}
+              icon={<UserPlus size={iconSizes[size]} />}
+              className="bg-purple-600 text-white hover:bg-purple-700"
+            />
+          </div>
         </motion.div>
       )}
 

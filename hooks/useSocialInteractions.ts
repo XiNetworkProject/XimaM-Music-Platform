@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { useTrackLike } from '@/contexts/LikeContext';
+import { useTrackPlays } from '@/contexts/PlaysContext';
 
 interface SocialStats {
   likes: number;
@@ -36,15 +38,37 @@ export function useSocialInteractions({
   onStatsUpdate
 }: UseSocialInteractionsProps) {
   const { data: session } = useSession();
+  
+  // Utiliser les nouveaux hooks pour les likes et écoutes
+  const { isLiked, likesCount } = useTrackLike(
+    trackId || '',
+    initialStats.likes || 0,
+    false
+  );
+  
+  // Note: plays n'est pas dans SocialStats, on l'utilise juste pour le cache
+  const { plays } = useTrackPlays(
+    trackId || '',
+    0
+  );
+
   const [stats, setStats] = useState<SocialStats>({
-    likes: initialStats.likes || 0,
+    likes: likesCount,
     comments: initialStats.comments || 0,
     followers: initialStats.followers || 0,
     following: initialStats.following || 0
   });
-  const [isLiked, setIsLiked] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Mettre à jour les stats quand les likes changent
+  useEffect(() => {
+    setStats(prev => ({
+      ...prev,
+      likes: likesCount
+    }));
+    onStatsUpdate?.({ ...stats, likes: likesCount });
+  }, [likesCount, onStatsUpdate]);
 
   // Vérifier l'état initial des interactions
   useEffect(() => {
@@ -57,15 +81,6 @@ export function useSocialInteractions({
     if (!session?.user?.id) return;
 
     try {
-      // Vérifier si la piste est likée
-      if (trackId) {
-        const trackResponse = await fetch(`/api/tracks/${trackId}`);
-        if (trackResponse.ok) {
-          const track = await trackResponse.json();
-          setIsLiked(track.likes?.includes(session.user.id) || false);
-        }
-      }
-
       // Vérifier si l'utilisateur est suivi
       if (userId) {
         const username = await getUsernameFromId(userId);
@@ -92,7 +107,6 @@ export function useSocialInteractions({
 
       if (response.ok) {
         const { isLiked: newIsLiked, likesCount } = await response.json();
-        setIsLiked(newIsLiked);
         setStats(prev => ({
           ...prev,
           likes: likesCount

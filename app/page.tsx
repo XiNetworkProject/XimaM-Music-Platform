@@ -5,8 +5,13 @@ import { useSession } from 'next-auth/react';
 import { useAuth } from '@/hooks/useAuth';
 import { useNativeFeatures } from '@/hooks/useNativeFeatures';
 import { useAudioPlayer } from './providers';
+import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
+import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
+import LikeButton from '@/components/LikeButton';
+import CommentButton from '@/components/CommentButton';
 import BottomNav from '@/components/BottomNav';
-import InteractiveCounter from '@/components/InteractiveCounter';
+import { AnimatedPlaysCounter, AnimatedLikeCounter } from '@/components/AnimatedCounter';
+
 import SocialStats from '@/components/SocialStats';
 import { 
   Play, Heart, ChevronLeft, ChevronRight, Pause, Clock, Headphones, 
@@ -56,6 +61,10 @@ export default function HomePage() {
   const { user } = useAuth();
   const { isNative, checkForUpdates } = useNativeFeatures();
   const { audioState, setTracks, setCurrentTrackIndex, setIsPlaying, setShowPlayer, setIsMinimized, playTrack, pause, play } = useAudioPlayer();
+  
+  // Utiliser les nouveaux systèmes de likes et écoutes
+  const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
+  const { incrementPlaysBatch, isBatchLoading: isPlaysLoading } = useBatchPlaysSystem();
   const router = useRouter();
   
   const [loading, setLoading] = useState(true);
@@ -693,7 +702,7 @@ export default function HomePage() {
 
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
-    }, 5000);
+    }, 8000);
 
     return () => clearInterval(interval);
   }, [isAutoPlaying, featuredTracks.length]);
@@ -751,23 +760,17 @@ export default function HomePage() {
     return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   }, []);
 
-  // Fonction pour gérer les likes avec les nouveaux composants
+  // Fonction pour gérer les likes avec le nouveau système
   const handleLikeTrack = useCallback(async (trackId: string, categoryKey: string, trackIndex: number) => {
     if (!session) {
       return;
     }
 
     try {
-      const response = await fetch(`/api/tracks/${trackId}/like`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        
+      // Utiliser le nouveau système de likes
+      const result = await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
+      
+      if (result) {
         // Mettre à jour l'état local avec les vraies données de l'API
         setCategories(prev => {
           const newCategories = { ...prev };
@@ -776,7 +779,7 @@ export default function HomePage() {
               ...newCategories[categoryKey],
               tracks: newCategories[categoryKey].tracks.map(track => 
                 track._id === trackId 
-                  ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+                  ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
                   : track
               )
             };
@@ -788,14 +791,14 @@ export default function HomePage() {
         setDailyDiscoveries(prev => 
           prev.map(track => 
             track._id === trackId 
-              ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+              ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
               : track
           )
         );
         setCollaborations(prev => 
           prev.map(track => 
             track._id === trackId 
-              ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+              ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
               : track
           )
         );
@@ -809,7 +812,7 @@ export default function HomePage() {
                 ...newCategories[categoryKey],
                 tracks: newCategories[categoryKey].tracks.map(track => 
                   track._id === trackId 
-                    ? { ...track, isLiked: data.isLiked, likes: data.likes || track.likes }
+                    ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
                     : track
                 )
               };
@@ -824,7 +827,7 @@ export default function HomePage() {
             ...rec,
             tracks: rec.tracks?.map((t: Track) => 
               t._id === trackId 
-                ? { ...t, isLiked: data.isLiked, likes: data.likes || t.likes }
+                ? { ...t, isLiked: result.isLiked, likes: result.likes || t.likes }
                 : t
             ) || []
           }))
@@ -833,7 +836,7 @@ export default function HomePage() {
     } catch (error) {
       console.error('Erreur like:', error);
     }
-  }, [session]);
+  }, [session, toggleLikeBatch]);
 
   // Fonction pour jouer une piste
   const handlePlayTrack = useCallback(async (track: Track) => {
@@ -1423,15 +1426,14 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-      {/* Carrousel Hero - Design futuriste */}
-      {featuredTracks.length > 0 && (
-        <section className="relative h-[60vh] overflow-hidden">
-          {/* Fond animé futuriste */}
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/30 to-slate-900">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.15),transparent_50%)] animate-pulse"></div>
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(236,72,153,0.1),transparent_50%)] animate-pulse" style={{animationDelay: '1s'}}></div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-0">
+      {/* Zone transparente pour le carrousel */}
+      <div className="relative bg-transparent" style={{ background: 'transparent !important' }}>
+        {/* Carrousel Hero - Design futuriste amélioré */}
+        {featuredTracks.length > 0 && (
+          <section className="relative h-[60vh] overflow-hidden px-4 py-6 bg-transparent" style={{ background: 'transparent !important' }}>
+          {/* Conteneur avec bordure et coins arrondis - Fond transparent */}
+          <div className="relative h-full rounded-3xl overflow-hidden border-4 border-white/40" style={{ background: 'transparent !important' }}>
 
           {/* Grille de points animés */}
           <div className="absolute inset-0 opacity-30">
@@ -1469,7 +1471,7 @@ export default function HomePage() {
                   className="absolute inset-0"
                 >
                   {/* Image de fond avec effet parallax */}
-                  <div className="absolute inset-0">
+                  <div className="absolute inset-0 rounded-3xl overflow-hidden">
                     <motion.img
                       src={getValidImageUrl(featuredTracks[currentSlide].coverUrl, '/default-cover.jpg')}
                       alt={featuredTracks[currentSlide].title}
@@ -1485,9 +1487,7 @@ export default function HomePage() {
                         console.log('Image chargée avec succès:', featuredTracks[currentSlide].coverUrl);
                       }}
                     />
-                    {/* Overlay gradient futuriste */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/40 to-transparent"></div>
-                    <div className="absolute inset-0 bg-gradient-to-r from-slate-900/60 via-transparent to-transparent"></div>
+                    {/* Pas d'overlays - Transparence totale */}
                   </div>
 
                   {/* Contenu principal */}
@@ -1539,12 +1539,27 @@ export default function HomePage() {
                         >
                           <div className="flex items-center space-x-4 text-sm text-gray-300">
                             <div className="flex items-center space-x-1.5">
-                              <Headphones size={16} className="text-purple-400" />
-                              <span>{formatNumber(featuredTracks[currentSlide].plays)}</span>
+                              <AnimatedPlaysCounter
+                                value={featuredTracks[currentSlide].plays}
+                                size="sm"
+                                variant="minimal"
+                                showIcon={true}
+                                icon={<Headphones size={16} className="text-purple-400" />}
+                                animation="slide"
+                                className="text-gray-300"
+                              />
                             </div>
                             <div className="flex items-center space-x-1.5">
-                              <Users size={16} className="text-pink-400" />
-                              <span>{formatNumber(featuredTracks[currentSlide].likes.length)}</span>
+                              <AnimatedLikeCounter
+                                value={featuredTracks[currentSlide].likes.length}
+                                isLiked={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
+                                size="sm"
+                                variant="minimal"
+                                showIcon={true}
+                                icon={<Users size={16} className="text-pink-400" />}
+                                animation="bounce"
+                                className="text-gray-300"
+                              />
                             </div>
                             <div className="flex items-center space-x-1.5">
                               <Clock size={16} className="text-blue-400" />
@@ -1578,17 +1593,17 @@ export default function HomePage() {
                           </motion.button>
 
                           {/* Bouton Like avec nouveau composant */}
-                          <InteractiveCounter
-                            type="likes"
-                            initialCount={featuredTracks[currentSlide].likes.length}
-                            isActive={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
-                            onToggle={async (newState) => {
-                              await handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', currentSlide);
-                            }}
+                          <LikeButton
+                            trackId={featuredTracks[currentSlide]._id}
+                            initialLikesCount={featuredTracks[currentSlide].likes.length}
+                            initialIsLiked={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
                             size="md"
-                            showIcon={true}
+                            variant="card"
+                            showCount={true}
                             className="px-4 py-3 rounded-full font-semibold transition-all duration-300 backdrop-blur-sm text-white bg-white/10 border border-white/20 hover:bg-white/20"
                           />
+
+
 
                           {/* Bouton Partager */}
                           <motion.button
@@ -1650,8 +1665,10 @@ export default function HomePage() {
               </div>
             </div>
           </div>
+        </div>
         </section>
       )}
+      </div>
 
       {/* Section Recherche Rapide - Design futuriste */}
       <section className="container mx-auto px-6 py-6">
@@ -1808,19 +1825,24 @@ export default function HomePage() {
                           {/* Stats */}
                           <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
                             <div className="flex items-center gap-1">
-                              <Headphones size={12} />
-                              <span>{formatNumber(track.plays)}</span>
+                              <AnimatedPlaysCounter
+                                value={track.plays}
+                                size="sm"
+                                variant="minimal"
+                                showIcon={true}
+                                icon={<Headphones size={12} />}
+                                animation="slide"
+                                className="text-gray-400"
+                              />
                             </div>
                             <div className="flex items-center gap-1">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                                isActive={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
-                                onToggle={async (newState) => {
-                                  await handleLikeTrack(track._id, 'searchResults', index);
-                                }}
+                              <LikeButton
+                                trackId={track._id}
+                                initialLikesCount={Array.isArray(track.likes) ? track.likes.length : 0}
+                                initialIsLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
                                 size="sm"
-                                showIcon={true}
+                                variant="minimal"
+                                showCount={true}
                                 className="text-gray-400 hover:text-red-500"
                               />
                             </div>
@@ -1883,16 +1905,13 @@ export default function HomePage() {
                               <span>{formatNumber(artist.listeners)} auditeurs</span>
                             </div>
                             <div className="flex items-center gap-1">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={artist.likes?.length || 0}
-                                isActive={artist.isLiked || (Array.isArray(artist.likes) && artist.likes.includes(user?.id || ''))}
-                                onToggle={async (newState) => {
-                                  // Logique pour liker un artiste
-                                  console.log('Like artiste:', artist._id);
-                                }}
+                              <LikeButton
+                                trackId={artist._id}
+                                initialLikesCount={artist.likes?.length || 0}
+                                initialIsLiked={artist.isLiked || (Array.isArray(artist.likes) && artist.likes.includes(user?.id || ''))}
                                 size="sm"
-                                showIcon={true}
+                                variant="minimal"
+                                showCount={false}
                                 className="text-gray-400 hover:text-red-500"
                               />
                             </div>
@@ -1956,16 +1975,13 @@ export default function HomePage() {
                             <span>{playlist.trackCount || 0} titres</span>
                           </div>
                           <div className="flex items-center gap-1">
-                            <InteractiveCounter
-                              type="likes"
-                              initialCount={playlist.likes?.length || 0}
-                              isActive={playlist.isLiked || (Array.isArray(playlist.likes) && playlist.likes.includes(user?.id || ''))}
-                              onToggle={async (newState) => {
-                                // Logique pour liker une playlist
-                                console.log('Like playlist:', playlist._id);
-                              }}
+                            <LikeButton
+                              trackId={playlist._id}
+                              initialLikesCount={playlist.likes?.length || 0}
+                              initialIsLiked={playlist.isLiked || (Array.isArray(playlist.likes) && playlist.likes.includes(user?.id || ''))}
                               size="sm"
-                              showIcon={true}
+                              variant="minimal"
+                              showCount={false}
                               className="text-gray-400 hover:text-red-500"
                             />
                           </div>
@@ -2080,19 +2096,23 @@ export default function HomePage() {
                 {/* Stats avec likes fonctionnels */}
                 <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
                   <div className="flex items-center gap-1">
-                    <Headphones size={12} />
-                    <span>{formatNumber(track.plays)}</span>
+                    <AnimatedPlaysCounter
+                      value={track.plays}
+                      size="sm"
+                      variant="minimal"
+                      showIcon={false}
+                      animation="slide"
+                      className="text-gray-400"
+                    />
                   </div>
                   <div className="flex items-center gap-1">
-                    <InteractiveCounter
-                      type="likes"
-                      initialCount={track.likes?.length || 0}
-                      isActive={track.isLiked || track.likes?.includes(user?.id || '')}
-                      onToggle={async (newState) => {
-                        await handleLikeTrack(track._id, 'dailyDiscoveries', index);
-                      }}
+                    <LikeButton
+                      trackId={track._id}
+                      initialLikesCount={track.likes?.length || 0}
+                      initialIsLiked={track.isLiked || track.likes?.includes(user?.id || '')}
                       size="sm"
-                      showIcon={true}
+                      variant="minimal"
+                      showCount={true}
                       className="text-gray-400 hover:text-red-500"
                     />
                   </div>
@@ -2342,18 +2362,22 @@ export default function HomePage() {
                    { 
                      icon: Headphones, 
                      label: 'Écoutes', 
-                     value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.totalPlays), 
+                     value: realTimeStats.loading ? 0 : realTimeStats.totalPlays, 
                      color: 'text-orange-400', 
                      trend: realTimeStats.loading ? '' : '+25%',
-                     loading: realTimeStats.loading
+                     loading: realTimeStats.loading,
+                     animated: true,
+                     animationType: 'plays'
                    },
                    { 
                      icon: Heart, 
                      label: 'Likes', 
-                     value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.totalLikes), 
+                     value: realTimeStats.loading ? 0 : realTimeStats.totalLikes, 
                      color: 'text-pink-400', 
                      trend: realTimeStats.loading ? '' : '+15%',
-                     loading: realTimeStats.loading
+                     loading: realTimeStats.loading,
+                     animated: true,
+                     animationType: 'likes'
                    }
                  ].map((stat, index) => (
                    <motion.div
@@ -2370,6 +2394,26 @@ export default function HomePage() {
                          <div className="flex items-center justify-center">
                            <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
                          </div>
+                       ) : stat.animated ? (
+                         stat.animationType === 'plays' ? (
+                           <AnimatedPlaysCounter
+                             value={stat.value}
+                             size="lg"
+                             variant="minimal"
+                             showIcon={false}
+                             animation="slide"
+                             className="text-white"
+                           />
+                         ) : (
+                           <AnimatedLikeCounter
+                             value={stat.value}
+                             size="lg"
+                             variant="minimal"
+                             showIcon={false}
+                             animation="bounce"
+                             className="text-white"
+                           />
+                         )
                        ) : (
                          stat.value
                        )}
@@ -2476,7 +2520,17 @@ export default function HomePage() {
                     </div>
                     <h3 className="font-semibold text-white text-base truncate w-full mb-0.5">{user.name || user.username}</h3>
                     <p className="text-gray-400 text-xs mb-1">@{user.username}</p>
-                    <p className="text-gray-400 text-xs">{user.followers?.length || 0} abonnés</p>
+                    <div className="flex items-center gap-1 text-gray-400 text-xs">
+                      <AnimatedPlaysCounter
+                        value={user.followers?.length || 0}
+                        size="sm"
+                        variant="minimal"
+                        showIcon={false}
+                        animation="slide"
+                        className="text-gray-400"
+                      />
+                      <span>abonnés</span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2551,8 +2605,15 @@ export default function HomePage() {
                       <p className="text-gray-300 text-xs mb-2 truncate">{radioInfo.description}</p>
                       <div className="flex items-center space-x-3 text-xs">
                         <div className="flex items-center space-x-1 text-cyan-400">
-                          <Headphones size={10} />
-                          <span>{formatNumber(radioInfo.listeners)}</span>
+                          <AnimatedPlaysCounter
+                            value={radioInfo.listeners}
+                            size="sm"
+                            variant="minimal"
+                            showIcon={true}
+                            icon={<Headphones size={10} />}
+                            animation="slide"
+                            className="text-cyan-400"
+                          />
                         </div>
                         <div className="flex items-center space-x-1 text-green-400">
                           <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
@@ -2671,19 +2732,23 @@ export default function HomePage() {
                   {/* Stats */}
                   <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
                     <div className="flex items-center gap-1">
-                      <Headphones size={12} />
-                      <span>{formatNumber(track.plays)}</span>
+                      <AnimatedPlaysCounter
+                        value={track.plays}
+                        size="sm"
+                        variant="minimal"
+                        showIcon={false}
+                        animation="slide"
+                        className="text-gray-400"
+                      />
                     </div>
                     <div className="flex items-center gap-1">
-                      <InteractiveCounter
-                        type="likes"
-                        initialCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                        isActive={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
-                        onToggle={async (newState) => {
-                          await handleLikeTrack(track._id, 'dailyDiscoveries', index);
-                        }}
+                      <LikeButton
+                        trackId={track._id}
+                        initialLikesCount={Array.isArray(track.likes) ? track.likes.length : 0}
+                        initialIsLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
                         size="sm"
-                        showIcon={true}
+                        variant="minimal"
+                        showCount={false}
                         className="text-gray-400 hover:text-red-500"
                       />
                     </div>
@@ -2824,14 +2889,13 @@ export default function HomePage() {
                                     >
                                       <Play size={8} fill="white" className="ml-0.5" />
                                     </motion.button>
-                                    <InteractiveCounter
-                                      type="likes"
-                                      initialCount={track.likes?.length || 0}
-                                      isActive={track.isLiked || track.likes?.includes(user?.id || '')}
-                                      onToggle={async (newState) => {
-                                        await handleLikeTrack(track._id, 'recommendations', index);
-                                      }}
-                                      showIcon={true}
+                                    <LikeButton
+                                      trackId={track._id}
+                                      initialLikesCount={track.likes?.length || 0}
+                                      initialIsLiked={track.isLiked || track.likes?.includes(user?.id || '')}
+                                      size="sm"
+                                      variant="card"
+                                      showCount={true}
                                       className="w-5 h-5 bg-white/20 rounded-full hover:bg-white/30 transition-colors text-white"
                                     />
                                   </div>
@@ -3083,19 +3147,23 @@ export default function HomePage() {
                         {/* Stats */}
                         <div className="flex items-center justify-between w-full pt-2 border-t border-gray-700 text-xs text-gray-400">
                           <div className="flex items-center gap-1">
-                            <Headphones size={12} />
-                            <span>{formatNumber(track.plays)}</span>
+                            <AnimatedPlaysCounter
+                              value={track.plays}
+                              size="sm"
+                              variant="minimal"
+                              showIcon={false}
+                              animation="slide"
+                              className="text-gray-400"
+                            />
                           </div>
                           <div className="flex items-center gap-1">
-                            <InteractiveCounter
-                              type="likes"
-                              initialCount={track.likes.length}
-                              isActive={track.isLiked || track.likes.includes(user?.id || '')}
-                              onToggle={async (newState) => {
-                                await handleLikeTrack(track._id, config.key, index);
-                              }}
+                            <LikeButton
+                              trackId={track._id}
+                              initialLikesCount={track.likes.length}
+                              initialIsLiked={track.isLiked || track.likes.includes(user?.id || '')}
                               size="sm"
-                              showIcon={true}
+                              variant="minimal"
+                              showCount={true}
                               className="text-gray-400 hover:text-red-500"
                             />
                           </div>
@@ -3131,6 +3199,8 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+
 
       {/* Dialog Radio - Compact et Accessible */}
       <AnimatePresence>
@@ -3241,7 +3311,14 @@ export default function HomePage() {
                               <div className="grid grid-cols-2 gap-1.5 text-xs">
                                 <div className="bg-black/20 rounded-lg p-2">
                                   <p className="text-gray-400 text-xs">Auditeurs</p>
-                                  <p className="text-white font-medium">{formatNumber(radioInfo.stats.listeners)}</p>
+                                  <AnimatedPlaysCounter
+                                    value={radioInfo.stats.listeners}
+                                    size="sm"
+                                    variant="minimal"
+                                    showIcon={false}
+                                    animation="slide"
+                                    className="text-white font-medium"
+                                  />
                                 </div>
                                 <div className="bg-black/20 rounded-lg p-2">
                                   <p className="text-gray-400 text-xs">Qualité</p>
@@ -3272,7 +3349,14 @@ export default function HomePage() {
                             <div className="grid grid-cols-2 gap-2">
                               <div className="text-center">
                                 <div className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
-                                  {formatNumber(radioInfo.stats.listeners)}
+                                  <AnimatedPlaysCounter
+                                    value={radioInfo.stats.listeners}
+                                    size="lg"
+                                    variant="minimal"
+                                    showIcon={false}
+                                    animation="slide"
+                                    className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent"
+                                  />
                                 </div>
                                 <p className="text-gray-400 text-xs">Auditeurs</p>
                               </div>

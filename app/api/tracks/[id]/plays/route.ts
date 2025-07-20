@@ -10,9 +10,19 @@ import '@/models/Track';
 import '@/models/Subscription';
 import '@/models/UserSubscription';
 
-// Système de verrous pour éviter les doublons d'incrémentation
+// Système de verrous amélioré pour éviter les doublons d'incrémentation
 const playLocks = new Map<string, { timestamp: number; userId: string }>();
-const LOCK_DURATION = 5000; // 5 secondes
+const LOCK_DURATION = 10000; // 10 secondes - plus long pour éviter les doublons
+
+// Nettoyer les verrous expirés périodiquement
+setInterval(() => {
+  const now = Date.now();
+  Array.from(playLocks.entries()).forEach(([key, lock]) => {
+    if (now - lock.timestamp > LOCK_DURATION) {
+      playLocks.delete(key);
+    }
+  });
+}, 30000); // Nettoyer toutes les 30 secondes
 
 // POST - Incrémenter le nombre d'écoutes
 export async function POST(

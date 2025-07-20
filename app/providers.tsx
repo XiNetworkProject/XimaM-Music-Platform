@@ -6,6 +6,9 @@ import { Toaster } from 'react-hot-toast';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
+import { LikeProvider } from '@/contexts/LikeContext';
+import { PlaysProvider } from '@/contexts/PlaysContext';
+import { usePlaysSync } from '@/hooks/usePlaysSync';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -560,6 +563,11 @@ function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function PlaysSyncWrapper({ children }: { children: React.ReactNode }) {
+  usePlaysSync(); // Activer la synchronisation des écoutes
+  return <>{children}</>;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <SessionProvider 
@@ -567,12 +575,18 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       refetchOnWindowFocus={true} // Refetch quand la fenêtre reprend le focus
     >
       <QueryClientProvider client={queryClient}>
-        <AudioPlayerProvider>
-          <SubscriptionProvider>
-            {children}
-            <Toaster position="top-center" />
-          </SubscriptionProvider>
-        </AudioPlayerProvider>
+        <LikeProvider>
+          <PlaysProvider>
+            <PlaysSyncWrapper>
+              <AudioPlayerProvider>
+                <SubscriptionProvider>
+                  {children}
+                  <Toaster position="top-center" />
+                </SubscriptionProvider>
+              </AudioPlayerProvider>
+            </PlaysSyncWrapper>
+          </PlaysProvider>
+        </LikeProvider>
       </QueryClientProvider>
     </SessionProvider>
   );

@@ -33,6 +33,10 @@ import {
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
+import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
+import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
+import LikeButton from '@/components/LikeButton';
+import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
 
 interface Track {
   _id: string;
@@ -73,7 +77,11 @@ interface Playlist {
 
 export default function LibraryPage() {
   const { data: session } = useSession();
-  const { audioState, playTrack, handleLike, setQueueAndPlay } = useAudioPlayer();
+  const { audioState, playTrack, setQueueAndPlay } = useAudioPlayer();
+  
+  // Utiliser les nouveaux systèmes de likes et écoutes
+  const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
+  const { incrementPlaysBatch, isBatchLoading: isPlaysLoading } = useBatchPlaysSystem();
   
   // États principaux
   const [activeTab, setActiveTab] = useState<'playlists' | 'recent' | 'favorites' | 'downloads'>('playlists');
@@ -240,7 +248,7 @@ export default function LibraryPage() {
   // Gérer les likes
   const handleLikeTrack = async (trackId: string) => {
     try {
-      await handleLike(trackId);
+      await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
       // Mettre à jour l'état local
       setFavoriteTracks(prev => prev.map(track => 
         track._id === trackId 
@@ -810,7 +818,13 @@ export default function LibraryPage() {
                             {formatDuration(track.duration)}
                           </span>
                           <span className="text-white/40 text-xs">
-                            {formatNumber(track.plays)} écoutes
+                            <AnimatedPlaysCounter
+                      value={track.plays}
+                      size="sm"
+                      variant="minimal"
+                      animation="slide"
+                      className="text-white/60"
+                    /> écoutes
                           </span>
                         </div>
                       </motion.div>

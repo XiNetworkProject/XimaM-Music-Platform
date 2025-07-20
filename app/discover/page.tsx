@@ -4,9 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Filter, Play, Heart, Share2, MessageCircle, Clock, Users, TrendingUp, Music, Shuffle, SortAsc, SortDesc } from 'lucide-react';
 import { useAudioPlayer } from '../providers';
+import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
+import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
+import LikeButton from '@/components/LikeButton';
 import { useSession } from 'next-auth/react';
 import TrackCard from '@/components/TrackCard';
 import SocialStats from '@/components/SocialStats';
+import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
 
 interface Track {
   _id: string;
@@ -40,7 +44,11 @@ const sortOptions = [
 
 export default function DiscoverPage() {
   const { data: session } = useSession();
-  const { playTrack, handleLike, audioState } = useAudioPlayer();
+  const { playTrack, audioState } = useAudioPlayer();
+  
+  // Utiliser les nouveaux systèmes de likes et écoutes
+  const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
+  const { incrementPlaysBatch, isBatchLoading: isPlaysLoading } = useBatchPlaysSystem();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('Tous');
@@ -146,7 +154,7 @@ export default function DiscoverPage() {
 
   const handleLikeTrack = async (trackId: string) => {
     try {
-      await handleLike(trackId);
+      await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
       // Mettre à jour l'état local
       setTracks(prev => prev.map(track => 
         track._id === trackId 
@@ -345,7 +353,13 @@ export default function DiscoverPage() {
             </div>
             <div className="glass-effect rounded-xl p-4 text-center">
               <Users className="w-8 h-8 text-blue-400 mx-auto mb-2" />
-              <div className="text-2xl font-bold">{formatNumber(tracks.reduce((sum, track) => sum + track.plays, 0))}</div>
+              <AnimatedPlaysCounter
+                value={tracks.reduce((sum, track) => sum + track.plays, 0)}
+                size="lg"
+                variant="card"
+                animation="slide"
+                className="text-2xl font-bold"
+              />
               <div className="text-white/60 text-sm">Écoutes</div>
             </div>
             <div className="glass-effect rounded-xl p-4 text-center">
@@ -451,8 +465,15 @@ export default function DiscoverPage() {
                     <div className="flex items-center justify-between text-xs text-white/60 mb-3">
                             <div className="flex items-center space-x-3">
                               <span className="flex items-center space-x-1">
-                                <Users size={12} />
-                        <span>{formatNumber(track.plays)}</span>
+                                <AnimatedPlaysCounter
+                                  value={track.plays}
+                                  size="sm"
+                                  variant="minimal"
+                                  showIcon={true}
+                                  icon={<Users size={12} />}
+                                  animation="slide"
+                                  className="text-white/60"
+                                />
                               </span>
                               <span className="flex items-center space-x-1">
                                 <Heart size={12} />

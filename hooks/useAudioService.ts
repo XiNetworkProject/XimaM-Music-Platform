@@ -414,6 +414,16 @@ export const useAudioService = () => {
         }));
         
         lastTrackId.current = track._id;
+        
+        // Incrémenter les écoutes pour la nouvelle piste chargée
+        if (track._id && session?.user?.id) {
+          updatePlayCount(track._id);
+        }
+        
+        // Émettre un événement de changement de piste pour la synchronisation
+        window.dispatchEvent(new CustomEvent('trackChanged', {
+          detail: { trackId: track._id }
+        }));
       }
     } catch (error) {
       console.error('Erreur lors du chargement de la track:', error);

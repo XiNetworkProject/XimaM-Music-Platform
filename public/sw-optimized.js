@@ -135,33 +135,33 @@ async function cacheStrategy(request, cacheName, strategy = 'network-first') {
         return new Response('Erreur réseau', { status: 503 });
       }
       
-         case 'stale-while-revalidate':
-       // Retourner immédiatement depuis le cache si disponible
-       const staleResponse = await cache.match(request);
-       
-       // En arrière-plan, mettre à jour le cache
-       fetch(request).then(async (networkResponse) => {
-         if (networkResponse.ok) {
-           await cache.put(request, networkResponse.clone());
-         }
-       }).catch(() => {
-         // Ignorer les erreurs de mise à jour en arrière-plan
-       });
-       
-       if (staleResponse) {
-         return staleResponse;
-       }
-       
-       // Si pas en cache, attendre le réseau
-       try {
-         const networkResponse = await fetch(request);
-         if (networkResponse.ok) {
-           await cache.put(request, networkResponse.clone());
-         }
-         return networkResponse;
-       } catch (error) {
-         return new Response('Erreur réseau', { status: 503 });
-       }
+    case 'stale-while-revalidate':
+      // Retourner immédiatement depuis le cache si disponible
+      const staleResponse = await cache.match(request);
+      
+      // En arrière-plan, mettre à jour le cache
+      fetch(request).then(async (networkResponse) => {
+        if (networkResponse.ok) {
+          await cache.put(request, networkResponse.clone());
+        }
+      }).catch(() => {
+        // Ignorer les erreurs de mise à jour en arrière-plan
+      });
+      
+      if (staleResponse) {
+        return staleResponse;
+      }
+      
+      // Si pas en cache, attendre le réseau
+      try {
+        const networkResponse = await fetch(request);
+        if (networkResponse.ok) {
+          await cache.put(request, networkResponse.clone());
+        }
+        return networkResponse;
+      } catch (error) {
+        return new Response('Erreur réseau', { status: 503 });
+      }
       
     default:
       return fetch(request);
@@ -174,6 +174,42 @@ self.addEventListener('fetch', (event) => {
   
   // Ignorer les requêtes avec des schémas non supportés
   if (!canCacheRequest(event.request)) {
+    return;
+  }
+  
+  // Gestion spéciale pour les ressources Next.js
+  if (url.pathname.includes('/_next/')) {
+    // Pour les ressources Next.js, utiliser une stratégie network-first avec fallback
+    event.respondWith(
+      fetch(event.request)
+        .then(response => {
+          // Si la requête réussit, la mettre en cache
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(DYNAMIC_CACHE).then(cache => {
+              cache.put(event.request, responseClone);
+            }).catch(() => {
+              // Ignorer les erreurs de cache
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Si le réseau échoue, essayer le cache
+          return caches.open(DYNAMIC_CACHE).then(cache => {
+            return cache.match(event.request);
+          }).then(cachedResponse => {
+            if (cachedResponse) {
+              return cachedResponse;
+            }
+            // Si pas en cache, retourner une erreur 503
+            return new Response('Ressource non disponible', { 
+              status: 503,
+              statusText: 'Service Unavailable'
+            });
+          });
+        })
+    );
     return;
   }
   
@@ -200,14 +236,6 @@ self.addEventListener('fetch', (event) => {
       event.request.destination === 'font') {
     event.respondWith(
       cacheStrategy(event.request, STATIC_CACHE, 'cache-first')
-    );
-    return;
-  }
-  
-  // Cache des pages avec stratégie network-first
-  if (event.request.destination === 'document') {
-    event.respondWith(
-      cacheStrategy(event.request, DYNAMIC_CACHE, 'network-first')
     );
     return;
   }

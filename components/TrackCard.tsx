@@ -36,31 +36,10 @@ interface TrackCardProps {
   onTrackUpdate?: (track: Track) => void;
 }
 
-// Composant pour afficher les écoutes de manière stable
-function PlaysCounter({ trackId, plays, size = 'sm' }: { 
-  trackId: string; 
-  plays: number;
-  size?: 'sm' | 'md' | 'lg';
-}) {
-  // Formater le nombre d'écoutes
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    } else if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
-  };
-
-  return (
-    <div className="flex items-center gap-1 text-gray-500">
-      <Headphones size={size === 'sm' ? 12 : size === 'md' ? 14 : 16} />
-      <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'}`}>
-        {formatNumber(plays)}
-      </span>
-    </div>
-  );
-}
+import PlaysCounter from './PlaysCounter';
+import LikeButton from './LikeButton';
+import { useTrackLike } from '@/contexts/LikeContext';
+import { useTrackPlays } from '@/contexts/PlaysContext';
 
 export default function TrackCard({
   track,
@@ -200,7 +179,7 @@ export default function TrackCard({
             </Link>
             <div className="flex items-center gap-2 text-gray-500 justify-center mt-1">
               <span className={`${sizeClasses[size].duration}`}>{formatDuration(track.duration)}</span>
-              <PlaysCounter trackId={track._id} plays={track.plays || 0} size={size} />
+              <PlaysCounter trackId={track._id} initialPlays={track.plays || 0} size={size} />
               <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
                 <MoreVertical size={10} />
               </button>

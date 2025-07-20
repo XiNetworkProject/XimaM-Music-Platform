@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import dbConnect from '@/lib/db';
 import Comment from '@/models/Comment';
 import Track from '@/models/Track';
+import contentModerator from '@/lib/contentModeration';
 
 // PUT - Modifier un commentaire
 export async function PUT(
@@ -23,6 +24,21 @@ export async function PUT(
       return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
     }
 
+    // Modération du contenu
+    const moderationResult = contentModerator.analyzeContent(content.trim());
+    
+    if (!moderationResult.isClean) {
+      return NextResponse.json({
+        error: 'Contenu inapproprié détecté',
+        details: {
+          score: moderationResult.score,
+          flags: moderationResult.flags,
+          suggestions: moderationResult.suggestions,
+          censoredText: moderationResult.censoredText
+        }
+      }, { status: 400 });
+    }
+
     // Vérifier si le commentaire existe et appartient à l'utilisateur
     const comment = await Comment.findById(params.commentId);
     if (!comment) {
@@ -36,7 +52,11 @@ export async function PUT(
     // Mettre à jour le commentaire
     const updatedComment = await Comment.findByIdAndUpdate(
       params.commentId,
-      { content: content.trim() },
+      { 
+        content: content.trim(),
+        moderationScore: moderationResult.score,
+        isModerated: true,
+      },
       { new: true }
     ).populate('user', 'name username avatar');
 

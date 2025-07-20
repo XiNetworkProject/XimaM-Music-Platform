@@ -5,6 +5,7 @@ import dbConnect from '@/lib/db';
 import Track from '@/models/Track';
 import Comment from '@/models/Comment';
 import subscriptionService from '@/lib/subscriptionService';
+import contentModerator from '@/lib/contentModeration';
 
 // S'assurer que tous les modèles sont enregistrés
 import '@/models/Track';
@@ -31,6 +32,21 @@ export async function POST(
       return NextResponse.json({ error: 'Contenu requis' }, { status: 400 });
     }
 
+    // Modération du contenu
+    const moderationResult = contentModerator.analyzeContent(content.trim());
+    
+    if (!moderationResult.isClean) {
+      return NextResponse.json({
+        error: 'Contenu inapproprié détecté',
+        details: {
+          score: moderationResult.score,
+          flags: moderationResult.flags,
+          suggestions: moderationResult.suggestions,
+          censoredText: moderationResult.censoredText
+        }
+      }, { status: 400 });
+    }
+
     // Vérifier les limites d'abonnement
     const commentCheck = await subscriptionService.canPerformAction(session.user.id, 'comments');
     if (!commentCheck.allowed) {
@@ -54,14 +70,18 @@ export async function POST(
       content: content.trim(),
       user: session.user.id,
       track: trackId,
+      moderationScore: moderationResult.score,
+      isModerated: true,
     });
 
     await comment.save();
 
-    // Ajouter le commentaire à la piste
-    await Track.findByIdAndUpdate(trackId, {
-      $push: { comments: comment._id }
-    });
+    // Ajouter le commentaire à la piste (seulement les commentaires parents)
+    if (!comment.parentComment) {
+      await Track.findByIdAndUpdate(trackId, {
+        $push: { comments: comment._id }
+      });
+    }
 
     // Incrémenter l'utilisation de commentaires
     await subscriptionService.incrementUsage(session.user.id, 'comments');
@@ -104,14 +124,38 @@ export async function GET(
       return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
     }
 
-    // Récupérer les commentaires
-    const comments = await Comment.find({ track: trackId })
+    // Construire la requête de base (exclure les commentaires supprimés et filtrés)
+    const baseQuery = { 
+      track: trackId, 
+      parentComment: { $exists: false },
+      isDeleted: { $ne: true },
+      customFiltered: { $ne: true }
+    };
+
+    // Récupérer les commentaires avec leurs réponses
+    const comments = await Comment.find(baseQuery)
       .populate('user', 'name username avatar')
+      .populate({
+        path: 'replies',
+        match: { isDeleted: { $ne: true }, customFiltered: { $ne: true } },
+        populate: {
+          path: 'user',
+          select: 'name username avatar'
+        }
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
-    const total = await Comment.countDocuments({ track: trackId });
+    // Compter tous les commentaires visibles (parents + réponses)
+    const totalComments = await Comment.countDocuments(baseQuery);
+    const totalReplies = await Comment.countDocuments({ 
+      track: trackId, 
+      parentComment: { $exists: true },
+      isDeleted: { $ne: true },
+      customFiltered: { $ne: true }
+    });
+    const total = totalComments + totalReplies;
 
     return NextResponse.json({
       comments,
