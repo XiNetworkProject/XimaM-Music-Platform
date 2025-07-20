@@ -760,7 +760,44 @@ export default function ConversationPage() {
     }
   }, [session, conversationId]);
 
-  // Auto-scroll vers le bas
+  // Polling en temps réel pour les nouveaux messages
+  useEffect(() => {
+    if (!session?.user || !conversationId) return;
+
+    const pollMessages = async () => {
+      try {
+        const response = await fetch(`/api/messages/${conversationId}`);
+        const data = await response.json();
+        
+        if (response.ok && data.messages) {
+          setMessages(prevMessages => {
+            // Vérifier s'il y a de nouveaux messages
+            const newMessages = data.messages.filter((newMsg: Message) => 
+              !prevMessages.some(prevMsg => prevMsg._id === newMsg._id)
+            );
+            
+            if (newMessages.length > 0) {
+              console.log('🆕 Nouveaux messages reçus:', newMessages.length);
+              // Marquer comme lu automatiquement
+              markAsSeen();
+              return data.messages;
+            }
+            
+            return prevMessages;
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erreur polling messages:', error);
+      }
+    };
+
+    // Polling toutes les 3 secondes
+    const interval = setInterval(pollMessages, 3000);
+    
+    return () => clearInterval(interval);
+  }, [session?.user, conversationId]);
+
+  // Auto-scroll vers le bas amélioré
   useEffect(() => {
     if (messages.length > 0) {
       // Scroll immédiat au chargement des messages
@@ -776,6 +813,20 @@ export default function ConversationPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages.length]);
+
+  // Scroll automatique pour les nouveaux messages
+  const scrollToBottom = useCallback(() => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  }, []);
+
+  // Scroll automatique quand de nouveaux messages arrivent
+  useEffect(() => {
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
+  }, [messages.length, scrollToBottom]);
 
   const fetchMessages = async () => {
     try {
@@ -842,9 +893,24 @@ export default function ConversationPage() {
 
       if (unreadMessages.length > 0) {
         console.log('📖 Marquage comme lu de', unreadMessages.length, 'messages');
-      await fetch(`/api/messages/${conversationId}/seen`, {
-        method: 'POST',
-      });
+        await fetch(`/api/messages/${conversationId}/seen`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            messageIds: unreadMessages.map(msg => msg._id) 
+          })
+        });
+        
+        // Mettre à jour localement les statuts de lecture
+        setMessages(prev => prev.map(msg => {
+          if (unreadMessages.some(unread => unread._id === msg._id)) {
+            return {
+              ...msg,
+              seenBy: [...msg.seenBy, session.user.id]
+            };
+          }
+          return msg;
+        }));
       }
     } catch (error) {
       console.error('Erreur marquage comme lu:', error);
@@ -864,6 +930,9 @@ export default function ConversationPage() {
       if (response.ok) {
         setMessages(prev => [...prev, data.message]);
         setNewMessage('');
+        // Scroll automatique après envoi
+        scrollToBottom();
+        // Marquer comme lu
         markAsSeen();
       } else {
         console.error('Erreur envoi message:', data);
@@ -1933,7 +2002,7 @@ Paramètres Linux à vérifier :
               <UserAvatar user={otherUser} onlineStatus={onlineStatus} isConnected={isConnected} />
               <div>
                 <h2 className="font-semibold text-white text-lg leading-tight">{otherUser.name}</h2>
-                <RealTimeStatus userId={otherUser._id} showDebug={true} />
+                <RealTimeStatus userId={otherUser._id} showDebug={false} />
               </div>
             </motion.div>
           ) : conversationLoading ? (
