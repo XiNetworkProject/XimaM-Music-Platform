@@ -1,0 +1,10 @@
+# Exclure l'application mobile du déploiement web
+XimaMMobile/
+*.apk
+
+# Autres exclusions
+node_modules/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local 

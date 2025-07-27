@@ -5,6 +5,7 @@ const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['mongoose'],
   },
+
   // Configuration pour augmenter les limites de taille
   async headers() {
     return [
@@ -83,6 +84,8 @@ const nextConfig = {
         tls: false,
       };
     }
+    
+
     
     return config;
   },
