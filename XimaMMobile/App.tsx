@@ -8,7 +8,15 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { StatusBar } from 'react-native';
-import Icon from 'react-native-vector-icons/MaterialIcons';
+import { 
+  HomeIcon, 
+  SearchIcon, 
+  LibraryIcon, 
+  MessageIcon, 
+  SettingsIcon, 
+  UserIcon,
+  MusicIcon
+} from './src/components/IconSystem';
 
 // Providers
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
@@ -23,12 +31,12 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import AuthScreen from './src/screens/AuthScreen';
 import LoadingScreen from './src/screens/LoadingScreen';
 
-// Bottom Navigation Component (fidèle au web)
-const BottomNav = ({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) => {
-  const { user } = useAuth();
-  
-  // Simuler les notifications (à connecter avec le vrai système)
-  const unreadCount = 0; // TODO: Connecter avec useMessageNotifications
+       // Bottom Navigation Component (fidèle au design web)
+       const BottomNav = ({ activeTab, setActiveTab }: { activeTab: string; setActiveTab: (tab: string) => void }) => {
+         const { user } = useAuth();
+         
+         // Simuler les notifications (à connecter avec le vrai système)
+         const unreadCount = 0; // TODO: Connecter avec useMessageNotifications
 
   const navItems = [
     {
@@ -70,11 +78,11 @@ const BottomNav = ({ activeTab, setActiveTab }: { activeTab: string; setActiveTa
       onPress={() => setActiveTab(item.name)}
     >
       <View style={styles.tabIconContainer}>
-        <Icon 
-          name={item.icon} 
-          size={20} 
-          color={item.active ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} 
-        />
+        {item.icon === 'home' && <HomeIcon size={20} color={item.active ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} />}
+        {item.icon === 'search' && <SearchIcon size={20} color={item.active ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} />}
+        {item.icon === 'library' && <LibraryIcon size={20} color={item.active ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} />}
+        {item.icon === 'message-circle' && <MessageIcon size={20} color={item.active ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} />}
+        {item.icon === 'settings' && <SettingsIcon size={20} color={item.active ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} />}
         {item.badge && (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>
@@ -93,7 +101,7 @@ const BottomNav = ({ activeTab, setActiveTab }: { activeTab: string; setActiveTa
     <View style={styles.tabBar}>
       {/* Bouton lecteur (comme dans le web) */}
       <TouchableOpacity style={styles.playerButton}>
-        <Icon name="music-note" size={22} color="#8B5CF6" />
+        <MusicIcon size={22} color="#8B5CF6" />
         <Text style={styles.playerButtonText}>Lecteur</Text>
       </TouchableOpacity>
 
@@ -111,11 +119,10 @@ const BottomNav = ({ activeTab, setActiveTab }: { activeTab: string; setActiveTa
           {user?.avatar ? (
             <View style={styles.avatarContainer}>
               {/* TODO: Implémenter Image pour l'avatar */}
-              <Icon name="person" size={20} color="#8B5CF6" />
+              <UserIcon size={20} color="#8B5CF6" />
             </View>
           ) : (
-            <Icon 
-              name="person" 
+            <UserIcon 
               size={20} 
               color={activeTab === 'Profile' ? '#8B5CF6' : 'rgba(255, 255, 255, 0.6)'} 
             />
@@ -136,7 +143,7 @@ const MainTabs = () => {
   const renderScreen = () => {
     switch (activeTab) {
       case 'Home':
-        return <HomeScreen navigation={{ navigate: () => {} }} />;
+        return <HomeScreen />;
       case 'Discover':
         return <DiscoverScreen />;
       case 'Library':
@@ -148,7 +155,7 @@ const MainTabs = () => {
       case 'Profile':
         return <ProfileScreen />;
       default:
-        return <HomeScreen navigation={{ navigate: () => {} }} />;
+        return <HomeScreen />;
     }
   };
 
@@ -205,6 +212,12 @@ const styles = StyleSheet.create({
     height: 70,
     alignItems: 'center',
     justifyContent: 'space-around',
+    // Effet glass comme dans le web
+    shadowColor: 'rgba(0, 0, 0, 0.3)',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 8,
   },
   playerButton: {
     flexDirection: 'column',

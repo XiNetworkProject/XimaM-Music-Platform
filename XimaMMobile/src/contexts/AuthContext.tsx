@@ -1,7 +1,15 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import apiService from '../services/api';
-import { User, AuthState } from '../types';
+import apiService, { User } from '../services/api';
+
+// Types pour le contexte
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+}
 
 // Types pour le contexte
 interface AuthContextType extends AuthState {
@@ -84,23 +92,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true });
       
-      // Initialiser le service API
-      await apiService.init();
-      
       // Vérifier s'il y a un token stocké
       const token = await AsyncStorage.getItem('auth_token');
       if (token) {
+        apiService.setToken(token);
         dispatch({ type: 'SET_TOKEN', payload: token });
         
-        // Récupérer les informations de l'utilisateur
-        const response = await apiService.getCurrentUser();
-        if (response.success && response.data) {
-          dispatch({ type: 'SET_USER', payload: response.data });
-        } else {
-          // Token invalide, le supprimer
-          await AsyncStorage.removeItem('auth_token');
-          dispatch({ type: 'LOGOUT' });
-        }
+        // Pour l'instant, on ne récupère pas les infos utilisateur au démarrage
+        // car l'API mobile n'a pas encore cette fonctionnalité
+        // TODO: Implémenter getCurrentUser dans l'API mobile
       }
     } catch (error) {
       console.error('Erreur lors de l\'initialisation de l\'auth:', error);
@@ -120,6 +120,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         const { user, token } = response.data;
         apiService.setToken(token);
+        await AsyncStorage.setItem('auth_token', token);
         dispatch({ type: 'SET_USER', payload: user });
         dispatch({ type: 'SET_TOKEN', payload: token });
         return true;
@@ -146,6 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (response.success && response.data) {
         const { user, token } = response.data;
         apiService.setToken(token);
+        await AsyncStorage.setItem('auth_token', token);
         dispatch({ type: 'SET_USER', payload: user });
         dispatch({ type: 'SET_TOKEN', payload: token });
         return true;
@@ -163,73 +165,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const googleSignIn = async (idToken: string): Promise<boolean> => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-
-      const response = await apiService.googleSignIn(idToken);
-      
-      if (response.success && response.data) {
-        const { user, token } = response.data;
-        apiService.setToken(token);
-        dispatch({ type: 'SET_USER', payload: user });
-        dispatch({ type: 'SET_TOKEN', payload: token });
-        return true;
-      } else {
-        dispatch({ type: 'SET_ERROR', payload: response.error || 'Erreur de connexion Google' });
-        return false;
-      }
-    } catch (error) {
-      console.error('Erreur de connexion Google:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Erreur de connexion Google' });
-      return false;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
+    // TODO: Implémenter la connexion Google
+    console.log('Connexion Google non implémentée');
+    return false;
   };
 
   const forgotPassword = async (email: string): Promise<boolean> => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-
-      const response = await apiService.forgotPassword(email);
-      
-      if (response.success) {
-        return true;
-      } else {
-        dispatch({ type: 'SET_ERROR', payload: response.error || 'Erreur lors de l\'envoi de l\'email' });
-        return false;
-      }
-    } catch (error) {
-      console.error('Erreur forgot password:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Erreur lors de l\'envoi de l\'email' });
-      return false;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
+    // TODO: Implémenter la récupération de mot de passe
+    console.log('Récupération de mot de passe non implémentée');
+    return false;
   };
 
   const resetPassword = async (token: string, password: string): Promise<boolean> => {
-    try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'CLEAR_ERROR' });
-
-      const response = await apiService.resetPassword(token, password);
-      
-      if (response.success) {
-        return true;
-      } else {
-        dispatch({ type: 'SET_ERROR', payload: response.error || 'Erreur lors de la réinitialisation' });
-        return false;
-      }
-    } catch (error) {
-      console.error('Erreur reset password:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Erreur lors de la réinitialisation' });
-      return false;
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
+    // TODO: Implémenter la réinitialisation de mot de passe
+    console.log('Réinitialisation de mot de passe non implémentée');
+    return false;
   };
 
   const logout = async (): Promise<void> => {
@@ -238,6 +188,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       console.error('Erreur lors de la déconnexion:', error);
     } finally {
+      await AsyncStorage.removeItem('auth_token');
       dispatch({ type: 'LOGOUT' });
     }
   };

@@ -1,75 +1,117 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import CONFIG from '../config/env';
-import { ApiResponse, PaginatedResponse, User, Track, Comment, Playlist, Message, Conversation, Notification } from '../types';
+import { ENV } from '../config/env';
+
+export interface ApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export interface Track {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  coverUrl?: string;
+  audioUrl: string;
+  duration: number;
+  likes: string[];
+  comments: string[];
+  plays: number;
+  createdAt: string;
+  genre?: string[];
+  description?: string;
+}
+
+export interface User {
+  id: string;
+  name: string;
+  username: string;
+  email: string;
+  avatar?: string;
+  role: string;
+  isVerified: boolean;
+}
+
+export interface RealTimeStats {
+  tracks: number;
+  artists: number;
+  totalPlays: number;
+  totalLikes: number;
+}
+
+export interface PersonalRecommendation {
+  title: string;
+  description: string;
+  type: string;
+  confidence: string;
+  icon: string;
+  tracks: Track[];
+}
 
 class ApiService {
-  private baseURL: string;
+  private baseUrl: string;
   private token: string | null = null;
 
   constructor() {
-    this.baseURL = CONFIG.API_URL;
+    this.baseUrl = ENV.API_URL;
   }
 
-  // Initialisation du service
-  async init() {
-    this.token = await AsyncStorage.getItem('auth_token');
-  }
-
-  // Gestion du token
-  setToken(token: string) {
-    this.token = token;
-    AsyncStorage.setItem('auth_token', token);
-  }
-
-  clearToken() {
-    this.token = null;
-    AsyncStorage.removeItem('auth_token');
-  }
-
-  // Headers par défaut
-  private getHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    if (this.token) {
-      headers.Authorization = `Bearer ${this.token}`;
-    }
-
-    return headers;
-  }
-
-  // Méthode générique pour les requêtes
-  private async request<T>(
+  private async request<T = any>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      const url = `${this.baseURL}${endpoint}`;
+      const url = `${this.baseUrl}${endpoint}`;
+      const headers: any = {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      };
+
+      if (this.token) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+      }
+
       const response = await fetch(url, {
         ...options,
-        headers: this.getHeaders(),
+        headers,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Une erreur est survenue');
+        return {
+          success: false,
+          error: data.error || `Erreur ${response.status}`,
+        };
       }
 
-      return data;
+      return {
+        success: true,
+        data,
+      };
     } catch (error) {
-      console.error('API Error:', error);
+      console.error('Erreur API:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Erreur réseau',
+        error: 'Erreur de connexion',
       };
     }
   }
 
+  setToken(token: string) {
+    this.token = token;
+  }
+
+  clearToken() {
+    this.token = null;
+  }
+
   // ===== AUTHENTIFICATION =====
   async login(email: string, password: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    // Route API personnalisée pour l'authentification mobile
     return this.request('/api/auth/mobile/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -88,27 +130,6 @@ class ApiService {
     });
   }
 
-  async googleSignIn(idToken: string): Promise<ApiResponse<{ user: User; token: string }>> {
-    return this.request('/auth/google', {
-      method: 'POST',
-      body: JSON.stringify({ idToken }),
-    });
-  }
-
-  async forgotPassword(email: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request('/auth/forgot-password', {
-      method: 'POST',
-      body: JSON.stringify({ email }),
-    });
-  }
-
-  async resetPassword(token: string, password: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request('/auth/reset-password', {
-      method: 'POST',
-      body: JSON.stringify({ token, password }),
-    });
-  }
-
   async logout(): Promise<ApiResponse<{ message: string }>> {
     const response = await this.request<{ message: string }>('/api/auth/mobile/logout', {
       method: 'POST',
@@ -119,252 +140,115 @@ class ApiService {
     return response;
   }
 
-  async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request('/users/me');
-  }
-
-  // ===== TRACKS =====
-  async getTracks(params?: {
-    page?: number;
-    limit?: number;
-    genre?: string;
-    sortBy?: string;
-  }): Promise<ApiResponse<PaginatedResponse<Track>>> {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    if (params?.genre) queryParams.append('genre', params.genre);
-    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
-
-    return this.request(`/tracks?${queryParams.toString()}`);
-  }
-
-  async getTrack(id: string): Promise<ApiResponse<Track>> {
-    return this.request(`/tracks/${id}`);
-  }
-
-  async getPopularTracks(): Promise<ApiResponse<Track[]>> {
-    return this.request('/tracks/popular');
+  // ===== DONNÉES DE LA PAGE D'ACCUEIL =====
+  async getFeaturedTracks(): Promise<ApiResponse<Track[]>> {
+    return this.request('/api/tracks/featured');
   }
 
   async getTrendingTracks(): Promise<ApiResponse<Track[]>> {
-    return this.request('/tracks/trending');
+    return this.request('/api/tracks/trending');
+  }
+
+  async getPopularTracks(): Promise<ApiResponse<Track[]>> {
+    return this.request('/api/tracks/popular');
   }
 
   async getRecentTracks(): Promise<ApiResponse<Track[]>> {
-    return this.request('/tracks/recent');
+    return this.request('/api/tracks/recent');
   }
 
-  async getFeaturedTracks(): Promise<ApiResponse<Track[]>> {
-    return this.request('/tracks/featured');
+  async getMostLikedTracks(): Promise<ApiResponse<Track[]>> {
+    return this.request('/api/tracks/most-liked');
   }
 
+  async getFollowingTracks(): Promise<ApiResponse<Track[]>> {
+    return this.request('/api/tracks/following');
+  }
+
+  async getRecommendedTracks(): Promise<ApiResponse<Track[]>> {
+    return this.request('/api/tracks/recommended');
+  }
+
+  // ===== STATISTIQUES =====
+  async getRealTimeStats(): Promise<ApiResponse<RealTimeStats>> {
+    return this.request('/api/stats/community');
+  }
+
+  // ===== RECOMMANDATIONS PERSONNALISÉES =====
+  async getPersonalRecommendations(): Promise<ApiResponse<PersonalRecommendation[]>> {
+    return this.request('/api/recommendations/personal');
+  }
+
+  // ===== RADIO =====
+  async getRadioInfo(): Promise<ApiResponse<any>> {
+    return this.request('/api/events/live');
+  }
+
+  // ===== LIKES ET ÉCOUTES =====
   async likeTrack(trackId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/tracks/${trackId}/like`, {
+    return this.request(`/api/tracks/${trackId}/like`, {
       method: 'POST',
     });
   }
 
   async unlikeTrack(trackId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/tracks/${trackId}/like`, {
+    return this.request(`/api/tracks/${trackId}/like`, {
       method: 'DELETE',
     });
   }
 
-  async playTrack(trackId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/tracks/${trackId}/plays`, {
+  async incrementPlays(trackId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request(`/api/tracks/${trackId}/plays`, {
       method: 'POST',
     });
+  }
+
+  // ===== RECHERCHE =====
+  async search(query: string, filter: string = 'all'): Promise<ApiResponse<any>> {
+    return this.request(`/api/search?q=${encodeURIComponent(query)}&filter=${filter}`);
+  }
+
+  // ===== UTILISATEURS =====
+  async getUserProfile(username: string): Promise<ApiResponse<User>> {
+    return this.request(`/api/users/${username}`);
+  }
+
+  async getUserTracks(username: string): Promise<ApiResponse<Track[]>> {
+    return this.request(`/api/users/${username}/tracks`);
+  }
+
+  // ===== MESSAGES =====
+  async getConversations(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/messages/conversations');
+  }
+
+  async getMessages(conversationId: string): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/messages/${conversationId}`);
+  }
+
+  // ===== PLAYLISTS =====
+  async getPlaylists(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/playlists');
+  }
+
+  async getPopularPlaylists(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/playlists/popular');
   }
 
   // ===== UPLOAD =====
   async uploadTrack(formData: FormData): Promise<ApiResponse<Track>> {
-    const headers = { ...this.getHeaders() };
-    delete headers['Content-Type']; // Laisser le navigateur définir le Content-Type pour FormData
-
-    return this.request('/upload', {
+    return this.request('/api/upload', {
       method: 'POST',
-      headers,
-      body: formData,
+      headers: {} as any, // Ne pas définir Content-Type pour FormData
+      body: formData as any,
     });
   }
 
-  async getUploadProgress(trackId: string): Promise<ApiResponse<{ progress: number; status: string }>> {
-    return this.request(`/upload/${trackId}/progress`);
-  }
-
-  // ===== COMMENTS =====
-  async getComments(trackId: string): Promise<ApiResponse<Comment[]>> {
-    return this.request(`/tracks/${trackId}/comments`);
-  }
-
-  async addComment(trackId: string, content: string): Promise<ApiResponse<Comment>> {
-    return this.request(`/tracks/${trackId}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    });
-  }
-
-  async likeComment(commentId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/tracks/comments/${commentId}/like`, {
-      method: 'POST',
-    });
-  }
-
-  async replyToComment(commentId: string, content: string): Promise<ApiResponse<Comment>> {
-    return this.request(`/tracks/comments/${commentId}/replies`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    });
-  }
-
-  // ===== USERS =====
-  async getUserProfile(userId: string): Promise<ApiResponse<User>> {
-    return this.request(`/users/${userId}`);
-  }
-
-  async getUserTracks(userId: string): Promise<ApiResponse<Track[]>> {
-    return this.request(`/users/${userId}/tracks`);
-  }
-
-  async followUser(userId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/users/${userId}/follow`, {
-      method: 'POST',
-    });
-  }
-
-  async unfollowUser(userId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/users/${userId}/follow`, {
-      method: 'DELETE',
-    });
-  }
-
-  async updateProfile(userData: Partial<User>): Promise<ApiResponse<User>> {
-    return this.request('/users/profile', {
-      method: 'PUT',
-      body: JSON.stringify(userData),
-    });
-  }
-
-  // ===== PLAYLISTS =====
-  async getPlaylists(): Promise<ApiResponse<Playlist[]>> {
-    return this.request('/playlists');
-  }
-
-  async getPlaylist(id: string): Promise<ApiResponse<Playlist>> {
-    return this.request(`/playlists/${id}`);
-  }
-
-  async createPlaylist(playlistData: {
-    name: string;
-    description?: string;
-    isPublic: boolean;
-  }): Promise<ApiResponse<Playlist>> {
-    return this.request('/playlists', {
-      method: 'POST',
-      body: JSON.stringify(playlistData),
-    });
-  }
-
-  async addTrackToPlaylist(playlistId: string, trackId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/playlists/${playlistId}/tracks`, {
-      method: 'POST',
-      body: JSON.stringify({ trackId }),
-    });
-  }
-
-  // ===== MESSAGES =====
-  async getConversations(): Promise<ApiResponse<Conversation[]>> {
-    return this.request('/messages/conversations');
-  }
-
-  async getMessages(conversationId: string): Promise<ApiResponse<Message[]>> {
-    return this.request(`/messages/${conversationId}`);
-  }
-
-  async sendMessage(conversationId: string, content: string): Promise<ApiResponse<Message>> {
-    return this.request(`/messages/${conversationId}`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    });
-  }
-
-  async sendAudioMessage(conversationId: string, audioUri: string): Promise<ApiResponse<Message>> {
-    const formData = new FormData();
-    formData.append('audio', {
-      uri: audioUri,
-      type: 'audio/m4a',
-      name: 'audio.m4a',
-    } as any);
-
-    const headers = { ...this.getHeaders() };
-    delete headers['Content-Type'];
-
-    return this.request(`/messages/${conversationId}/audio`, {
-      method: 'POST',
-      headers,
-      body: formData,
-    });
-  }
-
-  // ===== NOTIFICATIONS =====
-  async getNotifications(): Promise<ApiResponse<Notification[]>> {
-    return this.request('/messages/notifications');
-  }
-
-  async markNotificationAsRead(notificationId: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request(`/messages/notifications/${notificationId}/read`, {
-      method: 'PUT',
-    });
-  }
-
-  // ===== SEARCH =====
-  async search(query: string, filters?: {
-    type?: 'tracks' | 'users' | 'playlists';
-    genre?: string;
-    duration?: string;
-  }): Promise<ApiResponse<{
-    tracks: Track[];
-    users: User[];
-    playlists: Playlist[];
-  }>> {
-    const queryParams = new URLSearchParams({ q: query });
-    if (filters?.type) queryParams.append('type', filters.type);
-    if (filters?.genre) queryParams.append('genre', filters.genre);
-    if (filters?.duration) queryParams.append('duration', filters.duration);
-
-    return this.request(`/search?${queryParams.toString()}`);
-  }
-
-  // ===== SUBSCRIPTIONS =====
-  async getSubscription(): Promise<ApiResponse<{ subscription: any; features: string[] }>> {
-    return this.request('/subscriptions/my-subscription');
-  }
-
-  async createCheckoutSession(priceId: string): Promise<ApiResponse<{ sessionId: string }>> {
-    return this.request('/subscriptions/create-checkout-session', {
-      method: 'POST',
-      body: JSON.stringify({ priceId }),
-    });
-  }
-
-  // ===== STATS =====
-  async getStats(): Promise<ApiResponse<{
-    totalTracks: number;
-    totalPlays: number;
-    totalLikes: number;
-    totalComments: number;
-  }>> {
-    return this.request('/stats/community');
-  }
-
-  // ===== ACTIVITY =====
+  // ===== ACTIVITÉ RÉCENTE =====
   async getRecentActivity(): Promise<ApiResponse<any[]>> {
-    return this.request('/activity/recent');
+    return this.request('/api/activity/recent');
   }
 }
 
-// Instance singleton
 const apiService = new ApiService();
-
 export default apiService; 

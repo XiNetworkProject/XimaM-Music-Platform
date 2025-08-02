@@ -46,18 +46,23 @@ export interface UsageInfo {
 class SubscriptionService {
   // Récupérer l'abonnement actuel d'un utilisateur
   async getUserSubscription(userId: string): Promise<IUserSubscription | null> {
-    await dbConnect();
-    
-    const userSub = await UserSubscription.findOne({ 
-      user: userId,
-      status: { $in: ['active', 'trial'] },
-      $or: [
-        { currentPeriodEnd: { $gte: new Date() } },
-        { currentPeriodEnd: null }
-      ]
-    }).populate('subscription');
-    
-    return userSub;
+    try {
+      await dbConnect();
+      
+      const userSub = await UserSubscription.findOne({ 
+        user: userId,
+        status: { $in: ['active', 'trial'] },
+        $or: [
+          { currentPeriodEnd: { $gte: new Date() } },
+          { currentPeriodEnd: null }
+        ]
+      }).populate('subscription');
+      
+      return userSub;
+    } catch (error) {
+      console.error(`❌ Erreur lors de la récupération de l'abonnement pour ${userId}:`, error);
+      return null;
+    }
   }
 
   // Récupérer les limites d'un abonnement
@@ -181,128 +186,204 @@ class SubscriptionService {
     userId: string, 
     action: 'uploads' | 'comments' | 'plays' | 'playlists'
   ): Promise<void> {
-    await dbConnect();
-    
-    await UserSubscription.findOneAndUpdate(
-      { user: userId },
-      { $inc: { [`usage.${action}`]: 1 } },
-      { upsert: true, new: true }
-    );
+    try {
+      await dbConnect();
+      
+      await UserSubscription.findOneAndUpdate(
+        { user: userId },
+        { $inc: { [`usage.${action}`]: 1 } },
+        { upsert: true, new: true }
+      );
+    } catch (error) {
+      console.error(`❌ Erreur lors de l'incrémentation de l'utilisation pour ${userId}:`, error);
+      return;
+    }
   }
 
   // Récupérer les informations d'utilisation
   async getUsageInfo(userId: string): Promise<UsageInfo> {
-    const userSub = await this.getUserSubscription(userId);
-    const limits = await this.getSubscriptionLimits(userId);
-    
-    if (!limits) {
-      throw new Error('Impossible de récupérer les limites d\'abonnement');
-    }
-    
-    if (!userSub) {
+    try {
+      console.log(`📊 getUsageInfo appelé pour ${userId}`);
+      
+      const userSub = await this.getUserSubscription(userId);
+      const limits = await this.getSubscriptionLimits(userId);
+      
+      console.log(`👤 UserSubscription trouvé:`, userSub ? 'Oui' : 'Non');
+      console.log(`📋 Limites récupérées:`, limits ? 'Oui' : 'Non');
+      
+      if (!limits) {
+        console.error(`❌ Impossible de récupérer les limites pour ${userId}`);
+        throw new Error('Impossible de récupérer les limites d\'abonnement');
+      }
+      
+      if (!userSub) {
+        console.log(`📊 Utilisateur ${userId} sans abonnement actif, retour des valeurs par défaut`);
+        return {
+          current: { uploads: 0, comments: 0, plays: 0, playlists: 0 },
+          limits,
+          remaining: {
+            uploads: limits.uploads === -1 ? -1 : limits.uploads,
+            comments: limits.comments === -1 ? -1 : limits.comments,
+            plays: limits.plays === -1 ? -1 : limits.plays,
+            playlists: limits.playlists === -1 ? -1 : limits.playlists
+          },
+          percentage: {
+            uploads: 0,
+            comments: 0,
+            plays: 0,
+            playlists: 0
+          }
+        };
+      }
+
+      const usage = userSub.usage || { uploads: 0, comments: 0, plays: 0, playlists: 0 };
+      
+      console.log(`📈 Usage actuel pour ${userId}:`, usage);
+      
+      const remaining = {
+        uploads: limits.uploads === -1 ? -1 : Math.max(0, limits.uploads - usage.uploads),
+        comments: limits.comments === -1 ? -1 : Math.max(0, limits.comments - usage.comments),
+        plays: limits.plays === -1 ? -1 : Math.max(0, limits.plays - usage.plays),
+        playlists: limits.playlists === -1 ? -1 : Math.max(0, limits.playlists - usage.playlists)
+      };
+
+      const percentage = {
+        uploads: limits.uploads === -1 ? 0 : Math.round((usage.uploads / limits.uploads) * 100),
+        comments: limits.comments === -1 ? 0 : Math.round((usage.comments / limits.comments) * 100),
+        plays: limits.plays === -1 ? 0 : Math.round((usage.plays / limits.plays) * 100),
+        playlists: limits.playlists === -1 ? 0 : Math.round((usage.playlists / limits.playlists) * 100)
+      };
+
+      const result = {
+        current: usage,
+        limits,
+        remaining,
+        percentage
+      };
+      
+      console.log(`✅ getUsageInfo terminé pour ${userId}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Erreur dans getUsageInfo pour ${userId}:`, error);
+      
+      // En cas d'erreur, retourner des valeurs par défaut
+      const defaultLimits = {
+        uploads: 3,
+        comments: 10,
+        plays: 50,
+        playlists: 2,
+        quality: '128kbps',
+        ads: true,
+        analytics: 'none',
+        collaborations: false,
+        apiAccess: false,
+        support: 'community'
+      };
+      
       return {
         current: { uploads: 0, comments: 0, plays: 0, playlists: 0 },
-        limits,
-        remaining: {
-          uploads: limits.uploads === -1 ? -1 : limits.uploads,
-          comments: limits.comments === -1 ? -1 : limits.comments,
-          plays: limits.plays === -1 ? -1 : limits.plays,
-          playlists: limits.playlists === -1 ? -1 : limits.playlists
-        },
-        percentage: {
-          uploads: 0,
-          comments: 0,
-          plays: 0,
-          playlists: 0
-        }
+        limits: defaultLimits,
+        remaining: { uploads: 3, comments: 10, plays: 50, playlists: 2 },
+        percentage: { uploads: 0, comments: 0, plays: 0, playlists: 0 }
       };
     }
-
-    const usage = userSub.usage;
-    
-    const remaining = {
-      uploads: limits.uploads === -1 ? -1 : Math.max(0, limits.uploads - usage.uploads),
-      comments: limits.comments === -1 ? -1 : Math.max(0, limits.comments - usage.comments),
-      plays: limits.plays === -1 ? -1 : Math.max(0, limits.plays - usage.plays),
-      playlists: limits.playlists === -1 ? -1 : Math.max(0, limits.playlists - usage.playlists)
-    };
-
-    const percentage = {
-      uploads: limits.uploads === -1 ? 0 : Math.round((usage.uploads / limits.uploads) * 100),
-      comments: limits.comments === -1 ? 0 : Math.round((usage.comments / limits.comments) * 100),
-      plays: limits.plays === -1 ? 0 : Math.round((usage.plays / limits.plays) * 100),
-      playlists: limits.playlists === -1 ? 0 : Math.round((usage.playlists / limits.playlists) * 100)
-    };
-
-    return {
-      current: usage,
-      limits,
-      remaining,
-      percentage
-    };
   }
 
   // Réinitialiser l'utilisation mensuelle
   async resetMonthlyUsage(): Promise<void> {
-    await dbConnect();
-    
-    const now = new Date();
-    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-    
-    await UserSubscription.updateMany(
-      { 
-        currentPeriodEnd: { $lt: now },
-        status: { $in: ['active', 'trial'] }
-      },
-      {
-        $set: {
-          'usage.uploads': 0,
-          'usage.comments': 0,
-          'usage.plays': 0,
-          'usage.playlists': 0,
-          currentPeriodStart: now,
-          currentPeriodEnd: new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+    try {
+      await dbConnect();
+      
+      const now = new Date();
+      const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+      
+      await UserSubscription.updateMany(
+        { 
+          currentPeriodEnd: { $lt: now },
+          status: { $in: ['active', 'trial'] }
+        },
+        {
+          $set: {
+            'usage.uploads': 0,
+            'usage.comments': 0,
+            'usage.plays': 0,
+            'usage.playlists': 0,
+            currentPeriodStart: now,
+            currentPeriodEnd: new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      console.error('❌ Erreur lors de la réinitialisation de l\'utilisation mensuelle:', error);
+    }
   }
 
   // Vérifier la qualité audio autorisée
   async getAudioQuality(userId: string): Promise<string> {
-    const limits = await this.getSubscriptionLimits(userId);
-    return limits?.quality || '128kbps';
+    try {
+      const limits = await this.getSubscriptionLimits(userId);
+      return limits?.quality || '128kbps';
+    } catch (error) {
+      console.error(`❌ Erreur lors de la récupération de la qualité audio pour ${userId}:`, error);
+      return '128kbps';
+    }
   }
 
   // Vérifier si les publicités sont activées
   async hasAds(userId: string): Promise<boolean> {
-    const limits = await this.getSubscriptionLimits(userId);
-    return limits?.ads ?? true;
+    try {
+      const limits = await this.getSubscriptionLimits(userId);
+      return limits?.ads ?? true;
+    } catch (error) {
+      console.error(`❌ Erreur lors de la vérification des publicités pour ${userId}:`, error);
+      return true;
+    }
   }
 
   // Vérifier le niveau d'analytics
   async getAnalyticsLevel(userId: string): Promise<string> {
-    const limits = await this.getSubscriptionLimits(userId);
-    return limits?.analytics || 'none';
+    try {
+      const limits = await this.getSubscriptionLimits(userId);
+      return limits?.analytics || 'none';
+    } catch (error) {
+      console.error(`❌ Erreur lors de la récupération du niveau d'analytics pour ${userId}:`, error);
+      return 'none';
+    }
   }
 
   // Vérifier si les collaborations sont autorisées
   async canCollaborate(userId: string): Promise<boolean> {
-    const limits = await this.getSubscriptionLimits(userId);
-    return limits?.collaborations ?? false;
+    try {
+      const limits = await this.getSubscriptionLimits(userId);
+      return limits?.collaborations ?? false;
+    } catch (error) {
+      console.error(`❌ Erreur lors de la vérification des collaborations pour ${userId}:`, error);
+      return false;
+    }
   }
 
   // Vérifier l'accès API
   async hasApiAccess(userId: string): Promise<boolean> {
-    const limits = await this.getSubscriptionLimits(userId);
-    return limits?.apiAccess ?? false;
+    try {
+      const limits = await this.getSubscriptionLimits(userId);
+      return limits?.apiAccess ?? false;
+    } catch (error) {
+      console.error(`❌ Erreur lors de la vérification de l'accès API pour ${userId}:`, error);
+      return false;
+    }
   }
 
   // Obtenir le niveau de support
   async getSupportLevel(userId: string): Promise<string> {
-    const limits = await this.getSubscriptionLimits(userId);
-    return limits?.support || 'community';
+    try {
+      const limits = await this.getSubscriptionLimits(userId);
+      return limits?.support || 'community';
+    } catch (error) {
+      console.error(`❌ Erreur lors de la récupération du niveau de support pour ${userId}:`, error);
+      return 'community';
+    }
   }
 }
 
 export const subscriptionService = new SubscriptionService();
-export default subscriptionService; 
+export default subscriptionService;
