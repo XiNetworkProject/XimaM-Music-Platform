@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Crown, Star, Music } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
-export default function SubscriptionSuccess() {
+function SubscriptionSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
@@ -204,5 +204,21 @@ export default function SubscriptionSuccess() {
       {/* Bottom Navigation */}
       <BottomNav />
     </div>
+  );
+}
+
+export default function SubscriptionSuccess() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto mb-6"></div>
+          <h2 className="text-2xl font-bold text-white mb-2">Chargement...</h2>
+          <p className="text-gray-300">Préparation de votre page</p>
+        </div>
+      </div>
+    }>
+      <SubscriptionSuccessContent />
+    </Suspense>
   );
 }
