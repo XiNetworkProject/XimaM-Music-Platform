@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,12 +39,37 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Simuler la sauvegarde en base de données
-      const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      console.log('✅ Sauvegarde de piste:', {
+      // Sauvegarder en base Supabase
+      const { data: track, error } = await supabase
+        .from('tracks')
+        .insert({
+          id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: trackData.title,
+          description: trackData.description || '',
+          genre: trackData.genre || [],
+          audio_url: audioUrl,
+          cover_url: coverUrl || null,
+          duration: duration || 0,
+          creator_id: session.user.id,
+          is_public: trackData.isPublic !== false,
+          plays: 0,
+          likes: 0,
+          is_featured: false
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('❌ Erreur lors de la sauvegarde en base:', error);
+        return NextResponse.json(
+          { error: 'Erreur lors de la sauvegarde en base de données' },
+          { status: 500 }
+        );
+      }
+
+      console.log('✅ Piste sauvegardée en base:', {
         userId: session.user.id,
-        trackId,
+        trackId: track.id,
         title: trackData.title,
         audioUrl,
         coverUrl,
@@ -52,7 +78,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        trackId,
+        trackId: track.id,
         message: 'Piste sauvegardée avec succès',
         data: {
           title: trackData.title,
@@ -106,10 +132,11 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Simuler le traitement de l'upload
+      // Pour l'upload direct, on simule pour l'instant
+      // En production, vous uploaderiez vers Supabase Storage
       const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
-      console.log('✅ Upload de piste:', {
+      console.log('✅ Upload de piste (simulé):', {
         userId: session.user.id,
         trackId,
         title,
@@ -122,7 +149,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         trackId,
-        message: 'Piste uploadée avec succès',
+        message: 'Piste uploadée avec succès (simulation)',
         data: {
           title,
           description,
