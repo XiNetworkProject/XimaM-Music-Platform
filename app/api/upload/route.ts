@@ -14,93 +14,138 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier que c'est une requête multipart/form-data
-    const contentType = request.headers.get('content-type');
-    if (!contentType || !contentType.includes('multipart/form-data')) {
-      return NextResponse.json(
-        { error: 'Content-Type doit être multipart/form-data' },
-        { status: 400 }
-      );
-    }
-
-    // Récupérer les données du formulaire
-    const formData = await request.formData();
+    const contentType = request.headers.get('content-type') || '';
     
-    // Extraire les champs
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const genre = formData.get('genre') as string;
-    const audioFile = formData.get('audio') as File;
-    const coverFile = formData.get('cover') as File;
+    // Accepter à la fois JSON et multipart/form-data
+    if (contentType.includes('application/json')) {
+      // Traitement des données JSON (pour la sauvegarde après upload Cloudinary)
+      const jsonData = await request.json();
+      
+      const {
+        audioUrl,
+        audioPublicId,
+        coverUrl,
+        coverPublicId,
+        trackData,
+        duration
+      } = jsonData;
 
-    // Validation des champs requis
-    if (!title || !audioFile) {
-      return NextResponse.json(
-        { error: 'Titre et fichier audio requis' },
-        { status: 400 }
-      );
-    }
+      // Validation des champs requis
+      if (!audioUrl || !trackData?.title) {
+        return NextResponse.json(
+          { error: 'URL audio et titre requis' },
+          { status: 400 }
+        );
+      }
 
-    // Validation du fichier audio
-    if (!audioFile.type.startsWith('audio/')) {
-      return NextResponse.json(
-        { error: 'Le fichier doit être un fichier audio' },
-        { status: 400 }
-      );
-    }
+      // Simuler la sauvegarde en base de données
+      const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log('✅ Sauvegarde de piste:', {
+        userId: session.user.id,
+        trackId,
+        title: trackData.title,
+        audioUrl,
+        coverUrl,
+        duration
+      });
 
-    // Validation de la taille du fichier (max 50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (audioFile.size > maxSize) {
-      return NextResponse.json(
-        { error: 'Le fichier audio est trop volumineux (max 50MB)' },
-        { status: 400 }
-      );
-    }
+      return NextResponse.json({
+        success: true,
+        trackId,
+        message: 'Piste sauvegardée avec succès',
+        data: {
+          title: trackData.title,
+          audioUrl,
+          coverUrl,
+          duration
+        }
+      });
 
-    // Validation du fichier de couverture (optionnel)
-    if (coverFile && !coverFile.type.startsWith('image/')) {
-      return NextResponse.json(
-        { error: 'Le fichier de couverture doit être une image' },
-        { status: 400 }
-      );
-    }
+    } else if (contentType.includes('multipart/form-data')) {
+      // Traitement des fichiers multipart (pour upload direct)
+      const formData = await request.formData();
+      
+      // Extraire les champs
+      const title = formData.get('title') as string;
+      const description = formData.get('description') as string;
+      const genre = formData.get('genre') as string;
+      const audioFile = formData.get('audio') as File;
+      const coverFile = formData.get('cover') as File;
 
-    // Simuler le traitement de l'upload
-    // En production, vous uploaderiez vers Supabase Storage ou Cloudinary
-    const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    console.log('✅ Upload de piste:', {
-      userId: session.user.id,
-      trackId,
-      title,
-      description,
-      genre,
-      audioSize: audioFile.size,
-      coverSize: coverFile?.size || 0
-    });
+      // Validation des champs requis
+      if (!title || !audioFile) {
+        return NextResponse.json(
+          { error: 'Titre et fichier audio requis' },
+          { status: 400 }
+        );
+      }
 
-    // Retourner la réponse de succès
-    return NextResponse.json({
-      success: true,
-      trackId,
-      message: 'Piste uploadée avec succès',
-      data: {
+      // Validation du fichier audio
+      if (!audioFile.type.startsWith('audio/')) {
+        return NextResponse.json(
+          { error: 'Le fichier doit être un fichier audio' },
+          { status: 400 }
+        );
+      }
+
+      // Validation de la taille du fichier (max 50MB)
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (audioFile.size > maxSize) {
+        return NextResponse.json(
+          { error: 'Le fichier audio est trop volumineux (max 50MB)' },
+          { status: 400 }
+        );
+      }
+
+      // Validation du fichier de couverture (optionnel)
+      if (coverFile && !coverFile.type.startsWith('image/')) {
+        return NextResponse.json(
+          { error: 'Le fichier de couverture doit être une image' },
+          { status: 400 }
+        );
+      }
+
+      // Simuler le traitement de l'upload
+      const trackId = `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      console.log('✅ Upload de piste:', {
+        userId: session.user.id,
+        trackId,
         title,
         description,
         genre,
-        audioFile: {
-          name: audioFile.name,
-          size: audioFile.size,
-          type: audioFile.type
-        },
-        coverFile: coverFile ? {
-          name: coverFile.name,
-          size: coverFile.size,
-          type: coverFile.type
-        } : null
-      }
-    });
+        audioSize: audioFile.size,
+        coverSize: coverFile?.size || 0
+      });
+
+      return NextResponse.json({
+        success: true,
+        trackId,
+        message: 'Piste uploadée avec succès',
+        data: {
+          title,
+          description,
+          genre,
+          audioFile: {
+            name: audioFile.name,
+            size: audioFile.size,
+            type: audioFile.type
+          },
+          coverFile: coverFile ? {
+            name: coverFile.name,
+            size: coverFile.size,
+            type: coverFile.type
+          } : null
+        }
+      });
+
+    } else {
+      return NextResponse.json(
+        { error: 'Content-Type non supporté. Utilisez application/json ou multipart/form-data' },
+        { status: 400 }
+      );
+    }
 
   } catch (error) {
     console.error('❌ Erreur lors de l\'upload:', error);
