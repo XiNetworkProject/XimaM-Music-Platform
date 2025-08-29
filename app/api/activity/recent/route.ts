@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
-import User from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -16,11 +14,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    await dbConnect();
+    // Récupérer l'utilisateur depuis Supabase
+    const { data: user, error: userError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', session.user.email)
+      .single();
 
-    // Récupérer l'utilisateur
-    const user = await User.findOne({ email: session.user.email });
-    if (!user) {
+    if (userError || !user) {
       return NextResponse.json(
         { error: 'Utilisateur non trouvé' },
         { status: 404 }
@@ -89,15 +90,22 @@ export async function GET(request: NextRequest) {
       }
     ];
 
-    // Activités récentes de l'utilisateur
-    const userRecentTracks = await Track.find({ 'artist._id': user._id })
-      .sort({ createdAt: -1 })
+    // Activités récentes de l'utilisateur depuis Supabase
+    const { data: userRecentTracks, error: tracksError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('creator_id', user.id)
+      .order('created_at', { ascending: false })
       .limit(5);
 
-    const userActivities = userRecentTracks.map(track => ({
+    if (tracksError) {
+      console.error('❌ Erreur lors de la récupération des tracks:', tracksError);
+    }
+
+    const userActivities = (userRecentTracks || []).map((track: any) => ({
       type: 'user_upload',
       title: `Vous avez partagé "${track.title}"`,
-      time: formatTimeAgo(track.createdAt),
+      time: formatTimeAgo(track.created_at),
       track: track.title,
       color: 'from-indigo-500 to-purple-500'
     }));

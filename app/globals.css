@@ -6,17 +6,44 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
+  /* Brand tokens */
+  --color-primary: #6E56CF;
+  --color-primary-hover: #5B45BE;
+  --color-accent: #00D3A7;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+
+  /* Surface tokens */
+  --bg: #0B0B12;
+  --bg-muted: #11111B;
+  --surface: #151523;
+  --surface-2: #1E1E2A;
+  --border: rgba(255,255,255,0.08);
+  --text: #F8FAFC;
+  --text-muted: rgba(248,250,252,0.7);
+
+  /* Effects */
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-blur: 12px;
+
+  /* Legacy fallback */
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 0, 0, 0;
+  --background-end-rgb: 0, 0, 0;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+.light {
+  --bg: #F6F7FB;
+  --bg-muted: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F3F4F6;
+  --border: rgba(0,0,0,0.08);
+  --text: #0B1220;
+  --text-muted: rgba(11,18,32,0.7);
+  --glass-bg: rgba(0,0,0,0.06);
+  --glass-border: rgba(0,0,0,0.08);
 }
 
 * {
@@ -36,13 +63,10 @@ body {
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  color: var(--text);
+  background: radial-gradient(1200px 800px at 10% -10%, rgba(110,86,207,0.18), transparent 40%),
+              radial-gradient(1000px 700px at 110% 10%, rgba(217,70,239,0.14), transparent 40%),
+              var(--bg);
 }
 
 a {
@@ -105,9 +129,9 @@ a {
 
 /* Classes utilitaires */
 .glass-effect {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
 }
 
 .gradient-text {

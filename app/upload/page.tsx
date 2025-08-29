@@ -553,7 +553,14 @@ export default function UploadPage() {
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">Genre</label>
                   <div className="flex flex-wrap gap-2">
-                    {['Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B'].map((genre) => (
+                    {[
+                      'Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B',
+                      'Reggae', 'Blues', 'Folk', 'Metal', 'Ambient', 'Trap', 'Dubstep', 'House',
+                      'Techno', 'Trance', 'Drum & Bass', 'Acoustic', 'Instrumental', 'Orchestral',
+                      'A Cappella', 'Choir', 'Gospel', 'Fusion', 'Experimental', 'Avant-Garde',
+                      'Retro', 'Vintage', 'Futuristic', 'Energetic', 'Chill', 'Romantic', 'Mysterious',
+                      'Festive', 'African', 'Latin', 'Celtic', 'Indian', 'Arabic', 'Asian'
+                    ].map((genre) => (
                       <button
                         key={genre}
                         type="button"

@@ -41,7 +41,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             if (data.artists) {
               data.artists.forEach((user: any) => {
                 formattedResults.push({
-                  _id: user._id,
+                  _id: user._id || user.id,
                   type: 'user',
                   title: user.name || user.username,
                   subtitle: `Artiste • ${user.followers?.length || 0} abonnés`,
@@ -55,7 +55,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             if (data.tracks) {
               data.tracks.forEach((track: any) => {
                 formattedResults.push({
-                  _id: track._id,
+                  _id: track._id || track.id,
                   type: 'track',
                   title: track.title,
                   subtitle: track.artist?.name || track.artist?.username || 'Artiste inconnu',
@@ -74,7 +74,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         }
       };
       
-      const timeoutId = setTimeout(searchData, 300);
+      const timeoutId = setTimeout(searchData, 100); // Réduit de 300ms à 100ms
       return () => clearTimeout(timeoutId);
     } else {
       setResults([]);
@@ -110,13 +110,15 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          transition={{ duration: 0.1 }} // Animation très rapide
           className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            transition={{ duration: 0.15 }} // Animation plus rapide
             className="absolute top-0 left-0 right-0 glass-effect border-b border-white/10"
             onClick={(e) => e.stopPropagation()}
           >
@@ -154,13 +156,14 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               ) : results.length > 0 ? (
                 <div className="p-4 space-y-2">
                   {results.map((result) => (
-                    <motion.button
-                      key={result._id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      onClick={() => handleResultClick(result)}
-                      className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors text-left"
-                    >
+                                         <motion.button
+                       key={result._id}
+                       initial={{ opacity: 0, x: -10 }}
+                       animate={{ opacity: 1, x: 0 }}
+                       transition={{ duration: 0.1 }} // Animation très rapide
+                       onClick={() => handleResultClick(result)}
+                       className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+                     >
                       <img
                         src={result.imageUrl}
                         alt={result.title}

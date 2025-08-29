@@ -9,11 +9,12 @@ import LikeButton from './LikeButton';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useAudioService } from '@/hooks/useAudioService';
 
+// Interface locale pour ce composant
 interface Track {
-  _id: string;
+  id: string;
   title: string;
   artist: {
-    _id: string;
+    id: string;
     name: string;
     username: string;
     avatar?: string;
@@ -21,12 +22,14 @@ interface Track {
   coverUrl?: string;
   audioUrl: string;
   duration: number;
-  likes: string[];
+  likesCount: number;
   comments: string[];
   plays: number;
   createdAt: string;
   isLiked?: boolean;
 }
+
+
 
 interface TrackCardImprovedProps {
   track: Track;
@@ -76,12 +79,12 @@ export default function TrackCardImproved({
 
   // Utiliser le nouveau système de likes
   const { isLiked, likesCount, hasCachedState } = useTrackLike(
-    track._id, 
-    track.likes.length, 
-    track.likes.includes('temp') ? false : track.isLiked || false
+    track.id, 
+    track.likesCount || 0, 
+    track.isLiked || false
   );
 
-  const isCurrentTrack = state.currentTrack?._id === track._id;
+  const isCurrentTrack = state.currentTrack?._id === track.id;
   const isCurrentlyPlaying = isCurrentTrack && state.isPlaying;
 
   const sizeClasses = {
@@ -118,7 +121,17 @@ export default function TrackCardImproved({
     if (isCurrentlyPlaying) {
       actions.pause();
     } else {
-      actions.play(track);
+      // Convertir en format compatible avec useAudioService
+      const audioTrack = {
+        ...track,
+        _id: track.id,
+        likes: Array(track.likesCount).fill('temp'),
+        artist: {
+          ...track.artist,
+          _id: track.artist.id
+        }
+      };
+      actions.play(audioTrack as any);
     }
   };
 
@@ -127,7 +140,7 @@ export default function TrackCardImproved({
       onTrackUpdate({
         ...track,
         isLiked: likeState.isLiked,
-        likes: Array(likeState.likesCount).fill('temp')
+        likesCount: likeState.likesCount
       });
     }
   };
@@ -209,16 +222,16 @@ export default function TrackCardImproved({
             {/* Statistiques et actions */}
             <div className="flex items-center justify-between w-full mt-1">
               <div className="flex items-center gap-1">
-                <PlaysCounter 
-                  trackId={track._id} 
-                  plays={track.plays} 
-                  size={size} 
-                />
-              </div>
-              
-              {/* Bouton like amélioré */}
-              <LikeButton
-                trackId={track._id}
+                                 <PlaysCounter 
+                   trackId={track.id} 
+                   plays={track.plays} 
+                   size={size} 
+                 />
+               </div>
+               
+               {/* Bouton like amélioré */}
+               <LikeButton
+                 trackId={track.id}
                 initialLikesCount={likesCount}
                 initialIsLiked={isLiked}
                 size={size === 'sm' ? 'sm' : 'md'}

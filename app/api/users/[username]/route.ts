@@ -1,328 +1,161 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import User from '@/models/User';
-import Track from '@/models/Track';
-import Playlist from '@/models/Playlist';
+import { supabase } from '@/lib/supabase';
 
-// GET - Récupérer un profil utilisateur
 export async function GET(
   request: NextRequest,
   { params }: { params: { username: string } }
 ) {
   try {
-    await dbConnect();
-
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
     const { username } = params;
-    
-    // Récupérer l'utilisateur de base d'abord
-    const user = await User.findOne({ username }).lean() as any;
 
-    if (!user) {
+    if (!username) {
+      return NextResponse.json(
+        { error: 'Nom d\'utilisateur requis' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`🔍 Récupération du profil pour: ${username}`);
+
+    // Récupérer le profil utilisateur depuis Supabase
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username)
+      .single();
+
+    if (profileError || !profile) {
+      console.log(`❌ Profil non trouvé pour: ${username}`);
       return NextResponse.json(
         { error: 'Utilisateur non trouvé' },
         { status: 404 }
       );
     }
 
-    // Vérifier si l'utilisateur connecté suit ce profil
-    let isFollowing = false;
-    let sessionUserId = null;
-    try {
-      const session = await getServerSession(authOptions);
-      if (session?.user?.email) {
-        const currentUser = await User.findOne({ email: session.user.email });
-        if (currentUser) {
-          isFollowing = currentUser.following.includes(user._id);
-          sessionUserId = currentUser._id.toString();
-        }
-      }
-    } catch (error) {
-      console.error('Erreur vérification follow:', error);
-      // Continue sans l'info follow si erreur
-    }
+    console.log(`✅ Profil trouvé pour: ${username}`);
 
-    // Récupérer les données populées séparément pour éviter les erreurs
-    let followers = [];
-    let following = [];
-    let tracks = [];
-    let playlists = [];
-    let likes = [];
+    // Récupérer les tracks de l'utilisateur
+    const { data: tracks, error: tracksError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('creator_id', profile.id)
+      .order('created_at', { ascending: false });
 
-    try {
-      // Populate followers
-      const userWithFollowers = await User.findById(user._id)
-        .populate('followers', 'name username avatar isVerified')
-        .lean() as any;
-      followers = userWithFollowers?.followers || [];
-    } catch (error) {
-      console.error('Erreur populate followers:', error);
-      followers = [];
-    }
-
-    try {
-      // Populate following
-      const userWithFollowing = await User.findById(user._id)
-        .populate('following', 'name username avatar isVerified')
-        .lean() as any;
-      following = userWithFollowing?.following || [];
-    } catch (error) {
-      console.error('Erreur populate following:', error);
-      following = [];
-    }
-
-    try {
-      // Populate tracks
-      const userWithTracks = await User.findById(user._id)
-        .populate({
-          path: 'tracks',
-          select: 'title audioUrl coverUrl duration plays likes createdAt isFeatured featuredBanner isPublic description genre tags',
-          populate: {
-            path: 'artist',
-            select: 'name username avatar'
-          }
-        })
-        .lean() as any;
-      tracks = userWithTracks?.tracks || [];
-      // Filtrer les tracks : si ce n'est pas le propriétaire, ne garder que les publiques
-      if (!sessionUserId || sessionUserId !== user._id.toString()) {
-        tracks = tracks.filter((track: any) => track.isPublic);
-      }
-    } catch (error) {
-      console.error('Erreur populate tracks:', error);
-      tracks = [];
-    }
-
-    try {
-      // Populate playlists
-      const userWithPlaylists = await User.findById(user._id)
-        .populate({
-          path: 'playlists',
-          select: 'name description coverUrl trackCount likes isPublic createdAt',
-          populate: {
-            path: 'createdBy',
-            select: 'name username avatar'
-          }
-        })
-        .lean() as any;
-      playlists = userWithPlaylists?.playlists || [];
-    } catch (error) {
-      console.error('Erreur populate playlists:', error);
-      playlists = [];
-    }
-
-    try {
-      // Populate likes
-      const userWithLikes = await User.findById(user._id)
-        .populate({
-          path: 'likes',
-          select: 'title audioUrl artist coverUrl duration plays',
-          populate: {
-            path: 'artist',
-            select: 'name username avatar'
-          }
-        })
-        .lean() as any;
-      likes = userWithLikes?.likes || [];
-    } catch (error) {
-      console.error('Erreur populate likes:', error);
-      likes = [];
-    }
+    // Récupérer les playlists de l'utilisateur
+    const { data: playlists, error: playlistsError } = await supabase
+      .from('playlists')
+      .select('*')
+      .eq('creator_id', profile.id)
+      .order('created_at', { ascending: false });
 
     // Calculer les statistiques
-    const totalPlays = tracks.reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
-    const totalLikes = tracks.reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
-    
-    // Formater les données pour la réponse
-    const formattedUser = {
-      ...user,
-      _id: user._id.toString(),
-      trackCount: tracks.length,
-      playlistCount: playlists.length,
-      followerCount: followers.length,
-      followingCount: following.length,
-      likeCount: likes.length,
+    const totalPlays = tracks?.reduce((sum, track) => sum + (track.plays || 0), 0) || 0;
+    const totalLikes = tracks?.reduce((sum, track) => sum + (track.likes || 0), 0) || 0;
+    const tracksCount = tracks?.length || 0;
+    const playlistsCount = playlists?.length || 0;
+
+    // Construire la réponse
+    const userProfile = {
+      id: profile.id,
+      username: profile.username,
+      name: profile.name,
+      email: profile.email,
+      avatar: profile.avatar,
+      banner: profile.banner || null,
+      bio: profile.bio || '',
+      location: profile.location || '',
+      website: profile.website || '',
+      isArtist: profile.is_artist || false,
+      artistName: profile.artist_name || '',
+      genre: profile.genre || [],
+      isVerified: profile.is_verified || false,
+      role: profile.role || 'user',
       totalPlays,
       totalLikes,
-      isFollowing,
-      followers: followers.map((follower: any) => ({
-        ...follower,
-        _id: follower._id.toString()
-      })),
-      following: following.map((following: any) => ({
-        ...following,
-        _id: following._id.toString()
-      })),
-      tracks: tracks.map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      })),
-      playlists: playlists.map((playlist: any) => ({
-        ...playlist,
-        _id: playlist._id.toString(),
-        createdBy: playlist.createdBy ? {
-          ...playlist.createdBy,
-          _id: playlist.createdBy._id.toString()
-        } : null
-      })),
-      likes: likes.map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      }))
+      tracksCount,
+      playlistsCount,
+      tracks: tracks || [],
+      playlists: playlists || [],
+      lastSeen: profile.last_seen,
+      createdAt: profile.created_at,
+      updatedAt: profile.updated_at
     };
 
-    return NextResponse.json(formattedUser);
+    return NextResponse.json(userProfile);
+
   } catch (error) {
-    console.error('Erreur API users/[username]:', error);
+    console.error('❌ Erreur lors de la récupération du profil:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération du profil' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
 }
 
-// PUT - Mettre à jour un profil
 export async function PUT(
   request: NextRequest,
   { params }: { params: { username: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
-    }
-
-    await dbConnect();
-
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
     const { username } = params;
     const body = await request.json();
 
-    // Vérifier que l'utilisateur modifie son propre profil
-    const currentUser = await User.findOne({ email: session.user.email });
-    if (!currentUser || currentUser.username !== username) {
+    if (!username) {
       return NextResponse.json(
-        { error: 'Non autorisé à modifier ce profil' },
-        { status: 403 }
+        { error: 'Nom d\'utilisateur requis' },
+        { status: 400 }
       );
     }
 
-    // Champs autorisés pour la modification
-    const allowedFields = [
-      'name', 'bio', 'location', 'website', 'socialLinks', 
-      'isArtist', 'artistName', 'genre', 'preferences'
-    ];
-    
-    const updateData: any = {};
-    allowedFields.forEach(field => {
-      if (body[field] !== undefined) {
-        updateData[field] = body[field];
-      }
-    });
-    
-    // Validation spéciale pour les réseaux sociaux
-    if (updateData.socialLinks) {
-      const socialFields = ['instagram', 'twitter', 'youtube', 'soundcloud', 'spotify'];
-      socialFields.forEach(field => {
-        if (updateData.socialLinks[field] && !updateData.socialLinks[field].startsWith('http')) {
-          updateData.socialLinks[field] = `https://${updateData.socialLinks[field]}`;
-        }
-      });
-    }
-    
-    // Mettre à jour l'utilisateur
-    const updatedUser = await User.findByIdAndUpdate(
-      currentUser._id,
-      updateData,
-      { new: true, runValidators: true }
-    )
-      .populate('followers', 'name username avatar isVerified')
-      .populate('following', 'name username avatar isVerified')
-      .populate('tracks', 'title coverUrl duration plays likes createdAt')
-      .populate('playlists', 'name description coverUrl trackCount likes isPublic createdAt')
-      .populate('likes', 'title artist coverUrl duration plays')
-      .lean() as any;
-    
-    if (!updatedUser) {
+    console.log(`🔄 Mise à jour du profil pour: ${username}`);
+
+    // Vérifier que l'utilisateur existe
+    const { data: existingProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (profileError || !existingProfile) {
       return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour du profil' },
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Mettre à jour le profil
+    const { data: updatedProfile, error: updateError } = await supabase
+      .from('profiles')
+      .update({
+        name: body.name,
+        bio: body.bio,
+        location: body.location,
+        website: body.website,
+        is_artist: body.isArtist,
+        artist_name: body.artistName,
+        genre: body.genre,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', existingProfile.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Erreur lors de la mise à jour:', updateError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la mise à jour' },
         { status: 500 }
       );
     }
-    
-    // Calculer les statistiques
-    const totalPlays = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.plays || 0), 0);
-    const totalLikes = (updatedUser.tracks || []).reduce((sum: number, track: any) => sum + (track.likes?.length || 0), 0);
-    
-    // Formater la réponse
-    const formattedUser = {
-      ...updatedUser,
-      _id: updatedUser._id.toString(),
-      trackCount: (updatedUser.tracks || []).length,
-      playlistCount: (updatedUser.playlists || []).length,
-      followerCount: (updatedUser.followers || []).length,
-      followingCount: (updatedUser.following || []).length,
-      likeCount: (updatedUser.likes || []).length,
-      totalPlays,
-      totalLikes,
-      followers: (updatedUser.followers || []).map((follower: any) => ({
-        ...follower,
-        _id: follower._id.toString()
-      })),
-      following: (updatedUser.following || []).map((following: any) => ({
-        ...following,
-        _id: following._id.toString()
-      })),
-      tracks: (updatedUser.tracks || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      })),
-      playlists: (updatedUser.playlists || []).map((playlist: any) => ({
-        ...playlist,
-        _id: playlist._id.toString(),
-        createdBy: playlist.createdBy ? {
-          ...playlist.createdBy,
-          _id: playlist.createdBy._id.toString()
-        } : null
-      })),
-      likes: (updatedUser.likes || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      }))
-    };
 
-    return NextResponse.json(formattedUser);
+    console.log(`✅ Profil mis à jour pour: ${username}`);
+    return NextResponse.json(updatedProfile);
+
   } catch (error) {
+    console.error('❌ Erreur lors de la mise à jour du profil:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour du profil' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
-} 
+}

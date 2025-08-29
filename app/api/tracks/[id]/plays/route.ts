@@ -1,139 +1,116 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
-import subscriptionService from '@/lib/subscriptionService';
+import { supabase } from '@/lib/supabase';
 
-// S'assurer que tous les modèles sont enregistrés
-import '@/models/Track';
-import '@/models/Subscription';
-import '@/models/UserSubscription';
-
-// Système de verrous amélioré pour éviter les doublons d'incrémentation
-const playLocks = new Map<string, { timestamp: number; userId: string }>();
-const LOCK_DURATION = 10000; // 10 secondes - plus long pour éviter les doublons
-
-// Nettoyer les verrous expirés périodiquement
-setInterval(() => {
-  const now = Date.now();
-  Array.from(playLocks.entries()).forEach(([key, lock]) => {
-    if (now - lock.timestamp > LOCK_DURATION) {
-      playLocks.delete(key);
-    }
-  });
-}, 30000); // Nettoyer toutes les 30 secondes
-
-// POST - Incrémenter le nombre d'écoutes
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    await dbConnect();
-    const trackId = params.id;
-    const userId = session.user.id;
-
-    // Vérifier si la piste existe
-    const track = await Track.findById(trackId);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
-    }
-
-    // Vérifier le verrou pour éviter les doublons
-    const lockKey = `${trackId}-${userId}`;
-    const existingLock = playLocks.get(lockKey);
-    const now = Date.now();
-    
-    if (existingLock && (now - existingLock.timestamp) < LOCK_DURATION) {
-      console.log(`🔒 Verrou actif pour ${trackId} par ${userId}, écoutes non incrémentées`);
-      return NextResponse.json({
-        success: true,
-        plays: track.plays,
-        message: 'Écoutes déjà incrémentées récemment'
-      });
-    }
-
-    // Vérifier les limites d'abonnement pour les écoutes
-    if (!subscriptionService) {
-      console.error('❌ subscriptionService est undefined');
-      return NextResponse.json(
-        { error: 'Erreur de configuration du service d\'abonnement' },
-        { status: 500 }
-      );
-    }
-
-    console.log(`🔍 Vérification des limites pour ${userId} - action: plays`);
-    const playCheck = await subscriptionService.canPerformAction(userId, 'plays');
-    console.log(`📊 Résultat vérification:`, playCheck);
-    
-    if (!playCheck.allowed) {
-      return NextResponse.json(
-        { 
-          error: playCheck.reason || 'Limite d\'écoutes atteinte',
-          usage: playCheck.usage
-        },
-        { status: 403 }
-      );
-    }
-
-    // Placer le verrou
-    playLocks.set(lockKey, { timestamp: now, userId });
-
-    // Incrémenter le nombre d'écoutes
-    const updatedTrack = await Track.findByIdAndUpdate(
-      trackId,
-      { $inc: { plays: 1 } },
-      { new: true }
-    ).populate('artist', 'name username avatar');
-
-    // Incrémenter l'utilisation d'écoutes de l'utilisateur
-    await subscriptionService.incrementUsage(userId, 'plays');
-
-    console.log(`✅ Écoutes incrémentées pour ${trackId} par ${userId}: ${updatedTrack.plays}`);
-
-    return NextResponse.json({
-      success: true,
-      plays: updatedTrack.plays,
-      track: updatedTrack
-    });
-
-  } catch (error) {
-    console.error('Erreur incrémentation plays:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de l\'incrémentation des écoutes' },
-      { status: 500 }
-    );
-  }
-}
-
-// GET - Récupérer le nombre d'écoutes
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    await dbConnect();
+    const trackId = params.id;
 
-    const track = await Track.findById(params.id);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
+    // Gestion spéciale pour la radio
+    if (trackId === 'radio-mixx-party') {
+      return NextResponse.json({ 
+        plays: 0, 
+        message: 'Radio - pas de lectures à compter' 
+      });
     }
 
-    return NextResponse.json({ 
-      plays: track.plays || 0
-    });
+    // Récupérer le nombre de lectures de la piste
+    const { data: track, error } = await supabase
+      .from('tracks')
+      .select('plays')
+      .eq('id', trackId)
+      .single();
+
+    if (error) {
+      console.error('❌ Erreur Supabase plays GET:', error);
+      return NextResponse.json(
+        { error: 'Erreur lors de la récupération des lectures' },
+        { status: 500 }
+      );
+    }
+
+    if (!track) {
+      return NextResponse.json(
+        { error: 'Piste non trouvée' },
+        { status: 404 }
+      );
+    }
+
+    console.log(`✅ Lectures récupérées pour la piste ${trackId}: ${track.plays || 0}`);
+    return NextResponse.json({ plays: track.plays || 0 });
 
   } catch (error) {
-    console.error('Erreur récupération plays:', error);
+    console.error('❌ Erreur serveur plays GET:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des écoutes' },
+      { error: 'Erreur serveur interne' },
       { status: 500 }
     );
   }
-} 
+}
+
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const trackId = params.id;
+
+    // Gestion spéciale pour la radio
+    if (trackId === 'radio-mixx-party') {
+      return NextResponse.json({ 
+        plays: 0, 
+        message: 'Radio - pas de mise à jour des lectures' 
+      });
+    }
+
+    // Incrémenter le nombre de lectures de la piste
+    const { data: track, error } = await supabase
+      .from('tracks')
+      .select('plays')
+      .eq('id', trackId)
+      .single();
+
+    if (error) {
+      console.error('❌ Erreur Supabase plays POST:', error);
+      return NextResponse.json(
+        { error: 'Erreur lors de la récupération de la piste' },
+        { status: 500 }
+      );
+    }
+
+    if (!track) {
+      return NextResponse.json(
+        { error: 'Piste non trouvée' },
+        { status: 404 }
+      );
+    }
+
+    const newPlays = (track.plays || 0) + 1;
+
+    // Mettre à jour le nombre de lectures
+    const { error: updateError } = await supabase
+      .from('tracks')
+      .update({ plays: newPlays })
+      .eq('id', trackId);
+
+    if (updateError) {
+      console.error('❌ Erreur Supabase plays update:', updateError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la mise à jour des lectures' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ Lectures incrémentées pour la piste ${trackId}: ${newPlays}`);
+    return NextResponse.json({ plays: newPlays });
+
+  } catch (error) {
+    console.error('❌ Erreur serveur plays POST:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur interne' },
+      { status: 500 }
+    );
+  }
+}

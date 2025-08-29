@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
+import { supabase } from '@/lib/supabase';
 
-// GET - Vérifier si l'utilisateur est le créateur de la piste
+// GET /api/tracks/[id]/creator-check - Vérifier si l'utilisateur est le créateur de la piste
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,33 +11,53 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
     }
 
-    await dbConnect();
     const trackId = params.id;
+    const userId = session.user.id;
 
-    // Vérifier si la piste existe
-    const track = await Track.findById(trackId);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
+    // Gestion spéciale pour la radio
+    if (trackId === 'radio-mixx-party') {
+      return NextResponse.json({
+        isCreator: false,
+        trackId,
+        userId,
+        message: 'Radio - pas de créateur'
+      });
+    }
+
+    // Vérifier si la piste existe et récupérer le créateur
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('id, creator_id')
+      .eq('id', trackId)
+      .single();
+
+    if (trackError || !track) {
+      return NextResponse.json(
+        { error: 'Piste non trouvée' },
+        { status: 404 }
+      );
     }
 
     // Vérifier si l'utilisateur est le créateur
-    const isCreator = track.artist.toString() === session.user.id;
+    const isCreator = track.creator_id === userId;
 
     return NextResponse.json({
-      success: true,
       isCreator,
       trackId,
-      userId: session.user.id
+      userId
     });
 
   } catch (error) {
-    console.error('Erreur vérification créateur:', error);
+    console.error('❌ Erreur vérification créateur:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la vérification du créateur' },
+      { error: 'Erreur serveur interne' },
       { status: 500 }
     );
   }
-} 
+}

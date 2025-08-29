@@ -1,148 +1,141 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import Playlist from '@/models/Playlist';
-import User from '@/models/User';
+import { createClient } from '@supabase/supabase-js';
 
-export async function DELETE(
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// GET - Récupérer une playlist spécifique
+export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
+    const { id } = params;
+
+    const { data: playlist, error } = await supabase
+      .from('playlists')
+      .select(`
+        *,
+        tracks:playlist_tracks(
+          track_id,
+          tracks(*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error || !playlist) {
+      return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
     }
 
-    await dbConnect();
-    
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
-    const { id } = params;
-    
-    // Vérifier que la playlist existe
-    const playlist = await Playlist.findById(id);
-    if (!playlist) {
-      return NextResponse.json(
-        { error: 'Playlist non trouvée' },
-        { status: 404 }
-      );
-    }
-    
-    // Vérifier que l'utilisateur est le propriétaire de la playlist
-    const user = await User.findOne({ email: session.user.email });
-    if (!user || playlist.createdBy.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { error: 'Non autorisé à supprimer cette playlist' },
-        { status: 403 }
-      );
-    }
-    
-    // Supprimer la playlist
-    await Playlist.findByIdAndDelete(id);
-    
-    return NextResponse.json({ success: true });
+    const formattedPlaylist = {
+      _id: playlist.id,
+      name: playlist.name,
+      description: playlist.description || '',
+      coverUrl: playlist.cover_url,
+      trackCount: playlist.tracks?.length || 0,
+      duration: playlist.tracks?.reduce((total: number, pt: any) => total + (pt.tracks?.duration || 0), 0) || 0,
+      isPublic: playlist.is_public,
+      tracks: playlist.tracks?.map((pt: any) => pt.tracks).filter(Boolean) || [],
+      createdBy: playlist.created_by,
+      createdAt: playlist.created_at,
+      updatedAt: playlist.updated_at,
+      likes: playlist.likes || [],
+      followers: playlist.followers || []
+    };
+
+    return NextResponse.json(formattedPlaylist);
+
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de la suppression de la playlist' },
-      { status: 500 }
-    );
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
 
+// PUT - Mettre à jour une playlist
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
+    const { id } = params;
+    const { name, description, isPublic } = await request.json();
+
+    const { data: playlist, error } = await supabase
+      .from('playlists')
+      .update({
+        name: name?.trim(),
+        description: description?.trim(),
+        is_public: isPublic,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !playlist) {
+      return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
     }
 
-    await dbConnect();
-    
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
-    const { id } = params;
-    const body = await request.json();
-    const { name, description, isPublic } = body;
-    
-    // Vérifier que la playlist existe
-    const playlist = await Playlist.findById(id);
-    if (!playlist) {
-      return NextResponse.json(
-        { error: 'Playlist non trouvée' },
-        { status: 404 }
-      );
-    }
-    
-    // Vérifier que l'utilisateur est le propriétaire de la playlist
-    const user = await User.findOne({ email: session.user.email });
-    if (!user || playlist.createdBy.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { error: 'Non autorisé à modifier cette playlist' },
-        { status: 403 }
-      );
-    }
-    
-    // Mettre à jour la playlist
-    const updateData: any = {};
-    if (name !== undefined) updateData.name = name.trim();
-    if (description !== undefined) updateData.description = description.trim();
-    if (isPublic !== undefined) updateData.isPublic = isPublic;
-    
-    const updatedPlaylist = await Playlist.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true }
-    )
-      .populate('createdBy', 'name username avatar')
-      .populate('tracks', 'title artist audioUrl coverUrl duration')
-      .lean() as any;
-    
-    if (!updatedPlaylist) {
-      return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour de la playlist' },
-        { status: 500 }
-      );
-    }
-    
-    const totalDuration = (updatedPlaylist.tracks || []).reduce((sum: number, track: any) => sum + (track.duration || 0), 0);
-    
-    return NextResponse.json({
-      ...updatedPlaylist,
-      trackCount: (updatedPlaylist.tracks || []).length,
-      duration: totalDuration,
-      _id: updatedPlaylist._id.toString(),
-      createdBy: updatedPlaylist.createdBy ? {
-        ...updatedPlaylist.createdBy,
-        _id: updatedPlaylist.createdBy._id.toString()
-      } : null,
-      tracks: (updatedPlaylist.tracks || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      }))
-    });
+    const formattedPlaylist = {
+      _id: playlist.id,
+      name: playlist.name,
+      description: playlist.description,
+      coverUrl: playlist.cover_url,
+      trackCount: 0, // À calculer si nécessaire
+      duration: 0, // À calculer si nécessaire
+      isPublic: playlist.is_public,
+      tracks: [],
+      createdBy: playlist.created_by,
+      createdAt: playlist.created_at,
+      updatedAt: playlist.updated_at,
+      likes: playlist.likes || [],
+      followers: playlist.followers || []
+    };
+
+    return NextResponse.json(formattedPlaylist);
+
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour de la playlist' },
-      { status: 500 }
-    );
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
-} 
+}
+
+// DELETE - Supprimer une playlist
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = params;
+
+    // Supprimer d'abord les relations playlist_tracks
+    const { error: tracksError } = await supabase
+      .from('playlist_tracks')
+      .delete()
+      .eq('playlist_id', id);
+
+    if (tracksError) {
+      console.error('Erreur suppression tracks:', tracksError);
+    }
+
+    // Supprimer la playlist
+    const { error } = await supabase
+      .from('playlists')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erreur Supabase:', error);
+      return NextResponse.json({ error: 'Erreur lors de la suppression' }, { status: 500 });
+    }
+
+    return NextResponse.json({ message: 'Playlist supprimée avec succès' });
+
+  } catch (error) {
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
+  }
+}

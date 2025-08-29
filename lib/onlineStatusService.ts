@@ -1,5 +1,4 @@
-import dbConnect from './db';
-import UserStatus, { IUserStatus } from '@/models/UserStatus';
+import { supabase } from './supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from './authOptions';
 
@@ -45,23 +44,28 @@ class OnlineStatusService {
   // Mettre à jour le statut d'un utilisateur
   async updateUserStatus(userId: string, updates: StatusUpdate): Promise<boolean> {
     try {
-      await dbConnect();
-      
       const statusUpdate = {
+        user_id: userId,
         ...updates,
-        lastActivity: new Date(),
-        lastSeen: updates.isOnline ? new Date() : undefined,
+        last_activity: new Date().toISOString(),
+        last_seen: updates.isOnline ? new Date().toISOString() : undefined,
+        updated_at: new Date().toISOString()
       };
 
-      await UserStatus.findOneAndUpdate(
-        { userId },
-        statusUpdate,
-        { upsert: true, new: true }
-      );
+      const { error } = await supabase
+        .from('user_statuses')
+        .upsert(statusUpdate, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Erreur mise à jour statut Supabase:', error);
+        return false;
+      }
 
       return true;
     } catch (error) {
-      console.error('Erreur mise à jour statut:', error);
+      console.error('❌ Erreur mise à jour statut:', error);
       return false;
     }
   }
@@ -69,11 +73,13 @@ class OnlineStatusService {
   // Obtenir le statut d'un utilisateur
   async getUserStatus(userId: string): Promise<UserStatusData> {
     try {
-      await dbConnect();
+      const { data: status, error } = await supabase
+        .from('user_statuses')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
       
-      const status = await UserStatus.findOne({ userId }).lean() as IUserStatus | null;
-      
-      if (!status) {
+      if (error || !status) {
         return {
           userId,
           isOnline: false,
@@ -85,18 +91,19 @@ class OnlineStatusService {
 
       // Vérifier si l'utilisateur est encore en ligne (activité récente)
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const isActuallyOnline = status.isOnline && status.lastActivity > fiveMinutesAgo;
+      const lastActivity = new Date(status.last_activity);
+      const isActuallyOnline = status.is_online && lastActivity > fiveMinutesAgo;
 
       return {
-        userId: status.userId.toString(),
+        userId: status.user_id,
         isOnline: isActuallyOnline,
-        lastSeen: status.lastSeen || status.lastActivity,
-        isTyping: status.isTyping || false,
-        lastActivity: status.lastActivity,
-        deviceInfo: status.deviceInfo,
+        lastSeen: status.last_seen ? new Date(status.last_seen) : lastActivity,
+        isTyping: status.is_typing || false,
+        lastActivity: lastActivity,
+        deviceInfo: status.device_info,
       };
     } catch (error) {
-      console.error('Erreur récupération statut:', error);
+      console.error('❌ Erreur récupération statut:', error);
       return {
         userId,
         isOnline: false,
@@ -107,42 +114,41 @@ class OnlineStatusService {
     }
   }
 
-  // Obtenir les statuts de plusieurs utilisateurs
+  // Obtenir le statut de plusieurs utilisateurs
   async getMultipleUserStatuses(userIds: string[]): Promise<UserStatusData[]> {
     try {
-      await dbConnect();
-      
-      const statuses = await UserStatus.find({ 
-        userId: { $in: userIds } 
-      }).lean() as unknown as IUserStatus[];
+      const { data: statuses, error } = await supabase
+        .from('user_statuses')
+        .select('*')
+        .in('user_id', userIds);
+
+      if (error || !statuses) {
+        return userIds.map(userId => ({
+          userId,
+          isOnline: false,
+          lastSeen: new Date(),
+          isTyping: false,
+          lastActivity: new Date(),
+        }));
+      }
 
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       
-      return userIds.map(userId => {
-        const status = statuses.find(s => s.userId.toString() === userId);
-        if (!status) {
-          return {
-            userId,
-            isOnline: false,
-            lastSeen: new Date(),
-            isTyping: false,
-            lastActivity: new Date(),
-          };
-        }
-
-        const isActuallyOnline = status.isOnline && status.lastActivity > fiveMinutesAgo;
+      return statuses.map(status => {
+        const lastActivity = new Date(status.last_activity);
+        const isActuallyOnline = status.is_online && lastActivity > fiveMinutesAgo;
         
         return {
-          userId: status.userId.toString(),
+          userId: status.user_id,
           isOnline: isActuallyOnline,
-          lastSeen: status.lastSeen || status.lastActivity,
-          isTyping: status.isTyping || false,
-          lastActivity: status.lastActivity,
-          deviceInfo: status.deviceInfo,
+          lastSeen: status.last_seen ? new Date(status.last_seen) : lastActivity,
+          isTyping: status.is_typing || false,
+          lastActivity: lastActivity,
+          deviceInfo: status.device_info,
         };
       });
     } catch (error) {
-      console.error('Erreur récupération statuts multiples:', error);
+      console.error('❌ Erreur récupération statuts multiples:', error);
       return userIds.map(userId => ({
         userId,
         isOnline: false,
@@ -153,61 +159,106 @@ class OnlineStatusService {
     }
   }
 
-  // Marquer un utilisateur comme en ligne
-  async setUserOnline(userId: string, deviceInfo?: any): Promise<boolean> {
-    return this.updateUserStatus(userId, {
-      isOnline: true,
-      isTyping: false,
-      deviceInfo,
-    });
-  }
-
   // Marquer un utilisateur comme hors ligne
   async setUserOffline(userId: string): Promise<boolean> {
-    return this.updateUserStatus(userId, {
-      isOnline: false,
-      isTyping: false,
-      typingInConversation: undefined,
-    });
-  }
-
-  // Mettre à jour le statut de frappe
-  async setTypingStatus(
-    userId: string, 
-    isTyping: boolean, 
-    conversationId?: string
-  ): Promise<boolean> {
-    return this.updateUserStatus(userId, {
-      isTyping,
-      typingInConversation: isTyping ? conversationId : undefined,
-    });
-  }
-
-  // Nettoyer les statuts expirés
-  async cleanupExpiredStatuses(): Promise<void> {
     try {
-      await dbConnect();
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      await UserStatus.updateMany(
-        { lastActivity: { $lt: fiveMinutesAgo }, isOnline: true },
-        { isOnline: false }
-      );
-      console.log('🧹 Statuts expirés nettoyés');
+      const { error } = await supabase
+        .from('user_statuses')
+        .update({
+          is_online: false,
+          last_seen: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('❌ Erreur mise hors ligne Supabase:', error);
+        return false;
+      }
+
+      return true;
     } catch (error) {
-      console.error('Erreur nettoyage statuts:', error);
+      console.error('❌ Erreur mise hors ligne:', error);
+      return false;
+    }
+  }
+
+  // Marquer un utilisateur comme en train de taper
+  async setUserTyping(userId: string, conversationId?: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_statuses')
+        .upsert({
+          user_id: userId,
+          is_typing: true,
+          typing_in_conversation: conversationId,
+          last_activity: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (error) {
+        console.error('❌ Erreur statut typing Supabase:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur statut typing:', error);
+      return false;
+    }
+  }
+
+  // Arrêter le statut de frappe
+  async stopUserTyping(userId: string): Promise<boolean> {
+    try {
+      const { error } = await supabase
+        .from('user_statuses')
+        .update({
+          is_typing: false,
+          typing_in_conversation: null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', userId);
+
+      if (error) {
+        console.error('❌ Erreur arrêt typing Supabase:', error);
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('❌ Erreur arrêt typing:', error);
+      return false;
+    }
+  }
+
+  // Nettoyer les statuts anciens
+  private async cleanupOldStatuses(): Promise<void> {
+    try {
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      
+      const { error } = await supabase
+        .from('user_statuses')
+        .delete()
+        .lt('last_activity', oneDayAgo.toISOString());
+
+      if (error) {
+        console.error('❌ Erreur nettoyage statuts Supabase:', error);
+      } else {
+        console.log('🧹 Nettoyage des statuts anciens terminé');
+      }
+    } catch (error) {
+      console.error('❌ Erreur nettoyage statuts:', error);
     }
   }
 
   // Démarrer l'intervalle de nettoyage
   private startCleanupInterval(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-    }
-
-    // Nettoyer toutes les 5 minutes
     this.cleanupInterval = setInterval(() => {
-      this.cleanupExpiredStatuses();
-    }, 5 * 60 * 1000);
+      this.cleanupOldStatuses();
+    }, 60 * 60 * 1000); // Toutes les heures
   }
 
   // Arrêter le service
@@ -217,54 +268,7 @@ class OnlineStatusService {
       this.cleanupInterval = null;
     }
   }
-
-  // Obtenir les utilisateurs en ligne
-  async getOnlineUsers(): Promise<string[]> {
-    try {
-      await dbConnect();
-      
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      const onlineStatuses = await UserStatus.find({
-        isOnline: true,
-        lastActivity: { $gt: fiveMinutesAgo }
-      }).select('userId').lean() as unknown as IUserStatus[];
-
-      return onlineStatuses.map(status => status.userId.toString());
-    } catch (error) {
-      console.error('Erreur récupération utilisateurs en ligne:', error);
-      return [];
-    }
-  }
-
-  // Obtenir les statistiques de présence
-  async getPresenceStats() {
-    try {
-      await dbConnect();
-      
-      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-      
-      const [onlineCount, totalUsers] = await Promise.all([
-        UserStatus.countDocuments({
-          isOnline: true,
-          lastActivity: { $gt: fiveMinutesAgo }
-        }),
-        UserStatus.countDocuments()
-      ]);
-
-      return {
-        onlineCount,
-        totalUsers,
-        onlinePercentage: totalUsers > 0 ? (onlineCount / totalUsers) * 100 : 0
-      };
-    } catch (error) {
-      console.error('Erreur statistiques présence:', error);
-      return {
-        onlineCount: 0,
-        totalUsers: 0,
-        onlinePercentage: 0
-      };
-    }
-  }
 }
 
-export default OnlineStatusService.getInstance(); 
+export const onlineStatusService = OnlineStatusService.getInstance();
+export default onlineStatusService; 

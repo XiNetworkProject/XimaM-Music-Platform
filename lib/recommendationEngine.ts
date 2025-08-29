@@ -47,7 +47,7 @@ export class RecommendationEngine {
       }
 
       totalPlays += track.plays || 0;
-      totalLikes += track.likes?.length || 0;
+      totalLikes += Array.isArray(track.likes) ? track.likes.length : 0;
     });
 
     return {
@@ -91,7 +91,7 @@ export class RecommendationEngine {
       const artistScore = artistWeight * this.WEIGHTS.ARTIST_MATCH;
       score += artistScore;
       if (artistScore > 0) {
-        reasons.push(`Artiste ${track.artist.name}: +${artistScore}`);
+        reasons.push(`Artiste ${track.artist?.name}: +${artistScore}`);
       }
     }
 
@@ -100,24 +100,24 @@ export class RecommendationEngine {
     const recencyScore = Math.max(0, (30 - daysSinceCreation) * this.WEIGHTS.RECENCY);
     score += recencyScore;
     if (recencyScore > 0) {
-      reasons.push(`Récente: +${recencyScore.toFixed(1)}`);
+      reasons.push(`Récent: +${recencyScore}`);
     }
 
     // Score de popularité
     const popularityScore = Math.min(track.plays / 100, 10) * this.WEIGHTS.POPULARITY;
     score += popularityScore;
     if (popularityScore > 0) {
-      reasons.push(`Populaire: +${popularityScore.toFixed(1)}`);
+      reasons.push(`Populaire: +${popularityScore}`);
     }
 
-    // Score d'engagement (likes)
-    const engagementScore = Math.min(track.likes?.length || 0, 20) * this.WEIGHTS.ENGAGEMENT;
+    // Score d'engagement (likes, commentaires)
+    const engagementScore = Math.min(Array.isArray(track.likes) ? track.likes.length : 0, 20) * this.WEIGHTS.ENGAGEMENT;
     score += engagementScore;
     if (engagementScore > 0) {
       reasons.push(`Engagement: +${engagementScore}`);
     }
 
-    // Bonus de qualité (pistes avec cover et description)
+    // Bonus qualité (cover, description)
     let qualityBonus = 0;
     if (track.coverUrl) qualityBonus += this.WEIGHTS.QUALITY;
     if (track.description) qualityBonus += this.WEIGHTS.QUALITY;
@@ -132,175 +132,187 @@ export class RecommendationEngine {
   /**
    * Génère des recommandations personnalisées
    */
-  static getPersonalRecommendations(
+  static generatePersonalizedRecommendations(
+    userTracks: Track[],
     allTracks: Track[],
-    userLikedTracks: Track[],
     limit: number = 20
   ): Track[] {
-    if (userLikedTracks.length === 0) {
-      return this.getPopularRecommendations(allTracks, limit);
+    if (userTracks.length === 0) {
+      return this.generatePopularRecommendations(allTracks, limit);
     }
 
-    const userPrefs = this.analyzeUserPreferences(userLikedTracks);
-    const excludeIds = userLikedTracks.map(t => t._id);
+    const userPrefs = this.analyzeUserPreferences(userTracks);
+    const excludeIds = [userTracks[0]?._id].filter(Boolean);
 
     const scoredTracks = allTracks
+      .filter(track => !excludeIds.includes(track._id))
       .map(track => this.calculateTrackScore(track, userPrefs, excludeIds))
-      .filter(item => item.score > 0)
       .sort((a, b) => b.score - a.score);
 
-    return scoredTracks.slice(0, limit).map(item => item.track);
+    return scoredTracks.slice(0, limit).map(st => st.track);
   }
 
   /**
-   * Génère des recommandations populaires (fallback)
+   * Génère des recommandations basées sur une piste de référence
    */
-  static getPopularRecommendations(allTracks: Track[], limit: number = 20): Track[] {
-    return allTracks
-      .sort((a, b) => {
-        const scoreA = (a.likes?.length || 0) * 2 + (a.plays || 0);
-        const scoreB = (b.likes?.length || 0) * 2 + (b.plays || 0);
-        return scoreB - scoreA;
-      })
-      .slice(0, limit);
-  }
-
-  /**
-   * Génère des recommandations basées sur une piste spécifique
-   */
-  static getSimilarTracks(
+  static generateSimilarTrackRecommendations(
     referenceTrack: Track,
     allTracks: Track[],
-    limit: number = 10
+    limit: number = 15
   ): Track[] {
     const excludeIds = [referenceTrack._id];
 
-    return allTracks
+    const similarTracks = allTracks
       .filter(track => !excludeIds.includes(track._id))
       .map(track => {
         let score = 0;
         const reasons: string[] = [];
 
         // Score par genre commun
-        const commonGenres = referenceTrack.genre?.filter(g => 
-          track.genre?.includes(g)
-        ) || [];
-        score += commonGenres.length * this.WEIGHTS.GENRE_MATCH;
-        if (commonGenres.length > 0) {
-          reasons.push(`Genres communs: ${commonGenres.join(', ')}`);
+        if (referenceTrack.genre && track.genre) {
+          const commonGenres = referenceTrack.genre.filter(g =>
+            track.genre?.includes(g)
+          );
+          score += commonGenres.length * 10;
         }
 
-        // Score par même artiste
+        // Score basé sur l'artiste
         if (referenceTrack.artist?._id === track.artist?._id) {
-          score += this.WEIGHTS.ARTIST_MATCH * 2;
-          reasons.push('Même artiste');
+          score += 5;
         }
 
-        // Score de popularité relative
+        // Score par popularité
         const popularityScore = Math.min(track.plays / 100, 5);
         score += popularityScore;
-        if (popularityScore > 0) {
-          reasons.push(`Populaire: +${popularityScore.toFixed(1)}`);
-        }
+
+        // Score par engagement
+        score += Math.min(Array.isArray(track.likes) ? track.likes.length / 10 : 0, 3);
 
         return { track, score, reasons };
       })
-      .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, limit)
-      .map(item => item.track);
+      .sort((a, b) => b.score - a.score);
+
+    return similarTracks.slice(0, limit).map(st => st.track);
   }
 
   /**
-   * Génère des tendances intelligentes
+   * Génère des recommandations de tendances
    */
-  static getTrendingTracks(allTracks: Track[], limit: number = 20): Track[] {
+  static generateTrendingRecommendations(
+    allTracks: Track[],
+    limit: number = 20
+  ): Track[] {
     const now = Date.now();
-    const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-    return allTracks
+    const trendingTracks = allTracks
       .map(track => {
         const trackDate = new Date(track.createdAt).getTime();
         const isRecent = trackDate > oneWeekAgo;
-        
-        // Score de tendance basé sur la récence et l'engagement
+
         let trendScore = track.plays || 0;
-        if (isRecent) trendScore *= 1.5; // Bonus pour les pistes récentes
-        trendScore += (track.likes?.length || 0) * 2;
+        if (isRecent) {
+          trendScore += (Array.isArray(track.likes) ? track.likes.length : 0) * 2;
+        }
 
         return { track, trendScore };
       })
-      .sort((a, b) => b.trendScore - a.trendScore)
-      .slice(0, limit)
-      .map(item => item.track);
+      .sort((a, b) => b.trendScore - a.trendScore);
+
+    return trendingTracks.slice(0, limit).map(tt => tt.track);
   }
 
   /**
-   * Génère des découvertes du jour
+   * Génère des recommandations de découverte
    */
-  static getDailyDiscoveries(allTracks: Track[], limit: number = 10): Track[] {
+  static generateDiscoveryRecommendations(
+    allTracks: Track[],
+    userHistory: string[],
+    limit: number = 15
+  ): Track[] {
     const now = Date.now();
-    const oneDayAgo = now - (24 * 60 * 60 * 1000);
+    const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
-    return allTracks
-      .filter(track => {
+    const discoveryTracks = allTracks
+      .filter(track => !userHistory.includes(track._id))
+      .map(track => {
         const trackDate = new Date(track.createdAt).getTime();
-        return trackDate > oneDayAgo;
+        const isRecent = trackDate > oneWeekAgo;
+
+        let discoveryScore = track.plays || 0;
+        if (isRecent) {
+          discoveryScore += (Array.isArray(track.likes) ? track.likes.length : 0) * 2;
+        }
+
+        return { track, discoveryScore };
       })
-      .sort((a, b) => {
-        // Priorité aux nouvelles pistes avec engagement
-        const scoreA = (a.likes?.length || 0) * 3 + (a.plays || 0);
-        const scoreB = (b.likes?.length || 0) * 3 + (b.plays || 0);
-        return scoreB - scoreA;
-      })
-      .slice(0, limit);
+      .sort((a, b) => b.discoveryScore - a.discoveryScore);
+
+    return discoveryTracks.slice(0, limit).map(dt => dt.track);
   }
 
   /**
-   * Génère des pistes en vedette pour le carrousel
+   * Génère des recommandations populaires
    */
-  static getFeaturedTracks(allTracks: Track[], limit: number = 5): Track[] {
-    return allTracks
+  static generatePopularRecommendations(
+    allTracks: Track[],
+    limit: number = 20
+  ): Track[] {
+    const popularTracks = allTracks
       .map(track => {
-        // Score spécial pour le carrousel (qualité visuelle + engagement)
         let featuredScore = track.plays || 0;
-        featuredScore += (track.likes?.length || 0) * 2;
-        
+        featuredScore += (Array.isArray(track.likes) ? track.likes.length : 0) * 2;
+
         // Bonus pour les pistes avec cover
         if (track.coverUrl) featuredScore *= 1.3;
-        
+
         // Bonus pour les pistes récentes
         const daysSinceCreation = (Date.now() - new Date(track.createdAt).getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSinceCreation < 7) featuredScore *= 1.2;
+        if (daysSinceCreation <= 7) featuredScore *= 1.2;
 
         return { track, featuredScore };
       })
-      .sort((a, b) => b.featuredScore - a.featuredScore)
-      .slice(0, limit)
-      .map(item => item.track);
+      .sort((a, b) => b.featuredScore - a.featuredScore);
+
+    return popularTracks.slice(0, limit).map(pt => pt.track);
   }
 
   /**
-   * Diversifie les recommandations pour éviter la répétition
+   * Génère des recommandations par genre
    */
-  static diversifyRecommendations(tracks: Track[], maxSimilarGenres: number = 3): Track[] {
-    const genreCounts: { [key: string]: number } = {};
-    const diversified: Track[] = [];
+  static generateGenreRecommendations(
+    genre: string,
+    allTracks: Track[],
+    limit: number = 15
+  ): Track[] {
+    const trackGenres = genre || [];
+    
+    const genreTracks = allTracks
+      .filter(track => track.genre?.includes(genre))
+      .map(track => {
+        let genreScore = track.plays || 0;
+        genreScore += (Array.isArray(track.likes) ? track.likes.length : 0) * 2;
 
-    for (const track of tracks) {
-      const trackGenres = track.genre || [];
-      const hasTooManySimilar = trackGenres.some(genre => 
-        (genreCounts[genre] || 0) >= maxSimilarGenres
-      );
+        // Bonus pour les pistes récentes du genre
+        const daysSinceCreation = (Date.now() - new Date(track.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSinceCreation <= 14) genreScore *= 1.1;
 
-      if (!hasTooManySimilar) {
-        diversified.push(track);
-        trackGenres.forEach(genre => {
-          genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-        });
-      }
+        return { track, genreScore };
+      })
+      .sort((a, b) => b.genreScore - a.genreScore);
+
+    return genreTracks.slice(0, limit).map(gt => gt.track);
+  }
+
+  /**
+   * Mélange les recommandations pour éviter la répétition
+   */
+  static shuffleRecommendations<T>(array: T[]): T[] {
+    const shuffled = [...array];
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
     }
-
-    return diversified;
+    return shuffled;
   }
 } 

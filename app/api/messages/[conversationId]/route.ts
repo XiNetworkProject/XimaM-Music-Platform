@@ -1,122 +1,121 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Conversation from '@/models/Conversation';
-import Message from '@/models/Message';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
+import { supabase } from '@/lib/supabase';
 
-// GET /api/messages/[conversationId] : Récupérer les messages
-export async function GET(request: NextRequest, { params }: { params: { conversationId: string } }) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { conversationId: string } }
+) {
   try {
-    await dbConnect();
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const { conversationId } = params;
-    console.log('🔍 Récupération messages pour conversation:', conversationId);
-    console.log('👤 Utilisateur:', session.user.id);
-    
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-      console.log('❌ Conversation non trouvée');
+
+    // Vérifier que l'utilisateur fait partie de la conversation
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .single();
+
+    if (convError || !conversation) {
       return NextResponse.json({ error: 'Conversation non trouvée' }, { status: 404 });
     }
-    
-    console.log('✅ Conversation trouvée:', {
-      id: conversation._id,
-      participants: conversation.participants,
-      accepted: conversation.accepted,
-      userInParticipants: conversation.participants.includes(session.user.id)
-    });
 
     if (!conversation.participants.includes(session.user.id)) {
-      console.log('❌ Utilisateur pas dans les participants');
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    const messages = await Message.find({ conversation: conversationId })
-      .populate('sender', 'name username avatar')
-      .sort({ createdAt: 1 })
-      .lean();
+    // Récupérer les messages
+    const { data: messages, error: msgError } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
 
-    console.log('📨 Messages trouvés:', messages.length);
-    return NextResponse.json({ messages });
+    if (msgError) {
+      console.error('❌ Erreur récupération messages:', msgError);
+      return NextResponse.json({ error: 'Erreur lors de la récupération des messages' }, { status: 500 });
+    }
+
+    return NextResponse.json({ messages: messages || [] });
+
   } catch (error) {
-    console.error('Erreur récupération messages:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    console.error('❌ Erreur récupération messages:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
 
-// POST /api/messages/[conversationId] : Envoyer un message
-export async function POST(request: NextRequest, { params }: { params: { conversationId: string } }) {
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { conversationId: string } }
+) {
   try {
-    await dbConnect();
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    
+    if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const { conversationId } = params;
+    const { content } = await request.json();
+
+    if (!content || content.trim().length === 0) {
+      return NextResponse.json({ error: 'Le contenu du message est requis' }, { status: 400 });
+    }
+
     console.log('📤 Envoi message pour conversation:', conversationId);
     console.log('👤 Utilisateur:', session.user.id);
-    
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
+
+    // Vérifier que la conversation existe et que l'utilisateur y participe
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .select('*')
+      .eq('id', conversationId)
+      .single();
+
+    if (convError || !conversation) {
       console.log('❌ Conversation non trouvée');
       return NextResponse.json({ error: 'Conversation non trouvée' }, { status: 404 });
     }
-    
-    console.log('✅ Conversation trouvée:', {
-      id: conversation._id,
-      participants: conversation.participants,
-      accepted: conversation.accepted,
-      userInParticipants: conversation.participants.includes(session.user.id)
-    });
 
     if (!conversation.participants.includes(session.user.id)) {
-      console.log('❌ Utilisateur pas dans les participants');
+      console.log('❌ Accès refusé à la conversation');
       return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    // Vérifier que la conversation est acceptée pour l'envoi
-    if (!conversation.accepted) {
-      console.log('❌ Conversation non acceptée');
-      return NextResponse.json({ error: 'Conversation non acceptée' }, { status: 403 });
+    // Créer le message
+    const { data: message, error: msgError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: session.user.id,
+        content: content.trim(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (msgError) {
+      console.error('❌ Erreur création message:', msgError);
+      return NextResponse.json({ error: 'Erreur lors de l\'envoi du message' }, { status: 500 });
     }
 
-    const { type, content, duration } = await request.json();
-    if (!type || !content) {
-      return NextResponse.json({ error: 'Type ou contenu manquant' }, { status: 400 });
-    }
+    console.log('✅ Message envoyé:', message.id);
 
-    // Limite vidéo/audio : 60s max
-    if ((type === 'video' || type === 'audio') && duration && duration > 60) {
-      return NextResponse.json({ error: 'Durée maximale dépassée (1 min)' }, { status: 400 });
-    }
+    return NextResponse.json({ 
+      message: 'Message envoyé avec succès',
+      data: message
+    }, { status: 201 });
 
-    const message = await Message.create({
-      conversation: conversationId,
-      sender: session.user.id,
-      type,
-      content,
-      duration,
-      seenBy: [session.user.id],
-    });
-
-    // Peupler les informations de l'expéditeur
-    const populatedMessage = await Message.findById(message._id)
-      .populate('sender', 'name username avatar')
-      .lean();
-
-    conversation.lastMessage = message._id;
-    await conversation.save();
-
-    console.log('✅ Message envoyé avec succès');
-    return NextResponse.json({ success: true, message: populatedMessage });
   } catch (error) {
-    console.error('Erreur envoi message:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    console.error('❌ Erreur envoi message:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
-} 
+}

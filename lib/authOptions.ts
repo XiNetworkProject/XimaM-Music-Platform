@@ -1,8 +1,6 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import dbConnect from '@/lib/db';
-import User from '@/models/User';
-import { compare } from 'bcryptjs';
+import { supabase } from '@/lib/supabase';
 
 // Configuration des URLs selon l'environnement
 const getAuthUrls = () => {
@@ -33,34 +31,51 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          await dbConnect();
-          const user = await User.findOne({ email: credentials.email.toLowerCase() });
-          
-          if (!user || !user.password) {
-            console.log('❌ Utilisateur non trouvé ou pas de mot de passe:', credentials.email);
+          // Récupérer l'utilisateur depuis Supabase Auth
+          const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
+            email: credentials.email.toLowerCase(),
+            password: credentials.password
+          });
+
+          if (authError || !user) {
+            console.log('❌ Erreur authentification Supabase:', authError?.message);
             return null;
           }
 
-          const isPasswordValid = await compare(credentials.password, user.password);
-          
-          if (!isPasswordValid) {
-            console.log('❌ Mot de passe incorrect pour:', credentials.email);
+          // Récupérer le profil utilisateur depuis la table profiles
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError || !profile) {
+            console.log('❌ Erreur récupération profil:', profileError?.message);
             return null;
           }
 
-          console.log('✅ Connexion réussie pour:', user.email);
+          console.log('✅ Connexion Supabase réussie pour:', profile.email);
 
           return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.name,
-            username: user.username,
-            avatar: user.avatar,
-            role: user.role,
-            isVerified: user.isVerified,
+            id: profile.id,
+            email: profile.email,
+            name: profile.name,
+            username: profile.username,
+            avatar: profile.avatar,
+            role: profile.role || 'user',
+            isVerified: profile.is_verified || false,
+            bio: profile.bio,
+            location: profile.location,
+            website: profile.website,
+            isArtist: profile.is_artist || false,
+            artistName: profile.artist_name,
+            genre: profile.genre || [],
+            totalPlays: profile.total_plays || 0,
+            totalLikes: profile.total_likes || 0,
+            lastSeen: profile.last_seen,
           };
         } catch (error) {
-          console.error('❌ Erreur lors de l\'authentification:', error);
+          console.error('❌ Erreur lors de l\'authentification Supabase:', error);
           return null;
         }
       }
@@ -68,45 +83,73 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async session({ session, token }) {
-      console.log('🔄 Mise à jour de la session pour:', session.user?.email);
+      console.log('🔄 Mise à jour de la session Supabase pour:', session.user?.email);
       
       if (session.user?.email) {
         try {
-          await dbConnect();
-          const user = await User.findOne({ email: session.user.email }).select('-__v');
+          // Récupérer le profil utilisateur depuis Supabase
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('email', session.user.email)
+            .single();
           
-          if (user) {
-            session.user.id = user._id.toString();
-            session.user.username = user.username;
-            session.user.role = user.role;
-            session.user.isVerified = user.isVerified;
-            session.user.avatar = user.avatar;
-            session.user.bio = user.bio;
-            session.user.location = user.location;
-            session.user.website = user.website;
-            session.user.socialLinks = user.socialLinks;
-            console.log('✅ Session mise à jour avec les données utilisateur');
+          if (profile && !profileError) {
+            // Étendre la session avec les propriétés personnalisées
+            const extendedUser = {
+              ...session.user,
+              id: profile.id,
+              username: profile.username,
+              role: profile.role || 'user',
+              isVerified: profile.is_verified || false,
+              bio: profile.bio,
+              location: profile.location,
+              website: profile.website,
+              isArtist: profile.is_artist || false,
+              artistName: profile.artist_name,
+              genre: profile.genre || [],
+              totalPlays: profile.total_plays || 0,
+              totalLikes: profile.total_likes || 0,
+              lastSeen: profile.last_seen,
+            };
+            
+            // Remplacer l'utilisateur de la session
+            session.user = extendedUser;
+            console.log('✅ Session Supabase mise à jour avec les données utilisateur');
           } else {
-            console.warn('⚠️ Utilisateur non trouvé en base pour:', session.user.email);
+            console.warn('⚠️ Profil Supabase non trouvé pour:', session.user.email);
           }
         } catch (error) {
-          console.error('❌ Erreur lors de la récupération de la session:', error);
+          console.error('❌ Erreur lors de la récupération de la session Supabase:', error);
         }
       }
       return session;
     },
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.username = user.username;
-        token.role = user.role;
-        token.isVerified = user.isVerified;
-        console.log('🔑 JWT mis à jour pour:', user.email);
+        // Étendre le token avec les propriétés personnalisées
+        const extendedToken = {
+          ...token,
+          id: user.id,
+          username: user.username,
+          role: user.role,
+          isVerified: user.isVerified,
+          isArtist: user.isArtist,
+          artistName: user.artistName,
+          genre: user.genre,
+          totalPlays: user.totalPlays,
+          totalLikes: user.totalLikes,
+          lastSeen: user.lastSeen,
+        };
+        
+        // Retourner le token étendu
+        Object.assign(token, extendedToken);
+        console.log('🔑 JWT Supabase mis à jour pour:', user.email);
       }
       return token;
     },
     async redirect({ url, baseUrl }) {
-      console.log('🔄 Redirection:', { url, baseUrl });
+      console.log('🔄 Redirection Supabase:', { url, baseUrl });
       
       // Toujours rediriger vers l'accueil après authentification
       return baseUrl;
@@ -121,7 +164,6 @@ export const authOptions: NextAuthOptions = {
     maxAge: 30 * 24 * 60 * 60, // 30 jours
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === 'development', // Debug seulement en développement
-  // Configuration simplifiée pour Vercel
+  debug: process.env.NODE_ENV === 'development',
   useSecureCookies: process.env.NODE_ENV === 'production',
 }; 

@@ -1,171 +1,170 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
-import User from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
-// GET - Récupérer une piste
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    console.log('API Track - ID reçu:', params.id);
-    console.log('API Track - URL:', request.url);
-    
-    // Nettoyer l'ID (enlever les slashes et espaces)
-    const trackId = params.id.replace(/[\/\s]/g, '');
-    console.log('API Track - ID nettoyé:', trackId);
+    const { id } = params;
 
-    // Valider que l'ID est un ObjectId MongoDB valide
-    if (!trackId || trackId.length !== 24) {
-      console.error('API Track - ID invalide:', trackId);
-      return NextResponse.json({ error: 'ID de piste invalide' }, { status: 400 });
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID de track requis' },
+        { status: 400 }
+      );
     }
 
-    // Connexion à la base de données
-    console.log('API Track - Connexion à la base de données...');
-    await dbConnect();
-    console.log('API Track - Connexion réussie');
-    
-    const session = await getServerSession(authOptions);
-    console.log('API Track - Session:', session ? 'Connecté' : 'Non connecté');
+    console.log(`🔍 Récupération de la track: ${id}`);
 
-    // Test simple de récupération
-    console.log('API Track - Recherche de la piste...');
-    const track = await Track.findById(trackId);
-    
-    if (!track) {
-      console.error('API Track - Piste non trouvée:', trackId);
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
+    // Récupérer la track depuis Supabase
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (trackError || !track) {
+      console.log(`❌ Track non trouvée: ${id}`);
+      return NextResponse.json(
+        { error: 'Track non trouvée' },
+        { status: 404 }
+      );
     }
 
-    console.log('API Track - Piste trouvée:', track.title);
+    console.log(`✅ Track trouvée: ${track.title}`);
 
-    // Vérifier si l'utilisateur connecté a liké cette piste
-    let isLiked = false;
-    if (session?.user?.id) {
-      isLiked = track.likes.includes(session.user.id);
-    }
+    // Formater la réponse pour l'interface
+    const formattedTrack = {
+      id: track.id,
+      title: track.title,
+      artist: track.artist_name || track.creator_name || 'Artiste inconnu',
+      coverUrl: track.cover_url,
+      audioUrl: track.audio_url,
+      duration: track.duration,
+      genre: track.genre || [],
+      plays: track.plays || 0,
+      likes: track.likes || 0,
+      isFeatured: track.is_featured || false,
+      isPublic: track.is_public !== false,
+      createdAt: track.created_at,
+      updatedAt: track.updated_at
+    };
 
-    console.log('API Track - Réponse envoyée avec succès');
-    return NextResponse.json({
-      track: {
-        ...track.toObject(),
-        isLiked
-      }
-    });
+    return NextResponse.json(formattedTrack);
 
   } catch (error) {
-    console.error('Erreur récupération piste - Détails:', error);
-    console.error('Erreur récupération piste - Stack:', error instanceof Error ? error.stack : 'Pas de stack');
+    console.error('❌ Erreur lors de la récupération de la track:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération de la piste', details: error instanceof Error ? error.message : 'Erreur inconnue' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
 }
 
-// PUT - Mettre à jour une piste
 export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    await dbConnect();
-
-    const track = await Track.findById(params.id);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
-    }
-
-    // Vérifier que l'utilisateur est le propriétaire
-    if (track.artist.toString() !== session.user.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-    }
-
+    const { id } = params;
     const body = await request.json();
-    const { title, description, genre, tags, isPublic } = body;
 
-    const updatedTrack = await Track.findByIdAndUpdate(
-      params.id,
-      {
-        title: title || track.title,
-        description: description || track.description,
-        genre: genre || track.genre,
-        tags: tags || track.tags,
-        isPublic: isPublic !== undefined ? isPublic : track.isPublic,
-      },
-      { new: true }
-    ).populate('artist', 'name username avatar');
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID de track requis' },
+        { status: 400 }
+      );
+    }
 
-    return NextResponse.json({ track: updatedTrack });
+    console.log(`🔄 Mise à jour de la track: ${id}`);
+
+    // Vérifier que la track existe
+    const { data: existingTrack, error: trackError } = await supabase
+      .from('tracks')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (trackError || !existingTrack) {
+      return NextResponse.json(
+        { error: 'Track non trouvée' },
+        { status: 404 }
+      );
+    }
+
+    // Mettre à jour la track
+    const { data: updatedTrack, error: updateError } = await supabase
+      .from('tracks')
+      .update({
+        title: body.title,
+        genre: body.genre,
+        is_featured: body.isFeatured,
+        is_public: body.isPublic,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ Erreur lors de la mise à jour:', updateError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la mise à jour' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ Track mise à jour: ${id}`);
+    return NextResponse.json(updatedTrack);
 
   } catch (error) {
-    console.error('Erreur mise à jour piste:', error);
+    console.error('❌ Erreur lors de la mise à jour de la track:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la mise à jour' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
 }
 
-// DELETE - Supprimer une piste
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    const { id } = params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'ID de track requis' },
+        { status: 400 }
+      );
     }
 
-    await dbConnect();
+    console.log(`🗑️  Suppression de la track: ${id}`);
 
-    const track = await Track.findById(params.id);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
+    // Supprimer la track
+    const { error: deleteError } = await supabase
+      .from('tracks')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('❌ Erreur lors de la suppression:', deleteError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la suppression' },
+        { status: 500 }
+      );
     }
 
-    // Vérifier que l'utilisateur est le propriétaire
-    if (track.artist.toString() !== session.user.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-    }
-
-    // Supprimer les fichiers Cloudinary
-    if (track.audioPublicId) {
-      // Importer deleteFile ici pour éviter les erreurs circulaires
-      const { deleteFile } = await import('@/lib/cloudinary');
-      await deleteFile(track.audioPublicId, 'video');
-    }
-
-    if (track.coverPublicId) {
-      const { deleteFile } = await import('@/lib/cloudinary');
-      await deleteFile(track.coverPublicId, 'image');
-    }
-
-    // Supprimer la piste
-    await Track.findByIdAndDelete(params.id);
-
-    // Mettre à jour les statistiques de l'utilisateur
-    await User.findByIdAndUpdate(session.user.id, {
-      $inc: { trackCount: -1 },
-    });
-
+    console.log(`✅ Track supprimée: ${id}`);
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Erreur suppression piste:', error);
+    console.error('❌ Erreur lors de la suppression de la track:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la suppression' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
-} 
+}

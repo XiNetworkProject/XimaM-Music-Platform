@@ -152,7 +152,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // Initialiser l'état isLiked pour chaque piste
     const tracksWithLikes = tracks.map(track => ({
       ...track,
-      isLiked: session?.user?.id ? track.likes.includes(session.user.id) : false
+      isLiked: false // track.likes est un nombre dans Supabase, pas un tableau
     }));
     setAudioState(prev => ({ ...prev, tracks: tracksWithLikes }));
   }, [session?.user?.id]);
@@ -198,7 +198,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         ...prev,
         tracks: prev.tracks.map(track => ({
           ...track,
-          isLiked: session?.user?.id ? track.likes.includes(session.user.id) : false
+          isLiked: false // track.likes est un nombre dans Supabase, pas un tableau
         }))
       }));
     }
@@ -530,7 +530,7 @@ function SubscriptionProvider({ children }: { children: React.ReactNode }) {
     
     try {
       setLoading(true);
-      const response = await fetch('/api/subscriptions/my-subscription');
+      const response = await fetch(`/api/subscriptions/my-subscription?userId=${session.user.id}`);
       if (response.ok) {
         const data = await response.json();
         setSubscriptionData(data);

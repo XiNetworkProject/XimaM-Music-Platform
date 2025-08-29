@@ -11,6 +11,12 @@ export function usePlaysSync() {
     const handleTrackPlayed = (event: CustomEvent) => {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
+        // Ne pas synchroniser les écoutes pour la radio
+        if (trackId === 'radio-mixx-party') {
+          console.log(`🎵 Radio détectée, pas de synchronisation des écoutes`);
+          return;
+        }
+        
         console.log(`🎵 Synchronisation écoutes pour ${trackId}`);
         
         // Mise à jour optimiste immédiate
@@ -41,6 +47,12 @@ export function usePlaysSync() {
     const handleTrackChanged = (event: CustomEvent) => {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
+        // Ne pas synchroniser les écoutes pour la radio
+        if (trackId === 'radio-mixx-party') {
+          console.log(`🔄 Radio détectée, pas de synchronisation des écoutes`);
+          return;
+        }
+        
         console.log(`🔄 Changement de piste détecté: ${trackId}`);
         
         // Incrémenter les écoutes pour la nouvelle piste
@@ -79,6 +91,12 @@ export function usePlaysSync() {
   // Fonction pour déclencher manuellement une synchronisation
   const triggerPlaysSync = useCallback((trackId: string) => {
     if (trackId && session?.user?.id) {
+      // Ne pas déclencher la synchronisation pour la radio
+      if (trackId === 'radio-mixx-party') {
+        console.log(`🎵 Radio détectée, pas de déclenchement de synchronisation`);
+        return;
+      }
+      
       window.dispatchEvent(new CustomEvent('trackPlayed', {
         detail: { trackId }
       }));

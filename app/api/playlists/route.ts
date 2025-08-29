@@ -1,184 +1,127 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import Playlist from '@/models/Playlist';
-import User from '@/models/User';
-import Track from '@/models/Track';
+import { createClient } from '@supabase/supabase-js';
 
-// Modèle Playlist temporaire (à créer plus tard)
-interface Playlist {
-  _id: string;
-  name: string;
-  description?: string;
-  tracks: string[];
-  user: string;
-  isPublic: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
+// GET - Récupérer les playlists d'un utilisateur
 export async function GET(request: NextRequest) {
   try {
-    await dbConnect();
-    
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
     const { searchParams } = new URL(request.url);
-    const user = searchParams.get('user');
-    const limit = parseInt(searchParams.get('limit') || '20');
-    const page = parseInt(searchParams.get('page') || '1');
-    const skip = (page - 1) * limit;
+    const userId = searchParams.get('user');
     
-    let query: any = {};
-    
-    if (user) {
-      query.createdBy = user;
-    } else {
-      query.isPublic = true;
+    if (!userId) {
+      return NextResponse.json({ error: 'User ID required' }, { status: 400 });
     }
-    
-    const playlists = await Playlist.find(query)
-      .populate('createdBy', 'name username avatar')
-      .populate('tracks', 'title artist audioUrl coverUrl duration')
-      .populate('likes', 'name username')
-      .populate('followers', 'name username')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
-    
-    const playlistsWithStats = playlists.map((playlist: any) => {
-      const totalDuration = (playlist.tracks || []).reduce((sum: number, track: any) => sum + (track.duration || 0), 0);
-      return {
-        ...playlist,
-        trackCount: (playlist.tracks || []).length,
-        duration: totalDuration,
-        _id: playlist._id.toString(),
-        createdBy: playlist.createdBy ? {
-          ...playlist.createdBy,
-          _id: playlist.createdBy._id.toString()
-        } : null,
-        tracks: (playlist.tracks || []).map((track: any) => ({
-          ...track,
-          _id: track._id.toString(),
-          artist: track.artist ? {
-            ...track.artist,
-            _id: track.artist._id.toString()
-          } : null
-        })),
-        likes: (playlist.likes || []).map((user: any) => ({
-          ...user,
-          _id: user._id.toString()
-        })),
-        followers: (playlist.followers || []).map((user: any) => ({
-          ...user,
-          _id: user._id.toString()
-        }))
-      };
+
+    const { data: playlists, error } = await supabase
+      .from('playlists')
+      .select(`
+        *,
+        tracks:playlist_tracks(
+          track_id,
+          tracks(*)
+        )
+      `)
+      .eq('created_by', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erreur Supabase:', error);
+      return NextResponse.json({ error: 'Erreur lors de la récupération des playlists' }, { status: 500 });
+    }
+
+    // Formater les données
+    const formattedPlaylists = playlists?.map(playlist => ({
+      _id: playlist.id,
+      name: playlist.name,
+      description: playlist.description || '',
+      coverUrl: playlist.cover_url,
+      trackCount: playlist.tracks?.length || 0,
+      duration: playlist.tracks?.reduce((total: number, pt: any) => total + (pt.tracks?.duration || 0), 0) || 0,
+      isPublic: playlist.is_public,
+      tracks: playlist.tracks?.map((pt: any) => pt.tracks).filter(Boolean) || [],
+      createdBy: playlist.created_by,
+      createdAt: playlist.created_at,
+      updatedAt: playlist.updated_at,
+      likes: playlist.likes || [],
+      followers: playlist.followers || []
+    })) || [];
+
+    return NextResponse.json({ 
+      playlists: formattedPlaylists,
+      total: formattedPlaylists.length 
     });
-    
-    const total = await Playlist.countDocuments(query);
-    
-    return NextResponse.json({
-      playlists: playlistsWithStats,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    });
+
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de la récupération des playlists' },
-      { status: 500 }
-    );
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
 
+// POST - Créer une nouvelle playlist
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
+    const { name, description, isPublic } = await request.json();
+    
+    if (!name?.trim()) {
+      return NextResponse.json({ error: 'Nom de playlist requis' }, { status: 400 });
     }
 
-    await dbConnect();
+    // Pour l'instant, on utilise un user ID par défaut
+    // TODO: Implémenter l'authentification JWT avec NextAuth
+    const userId = 'default-user-id';
     
-    if (!isConnected()) {
-      await dbConnect();
+    console.log('🎵 Création de playlist:', { name, description, isPublic, userId });
+
+    console.log('🔍 Tentative d\'insertion dans Supabase...');
+    
+    const { data: playlist, error } = await supabase
+      .from('playlists')
+      .insert({
+        name: name.trim(),
+        description: description?.trim() || '',
+        is_public: isPublic !== false,
+        created_by: userId,
+        cover_url: null,
+        likes: [],
+        followers: []
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Erreur Supabase:', error);
+      return NextResponse.json({ 
+        error: 'Erreur lors de la création de la playlist',
+        details: error.message 
+      }, { status: 500 });
     }
     
-    const body = await request.json();
-    const { name, description = '', isPublic = true, tracks = [] } = body;
-    
-    if (!name || name.trim().length === 0) {
-      return NextResponse.json(
-        { error: 'Le nom de la playlist est requis' },
-        { status: 400 }
-      );
-    }
-    
-    const user = await User.findOne({ email: session.user.email });
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
-    }
-    
-    const playlist = new Playlist({
-      name: name.trim(),
-      description: description.trim(),
-      isPublic,
-      tracks,
-      createdBy: user._id
-    });
-    
-    await playlist.save();
-    
-    const populatedPlaylist = await Playlist.findById(playlist._id)
-      .populate('createdBy', 'name username avatar')
-      .populate('tracks', 'title artist audioUrl coverUrl duration')
-      .lean() as any;
-    
-    if (!populatedPlaylist) {
-    return NextResponse.json(
-        { error: 'Erreur lors de la création de la playlist' },
-        { status: 500 }
-      );
-    }
-    
-    const totalDuration = (populatedPlaylist.tracks || []).reduce((sum: number, track: any) => sum + (track.duration || 0), 0);
-    
-    return NextResponse.json({
-      ...populatedPlaylist,
-      trackCount: (populatedPlaylist.tracks || []).length,
-      duration: totalDuration,
-      _id: populatedPlaylist._id.toString(),
-      createdBy: populatedPlaylist.createdBy ? {
-        ...populatedPlaylist.createdBy,
-        _id: populatedPlaylist.createdBy._id.toString()
-      } : null,
-      tracks: (populatedPlaylist.tracks || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      }))
-    });
+    console.log('✅ Playlist créée avec succès:', playlist);
+
+    const formattedPlaylist = {
+      _id: playlist.id,
+      name: playlist.name,
+      description: playlist.description,
+      coverUrl: playlist.cover_url,
+      trackCount: 0,
+      duration: 0,
+      isPublic: playlist.is_public,
+      tracks: [],
+      createdBy: playlist.created_by,
+      createdAt: playlist.created_at,
+      updatedAt: playlist.updated_at,
+      likes: playlist.likes || [],
+      followers: playlist.followers || []
+    };
+
+    return NextResponse.json(formattedPlaylist, { status: 201 });
+
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de la création de la playlist' },
-      { status: 500 }
-    );
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
-} 
+}

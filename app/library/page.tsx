@@ -11,6 +11,7 @@ import {
   MoreVertical, 
   Music, 
   Users,
+  User,
   Calendar,
   Shuffle,
   Repeat,
@@ -35,8 +36,9 @@ import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
-import LikeButton from '@/components/LikeButton';
-import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
+// Composants temporairement commentés jusqu'à leur création
+// import LikeButton from '@/components/LikeButton';
+// import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
 
 interface Track {
   _id: string;
@@ -92,6 +94,7 @@ export default function LibraryPage() {
   const [showAddToPlaylist, setShowAddToPlaylist] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Données
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
@@ -109,51 +112,100 @@ export default function LibraryPage() {
 
   // Charger les données depuis l'API
   const fetchLibraryData = useCallback(async () => {
-      if (!session?.user?.id) return;
+    console.log('🔄 fetchLibraryData appelé avec session:', !!session?.user?.id);
+    
+    if (!session?.user?.id) {
+      console.log('❌ Pas de session utilisateur, arrêt du chargement');
+      setLoading(false);
+      return;
+    }
 
+    try {
+      setLoading(true);
+      
+      // Charger les playlists de l'utilisateur
       try {
-        setLoading(true);
+        console.log('🔄 Tentative de chargement des playlists...');
+        const playlistsResponse = await fetch('/api/playlists/simple?user=' + session.user.id);
+        console.log('📡 Réponse playlists:', playlistsResponse.status);
         
-        // Charger les playlists de l'utilisateur
-        const playlistsResponse = await fetch('/api/playlists?user=' + session.user.id);
         if (playlistsResponse.ok) {
           const playlistsData = await playlistsResponse.json();
+          console.log('📋 Données playlists reçues:', playlistsData);
           setPlaylists(playlistsData.playlists || []);
+        } else {
+          console.warn('❌ Erreur lors du chargement des playlists:', playlistsResponse.status);
+          const errorText = await playlistsResponse.text();
+          console.warn('📄 Détails de l\'erreur:', errorText);
         }
+      } catch (error) {
+        console.warn('❌ Erreur réseau pour les playlists:', error);
+      }
 
-        // Charger les pistes récentes
-      const recentResponse = await fetch('/api/tracks?recent=true&limit=20');
+      // Charger les pistes récentes
+      try {
+        const recentResponse = await fetch('/api/tracks?recent=true&limit=20');
         if (recentResponse.ok) {
           const recentData = await recentResponse.json();
           setRecentTracks(recentData.tracks || []);
+        } else {
+          console.warn('Erreur lors du chargement des pistes récentes:', recentResponse.status);
         }
+      } catch (error) {
+        console.warn('Erreur réseau pour les pistes récentes:', error);
+      }
 
-        // Charger les favoris
-      const favoritesResponse = await fetch('/api/tracks?liked=true&limit=50');
+      // Charger les favoris
+      try {
+        const favoritesResponse = await fetch('/api/tracks?liked=true&limit=50');
         if (favoritesResponse.ok) {
           const favoritesData = await favoritesResponse.json();
           setFavoriteTracks(favoritesData.tracks || []);
+        } else {
+          console.warn('Erreur lors du chargement des favoris:', favoritesResponse.status);
         }
+      } catch (error) {
+        console.warn('Erreur réseau pour les favoris:', error);
+      }
 
       // Charger toutes les pistes pour l'ajout aux playlists
-      const allTracksResponse = await fetch('/api/tracks?limit=100');
-      if (allTracksResponse.ok) {
-        const allTracksData = await allTracksResponse.json();
-        setAllTracks(allTracksData.tracks || []);
+      try {
+        const allTracksResponse = await fetch('/api/tracks?limit=100');
+        if (allTracksResponse.ok) {
+          const allTracksData = await allTracksResponse.json();
+          setAllTracks(allTracksData.tracks || []);
+        } else {
+          console.warn('Erreur lors du chargement de toutes les pistes:', allTracksResponse.status);
+        }
+      } catch (error) {
+        console.warn('Erreur réseau pour toutes les pistes:', error);
       }
 
       // Charger les téléchargements (simulation)
       setDownloadedTracks([]);
 
-      } catch (error) {
-      // Erreur silencieuse
-      } finally {
-        setLoading(false);
-      }
+    } catch (error) {
+      console.error('Erreur lors du chargement de la bibliothèque:', error);
+      setError('Erreur lors du chargement de la bibliothèque');
+      // En cas d'erreur, on met quand même loading à false
+    } finally {
+      console.log('✅ Chargement terminé, loading mis à false');
+      setLoading(false);
+    }
   }, [session?.user?.id]);
 
   useEffect(() => {
+    // Timeout de sécurité pour éviter le chargement infini
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        setError('Délai d\'attente dépassé. Vérifiez votre connexion.');
+      }
+    }, 10000); // 10 secondes
+
     fetchLibraryData();
+
+    return () => clearTimeout(timeoutId);
   }, [fetchLibraryData]);
 
   // Créer une nouvelle playlist
@@ -162,7 +214,9 @@ export default function LibraryPage() {
 
     try {
       setActionLoading(true);
-      const response = await fetch('/api/playlists', {
+      console.log('🎵 Création de playlist:', newPlaylist);
+      
+      const response = await fetch('/api/playlists/simple', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -170,14 +224,22 @@ export default function LibraryPage() {
         body: JSON.stringify(newPlaylist),
       });
 
+      console.log('📡 Réponse création playlist:', response.status);
+
       if (response.ok) {
         const playlist = await response.json();
+        console.log('✅ Playlist créée:', playlist);
         setPlaylists(prev => [playlist, ...prev]);
         setNewPlaylist({ name: '', description: '', isPublic: true });
         setShowCreatePlaylist(false);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Erreur création playlist:', response.status, errorText);
+        setError('Erreur lors de la création de la playlist');
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('❌ Erreur réseau création playlist:', error);
+      setError('Erreur réseau lors de la création de la playlist');
     } finally {
       setActionLoading(false);
     }
@@ -319,53 +381,99 @@ export default function LibraryPage() {
     track.artist.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // État de chargement
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white flex items-center justify-center">
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
           <p>Chargement de votre bibliothèque...</p>
         </div>
       </div>
     );
   }
 
+  // État d'erreur
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <X size={24} className="text-red-400" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Erreur de chargement</h2>
+          <p className="text-[var(--text-muted)] mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchLibraryData();
+            }}
+            className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-4 py-2 rounded-lg transition-all"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // État non connecté
+  if (!session?.user?.id) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-[var(--color-primary)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <User size={24} className="text-[var(--color-primary)]" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Connexion requise</h2>
+          <p className="text-[var(--text-muted)] mb-4">Connectez-vous pour accéder à votre bibliothèque</p>
+          <a
+            href="/auth/signin"
+            className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-6 py-3 rounded-lg font-medium transition-all"
+          >
+            Se connecter
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-6xl mx-auto">
-      {/* Header */}
+          {/* Header */}
           <div className="mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
-              <Music size={28} className="text-purple-400" />
+            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] flex items-center gap-3 mb-2">
+              <Music size={28} className="text-[var(--color-primary)]" />
               Ma Bibliothèque
             </h1>
-            <p className="text-white/60 text-lg">Vos playlists, écoutes récentes et favoris.</p>
+            <p className="text-[var(--text-muted)] text-lg">Vos playlists, écoutes récentes et favoris.</p>
           </div>
           
           {/* Barre de recherche et contrôles */}
-          <div className="glass-effect rounded-xl p-6 mb-8">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Barre de recherche */}
               <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/60" size={20} />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" size={20} />
                 <input
                   type="text"
                   placeholder="Rechercher dans votre bibliothèque..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white/10 rounded-xl border border-white/20 focus:border-purple-400 focus:outline-none text-white placeholder-white/60"
+                  className="w-full pl-10 pr-4 py-3 bg-[var(--bg)] rounded-xl border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
                 />
               </div>
 
               {/* Contrôles */}
               <div className="flex items-center space-x-3">
                 {/* Bouton vue */}
-                <div className="flex bg-white/10 rounded-lg p-1">
+                <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('grid')}
                     className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'grid' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'
+                      viewMode === 'grid' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                     }`}
                   >
                     <Grid size={16} />
@@ -373,7 +481,7 @@ export default function LibraryPage() {
                   <button
                     onClick={() => setViewMode('list')}
                     className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'list' ? 'bg-white/20 text-white' : 'text-white/60 hover:text-white'
+                      viewMode === 'list' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                     }`}
                   >
                     <List size={16} />
@@ -384,7 +492,7 @@ export default function LibraryPage() {
                 {activeTab === 'playlists' && (
                   <button
                     onClick={() => setShowCreatePlaylist(true)}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                    className="flex items-center space-x-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-4 py-2 rounded-full font-medium transition-all"
                   >
                     <Plus size={16} />
                     <span>Nouvelle playlist</span>
@@ -395,47 +503,47 @@ export default function LibraryPage() {
           </div>
           
           {/* Onglets */}
-          <div className="glass-effect rounded-xl p-6 mb-8">
-          <div className="flex space-x-1 bg-white/10 rounded-xl p-1">
-            <button
-              onClick={() => setActiveTab('playlists')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'playlists'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              <Music size={16} className="inline mr-2" />
-              Playlists
-            </button>
-            <button
-              onClick={() => setActiveTab('recent')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'recent'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              <Clock size={16} className="inline mr-2" />
-              Récent
-            </button>
-            <button
-              onClick={() => setActiveTab('favorites')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'favorites'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'text-white/60 hover:text-white/80'
-              }`}
-            >
-              <Heart size={16} className="inline mr-2" />
-              Favoris
-            </button>
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 mb-8">
+            <div className="flex space-x-1 bg-[var(--surface-2)] rounded-xl p-1">
+              <button
+                onClick={() => setActiveTab('playlists')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'playlists'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                <Music size={16} className="inline mr-2" />
+                Playlists
+              </button>
+              <button
+                onClick={() => setActiveTab('recent')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'recent'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                <Clock size={16} className="inline mr-2" />
+                Récent
+              </button>
+              <button
+                onClick={() => setActiveTab('favorites')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'favorites'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                <Heart size={16} className="inline mr-2" />
+                Favoris
+              </button>
               <button
                 onClick={() => setActiveTab('downloads')}
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   activeTab === 'downloads'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                    : 'text-white/60 hover:text-white/80'
+                    ? 'bg-[var(--color-primary)] text-white'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
               >
                 <Download size={16} className="inline mr-2" />
@@ -457,7 +565,7 @@ export default function LibraryPage() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="glass-effect rounded-xl p-6 w-full max-w-md"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">Créer une playlist</h3>
@@ -471,24 +579,24 @@ export default function LibraryPage() {
 
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-white/80 mb-2">Nom</label>
+                      <label className="block text-sm font-medium text-[var(--text)] mb-2">Nom</label>
                       <input
                         type="text"
                         value={newPlaylist.name}
                         onChange={(e) => setNewPlaylist(prev => ({ ...prev, name: e.target.value }))}
                         placeholder="Nom de la playlist"
-                        className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none"
+                        className="w-full px-3 py-2 bg-[var(--bg)] rounded-lg text-[var(--text)] border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-white/80 mb-2">Description</label>
+                      <label className="block text-sm font-medium text-[var(--text)] mb-2">Description</label>
                       <textarea
                         value={newPlaylist.description}
                         onChange={(e) => setNewPlaylist(prev => ({ ...prev, description: e.target.value }))}
                         placeholder="Description (optionnel)"
                         rows={3}
-                        className="w-full px-3 py-2 bg-white/10 rounded-lg text-white border border-white/20 focus:border-purple-400 focus:outline-none resize-none"
+                        className="w-full px-3 py-2 bg-[var(--bg)] rounded-lg text-[var(--text)] border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none resize-none"
                       />
                     </div>
 
@@ -498,7 +606,7 @@ export default function LibraryPage() {
                         className={`flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors ${
                           newPlaylist.isPublic 
                             ? 'bg-green-500/20 text-green-400' 
-                            : 'bg-white/10 text-white/60'
+                            : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
                         }`}
                       >
                         {newPlaylist.isPublic ? <Eye size={16} /> : <EyeOff size={16} />}
@@ -511,14 +619,14 @@ export default function LibraryPage() {
                     <div className="flex space-x-3 pt-4">
                       <button
                         onClick={() => setShowCreatePlaylist(false)}
-                        className="flex-1 py-2 px-4 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-colors"
+                        className="flex-1 py-2 px-4 bg-[var(--surface-2)] rounded-lg text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
                       >
                         Annuler
                       </button>
                       <button
                         onClick={createPlaylist}
                         disabled={!newPlaylist.name.trim() || actionLoading}
-                        className="flex-1 py-2 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex-1 py-2 px-4 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {actionLoading ? 'Création...' : 'Créer'}
                       </button>
@@ -542,7 +650,7 @@ export default function LibraryPage() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="glass-effect rounded-xl p-6 w-full max-w-md max-h-96 overflow-y-auto"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md max-h-96 overflow-y-auto"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">Ajouter à une playlist</h3>
@@ -557,8 +665,8 @@ export default function LibraryPage() {
                   <div className="space-y-2">
                     {playlists.map((playlist) => (
                       <button
-                        key={playlist._id}
-                        onClick={() => addTrackToPlaylist(playlist._id, showAddToPlaylist!)}
+                                        key={playlist._id}
+                onClick={() => addTrackToPlaylist(playlist._id, showAddToPlaylist!)}
                         disabled={actionLoading}
                         className="w-full flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
                       >
@@ -581,7 +689,7 @@ export default function LibraryPage() {
           </AnimatePresence>
 
           {/* Contenu des onglets */}
-          <div className="glass-effect rounded-xl p-6">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
           <AnimatePresence mode="wait">
             {activeTab === 'playlists' && (
               <motion.div
@@ -625,14 +733,14 @@ export default function LibraryPage() {
                     <div className="flex items-center space-x-4 mb-6">
                       <button
                           onClick={() => playPlaylist(currentPlaylist!)}
-                          className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:from-purple-700 hover:to-pink-700 transition-all"
+                          className="w-12 h-12 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-full flex items-center justify-center transition-all"
                       >
                           <Play size={20} />
                       </button>
-                      <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                      <button className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors">
                         <Shuffle size={20} />
                       </button>
-                      <button className="p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors">
+                      <button className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-colors">
                         <Repeat size={20} />
                       </button>
                     </div>
@@ -695,10 +803,10 @@ export default function LibraryPage() {
                           {!searchQuery && (
                             <button
                               onClick={() => setShowCreatePlaylist(true)}
-                              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
+                              className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-6 py-3 rounded-full font-medium transition-all"
                             >
-                          Créer une playlist
-                        </button>
+                              Créer une playlist
+                            </button>
                           )}
                       </div>
                     ) : (
@@ -818,13 +926,7 @@ export default function LibraryPage() {
                             {formatDuration(track.duration)}
                           </span>
                           <span className="text-white/40 text-xs">
-                            <AnimatedPlaysCounter
-                      value={track.plays}
-                      size="sm"
-                      variant="minimal"
-                      animation="slide"
-                      className="text-white/60"
-                    /> écoutes
+                            {formatNumber(track.plays)} écoutes
                           </span>
                         </div>
                       </motion.div>
@@ -851,12 +953,12 @@ export default function LibraryPage() {
                         {searchQuery ? 'Aucun résultat trouvé' : 'Aucun favori pour le moment'}
                       </p>
                       {!searchQuery && (
-                    <a
-                      href="/discover"
-                          className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                    >
-                      Découvrir de la musique
-                    </a>
+                                          <a
+                        href="/discover"
+                        className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-6 py-3 rounded-full font-medium transition-all"
+                      >
+                        Découvrir de la musique
+                      </a>
                       )}
                   </div>
                 ) : (

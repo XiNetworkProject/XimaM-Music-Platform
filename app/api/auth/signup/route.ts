@@ -1,12 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { hash } from 'bcryptjs';
-import dbConnect from '@/lib/db';
-import User from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
-
     const { name, username, email, password } = await request.json();
 
     // Validation des données
@@ -53,8 +49,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si l'email existe déjà
-    const existingEmail = await User.findOne({ email: email.trim().toLowerCase() });
-    if (existingEmail) {
+    const { data: existingEmail, error: emailError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email.trim().toLowerCase())
+      .single();
+
+    if (existingEmail && !emailError) {
       return NextResponse.json(
         { error: 'Un compte avec cet email existe déjà' },
         { status: 409 }
@@ -62,40 +63,70 @@ export async function POST(request: NextRequest) {
     }
 
     // Vérifier si le nom d'utilisateur existe déjà
-    const existingUsername = await User.findOne({ username: username.trim().toLowerCase() });
-    if (existingUsername) {
+    const { data: existingUsername, error: usernameError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', username.trim().toLowerCase())
+      .single();
+
+    if (existingUsername && !usernameError) {
       return NextResponse.json(
         { error: 'Ce nom d\'utilisateur est déjà pris' },
         { status: 409 }
       );
     }
 
-    // Hacher le mot de passe
-    const hashedPassword = await hash(password, 12);
-
-    // Créer le nouvel utilisateur
-    const newUser = new User({
-      name: name.trim(),
-      username: username.trim().toLowerCase(),
+    // Créer l'utilisateur dans Supabase Auth
+    const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
       email: email.trim().toLowerCase(),
-      password: hashedPassword,
-      provider: 'local',
-      isVerified: true, // Pour l'instant, on considère tous les utilisateurs comme vérifiés
-      role: 'user',
+      password: password,
+      email_confirm: true
     });
 
-    await newUser.save();
+    if (authError || !user) {
+      console.error('❌ Erreur lors de la création de l\'utilisateur Supabase:', authError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la création du compte' },
+        { status: 500 }
+      );
+    }
 
-    console.log('✅ Nouvel utilisateur créé:', newUser.username);
+    // Créer le profil dans la table profiles
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: user.id,
+        name: name.trim(),
+        username: username.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
+        is_verified: true,
+        role: 'user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (profileError) {
+      console.error('❌ Erreur lors de la création du profil:', profileError);
+      // Supprimer l'utilisateur créé si le profil échoue
+      await supabase.auth.admin.deleteUser(user.id);
+      return NextResponse.json(
+        { error: 'Erreur lors de la création du profil' },
+        { status: 500 }
+      );
+    }
+
+    console.log('✅ Nouvel utilisateur créé:', profile.username);
 
     return NextResponse.json(
       { 
         message: 'Compte créé avec succès',
         user: {
-          id: newUser._id,
-          name: newUser.name,
-          username: newUser.username,
-          email: newUser.email
+          id: profile.id,
+          name: profile.name,
+          username: profile.username,
+          email: profile.email
         }
       },
       { status: 201 }
@@ -104,22 +135,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('❌ Erreur lors de l\'inscription:', error);
     
-    // Gestion des erreurs MongoDB
-    if (error instanceof Error && error.message.includes('duplicate key')) {
-      if (error.message.includes('email')) {
-        return NextResponse.json(
-          { error: 'Un compte avec cet email existe déjà' },
-          { status: 409 }
-        );
-      }
-      if (error.message.includes('username')) {
-        return NextResponse.json(
-          { error: 'Ce nom d\'utilisateur est déjà pris' },
-          { status: 409 }
-        );
-      }
-    }
-
     return NextResponse.json(
       { error: 'Erreur interne du serveur' },
       { status: 500 }

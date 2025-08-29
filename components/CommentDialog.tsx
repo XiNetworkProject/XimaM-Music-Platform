@@ -12,22 +12,23 @@ import CreatorModerationActions from './CreatorModerationActions';
 import CreatorFilterManager from './CreatorFilterManager';
 
 interface Comment {
-  _id: string;
+  id: string;
   user: {
-    _id: string;
+    id: string;
     name: string;
     username: string;
     avatar?: string;
   };
   content: string;
-  likes: string[];
+  likes: string[]; // Tableau vide pour compatibilité MongoDB
+  likesCount: number; // Compteur réel des likes Supabase
   replies?: Comment[];
   isDeleted?: boolean;
   isCreatorFavorite?: boolean;
   customFiltered?: boolean;
   customFilterReason?: string;
   createdAt: string;
-  updatedAt: string;
+  updatedAt?: string;
 }
 
 interface CommentDialogProps {
@@ -70,6 +71,12 @@ export default function CommentDialog({
   // Vérifier si l'utilisateur est le créateur
   useEffect(() => {
     if (session?.user?.id && trackId) {
+      // Ne pas vérifier le statut de créateur pour la radio
+      if (trackId === 'radio-mixx-party') {
+        setIsCreator(false);
+        return;
+      }
+      
       // Vérifier si l'utilisateur est le créateur de la piste
       const checkCreatorStatus = async () => {
         try {
@@ -91,6 +98,14 @@ export default function CommentDialog({
   // Charger les commentaires avec modération
   const loadComments = async () => {
     try {
+      // Ne pas charger les commentaires pour la radio
+      if (trackId === 'radio-mixx-party') {
+        setComments([]);
+        setModerationStats(null);
+        setPermissions(null);
+        return;
+      }
+      
       const params = new URLSearchParams();
       if (isCreator) {
         params.append('includeDeleted', includeDeleted.toString());
@@ -188,7 +203,7 @@ export default function CommentDialog({
       if (response.ok) {
         const { reply } = await response.json();
         setComments(prev => prev.map(comment => 
-          comment._id === commentId 
+          comment.id === commentId 
             ? { ...comment, replies: [...(comment.replies || []), reply] }
             : comment
         ));
@@ -216,7 +231,7 @@ export default function CommentDialog({
       if (response.ok) {
         const { comment } = await response.json();
         setComments(prev => prev.map(c => 
-          c._id === commentId ? comment : c
+          c.id === commentId ? comment : c
         ));
         setEditingComment(null);
         setEditContent('');
@@ -238,7 +253,7 @@ export default function CommentDialog({
       });
 
       if (response.ok) {
-        setComments(prev => prev.filter(c => c._id !== commentId));
+        setComments(prev => prev.filter(c => c.id !== commentId));
       }
     } catch (error) {
       console.error('Erreur suppression commentaire:', error);
@@ -286,12 +301,10 @@ export default function CommentDialog({
         
         // Mettre à jour l'état local optimistiquement
         setComments(prev => prev.map(comment => 
-          comment._id === commentId 
+          comment.id === commentId 
             ? { 
                 ...comment, 
-                likes: isLiked 
-                  ? [...comment.likes, session.user.id]
-                  : comment.likes.filter(id => id !== session.user.id)
+                likesCount: likesCount
               }
             : comment
         ));
@@ -435,9 +448,9 @@ export default function CommentDialog({
         {/* Liste des commentaires */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <AnimatePresence>
-            {comments.map((comment, index) => (
-              <motion.div
-                key={comment._id}
+                            {comments.map((comment, index) => (
+                  <motion.div
+                    key={comment.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
@@ -489,7 +502,7 @@ export default function CommentDialog({
                     </div>
                     
                     {/* Contenu du commentaire */}
-                    {editingComment === comment._id ? (
+                    {editingComment === comment.id ? (
                       <div className="space-y-2">
                         <textarea
                           value={editContent}
@@ -499,7 +512,7 @@ export default function CommentDialog({
                         />
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleEditComment(comment._id)}
+                            onClick={() => handleEditComment(comment.id)}
                             className="px-3 py-1 bg-blue-500 text-white rounded text-sm hover:bg-blue-600"
                           >
                             Sauvegarder
@@ -526,20 +539,20 @@ export default function CommentDialog({
                       <div className="flex items-center gap-4">
                         {/* Like */}
                         <button
-                          onClick={() => handleLikeComment(comment._id)}
+                          onClick={() => handleLikeComment(comment.id)}
                           className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors ${
-                            comment.likes.includes(session?.user?.id || '')
+                            false // Temporairement désactivé car likes est un tableau vide
                               ? 'bg-red-500 text-white'
                               : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                           }`}
                         >
-                          <Heart className={`w-4 h-4 ${comment.likes.includes(session?.user?.id || '') ? 'fill-current' : ''}`} />
-                          <span className="text-sm">{comment.likes.length}</span>
+                          <Heart className={`w-4 h-4 ${false ? 'fill-current' : ''}`} />
+                          <span className="text-sm">{comment.likesCount || 0}</span>
                         </button>
 
                         {/* Répondre */}
                         <button
-                          onClick={() => setReplyTo(replyTo === comment._id ? null : comment._id)}
+                          onClick={() => setReplyTo(replyTo === comment.id ? null : comment.id)}
                           className="flex items-center gap-1 px-2 py-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400 transition-colors"
                         >
                           <Reply className="w-4 h-4" />
@@ -547,11 +560,11 @@ export default function CommentDialog({
                         </button>
 
                         {/* Actions utilisateur */}
-                        {session?.user?.id === comment.user._id && !comment.isDeleted && (
+                        {session?.user?.id === comment.user.id && !comment.isDeleted && (
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => {
-                                setEditingComment(comment._id);
+                                setEditingComment(comment.id);
                                 setEditContent(comment.content);
                               }}
                               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
@@ -559,7 +572,7 @@ export default function CommentDialog({
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDeleteComment(comment._id)}
+                              onClick={() => handleDeleteComment(comment.id)}
                               className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors text-red-500"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -570,7 +583,7 @@ export default function CommentDialog({
                         {/* Actions créateur */}
                         {isCreator && (
                           <CreatorModerationActions
-                            commentId={comment._id}
+                            commentId={comment.id}
                             trackId={trackId}
                             isCreator={isCreator}
                             isCreatorFavorite={comment.isCreatorFavorite || false}
@@ -583,7 +596,7 @@ export default function CommentDialog({
                     </div>
 
                     {/* Zone de réponse */}
-                    {replyTo === comment._id && (
+                    {replyTo === comment.id && (
                       <div className="mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg">
                         <div className="flex gap-2">
                           <textarea
@@ -594,7 +607,7 @@ export default function CommentDialog({
                             rows={2}
                           />
                           <button
-                            onClick={() => handleSubmitReply(comment._id)}
+                            onClick={() => handleSubmitReply(comment.id)}
                             disabled={!replyContent.trim() || isSubmitting}
                             className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
@@ -608,7 +621,7 @@ export default function CommentDialog({
                     {comment.replies && comment.replies.length > 0 && (
                       <div className="mt-4 space-y-3">
                         {comment.replies.map((reply) => (
-                          <div key={reply._id} className="ml-6 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
+                          <div key={reply.id} className="ml-6 p-3 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                             <div className="flex items-center gap-2 mb-2">
                               <span className="font-semibold text-sm">{reply.user?.name || reply.user?.username}</span>
                               <span className="text-gray-500 text-xs">@{reply.user.username}</span>

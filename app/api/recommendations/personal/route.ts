@@ -1,138 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
-import User from '@/models/User';
-import { RecommendationEngine } from '@/lib/recommendationEngine';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email) {
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '20');
+
+    // Récupérer les pistes récentes comme recommandations simples
+    const { data: tracks, error } = await supabase
+      .from('tracks')
+      .select(`
+        *,
+        profiles!tracks_creator_id_fkey (
+          id,
+          username,
+          name,
+          avatar,
+          is_artist,
+          artist_name
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('❌ Erreur Supabase recommendations:', error);
       return NextResponse.json(
-        { error: 'Utilisateur non connecté' },
-        { status: 401 }
+        { error: 'Erreur lors de la récupération des recommandations' },
+        { status: 500 }
       );
     }
 
-    await dbConnect();
-
-    // Récupérer l'utilisateur et ses préférences
-    const user = await User.findOne({ email: session.user.email });
-    if (!user) {
-      return NextResponse.json(
-        { error: 'Utilisateur non trouvé' },
-        { status: 404 }
-      );
-    }
-
-    // Récupérer toutes les pistes pour l'algorithme
-    const allTracks = await Track.find()
-      .populate('artist', 'name username avatar')
-      .lean() as any[];
-
-    // Récupérer les pistes que l'utilisateur a aimées
-    const likedTracks = await Track.find({
-      likes: user._id
-    }).populate('artist', 'name username avatar') as any[];
-
-    // Utiliser le moteur de recommandations amélioré
-    const personalRecommendations = RecommendationEngine.getPersonalRecommendations(
-      allTracks,
-      likedTracks,
-      15
-    );
-
-    // Diversifier les recommandations
-    const diversifiedRecommendations = RecommendationEngine.diversifyRecommendations(
-      personalRecommendations,
-      3
-    );
-
-    // Analyser les préférences utilisateur
-    const userPreferences = RecommendationEngine.analyzeUserPreferences(likedTracks);
-
-    // Créer les cartes de recommandations avec des métriques détaillées
-    const recommendations = [
-      {
-        type: 'Basé sur vos goûts',
-        title: 'Artistes similaires',
-        description: `Découvrez des artistes dans vos genres préférés: ${Object.keys(userPreferences.genres).slice(0, 2).join(', ')}`,
-        confidence: '92%',
-        color: 'from-purple-500 to-pink-500',
-        icon: 'UserPlus',
-        tracks: diversifiedRecommendations.slice(0, 3),
-        metrics: {
-          totalLiked: userPreferences.totalTracks,
-          topGenres: Object.keys(userPreferences.genres).slice(0, 3),
-          avgPlays: Math.round(userPreferences.avgPlays)
-        }
+    // Transformer les données pour correspondre au format attendu
+    const formattedTracks = tracks?.map(track => ({
+      _id: track.id,
+      title: track.title,
+      artist: {
+        _id: track.creator_id,
+        username: track.profiles?.username,
+        name: track.profiles?.name,
+        avatar: track.profiles?.avatar,
+        isArtist: track.profiles?.is_artist,
+        artistName: track.profiles?.artist_name
       },
-      {
-        type: 'Nouveautés populaires',
-        title: 'Tendances du moment',
-        description: 'Les créations les plus écoutées cette semaine',
-        confidence: '88%',
-        color: 'from-blue-500 to-cyan-500',
-        icon: 'TrendingUp',
-        tracks: RecommendationEngine.getTrendingTracks(allTracks, 3),
-        metrics: {
-          algorithm: 'trending_v2',
-          factors: ['récence', 'engagement', 'qualité']
-        }
-      },
-      {
-        type: 'Recommandations personnalisées',
-        title: 'Pour vous',
-        description: 'Basé sur votre historique d\'écoute',
-        confidence: '95%',
-        color: 'from-green-500 to-emerald-500',
-        icon: 'Sparkles',
-        tracks: diversifiedRecommendations.slice(3, 6),
-        metrics: {
-          analyzedTracks: userPreferences.totalTracks,
-          favoriteArtist: likedTracks[0]?.artist?.name || 'Aucun',
-          avgLikes: Math.round(userPreferences.avgLikes)
-        }
-      }
-    ];
+      duration: track.duration,
+      coverUrl: track.cover_url,
+      audioUrl: track.audio_url,
+      genre: track.genre,
+      likes: track.likes || [],
+      plays: track.plays || 0,
+      createdAt: track.created_at,
+      isFeatured: track.is_featured,
+      isVerified: track.profiles?.is_verified || false
+    })) || [];
 
-    // Log des recommandations pour debug
-    console.log('🎯 Recommandations personnalisées:', {
-      user: user.email,
-      totalLiked: userPreferences.totalTracks,
-      topGenres: Object.keys(userPreferences.genres).slice(0, 3),
-      recommendationsCount: diversifiedRecommendations.length,
-      algorithm: 'personal_v2'
-    });
+    console.log(`✅ ${formattedTracks.length} recommandations personnalisées récupérées`);
+    return NextResponse.json({ tracks: formattedTracks });
 
-    return NextResponse.json({ 
-      recommendations,
-      userPreferences: {
-        topGenres: Object.keys(userPreferences.genres).slice(0, 5),
-        totalLiked: userPreferences.totalTracks,
-        favoriteArtist: likedTracks[0]?.artist?.name || 'Aucun',
-        avgPlays: Math.round(userPreferences.avgPlays),
-        avgLikes: Math.round(userPreferences.avgLikes),
-        analyzedTracks: likedTracks.length
-      },
-      algorithm: 'personal_v2',
-      factors: {
-        genreMatch: 'poids 10',
-        artistMatch: 'poids 15',
-        recency: 'poids 5',
-        popularity: 'poids 3',
-        engagement: 'poids 4',
-        quality: 'poids 2'
-      }
-    });
   } catch (error) {
-    console.error('Erreur recommandations:', error);
+    console.error('❌ Erreur serveur recommendations:', error);
     return NextResponse.json(
-      { error: 'Erreur lors du chargement des recommandations' },
+      { error: 'Erreur serveur interne' },
       { status: 500 }
     );
   }
-} 
+}

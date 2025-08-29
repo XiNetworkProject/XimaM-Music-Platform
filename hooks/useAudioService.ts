@@ -1136,7 +1136,7 @@ export const useAudioService = () => {
           // Essayer une autre piste en cas d'erreur
           const availableTracks = allTracks.filter(track => 
             track._id !== state.currentTrack?._id && 
-            track._id !== autoPlayNextTrack._id
+            track._id !== autoPlayNextTrack?._id
           );
           if (availableTracks.length > 0) {
             const fallbackTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];

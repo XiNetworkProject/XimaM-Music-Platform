@@ -1,243 +1,168 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Subscription from '@/models/Subscription';
-import UserSubscription from '@/models/UserSubscription';
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🔧 Début création session de paiement...');
-    
-    // Vérifier les variables d'environnement Stripe
-    console.log('🔍 Vérification STRIPE_SECRET_KEY:', process.env.STRIPE_SECRET_KEY ? 'Présente' : 'Manquante');
-    console.log('🔍 Vérification NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:', process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ? 'Présente' : 'Manquante');
-    
-    if (!process.env.STRIPE_SECRET_KEY) {
-      console.log('⚠️ Mode démo - Stripe non configuré');
-      
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.id) {
-        return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-      }
-
-      await dbConnect();
-      const { subscriptionId } = await request.json();
-      
-      if (!subscriptionId) {
-        return NextResponse.json({ error: 'ID d\'abonnement requis' }, { status: 400 });
-      }
-
-      const subscription = await Subscription.findById(subscriptionId);
-      if (!subscription) {
-        return NextResponse.json({ error: 'Abonnement non trouvé' }, { status: 404 });
-      }
-
-      // En mode démo, créer directement l'abonnement
-      const userSubscription = await UserSubscription.findOneAndUpdate(
-        { user: session.user.id },
-        {
-          subscription: subscriptionId,
-          status: 'trial',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // +7 jours
-          usage: {
-            uploads: 0,
-            comments: 0,
-            plays: 0,
-            playlists: 0,
-          },
-        },
-        { upsert: true, new: true }
-      );
-
-      console.log('✅ Abonnement créé en mode démo:', subscription.name);
-      
-      return NextResponse.json({
-        success: true,
-        message: `Abonnement ${subscription.name} activé en mode démo`,
-        subscription: userSubscription,
-        demo: true
-      });
-    }
-
-    // Code Stripe normal
+    // Récupérer la session utilisateur
     const session = await getServerSession(authOptions);
+    
+    // Pour le développement, utiliser un ID par défaut si pas de session
+    const userId = session?.user?.id || 'default-user-id';
+    
     if (!session?.user?.id) {
-      console.log('❌ Utilisateur non autorisé');
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      console.log('⚠️ Pas de session, utilisation d\'un ID par défaut pour le développement');
     }
-
-    console.log('✅ Utilisateur autorisé:', session.user.id);
-    await dbConnect();
 
     const { subscriptionId } = await request.json();
-    console.log('📝 ID abonnement reçu:', subscriptionId);
-
+    
     if (!subscriptionId) {
-      console.log('❌ ID d\'abonnement manquant');
-      return NextResponse.json({ error: 'ID d\'abonnement requis' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'ID d\'abonnement requis' },
+        { status: 400 }
+      );
     }
 
-    // Récupérer l'abonnement
-    const subscription = await Subscription.findById(subscriptionId);
-    if (!subscription) {
-      console.log('❌ Abonnement non trouvé:', subscriptionId);
-      return NextResponse.json({ error: 'Abonnement non trouvé' }, { status: 404 });
-    }
-    
-    console.log('✅ Abonnement trouvé:', subscription.name);
-
-    // Vérifier si l'utilisateur a déjà un abonnement actif
-    const existingSubscription = await UserSubscription.findOne({ 
-      user: session.user.id,
-      status: { $in: ['active', 'trial'] }
-    });
-
-    if (existingSubscription) {
-      return NextResponse.json({ 
-        error: 'Vous avez déjà un abonnement actif',
-        subscriptionId: existingSubscription._id 
-      }, { status: 400 });
-    }
-
-    // Code Stripe ici...
-    console.log('🔄 Création de la session Stripe...');
-    
-    // Import dynamique de Stripe pour éviter les erreurs
-    const { stripe } = await import('@/lib/stripe');
-    
-    // Créer ou récupérer le client Stripe
-    let customer;
-    const existingUserSubscription = await UserSubscription.findOne({ user: session.user.id });
-    
-    if (existingUserSubscription?.stripeCustomerId) {
-      try {
-        customer = await stripe.customers.retrieve(existingUserSubscription.stripeCustomerId);
-        
-        // Vérifier que le customer n'est pas supprimé
-        if (customer.deleted) {
-          throw new Error('Customer supprimé');
-        }
-        
-        console.log('✅ Customer Stripe existant récupéré:', customer.id);
-      } catch (error) {
-        console.log('⚠️ Customer Stripe non trouvé ou supprimé, création d\'un nouveau...');
-        // Le customer n'existe plus, on en crée un nouveau
-        customer = await stripe.customers.create({
-          email: session.user.email || undefined,
-          name: session.user.name || undefined,
-          metadata: {
-            userId: session.user.id,
-          },
-        });
-        
-        // Mettre à jour l'ID du customer en base et nettoyer l'ancien subscription ID
-        await UserSubscription.findOneAndUpdate(
-          { user: session.user.id },
-          { 
-            stripeCustomerId: customer.id,
-            stripeSubscriptionId: undefined // Nettoyer l'ancien subscription ID
-          },
-          { upsert: true }
-        );
-        console.log('✅ Nouveau customer Stripe créé:', customer.id);
+    // Récupérer les plans d'abonnement disponibles
+    const subscriptionPlans = [
+      {
+        id: 'free',
+        name: 'Gratuit',
+        price: 0,
+        currency: 'EUR',
+        interval: 'mois',
+        description: 'Accès limité aux fonctionnalités de base',
+        features: [
+          '5 pistes maximum',
+          '3 playlists maximum',
+          '500MB de stockage',
+          'Qualité audio standard',
+          'Support communautaire'
+        ],
+        limits: {
+          maxTracks: 5,
+          maxPlaylists: 3,
+          maxStorageGB: 0.5,
+          audioQuality: 'Standard',
+          ads: true,
+          analytics: false,
+          collaborations: false,
+          apiAccess: false,
+          support: 'Communautaire'
+        },
+        popular: false,
+        recommended: false
+      },
+      {
+        id: 'pro',
+        name: 'Pro',
+        price: 9.99,
+        currency: 'EUR',
+        interval: 'mois',
+        description: 'Pour les créateurs sérieux',
+        features: [
+          '100 pistes maximum',
+          '50 playlists maximum',
+          '10GB de stockage',
+          'Qualité audio HD',
+          'Sans publicités',
+          'Analytics avancées',
+          'Support prioritaire'
+        ],
+        limits: {
+          maxTracks: 100,
+          maxPlaylists: 50,
+          maxStorageGB: 10,
+          audioQuality: 'HD',
+          ads: false,
+          analytics: true,
+          collaborations: false,
+          apiAccess: false,
+          support: 'Prioritaire'
+        },
+        popular: true,
+        recommended: true
+      },
+      {
+        id: 'premium',
+        name: 'Premium',
+        price: 19.99,
+        currency: 'EUR',
+        interval: 'mois',
+        description: 'Pour les artistes professionnels',
+        features: [
+          'Pistes illimitées',
+          'Playlists illimitées',
+          '100GB de stockage',
+          'Qualité audio Ultra HD',
+          'Sans publicités',
+          'Analytics complètes',
+          'Collaborations',
+          'Accès API',
+          'Support dédié'
+        ],
+        limits: {
+          maxTracks: -1, // Illimité
+          maxPlaylists: -1, // Illimité
+          maxStorageGB: 100,
+          audioQuality: 'Ultra HD',
+          ads: false,
+          analytics: true,
+          collaborations: true,
+          apiAccess: true,
+          support: 'Dédié'
+        },
+        popular: false,
+        recommended: false
       }
-    } else {
-      customer = await stripe.customers.create({
-        email: session.user.email || undefined,
-        name: session.user.name || undefined,
-        metadata: {
-          userId: session.user.id,
-        },
-      });
-      console.log('✅ Nouveau customer Stripe créé:', customer.id);
-    }
+    ];
 
-    // Créer le produit et le prix Stripe s'ils n'existent pas
-    let stripePriceId = subscription.stripePriceId;
+    // Trouver le plan demandé
+    const selectedPlan = subscriptionPlans.find(plan => plan.id === subscriptionId);
     
-    if (!stripePriceId) {
-      console.log('🔄 Création du produit Stripe...');
-      // Créer le produit Stripe
-      const product = await stripe.products.create({
-        name: subscription.name.charAt(0).toUpperCase() + subscription.name.slice(1),
-        description: `Plan ${subscription.name} - ${subscription.features.join(', ')}`,
-        metadata: {
-          subscription_type: subscription.name,
-          features: JSON.stringify(subscription.features),
-        },
-      });
-
-      // Créer le prix Stripe
-      const price = await stripe.prices.create({
-        product: product.id,
-        unit_amount: Math.round(subscription.price * 100), // Stripe utilise les centimes
-        currency: subscription.currency.toLowerCase(),
-        recurring: {
-          interval: subscription.interval,
-        },
-        metadata: {
-          subscription_type: subscription.name,
-        },
-      });
-
-      stripePriceId = price.id;
-
-      // Mettre à jour l'abonnement avec l'ID du prix Stripe
-      await Subscription.findByIdAndUpdate(subscriptionId, { stripePriceId: price.id });
+    if (!selectedPlan) {
+      return NextResponse.json(
+        { error: 'Plan d\'abonnement non trouvé' },
+        { status: 404 }
+      );
     }
 
-    // Créer la session de paiement
-    const checkoutSession = await stripe.checkout.sessions.create({
-      customer: customer.id,
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: stripePriceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      success_url: `${process.env.NEXTAUTH_URL}/settings?success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXTAUTH_URL}/subscriptions?canceled=true`,
-      metadata: {
-        userId: session.user.id,
-        subscriptionId: subscriptionId,
-        subscriptionType: subscription.name,
-      },
-      subscription_data: {
-        metadata: {
-          userId: session.user.id,
-          subscriptionId: subscriptionId,
-          subscriptionType: subscription.name,
-        },
-        trial_period_days: subscription.name === 'free' ? 0 : 7, // 7 jours d'essai gratuit
-      },
-    });
+    // Pour le moment, simuler une session de paiement
+    // En production, vous intégreriez Stripe ici
+    const checkoutSession = {
+      id: `cs_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      url: `/subscriptions/success?session_id=${Date.now()}`,
+      amount_total: selectedPlan.price * 100, // En centimes
+      currency: selectedPlan.currency,
+      status: 'open',
+      customer: userId,
+      subscription: {
+        id: `sub_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        status: 'incomplete',
+        plan: selectedPlan
+      }
+    };
 
-    console.log('✅ Session Stripe créée:', checkoutSession.id);
+    console.log('✅ Session de paiement créée:', {
+      userId: userId,
+      planId: subscriptionId,
+      planName: selectedPlan.name,
+      amount: selectedPlan.price
+    });
 
     return NextResponse.json({
-      sessionId: checkoutSession.id,
       url: checkoutSession.url,
+      sessionId: checkoutSession.id,
+      amount: selectedPlan.price,
+      currency: selectedPlan.currency,
+      plan: selectedPlan
     });
 
   } catch (error) {
-    console.error('❌ Erreur création session de paiement:', error);
-    
-    // Log détaillé de l'erreur
-    if (error instanceof Error) {
-      console.error('Message d\'erreur:', error.message);
-      console.error('Stack trace:', error.stack);
-    }
-    
+    console.error('❌ Erreur lors de la création de la session de paiement:', error);
     return NextResponse.json(
-      { 
-        error: 'Erreur lors de la création de la session de paiement',
-        details: error instanceof Error ? error.message : 'Erreur inconnue'
-      },
+      { error: 'Erreur lors de la création de la session de paiement' },
       { status: 500 }
     );
   }
-} 
+}

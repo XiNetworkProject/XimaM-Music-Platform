@@ -11,50 +11,43 @@ import {
 import BottomNav from '@/components/BottomNav';
 
 interface Subscription {
-  _id: string;
+  id: string;
   name: string;
   price: number;
   currency: string;
   interval: string;
+  description: string;
+  features: string[];
   limits: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
-    quality: string;
+    maxTracks: number;
+    maxPlaylists: number;
+    maxStorageGB: number;
+    audioQuality: string;
     ads: boolean;
-    analytics: string;
+    analytics: boolean;
     collaborations: boolean;
     apiAccess: boolean;
     support: string;
   };
-  features: string[];
+  popular: boolean;
+  recommended: boolean;
 }
 
 interface UsageInfo {
-  current: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
+  tracks: {
+    used: number;
+    limit: number;
+    percentage: number;
   };
-  limits: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
+  playlists: {
+    used: number;
+    limit: number;
+    percentage: number;
   };
-  remaining: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
-  };
-  percentage: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
+  storage: {
+    used: number;
+    limit: number;
+    percentage: number;
   };
 }
 
@@ -122,18 +115,27 @@ export default function SubscriptionPlans() {
       
       if (response.ok) {
         const data = await response.json();
-        if (Array.isArray(data)) {
-          const validSubscriptions = data.filter(sub => sub && sub.name && sub.limits);
-          console.log('Abonnements valides:', validSubscriptions.length, 'sur', data.length);
+        console.log('📊 Données reçues de l\'API:', data);
+        
+        // Vérifier si on a un objet avec une propriété 'plans'
+        if (data && data.plans && Array.isArray(data.plans)) {
+          const validSubscriptions = data.plans.filter((sub: any) => sub && sub.name && sub.limits);
+          console.log('✅ Abonnements valides:', validSubscriptions.length, 'sur', data.plans.length);
+          setSubscriptions(validSubscriptions);
+        } else if (Array.isArray(data)) {
+          // Fallback pour l'ancien format
+          const validSubscriptions = data.filter((sub: any) => sub && sub.name && sub.limits);
+          console.log('✅ Abonnements valides (format legacy):', validSubscriptions.length, 'sur', data.length);
           setSubscriptions(validSubscriptions);
         } else {
-          console.error('Données invalides reçues:', data);
+          console.error('❌ Format de données invalide:', data);
           setError('Format de données invalide');
         }
       } else {
         setError('Erreur lors du chargement des abonnements');
       }
     } catch (error) {
+      console.error('❌ Erreur de connexion:', error);
       setError('Erreur de connexion');
     } finally {
       setLoading(false);
@@ -163,11 +165,6 @@ export default function SubscriptionPlans() {
     } catch (error) {
       console.error('Erreur lors de la récupération de l\'utilisation:', error);
     }
-  };
-
-  const formatLimit = (limit: number) => {
-    if (limit === -1) return 'Illimité';
-    return limit.toLocaleString();
   };
 
   const getQualityLabel = (quality: string) => {
@@ -297,9 +294,9 @@ export default function SubscriptionPlans() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          subscriptionId: subscription._id,
-        }),
+                 body: JSON.stringify({
+           subscriptionId: subscription.id,
+         }),
       });
 
       if (response.ok) {
@@ -454,18 +451,21 @@ export default function SubscriptionPlans() {
               </div>
               
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                {Object.entries(usageInfo.current).map(([key, value], index) => {
-                  const limit = usageInfo.limits[key as keyof typeof usageInfo.limits];
-                  const percentage = usageInfo.percentage[key as keyof typeof usageInfo.percentage];
-                  const remaining = usageInfo.remaining[key as keyof typeof usageInfo.remaining];
+                {usageInfo && Object.entries(usageInfo).map(([key, data], index) => {
+                  const label = key === 'tracks' ? 'Pistes' : 
+                               key === 'playlists' ? 'Playlists' :
+                               key === 'storage' ? 'Stockage (GB)' : key;
                   
-                  const label = key === 'uploads' ? 'Uploads' : 
-                               key === 'comments' ? 'Commentaires' :
-                               key === 'plays' ? 'Écoutes' : 'Playlists';
-                  
-                  const icon = key === 'uploads' ? <Upload size={16} /> :
-                              key === 'comments' ? <MessageCircle size={16} /> :
-                              key === 'plays' ? <Headphones size={16} /> : <Music size={16} />;
+                  const icon = key === 'tracks' ? <Music size={16} /> :
+                              key === 'playlists' ? <Headphones size={16} /> :
+                              key === 'storage' ? <Upload size={16} /> : <Music size={16} />;
+
+                  const formatValue = (value: number) => {
+                    if (key === 'storage') {
+                      return value.toFixed(2);
+                    }
+                    return value.toString();
+                  };
 
                   return (
                     <motion.div
@@ -481,7 +481,7 @@ export default function SubscriptionPlans() {
                         </div>
                       </div>
                       <div className="text-2xl font-bold text-white mb-1">
-                        {value} / {formatLimit(limit)}
+                        {formatValue(data.used)} / {formatValue(data.limit)}
                       </div>
                       <div className="text-sm text-gray-300 mb-3">
                         {label}
@@ -489,16 +489,16 @@ export default function SubscriptionPlans() {
                       <div className="w-full bg-gray-700 rounded-full h-2">
                         <div 
                           className={`h-2 rounded-full transition-all duration-300 ${
-                            percentage >= 90 ? 'bg-red-500' :
-                            percentage >= 75 ? 'bg-yellow-500' :
-                            percentage >= 50 ? 'bg-blue-500' : 'bg-green-500'
+                            data.percentage >= 90 ? 'bg-red-500' :
+                            data.percentage >= 75 ? 'bg-yellow-500' :
+                            data.percentage >= 50 ? 'bg-blue-500' : 'bg-green-500'
                           }`}
-                          style={{ width: `${Math.min(percentage, 100)}%` }}
+                          style={{ width: `${Math.min(data.percentage, 100)}%` }}
                         ></div>
                       </div>
-                      {remaining !== -1 && remaining < 5 && (
+                      {data.percentage >= 90 && (
                         <div className="text-xs text-red-400 mt-2">
-                          ⚠️ Plus que {remaining} restant{remaining > 1 ? 's' : ''}
+                          ⚠️ Limite presque atteinte ({data.percentage.toFixed(0)}%)
                         </div>
                       )}
                     </motion.div>
@@ -537,8 +537,8 @@ export default function SubscriptionPlans() {
                 const isCurrent = isCurrentPlan(plan.name);
                 
                 return (
-                  <motion.div
-                    key={plan._id || index}
+                                     <motion.div
+                     key={plan.id || index}
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
@@ -592,51 +592,51 @@ export default function SubscriptionPlans() {
 
                     {/* Limits */}
                     <div className="space-y-3 mb-6">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Upload size={14} />
-                          <span>Uploads</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.uploads)}/mois
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <MessageCircle size={14} />
-                          <span>Commentaires</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.comments)}/mois
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Headphones size={14} />
-                          <span>Écoutes</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.plays)}/mois
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Music size={14} />
-                          <span>Playlists</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {formatLimit(plan.limits.playlists)}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-gray-300 flex items-center space-x-2">
-                          <Radio size={14} />
-                          <span>Qualité</span>
-                        </span>
-                        <span className="text-white font-semibold">
-                          {getQualityLabel(plan.limits.quality)}
-                        </span>
-                      </div>
+                                             <div className="flex items-center justify-between text-sm">
+                         <span className="text-gray-300 flex items-center space-x-2">
+                           <Upload size={14} />
+                           <span>Pistes</span>
+                         </span>
+                         <span className="text-white font-semibold">
+                           {plan.limits.maxTracks === -1 ? 'Illimité' : plan.limits.maxTracks.toLocaleString()}/mois
+                         </span>
+                       </div>
+                       <div className="flex items-center justify-between text-sm">
+                         <span className="text-gray-300 flex items-center space-x-2">
+                           <MessageCircle size={14} />
+                           <span>Stockage</span>
+                         </span>
+                         <span className="text-white font-semibold">
+                           {plan.limits.maxStorageGB === -1 ? 'Illimité' : plan.limits.maxStorageGB.toLocaleString()}GB
+                         </span>
+                       </div>
+                       <div className="flex items-center justify-between text-sm">
+                         <span className="text-gray-300 flex items-center space-x-2">
+                           <Headphones size={14} />
+                           <span>Analytics</span>
+                         </span>
+                         <span className="text-white font-semibold">
+                           {plan.limits.analytics ? 'Inclus' : 'Non inclus'}
+                         </span>
+                       </div>
+                       <div className="flex items-center justify-between text-sm">
+                         <span className="text-gray-300 flex items-center space-x-2">
+                           <Music size={14} />
+                           <span>Playlists</span>
+                         </span>
+                         <span className="text-white font-semibold">
+                           {plan.limits.maxPlaylists === -1 ? 'Illimité' : plan.limits.maxPlaylists.toLocaleString()}
+                         </span>
+                       </div>
+                       <div className="flex items-center justify-between text-sm">
+                         <span className="text-gray-300 flex items-center space-x-2">
+                           <Radio size={14} />
+                           <span>Qualité</span>
+                         </span>
+                         <span className="text-white font-semibold">
+                           {getQualityLabel(plan.limits.audioQuality)}
+                         </span>
+                       </div>
                     </div>
 
                     {/* Features */}

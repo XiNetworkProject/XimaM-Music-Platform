@@ -18,7 +18,7 @@ import {
   Users, TrendingUp, Star, Zap, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Disc3, Mic2, RefreshCw, Share2, Eye, 
   Award, Target, Compass, BarChart3, Gift, Lightbulb, Globe, Search, List, Activity, X,
-  Newspaper, Download, ArrowRight
+  Newspaper, Download, ArrowRight, MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
@@ -35,7 +35,7 @@ interface Track {
   audioUrl: string;
   coverUrl?: string;
   duration: number;
-  likes: string[];
+  likes: number;
   comments: string[];
   plays: number;
   createdAt: string;
@@ -72,6 +72,9 @@ export default function HomePage() {
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [autoProgress, setAutoProgress] = useState(0);
+  const [isCarouselInView, setIsCarouselInView] = useState(true);
+  const rafRef = useRef<number | null>(null);
 
   // États pour les différentes catégories avec cache
   const [categories, setCategories] = useState<Record<string, CategoryData>>({
@@ -79,7 +82,6 @@ export default function HomePage() {
     trending: { tracks: [], loading: false, error: null },
     popular: { tracks: [], loading: false, error: null },
     recent: { tracks: [], loading: false, error: null },
-    mostLiked: { tracks: [], loading: false, error: null },
     following: { tracks: [], loading: false, error: null },
     recommended: { tracks: [], loading: false, error: null }
   });
@@ -171,7 +173,7 @@ export default function HomePage() {
       trending: categories.trending.tracks.length,
       popular: categories.popular.tracks.length,
       recent: categories.recent.tracks.length,
-      mostLiked: categories.mostLiked.tracks.length,
+
       recommended: categories.recommended.tracks.length,
       following: categories.following.tracks.length,
       loading: loading
@@ -206,6 +208,11 @@ export default function HomePage() {
   useEffect(() => {
     const updateTrackStats = async () => {
       if (currentTrack && audioState.isPlaying) {
+        // Ne pas mettre à jour les stats pour la radio
+        if (currentTrack._id === 'radio-mixx-party') {
+          return;
+        }
+        
         try {
           // Utiliser un debounce pour éviter les appels multiples
           const timeoutId = setTimeout(async () => {
@@ -293,9 +300,16 @@ export default function HomePage() {
         const data = await response.json();
         console.log(`✅ Réponse API ${key}:`, data.tracks?.length || 0, 'pistes');
         
-        const tracksWithLikes = data.tracks.map((track: Track) => ({
+        // Vérifier que data.tracks existe et est un tableau
+        if (!data.tracks || !Array.isArray(data.tracks)) {
+          console.error(`❌ Format de réponse invalide pour ${key}:`, data);
+          throw new Error('Format de réponse invalide');
+        }
+        
+        const tracksWithLikes = data.tracks.map((track: any) => ({
           ...track,
-          isLiked: track.likes.includes(user?.id || '')
+          likes: track.likes || 0,
+          isLiked: false
         }));
     
         // Mettre en cache (mais les écoutes seront toujours récupérées fraîches)
@@ -396,9 +410,17 @@ export default function HomePage() {
       const response = await fetch('/api/tracks/recent?limit=4');
       if (response.ok) {
         const data = await response.json();
-        const tracksWithLikes = data.tracks.map((track: Track) => ({
+        
+        // Vérifier que data.tracks existe et est un tableau
+        if (!data.tracks || !Array.isArray(data.tracks)) {
+          console.error('❌ Format de réponse invalide pour daily discoveries:', data);
+          return;
+        }
+        
+        const tracksWithLikes = data.tracks.map((track: any) => ({
           ...track,
-          isLiked: track.likes.includes(user?.id || '')
+          likes: track.likes || 0,
+          isLiked: false
         }));
         setDailyDiscoveries(tracksWithLikes);
       }
@@ -463,9 +485,17 @@ export default function HomePage() {
       const response = await fetch('/api/tracks/popular?limit=6');
       if (response.ok) {
         const data = await response.json();
-        const tracksWithLikes = data.tracks.map((track: Track) => ({
+        
+        // Vérifier que data.tracks existe et est un tableau
+        if (!data.tracks || !Array.isArray(data.tracks)) {
+          console.error('❌ Format de réponse invalide pour collaborations:', data);
+          return;
+        }
+        
+        const tracksWithLikes = data.tracks.map((track: any) => ({
           ...track,
-          isLiked: track.likes.includes(user?.id || '')
+          likes: track.likes || 0,
+          isLiked: false
         }));
         setCollaborations(tracksWithLikes);
       }
@@ -481,6 +511,14 @@ export default function HomePage() {
       const response = await fetch('/api/events/live');
       if (response.ok) {
         const data = await response.json();
+        
+        // Vérifier que data.events existe et est un tableau
+        if (!data.events || !Array.isArray(data.events)) {
+          console.error('❌ Format de réponse invalide pour live events:', data);
+          setLiveEvents([]);
+          return;
+        }
+        
         setLiveEvents(data.events);
       }
     } catch (error) {
@@ -503,11 +541,31 @@ export default function HomePage() {
       const response = await fetch(`/api/search?query=${encodeURIComponent(query)}&filter=${filter}&limit=10`);
       if (response.ok) {
         const data = await response.json();
-        setSearchResults(data);
+        
+        // Vérifier que data est valide et contient les propriétés attendues
+        if (!data || typeof data !== 'object') {
+          console.error('❌ Format de réponse invalide pour search:', data);
+          setSearchResults({ tracks: [], artists: [], playlists: [] });
+          return;
+        }
+        
+        // S'assurer que toutes les propriétés existent
+        const safeData = {
+          tracks: Array.isArray(data.tracks) ? data.tracks : [],
+          artists: Array.isArray(data.artists) ? data.artists : [],
+          playlists: Array.isArray(data.playlists) ? data.playlists : [],
+          total: data.totalResults || (data.tracks?.length || 0) + (data.artists?.length || 0) + (data.playlists?.length || 0)
+        };
+        
+        setSearchResults(safeData);
         setShowSearchResults(true);
+      } else {
+        console.error('❌ Erreur API search:', response.status, response.statusText);
+        setSearchResults({ tracks: [], artists: [], playlists: [] });
       }
     } catch (error) {
-      // Erreur silencieuse
+      console.error('❌ Erreur chargement search:', error);
+      setSearchResults({ tracks: [], artists: [], playlists: [] });
     } finally {
       setSearchLoading(false);
     }
@@ -520,7 +578,15 @@ export default function HomePage() {
       const response = await fetch('/api/stats/community');
       if (response.ok) {
         const data = await response.json();
-        setCommunityStats(data.stats);
+        
+        // Vérifier que data.data existe et contient les stats
+        if (!data.data || !data.success) {
+          console.error('❌ Format de réponse invalide pour community stats:', data);
+          setCommunityStats([]);
+          return;
+        }
+        
+        setCommunityStats(data.data);
       }
     } catch (error) {
       // Erreur silencieuse
@@ -538,8 +604,17 @@ export default function HomePage() {
       const response = await fetch('/api/recommendations/personal');
       if (response.ok) {
         const data = await response.json();
-        setPersonalRecommendations(data.recommendations);
-        setUserPreferences(data.userPreferences);
+        
+        // Vérifier que data.tracks existe et est un tableau
+        if (!data.tracks || !Array.isArray(data.tracks)) {
+          console.error('❌ Format de réponse invalide pour personal recommendations:', data);
+          setPersonalRecommendations([]);
+          setUserPreferences({});
+          return;
+        }
+        
+        setPersonalRecommendations(data.tracks);
+        setUserPreferences(data.userPreferences || {});
       }
     } catch (error) {
       // Erreur silencieuse
@@ -557,6 +632,14 @@ export default function HomePage() {
       const response = await fetch('/api/activity/recent');
       if (response.ok) {
         const data = await response.json();
+        
+        // Vérifier que data est valide
+        if (!data || typeof data !== 'object') {
+          console.error('❌ Format de réponse invalide pour recent activity:', data);
+          setRecentActivity([]);
+          return;
+        }
+        
         setRecentActivity(data);
       }
     } catch (error) {
@@ -593,6 +676,14 @@ export default function HomePage() {
       const response = await fetch('/api/genres');
       if (response.ok) {
         const data = await response.json();
+        
+        // Vérifier que data.genres existe et est un tableau
+        if (!data.genres || !Array.isArray(data.genres)) {
+          console.error('❌ Format de réponse invalide pour music genres:', data);
+          setMusicGenres([]);
+          return;
+        }
+        
         setMusicGenres(data.genres);
       }
     } catch (error) {
@@ -611,7 +702,6 @@ export default function HomePage() {
       { key: 'trending', url: '/api/tracks/trending?limit=50' },
       { key: 'popular', url: '/api/tracks/popular?limit=50' },
       { key: 'recent', url: '/api/tracks/recent?limit=50' },
-      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=50' },
       { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
       { key: 'following', url: '/api/tracks/following?limit=50' }
     ];
@@ -687,7 +777,6 @@ export default function HomePage() {
       { key: 'trending', url: '/api/tracks/trending?limit=50' },
       { key: 'popular', url: '/api/tracks/popular?limit=50' },
       { key: 'recent', url: '/api/tracks/recent?limit=50' },
-      { key: 'mostLiked', url: '/api/tracks/most-liked?limit=50' },
       { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
       { key: 'following', url: '/api/tracks/following?limit=50' }
     ];
@@ -696,16 +785,40 @@ export default function HomePage() {
     setRefreshing(false);
   }, [fetchCategoryData]);
 
-  // Auto-play du carrousel
+  // Observer de visibilité du carrousel pour suspendre l'autoplay hors-écran
   useEffect(() => {
-    if (!isAutoPlaying || featuredTracks.length === 0) return;
+    if (!carouselRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsCarouselInView(entry.isIntersecting),
+      { threshold: 0.2 }
+    );
+    observer.observe(carouselRef.current);
+    return () => observer.disconnect();
+  }, []);
 
-    const interval = setInterval(() => {
+  // Auto-play avec barre de progression fluide + pause on hover/blur
+  useEffect(() => {
+    if (!isAutoPlaying || !isCarouselInView || featuredTracks.length === 0) return;
+    let start: number | null = null;
+    const durationMs = 8000;
+
+    const step = (ts: number) => {
+      if (start === null) start = ts;
+      const elapsed = ts - start;
+      const progress = Math.min(100, (elapsed / durationMs) * 100);
+      setAutoProgress(progress);
+      if (elapsed >= durationMs) {
       setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, [isAutoPlaying, featuredTracks.length]);
+        start = ts;
+      }
+      rafRef.current = requestAnimationFrame(step);
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      setAutoProgress(0);
+    };
+  }, [isAutoPlaying, isCarouselInView, featuredTracks.length]);
 
   useEffect(() => {
     if (isNative) {
@@ -720,16 +833,19 @@ export default function HomePage() {
   const nextSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
     setIsAutoPlaying(false);
+    setAutoProgress(0);
   }, [featuredTracks.length]);
 
   const prevSlide = useCallback(() => {
     setCurrentSlide((prev) => (prev - 1 + Math.min(featuredTracks.length, 5)) % Math.min(featuredTracks.length, 5));
     setIsAutoPlaying(false);
+    setAutoProgress(0);
   }, [featuredTracks.length]);
 
   const goToSlide = useCallback((index: number) => {
     setCurrentSlide(index);
     setIsAutoPlaying(false);
+    setAutoProgress(0);
   }, []);
 
   const formatDuration = useCallback((seconds: number) => {
@@ -779,7 +895,7 @@ export default function HomePage() {
               ...newCategories[categoryKey],
               tracks: newCategories[categoryKey].tracks.map(track => 
                 track._id === trackId 
-                  ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
+                  ? { ...track, isLiked: result.isLiked, likes: typeof result.likes === 'number' ? result.likes : track.likes }
                   : track
               )
             };
@@ -791,14 +907,14 @@ export default function HomePage() {
         setDailyDiscoveries(prev => 
           prev.map(track => 
             track._id === trackId 
-              ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
+              ? { ...track, isLiked: result.isLiked, likes: typeof result.likes === 'number' ? result.likes : track.likes }
               : track
           )
         );
         setCollaborations(prev => 
           prev.map(track => 
             track._id === trackId 
-              ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
+              ? { ...track, isLiked: result.isLiked, likes: typeof result.likes === 'number' ? result.likes : track.likes }
               : track
           )
         );
@@ -812,7 +928,7 @@ export default function HomePage() {
                 ...newCategories[categoryKey],
                 tracks: newCategories[categoryKey].tracks.map(track => 
                   track._id === trackId 
-                    ? { ...track, isLiked: result.isLiked, likes: result.likes || track.likes }
+                    ? { ...track, isLiked: result.isLiked, likes: typeof result.likes === 'number' ? result.likes : track.likes }
                     : track
                 )
               };
@@ -839,7 +955,7 @@ export default function HomePage() {
   }, [session, toggleLikeBatch]);
 
   // Fonction pour jouer une piste
-  const handlePlayTrack = useCallback(async (track: Track) => {
+  const handlePlayTrack = useCallback(async (track: any) => {
     // Jouer la piste
     playTrack(track);
     
@@ -1394,15 +1510,7 @@ export default function HomePage() {
       bgColor: 'bg-green-500/10',
       borderColor: 'border-green-500/20'
     },
-    {
-      key: 'mostLiked',
-      title: '💖 Coup de Cœur',
-      subtitle: 'Les créations les plus aimées',
-      icon: Heart,
-      color: 'from-pink-500 to-rose-500',
-      bgColor: 'bg-pink-500/10',
-      borderColor: 'border-pink-500/20'
-    },
+
     {
       key: 'following',
       title: '👥 Vos Artistes',
@@ -1427,57 +1535,88 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-0">
+      {/* Banderoles fines et élégantes */}
+      <div className="relative z-20">
+        {/* Banderole IA - Générateur de musique */}
+        <motion.div
+          initial={{ opacity: 0, x: -100 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="w-full bg-gradient-to-r from-blue-600/15 via-purple-600/15 to-cyan-600/15 border-y border-blue-500/20"
+        >
+          <div className="flex items-center justify-center py-3 px-4">
+            <div className="flex items-center space-x-3 text-center">
+              <Sparkles size={16} className="text-blue-400 animate-pulse" />
+              <span className="text-sm font-medium text-blue-200">
+                🎵 <span className="text-white font-semibold">Générateur de Musique IA</span> - Bientôt disponible
+              </span>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push('/ai-generator')}
+                className="ml-3 px-3 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 text-xs rounded-full border border-blue-500/30 transition-all duration-200"
+              >
+                En savoir plus
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Banderole Abonnements */}
+        <motion.div
+          initial={{ opacity: 0, x: 100 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, delay: 0.1, ease: "easeOut" }}
+          className="w-full bg-gradient-to-r from-green-600/15 via-emerald-600/15 to-teal-600/15 border-y border-green-500/20"
+        >
+          <div className="flex items-center justify-center py-3 px-4">
+            <div className="flex items-center space-x-3 text-center">
+              <Crown size={16} className="text-green-400 animate-pulse" />
+              <span className="text-sm font-medium text-green-200">
+                👑 <span className="text-white font-semibold">Abonnements Premium</span> - Débloquez tout le potentiel
+              </span>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => router.push('/subscriptions')}
+                className="ml-3 px-3 py-1 bg-green-600/30 hover:bg-green-600/50 text-green-200 text-xs rounded-full border border-green-500/30 transition-all duration-200"
+              >
+                Voir les offres
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
       {/* Zone transparente pour le carrousel */}
       <div className="relative bg-transparent" style={{ background: 'transparent !important' }}>
-        {/* Carrousel Hero - Design futuriste amélioré */}
+        {/* Carrousel Hero - Design futuriste complet */}
         {featuredTracks.length > 0 && (
-          <section className="relative h-[60vh] overflow-hidden px-4 py-6 bg-transparent" style={{ background: 'transparent !important' }}>
-          {/* Conteneur avec bordure et coins arrondis - Fond transparent */}
-          <div className="relative h-full rounded-3xl overflow-hidden border-4 border-white/40" style={{ background: 'transparent !important' }}>
-
-          {/* Grille de points animés */}
-          <div className="absolute inset-0 opacity-30">
-            {[...Array(20)].map((_, i) => (
-              <motion.div
-                key={i}
-                className="absolute w-1 h-1 bg-purple-400 rounded-full"
-                animate={{
-                  opacity: [0, 1, 0],
-                  scale: [0, 1, 0],
-                }}
-                transition={{
-                  duration: Math.random() * 3 + 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2,
-                }}
-                style={{
-                  left: Math.random() * 100 + '%',
-                  top: Math.random() * 100 + '%',
-                }}
-              />
-            ))}
+          <div className="relative w-full h-[70vh] min-h-[500px] max-h-[800px] overflow-hidden">
+            {/* Fond dynamique avec particules */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,20,147,0.1),transparent_50%)]"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(120,119,198,0.1),transparent_50%)]"></div>
           </div>
 
-          {/* Carrousel principal */}
-          <div className="relative h-full">
+
+
             <AnimatePresence mode="wait">
-              {featuredTracks[currentSlide] && (
                 <motion.div
                   key={currentSlide}
-                  initial={{ opacity: 0, scale: 1.05 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.8, ease: "easeInOut" }}
-                  className="absolute inset-0"
-                >
-                  {/* Image de fond avec effet parallax */}
-                  <div className="absolute inset-0 rounded-3xl overflow-hidden">
-                    <motion.img
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="relative w-full h-full flex items-center justify-center"
+              >
+                {/* Image de fond avec effet parallax et overlay */}
+                <div className="absolute inset-0 overflow-hidden">
+                  <img
                       src={getValidImageUrl(featuredTracks[currentSlide].coverUrl, '/default-cover.jpg')}
                       alt={featuredTracks[currentSlide].title}
                       className="w-full h-full object-cover"
-                      animate={{ scale: [1, 1.03, 1] }}
-                      transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                       loading="eager"
                       onError={(e) => {
                         console.log('Erreur image cover:', featuredTracks[currentSlide].coverUrl);
@@ -1487,868 +1626,562 @@ export default function HomePage() {
                         console.log('Image chargée avec succès:', featuredTracks[currentSlide].coverUrl);
                       }}
                     />
-                    {/* Pas d'overlays - Transparence totale */}
+                  
+                  {/* Overlay gradient complexe */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+                  <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-transparent to-black/60"></div>
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,0,0,0.8)_100%)]"></div>
                   </div>
 
-                  {/* Contenu principal */}
-                  <div className="relative h-full flex items-end">
-                    <div className="container mx-auto px-6 pb-16">
+                {/* Contenu principal centré */}
+                <div className="relative z-10 text-center px-8 max-w-4xl mx-auto">
+                  {/* Badge de statut */}
                       <motion.div
-                        initial={{ opacity: 0, y: 30 }}
+                    initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.2, duration: 0.6 }}
-                        className="max-w-3xl"
-                      >
-                        {/* Badge tendance futuriste */}
+                    className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-md border border-white/20 rounded-full"
+                  >
+                    <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
+                    <span className="text-white/90 text-sm font-medium">En vedette</span>
+                    <TrendingUp size={14} className="text-purple-400" />
+                  </motion.div>
+
+                  {/* Badges secondaires */}
                         <motion.div
-                          initial={{ opacity: 0, x: -30 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: 0.4, duration: 0.5 }}
-                          className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600/80 to-pink-600/80 text-white px-3 py-1.5 rounded-full mb-4 backdrop-blur-md border border-purple-500/30"
-                        >
-                          <TrendingUp size={14} />
-                          <span className="font-medium text-sm">Tendance #1</span>
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3, duration: 0.6 }}
+                    className="flex items-center justify-center gap-3 mb-6"
+                  >
+                    {Array.isArray(featuredTracks[currentSlide]?.genre) && (featuredTracks[currentSlide]?.genre?.length || 0) > 0 && (
+                      <span className="px-3 py-1.5 text-sm rounded-full border border-white/30 bg-white/10 backdrop-blur-md text-white/90 font-medium">
+                        {featuredTracks[currentSlide]?.genre?.[0]}
+                      </span>
+                    )}
+                    {featuredTracks[currentSlide].createdAt && (
+                      <span className="px-3 py-1.5 text-sm rounded-full border border-white/30 bg-white/10 backdrop-blur-md text-white/90 font-medium">
+                        {formatDate(featuredTracks[currentSlide].createdAt)}
+                      </span>
+                    )}
+                    <span className="px-3 py-1.5 text-sm rounded-full border border-white/30 bg-white/10 backdrop-blur-md text-white/90 font-medium">
+                      {formatDuration(featuredTracks[currentSlide].duration)}
+                    </span>
                         </motion.div>
 
-                        {/* Titre */}
+                  {/* Titre principal */}
                         <motion.h1
-                          initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.6, duration: 0.6 }}
-                          className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight cursor-pointer hover:text-purple-300 transition-colors"
+                    transition={{ delay: 0.4, duration: 0.8 }}
+                    className="text-4xl md:text-6xl lg:text-7xl font-black text-white mb-6 leading-tight cursor-pointer hover:text-purple-300 transition-all duration-500"
+                    style={{
+                      textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(236, 72, 153, 0.3)'
+                    }}
                         >
                           {featuredTracks[currentSlide].title}
                         </motion.h1>
 
-                        {/* Artiste */}
-                        <motion.p
-                          initial={{ opacity: 0, y: 15 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.8, duration: 0.5 }}
-                          className="text-lg md:text-xl text-gray-300 mb-4 cursor-pointer hover:text-purple-300 transition-colors"
-                        >
-                          {featuredTracks[currentSlide].artist?.name || featuredTracks[currentSlide].artist?.username || 'Artiste inconnu'}
-                        </motion.p>
-
-                        {/* Stats compactes */}
+                  {/* Artiste avec avatar */}
                         <motion.div
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 1.0, duration: 0.6 }}
-                          className="flex flex-wrap items-center gap-4 mb-4"
-                        >
-                          <div className="flex items-center space-x-4 text-sm text-gray-300">
-                            <div className="flex items-center space-x-1.5">
-                              <AnimatedPlaysCounter
-                                value={featuredTracks[currentSlide].plays}
-                                size="sm"
-                                variant="minimal"
-                                showIcon={true}
-                                icon={<Headphones size={16} className="text-purple-400" />}
-                                animation="slide"
-                                className="text-gray-300"
+                    transition={{ delay: 0.6, duration: 0.6 }}
+                    className="flex items-center justify-center gap-4 mb-8"
+                  >
+                    <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
+                      <img
+                        src={featuredTracks[currentSlide].artist?.avatar || '/default-avatar.png'}
+                        alt={featuredTracks[currentSlide].artist?.name}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = '/default-avatar.png';
+                        }}
                               />
                             </div>
-                            <div className="flex items-center space-x-1.5">
-                              <AnimatedLikeCounter
-                                value={featuredTracks[currentSlide].likes.length}
-                                isLiked={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
-                                size="sm"
-                                variant="minimal"
-                                showIcon={true}
-                                icon={<Users size={16} className="text-pink-400" />}
-                                animation="bounce"
-                                className="text-gray-300"
-                              />
-                            </div>
-                            <div className="flex items-center space-x-1.5">
-                              <Clock size={16} className="text-blue-400" />
-                              <span>{formatDuration(featuredTracks[currentSlide].duration)}</span>
-                            </div>
+                    <div className="text-left">
+                      <p className="text-white/80 text-lg font-medium">par</p>
+                      <h3 className="text-2xl font-bold text-white hover:text-purple-300 transition-colors cursor-pointer">
+                        {featuredTracks[currentSlide].artist?.name || featuredTracks[currentSlide].artist?.username || 'Artiste inconnu'}
+                      </h3>
                           </div>
                         </motion.div>
 
-                        {/* Boutons d'action compacts */}
+                  {/* Boutons d'action principaux */}
                         <motion.div
-                          initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 30 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 1.2, duration: 0.6 }}
-                          className="flex flex-wrap items-center gap-3"
+                    transition={{ delay: 0.8, duration: 0.6 }}
+                    className="flex flex-wrap items-center justify-center gap-4 mb-8"
                         >
-                          {/* Bouton Play */}
+                    {/* Bouton Play principal */}
                           <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                      whileHover={{ 
+                        scale: 1.05,
+                        boxShadow: "0 0 30px rgba(168, 85, 247, 0.6)"
+                      }}
+                      whileTap={{ scale: 0.95 }}
                             onClick={() => handlePlayTrack(featuredTracks[currentSlide])}
-                            className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-semibold text-base hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-purple-500/25"
+                      className="group relative flex items-center space-x-3 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-8 py-4 rounded-2xl font-bold text-lg hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-2xl hover:shadow-purple-500/40"
+                      aria-label={currentTrack?._id === featuredTracks[currentSlide]._id && audioState.isPlaying ? 'Mettre en pause' : 'Lire la piste'}
                           >
+                      {/* Effet de lueur */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
+                      
+                      <div className="relative flex items-center space-x-3">
                             {currentTrack?._id === featuredTracks[currentSlide]._id && audioState.isPlaying ? (
-                              <Pause size={20} />
+                          <Pause size={24} />
                             ) : (
-                              <Play size={20} className="ml-0.5" />
+                          <Play size={24} className="ml-1" />
                             )}
                             <span>
                               {currentTrack?._id === featuredTracks[currentSlide]._id && audioState.isPlaying ? 'Pause' : 'Écouter'}
                             </span>
+                      </div>
                           </motion.button>
 
-                          {/* Bouton Like avec nouveau composant */}
-                          <LikeButton
-                            trackId={featuredTracks[currentSlide]._id}
-                            initialLikesCount={featuredTracks[currentSlide].likes.length}
-                            initialIsLiked={featuredTracks[currentSlide].isLiked || featuredTracks[currentSlide].likes.includes(user?.id || '')}
-                            size="md"
-                            variant="card"
-                            showCount={true}
-                            className="px-4 py-3 rounded-full font-semibold transition-all duration-300 backdrop-blur-sm text-white bg-white/10 border border-white/20 hover:bg-white/20"
-                          />
-
-
+                    {/* Bouton Like */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleLikeTrack(featuredTracks[currentSlide]._id, 'featured', 0)}
+                      className="flex items-center space-x-2 px-6 py-4 rounded-2xl font-semibold text-white bg-white/10 border border-white/30 hover:bg-white/20 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-white/20"
+                      aria-label="Aimer la piste"
+                    >
+                      <Heart size={20} className={featuredTracks[currentSlide].isLiked ? 'text-red-500 fill-red-500' : 'text-white'} />
+                      <span>J'aime</span>
+                    </motion.button>
 
                           {/* Bouton Partager */}
                           <motion.button
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                             onClick={() => handleShare(featuredTracks[currentSlide])}
-                            className="flex items-center space-x-2 px-4 py-3 rounded-full font-semibold text-white bg-white/10 border border-white/20 hover:bg-white/20 transition-all duration-300 backdrop-blur-sm"
+                      className="flex items-center space-x-2 px-6 py-4 rounded-2xl font-semibold text-white bg-white/10 border border-white/30 hover:bg-white/20 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-white/20"
+                      aria-label="Partager la piste"
                           >
-                            <Share2 size={18} />
+                      <Share2 size={20} />
                             <span>Partager</span>
                           </motion.button>
+
+                    {/* Bouton Artiste */}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                                                      onClick={() => router.push(`/profile/${featuredTracks[currentSlide].artist?.username || ''}`)}
+                      className="px-6 py-4 rounded-2xl font-semibold text-white bg-white/10 border border-white/30 hover:bg-white/20 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-white/20"
+                      aria-label="Voir l'artiste"
+                    >
+                      Artiste
+                    </motion.button>
                         </motion.div>
-                      </motion.div>
+
+                  {/* Stats de la piste */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.0, duration: 0.6 }}
+                    className="flex items-center justify-center gap-8 text-white/80"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Headphones size={18} className="text-purple-400" />
+                      <span className="font-medium">{formatNumber(featuredTracks[currentSlide].plays)} écoutes</span>
                     </div>
+                    <div className="flex items-center gap-2">
+                      <Heart size={18} className="text-pink-400" />
+                      <span className="font-medium">{formatNumber(featuredTracks[currentSlide].likes || 0)} likes</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MessageCircle size={18} className="text-blue-400" />
+                      <span className="text-white/80 font-medium">{featuredTracks[currentSlide].comments?.length || 0} commentaires</span>
                   </div>
                 </motion.div>
-              )}
+                </div>
+              </motion.div>
             </AnimatePresence>
 
-            {/* Navigation du carrousel futuriste */}
-            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 z-20">
-              <div className="flex items-center space-x-3">
-                {/* Bouton précédent */}
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={prevSlide}
-                  className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/20 transition-colors border border-white/20"
-                >
-                  <ChevronLeft size={20} />
-                </motion.button>
+            {/* Barre de progression autoplay moderne */}
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-32 w-64 h-2 bg-white/20 rounded-full overflow-hidden backdrop-blur-md">
+              <motion.div 
+                className="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600 rounded-full"
+                style={{ width: `${autoProgress}%` }}
+                initial={{ width: 0 }}
+                animate={{ width: `${autoProgress}%` }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+              />
+            </div>
 
-                {/* Indicateurs */}
-                <div className="flex items-center space-x-1.5">
+            {/* Indicateurs centraux simplifiés */}
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-20">
+              <div className="flex items-center space-x-2">
                   {featuredTracks.map((_, index) => (
                     <motion.button
                       key={index}
-                      whileHover={{ scale: 1.2 }}
+                    whileHover={{ scale: 1.3 }}
                       whileTap={{ scale: 0.8 }}
                       onClick={() => goToSlide(index)}
-                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                    className={`w-3 h-3 rounded-full transition-all duration-300 ${
                         index === currentSlide 
-                          ? 'bg-white scale-125' 
+                        ? 'bg-gradient-to-r from-purple-400 to-pink-400 scale-125 shadow-lg shadow-purple-500/50' 
                           : 'bg-white/40 hover:bg-white/60'
                       }`}
+                    aria-label={`Aller à la diapositive ${index + 1}`}
                     />
                   ))}
+              </div>
                 </div>
 
-                {/* Bouton suivant */}
+            {/* Contrôles d'autoplay */}
+            <div className="absolute top-6 right-6 z-20">
                 <motion.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
-                  onClick={nextSlide}
-                  className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/20 transition-colors border border-white/20"
-                >
-                  <ChevronRight size={20} />
+                onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+                className="group relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-300 border border-white/30 shadow-lg"
+                aria-label={isAutoPlaying ? 'Arrêter l\'autoplay' : 'Démarrer l\'autoplay'}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                {isAutoPlaying ? (
+                  <Pause size={20} className="relative text-white" />
+                ) : (
+                  <Play size={20} className="relative text-white ml-0.5" />
+                )}
                 </motion.button>
               </div>
             </div>
-          </div>
-        </div>
-        </section>
       )}
       </div>
 
-      {/* Section Recherche Rapide - Design futuriste */}
-      <section className="container mx-auto px-6 py-6">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: '50px' }}
-          transition={{ duration: 0.6 }}
-          className="relative"
-        >
-          {/* Barre de recherche principale */}
-          <div className="relative max-w-2xl mx-auto mb-6">
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                placeholder="Rechercher des créations, artistes, genres..."
-                className="w-full pl-12 pr-4 py-4 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 transition-all duration-300"
-              />
-              {searchLoading && (
-                <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-purple-500"></div>
-                </div>
-              )}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => performSearch(searchQuery, searchFilter)}
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-purple-600 to-pink-600 text-white p-2 rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300"
-              >
-                <Search size={16} />
-              </motion.button>
-            </div>
-          </div>
 
-          {/* Filtres rapides */}
-          <div className="flex flex-wrap justify-center gap-3 mb-6">
-            {[
-              { label: 'Tous', value: 'all', icon: Music, active: searchFilter === 'all' },
-              { label: 'Créations', value: 'tracks', icon: Music, active: searchFilter === 'tracks' },
-              { label: 'Artistes', value: 'artists', icon: Users, active: searchFilter === 'artists' },
-              { label: 'Playlists', value: 'playlists', icon: Music, active: searchFilter === 'playlists' }
-            ].map((filter, index) => (
-              <motion.button
-                key={filter.label}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '50px' }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  setSearchFilter(filter.value);
-                  if (searchQuery.trim()) {
-                    performSearch(searchQuery, filter.value);
-                  }
-                }}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 backdrop-blur-sm border ${
-                  filter.active 
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-500/50' 
-                    : 'bg-white/10 text-gray-300 border-white/20 hover:bg-white/20 hover:text-white'
-                }`}
-              >
-                <filter.icon size={16} />
-                <span>{filter.label}</span>
-              </motion.button>
-            ))}
-          </div>
 
-          {/* Résultats de recherche */}
-          {showSearchResults && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-4xl mx-auto"
-            >
-              {/* Résumé des résultats */}
-              <div className="text-center mb-6">
-                <p className="text-gray-400 text-sm">
-                  {searchResults.total > 0 
-                    ? `${searchResults.total} résultat(s) pour "${searchQuery}"`
-                    : `Aucun résultat pour "${searchQuery}"`
-                  }
-                </p>
-              </div>
-
-              {/* Résultats par catégorie */}
-              {searchResults.tracks.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-white font-semibold text-lg mb-4 flex items-center">
-                    <Music size={20} className="mr-2 text-purple-400" />
-                    Créations ({searchResults.tracks.length})
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {searchResults.tracks?.map((track: Track, index: number) => (
-                      <motion.div
-                        key={track._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ y: -4, scale: 1.02 }}
-                        className="group cursor-pointer"
-                      >
-                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
-                          {/* Badge Découverte */}
-                          {track.isDiscovery && (
-                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                              <Sparkles size={12} className="inline" />
-                              Découverte
-                            </div>
-                          )}
-                          {/* Image */}
-                          <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                            <img
-                              src={track.coverUrl || '/default-cover.jpg'}
-                              alt={track.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/default-cover.jpg';
-                              }}
-                            />
-                          </div>
-                          {/* Titre */}
-                          <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                            {track.title || 'Titre inconnu'}
-                          </h4>
-                          {/* Artiste */}
-                          <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                            {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                          </p>
-                          {/* Durée + Bouton play */}
-                          <div className="flex items-center justify-center gap-2 mb-2">
-                            <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                              {formatDuration(track.duration)}
-                            </span>
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePlayTrack(track);
-                              }}
-                              className="w-9 h-9 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
-                            >
-                              {currentTrack?._id === track._id && audioState.isPlaying ? (
-                                <Pause size={18} fill="white" />
-                              ) : (
-                                <Play size={18} fill="white" className="ml-0.5" />
-                              )}
-                            </motion.button>
-                          </div>
-                          {/* Stats */}
-                          <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <AnimatedPlaysCounter
-                                value={track.plays}
-                                size="sm"
-                                variant="minimal"
-                                showIcon={true}
-                                icon={<Headphones size={12} />}
-                                animation="slide"
-                                className="text-gray-400"
-                              />
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <LikeButton
-                                trackId={track._id}
-                                initialLikesCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                                initialIsLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
-                                size="sm"
-                                variant="minimal"
-                                showCount={true}
-                                className="text-gray-400 hover:text-red-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Résultats artistes */}
-              {searchResults.artists.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-white font-semibold text-lg mb-4 flex items-center">
-                    <Users size={20} className="mr-2 text-blue-400" />
-                    Artistes ({searchResults.artists.length})
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                    {searchResults.artists?.map((artist: any, index: number) => (
-                      <motion.div
-                        key={artist._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.1 }}
-                        whileHover={{ y: -4, scale: 1.02 }}
-                        className="group cursor-pointer"
-                      >
-                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 flex flex-col items-center justify-between min-h-[260px]">
-                          {/* Badge Découverte */}
-                          {artist.isDiscovery && (
-                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                              <Sparkles size={12} className="inline" />
-                              Découverte
-                            </div>
-                          )}
-                          {/* Image */}
-                          <div className="w-24 h-24 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                            <img
-                              src={artist.avatar || '/default-avatar.png'}
-                              alt={artist.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = '/default-avatar.png';
-                              }}
-                            />
-                          </div>
-                          {/* Nom */}
-                          <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                            {artist.name}
-                          </h4>
-                          {/* Pseudo */}
-                          <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                            @{artist.username}
-                          </p>
-                          {/* Stats */}
-                          <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Headphones size={12} />
-                              <span>{formatNumber(artist.listeners)} auditeurs</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <LikeButton
-                                trackId={artist._id}
-                                initialLikesCount={artist.likes?.length || 0}
-                                initialIsLiked={artist.isLiked || (Array.isArray(artist.likes) && artist.likes.includes(user?.id || ''))}
-                                size="sm"
-                                variant="minimal"
-                                showCount={false}
-                                className="text-gray-400 hover:text-red-500"
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Résultats playlists */}
-              {searchResults.playlists.length > 0 && (
-                <div className="mb-8">
-                  <h3 className="text-white font-semibold text-xl mb-6 flex items-center gap-2">
-                    <Music size={24} className="text-green-400" />
-                    Playlists populaires ({searchResults.playlists.length})
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {searchResults.playlists?.map((playlist: any, index: number) => (
-                      <div
-                        key={playlist._id}
-                        className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-green-500 cursor-pointer"
-                        tabIndex={0}
-                        aria-label={`Playlist : ${playlist.title || 'Titre inconnu'} par ${playlist.creator?.name || 'Créateur inconnu'}`}
-                      >
-                        {/* Image */}
-                        <div className="w-28 h-28 rounded-xl overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-green-500/20 to-emerald-500/20">
-                          <img
-                            src={playlist.coverUrl || '/default-cover.jpg'}
-                            alt={playlist.title || 'Titre inconnu'}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/default-cover.jpg';
-                            }}
-                          />
-                        </div>
-                        {/* Titre */}
-                        <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                          {playlist.title || 'Titre inconnu'}
-                        </h4>
-                        {/* Créateur */}
-                        <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                          par {playlist.creator?.name || 'Créateur inconnu'}
-                        </p>
-                        {/* Bouton play */}
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handlePlayTrack(playlist.tracks?.[0]);
-                          }}
-                          className="w-10 h-10 bg-green-600 hover:bg-green-700 rounded-full flex items-center justify-center text-white shadow transition focus:outline-none focus:ring-2 focus:ring-green-500 mb-2"
-                          aria-label={`Écouter la playlist ${playlist.title || 'Titre inconnu'}`}
-                        >
-                          <Play size={18} className="ml-0.5" />
-                        </button>
-                        {/* Stats */}
-                        <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
-                          <div className="flex items-center gap-1">
-                            <Music size={12} />
-                            <span>{playlist.trackCount || 0} titres</span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <LikeButton
-                              trackId={playlist._id}
-                              initialLikesCount={playlist.likes?.length || 0}
-                              initialIsLiked={playlist.isLiked || (Array.isArray(playlist.likes) && playlist.likes.includes(user?.id || ''))}
-                              size="sm"
-                              variant="minimal"
-                              showCount={false}
-                              className="text-gray-400 hover:text-red-500"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </motion.div>
-          )}
-
-          {/* Suggestions de recherche (seulement si pas de résultats) */}
-          {!showSearchResults && (
-            <div className="text-center">
-              <p className="text-gray-400 text-sm mb-3">Suggestions populaires :</p>
-              <div className="flex flex-wrap justify-center gap-2">
-                {['Nouveautés 2024', 'Remixes', 'Live Sessions', 'Collaborations', 'Demos', 'Covers'].map((suggestion, index) => (
-                  <motion.button
-                    key={suggestion}
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    whileInView={{ opacity: 1, scale: 1 }}
-                    viewport={{ once: true, margin: '50px' }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      setSearchQuery(suggestion);
-                      performSearch(suggestion, searchFilter);
-                    }}
-                    className="px-3 py-1.5 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full text-xs text-gray-300 hover:bg-white/10 hover:text-white transition-all duration-300"
-                  >
-                    {suggestion}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          )}
-        </motion.div>
-      </section>
-
-      {/* Section Découvertes du Jour - Design Spotify compact */}
-      {dailyDiscoveries.length > 0 && (
-        <section className="container mx-auto px-4 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <Gift size={28} className="text-yellow-400" />
-              <div>
-                <h2 className="text-2xl font-bold text-white">Découvertes du Jour</h2>
-                <p className="text-gray-400 text-sm">Nos coups de cœur sélectionnés rien que pour vous</p>
-              </div>
-            </div>
-            <button
-              className="text-purple-400 hover:text-purple-300 font-medium text-sm px-4 py-2 rounded-lg border border-purple-500/30 bg-purple-900/10 transition"
-            >
-              Voir tout
-            </button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {dailyDiscoveries?.map((track, index) => (
-              <div
-                key={track._id}
-                className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500"
-                tabIndex={0}
-                aria-label={`Découverte : ${track.title || 'Titre inconnu'} par ${track.artist?.name || track.artist?.username || 'Artiste inconnu'}`}
-              >
-                {/* Badge Découverte */}
-                <div className="absolute top-4 left-4 z-10">
-                  <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold flex items-center gap-1">
-                    <Sparkles size={12} className="inline" /> Découverte
-                  </span>
-                </div>
-                {/* Image */}
-                <div className="w-28 h-28 rounded-xl overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                  <img
-                    src={track.coverUrl || '/default-cover.jpg'}
-                    alt={track.title || 'Titre inconnu'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.currentTarget.src = '/default-cover.jpg';
-                    }}
-                  />
-                </div>
-                {/* Titre */}
-                <h4 className="font-semibold text-white text-base text-center truncate w-full mb-0.5">
-                  {track.title || 'Titre inconnu'}
-                </h4>
-                {/* Artiste */}
-                <p className="text-gray-300 text-xs text-center truncate w-full mb-2">
-                  {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                </p>
-                {/* Durée + Bouton play */}
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                    {formatDuration(track.duration)}
-                  </span>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePlayTrack(track);
-                    }}
-                    className="w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white shadow transition focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    aria-label={`Écouter ${track.title || 'Titre inconnu'}`}
-                  >
-                    {currentTrack?._id === track._id && audioState.isPlaying ? (
-                      <Pause size={18} />
-                    ) : (
-                      <Play size={18} className="ml-0.5" />
-                    )}
-                  </button>
-                </div>
-                {/* Stats avec likes fonctionnels */}
-                <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-gray-700 text-xs text-gray-400">
-                  <div className="flex items-center gap-1">
-                    <AnimatedPlaysCounter
-                      value={track.plays}
-                      size="sm"
-                      variant="minimal"
-                      showIcon={false}
-                      animation="slide"
-                      className="text-gray-400"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <LikeButton
-                      trackId={track._id}
-                      initialLikesCount={track.likes?.length || 0}
-                      initialIsLiked={track.isLiked || track.likes?.includes(user?.id || '')}
-                      size="sm"
-                      variant="minimal"
-                      showCount={true}
-                      className="text-gray-400 hover:text-red-500"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {/* Sections de catégories améliorées */}
       <div className="py-6 space-y-12">
-        {/* Section Quick Actions - Design futuriste */}
-        <section className="container mx-auto px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-8"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                  <Sparkles size={24} className="text-purple-400" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">Créer & Découvrir</h2>
-                  <p className="text-gray-400 text-sm">Explorez et partagez votre passion musicale</p>
-                </div>
+        {/* Section Créer & Découvrir - Version compacte et mobile */}
+        <section className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: '20px' }}
+            transition={{ duration: 0.4 }}
+          className="relative"
+        >
+            {/* Header compact */}
+            <div className="text-center mb-8">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                whileInView={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.1, duration: 0.3 }}
+                className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-purple-500/30 to-pink-500/30 rounded-2xl border border-purple-500/40 mb-4"
+              >
+                <Sparkles size={24} className="text-purple-300" />
+              </motion.div>
+              
+              <motion.h2
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.3 }}
+                className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-3"
+              >
+                Créer & Découvrir
+              </motion.h2>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.3 }}
+                className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto"
+              >
+                Partagez vos créations et explorez de nouveaux talents
+              </motion.p>
+              </div>
+
+            {/* Grille compacte des actions principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              {/* Carte Créer */}
+                      <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.25, duration: 0.3 }}
+                whileHover={{ scale: 1.01 }}
+                        className="group cursor-pointer"
+                onClick={() => router.push('/upload')}
+              >
+                <div className="relative p-6 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 hover:border-purple-400/50 transition-all duration-200">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
+                      <Mic2 size={20} className="text-white" />
+                            </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-white">🎵 Créer</h3>
+                      <p className="text-purple-200 text-sm">Partagez votre musique</p>
+                          </div>
+                  </div>
+                  
+                  <p className="text-gray-300 text-sm mb-4">
+                    Uploadez vos créations et construisez votre audience
+                  </p>
+                  
+                  <div className="space-y-2 mb-4">
+                    {['Upload HD', 'Promotion IA', 'Monétisation'].map((feature, index) => (
+                      <div key={index} className="flex items-center space-x-2">
+                        <div className="w-1.5 h-1.5 bg-purple-400 rounded-full"></div>
+                        <span className="text-gray-200 text-xs">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                  
+                            <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 rounded-xl font-semibold text-sm hover:from-purple-700 hover:to-pink-700 transition-all duration-150 flex items-center justify-center space-x-2"
+                  >
+                    <Mic2 size={16} />
+                    <span>Commencer</span>
+                    <ArrowRight size={16} />
+                            </motion.button>
+                        </div>
+                      </motion.div>
+              
+              {/* Carte Découvrir */}
+                      <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3, duration: 0.3 }}
+                whileHover={{ scale: 1.01 }}
+                        className="group cursor-pointer"
+                onClick={() => router.push('/discover')}
+              >
+                <div className="relative p-6 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 hover:border-green-400/50 transition-all duration-150">
+                  {/* Effet de fond animé */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 via-emerald-500/5 to-cyan-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                  
+                  {/* Particules flottantes */}
+                  <div className="absolute inset-0 overflow-hidden">
+                    <motion.div
+                      animate={{ 
+                        y: [0, -25, 0],
+                        opacity: [0, 1, 0]
+                      }}
+                      transition={{ duration: 4.5, repeat: Infinity, delay: 0.5 }}
+                      className="absolute top-12 left-12 w-2.5 h-2.5 bg-green-400/40 rounded-full"
+                    />
+                    <motion.div
+                      animate={{ 
+                        y: [0, -18, 0],
+                        opacity: [0, 1, 0]
+                      }}
+                      transition={{ duration: 3.8, repeat: Infinity, delay: 1.5 }}
+                      className="absolute bottom-20 right-10 w-2 h-2 bg-emerald-400/50 rounded-full"
+                            />
+                          </div>
+                  
+                  {/* Header avec icône */}
+                  <div>
+                    <div className="flex items-center space-x-3 mb-4">
+                      <div className="p-3 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500">
+                        <Compass size={20} className="text-white" />
+                            </div>
+                      <div>
+                        <h3 className="text-lg font-bold text-white">🔍 Découvrir</h3>
+                        <p className="text-green-200 text-sm">Explorez la musique</p>
+                            </div>
+                          </div>
+                    
+                    {/* Description détaillée */}
+                    <p className="text-gray-300 text-sm mb-4">
+                      Trouvez de nouveaux artistes et genres musicaux
+                    </p>
+                    
+                    {/* Fonctionnalités principales */}
+                    <div className="space-y-2 mb-4">
+                      {['IA recommandations', 'Playlists perso', 'Artistes émergents'].map((feature, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full"></div>
+                          <span className="text-gray-200 text-xs">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
+                    
+                    {/* Bouton d'action principal */}
+                  <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-xl font-semibold text-sm hover:from-green-700 hover:to-emerald-700 transition-all duration-150 flex items-center justify-center space-x-2"
+                    >
+                      <Compass size={16} />
+                      <span>Explorer</span>
+                      <ArrowRight size={16} />
+                  </motion.button>
               </div>
             </div>
+        </motion.div>
+              </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { 
-                  icon: Mic2, 
-                  label: 'Partager ma musique', 
-                  description: 'Uploadez vos créations et partagez-les avec le monde',
-                  color: 'from-purple-500/20 to-pink-500/20', 
-                  borderColor: 'border-purple-500/30', 
-                  iconColor: 'text-purple-400', 
-                  bgGradient: 'from-purple-500/10 to-pink-500/10',
-                  href: '/upload',
-                  features: ['Upload illimité', 'Qualité HD', 'Monétisation']
-                },
-                { 
-                  icon: Compass, 
-                  label: 'Découvrir', 
-                  description: 'Explorez de nouveaux artistes et genres musicaux',
-                  color: 'from-green-500/20 to-emerald-500/20', 
-                  borderColor: 'border-green-500/30', 
-                  iconColor: 'text-green-400', 
-                  bgGradient: 'from-green-500/10 to-emerald-500/10',
-                  href: '/discover',
-                  features: ['Recommandations IA', 'Nouveautés', 'Playlists personnalisées']
-                },
+            {/* Fonctionnalités rapides en grille compacte */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35, duration: 0.3 }}
+              className="mb-8"
+            >
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {[
+                  {
+                    icon: Users,
+                    title: 'Communauté',
+                    color: 'from-orange-500 to-red-500',
+                    href: '/community'
+                  },
+                  {
+                    icon: Radio,
+                    title: 'Radio Live',
+                    color: 'from-cyan-500 to-blue-500',
+                    href: '#radio'
+                  },
+                  {
+                    icon: Crown,
+                    title: 'Premium',
+                    color: 'from-yellow-500 to-orange-500',
+                    href: '/subscriptions'
+                  }
+                ].map((feature, index) => (
+                  <motion.div
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 15 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + index * 0.05, duration: 0.25 }}
+                    whileHover={{ scale: 1.01 }}
+                    className="group cursor-pointer"
+                    onClick={() => {
+                      if (feature.href === '#radio') {
+                        document.getElementById('radio')?.scrollIntoView({ behavior: 'smooth' });
+                      } else {
+                        router.push(feature.href);
+                      }
+                    }}
+                  >
+                    <div className={`p-4 rounded-xl bg-gradient-to-br ${feature.color}/10 border border-${feature.color.split('-')[1]}-500/30 hover:border-${feature.color.split('-')[1]}-400/50 transition-all duration-150 text-center`}>
+                      <div className={`w-10 h-10 mx-auto mb-2 rounded-lg bg-gradient-to-br ${feature.color} flex items-center justify-center`}>
+                        <feature.icon size={20} className="text-white" />
+                </div>
+                      <h4 className="text-sm font-semibold text-white">{feature.title}</h4>
+                  </div>
+                  </motion.div>
+            ))}
+          </div>
+            </motion.div>
+
+            {/* Section des fonctionnalités avancées */}
+          <motion.div
+              initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.0, duration: 0.8 }}
+              className="mb-16"
+            >
+              <div className="text-center mb-12">
+                <h3 className="text-3xl font-bold text-white mb-4">🚀 Fonctionnalités Avancées</h3>
+                <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+                  Des outils puissants pour enrichir votre expérience musicale
+                </p>
+            </div>
+            
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
                 { 
                   icon: Users, 
-                  label: 'Communauté', 
-                  description: 'Rejoignez une communauté passionnée de musique',
-                  color: 'from-orange-500/20 to-red-500/20', 
-                  borderColor: 'border-orange-500/30', 
-                  iconColor: 'text-orange-400', 
-                  bgGradient: 'from-orange-500/10 to-red-500/10',
-                  href: '/community',
-                  features: ['Artistes émergents', 'Événements live', 'Collaborations']
+                    title: 'Communauté Active',
+                    description: 'Connectez-vous avec des artistes passionnés',
+                    color: 'from-orange-500 to-red-500',
+                    features: ['Chat en temps réel', 'Collaborations', 'Événements live'],
+                    href: '/community'
                 },
                 { 
                   icon: Radio, 
-                  label: 'Radio Live', 
-                  description: 'Écoutez Mixx Party Radio en direct',
-                  color: 'from-cyan-500/20 to-blue-500/20', 
-                  borderColor: 'border-cyan-500/30', 
-                  iconColor: 'text-cyan-400', 
-                  bgGradient: 'from-cyan-500/10 to-blue-500/10',
-                  href: '#radio',
-                  features: ['En direct 24/7', 'Musique électronique', 'Chat en temps réel']
-                }
-              ].map((item, index) => (
+                    title: 'Radio Mixx Party',
+                    description: 'Écoutez notre radio électronique 24/7',
+                    color: 'from-cyan-500 to-blue-500',
+                    features: ['Streaming en direct', 'Chat interactif', 'Playlists exclusives'],
+                    href: '#radio'
+                  },
+                  {
+                    icon: Crown,
+                    title: 'Programme Premium',
+                    description: 'Accédez à des fonctionnalités exclusives',
+                    color: 'from-yellow-500 to-orange-500',
+                    features: ['Upload illimité', 'Analytics avancés', 'Support prioritaire'],
+                    href: '/subscriptions'
+                  }
+                ].map((feature, index) => (
                 <motion.div
-                  key={item.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  whileHover={{ scale: 1.02, y: -4 }}
-                  whileTap={{ scale: 0.98 }}
+                    key={feature.title}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.2 + index * 0.1, duration: 0.6 }}
+                    whileHover={{ scale: 1.03, y: -4 }}
                   className="group cursor-pointer"
-                  onMouseEnter={() => handleCardInteraction(item.label, 'hover')}
-                  onMouseLeave={() => handleCardInteraction(item.label, 'click')}
                   onClick={() => {
-                    if (item.href === '#radio') {
-                      // Scroll vers la section radio
+                      if (feature.href === '#radio') {
                       document.getElementById('radio')?.scrollIntoView({ behavior: 'smooth' });
                     } else {
-                      router.push(item.href);
-                    }
-                  }}
-                >
-                  <div className={`relative h-full p-6 rounded-2xl bg-gradient-to-br ${item.bgGradient} hover:shadow-2xl transition-all duration-300 border ${item.borderColor} group-hover:border-opacity-60 ${hoveredCard === item.label ? 'ring-2 ring-purple-500/50' : ''}`}>
-                    {/* Effet de lueur au hover */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                    
-                    {/* Indicateur de carte active */}
-                    {hoveredCard === item.label && (
-                      <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center"
-                      >
-                        <Sparkles size={12} className="text-white" />
-                      </motion.div>
-                    )}
-                    
-                    <div className="relative z-10">
-                      {/* Header avec icône */}
-                      <div className="flex items-center space-x-3 mb-4">
-                        <div className={`p-3 rounded-xl bg-gradient-to-br ${item.color} border ${item.borderColor}`}>
-                          <item.icon size={24} className={item.iconColor} />
+                        router.push(feature.href);
+                      }
+                    }}
+                  >
+                    <div className={`relative p-6 rounded-2xl bg-gradient-to-br ${feature.color}/10 border border-${feature.color.split('-')[1]}-500/30 hover:border-${feature.color.split('-')[1]}-400/50 transition-all duration-300 group-hover:shadow-2xl group-hover:shadow-${feature.color.split('-')[1]}-500/20`}>
+                      <div className="flex items-center space-x-4 mb-4">
+                        <div className={`p-3 rounded-xl bg-gradient-to-br ${feature.color} shadow-lg`}>
+                          <feature.icon size={24} className="text-white" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-white mb-1">{item.label}</h3>
-                          <p className="text-gray-400 text-sm leading-relaxed">{item.description}</p>
+                        <div>
+                          <h4 className="text-lg font-bold text-white mb-1">{feature.title}</h4>
+                          <p className="text-gray-400 text-sm">{feature.description}</p>
                         </div>
                       </div>
                       
-                      {/* Liste des fonctionnalités */}
                       <div className="space-y-2 mb-4">
-                        {item.features.map((feature, featureIndex) => (
-                          <div key={featureIndex} className="flex items-center space-x-2">
+                        {feature.features.map((feat, featIndex) => (
+                          <div key={featIndex} className="flex items-center space-x-2">
                             <div className="w-1.5 h-1.5 bg-gradient-to-r from-white/60 to-white/40 rounded-full"></div>
-                            <span className="text-gray-300 text-xs">{feature}</span>
+                            <span className="text-gray-300 text-xs">{feat}</span>
                           </div>
                         ))}
                       </div>
                       
-                                             {/* Bouton d'action */}
-                       <div className="flex items-center justify-between">
                          <motion.button
                            whileHover={{ scale: 1.05 }}
                            whileTap={{ scale: 0.95 }}
-                           className={`flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r ${item.color} border ${item.borderColor} text-white font-medium text-sm hover:shadow-lg transition-all duration-200`}
+                        className={`w-full bg-gradient-to-r ${feature.color} text-white py-2 rounded-lg font-medium text-sm hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2`}
                          >
-                           <span>Explorer</span>
+                        <span>Découvrir</span>
                            <ArrowRight size={16} />
                          </motion.button>
-                         
-                         {/* Indicateur de popularité */}
-                         <div className="flex items-center space-x-1 text-xs text-gray-400">
-                           <TrendingUp size={12} />
-                           <span>Populaire</span>
-                         </div>
-                       </div>
-                       
-                       {/* Fonctionnalités avancées au survol */}
-                       <AnimatePresence>
-                         {hoveredCard === item.label && (
-                           <motion.div
-                             initial={{ opacity: 0, height: 0 }}
-                             animate={{ opacity: 1, height: 'auto' }}
-                             exit={{ opacity: 0, height: 0 }}
-                             className="mt-4 pt-4 border-t border-white/10"
-                           >
-                             <div className="flex items-center justify-between text-xs text-gray-400">
-                               <span>Fonctionnalités avancées</span>
-                               <div className="flex items-center space-x-1">
-                                 <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
-                                 <span>Disponible</span>
-                               </div>
-                             </div>
-                           </motion.div>
-                         )}
-                       </AnimatePresence>
-                    </div>
-                    
-                    {/* Effet de particules au hover */}
-                    <div className="absolute inset-0 rounded-2xl overflow-hidden">
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                        <div className="absolute top-2 right-2 w-2 h-2 bg-white/20 rounded-full animate-pulse"></div>
-                        <div className="absolute bottom-4 left-3 w-1 h-1 bg-white/30 rounded-full animate-pulse" style={{ animationDelay: '0.5s' }}></div>
-                        <div className="absolute top-1/2 right-4 w-1.5 h-1.5 bg-white/25 rounded-full animate-pulse" style={{ animationDelay: '1s' }}></div>
-                      </div>
-                    </div>
                   </div>
                 </motion.div>
               ))}
             </div>
+            </motion.div>
             
-                         {/* Section de statistiques rapides */}
+            {/* Statistiques compactes */}
              <motion.div
                initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               transition={{ delay: 0.4 }}
-               className="mt-8"
-             >
-               <div className="flex items-center justify-between mb-4">
-                 <h3 className="text-lg font-semibold text-white">Statistiques en temps réel</h3>
-                 <div className="flex items-center space-x-3">
-                   {realTimeStats.loading ? (
-                     <div className="flex items-center space-x-2 text-blue-400">
-                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                       <span>Mise à jour...</span>
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5, duration: 0.3 }}
+              className="relative"
+            >
+              <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">
+                <div className="text-center mb-6">
+                  <h3 className="text-lg font-bold text-white mb-2">📊 Statistiques</h3>
+                  <p className="text-gray-400 text-sm">Activité de la communauté</p>
                      </div>
-                   ) : realTimeStats.error ? (
-                     <div className="flex items-center space-x-2 text-red-400">
-                       <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                       <span>Erreur</span>
-                     </div>
-                   ) : (
-                     <div className="flex items-center space-x-2 text-green-400">
-                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                       <span>Live</span>
-                     </div>
-                   )}
-                   
-                   <motion.button
-                     whileHover={{ scale: 1.05 }}
-                     whileTap={{ scale: 0.95 }}
-                     onClick={fetchRealTimeStats}
-                     disabled={realTimeStats.loading}
-                     className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
-                     title="Actualiser les statistiques"
-                   >
-                     <RefreshCw size={14} className={`text-gray-400 ${realTimeStats.loading ? 'animate-spin' : ''}`} />
-                   </motion.button>
-                 </div>
-               </div>
-               
-               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                  {[
                    { 
                      icon: Music, 
-                     label: 'Tracks', 
+                      label: 'Créations', 
                      value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.tracks), 
                      color: 'text-purple-400', 
-                     trend: realTimeStats.loading ? '' : '+12%',
                      loading: realTimeStats.loading
                    },
                    { 
@@ -2356,7 +2189,6 @@ export default function HomePage() {
                      label: 'Artistes', 
                      value: realTimeStats.loading ? '...' : formatNumber(realTimeStats.artists), 
                      color: 'text-green-400', 
-                     trend: realTimeStats.loading ? '' : '+8%',
                      loading: realTimeStats.loading
                    },
                    { 
@@ -2364,41 +2196,34 @@ export default function HomePage() {
                      label: 'Écoutes', 
                      value: realTimeStats.loading ? 0 : realTimeStats.totalPlays, 
                      color: 'text-orange-400', 
-                     trend: realTimeStats.loading ? '' : '+25%',
-                     loading: realTimeStats.loading,
                      animated: true,
-                     animationType: 'plays'
+                      loading: realTimeStats.loading
                    },
                    { 
                      icon: Heart, 
                      label: 'Likes', 
                      value: realTimeStats.loading ? 0 : realTimeStats.totalLikes, 
                      color: 'text-pink-400', 
-                     trend: realTimeStats.loading ? '' : '+15%',
-                     loading: realTimeStats.loading,
                      animated: true,
-                     animationType: 'likes'
+                      loading: realTimeStats.loading
                    }
                  ].map((stat, index) => (
                    <motion.div
-                     key={stat.label}
-                     initial={{ opacity: 0, scale: 0.8 }}
-                     animate={{ opacity: 1, scale: 1 }}
-                     transition={{ delay: 0.5 + index * 0.1 }}
-                     whileHover={{ scale: 1.05, y: -2 }}
-                     className="text-center p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all duration-200 group"
-                   >
-                     <stat.icon size={20} className={`mx-auto mb-2 ${stat.color} group-hover:scale-110 transition-transform duration-200 ${stat.loading ? 'animate-pulse' : ''}`} />
-                     <div className="text-2xl font-bold text-white mb-1">
+                      key={stat.label}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.6 + index * 0.05, duration: 0.2 }}
+                      className="text-center p-3 rounded-xl bg-white/5 border border-white/10"
+                    >
+                      <stat.icon size={18} className={`mx-auto mb-2 ${stat.color}`} />
+                      <div className="text-lg font-bold text-white mb-1">
                        {stat.loading ? (
-                         <div className="flex items-center justify-center">
-                           <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                         </div>
+                          <div className="w-4 h-4 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
                        ) : stat.animated ? (
-                         stat.animationType === 'plays' ? (
+                          stat.label === 'Écoutes' ? (
                            <AnimatedPlaysCounter
                              value={stat.value}
-                             size="lg"
+                              size="sm"
                              variant="minimal"
                              showIcon={false}
                              animation="slide"
@@ -2407,7 +2232,7 @@ export default function HomePage() {
                          ) : (
                            <AnimatedLikeCounter
                              value={stat.value}
-                             size="lg"
+                              size="sm"
                              variant="minimal"
                              showIcon={false}
                              animation="bounce"
@@ -2418,42 +2243,32 @@ export default function HomePage() {
                          stat.value
                        )}
                      </div>
-                     <div className="text-gray-400 text-sm mb-2">{stat.label}</div>
-                     {!stat.loading && (
-                       <div className="flex items-center justify-center space-x-1 text-xs">
-                         <TrendingUp size={12} className="text-green-400" />
-                         <span className="text-green-400 font-medium">{stat.trend}</span>
-                       </div>
-                     )}
+                      <div className="text-gray-300 text-xs">{stat.label}</div>
                    </motion.div>
                  ))}
                </div>
                
-               {/* Barre de progression globale */}
-               <motion.div
-                 initial={{ opacity: 0, width: 0 }}
-                 animate={{ opacity: 1, width: '100%' }}
-                 transition={{ delay: 0.8, duration: 1 }}
-                 className="mt-6 p-4 rounded-xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20"
-               >
+                {/* Barre de progression simplifiée */}
+                <div className="p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
                  <div className="flex items-center justify-between mb-2">
-                   <span className="text-white font-medium">Progression de la communauté</span>
-                   <span className="text-purple-400 text-sm">
+                    <span className="text-white font-medium text-sm">Objectif: 1000 artistes</span>
+                    <span className="text-purple-300 font-medium text-sm">
                      {realTimeStats.loading ? '...' : `${Math.min(100, Math.round((realTimeStats.artists / 1000) * 100))}%`}
                    </span>
                  </div>
-                 <div className="w-full bg-white/10 rounded-full h-2">
+                  <div className="w-full bg-white/10 rounded-full h-2 mb-2">
                    <motion.div
                      initial={{ width: 0 }}
-                     animate={{ width: realTimeStats.loading ? '0%' : `${Math.min(100, Math.round((realTimeStats.artists / 1000) * 100))}%` }}
-                     transition={{ delay: 1, duration: 1.5 }}
+                      whileInView={{ width: realTimeStats.loading ? '0%' : `${Math.min(100, Math.round((realTimeStats.artists / 1000) * 100))}%` }}
+                      transition={{ delay: 0.7, duration: 0.8 }}
                      className="h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
                    ></motion.div>
                  </div>
-                 <p className="text-gray-400 text-xs mt-2">
-                   {realTimeStats.loading ? 'Chargement...' : `${realTimeStats.artists} artistes actifs sur 1000 objectif`}
+                  <p className="text-gray-300 text-center text-xs">
+                    {realTimeStats.loading ? 'Chargement...' : `${realTimeStats.artists} artistes actifs`}
                  </p>
-               </motion.div>
+                </div>
+              </div>
              </motion.div>
           </motion.div>
         </section>
@@ -2494,7 +2309,7 @@ export default function HomePage() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
                 {popularUsers?.map((user, index) => (
                   <div
-                    key={user._id}
+                    key={user._id || user.id || index}
                     className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer text-center"
                     tabIndex={0}
                     aria-label={`Artiste : ${user.name || user.username}`}
@@ -2540,131 +2355,382 @@ export default function HomePage() {
 
 
 
-        {/* Section Radio Mixx Party - Compacte et Accessible */}
-        <section id="radio" className="container mx-auto px-4 sm:px-8">
+        {/* Section Radio Mixx Party - Version Compacte */}
+        <section id="radio" className="container mx-auto px-4 sm:px-8 py-8">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 50 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="mb-6"
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative"
           >
-            {/* Header compact */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="relative">
-                  <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                    <Radio size={20} className="text-white" />
-                  </div>
+            {/* Effet de fond animé */}
+            <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 rounded-2xl blur-2xl"></div>
+            
+            {/* Header principal */}
+            <div className="relative text-center mb-8">
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                whileInView={{ scale: 1, opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl shadow-xl shadow-purple-500/40 mb-4"
+              >
+                <Radio size={24} className="text-white" />
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+              </motion.div>
+              
+              <motion.h2
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.6 }}
+                className="text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent mb-3"
+              >
                     Mixx Party Radio
-                  </h2>
-                  <p className="text-gray-400 text-sm">Musique électronique en direct</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="flex items-center space-x-1 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-sm border border-cyan-500/30 px-2 py-1 rounded-full">
-                  <div className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                  <span className="text-cyan-400 text-xs font-semibold">LIVE</span>
-                </div>
-              </div>
+              </motion.h2>
+              
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+                className="text-lg text-gray-300 max-w-xl mx-auto leading-relaxed"
+              >
+                La radio électronique qui pulse 24h/24. Plongez dans un univers de beats hypnotiques.
+              </motion.p>
+              
+              {/* Badge LIVE */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.5, duration: 0.6 }}
+                className="inline-flex items-center space-x-2 bg-gradient-to-r from-red-500/20 to-pink-500/20 backdrop-blur-xl border border-red-500/40 px-3 py-1.5 rounded-full mt-4"
+              >
+                <div className="w-1.5 h-1.5 bg-gradient-to-r from-red-400 to-pink-400 rounded-full animate-pulse"></div>
+                <span className="text-red-400 font-bold text-xs tracking-wider">LIVE NOW</span>
+              </motion.div>
             </div>
             
-            {/* Carte radio compacte */}
-            <div className="relative group">
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-xl blur-lg group-hover:blur-xl transition-all duration-500"></div>
+            {/* Carte radio principale */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.6 }}
+              className="relative group"
+            >
+              {/* Effet de bordure animée */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/30 via-purple-500/30 to-pink-500/30 rounded-2xl blur-lg group-hover:blur-xl transition-all duration-500 opacity-75 group-hover:opacity-100"></div>
               
-              <div className="relative bg-black/40 backdrop-blur-xl border border-white/10 rounded-xl p-4 overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
+              <div className="relative bg-black/60 backdrop-blur-xl border border-white/20 rounded-2xl p-6 overflow-hidden">
+                {/* Barre de progression animée */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500">
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-white/50 to-white/30"
+                    initial={{ width: "0%" }}
+                    animate={{ width: "100%" }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                  />
+                </div>
                 
-                <div className="flex items-center justify-between">
-                  {/* Informations principales */}
-                  <div className="flex items-center space-x-3 flex-1">
-                    {/* Logo compact */}
+                <div className="grid md:grid-cols-2 gap-6 items-center">
+                  {/* Informations et contrôles */}
+                  <div className="space-y-4">
+                    {/* Logo et titre */}
+                    <div className="flex items-center space-x-3">
                     <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/30">
+                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/40">
                         <img
                           src="/mixxparty1.png"
                           alt="Mixx Party"
-                          className="w-8 h-8 object-contain"
+                            className="w-7 h-7 object-contain"
                           onError={(e) => {
                             e.currentTarget.style.display = 'none';
                             e.currentTarget.nextElementSibling?.classList.remove('hidden');
                           }}
                         />
-                        <Radio size={16} className="text-white hidden" />
+                          <Radio size={18} className="text-white hidden" />
+                      </div>
+                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
+                    </div>
+                    
+                      <div>
+                        <h3 className="text-xl font-bold text-white mb-1">{radioInfo.name || 'Mixx Party Radio'}</h3>
+                        <p className="text-gray-300 text-sm">{radioInfo.description || 'Musique électronique en continu'}</p>
                       </div>
                     </div>
                     
-                    {/* Détails */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-white font-semibold text-sm mb-1 truncate">{radioInfo.name}</h3>
-                      <p className="text-gray-300 text-xs mb-2 truncate">{radioInfo.description}</p>
-                      <div className="flex items-center space-x-3 text-xs">
-                        <div className="flex items-center space-x-1 text-cyan-400">
+                    {/* Statistiques en temps réel */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <Headphones size={14} className="text-cyan-400" />
+                          <span className="text-gray-400 text-xs">Auditeurs</span>
+                        </div>
                           <AnimatedPlaysCounter
-                            value={radioInfo.listeners}
-                            size="sm"
+                          value={radioInfo.listeners || 0}
+                          size="lg"
                             variant="minimal"
-                            showIcon={true}
-                            icon={<Headphones size={10} />}
+                          showIcon={false}
                             animation="slide"
-                            className="text-cyan-400"
+                          className="text-xl font-bold text-cyan-400"
                           />
                         </div>
-                        <div className="flex items-center space-x-1 text-green-400">
-                          <div className="w-1 h-1 bg-green-400 rounded-full animate-pulse"></div>
-                          <span>En direct</span>
+                      
+                      <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                        <div className="flex items-center space-x-2 mb-1">
+                          <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="text-gray-400 text-xs">Statut</span>
                         </div>
-                      </div>
+                        <span className="text-xl font-bold text-green-400">LIVE</span>
                     </div>
                   </div>
                   
-                  {/* Bouton de lecture compact */}
-                  <div className="flex flex-col items-center space-y-2">
-                    <motion.button
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={handleRadioToggle}
-                      className={`relative w-12 h-12 rounded-lg flex items-center justify-center transition-all duration-300 ${
-                        isRadioPlaying 
-                          ? 'bg-gradient-to-br from-red-500 to-pink-500 shadow-lg shadow-red-500/40' 
-                          : 'bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 shadow-lg shadow-purple-500/40 hover:shadow-purple-500/60'
-                      }`}
-                    >
-                      {isRadioPlaying ? (
-                        <Pause size={16} className="text-white" />
-                      ) : (
-                        <Play size={16} className="text-white ml-0.5" />
-                      )}
-                    </motion.button>
-                    
-                    <p className="text-white text-xs font-medium">Mixx Party</p>
-                  </div>
-                </div>
-                
-                {/* Piste en cours - compacte */}
-                <div className="mt-3 pt-3 border-t border-white/10">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-gray-400 text-xs font-medium mb-1">EN COURS</p>
-                      <p className="text-white font-medium text-sm truncate">{radioInfo.currentTrack}</p>
-                    </div>
+                    {/* Bouton de lecture principal */}
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowProgramDialog(true)}
-                      className="px-3 py-1 bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 rounded-lg text-purple-300 text-xs font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300"
+                      onClick={handleRadioToggle}
+                      className={`relative w-full h-14 rounded-xl flex items-center justify-center space-x-3 transition-all duration-500 shadow-xl ${
+                        isRadioPlaying 
+                          ? 'bg-gradient-to-br from-red-500 to-pink-500 shadow-red-500/40 hover:shadow-red-500/60' 
+                          : 'bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 shadow-purple-500/40 hover:shadow-purple-500/60'
+                      }`}
                     >
-                      Plus d'infos
+                      {isRadioPlaying ? (
+                        <>
+                          <Pause size={20} className="text-white" />
+                          <span className="text-white font-bold text-base">Arrêter la Radio</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play size={20} className="text-white ml-1" />
+                          <span className="text-white font-bold text-base">Écouter la Radio</span>
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                  
+                  {/* Piste en cours et visualisation */}
+                  <div className="space-y-4">
+                    {/* Piste actuelle */}
+                    <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl p-4 border border-purple-500/30">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-2.5 h-2.5 bg-gradient-to-r from-red-400 to-pink-400 rounded-full animate-pulse"></div>
+                        <h4 className="text-base font-bold text-white">En cours de lecture</h4>
+                  </div>
+                      
+                      <div className="space-y-2">
+                        <div className="text-center">
+                          <p className="text-white font-semibold text-base mb-1 truncate">
+                            {radioInfo.currentTrack || 'Chargement...'}
+                          </p>
+                          <p className="text-purple-300 text-sm">Mixx Party Radio</p>
+                </div>
+                
+                        {/* Barre de progression simulée */}
+                        <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden">
+                          <motion.div
+                            className="h-full bg-gradient-to-r from-purple-400 to-pink-400"
+                            initial={{ width: "0%" }}
+                            animate={{ width: "100%" }}
+                            transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                          />
+                    </div>
+                      </div>
+                    </div>
+                    
+                    {/* Bouton d'informations */}
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowProgramDialog(true)}
+                      className="w-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/40 rounded-xl p-3 hover:from-cyan-500/30 hover:to-purple-500/30 transition-all duration-300 group"
+                    >
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <Eye size={16} className="text-white" />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-white font-semibold text-sm">Informations détaillées</p>
+                          <p className="text-cyan-300 text-xs">Programme, statistiques, qualité</p>
+                        </div>
+                      </div>
                     </motion.button>
                   </div>
                 </div>
               </div>
+            </motion.div>
+            
+            {/* Dépliant d'informations - s'ouvre dans la section */}
+            <AnimatePresence>
+              {showProgramDialog && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, y: -20 }}
+                  animate={{ opacity: 1, height: "auto", y: 0 }}
+                  exit={{ opacity: 0, height: 0, y: -20 }}
+                  transition={{ duration: 0.4, ease: "easeInOut" }}
+                  className="mt-6 overflow-hidden"
+                >
+                  <div className="bg-black/40 backdrop-blur-xl border border-white/20 rounded-2xl p-6">
+                    {/* Header du dépliant */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center">
+                          <Radio size={16} className="text-white" />
+                        </div>
+                        <h3 className="text-lg font-bold text-white">Informations Radio</h3>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <motion.button
+                          whileHover={{ scale: 1.1, rotate: 180 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={fetchRadioInfo}
+                          disabled={programLoading}
+                          className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
+                        >
+                          <RefreshCw size={14} className={`text-white ${programLoading ? 'animate-spin' : ''}`} />
+                        </motion.button>
+                        
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                          onClick={() => setShowProgramDialog(false)}
+                          className="w-8 h-8 bg-gradient-to-r from-red-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
+                        >
+                          <X size={14} className="text-white" />
+                        </motion.button>
+                      </div>
+                    </div>
+                    
+                    {/* Contenu du dépliant */}
+                    <div className="space-y-4">
+                      {programLoading ? (
+                        <div className="flex items-center justify-center h-24">
+                          <div className="text-center space-y-2">
+                            <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            <p className="text-gray-400 text-sm">Chargement...</p>
+                          </div>
+                        </div>
+                      ) : realRadioProgram.length > 0 ? (
+                        realRadioProgram.map((radioInfo: any, index: number) => (
+                          <motion.div
+                            key={index}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1, duration: 0.4 }}
+                            className="space-y-3"
+                          >
+                            {/* Piste actuelle */}
+                            <div className="bg-gradient-to-r from-cyan-500/15 to-purple-500/15 rounded-xl p-4 border border-cyan-500/30">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <div className="w-2 h-2 bg-gradient-to-r from-red-400 to-pink-400 rounded-full animate-pulse"></div>
+                                <h4 className="text-sm font-bold text-white">🎵 En cours de lecture</h4>
+                              </div>
+                              
+                              <div className="text-center p-3 bg-black/20 rounded-lg border border-white/10">
+                                <p className="text-white font-bold text-lg mb-1 truncate">
+                                  {radioInfo.currentTrack?.title || 'Chargement...'}
+                                </p>
+                                <p className="text-cyan-300 text-sm truncate">
+                                  {radioInfo.currentTrack?.artist || 'Mixx Party Radio'}
+                                </p>
+                                <div className="mt-2">
+                                  <span className="inline-block px-3 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse">
+                                    🔴 LIVE
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Statistiques et informations */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                              <div className="bg-gradient-to-r from-purple-500/15 to-pink-500/15 rounded-xl p-4 border border-purple-500/30">
+                                <h4 className="text-sm font-bold text-white mb-3 flex items-center space-x-2">
+                                  <span>📊</span>
+                                  <span>Statistiques</span>
+                                </h4>
+                                
+                                <div className="space-y-3">
+                                  <div className="bg-black/20 rounded-lg p-3 border border-white/10">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <Headphones size={14} className="text-cyan-400" />
+                                      <span className="text-gray-400 text-xs">Auditeurs actifs</span>
+                                    </div>
+                                    <div className="text-center">
+                                      <AnimatedPlaysCounter
+                                        value={radioInfo.stats?.listeners || 0}
+                                        size="lg"
+                                        variant="minimal"
+                                        showIcon={false}
+                                        animation="slide"
+                                        className="text-2xl font-black bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent"
+                                      />
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="bg-black/20 rounded-lg p-3 border border-white/10">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <span className="text-sm">🎯</span>
+                                      <span className="text-gray-400 text-xs">Qualité audio</span>
+                                    </div>
+                                    <div className="text-center">
+                                      <span className="text-2xl font-black bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
+                                        {radioInfo.stats?.bitrate || '128'} kbps
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="bg-gradient-to-r from-pink-500/15 to-cyan-500/15 rounded-xl p-4 border border-pink-500/30">
+                                <h4 className="text-sm font-bold text-white mb-3 flex items-center space-x-2">
+                                  <span>ℹ️</span>
+                                  <span>Informations</span>
+                                </h4>
+                                
+                                <div className="space-y-3">
+                                  <div className="bg-black/20 rounded-lg p-3 border border-white/10">
+                                    <h5 className="text-white font-semibold text-sm mb-2">À propos de la radio</h5>
+                                    <p className="text-gray-300 text-xs leading-relaxed">
+                                      {radioInfo.description || 'Radio électronique en boucle continue - Musique électronique 24h/24'}
+                                    </p>
+                                  </div>
+                                  
+                                  <div className="bg-black/20 rounded-lg p-3 border border-white/10">
+                                    <h5 className="text-white font-semibold text-sm mb-2">Caractéristiques</h5>
+                                    <div className="space-y-1">
+                                      <div className="flex items-center space-x-2 text-xs">
+                                        <span className="text-cyan-400">✓</span>
+                                        <span className="text-gray-300">Diffusion 24h/24</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2 text-xs">
+                                        <span className="text-purple-400">✓</span>
+                                        <span className="text-gray-300">Qualité haute définition</span>
+                                      </div>
+                                      <div className="flex items-center space-x-2 text-xs">
+                                        <span className="text-pink-400">✓</span>
+                                        <span className="text-gray-300">Musique électronique</span>
+                                      </div>
+                                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
+                          </motion.div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-400 py-6">
+                          <div className="w-12 h-12 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <Radio size={20} className="text-gray-500" />
+                          </div>
+                          <p className="text-sm font-medium mb-1">Aucune information disponible</p>
+                          <p className="text-xs">La radio pourrait être temporairement indisponible</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </section>
 
@@ -2744,8 +2810,8 @@ export default function HomePage() {
                     <div className="flex items-center gap-1">
                       <LikeButton
                         trackId={track._id}
-                        initialLikesCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                        initialIsLiked={track.isLiked || (Array.isArray(track.likes) && track.likes.includes(user?.id || ''))}
+                        initialLikesCount={track.likes || 0}
+                        initialIsLiked={track.isLiked || false}
                         size="sm"
                         variant="minimal"
                         showCount={false}
@@ -2891,8 +2957,8 @@ export default function HomePage() {
                                     </motion.button>
                                     <LikeButton
                                       trackId={track._id}
-                                      initialLikesCount={track.likes?.length || 0}
-                                      initialIsLiked={track.isLiked || track.likes?.includes(user?.id || '')}
+                                      initialLikesCount={track.likes || 0}
+                                      initialIsLiked={track.isLiked || false}
                                       size="sm"
                                       variant="card"
                                       showCount={true}
@@ -3159,8 +3225,8 @@ export default function HomePage() {
                           <div className="flex items-center gap-1">
                             <LikeButton
                               trackId={track._id}
-                              initialLikesCount={track.likes.length}
-                              initialIsLiked={track.isLiked || track.likes.includes(user?.id || '')}
+                              initialLikesCount={track.likes || 0}
+                              initialIsLiked={track.isLiked || false}
                               size="sm"
                               variant="minimal"
                               showCount={true}
@@ -3202,211 +3268,10 @@ export default function HomePage() {
 
 
 
-      {/* Dialog Radio - Compact et Accessible */}
-      <AnimatePresence>
-        {showProgramDialog && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
-            onClick={() => setShowProgramDialog(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-md max-h-[60vh] overflow-hidden"
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Effet de fond */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-cyan-500/20 via-purple-500/20 to-pink-500/20 rounded-2xl blur-lg"></div>
-              <div className="relative bg-black/90 backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden flex flex-col h-full">
-                {/* Header compact */}
-                <div className="relative p-4 border-b border-white/10 flex-shrink-0">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"></div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <div className="w-10 h-10 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
-                          <Radio size={20} className="text-white" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                          Mixx Party Radio
-                        </h2>
-                        <p className="text-gray-400 text-xs">Informations en temps réel</p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={fetchRadioInfo}
-                        disabled={programLoading}
-                        className="w-8 h-8 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-lg flex items-center justify-center shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 transition-all duration-300 disabled:opacity-50"
-                      >
-                        <RefreshCw size={16} className={`text-white ${programLoading ? 'animate-spin' : ''}`} />
-                      </motion.button>
-                      
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => setShowProgramDialog(false)}
-                        className="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-500 rounded-lg flex items-center justify-center shadow-lg shadow-red-500/30 hover:shadow-red-500/50 transition-all duration-300"
-                      >
-                        <X size={16} className="text-white" />
-                      </motion.button>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Contenu compact */}
-                <div className="flex-1 overflow-y-auto p-4 pb-2 scrollbar-thin scrollbar-thumb-cyan-500/30 scrollbar-track-transparent" style={{ minHeight: 0, maxHeight: 'calc(60vh - 120px)' }}>
-                  {/* Indicateur de scroll */}
-                  <div className="text-center mb-2">
-                    <div className="w-8 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full mx-auto opacity-60"></div>
-                  </div>
-                  
-                  {programLoading ? (
-                    <div className="flex items-center justify-center h-32">
-                      <div className="text-center">
-                        <div className="w-8 h-8 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-                        <p className="text-gray-400 text-sm">Chargement...</p>
-                      </div>
-                    </div>
-                  ) : realRadioProgram.length > 0 ? (
-                    <div className="space-y-3">
-                      {realRadioProgram.map((radioInfo: any, index: number) => (
-                        <motion.div
-                          key={index}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="space-y-2"
-                        >
-                          {/* Piste actuelle - compacte */}
-                          <div className="bg-gradient-to-r from-cyan-500/10 to-purple-500/10 rounded-xl p-3 border border-cyan-500/30">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <div className="w-2 h-2 bg-gradient-to-r from-red-500 to-pink-500 rounded-full animate-pulse"></div>
-                              <h3 className="text-sm font-bold text-white">En cours</h3>
-                            </div>
-                            
-                            <div className="space-y-1.5">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-white font-semibold text-sm truncate">{radioInfo.currentTrack.title}</p>
-                                  <p className="text-cyan-400 text-xs truncate">{radioInfo.currentTrack.artist}</p>
-                                </div>
-                                <span className="inline-block px-2 py-1 bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs rounded-full font-bold animate-pulse ml-2">
-                                  LIVE
-                                </span>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-1.5 text-xs">
-                                <div className="bg-black/20 rounded-lg p-2">
-                                  <p className="text-gray-400 text-xs">Auditeurs</p>
-                                  <AnimatedPlaysCounter
-                                    value={radioInfo.stats.listeners}
-                                    size="sm"
-                                    variant="minimal"
-                                    showIcon={false}
-                                    animation="slide"
-                                    className="text-white font-medium"
-                                  />
-                                </div>
-                                <div className="bg-black/20 rounded-lg p-2">
-                                  <p className="text-gray-400 text-xs">Qualité</p>
-                                  <p className="text-white font-medium">{radioInfo.stats.bitrate}kbps</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
+      {/* Dialog Radio supprimé - remplacé par un dépliant intégré dans la section radio */}
 
-                          {/* Description - compacte */}
-                          <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-xl p-3 border border-purple-500/30">
-                            <h3 className="text-sm font-bold text-white mb-2">À propos</h3>
-                            <p className="text-gray-300 text-xs mb-3 leading-relaxed">{radioInfo.description}</p>
-                            
-                            <div className="space-y-0.5">
-                              {radioInfo.features.slice(0, 3).map((feature: string, featureIndex: number) => (
-                                <div key={featureIndex} className="flex items-center space-x-2">
-                                  <span className="text-lg flex-shrink-0">{feature.split(' ')[0]}</span>
-                                  <span className="text-gray-300 text-xs">{feature.split(' ').slice(1).join(' ')}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
 
-                          {/* Statistiques - compactes */}
-                          <div className="bg-gradient-to-r from-pink-500/10 to-cyan-500/10 rounded-xl p-3 border border-pink-500/30">
-                            <h3 className="text-sm font-bold text-white mb-2">Statistiques</h3>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="text-center">
-                                <div className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">
-                                  <AnimatedPlaysCounter
-                                    value={radioInfo.stats.listeners}
-                                    size="lg"
-                                    variant="minimal"
-                                    showIcon={false}
-                                    animation="slide"
-                                    className="bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent"
-                                  />
-                                </div>
-                                <p className="text-gray-400 text-xs">Auditeurs</p>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-                                  {radioInfo.stats.bitrate}
-                                </div>
-                                <p className="text-gray-400 text-xs">kbps</p>
-                              </div>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-400 py-6">
-                      <p className="text-sm">Aucune information disponible</p>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Footer compact */}
-                <div className="p-3 border-t border-white/10 flex-shrink-0 bg-black/80">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-xs">
-                      <div className="flex items-center space-x-1 text-cyan-400">
-                        <div className="w-1.5 h-1.5 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full animate-pulse"></div>
-                        <span>24h/24</span>
-                      </div>
-                      <div className="flex items-center space-x-1 text-green-400">
-                        <div className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></div>
-                        <span>Live</span>
-                      </div>
-                    </div>
-                    
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => setShowProgramDialog(false)}
-                      className="bg-gradient-to-r from-cyan-400 to-purple-500 hover:from-cyan-500 hover:to-purple-600 text-white font-medium px-3 py-1.5 rounded-lg transition-all duration-300 shadow-lg shadow-cyan-500/30 text-xs"
-                    >
-                      Fermer
-                    </motion.button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
 
       <BottomNav />
     </div>

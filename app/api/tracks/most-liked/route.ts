@@ -1,70 +1,67 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    await dbConnect();
-    
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const page = parseInt(searchParams.get('page') || '1');
-    const skip = (page - 1) * limit;
+    const limit = parseInt(searchParams.get('limit') || '50');
 
-    // Récupérer les pistes les plus likées
-    const tracks = await Track.aggregate([
-      {
-        $addFields: {
-          likeCount: { $size: '$likes' }
-        }
-      },
-      {
-        $sort: { likeCount: -1 }
-      },
-      {
-        $skip: skip
-      },
-      {
-        $limit: limit
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'artist',
-          foreignField: '_id',
-          as: 'artistInfo'
-        }
-      },
-      {
-        $unwind: '$artistInfo'
-      },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          audioUrl: 1,
-          coverUrl: 1,
-          duration: 1,
-          likes: 1,
-          comments: 1,
-          plays: 1,
-          createdAt: 1,
-          artist: {
-            _id: '$artistInfo._id',
-            name: '$artistInfo.name',
-            username: '$artistInfo.username',
-            avatar: '$artistInfo.avatar'
-          }
-        }
-      }
-    ]);
+    // Récupérer les pistes les plus aimées depuis Supabase
+    const { data: tracks, error } = await supabase
+      .from('tracks')
+      .select(`
+        *,
+        profiles!tracks_creator_id_fkey (
+          id,
+          username,
+          name,
+          avatar,
+          is_artist,
+          artist_name
+        )
+      `)
+      .order('likes', { ascending: false })
+      .limit(limit);
 
-    return NextResponse.json({ tracks });
+    if (error) {
+      console.error('❌ Erreur Supabase most-liked tracks:', error);
+      return NextResponse.json(
+        { error: 'Erreur lors de la récupération des pistes les plus aimées' },
+        { status: 500 }
+      );
+    }
+
+    // Transformer les données pour correspondre au format attendu
+    const formattedTracks = tracks?.map(track => ({
+      _id: track.id,
+      title: track.title,
+      artist: {
+        _id: track.creator_id,
+        username: track.profiles?.username,
+        name: track.profiles?.name,
+        avatar: track.profiles?.avatar,
+        isArtist: track.profiles?.is_artist,
+        artistName: track.profiles?.artist_name
+      },
+      duration: track.duration,
+      coverUrl: track.cover_url,
+      audioUrl: track.audio_url,
+      genre: track.genre,
+      likes: track.likes || [],
+      plays: track.plays || 0,
+      createdAt: track.created_at,
+      isFeatured: track.is_featured,
+      isVerified: track.profiles?.is_verified || false
+    })) || [];
+
+    console.log(`✅ ${formattedTracks.length} pistes les plus aimées récupérées`);
+    return NextResponse.json({ tracks: formattedTracks });
+
   } catch (error) {
-    console.error('Erreur récupération pistes les plus likées:', error);
+    console.error('❌ Erreur serveur most-liked tracks:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des pistes les plus likées' },
+      { error: 'Erreur serveur interne' },
       { status: 500 }
     );
   }
-} 
+}

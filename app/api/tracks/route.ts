@@ -1,111 +1,128 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
-import Track from '@/models/Track';
+import { supabase } from '@/lib/supabase';
 
-// GET - Récupérer toutes les pistes publiques
 export async function GET(request: NextRequest) {
-  console.log('=== DEBUT API TRACKS ===');
-  
   try {
-    // S'assurer que la connexion est établie
-    console.log('🔄 Connexion à la base de données...');
-    await dbConnect();
-    console.log('✅ Base de données connectée');
-    
-    // Vérifier que la connexion est active
-    if (!isConnected()) {
-      console.warn('⚠️ MongoDB non connecté, tentative de reconnexion...');
-      await dbConnect();
-    }
-
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
+    const featured = searchParams.get('featured');
+    const sort = searchParams.get('sort') || 'trending';
     const limit = parseInt(searchParams.get('limit') || '20');
-    const genre = searchParams.get('genre');
-    const search = searchParams.get('search');
-    const skip = (page - 1) * limit;
+    const category = searchParams.get('category');
 
-    console.log('📊 Paramètres de recherche:', { page, limit, genre, search, skip });
+    let query = supabase
+      .from('tracks')
+      .select(`
+        id,
+        title,
+        genre,
+        plays,
+        likes,
+        created_at,
+        creator_id,
+        cover_url,
+        audio_url,
+        duration,
+        is_featured,
+        is_public
+      `)
+      .eq('is_public', true);
 
-    // Construire la requête de base
-    let query: any = { isPublic: true };
-
-    // Filtrer par genre
-    if (genre && genre !== 'all') {
-      query.genre = { $in: [genre] };
-      console.log('🎵 Filtre genre:', genre);
+    // Filtrer par catégorie si spécifiée
+    if (category && category !== 'all') {
+      query = query.contains('genre', [category]);
     }
 
-    // Recherche par texte (utiliser regex au lieu de $text pour éviter les problèmes d'index)
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { tags: { $in: [new RegExp(search, 'i')] } }
-      ];
-      console.log('🔍 Recherche regex:', search);
+    // Filtrer par featured si demandé
+    if (featured === 'true') {
+      query = query.eq('is_featured', true);
     }
 
-    console.log('🔍 Requête finale:', JSON.stringify(query, null, 2));
+    // Trier selon le paramètre
+    switch (sort) {
+      case 'trending':
+        query = query.order('plays', { ascending: false });
+        break;
+      case 'newest':
+        query = query.order('created_at', { ascending: false });
+        break;
+      case 'popular':
+        query = query.order('likes', { ascending: false });
+        break;
+      case 'featured':
+        query = query.order('is_featured', { ascending: false }).order('plays', { ascending: false });
+        break;
+      default:
+        query = query.order('plays', { ascending: false });
+    }
 
-    // Récupérer les pistes avec les informations de l'artiste
-    console.log('📥 Récupération des pistes...');
-    const tracks = await Track.find(query)
-      .populate('artist', 'name username avatar')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    // Limiter le nombre de résultats
+    query = query.limit(limit);
 
-    console.log(`✅ ${tracks.length} pistes récupérées`);
+    const { data: tracks, error } = await query;
 
-    // Compter le total
-    console.log('📊 Comptage total...');
-    const total = await Track.countDocuments(query);
-    console.log(`📊 Total: ${total} pistes`);
+    if (error) {
+      console.error('Erreur lors de la récupération des tracks:', error);
+      return NextResponse.json({ error: 'Erreur lors de la récupération des tracks' }, { status: 500 });
+    }
 
-    console.log('=== FIN API TRACKS SUCCES ===');
-    return NextResponse.json({
-      tracks,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    }, {
-      headers: {
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
+    // Récupérer les informations des créateurs
+    if (tracks && tracks.length > 0) {
+      const creatorIds = Array.from(new Set(tracks.map(track => track.creator_id)));
+      
+      const { data: creators, error: creatorsError } = await supabase
+        .from('profiles')
+        .select('id, username, name, avatar_url, is_artist, artist_name')
+        .in('id', creatorIds);
+
+      if (!creatorsError && creators) {
+        const creatorsMap = new Map(creators.map(creator => [creator.id, creator]));
+        
+        const formattedTracks = tracks.map(track => {
+          const creator = creatorsMap.get(track.creator_id);
+          return {
+            _id: track.id,
+            title: track.title,
+            artist: {
+              _id: track.creator_id,
+              username: creator?.username || 'Utilisateur inconnu',
+              name: creator?.name || creator?.username || 'Utilisateur inconnu',
+              avatar: creator?.avatar_url || '',
+              isArtist: creator?.is_artist || false,
+              artistName: creator?.artist_name || creator?.name || creator?.username || 'Utilisateur inconnu'
+            },
+            genre: track.genre || [],
+            plays: track.plays || 0,
+            likes: track.likes || 0,
+            createdAt: track.created_at,
+            coverUrl: track.cover_url,
+            audioUrl: track.audio_url,
+            duration: track.duration || 0,
+            isFeatured: track.is_featured || false,
+            isNew: false // À calculer selon la date
+          };
+        });
+
+        return NextResponse.json({
+          tracks: formattedTracks,
+          total: formattedTracks.length,
+          sort,
+          category: category || 'all'
+        });
       }
+    }
+
+    return NextResponse.json({
+      tracks: [],
+      total: 0,
+      sort,
+      category: category || 'all'
     });
 
   } catch (error) {
-    console.error('❌ Erreur récupération pistes:', error);
-    
-    if (error && typeof error === 'object') {
-      const err = error as any;
-      console.error('Type d\'erreur:', err.constructor?.name || 'Unknown');
-      console.error('Message:', err.message || 'No message');
-      
-      if (err.name === 'MongoError' || err.name === 'MongoServerError') {
-        console.error('Code erreur MongoDB:', err.code);
-      }
-    }
-    
-    console.log('=== FIN API TRACKS AVEC ERREUR ===');
+    console.error('Erreur lors de la récupération des tracks:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la récupération des pistes' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
 }
-
-// POST - Créer une nouvelle piste (redirige vers /api/upload)
-export async function POST(request: NextRequest) {
-  return NextResponse.json(
-    { error: 'Utilisez /api/upload pour créer une piste' },
-    { status: 405 }
-  );
-} 

@@ -1,233 +1,238 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import User from '@/models/User';
-import { uploadImage, uploadImageDirect, deleteFile } from '@/lib/cloudinary';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { username: string } }
 ) {
-  console.log('=== DEBUT UPLOAD API ===');
-  
   try {
     const { username } = params;
-    console.log('Username:', username);
 
-    // Vérifier les variables Cloudinary
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const apiKey = process.env.CLOUDINARY_API_KEY;
-    const apiSecret = process.env.CLOUDINARY_API_SECRET;
+    if (!username) {
+      return NextResponse.json(
+        { error: 'Nom d\'utilisateur requis' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`📤 Upload pour l'utilisateur: ${username}`);
+
+    // Vérifier que l'utilisateur existe
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, username')
+      .eq('username', username)
+      .single();
+
+    if (profileError || !profile) {
+      console.log(`❌ Utilisateur non trouvé: ${username}`);
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Vérifier le type de contenu
+    const contentType = request.headers.get('content-type');
     
-    console.log('✅ Variables Cloudinary OK');
-    console.log('Cloud Name:', cloudName);
-    console.log('API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'MANQUANT');
-    console.log('API Secret:', apiSecret ? `${apiSecret.substring(0, 10)}...` : 'MANQUANT');
-
-    // Vérifier la session
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      console.log('❌ Pas de session utilisateur');
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    if (!contentType || !contentType.includes('multipart/form-data')) {
+      return NextResponse.json(
+        { error: 'Type de contenu invalide. Utilisez multipart/form-data' },
+        { status: 400 }
+      );
     }
 
-    console.log('Session:', session ? '✅ Présente' : '❌ Absente');
-    console.log('User email:', session.user.email);
-
-    // Connexion à la base de données
-    console.log('🔄 Connexion à la base de données...');
-    await dbConnect();
-    console.log('✅ Base de données connectée');
-
-    // Vérifier que l'utilisateur existe et a le bon username
-    console.log('🔍 Recherche utilisateur:', session.user.email);
-    const user = await User.findOne({ email: session.user.email });
-    if (!user) {
-      console.log('❌ Utilisateur non trouvé');
-      return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
-    }
-
-    console.log('Utilisateur trouvé:', user ? '✅' : '❌');
-    console.log('Username actuel:', user.username);
-    console.log('Username demandé:', username);
-
-    if (user.username !== username) {
-      console.log('❌ Username ne correspond pas');
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-    }
-
-    console.log('✅ Autorisation OK');
-
-    // Lire le FormData
-    console.log('📁 Lecture FormData...');
+    // Récupérer les données du formulaire
     const formData = await request.formData();
     const file = formData.get('file') as File;
-    const type = formData.get('type') as string;
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const genre = formData.get('genre') as string;
+    const isPublic = formData.get('isPublic') === 'true';
 
     if (!file) {
-      console.log('❌ Aucun fichier fourni');
-      return NextResponse.json({ error: 'Aucun fichier fourni' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Aucun fichier fourni' },
+        { status: 400 }
+      );
     }
 
-    console.log('Type de fichier:', file.type);
-    console.log('Taille du fichier:', file.size);
-    console.log('Type d\'upload:', type);
+    console.log(`📁 Fichier reçu: ${file.name} (${file.size} bytes)`);
+    console.log(`📝 Titre: ${title}`);
+    console.log(`🎵 Genre: ${genre}`);
 
-    // Vérifier le type de fichier
-    if (!file.type.startsWith('image/')) {
-      console.log('❌ Type de fichier invalide');
-      return NextResponse.json({ error: 'Type de fichier invalide' }, { status: 400 });
+    // Vérifier la taille du fichier (max 50MB)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { error: 'Fichier trop volumineux. Taille maximum: 50MB' },
+        { status: 400 }
+      );
     }
 
-    // Convertir en buffer
-    console.log('🔄 Conversion en buffer...');
-    const buffer = Buffer.from(await file.arrayBuffer());
+    // Vérifier le type de fichier (audio)
+    const allowedTypes = [
+      'audio/mpeg',
+      'audio/mp3',
+      'audio/wav',
+      'audio/flac',
+      'audio/ogg',
+      'audio/aac',
+      'audio/m4a'
+    ];
 
-    let result;
-    if (type === 'avatar') {
-      // Supprimer l'ancien avatar Cloudinary si présent
-      if (user.avatarPublicId) {
-        try {
-          console.log('🗑️ Suppression ancien avatar Cloudinary:', user.avatarPublicId);
-          await deleteFile(user.avatarPublicId, 'image');
-          console.log('✅ Ancien avatar supprimé');
-        } catch (err) {
-          console.warn('⚠️ Erreur suppression ancien avatar Cloudinary:', err);
-        }
-      }
-      console.log('📤 Upload avatar pour', username + ', taille:', buffer.length, 'bytes');
-      console.log('📁 Dossier Cloudinary: ximam/avatars');
-      
-      // Test avec une approche en 3 étapes
-      try {
-        console.log('🔄 Début upload Cloudinary (méthode simple)...');
-        
-        // Utiliser une approche plus basique
-        const uploadOptions = {
-          folder: 'ximam/avatars',
-          resource_type: 'image',
-          format: 'auto',
-          quality: 'auto'
-        };
-        
-        console.log('Options:', uploadOptions);
-        console.log('Taille buffer:', buffer.length);
-        
-        result = await uploadImage(buffer, uploadOptions);
-        console.log('✅ Upload réussi avec méthode simple');
-        
-      } catch (simpleError) {
-        console.log('❌ Échec méthode simple, essai méthode alternative...');
-        console.error('Erreur méthode simple:', simpleError);
-        
-        // Méthode alternative : upload direct sans options
-        try {
-          console.log('🔄 Essai upload direct sans options...');
-          result = await uploadImage(buffer, {});
-          console.log('✅ Upload réussi avec méthode alternative');
-        } catch (altError) {
-          console.log('❌ Échec méthode alternative, essai API REST directe...');
-          console.error('Erreur méthode alternative:', altError);
-          
-          // Dernière chance : API REST directe
-          try {
-            console.log('🔄 Essai upload via API REST directe...');
-            result = await uploadImageDirect(buffer, { folder: 'ximam/avatars' });
-            console.log('✅ Upload réussi avec API REST directe');
-          } catch (restError) {
-            console.error('❌ Échec API REST directe:', restError);
-            throw restError;
-          }
-        }
-      }
-      
-    } else if (type === 'banner') {
-      // Supprimer l'ancienne bannière Cloudinary si présente
-      if (user.bannerPublicId) {
-        try {
-          console.log('🗑️ Suppression ancienne bannière Cloudinary:', user.bannerPublicId);
-          await deleteFile(user.bannerPublicId, 'image');
-          console.log('✅ Ancienne bannière supprimée');
-        } catch (err) {
-          console.warn('⚠️ Erreur suppression ancienne bannière Cloudinary:', err);
-        }
-      }
-      console.log('📤 Upload banner pour', username);
-      // Fallback triple comme pour l'avatar
-      try {
-        console.log('🔄 Début upload Cloudinary (méthode simple)...');
-        const uploadOptions = {
-          folder: 'ximam/banners',
-          resource_type: 'image',
-          format: 'auto',
-          quality: 'auto'
-        };
-        console.log('Options:', uploadOptions);
-        result = await uploadImage(buffer, uploadOptions);
-        console.log('✅ Upload réussi avec méthode simple');
-      } catch (simpleError) {
-        console.log('❌ Échec méthode simple, essai méthode alternative...');
-        try {
-          result = await uploadImage(buffer, {});
-          console.log('✅ Upload réussi avec méthode alternative');
-        } catch (altError) {
-          console.log('❌ Échec méthode alternative, essai API REST directe...');
-          try {
-            result = await uploadImageDirect(buffer, { folder: 'ximam/banners' });
-            console.log('✅ Upload réussi avec API REST directe');
-          } catch (restError) {
-            console.error('❌ Échec API REST directe:', restError);
-            throw restError;
-          }
-        }
-      }
-    } else {
-      console.log('❌ Type d\'upload non supporté:', type);
-      return NextResponse.json({ error: 'Type d\'upload non supporté' }, { status: 400 });
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json(
+        { error: 'Type de fichier non supporté. Utilisez un fichier audio' },
+        { status: 400 }
+      );
     }
 
-    // Mettre à jour l'utilisateur
-    console.log('🔄 Mise à jour utilisateur...');
-    const updateData: any = {};
-    if (type === 'avatar') {
-      updateData.avatar = result.secure_url;
-      updateData.avatarPublicId = result.public_id;
-    } else if (type === 'banner') {
-      updateData.banner = result.secure_url;
-      updateData.bannerPublicId = result.public_id;
+    try {
+      // Générer un nom de fichier unique
+      const timestamp = Date.now();
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${username}_${timestamp}.${fileExtension}`;
+      const filePath = `uploads/${username}/${fileName}`;
+
+      // Upload vers Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('audio-files')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('❌ Erreur upload Supabase:', uploadError);
+        return NextResponse.json(
+          { error: 'Erreur lors de l\'upload du fichier' },
+          { status: 500 }
+        );
+      }
+
+      // Obtenir l'URL publique du fichier
+      const { data: urlData } = supabase.storage
+        .from('audio-files')
+        .getPublicUrl(filePath);
+
+      // Créer l'entrée dans la table tracks
+      const { data: trackData, error: trackError } = await supabase
+        .from('tracks')
+        .insert({
+          title: title || file.name,
+          description: description || '',
+          genre: genre ? [genre] : [],
+          file_path: filePath,
+          file_url: urlData.publicUrl,
+          file_size: file.size,
+          file_type: file.type,
+          duration: 0, // À calculer plus tard
+          user_id: profile.id,
+          is_public: isPublic,
+          plays: 0,
+          likes: 0
+        })
+        .select()
+        .single();
+
+      if (trackError) {
+        console.error('❌ Erreur création track:', trackError);
+        return NextResponse.json(
+          { error: 'Erreur lors de la création de la piste' },
+          { status: 500 }
+        );
+      }
+
+      console.log(`✅ Upload réussi pour: ${username}`);
+      console.log(`🎵 Track créée: ${trackData.id}`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Fichier uploadé avec succès',
+        track: {
+          id: trackData.id,
+          title: trackData.title,
+          file_url: trackData.file_url,
+          created_at: trackData.created_at
+        }
+      });
+
+    } catch (uploadError) {
+      console.error('❌ Erreur lors de l\'upload:', uploadError);
+      return NextResponse.json(
+        { error: 'Erreur lors de l\'upload du fichier' },
+        { status: 500 }
+      );
     }
-
-    await User.findByIdAndUpdate(user._id, updateData);
-    console.log('✅ Utilisateur mis à jour');
-
-    console.log('=== FIN UPLOAD API SUCCES ===');
-    return NextResponse.json({
-      success: true,
-      imageUrl: result.secure_url,
-      publicId: result.public_id
-    });
 
   } catch (error) {
-    console.error('❌ Erreur upload image:', error);
-    
-    // Logs détaillés pour le diagnostic
-    if (error && typeof error === 'object') {
-      console.error('Type d\'erreur:', error.constructor.name);
-      console.error('Propriétés:', Object.keys(error));
-      
-      if ('http_code' in error) {
-        console.error('Code HTTP Cloudinary:', (error as any).http_code);
-      }
-      if ('message' in error) {
-        console.error('Message d\'erreur:', (error as any).message);
-      }
-    }
-    
-    console.log('=== FIN UPLOAD API AVEC ERREUR ===');
+    console.error('❌ Erreur générale upload:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de l\'upload de l\'image' },
+      { error: 'Erreur interne du serveur' },
       { status: 500 }
     );
   }
-} 
+}
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { username: string } }
+) {
+  try {
+    const { username } = params;
+
+    if (!username) {
+      return NextResponse.json(
+        { error: 'Nom d\'utilisateur requis' },
+        { status: 400 }
+      );
+    }
+
+    console.log(`📋 Récupération des uploads pour: ${username}`);
+
+    // Vérifier que l'utilisateur existe
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: 'Utilisateur non trouvé' },
+        { status: 404 }
+      );
+    }
+
+    // Récupérer les tracks de l'utilisateur
+    const { data: tracks, error: tracksError } = await supabase
+      .from('tracks')
+      .select('*')
+      .eq('creator_id', profile.id)
+      .order('created_at', { ascending: false });
+
+    if (tracksError) {
+      console.error('❌ Erreur récupération tracks:', tracksError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la récupération des pistes' },
+        { status: 500 }
+      );
+    }
+
+    console.log(`✅ ${tracks?.length || 0} tracks trouvées pour ${username}`);
+
+    return NextResponse.json({
+      success: true,
+      tracks: tracks || [],
+      count: tracks?.length || 0
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur récupération uploads:', error);
+    return NextResponse.json(
+      { error: 'Erreur interne du serveur' },
+      { status: 500 }
+    );
+  }
+}

@@ -53,7 +53,7 @@ export default function SettingsPage() {
   });
 
   // Affichage si non connecté
-  if (!user) {
+  if (user === null) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <h2 className="text-2xl font-bold text-purple-400 mb-4 flex items-center gap-2">
@@ -343,7 +343,7 @@ export default function SettingsPage() {
           <div className="glass-effect rounded-xl p-6 mb-8">
             <div className="flex items-center space-x-4">
               <img
-                src={user?.avatar || user?.image || '/default-avatar.png'}
+                src={user?.image || '/default-avatar.png'}
                 alt={user?.name || 'Avatar'}
                 className="w-16 h-16 rounded-full object-cover"
               />

@@ -1,12 +1,4 @@
-import dbConnect from './db';
-import UserSubscription from '@/models/UserSubscription';
-import Subscription from '@/models/Subscription';
-import { IUserSubscription } from '@/models/UserSubscription';
-import { ISubscription } from '@/models/Subscription';
-
-// S'assurer que les modèles sont enregistrés
-import '@/models/Subscription';
-import '@/models/UserSubscription';
+import { supabase } from './supabase';
 
 export interface SubscriptionLimits {
   uploads: number;
@@ -45,18 +37,23 @@ export interface UsageInfo {
 
 class SubscriptionService {
   // Récupérer l'abonnement actuel d'un utilisateur
-  async getUserSubscription(userId: string): Promise<IUserSubscription | null> {
+  async getUserSubscription(userId: string): Promise<any | null> {
     try {
-      await dbConnect();
+      const { data: userSub, error } = await supabase
+        .from('user_subscriptions')
+        .select(`
+          *,
+          subscriptions (*)
+        `)
+        .eq('user_id', userId)
+        .in('status', ['active', 'trial'])
+        .gte('current_period_end', new Date().toISOString())
+        .single();
       
-      const userSub = await UserSubscription.findOne({ 
-        user: userId,
-        status: { $in: ['active', 'trial'] },
-        $or: [
-          { currentPeriodEnd: { $gte: new Date() } },
-          { currentPeriodEnd: null }
-        ]
-      }).populate('subscription');
+      if (error) {
+        console.error(`❌ Erreur lors de la récupération de l'abonnement pour ${userId}:`, error);
+        return null;
+      }
       
       return userSub;
     } catch (error) {
@@ -91,9 +88,9 @@ class SubscriptionService {
         return defaultLimits;
       }
 
-      const subscription = userSub.subscription as unknown as ISubscription;
+      const subscription = userSub.subscriptions;
       console.log(`📊 Abonnement trouvé pour ${userId}:`, {
-        subscriptionId: subscription._id,
+        subscriptionId: subscription.id,
         limits: subscription.limits
       });
       
@@ -150,12 +147,12 @@ class SubscriptionService {
         return { allowed: true, usage };
       }
 
-      const subscription = userSub.subscription as unknown as ISubscription;
+      const subscription = userSub.subscriptions;
       const limits = subscription.limits;
       const usage = userSub.usage;
       
       console.log(`📊 Abonnement trouvé pour ${userId}:`, {
-        subscriptionId: subscription._id,
+        subscriptionId: subscription.id,
         limits,
         currentUsage: usage
       });
@@ -187,16 +184,20 @@ class SubscriptionService {
     action: 'uploads' | 'comments' | 'plays' | 'playlists'
   ): Promise<void> {
     try {
-      await dbConnect();
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .upsert({
+          user_id: userId,
+          usage: { [action]: 1 }
+        }, {
+          onConflict: 'user_id'
+        });
       
-      await UserSubscription.findOneAndUpdate(
-        { user: userId },
-        { $inc: { [`usage.${action}`]: 1 } },
-        { upsert: true, new: true }
-      );
+      if (error) {
+        console.error(`❌ Erreur lors de l'incrémentation de l'utilisation pour ${userId}:`, error);
+      }
     } catch (error) {
       console.error(`❌ Erreur lors de l'incrémentation de l'utilisation pour ${userId}:`, error);
-      return;
     }
   }
 
@@ -292,27 +293,22 @@ class SubscriptionService {
   // Réinitialiser l'utilisation mensuelle
   async resetMonthlyUsage(): Promise<void> {
     try {
-      await dbConnect();
-      
       const now = new Date();
       const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
       
-      await UserSubscription.updateMany(
-        { 
-          currentPeriodEnd: { $lt: now },
-          status: { $in: ['active', 'trial'] }
-        },
-        {
-          $set: {
-            'usage.uploads': 0,
-            'usage.comments': 0,
-            'usage.plays': 0,
-            'usage.playlists': 0,
-            currentPeriodStart: now,
-            currentPeriodEnd: new Date(now.getFullYear(), now.getMonth() + 1, now.getDate())
-          }
-        }
-      );
+      const { error } = await supabase
+        .from('user_subscriptions')
+        .update({
+          usage: { uploads: 0, comments: 0, plays: 0, playlists: 0 },
+          current_period_start: now.toISOString(),
+          current_period_end: new Date(now.getFullYear(), now.getMonth() + 1, now.getDate()).toISOString()
+        })
+        .lt('current_period_end', now.toISOString())
+        .in('status', ['active', 'trial']);
+      
+      if (error) {
+        console.error('❌ Erreur lors de la réinitialisation de l\'utilisation mensuelle:', error);
+      }
     } catch (error) {
       console.error('❌ Erreur lors de la réinitialisation de l\'utilisation mensuelle:', error);
     }

@@ -6,7 +6,7 @@ import { Heart, MessageCircle, Users, UserPlus } from 'lucide-react';
 
 interface InteractiveCounterProps {
   type: 'likes' | 'comments' | 'followers' | 'following';
-  initialCount: number;
+  initialCount: number | undefined | null;
   isActive?: boolean;
   onToggle?: (newState: boolean) => Promise<void>;
   className?: string;
@@ -51,7 +51,7 @@ export default function InteractiveCounter({
   showIcon = true,
   disabled = false
 }: InteractiveCounterProps) {
-  const [count, setCount] = useState(initialCount);
+  const [count, setCount] = useState(initialCount || 0);
   const [isLiked, setIsLiked] = useState(isActive);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,7 +61,7 @@ export default function InteractiveCounter({
 
   // Synchroniser avec les props externes
   useEffect(() => {
-    setCount(initialCount);
+    setCount(initialCount || 0);
   }, [initialCount]);
 
   useEffect(() => {
@@ -70,7 +70,7 @@ export default function InteractiveCounter({
 
   // Réinitialiser l'état local quand les props changent
   useEffect(() => {
-    setCount(initialCount);
+    setCount(initialCount || 0);
     setIsLiked(isActive);
   }, [initialCount, isActive]);
 
@@ -95,7 +95,12 @@ export default function InteractiveCounter({
     }
   };
 
-  const formatCount = (num: number) => {
+  const formatCount = (num: number | undefined | null) => {
+    // Gérer les valeurs undefined/null
+    if (num === undefined || num === null) {
+      return '0';
+    }
+    
     if (num >= 1000000) {
       return (num / 1000000).toFixed(1) + 'M';
     } else if (num >= 1000) {

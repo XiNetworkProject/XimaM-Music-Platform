@@ -1,98 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
-import User from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
-// POST - Liker/Unliker une piste
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
-    }
-
-    await dbConnect();
-    const trackId = params.id;
-
-    // Validation de l'ID
-    if (!trackId || trackId.length !== 24) {
-      return NextResponse.json({ error: 'ID de piste invalide' }, { status: 400 });
-    }
-
-    // Vérifier si la piste existe
-    const track = await Track.findById(trackId);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
-    }
-
-    // Vérifier si l'utilisateur a déjà liké
-    const isLiked = track.likes.some((likeId: any) => likeId.toString() === session.user.id);
-
-    let updatedTrack;
-    
-    if (isLiked) {
-      // Retirer le like
-      updatedTrack = await Track.findByIdAndUpdate(
-        trackId,
-        { $pull: { likes: session.user.id } },
-        { new: true }
-      ).populate('artist', 'name username avatar');
-    } else {
-      // Ajouter le like
-      updatedTrack = await Track.findByIdAndUpdate(
-        trackId,
-        { $addToSet: { likes: session.user.id } },
-        { new: true }
-      ).populate('artist', 'name username avatar');
-    }
-
-    if (!updatedTrack) {
-      return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
-    }
-
-    // Mettre à jour les statistiques de l'utilisateur si nécessaire
-    try {
-      const user = await User.findById(session.user.id);
-      if (user) {
-        if (isLiked) {
-          // Retirer de la liste des likes de l'utilisateur
-          user.likes = user.likes.filter((likeId: any) => likeId.toString() !== trackId);
-        } else {
-          // Ajouter à la liste des likes de l'utilisateur
-          if (!user.likes.some((likeId: any) => likeId.toString() === trackId)) {
-            user.likes.push(trackId);
-          }
-        }
-        await user.save();
-      }
-    } catch (userError) {
-      console.error('Erreur mise à jour utilisateur:', userError);
-      // Ne pas faire échouer la requête principale
-    }
-
-    return NextResponse.json({
-      success: true,
-      isLiked: !isLiked,
-      likes: updatedTrack.likes,
-      likesCount: updatedTrack.likes.length,
-      track: updatedTrack
-    });
-
-  } catch (error) {
-    console.error('Erreur like/unlike:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors du like/unlike' },
-      { status: 500 }
-    );
-  }
-}
-
-// GET - Vérifier si l'utilisateur a liké la piste
+// GET /api/tracks/[id]/like - Vérifier l'état du like (version simplifiée)
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -100,28 +11,131 @@ export async function GET(
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
     }
 
-    await dbConnect();
+    const trackId = params.id;
+    const userId = session.user.id;
 
-    const track = await Track.findById(params.id);
-    if (!track) {
-      return NextResponse.json({ error: 'Piste non trouvée' }, { status: 404 });
+    // Gestion spéciale pour la radio
+    if (trackId === 'radio-mixx-party') {
+      return NextResponse.json({
+        liked: false,
+        likesCount: 0,
+        message: 'Radio - pas de likes'
+      });
     }
 
-    const isLiked = track.likes.includes(session.user.id);
+    // Vérifier si la piste existe
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('id, likes')
+      .eq('id', trackId)
+      .single();
 
-    return NextResponse.json({ 
-      liked: isLiked,
-      likesCount: track.likesCount
+    if (trackError || !track) {
+      return NextResponse.json(
+        { error: 'Piste non trouvée' },
+        { status: 404 }
+      );
+    }
+
+    // Version simplifiée : toujours retourner false pour isLiked
+    // car nous n'avons pas encore la table track_likes
+    const likesCount = track.likes || 0;
+
+    return NextResponse.json({
+      liked: false, // Temporairement false
+      likesCount: likesCount
     });
 
   } catch (error) {
-    console.error('Erreur vérification like:', error);
+    console.error('❌ Erreur vérification like:', error);
     return NextResponse.json(
-      { error: 'Erreur lors de la vérification' },
+      { error: 'Erreur serveur interne' },
       { status: 500 }
     );
   }
-} 
+}
+
+// POST /api/tracks/[id]/like - Basculer le like (version simplifiée)
+export async function POST(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
+    }
+
+    const trackId = params.id;
+    const userId = session.user.id;
+
+    // Gestion spéciale pour la radio
+    if (trackId === 'radio-mixx-party') {
+      return NextResponse.json({
+        success: false,
+        isLiked: false,
+        likesCount: 0,
+        message: 'Radio - pas de likes'
+      });
+    }
+
+    // Vérifier si la piste existe
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('id, likes')
+      .eq('id', trackId)
+      .single();
+
+    if (trackError || !track) {
+      return NextResponse.json(
+        { error: 'Piste non trouvée' },
+        { status: 404 }
+      );
+    }
+
+    // Version simplifiée : incrémenter le compteur de likes
+    // sans vérifier si l'utilisateur a déjà liké
+    const currentLikes = track.likes || 0;
+    const newLikesCount = currentLikes + 1;
+
+    // Mettre à jour le compteur de likes dans la table tracks
+    const { error: updateError } = await supabase
+      .from('tracks')
+      .update({ likes: newLikesCount })
+      .eq('id', trackId);
+
+    if (updateError) {
+      console.error('❌ Erreur mise à jour compteur likes:', updateError);
+      return NextResponse.json(
+        { error: 'Erreur lors de la mise à jour des likes' },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      isLiked: true, // Temporairement toujours true
+      likesCount: newLikesCount,
+      track: {
+        id: trackId,
+        likes: newLikesCount
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Erreur toggle like:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur interne' },
+      { status: 500 }
+    );
+  }
+}

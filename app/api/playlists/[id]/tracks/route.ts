@@ -1,168 +1,115 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect, { isConnected } from '@/lib/db';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import Playlist from '@/models/Playlist';
-import User from '@/models/User';
-import Track from '@/models/Track';
+import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// POST - Ajouter une track à une playlist
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
+    const { id } = params;
+    const { trackId } = await request.json();
+
+    if (!trackId) {
+      return NextResponse.json({ error: 'Track ID requis' }, { status: 400 });
     }
 
-    await dbConnect();
-    
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
-    const { id } = params;
-    const body = await request.json();
-    const { trackId } = body;
-    
-    if (!trackId) {
-      return NextResponse.json(
-        { error: 'ID de la piste requis' },
-        { status: 400 }
-      );
-    }
-    
     // Vérifier que la playlist existe
-    const playlist = await Playlist.findById(id);
-    if (!playlist) {
-      return NextResponse.json(
-        { error: 'Playlist non trouvée' },
-        { status: 404 }
-      );
+    const { data: playlist, error: playlistError } = await supabase
+      .from('playlists')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (playlistError || !playlist) {
+      return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
     }
-    
-    // Vérifier que l'utilisateur est le propriétaire de la playlist
-    const user = await User.findOne({ email: session.user.email });
-    if (!user || playlist.createdBy.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { error: 'Non autorisé à modifier cette playlist' },
-        { status: 403 }
-      );
+
+    // Vérifier que la track existe
+    const { data: track, error: trackError } = await supabase
+      .from('tracks')
+      .select('id')
+      .eq('id', trackId)
+      .single();
+
+    if (trackError || !track) {
+      return NextResponse.json({ error: 'Track non trouvée' }, { status: 404 });
     }
-    
-    // Vérifier que la piste existe
-    const track = await Track.findById(trackId);
-    if (!track) {
-      return NextResponse.json(
-        { error: 'Piste non trouvée' },
-        { status: 404 }
-      );
+
+    // Vérifier que la track n'est pas déjà dans la playlist
+    const { data: existingTrack, error: existingError } = await supabase
+      .from('playlist_tracks')
+      .select('id')
+      .eq('playlist_id', id)
+      .eq('track_id', trackId)
+      .single();
+
+    if (existingTrack) {
+      return NextResponse.json({ error: 'Track déjà dans la playlist' }, { status: 409 });
     }
-    
-    // Ajouter la piste à la playlist
-    await playlist.addTrack(trackId);
-    
-    // Récupérer la playlist mise à jour avec les données populées
-    const updatedPlaylist = await Playlist.findById(id)
-      .populate('createdBy', 'name username avatar')
-      .populate('tracks', 'title artist audioUrl coverUrl duration')
-      .lean() as any;
-    
-    if (!updatedPlaylist) {
-      return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour de la playlist' },
-        { status: 500 }
-      );
+
+    // Ajouter la track à la playlist
+    const { data: playlistTrack, error: insertError } = await supabase
+      .from('playlist_tracks')
+      .insert({
+        playlist_id: id,
+        track_id: trackId,
+        added_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error('Erreur Supabase:', insertError);
+      return NextResponse.json({ error: 'Erreur lors de l\'ajout de la track' }, { status: 500 });
     }
-    
-    const totalDuration = (updatedPlaylist.tracks || []).reduce((sum: number, track: any) => sum + (track.duration || 0), 0);
-    
-    return NextResponse.json({
-      ...updatedPlaylist,
-      trackCount: (updatedPlaylist.tracks || []).length,
-      duration: totalDuration,
-      _id: updatedPlaylist._id.toString(),
-      createdBy: updatedPlaylist.createdBy ? {
-        ...updatedPlaylist.createdBy,
-        _id: updatedPlaylist.createdBy._id.toString()
-      } : null,
-      tracks: (updatedPlaylist.tracks || []).map((track: any) => ({
-        ...track,
-        _id: track._id.toString(),
-        artist: track.artist ? {
-          ...track.artist,
-          _id: track.artist._id.toString()
-        } : null
-      }))
-    });
+
+    return NextResponse.json({ 
+      message: 'Track ajoutée à la playlist',
+      playlistTrack 
+    }, { status: 201 });
+
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de l\'ajout de la piste à la playlist' },
-      { status: 500 }
-    );
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
 }
 
+// DELETE - Retirer une track d'une playlist
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Non autorisé' },
-        { status: 401 }
-      );
-    }
-
-    await dbConnect();
-    
-    if (!isConnected()) {
-      await dbConnect();
-    }
-    
     const { id } = params;
     const { searchParams } = new URL(request.url);
     const trackId = searchParams.get('trackId');
-    
+
     if (!trackId) {
-      return NextResponse.json(
-        { error: 'ID de la piste requis' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Track ID requis' }, { status: 400 });
     }
-    
-    // Vérifier que la playlist existe
-    const playlist = await Playlist.findById(id);
-    if (!playlist) {
-      return NextResponse.json(
-        { error: 'Playlist non trouvée' },
-        { status: 404 }
-      );
+
+    // Supprimer la track de la playlist
+    const { error } = await supabase
+      .from('playlist_tracks')
+      .delete()
+      .eq('playlist_id', id)
+      .eq('track_id', trackId);
+
+    if (error) {
+      console.error('Erreur Supabase:', error);
+      return NextResponse.json({ error: 'Erreur lors de la suppression de la track' }, { status: 500 });
     }
-    
-    // Vérifier que l'utilisateur est le propriétaire de la playlist
-    const user = await User.findOne({ email: session.user.email });
-    if (!user || playlist.createdBy.toString() !== user._id.toString()) {
-      return NextResponse.json(
-        { error: 'Non autorisé à modifier cette playlist' },
-        { status: 403 }
-      );
-    }
-    
-    // Retirer la piste de la playlist
-    await playlist.removeTrack(trackId);
-    
-    return NextResponse.json({ success: true });
+
+    return NextResponse.json({ message: 'Track retirée de la playlist' });
+
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Erreur lors de la suppression de la piste de la playlist' },
-      { status: 500 }
-    );
+    console.error('Erreur serveur:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
-} 
+}

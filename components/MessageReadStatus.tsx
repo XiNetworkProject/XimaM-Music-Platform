@@ -187,9 +187,9 @@ export function MessageReadStatusList({
         >
           {groupedMessages.read.slice(0, 3).map((message) => (
             <div
-              key={message._id}
+              key={message.id}
               className="flex items-center justify-between text-xs text-gray-500 p-1 rounded hover:bg-gray-100 cursor-pointer"
-              onClick={() => setExpandedMessage(expandedMessage === message._id ? null : message._id)}
+              onClick={() => setExpandedMessage(expandedMessage === message.id ? null : message.id)}
             >
               <span>Message lu</span>
               <CheckCheck size={10} className="text-blue-500" />

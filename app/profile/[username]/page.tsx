@@ -176,7 +176,7 @@ export default function ProfileUserPage() {
     const handleTrackPlayed = (event: CustomEvent) => {
       const { trackId } = event.detail;
       setUserTracks(prev => prev.map(track => 
-        track._id === trackId 
+        track.id === trackId 
           ? { ...track, plays: track.plays + 1 }
           : track
       ));
@@ -185,7 +185,7 @@ export default function ProfileUserPage() {
     const handleTrackChanged = (event: CustomEvent) => {
       const { trackId, plays } = event.detail;
       setUserTracks(prev => prev.map(track => 
-        track._id === trackId 
+        track.id === trackId 
           ? { ...track, plays: plays || track.plays }
           : track
       ));
@@ -400,15 +400,23 @@ export default function ProfileUserPage() {
   // Gestion play track
   const handlePlayTrack = async (track: any) => {
     try {
+      // Normaliser les propriétés de la track (compatibilité API)
+      const normalizedTrack = {
+        ...track,
+        audioUrl: track.audioUrl || track.audio_url,
+        coverUrl: track.coverUrl || track.cover_url,
+        artist: track.artist || track.artist_name || profile?.name || 'Artiste inconnu'
+      };
+
       // Vérifier si la track a une URL audio
-      if (!track.audioUrl) {
-        console.warn('Track sans audioUrl, récupération des données complètes:', track._id);
+      if (!normalizedTrack.audioUrl) {
+        console.warn('Track sans audioUrl, récupération des données complètes:', track.id);
         // Récupérer les détails complets de la track depuis l'API
-        const trackResponse = await fetch(`/api/tracks/${track._id}`);
+        const trackResponse = await fetch(`/api/tracks/${track.id}`);
         if (trackResponse.ok) {
           const trackData = await trackResponse.json();
-          if (trackData.track && trackData.track.audioUrl) {
-            await playTrack(trackData.track);
+          if (trackData.audioUrl) {
+            await playTrack(trackData);
             return;
           } else {
             setError('Fichier audio non disponible pour cette piste');
@@ -422,16 +430,11 @@ export default function ProfileUserPage() {
 
       // S'assurer que la track a tous les champs nécessaires
       const trackToPlay = {
-        _id: track._id,
+        _id: track.id,
         title: track.title,
-        artist: track.artist || {
-          _id: profile._id,
-          name: profile.name,
-          username: profile.username,
-          avatar: profile.avatar
-        },
-        audioUrl: track.audioUrl,
-        coverUrl: track.coverUrl,
+        artist: normalizedTrack.artist,
+        audioUrl: normalizedTrack.audioUrl,
+        coverUrl: normalizedTrack.coverUrl,
         duration: track.duration,
         likes: track.likes || [],
         comments: track.comments || [],
@@ -441,9 +444,9 @@ export default function ProfileUserPage() {
       };
 
       // Ajouter la track à la liste si elle n'y est pas déjà
-      if (!audioState.tracks.find(t => t._id === track._id)) {
+      if (!audioState.tracks.find(t => t._id === track.id)) {
         // Récupérer les détails complets de la track depuis l'API
-        const trackResponse = await fetch(`/api/tracks/${track._id}`);
+        const trackResponse = await fetch(`/api/tracks/${track.id}`);
         if (trackResponse.ok) {
           const trackData = await trackResponse.json();
           const fullTrack = {
@@ -481,7 +484,7 @@ export default function ProfileUserPage() {
       
       // Mettre à jour l'état local
       setUserTracks(prev => prev.map(track => 
-        track._id === trackId 
+        track.id === trackId 
           ? { ...track, isLiked: !track.isLiked, likes: track.isLiked ? track.likes.filter((id: string) => id !== session?.user?.id) : [...track.likes, session?.user?.id || ''] }
           : track
       ));
@@ -502,7 +505,7 @@ export default function ProfileUserPage() {
       // Mettre à jour l'état local
       setProfile((prev: any) => ({
         ...prev,
-        tracks: prev.tracks.filter((track: any) => track._id !== trackId),
+        tracks: prev.tracks.filter((track: any) => track.id !== trackId),
         trackCount: prev.trackCount - 1
       }));
     } catch (e: any) {
@@ -545,7 +548,7 @@ export default function ProfileUserPage() {
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((track: any) => 
-          track._id === editingTrack._id ? data.track : track
+          track.id === editingTrack._id ? data.track : track
         )
       }));
       setShowEditTrackModal(false);
@@ -583,7 +586,7 @@ export default function ProfileUserPage() {
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((track: any) => 
-          track._id === featuringTrack._id ? data.track : track
+          track.id === featuringTrack._id ? data.track : track
         )
       }));
       setShowFeatureTrackModal(false);
@@ -956,9 +959,9 @@ export default function ProfileUserPage() {
                 {trackViewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {userTracks.map((track: any) => (
-                      <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                      <div key={track.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
                         {/* Banderole de mise en avant */}
-                        {track.isFeatured && (
+                        {track.is_featured && (
                           <div className="absolute -top-2 -left-2 z-10">
                             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
                               <Crown size={12} />
@@ -970,8 +973,8 @@ export default function ProfileUserPage() {
                         <div className="flex items-start space-x-3">
                           <div className="relative flex-shrink-0">
                             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                              {track.coverUrl ? (
-                                <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
+                              {track.cover_url || track.cover_url || track.coverUrl ? (
+                                <img src={track.cover_url || track.cover_url || track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
                               ) : (
                                 <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
@@ -984,7 +987,7 @@ export default function ProfileUserPage() {
                               title="Lire"
                             >
                               {audioState.currentTrackIndex !== -1 && 
-                               audioState.tracks[audioState.currentTrackIndex]?._id === track._id && 
+                               audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
                                audioState.isPlaying ? (
                                 <Pause className="w-6 h-6 text-white" />
                               ) : (
@@ -1001,14 +1004,14 @@ export default function ProfileUserPage() {
                             <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
                               <InteractiveCounter
                                 type="likes"
-                                initialCount={track.likes.length}
+                                initialCount={track.likes}
                                 isActive={track.isLiked}
                                 onToggle={async (newState) => {
-                                  await handleLikeTrack(track._id);
+                                  await handleLikeTrack(track.id);
                                 }}
                                 size="sm"
                                 showIcon={true}
-                                disabled={likeLoading === track._id}
+                                disabled={likeLoading === track.id}
                                 className="hover:text-pink-400 transition-colors"
                               />
                               <AnimatedPlaysCounter
@@ -1029,20 +1032,20 @@ export default function ProfileUserPage() {
                                 className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
+                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
                                 }}
-                                ref={el => { menuButtonRefs.current[track._id] = el; }}
+                                ref={el => { menuButtonRefs.current[track.id] = el; }}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               
-                              {showTrackOptions === track._id && menuPosition[track._id] && (
+                              {showTrackOptions === track.id && menuPosition[track.id] && (
                                 <div
-                                  ref={el => { menuRefs.current[track._id] = el; }}
+                                  ref={el => { menuRefs.current[track.id] = el; }}
                                   className="fixed min-w-[180px] bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-[9999]"
                                   style={{
-                                    top: menuPosition[track._id].top,
-                                    left: menuPosition[track._id].left,
+                                    top: menuPosition[track.id].top,
+                                    left: menuPosition[track.id].left,
                                   }}
                                   onClick={e => e.stopPropagation()}
                                 >
@@ -1057,15 +1060,15 @@ export default function ProfileUserPage() {
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
                                     onClick={() => handleFeatureTrack(track)}
                                   >
-                                    <Star className={`w-4 h-4 ${track.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                                    {track.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                                    <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                    {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
                                   </button>
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
-                                    onClick={() => handleDeleteTrack(track._id)}
-                                    disabled={deleteLoading === track._id}
+                                    onClick={() => handleDeleteTrack(track.id)}
+                                    disabled={deleteLoading === track.id}
                                   >
-                                    {deleteLoading === track._id ? (
+                                    {deleteLoading === track.id ? (
                                       <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                       </div>
@@ -1085,9 +1088,9 @@ export default function ProfileUserPage() {
                 ) : (
                   <div className="space-y-3">
                     {userTracks.map((track: any) => (
-                      <div key={track._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                      <div key={track.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
                         {/* Banderole de mise en avant */}
-                        {track.isFeatured && (
+                        {track.is_featured && (
                           <div className="absolute -top-2 -left-2 z-10">
                             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
                               <Crown size={12} />
@@ -1099,8 +1102,8 @@ export default function ProfileUserPage() {
                         <div className="flex items-center space-x-4">
                           <div className="relative flex-shrink-0">
                             <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                              {track.coverUrl ? (
-                                <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
+                              {track.cover_url || track.cover_url || track.coverUrl ? (
+                                <img src={track.cover_url || track.cover_url || track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
                               ) : (
                                 <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
                                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
@@ -1113,7 +1116,7 @@ export default function ProfileUserPage() {
                               title="Lire"
                             >
                               {audioState.currentTrackIndex !== -1 && 
-                               audioState.tracks[audioState.currentTrackIndex]?._id === track._id && 
+                               audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
                                audioState.isPlaying ? (
                                 <Pause className="w-6 h-6 text-white" />
                               ) : (
@@ -1130,14 +1133,14 @@ export default function ProfileUserPage() {
                             <div className="flex items-center space-x-6 mt-2 text-sm text-gray-500">
                               <InteractiveCounter
                                 type="likes"
-                                initialCount={track.likes.length}
+                                initialCount={track.likes}
                                 isActive={track.isLiked}
                                 onToggle={async (newState) => {
-                                  await handleLikeTrack(track._id);
+                                  await handleLikeTrack(track.id);
                                 }}
                                 size="sm"
                                 showIcon={true}
-                                disabled={likeLoading === track._id}
+                                disabled={likeLoading === track.id}
                                 className="hover:text-pink-400 transition-colors"
                               />
                               <AnimatedPlaysCounter
@@ -1159,20 +1162,20 @@ export default function ProfileUserPage() {
                                 className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setShowTrackOptions(showTrackOptions === track._id ? null : track._id);
+                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
                                 }}
-                                ref={el => { menuButtonRefs.current[track._id] = el; }}
+                                ref={el => { menuButtonRefs.current[track.id] = el; }}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               
-                              {showTrackOptions === track._id && menuPosition[track._id] && (
+                              {showTrackOptions === track.id && menuPosition[track.id] && (
                                 <div
-                                  ref={el => { menuRefs.current[track._id] = el; }}
+                                  ref={el => { menuRefs.current[track.id] = el; }}
                                   className="fixed min-w-[180px] bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-[9999]"
                                   style={{
-                                    top: menuPosition[track._id].top,
-                                    left: menuPosition[track._id].left,
+                                    top: menuPosition[track.id].top,
+                                    left: menuPosition[track.id].left,
                                   }}
                                   onClick={e => e.stopPropagation()}
                                 >
@@ -1187,15 +1190,15 @@ export default function ProfileUserPage() {
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
                                     onClick={() => handleFeatureTrack(track)}
                                   >
-                                    <Star className={`w-4 h-4 ${track.isFeatured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                                    {track.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                                    <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                    {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
                                   </button>
                                   <button
                                     className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
-                                    onClick={() => handleDeleteTrack(track._id)}
-                                    disabled={deleteLoading === track._id}
+                                    onClick={() => handleDeleteTrack(track.id)}
+                                    disabled={deleteLoading === track.id}
                                   >
-                                    {deleteLoading === track._id ? (
+                                    {deleteLoading === track.id ? (
                                       <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
                                         <Loader2 className="w-4 h-4 animate-spin" />
                                       </div>
@@ -1227,7 +1230,7 @@ export default function ProfileUserPage() {
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {userPlaylists.map((playlist: any) => (
-                    <div key={playlist._id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group">
+                    <div key={playlist.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group">
                       <div className="flex items-start space-x-3">
                         <div className="relative flex-shrink-0">
                           <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
@@ -1242,7 +1245,7 @@ export default function ProfileUserPage() {
                           <h4 className="font-medium text-white truncate">{playlist.name}</h4>
                           <p className="text-sm text-gray-400 truncate">{playlist.tracks.length} tracks</p>
                           <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                            <span>{playlist.likes.length} likes</span>
+                            <span>{playlist.likes} likes</span>
                             <span>{playlist.isPublic ? 'Public' : 'Privé'}</span>
                           </div>
                         </div>

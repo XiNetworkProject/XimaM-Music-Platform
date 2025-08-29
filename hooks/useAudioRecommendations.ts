@@ -49,7 +49,7 @@ export const useAudioRecommendations = () => {
         try {
           setUserHistory(JSON.parse(savedHistory));
         } catch (error) {
-          // Erreur silencieuse
+          console.error('Erreur lors du chargement de l\'historique:', error);
         }
       }
 
@@ -58,7 +58,7 @@ export const useAudioRecommendations = () => {
         try {
           setUserPreferences(JSON.parse(savedPreferences));
         } catch (error) {
-          // Erreur silencieuse
+          console.error('Erreur lors du chargement des préférences:', error);
         }
       }
     }
@@ -80,23 +80,13 @@ export const useAudioRecommendations = () => {
     if (!session?.user?.id) return;
 
     setUserPreferences(prev => {
-      const newPreferences = { ...prev };
-      
-      // Ajouter les genres
-      if (track.genre) {
-        track.genre.forEach(genre => {
-          if (!newPreferences.favoriteGenres.includes(genre)) {
-            newPreferences.favoriteGenres.push(genre);
-          }
-        });
-      }
+      const newPreferences = {
+        ...prev,
+        favoriteGenres: [...prev.favoriteGenres, ...(track.genre || [])].filter((genre, index, arr) => arr.indexOf(genre) === index),
+        favoriteArtists: [...prev.favoriteArtists, track.artist._id].filter((artist, index, arr) => arr.indexOf(artist) === index)
+      };
 
-      // Ajouter l'artiste
-      if (track.artist?._id && !newPreferences.favoriteArtists.includes(track.artist._id)) {
-        newPreferences.favoriteArtists.push(track.artist._id);
-      }
-
-      // Limiter les listes
+      // Limiter le nombre d'éléments
       newPreferences.favoriteGenres = newPreferences.favoriteGenres.slice(0, 20);
       newPreferences.favoriteArtists = newPreferences.favoriteArtists.slice(0, 50);
 

@@ -4,68 +4,31 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 
 interface UsageInfo {
-  current: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
+  tracks: {
+    used: number;
+    limit: number;
+    percentage: number;
   };
-  limits: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
+  playlists: {
+    used: number;
+    limit: number;
+    percentage: number;
   };
-  remaining: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
-  };
-  percentage: {
-    uploads: number;
-    comments: number;
-    plays: number;
-    playlists: number;
+  storage: {
+    used: number;
+    limit: number;
+    percentage: number;
   };
 }
 
 interface SubscriptionData {
   hasSubscription: boolean;
-  subscription: {
-    id: string;
-    name: string;
-    price: number;
-    currency: string;
-    interval: string;
-    features: string[];
-    limits: {
-      uploads: number;
-      comments: number;
-      plays: number;
-      playlists: number;
-      audioQuality: string;
-      ads: boolean;
-      analytics: boolean;
-      collaborations: boolean;
-      apiAccess: boolean;
-      support: string;
-    };
-  } | null;
-  userSubscription: {
-    id: string;
-    status: 'active' | 'trial' | 'canceled' | 'expired';
-    currentPeriodStart: string;
-    currentPeriodEnd: string;
-    trialEnd?: string;
-    usage: {
-      uploads: number;
-      comments: number;
-      plays: number;
-      playlists: number;
-    };
-    stripeSubscriptionId?: string;
-  } | null;
+  subscription: any;
+  limits: {
+    maxTracks: number;
+    maxPlaylists: number;
+    maxStorageGB: number;
+  };
 }
 
 export default function SubscriptionLimits() {
@@ -114,11 +77,6 @@ export default function SubscriptionLimits() {
     }
   };
 
-  const formatLimit = (limit: number) => {
-    if (limit === -1) return 'Illimité';
-    return limit.toLocaleString();
-  };
-
   const getUsageColor = (percentage: number) => {
     if (percentage >= 90) return 'bg-red-500';
     if (percentage >= 75) return 'bg-yellow-500';
@@ -131,26 +89,6 @@ export default function SubscriptionLimits() {
     if (percentage >= 75) return 'text-yellow-500';
     if (percentage >= 50) return 'text-blue-500';
     return 'text-green-500';
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return 'text-green-400';
-      case 'trial': return 'text-blue-400';
-      case 'canceled': return 'text-red-400';
-      case 'expired': return 'text-gray-400';
-      default: return 'text-gray-400';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'active': return 'Actif';
-      case 'trial': return 'Essai gratuit';
-      case 'canceled': return 'Annulé';
-      case 'expired': return 'Expiré';
-      default: return 'Inconnu';
-    }
   };
 
   if (loading) {
@@ -176,60 +114,38 @@ export default function SubscriptionLimits() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-xl font-bold text-white capitalize">
-                {subscriptionData.subscription.name}
+                Plan Premium
               </h3>
               <div className="text-sm text-gray-300">
-                {subscriptionData.subscription.price > 0 ? (
-                  <span>{subscriptionData.subscription.price}€/{subscriptionData.subscription.interval}</span>
-                ) : (
-                  <span>Gratuit</span>
-                )}
+                <span>Abonnement actif</span>
               </div>
             </div>
-            <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(subscriptionData.userSubscription?.status || '')}`}>
-              {getStatusText(subscriptionData.userSubscription?.status || '')}
+            <span className="px-3 py-1 rounded-full text-xs font-medium text-green-400 bg-green-400/20">
+              Actif
             </span>
-          </div>
-
-          {/* Informations de période */}
-          <div className="space-y-2 mb-3">
-            <div className="text-xs text-gray-400">
-              <span className="font-medium">Période actuelle :</span> {new Date(subscriptionData.userSubscription?.currentPeriodStart || '').toLocaleDateString('fr-FR')} - {new Date(subscriptionData.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')}
-            </div>
-            
-            {subscriptionData.userSubscription?.trialEnd && (
-              <div className="text-xs text-blue-400">
-                ⏰ <span className="font-medium">Essai gratuit jusqu'au :</span> {new Date(subscriptionData.userSubscription.trialEnd).toLocaleDateString('fr-FR')}
-              </div>
-            )}
-
-            {subscriptionData.userSubscription?.status === 'trial' && (
-              <div className="text-xs text-yellow-400">
-                ⚠️ <span className="font-medium">Période d'essai active</span> - Renouvellement automatique à la fin
-              </div>
-            )}
           </div>
 
           {/* Fonctionnalités incluses */}
           <div className="mb-3">
             <div className="text-xs font-medium text-gray-300 mb-2">Fonctionnalités incluses :</div>
             <div className="grid grid-cols-2 gap-1 text-xs">
-              {subscriptionData.subscription.features.slice(0, 4).map((feature, index) => (
-                <div key={index} className="flex items-center text-gray-400">
-                  <span className="text-green-400 mr-1">✓</span>
-                  {feature}
-                </div>
-              ))}
+              <div className="flex items-center text-gray-400">
+                <span className="text-green-400 mr-1">✓</span>
+                Upload illimité
+              </div>
+              <div className="flex items-center text-gray-400">
+                <span className="text-green-400 mr-1">✓</span>
+                Qualité HD
+              </div>
+              <div className="flex items-center text-gray-400">
+                <span className="text-green-400 mr-1">✓</span>
+                Sans publicités
+              </div>
+              <div className="flex items-center text-gray-400">
+                <span className="text-green-400 mr-1">✓</span>
+                Support prioritaire
+              </div>
             </div>
-          </div>
-
-          {/* Qualité audio et autres détails */}
-          <div className="text-xs text-gray-400">
-            <span className="font-medium">Qualité audio :</span> {subscriptionData.subscription.limits.audioQuality} • 
-            <span className="font-medium ml-2">Support :</span> {subscriptionData.subscription.limits.support}
-            {!subscriptionData.subscription.limits.ads && (
-              <span className="text-green-400 ml-2">• Sans publicités</span>
-            )}
           </div>
         </div>
       )}
@@ -259,34 +175,37 @@ export default function SubscriptionLimits() {
       
       {usageInfo && (
         <div className="space-y-4">
-          {Object.entries(usageInfo.current).map(([key, value]) => {
-            const limit = usageInfo.limits[key as keyof typeof usageInfo.limits];
-            const remaining = usageInfo.remaining[key as keyof typeof usageInfo.remaining];
-            const percentage = usageInfo.percentage[key as keyof typeof usageInfo.percentage];
+          {Object.entries(usageInfo).map(([key, data]) => {
+            const label = key === 'tracks' ? 'Pistes' : 
+                         key === 'playlists' ? 'Playlists' :
+                         key === 'storage' ? 'Stockage (GB)' : key;
             
-            const label = key === 'uploads' ? 'Uploads' : 
-                         key === 'comments' ? 'Commentaires' :
-                         key === 'plays' ? 'Écoutes' : 'Playlists';
+            const formatValue = (value: number) => {
+              if (key === 'storage') {
+                return value.toFixed(2);
+              }
+              return value.toString();
+            };
 
             return (
               <div key={key} className="space-y-2">
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-gray-300">{label}</span>
-                  <span className={`font-semibold ${getUsageText(percentage)}`}>
-                    {value} / {formatLimit(limit)}
+                  <span className={`font-semibold ${getUsageText(data.percentage)}`}>
+                    {formatValue(data.used)} / {formatValue(data.limit)}
                   </span>
                 </div>
                 
                 <div className="w-full bg-gray-700 rounded-full h-2">
                   <div 
-                    className={`${getUsageColor(percentage)} h-2 rounded-full transition-all duration-300`}
-                    style={{ width: `${Math.min(percentage, 100)}%` }}
+                    className={`${getUsageColor(data.percentage)} h-2 rounded-full transition-all duration-300`}
+                    style={{ width: `${Math.min(data.percentage, 100)}%` }}
                   ></div>
                 </div>
                 
-                {remaining !== -1 && remaining < 5 && (
+                {data.percentage >= 90 && (
                   <div className="text-xs text-red-400">
-                    ⚠️ Plus que {remaining} {label.toLowerCase()} restant{remaining > 1 ? 's' : ''}
+                    ⚠️ Limite presque atteinte ({data.percentage.toFixed(0)}%)
                   </div>
                 )}
               </div>

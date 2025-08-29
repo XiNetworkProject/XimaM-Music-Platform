@@ -187,6 +187,7 @@ export default function MessagesPage() {
   const { isConnected, sendNotification } = useMessageNotifications();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
 
@@ -194,6 +195,16 @@ export default function MessagesPage() {
   useEffect(() => {
     if (session?.user) {
       fetchConversations();
+      
+      // Timeout de 10 secondes pour éviter le chargement infini
+      const timeout = setTimeout(() => {
+        if (loading) {
+          setLoading(false);
+          setError('Délai d\'attente dépassé. Vérifiez votre connexion.');
+        }
+      }, 10000);
+      
+      return () => clearTimeout(timeout);
     }
   }, [session]);
 
@@ -206,15 +217,32 @@ export default function MessagesPage() {
 
   const fetchConversations = async () => {
     try {
-      const response = await fetch('/api/messages/conversations');
-      const data = await response.json();
+      console.log('🔄 Tentative de chargement des conversations...');
+      const response = await fetch('/api/messages/conversations?user=' + (session?.user?.id || 'default-user-id'));
+      console.log('📡 Réponse conversations:', response.status);
       
       if (response.ok) {
-        setConversations(data.conversations);
+        const data = await response.json();
+        console.log('💬 Données conversations reçues:', data);
+        
+        // Vérifier si la messagerie est en maintenance
+        if (data.maintenance || data.error === 'MAINTENANCE') {
+          setError('MAINTENANCE');
+          setConversations([]);
+          return;
+        }
+        
+        setConversations(data.conversations || []);
+        setError(null); // Effacer l'erreur précédente
       } else {
+        const errorText = await response.text();
+        console.error('❌ Erreur lors du chargement des conversations:', response.status, errorText);
+        setError('Erreur lors du chargement des conversations');
         toast.error('Erreur lors du chargement des conversations');
       }
     } catch (error) {
+      console.error('❌ Erreur réseau pour les conversations:', error);
+      setError('Erreur de connexion');
       toast.error('Erreur de connexion');
     } finally {
       setLoading(false);
@@ -370,6 +398,68 @@ export default function MessagesPage() {
                   <div className="animate-spin rounded-full h-12 w-12 border-2 border-purple-400 border-t-transparent"></div>
                   <div className="absolute inset-0 animate-spin rounded-full h-12 w-12 border-2 border-indigo-400 border-t-transparent" style={{ animationDelay: '-0.5s' }}></div>
                 </div>
+              </motion.div>
+            ) : error === 'MAINTENANCE' ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-center py-16"
+              >
+                <div className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/30">
+                  <svg className="w-12 h-12 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <h2 className="text-3xl font-bold mb-4 text-yellow-400">
+                  🚧 Messagerie en Maintenance
+                </h2>
+                <p className="text-lg text-gray-300 mb-6">
+                  La messagerie est actuellement indisponible pour une durée indéterminée.
+                </p>
+                <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700 max-w-md mx-auto">
+                  <h3 className="text-xl font-semibold mb-3 text-yellow-300">
+                    🔧 Travaux en cours
+                  </h3>
+                  <p className="text-gray-400 mb-4">
+                    Nous travaillons actuellement sur l'amélioration de notre système de messagerie.
+                  </p>
+                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                    <span>Maintenance en cours</span>
+                  </div>
+                </div>
+                <div className="mt-8">
+                  <button
+                    onClick={() => router.push('/')}
+                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
+                  >
+                    ← Retour à l'accueil
+                  </button>
+                </div>
+              </motion.div>
+            ) : error ? (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="text-center py-16"
+              >
+                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <X size={24} className="text-red-400" />
+                </div>
+                <h2 className="text-xl font-bold mb-2 text-white">Erreur de chargement</h2>
+                <p className="text-gray-400 mb-4">{error}</p>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    setLoading(true);
+                    fetchConversations();
+                  }}
+                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-6 py-3 rounded-lg font-medium transition-all"
+                >
+                  Réessayer
+                </button>
               </motion.div>
             ) : conversations.length === 0 ? (
               <motion.div

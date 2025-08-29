@@ -1,68 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import dbConnect from '@/lib/db';
-import Conversation from '@/models/Conversation';
-import User from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
-// POST /api/messages/accept/[requestId] - Accepter une demande de messagerie
 export async function POST(
   request: NextRequest,
   { params }: { params: { requestId: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
+    
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
     const { requestId } = params;
-    if (!requestId) {
-      return NextResponse.json({ error: 'ID de demande requis' }, { status: 400 });
-    }
-
-    await dbConnect();
 
     // Récupérer l'utilisateur actuel
-    const currentUser = await User.findOne({ email: session.user.email });
-    if (!currentUser) {
+    const { data: currentUser, error: userError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', session.user.email)
+      .single();
+
+    if (userError || !currentUser) {
       return NextResponse.json({ error: 'Utilisateur non trouvé' }, { status: 404 });
     }
 
-    // Récupérer la conversation
-    const conversation = await Conversation.findById(requestId);
-    if (!conversation) {
-      return NextResponse.json({ error: 'Conversation non trouvée' }, { status: 404 });
+    // Récupérer la demande d'amis
+    const { data: friendRequest, error: requestError } = await supabase
+      .from('friend_requests')
+      .select('*')
+      .eq('id', requestId)
+      .single();
+
+    if (requestError || !friendRequest) {
+      return NextResponse.json({ error: 'Demande d\'amis non trouvée' }, { status: 404 });
     }
 
-    // Vérifier que l'utilisateur est participant
-    if (!conversation.participants.includes(currentUser._id)) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
+    if (friendRequest.to_user_id !== currentUser.id) {
+      return NextResponse.json({ error: 'Accès refusé' }, { status: 403 });
     }
 
-    // Vérifier que la conversation n'est pas déjà acceptée
-    if (conversation.accepted) {
-      return NextResponse.json(
-        { error: 'Conversation déjà acceptée' },
-        { status: 400 }
-      );
+    // Créer la conversation
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .insert({
+        participants: [friendRequest.from_user_id, friendRequest.to_user_id],
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (convError) {
+      console.error('❌ Erreur création conversation:', convError);
+      return NextResponse.json({ error: 'Erreur lors de la création de la conversation' }, { status: 500 });
     }
 
-    // Accepter la conversation
-    conversation.accepted = true;
-    await conversation.save();
+    // Supprimer la demande d'amis
+    const { error: deleteError } = await supabase
+      .from('friend_requests')
+      .delete()
+      .eq('id', requestId);
 
-    return NextResponse.json({
-      success: true,
-      message: 'Demande de conversation acceptée',
-      conversationId: conversation._id.toString()
+    if (deleteError) {
+      console.error('❌ Erreur suppression demande:', deleteError);
+    }
+
+    console.log('✅ Demande d\'amis acceptée, conversation créée:', conversation.id);
+
+    return NextResponse.json({ 
+      message: 'Demande d\'amis acceptée',
+      conversation: conversation
     });
 
   } catch (error) {
-    console.error('Erreur acceptation demande de messagerie:', error);
-    return NextResponse.json(
-      { error: 'Erreur lors de l\'acceptation de la demande' },
-      { status: 500 }
-    );
+    console.error('❌ Erreur acceptation demande:', error);
+    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
   }
-} 
+}

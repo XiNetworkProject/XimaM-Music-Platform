@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Providers from './providers';
 import BottomNav from '@/components/BottomNav';
+import AppNavbar from '@/components/AppNavbar';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 import PageTransition from '@/components/PageTransition';
 
@@ -98,6 +99,7 @@ export default function RootLayout({
       <body className={inter.className}>
         <Providers>
           <div className="flex flex-col min-h-screen">
+            <AppNavbar />
             <main className="flex-1">
               <PageTransition>
                 {children}

@@ -55,12 +55,19 @@ export function useLikeSystem({
   // Vérifier l'état initial depuis le serveur
   useEffect(() => {
     if (session?.user?.id && trackId) {
+      // Ne pas vérifier le statut de like pour la radio
+      if (trackId === 'radio-mixx-party') {
+        return;
+      }
       checkLikeStatus();
     }
   }, [session?.user?.id, trackId]);
 
   const checkLikeStatus = useCallback(async () => {
     if (!session?.user?.id || !trackId) return;
+    
+    // Ne pas vérifier le statut de like pour la radio
+    if (trackId === 'radio-mixx-party') return;
 
     try {
       const response = await fetch(`/api/tracks/${trackId}/like`, {
@@ -86,6 +93,12 @@ export function useLikeSystem({
   const toggleLike = useCallback(async () => {
     if (!session?.user?.id) {
       toast.error('Connectez-vous pour liker des titres');
+      return;
+    }
+    
+    // Ne pas permettre de liker la radio
+    if (trackId === 'radio-mixx-party') {
+      toast.error('Impossible de liker la radio');
       return;
     }
 

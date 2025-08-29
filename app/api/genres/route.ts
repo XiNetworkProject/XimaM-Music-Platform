@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import dbConnect from '@/lib/db';
-import Track from '@/models/Track';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    await dbConnect();
+    // Récupérer les pistes pour analyser les genres depuis Supabase
+    const { data: tracks, error } = await supabase
+      .from('tracks')
+      .select('genre, plays, likes');
 
-    // Récupérer les pistes pour analyser les genres
-    const tracks = await Track.find().select('genre plays likes');
+    if (error) {
+      console.error('❌ Erreur récupération tracks Supabase:', error);
+      return NextResponse.json(
+        { error: 'Erreur lors de la récupération des genres' },
+        { status: 500 }
+      );
+    }
 
     // Analyser les genres et leur popularité
     const genreStats: { [key: string]: { count: number; plays: number; likes: number } } = {};
     
-    tracks.forEach(track => {
+    tracks?.forEach(track => {
       if (track.genre && Array.isArray(track.genre)) {
         track.genre.forEach((genre: string) => {
           if (!genreStats[genre]) {
@@ -20,7 +27,7 @@ export async function GET(request: NextRequest) {
           }
           genreStats[genre].count++;
           genreStats[genre].plays += track.plays || 0;
-          genreStats[genre].likes += track.likes?.length || 0;
+          genreStats[genre].likes += Array.isArray(track.likes) ? track.likes.length : 0;
         });
       }
     });
@@ -101,75 +108,81 @@ export async function GET(request: NextRequest) {
         borderColor: 'border-violet-500/20',
         count: genreStats['R&B']?.count || 32,
         plays: genreStats['R&B']?.plays || 8900,
-        likes: genreStats['R&B']?.likes || 650,
-        description: 'Soul et rythmes blues modernes'
+        likes: genreStats['R&B']?.likes || 680,
+        description: 'Soul et rythmes urbains'
       },
       {
         name: 'Country',
         emoji: '🤠',
-        color: 'from-orange-500 to-amber-500',
-        bgColor: 'bg-orange-500/10',
-        borderColor: 'border-orange-500/20',
+        color: 'from-green-500 to-emerald-500',
+        bgColor: 'bg-green-500/10',
+        borderColor: 'border-green-500/20',
         count: genreStats['Country']?.count || 22,
         plays: genreStats['Country']?.plays || 5600,
         likes: genreStats['Country']?.likes || 420,
-        description: 'Histoires rurales et mélodies country'
+        description: 'Histoires rurales et guitares acoustiques'
       },
       {
         name: 'Reggae',
         emoji: '🌴',
-        color: 'from-green-500 to-emerald-500',
-        bgColor: 'bg-green-500/10',
-        borderColor: 'border-green-500/20',
-        count: genreStats['Reggae']?.count || 12,
-        plays: genreStats['Reggae']?.plays || 3100,
-        likes: genreStats['Reggae']?.likes || 240,
-        description: 'Rythmes jamaïcains et vibrations positives'
-      },
-      {
-        name: 'Folk',
-        emoji: '🪕',
-        color: 'from-amber-500 to-orange-500',
-        bgColor: 'bg-amber-500/10',
-        borderColor: 'border-amber-500/20',
-        count: genreStats['Folk']?.count || 16,
-        plays: genreStats['Folk']?.plays || 4100,
-        likes: genreStats['Folk']?.likes || 310,
-        description: 'Traditions musicales et histoires authentiques'
+        color: 'from-yellow-500 to-green-500',
+        bgColor: 'bg-yellow-500/10',
+        borderColor: 'border-yellow-500/20',
+        count: genreStats['Reggae']?.count || 16,
+        plays: genreStats['Reggae']?.plays || 4100,
+        likes: genreStats['Reggae']?.likes || 310,
+        description: 'Rythmes jamaïcains et messages positifs'
       },
       {
         name: 'Blues',
         emoji: '🎸',
-        color: 'from-indigo-500 to-blue-500',
-        bgColor: 'bg-indigo-500/10',
-        borderColor: 'border-indigo-500/20',
-        count: genreStats['Blues']?.count || 14,
-        plays: genreStats['Blues']?.plays || 3600,
-        likes: genreStats['Blues']?.likes || 270,
-        description: 'Émotions profondes et guitares blues'
+        color: 'from-blue-600 to-indigo-600',
+        bgColor: 'bg-blue-600/10',
+        borderColor: 'border-blue-600/20',
+        count: genreStats['Blues']?.count || 19,
+        plays: genreStats['Blues']?.plays || 4800,
+        likes: genreStats['Blues']?.likes || 360,
+        description: 'Émotion brute et guitares slide'
       },
       {
-        name: 'World',
-        emoji: '🌍',
-        color: 'from-teal-500 to-cyan-500',
-        bgColor: 'bg-teal-500/10',
-        borderColor: 'border-teal-500/20',
-        count: genreStats['World']?.count || 25,
-        plays: genreStats['World']?.plays || 6800,
-        likes: genreStats['World']?.likes || 520,
-        description: 'Musiques du monde et cultures diverses'
+        name: 'Folk',
+        emoji: '🪕',
+        color: 'from-amber-600 to-orange-600',
+        bgColor: 'bg-amber-600/10',
+        borderColor: 'border-amber-600/20',
+        count: genreStats['Folk']?.count || 25,
+        plays: genreStats['Folk']?.plays || 6200,
+        likes: genreStats['Folk']?.likes || 480,
+        description: 'Traditions et instruments acoustiques'
+      },
+      {
+        name: 'Metal',
+        emoji: '🤘',
+        color: 'from-gray-700 to-black',
+        bgColor: 'bg-gray-700/10',
+        borderColor: 'border-gray-700/20',
+        count: genreStats['Metal']?.count || 28,
+        plays: genreStats['Metal']?.plays || 7800,
+        likes: genreStats['Metal']?.likes || 590,
+        description: 'Intensité extrême et guitares distordues'
       }
     ];
 
-    // Trier par popularité (nombre de plays)
-    genres.sort((a, b) => b.plays - a.plays);
+    // Trier par popularité (plays + likes)
+    genres.sort((a, b) => (b.plays + b.likes) - (a.plays + a.likes));
 
     return NextResponse.json({
       genres,
-      total: genres.length
+      totalGenres: genres.length,
+      totalTracks: tracks?.length || 0,
+      timestamp: new Date().toISOString()
     });
+
   } catch (error) {
-    // Erreur silencieuse
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    console.error('❌ Erreur lors de la récupération des genres:', error);
+    return NextResponse.json(
+      { error: 'Erreur interne du serveur' },
+      { status: 500 }
+    );
   }
 } 

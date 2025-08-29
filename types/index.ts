@@ -20,7 +20,7 @@ export interface User {
 }
 
 export interface Track {
-  _id: string;
+  id: string;
   title: string;
   artist: User;
   album?: string;
@@ -32,7 +32,8 @@ export interface Track {
   description?: string;
   lyrics?: string;
   plays: number;
-  likes: string[];
+  likesCount: number; // Nombre total de likes (Supabase)
+  isLiked?: boolean; // Si l'utilisateur actuel a liké cette piste
   comments: Comment[];
   createdAt: Date;
   updatedAt: Date;
@@ -47,31 +48,31 @@ export interface Track {
 }
 
 export interface Comment {
-  _id: string;
+  id: string;
   user: User;
   track: string;
   content: string;
-  likes: string[];
+  likesCount: number; // Nombre total de likes (Supabase)
   replies: Comment[];
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Playlist {
-  _id: string;
+  id: string;
   name: string;
   description?: string;
   coverUrl?: string;
   creator: User;
   tracks: Track[];
   isPublic: boolean;
-  followers: string[];
+  followers: number; // Nombre total de followers (Supabase)
   createdAt: Date;
   updatedAt: Date;
 }
 
 export interface Album {
-  _id: string;
+  id: string;
   title: string;
   artist: User;
   coverUrl: string;
@@ -85,7 +86,7 @@ export interface Album {
 }
 
 export interface Notification {
-  _id: string;
+  id: string;
   recipient: string;
   sender: User;
   type: 'like' | 'comment' | 'follow' | 'mention' | 'new_track';

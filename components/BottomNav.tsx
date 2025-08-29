@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, 
   Search, 
@@ -11,9 +11,14 @@ import {
   User, 
   MessageCircle, 
   Settings,
-  Bell,
   Plus,
-  Music
+  Music,
+  Sparkles,
+  Heart,
+  TrendingUp,
+  Compass,
+  BookOpen,
+  UserPlus
 } from 'lucide-react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useAudioPlayer } from '@/app/providers';
@@ -24,40 +29,48 @@ export default function BottomNav() {
   const { data: session } = useSession();
   const { notifications } = useMessageNotifications();
   const { audioState, setShowPlayer } = useAudioPlayer();
-  // Calculer le nombre de notifications pertinentes (messages ou demandes non lues)
-  const unreadCount = notifications.filter(n => n.type === 'new_message' || n.type === 'new_request').length;
+  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
 
   const navItems = [
     {
       icon: Home,
       label: 'Accueil',
       path: '/',
-      active: pathname === '/'
+      active: pathname === '/',
+      color: 'from-purple-500 to-pink-500',
+      description: 'Découvrez les nouveautés'
     },
     {
-      icon: Search,
+      icon: Compass,
       label: 'Découvrir',
       path: '/discover',
-      active: pathname === '/discover'
+      active: pathname === '/discover',
+      color: 'from-green-500 to-emerald-500',
+      description: 'Explorez la musique'
     },
     {
-      icon: Library,
+      icon: BookOpen,
       label: 'Bibliothèque',
       path: '/library',
-      active: pathname === '/library'
+      active: pathname === '/library',
+      color: 'from-blue-500 to-cyan-500',
+      description: 'Vos favoris'
     },
     {
       icon: MessageCircle,
       label: 'Messages',
       path: '/messages',
       active: pathname.startsWith('/messages'),
-      badge: unreadCount > 0 ? unreadCount : undefined
+      color: 'from-orange-500 to-red-500',
+      description: 'Communiquez'
     },
     {
-      icon: Settings,
-      label: 'Paramètres',
-      path: '/settings',
-      active: pathname === '/settings'
+      icon: TrendingUp,
+      label: 'Tendances',
+      path: '/trending',
+      active: pathname === '/trending',
+      color: 'from-yellow-500 to-orange-500',
+      description: 'Ce qui buzz'
     }
   ];
 
@@ -75,73 +88,152 @@ export default function BottomNav() {
 
   return (
     <>
-      {/* Notifications Popup */}
+      {/* Bottom Navigation - Design futuriste */}
+      <nav className="fixed bottom-0 left-0 right-0 z-40">
+        {/* Effet de fond avec blur et gradient */}
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-2xl border-t border-white/20">
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+        </div>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-black/80 backdrop-blur-lg border-t border-white/10">
-        <div className="flex items-center justify-around px-4 py-2">
-          {/* Bouton musique pour rouvrir le lecteur */}
-          {!audioState.showPlayer && (
-            <motion.button
-              onClick={() => setShowPlayer(true)}
-              className="flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all text-purple-400 bg-purple-500/20 mr-2"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Music size={22} />
-              <span className="text-xs mt-1">Lecteur</span>
-            </motion.button>
-          )}
-          {navItems.map((item) => (
-            <motion.button
-              key={item.path}
-              onClick={() => handleNavClick(item.path)}
-              className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all relative ${
-                item.active 
-                  ? 'text-purple-400 bg-purple-500/20' 
-                  : 'text-white/60 hover:text-white hover:bg-white/10'
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <div className="relative">
-                <item.icon size={20} />
-                {item.badge && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold"
+        {/* Contenu de la navigation */}
+        <div className="relative px-6 py-4">
+          <div className="flex items-center justify-between">
+            
+            {/* Section gauche - Bouton lecteur et actions rapides */}
+            <div className="flex items-center gap-3">
+              {/* Bouton lecteur principal */}
+              {!audioState.showPlayer && (
+                <motion.button
+                  onClick={() => setShowPlayer(true)}
+                  className="group relative flex items-center gap-3 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl text-white font-medium shadow-lg hover:shadow-purple-500/40 transition-all duration-300"
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
+                  <Music size={20} className="relative" />
+                  <span className="relative text-sm font-semibold">Lecteur</span>
+                </motion.button>
+              )}
+
+              {/* Bouton upload rapide */}
+              <motion.button
+                onClick={() => router.push('/upload')}
+                className="group relative w-12 h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-300 border border-white/20"
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileTap={{ scale: 0.9 }}
+                aria-label="Partager ma musique"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <Plus size={20} className="relative text-green-400" />
+              </motion.button>
+            </div>
+
+            {/* Section centrale - Navigation principale */}
+            <div className="flex items-center gap-1">
+              {navItems.map((item) => (
+                <motion.div
+                  key={item.path}
+                  className="relative"
+                  onMouseEnter={() => setHoveredItem(item.path)}
+                  onMouseLeave={() => setHoveredItem(null)}
+                >
+                  <motion.button
+                    onClick={() => handleNavClick(item.path)}
+                    className={`group relative flex flex-col items-center justify-center w-16 h-16 rounded-2xl transition-all duration-300 ${
+                      item.active 
+                        ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 border border-purple-500/50' 
+                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/20'
+                    }`}
+                    whileHover={{ scale: 1.05, y: -3 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    {item.badge > 9 ? '9+' : item.badge}
-                  </motion.div>
-                )}
-              </div>
-              <span className="text-xs mt-1">{item.label}</span>
-            </motion.button>
-          ))}
+                    {/* Effet de lueur au hover */}
+                    {item.active && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-2xl blur-xl"></div>
+                    )}
+                    
+                    <div className="relative flex flex-col items-center">
+                      <div className="relative">
+                        <item.icon size={22} />
+                      </div>
+                      <span className="text-xs mt-1 font-medium">{item.label}</span>
+                    </div>
+                  </motion.button>
 
-          {/* Bouton Profil */}
-          <motion.button
-            onClick={handleProfileClick}
-            className={`flex flex-col items-center justify-center py-2 px-3 rounded-lg transition-all ${
-              pathname.startsWith('/profile') 
-                ? 'text-purple-400 bg-purple-500/20' 
-                : 'text-white/60 hover:text-white hover:bg-white/10'
-            }`}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            {session?.user?.image ? (
-              <img
-                src={session.user.image}
-                alt="Profile"
-                className="w-5 h-5 rounded-full object-cover"
-              />
-            ) : (
-              <User size={20} />
-            )}
-            <span className="text-xs mt-1">Profil</span>
-          </motion.button>
+                  {/* Tooltip au hover */}
+                  <AnimatePresence>
+                    {hoveredItem === item.path && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 z-50"
+                      >
+                        <div className="bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl px-3 py-2 shadow-2xl">
+                          <p className="text-white text-sm font-medium whitespace-nowrap">{item.description}</p>
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/90"></div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Section droite - Profil et notifications */}
+            <div className="flex items-center gap-3">
+              {/* Bouton paramètres */}
+              <motion.button
+                onClick={() => router.push('/settings')}
+                className={`group relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 border ${
+                  pathname.startsWith('/settings') 
+                    ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-500/50' 
+                    : 'bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20'
+                }`}
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                aria-label="Paramètres"
+              >
+                {pathname.startsWith('/settings') && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl"></div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <Settings size={20} className="relative text-blue-400" />
+              </motion.button>
+
+              {/* Bouton profil */}
+              <motion.button
+                onClick={handleProfileClick}
+                className={`group relative w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 border ${
+                  pathname.startsWith('/profile') 
+                    ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-500/50' 
+                    : 'bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20'
+                }`}
+                whileHover={{ scale: 1.1, rotate: -5 }}
+                whileTap={{ scale: 0.9 }}
+                aria-label="Profil"
+              >
+                {pathname.startsWith('/profile') && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl"></div>
+                )}
+                
+                <div className="relative">
+                  {session?.user?.image ? (
+                    <img
+                      src={session.user.image}
+                      alt="Profile"
+                      className="w-8 h-8 rounded-full object-cover border-2 border-white/30"
+                    />
+                  ) : (
+                    <UserPlus size={20} className="text-white" />
+                  )}
+                </div>
+              </motion.button>
+            </div>
+          </div>
+
+          {/* Espace réservé pour éventuelles fonctionnalités futures */}
         </div>
       </nav>
     </>

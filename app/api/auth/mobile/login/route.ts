@@ -1,13 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { compare } from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import dbConnect from '@/lib/db';
-import User from '@/models/User';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
-    await dbConnect();
-
     const { email, password } = await request.json();
 
     // Validation des données
@@ -18,58 +14,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Rechercher l'utilisateur
-    const user = await User.findOne({ email: email.toLowerCase() });
-    
-    if (!user || !user.password) {
+    // Authentifier avec Supabase
+    const { data: { user }, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password: password
+    });
+
+    if (authError || !user) {
       return NextResponse.json(
         { error: 'Email ou mot de passe incorrect' },
         { status: 401 }
       );
     }
 
-    // Vérifier le mot de passe
-    const isPasswordValid = await compare(password, user.password);
-    
-    if (!isPasswordValid) {
+    // Récupérer le profil utilisateur
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
       return NextResponse.json(
-        { error: 'Email ou mot de passe incorrect' },
-        { status: 401 }
+        { error: 'Profil utilisateur non trouvé' },
+        { status: 404 }
       );
     }
 
     // Générer un token JWT
     const token = jwt.sign(
       {
-        id: user._id.toString(),
-        email: user.email,
-        username: user.username,
-        role: user.role,
+        id: profile.id,
+        email: profile.email,
+        username: profile.username,
+        role: profile.role,
       },
       process.env.NEXTAUTH_SECRET || 'your-secret-key',
       { expiresIn: '7d' }
     );
 
-    console.log('✅ Connexion mobile réussie pour:', user.email);
+    console.log('✅ Connexion mobile Supabase réussie pour:', profile.email);
 
     return NextResponse.json({
       success: true,
       data: {
         user: {
-          id: user._id.toString(),
-          name: user.name,
-          username: user.username,
-          email: user.email,
-          avatar: user.avatar,
-          role: user.role,
-          isVerified: user.isVerified,
+          id: profile.id,
+          name: profile.name,
+          username: profile.username,
+          email: profile.email,
+          avatar: profile.avatar,
+          role: profile.role,
+          isVerified: profile.is_verified,
         },
         token
       }
     });
 
   } catch (error) {
-    console.error('❌ Erreur lors de l\'authentification mobile:', error);
+    console.error('❌ Erreur lors de l\'authentification mobile Supabase:', error);
     return NextResponse.json(
       { error: 'Erreur lors de la connexion' },
       { status: 500 }
