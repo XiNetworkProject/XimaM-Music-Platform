@@ -39,6 +39,21 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Log des types de données reçues pour debug
+      console.log('🔍 Types de données reçues:', {
+        duration: {
+          value: duration,
+          type: typeof duration,
+          parsed: parseFloat(duration),
+          rounded: Math.round(parseFloat(duration) || 0)
+        },
+        genre: {
+          value: trackData.genre,
+          type: typeof trackData.genre,
+          isArray: Array.isArray(trackData.genre)
+        }
+      });
+
       // Sauvegarder en base Supabase (maintenant avec RLS corrigé)
       console.log('🔍 Tentative de sauvegarde en base avec les données:', {
         title: trackData.title,
@@ -51,16 +66,20 @@ export async function POST(request: NextRequest) {
         is_public: trackData.isPublic !== false
       });
 
+      // Conversion et validation des types de données
+      const trackDuration = Math.round(parseFloat(duration) || 0);
+      const trackGenre = Array.isArray(trackData.genre) ? trackData.genre : [];
+
       const { data: track, error } = await supabase
         .from('tracks')
         .insert({
           id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           title: trackData.title,
           description: trackData.description || '',
-          genre: trackData.genre || [],
+          genre: trackGenre,
           audio_url: audioUrl,
           cover_url: coverUrl || null,
-          duration: duration || 0,
+          duration: trackDuration,
           creator_id: session.user.id,
           is_public: trackData.isPublic !== false,
           plays: 0,
