@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
       
       const { data: creators, error: creatorsError } = await supabase
         .from('profiles')
-        .select('id, username, name, avatar_url, is_artist, artist_name')
+        .select('id, username, name, avatar, is_artist, artist_name')
         .in('id', creatorIds);
 
       if (!creatorsError && creators) {
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
               _id: track.creator_id,
               username: creator?.username || 'Utilisateur inconnu',
               name: creator?.name || creator?.username || 'Utilisateur inconnu',
-              avatar: creator?.avatar_url || '',
+              avatar: creator?.avatar || '',
               isArtist: creator?.is_artist || false,
               artistName: creator?.artist_name || creator?.name || creator?.username || 'Utilisateur inconnu'
             },
