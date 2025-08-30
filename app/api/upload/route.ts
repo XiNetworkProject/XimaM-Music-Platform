@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Sauvegarder en base Supabase avec le client admin (contourne RLS)
+      // Sauvegarder en base Supabase (maintenant avec RLS corrigé)
       console.log('🔍 Tentative de sauvegarde en base avec les données:', {
         title: trackData.title,
         description: trackData.description || '',
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
         is_public: trackData.isPublic !== false
       });
 
-      const { data: track, error } = await supabaseAdmin
+      const { data: track, error } = await supabase
         .from('tracks')
         .insert({
           id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
