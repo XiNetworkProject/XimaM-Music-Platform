@@ -244,6 +244,7 @@ CREATE POLICY "Utilisateur peut supprimer son profil" ON profiles FOR DELETE USI
 
 -- Politiques pour les pistes
 CREATE POLICY "Pistes publiques visibles par tous" ON tracks FOR SELECT USING (is_public = true);
+CREATE POLICY "Utilisateur peut créer des pistes" ON tracks FOR INSERT WITH CHECK (auth.uid() = creator_id);
 CREATE POLICY "Créateur peut modifier sa piste" ON tracks FOR UPDATE USING (auth.uid() = creator_id);
 CREATE POLICY "Créateur peut supprimer sa piste" ON tracks FOR DELETE USING (auth.uid() = creator_id);
 

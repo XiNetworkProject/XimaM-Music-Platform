@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,8 +39,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Sauvegarder en base Supabase
-      const { data: track, error } = await supabase
+      // Sauvegarder en base Supabase avec le client admin (contourne RLS)
+      console.log('🔍 Tentative de sauvegarde en base avec les données:', {
+        title: trackData.title,
+        description: trackData.description || '',
+        genre: trackData.genre || [],
+        audio_url: audioUrl,
+        cover_url: coverUrl || null,
+        duration: duration || 0,
+        creator_id: session.user.id,
+        is_public: trackData.isPublic !== false
+      });
+
+      const { data: track, error } = await supabaseAdmin
         .from('tracks')
         .insert({
           id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
@@ -60,9 +71,14 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        console.error('❌ Erreur lors de la sauvegarde en base:', error);
+        console.error('❌ Erreur détaillée lors de la sauvegarde en base:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
         return NextResponse.json(
-          { error: 'Erreur lors de la sauvegarde en base de données' },
+          { error: `Erreur lors de la sauvegarde en base de données: ${error.message}` },
           { status: 500 }
         );
       }
