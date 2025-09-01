@@ -1040,12 +1040,12 @@ export default function HomePage() {
   const fetchStreamUrl = async () => {
     try {
       // URL de streaming directe HTTPS
-      const streamUrl = 'https://manager5.streamradio.fr:2335/stream';
+      const streamUrl = 'https://rocket.streamradio.fr/stream/mixxparty';
       console.log('URL de streaming radio configurée:', streamUrl);
       return streamUrl;
     } catch (error) {
       console.error('Erreur récupération URL streaming:', error);
-      return 'https://manager5.streamradio.fr:2335/stream'; // URL de fallback
+      return 'https://rocket.streamradio.fr/stream/mixxparty'; // URL de fallback
     }
   };
 
@@ -1053,7 +1053,7 @@ export default function HomePage() {
   const fetchRadioMetadata = async () => {
     try {
       // URL de statut pour récupérer les métadonnées
-      const statusUrl = 'https://manager5.streamradio.fr:2335/status-json.xsl';
+      const statusUrl = 'https://rocket.streamradio.fr/status-json.xsl';
       const response = await fetch(statusUrl);
       
       if (response.ok) {
@@ -1328,7 +1328,7 @@ export default function HomePage() {
     setProgramLoading(true);
     try {
       // Récupérer les données depuis l'API StreamRadio.fr
-      const response = await fetch('https://manager5.streamradio.fr:2335/status-json.xsl');
+      const response = await fetch('https://rocket.streamradio.fr/status-json.xsl');
       if (response.ok) {
         const data = await response.json();
         console.log('Données StreamRadio:', data);

@@ -43,7 +43,8 @@ async function debugArtistData() {
     const { data: tracks, error: tracksError } = await supabase
       .from('tracks')
       .select('id, title, creator_id, genre, created_at')
-      .limit(5);
+      .order('created_at', { ascending: false })
+      .limit(10);
     
     if (tracksError) {
       console.error('❌ Erreur pistes:', tracksError);
