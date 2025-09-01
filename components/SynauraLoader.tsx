@@ -29,19 +29,19 @@ export default function SynauraLoader({
 
   return (
     <div className={`flex flex-col items-center justify-center ${className}`}>
-      {/* Conteneur du symbole animé */}
+      {/* Conteneur du symbole animé - Version simplifiée */}
       <motion.div
         className={`relative ${sizeClasses[size]}`}
         animate={{
           rotate: [0, 360],
         }}
         transition={{
-          duration: 8,
+          duration: 4,
           repeat: Infinity,
           ease: "linear"
         }}
       >
-        {/* Symbole Synaura animé */}
+        {/* Symbole Synaura simplifié */}
         <svg 
           viewBox="0 0 240 240" 
           className="w-full h-full"
@@ -53,22 +53,9 @@ export default function SynauraLoader({
               <stop offset="50%" stopColor="#8B5CF6"/>
               <stop offset="100%" stopColor="#D946EF"/>
             </linearGradient>
-            <filter id="pulse-glow-loader" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur stdDeviation="3" result="blur"/>
-              <feColorMatrix 
-                in="blur" 
-                type="matrix" 
-                values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" 
-                result="glow"
-              />
-              <feMerge>
-                <feMergeNode in="glow"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
           </defs>
           
-          {/* Symbole S principal */}
+          {/* Symbole S principal - Animation simplifiée */}
           <motion.path
             d="M60 72C60 36 180 36 180 72C180 108 60 108 60 144C60 180 180 180 180 144"
             fill="none"
@@ -76,50 +63,27 @@ export default function SynauraLoader({
             strokeWidth="28"
             strokeLinecap="round"
             strokeLinejoin="round"
-            filter="url(#pulse-glow-loader)"
-            initial={{ pathLength: 0, opacity: 0 }}
             animate={{ 
-              pathLength: [0, 1, 0],
-              opacity: [0.3, 1, 0.3]
+              opacity: [0.5, 1, 0.5]
             }}
             transition={{
-              pathLength: { duration: 3, repeat: Infinity, ease: "easeInOut" },
-              opacity: { duration: 2, repeat: Infinity, ease: "easeInOut" }
-            }}
-          />
-          
-          {/* Effet de particules */}
-          <motion.circle
-            cx="120"
-            cy="120"
-            r="100"
-            fill="none"
-            stroke="url(#aurora-loader)"
-            strokeWidth="1"
-            opacity="0.3"
-            animate={{
-              r: [80, 120, 80],
-              opacity: [0.1, 0.5, 0.1]
-            }}
-            transition={{
-              duration: 4,
+              duration: 1.5,
               repeat: Infinity,
               ease: "easeInOut"
             }}
           />
           
-          {/* Points lumineux */}
+          {/* Points lumineux simplifiés */}
           <motion.circle
             cx="60"
             cy="72"
-            r="4"
+            r="3"
             fill="#22D3EE"
             animate={{
-              r: [2, 6, 2],
-              opacity: [0.5, 1, 0.5]
+              opacity: [0.3, 1, 0.3]
             }}
             transition={{
-              duration: 1.5,
+              duration: 1,
               repeat: Infinity,
               ease: "easeInOut"
             }}
@@ -128,37 +92,16 @@ export default function SynauraLoader({
           <motion.circle
             cx="180"
             cy="144"
-            r="4"
+            r="3"
             fill="#D946EF"
             animate={{
-              r: [2, 6, 2],
-              opacity: [0.5, 1, 0.5]
+              opacity: [0.3, 1, 0.3]
             }}
             transition={{
-              duration: 1.5,
+              duration: 1,
               repeat: Infinity,
               ease: "easeInOut",
               delay: 0.5
-            }}
-          />
-          
-          {/* Lueur pulsante */}
-          <motion.circle
-            cx="120"
-            cy="120"
-            r="90"
-            fill="none"
-            stroke="url(#aurora-loader)"
-            strokeWidth="0.5"
-            opacity="0.2"
-            animate={{
-              r: [85, 95, 85],
-              opacity: [0.1, 0.4, 0.1]
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut"
             }}
           />
         </svg>
@@ -167,12 +110,12 @@ export default function SynauraLoader({
       {/* Texte de chargement */}
       {text && (
         <motion.p
-          className={`mt-4 text-center font-medium text-gray-300 ${textSizes[size]}`}
+          className={`mt-3 text-center font-medium text-gray-200 ${textSizes[size]}`}
           animate={{
-            opacity: [0.5, 1, 0.5]
+            opacity: [0.7, 1, 0.7]
           }}
           transition={{
-            duration: 2,
+            duration: 1.5,
             repeat: Infinity,
             ease: "easeInOut"
           }}
@@ -180,9 +123,6 @@ export default function SynauraLoader({
           {text}
         </motion.p>
       )}
-      
-      {/* Effet de lueur en arrière-plan */}
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-pink-500/10 rounded-full blur-3xl opacity-50" />
     </div>
   );
 }

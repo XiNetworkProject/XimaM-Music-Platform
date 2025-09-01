@@ -75,7 +75,7 @@ export default function BottomNav() {
   };
 
   const handleNavClick = (path: string) => {
-    // Navigation immédiate sans blocage
+    // Navigation immédiate sans blocage ni transition
     router.push(path, { scroll: false });
   };
 

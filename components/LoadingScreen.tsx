@@ -15,8 +15,8 @@ export default function LoadingScreen({
   fullScreen = true 
 }: LoadingScreenProps) {
   const containerClasses = fullScreen 
-    ? 'fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900'
-    : 'flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900';
+    ? 'fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-gray-800/90 via-gray-900/80 to-black/90 backdrop-blur-sm'
+    : 'flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-800/90 via-gray-900/80 to-black/90 backdrop-blur-sm';
 
   return (
     <motion.div
@@ -25,9 +25,9 @@ export default function LoadingScreen({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      {/* Effet de particules en arrière-plan */}
+      {/* Effet de particules simplifié */}
       <div className="absolute inset-0 overflow-hidden">
-        {[...Array(20)].map((_, i) => (
+        {[...Array(8)].map((_, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 bg-gradient-to-r from-cyan-400 to-purple-500 rounded-full"
@@ -36,14 +36,14 @@ export default function LoadingScreen({
               top: `${Math.random() * 100}%`,
             }}
             animate={{
-              y: [0, -100, 0],
-              opacity: [0, 1, 0],
+              y: [0, -50, 0],
+              opacity: [0, 0.5, 0],
               scale: [0, 1, 0],
             }}
             transition={{
-              duration: 3 + Math.random() * 2,
+              duration: 2 + Math.random(),
               repeat: Infinity,
-              delay: Math.random() * 2,
+              delay: Math.random(),
             }}
           />
         ))}
@@ -79,36 +79,35 @@ export default function LoadingScreen({
           />
         </motion.div>
 
-        {/* Barre de progression stylée */}
+        {/* Barre de progression simplifiée */}
         <motion.div
-          className="mt-8 max-w-md mx-auto"
+          className="mt-6 max-w-md mx-auto"
           initial={{ width: 0, opacity: 0 }}
           animate={{ width: "100%", opacity: 1 }}
-          transition={{ duration: 1, delay: 0.6 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <div className="w-full bg-gray-800 rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-gray-700/50 rounded-full h-1.5 overflow-hidden">
             <motion.div
               className="h-full bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500"
               initial={{ width: "0%" }}
               animate={{ width: "100%" }}
-              transition={{ duration: 2, delay: 0.8, ease: "easeInOut" }}
+              transition={{ duration: 1, delay: 0.5, ease: "easeInOut" }}
             />
           </div>
         </motion.div>
 
         {/* Message de chargement */}
         <motion.p
-          className="mt-4 text-gray-400 text-sm"
+          className="mt-3 text-gray-300 text-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 1 }}
+          transition={{ duration: 0.5, delay: 0.6 }}
         >
-          Préparation de votre expérience musicale...
+          Chargement...
         </motion.p>
       </div>
 
-      {/* Effet de lueur en arrière-plan */}
-      <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/5 via-purple-500/5 to-pink-500/5 blur-3xl" />
+      {/* Effet de lueur en arrière-plan - Supprimé pour plus de clarté */}
     </motion.div>
   );
 }
