@@ -2983,6 +2983,9 @@ export default function HomePage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={(e) => {
                               e.stopPropagation();
+
+
+
                               // Navigation simplifiée vers la page de découverte
                               router.push('/discover', { scroll: false });
                             }}

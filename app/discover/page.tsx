@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
@@ -75,7 +75,7 @@ interface Category {
   trackCount: number;
 }
 
-export default function DiscoverPage() {
+function DiscoverPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   
@@ -1590,7 +1590,7 @@ export default function DiscoverPage() {
                       
                       {/* Bouton voir le profil */}
                       <button
-                        onClick={() => window.location.href = `/profile/${artist.username}`}
+                        onClick={() => router.push(`/profile/${artist.username}`, { scroll: false })}
                         className="w-full py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm text-purple-300 text-xs rounded-lg hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50"
                       >
                         Voir le profil
@@ -1647,5 +1647,26 @@ const formatNumber = (num: number) => {
   }
   return num.toString();
 };
+
+// Composant de chargement pour Suspense
+function DiscoverPageLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-white text-lg">Chargement de la page de découverte...</p>
+      </div>
+    </div>
+  );
+}
+
+// Page principale avec Suspense
+export default function DiscoverPage() {
+  return (
+    <Suspense fallback={<DiscoverPageLoading />}>
+      <DiscoverPageContent />
+    </Suspense>
+  );
+}
 
 
