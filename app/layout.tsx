@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     title: 'XimaM',
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: '/favicon.svg',
     apple: '/apple-touch-icon.png',
   },
 };
