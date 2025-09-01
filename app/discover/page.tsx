@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
 import SeeAllButton from '@/components/SeeAllButton';
 import { 
@@ -75,6 +76,9 @@ interface Category {
 }
 
 export default function DiscoverPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   // États pour les vraies données
   const [tracks, setTracks] = useState<Track[]>([]);
   const [trendingArtists, setTrendingArtists] = useState<Artist[]>([]);
@@ -94,6 +98,54 @@ export default function DiscoverPage() {
   const [modalTitle, setModalTitle] = useState('');
   const [modalTracks, setModalTracks] = useState<Track[]>([]);
   const [modalArtists, setModalArtists] = useState<Artist[]>([]);
+
+  // Gérer les paramètres de requête pour le filtrage initial
+  useEffect(() => {
+    const filter = searchParams.get('filter');
+    const genres = searchParams.get('genres');
+    
+    if (filter || genres) {
+      console.log('🔍 Paramètres de requête détectés:', { filter, genres });
+      
+      if (genres) {
+        const genreList = genres.split(',').filter(g => g.trim());
+        if (genreList.length > 0) {
+          // Trouver la première catégorie correspondante
+          const matchingCategory = genreList.find(genre => 
+            tracks.some(track => track.genre && track.genre.includes(genre))
+          );
+          if (matchingCategory) {
+            setSelectedCategory(matchingCategory);
+            console.log('✅ Catégorie sélectionnée basée sur les paramètres:', matchingCategory);
+          }
+        }
+      }
+      
+      if (filter) {
+        switch (filter) {
+          case 'trending':
+            setSortBy('trending');
+            break;
+          case 'newest':
+            setSortBy('newest');
+            break;
+          case 'popular':
+            setSortBy('popular');
+            break;
+          case 'featured':
+            setSortBy('featured');
+            break;
+          case 'personal':
+            setSortBy('trending'); // Par défaut
+            break;
+          case 'similar':
+            setSortBy('trending'); // Par défaut
+            break;
+        }
+        console.log('✅ Tri sélectionné basé sur les paramètres:', filter);
+      }
+    }
+  }, [searchParams, tracks]);
 
   // Calculer les compteurs de catégories UNE SEULE FOIS au chargement initial
   useEffect(() => {
@@ -267,7 +319,7 @@ export default function DiscoverPage() {
   const handleArtistClick = (artist: Artist) => {
     console.log('👤 Navigation vers le profil:', artist.username);
     // Navigation vers le profil de l'artiste
-    window.location.href = `/profile/${artist.username}`;
+    router.push(`/profile/${artist.username}`, { scroll: false });
   };
 
   // Fonction pour ouvrir les modales "Voir tout"

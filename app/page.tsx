@@ -2983,20 +2983,8 @@ export default function HomePage() {
                             whileTap={{ scale: 0.95 }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              // Action basée sur le type de recommandation
-                              if (rec.type === 'Basé sur vos goûts') {
-                                // Naviguer vers la page de découverte avec filtres
-                                router.push(`/discover?filter=similar&genres=${rec.metrics?.topGenres?.join(',') || ''}`, { scroll: false });
-                              } else if (rec.type === 'Nouveautés populaires') {
-                                // Naviguer vers les tendances
-                                router.push('/discover?filter=trending', { scroll: false });
-                              } else if (rec.type === 'Recommandations personnalisées') {
-                                // Naviguer vers la page de découverte avec filtres personnalisés
-                                router.push('/discover?filter=personal', { scroll: false });
-                              } else {
-                                // Action par défaut : naviguer vers la découverte
-                                router.push('/discover', { scroll: false });
-                              }
+                              // Navigation simplifiée vers la page de découverte
+                              router.push('/discover', { scroll: false });
                             }}
                             className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm text-white py-2 rounded-lg text-xs font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 flex items-center justify-center space-x-1"
                           >
@@ -3028,13 +3016,13 @@ export default function HomePage() {
                             label: 'Genres préférés', 
                             value: userPreferences.topGenres?.slice(0, 2).join(', ') || 'Aucun', 
                             icon: Music,
-                            action: () => router.push('/discover?filter=genres', { scroll: false })
+                            action: () => router.push('/discover', { scroll: false })
                           },
                           { 
                             label: 'Créations aimées', 
                             value: `${userPreferences.totalLiked || 0} titres`, 
                             icon: Heart,
-                            action: () => router.push('/library?filter=liked', { scroll: false })
+                            action: () => router.push('/library', { scroll: false })
                           },
                           { 
                             label: 'Artiste favori', 
