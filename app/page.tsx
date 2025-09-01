@@ -1553,7 +1553,7 @@ export default function HomePage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/ai-generator')}
+                onClick={() => router.push('/ai-generator', { scroll: false })}
                 className="ml-3 px-3 py-1 bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 text-xs rounded-full border border-blue-500/30 transition-all duration-200"
               >
                 En savoir plus
@@ -1578,7 +1578,7 @@ export default function HomePage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/subscriptions')}
+                onClick={() => router.push('/subscriptions', { scroll: false })}
                 className="ml-3 px-3 py-1 bg-green-600/30 hover:bg-green-600/50 text-green-200 text-xs rounded-full border border-green-500/30 transition-all duration-200"
               >
                 Voir les offres
@@ -1768,7 +1768,7 @@ export default function HomePage() {
                     <motion.button
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
-                                                      onClick={() => router.push(`/profile/${featuredTracks[currentSlide].artist?.username || ''}`)}
+                                                      onClick={() => router.push(`/profile/${featuredTracks[currentSlide].artist?.username || ''}`, { scroll: false })}
                       className="px-6 py-4 rounded-2xl font-semibold text-white bg-white/10 border border-white/30 hover:bg-white/20 transition-all duration-300 backdrop-blur-md shadow-lg hover:shadow-white/20"
                       aria-label="Voir l'artiste"
                     >
@@ -1905,7 +1905,7 @@ export default function HomePage() {
                 transition={{ delay: 0.25, duration: 0.3 }}
                 whileHover={{ scale: 1.01 }}
                         className="group cursor-pointer"
-                onClick={() => router.push('/upload')}
+                onClick={() => router.push('/upload', { scroll: false })}
               >
                 <div className="relative p-6 rounded-2xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 hover:border-purple-400/50 transition-all duration-200">
                   <div className="flex items-center space-x-3 mb-4">
@@ -1950,7 +1950,7 @@ export default function HomePage() {
                 transition={{ delay: 0.3, duration: 0.3 }}
                 whileHover={{ scale: 1.01 }}
                         className="group cursor-pointer"
-                onClick={() => router.push('/discover')}
+                onClick={() => router.push('/discover', { scroll: false })}
               >
                 <div className="relative p-6 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-500/30 hover:border-green-400/50 transition-all duration-150">
                   {/* Effet de fond animé */}
@@ -2057,7 +2057,7 @@ export default function HomePage() {
                       if (feature.href === '#radio') {
                         document.getElementById('radio')?.scrollIntoView({ behavior: 'smooth' });
                       } else {
-                        router.push(feature.href);
+                        router.push(feature.href, { scroll: false });
                       }
                     }}
                   >
@@ -2124,7 +2124,7 @@ export default function HomePage() {
                       if (feature.href === '#radio') {
                       document.getElementById('radio')?.scrollIntoView({ behavior: 'smooth' });
                     } else {
-                        router.push(feature.href);
+                        router.push(feature.href, { scroll: false });
                       }
                     }}
                   >
@@ -2313,7 +2313,7 @@ export default function HomePage() {
                     className="group bg-white/5 dark:bg-gray-800/70 rounded-2xl p-4 flex flex-col items-center shadow-sm hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-gray-700 focus-within:ring-2 focus-within:ring-purple-500 cursor-pointer text-center"
                     tabIndex={0}
                     aria-label={`Artiste : ${user.name || user.username}`}
-                    onClick={() => router.push(`/profile/${user.username}`)}
+                    onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
                   >
                     {/* Avatar */}
                     <div className="relative mb-3">
@@ -2986,16 +2986,16 @@ export default function HomePage() {
                               // Action basée sur le type de recommandation
                               if (rec.type === 'Basé sur vos goûts') {
                                 // Naviguer vers la page de découverte avec filtres
-                                router.push(`/discover?filter=similar&genres=${rec.metrics?.topGenres?.join(',') || ''}`);
+                                router.push(`/discover?filter=similar&genres=${rec.metrics?.topGenres?.join(',') || ''}`, { scroll: false });
                               } else if (rec.type === 'Nouveautés populaires') {
                                 // Naviguer vers les tendances
-                                router.push('/discover?filter=trending');
+                                router.push('/discover?filter=trending', { scroll: false });
                               } else if (rec.type === 'Recommandations personnalisées') {
                                 // Naviguer vers la page de découverte avec filtres personnalisés
-                                router.push('/discover?filter=personal');
+                                router.push('/discover?filter=personal', { scroll: false });
                               } else {
                                 // Action par défaut : naviguer vers la découverte
-                                router.push('/discover');
+                                router.push('/discover', { scroll: false });
                               }
                             }}
                             className="w-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm text-white py-2 rounded-lg text-xs font-medium hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50 flex items-center justify-center space-x-1"
@@ -3016,7 +3016,7 @@ export default function HomePage() {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => router.push('/profile/edit')}
+                          onClick={() => router.push('/profile/edit', { scroll: false })}
                           className="text-purple-400 hover:text-purple-300 text-xs font-medium"
                         >
                           Personnaliser
@@ -3028,19 +3028,19 @@ export default function HomePage() {
                             label: 'Genres préférés', 
                             value: userPreferences.topGenres?.slice(0, 2).join(', ') || 'Aucun', 
                             icon: Music,
-                            action: () => router.push('/discover?filter=genres')
+                            action: () => router.push('/discover?filter=genres', { scroll: false })
                           },
                           { 
                             label: 'Créations aimées', 
                             value: `${userPreferences.totalLiked || 0} titres`, 
                             icon: Heart,
-                            action: () => router.push('/library?filter=liked')
+                            action: () => router.push('/library?filter=liked', { scroll: false })
                           },
                           { 
                             label: 'Artiste favori', 
                             value: userPreferences.favoriteArtist || 'Aucun', 
                             icon: Star,
-                            action: () => router.push(`/profile/${userPreferences.favoriteArtist?.toLowerCase().replace(/\s+/g, '-')}`)
+                            action: () => router.push(`/profile/${userPreferences.favoriteArtist?.toLowerCase().replace(/\s+/g, '-')}`, { scroll: false })
                           }
                         ].map((insight, index) => (
                           <motion.div
@@ -3069,7 +3069,7 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => router.push('/discover')}
+                            onClick={() => router.push('/discover', { scroll: false })}
                             className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30 hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300"
                           >
                             Découvrir plus
@@ -3077,7 +3077,7 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => router.push('/upload')}
+                            onClick={() => router.push('/upload', { scroll: false })}
                             className="px-3 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 text-xs rounded-full border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300"
                           >
                             Partager ma musique
