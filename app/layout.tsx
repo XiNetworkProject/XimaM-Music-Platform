@@ -5,7 +5,6 @@ import Providers from './providers';
 import BottomNav from '@/components/BottomNav';
 import AppNavbar from '@/components/AppNavbar';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
-import PageTransition from '@/components/PageTransition';
 
 // Déclaration des types pour les fonctions globales
 declare global {
@@ -101,9 +100,7 @@ export default function RootLayout({
           <div className="flex flex-col min-h-screen">
             <AppNavbar />
             <main className="flex-1">
-              <PageTransition>
-                {children}
-              </PageTransition>
+              {children}
             </main>
             <BottomNav />
             <FullScreenPlayer />
