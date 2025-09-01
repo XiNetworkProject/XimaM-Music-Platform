@@ -102,7 +102,7 @@ export default function BottomNav() {
                   whileTap={{ scale: 0.95 }}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
-                  <Music size={16} className="relative sm:w-20 sm:h-20" />
+                  <Music size={16} className="relative sm:w-5 sm:h-5" />
                   <span className="relative text-xs sm:text-sm font-semibold">Lecteur</span>
                 </motion.button>
               )}
@@ -116,7 +116,7 @@ export default function BottomNav() {
                 aria-label="Partager ma musique"
               >
                 <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <Plus size={16} className="relative text-green-400 sm:w-20 sm:h-20" />
+                <Plus size={16} className="relative text-green-400 sm:w-5 sm:h-5" />
               </motion.button>
             </div>
 
@@ -146,7 +146,7 @@ export default function BottomNav() {
                     
                     <div className="relative flex flex-col items-center">
                       <div className="relative">
-                        <item.icon size={18} className="sm:w-22 sm:h-22" />
+                        <item.icon size={18} className="sm:w-6 sm:h-6" />
                       </div>
                       <span className="text-xs mt-1 font-medium">{item.label}</span>
                     </div>
@@ -191,7 +191,7 @@ export default function BottomNav() {
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl"></div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <Settings size={16} className="relative text-blue-400 sm:w-20 sm:h-20" />
+                <Settings size={16} className="relative text-blue-400 sm:w-5 sm:h-5" />
               </motion.button>
 
               {/* Bouton profil */}
@@ -218,7 +218,7 @@ export default function BottomNav() {
                       className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white/30"
                     />
                   ) : (
-                    <UserPlus size={16} className="text-white sm:w-20 sm:h-20" />
+                    <UserPlus size={16} className="text-white sm:w-5 sm:h-5" />
                   )}
                 </div>
               </motion.button>
