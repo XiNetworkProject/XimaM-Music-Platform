@@ -37,49 +37,49 @@ export const metadata: Metadata = {
   },
 };
 
-// Enregistrement du service worker optimisé côté client
-if (typeof window !== 'undefined') {
-  if ('serviceWorker' in navigator) {
-    // Charger le script de correction en premier
-    const script = document.createElement('script');
-    script.src = '/force-update.js';
-    script.async = true;
-    document.head.appendChild(script);
-    
-    // Attendre un peu avant d'enregistrer le SW
-    setTimeout(() => {
-      navigator.serviceWorker.register('/sw-optimized.js')
-        .then(registration => {
-          console.log('✅ Service Worker optimisé enregistré');
-          
-          // Vérifier les mises à jour
-          registration.addEventListener('updatefound', () => {
-            const newWorker = registration.installing;
-            if (newWorker) {
-              newWorker.addEventListener('statechange', () => {
-                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                  // Nouvelle version disponible
-                  console.log('🔄 Nouvelle version disponible');
-                }
-              });
-            }
-          });
-          
-          // Gérer les erreurs de SW
-          registration.addEventListener('error', (error) => {
-            console.error('❌ Erreur Service Worker:', error);
-            // Forcer la mise à jour si nécessaire
-            window.forceUpdateServiceWorker?.();
-          });
-        })
-        .catch(error => {
-          console.error('❌ Erreur enregistrement Service Worker:', error);
-          // Essayer de nettoyer et réenregistrer
-          setTimeout(() => window.forceUpdateServiceWorker?.(), 2000);
-      });
-    }, 1000);
-  }
-}
+// Service Worker temporairement désactivé pour résoudre les problèmes de navigation
+// if (typeof window !== 'undefined') {
+//   if ('serviceWorker' in navigator) {
+//     // Charger le script de correction en premier
+//     const script = document.createElement('script');
+//     script.src = '/force-update.js';
+//     script.async = true;
+//     document.head.appendChild(script);
+//     
+//     // Attendre un peu avant d'enregistrer le SW
+//     setTimeout(() => {
+//       navigator.serviceWorker.register('/sw-optimized.js')
+//         .then(registration => {
+//           console.log('✅ Service Worker optimisé enregistré');
+//           
+//           // Vérifier les mises à jour
+//           registration.addEventListener('updatefound', () => {
+//             const newWorker = registration.installing;
+//             if (newWorker) {
+//               newWorker.addEventListener('statechange', () => {
+//                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+//                   // Nouvelle version disponible
+//                   console.log('🔄 Nouvelle version disponible');
+//                 }
+//               });
+//             }
+//           });
+//           
+//           // Gérer les erreurs de SW
+//           registration.addEventListener('error', (error) => {
+//             console.error('❌ Erreur Service Worker:', error);
+//             // Forcer la mise à jour si nécessaire
+//             window.forceUpdateServiceWorker?.();
+//           });
+//         })
+//         .catch(error => {
+//           console.error('❌ Erreur enregistrement Service Worker:', error);
+//           // Essayer de nettoyer et réenregistrer
+//           setTimeout(() => window.forceUpdateServiceWorker?.(), 2000);
+//       });
+//     }, 1000);
+//   }
+// }
 
 export default function RootLayout({
   children,

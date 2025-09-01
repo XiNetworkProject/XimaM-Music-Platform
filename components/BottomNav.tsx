@@ -68,14 +68,15 @@ export default function BottomNav() {
 
   const handleProfileClick = () => {
     if (session?.user?.username) {
-      router.push(`/profile/${session.user.username}`);
+      router.push(`/profile/${session.user.username}`, { scroll: false });
     } else {
-      router.push('/auth/signin');
+      router.push('/auth/signin', { scroll: false });
     }
   };
 
   const handleNavClick = (path: string) => {
-    router.push(path);
+    // Navigation immédiate sans blocage
+    router.push(path, { scroll: false });
   };
 
   return (
@@ -108,8 +109,8 @@ export default function BottomNav() {
               )}
 
               {/* Bouton upload rapide */}
-              <motion.button
-                onClick={() => router.push('/upload')}
+                              <motion.button
+                  onClick={() => router.push('/upload', { scroll: false })}
                 className="group relative w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-300 border border-white/20"
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.9 }}
@@ -176,8 +177,8 @@ export default function BottomNav() {
             {/* Section inférieure - Profil et paramètres (visible sur mobile) */}
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-center sm:justify-end">
               {/* Bouton paramètres */}
-              <motion.button
-                onClick={() => router.push('/settings')}
+                              <motion.button
+                  onClick={() => router.push('/settings', { scroll: false })}
                 className={`group relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 border ${
                   pathname.startsWith('/settings') 
                     ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-500/50' 
