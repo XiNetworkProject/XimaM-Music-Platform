@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useMemo, Suspense } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
 import SeeAllButton from '@/components/SeeAllButton';
 import { 
@@ -75,9 +75,8 @@ interface Category {
   trackCount: number;
 }
 
-function DiscoverPageContent() {
+export default function DiscoverPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   
   // États pour les vraies données
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -99,53 +98,7 @@ function DiscoverPageContent() {
   const [modalTracks, setModalTracks] = useState<Track[]>([]);
   const [modalArtists, setModalArtists] = useState<Artist[]>([]);
 
-  // Gérer les paramètres de requête pour le filtrage initial
-  useEffect(() => {
-    const filter = searchParams.get('filter');
-    const genres = searchParams.get('genres');
-    
-    if (filter || genres) {
-      console.log('🔍 Paramètres de requête détectés:', { filter, genres });
-      
-      if (genres) {
-        const genreList = genres.split(',').filter(g => g.trim());
-        if (genreList.length > 0) {
-          // Trouver la première catégorie correspondante
-          const matchingCategory = genreList.find(genre => 
-            tracks.some(track => track.genre && track.genre.includes(genre))
-          );
-          if (matchingCategory) {
-            setSelectedCategory(matchingCategory);
-            console.log('✅ Catégorie sélectionnée basée sur les paramètres:', matchingCategory);
-          }
-        }
-      }
-      
-      if (filter) {
-        switch (filter) {
-          case 'trending':
-            setSortBy('trending');
-            break;
-          case 'newest':
-            setSortBy('newest');
-            break;
-          case 'popular':
-            setSortBy('popular');
-            break;
-          case 'featured':
-            setSortBy('featured');
-            break;
-          case 'personal':
-            setSortBy('trending'); // Par défaut
-            break;
-          case 'similar':
-            setSortBy('trending'); // Par défaut
-            break;
-        }
-        console.log('✅ Tri sélectionné basé sur les paramètres:', filter);
-      }
-    }
-  }, [searchParams, tracks]);
+
 
   // Calculer les compteurs de catégories UNE SEULE FOIS au chargement initial
   useEffect(() => {
@@ -1648,25 +1601,6 @@ const formatNumber = (num: number) => {
   return num.toString();
 };
 
-// Composant de chargement pour Suspense
-function DiscoverPageLoading() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-white text-lg">Chargement de la page de découverte...</p>
-      </div>
-    </div>
-  );
-}
 
-// Page principale avec Suspense
-export default function DiscoverPage() {
-  return (
-    <Suspense fallback={<DiscoverPageLoading />}>
-      <DiscoverPageContent />
-    </Suspense>
-  );
-}
 
 
