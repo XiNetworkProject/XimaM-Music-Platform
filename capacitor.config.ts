@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.ximam.app',
-  appName: 'XimaM',
+  appId: 'com.synaura.app',
+  appName: 'Synaura',
   webDir: 'out',
   server: {
     url: 'https://xima-m-music-platform.vercel.app',

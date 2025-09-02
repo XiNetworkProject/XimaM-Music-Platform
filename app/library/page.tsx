@@ -326,7 +326,7 @@ export default function LibraryPage() {
   const sharePlaylist = async (playlist: Playlist) => {
     try {
       const shareUrl = `${window.location.origin}/playlists/${playlist._id}`;
-      const shareText = `Écoutez "${playlist.name}" sur XimaM`;
+      const shareText = `Écoutez "${playlist.name}" sur Synaura`;
       
       if (navigator.share) {
         await navigator.share({

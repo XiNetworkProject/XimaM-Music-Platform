@@ -106,7 +106,7 @@ export default function SignUpPage() {
           <div className="mb-10 text-center">
           <div className="flex items-center justify-center mb-4">
             <Music className="w-8 h-8 text-white mr-2" />
-            <h1 className="text-3xl font-bold text-white">XimaM</h1>
+                          <h1 className="text-3xl font-bold text-white">Synaura</h1>
           </div>
             <h2 className="text-2xl font-bold gradient-text mb-2">Inscription</h2>
             <p className="text-white/60">Rejoignez la communauté musicale</p>

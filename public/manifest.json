@@ -1,6 +1,6 @@
 {
-  "name": "XimaM - Partage de Musique",
-  "short_name": "XimaM",
+  "name": "Synaura - Partage de Musique",
+  "short_name": "Synaura",
   "description": "Plateforme de partage de musique avec fonctionnalités sociales",
   "start_url": "/",
   "display": "standalone",
@@ -9,13 +9,13 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/android-chrome-192x192.svg",
+      "src": "/synaura_symbol.svg",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/android-chrome-512x512.svg",
+      "src": "/synaura_symbol.svg",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"

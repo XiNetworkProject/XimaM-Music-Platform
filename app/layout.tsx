@@ -17,8 +17,8 @@ declare global {
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'XimaM - Partagez votre musique',
-  description: 'Découvrez et partagez de la musique avec la communauté XimaM',
+  title: 'Synaura',
+  description: 'Découvrez et partagez de la musique avec la communauté Synaura',
   manifest: '/manifest.json',
   themeColor: '#000000',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'XimaM',
+    title: 'Synaura',
   },
   icons: {
     icon: '/favicon.svg',
@@ -91,7 +91,7 @@ export default function RootLayout({
         <meta name="theme-color" content="#1db954" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="XimaM Music" />
+        <meta name="apple-mobile-web-app-title" content="Synaura" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>

@@ -84,7 +84,7 @@ export default function DebugSWPage() {
     }
 
     try {
-      const notification = new Notification('Test XimaM', {
+              const notification = new Notification('Test Synaura', {
         body: 'Test de notification depuis la page de debug',
         icon: '/android-chrome-192x192.png',
         tag: 'test'

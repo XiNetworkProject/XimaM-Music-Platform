@@ -103,7 +103,7 @@ export default function DebugPage() {
           <h2 className="text-xl font-semibold mb-4 text-blue-900">📱 Instructions pour l'App Mobile</h2>
           <div className="space-y-2 text-blue-800">
             <p>• Si vous êtes dans l'app mobile, l'authentification Google ouvrira un navigateur externe</p>
-            <p>• Après la connexion Google, revenez à l'app XimaM</p>
+            <p>• Après la connexion Google, revenez à l'app Synaura</p>
             <p>• Utilisez le bouton "Retour" de votre téléphone ou fermez l'onglet Google</p>
             <p>• Vous devriez être automatiquement connecté dans l'app</p>
           </div>

@@ -344,7 +344,7 @@ export default function SubscriptionPlans() {
               </div>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">
-              Plans d'abonnement XimaM
+              Plans d'abonnement Synaura
             </h1>
             <p className="text-xl text-gray-300 max-w-3xl mx-auto">
               Choisissez le plan qui correspond à vos besoins de création musicale

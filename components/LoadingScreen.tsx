@@ -10,7 +10,7 @@ interface LoadingScreenProps {
 }
 
 export default function LoadingScreen({ 
-  text = 'Chargement de XimaM...', 
+      text = 'Chargement de Synaura...', 
   size = 'xl',
   fullScreen = true 
 }: LoadingScreenProps) {
@@ -51,7 +51,7 @@ export default function LoadingScreen({
 
       {/* Contenu principal */}
       <div className="relative z-10 text-center">
-        {/* Logo XimaM */}
+        {/* Logo Synaura */}
         <motion.div
           className="mb-8"
           initial={{ scale: 0.8, opacity: 0 }}
@@ -59,7 +59,7 @@ export default function LoadingScreen({
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            XimaM
+            Synaura
           </h1>
           <p className="text-lg md:text-xl text-gray-400 mt-2">
             Partagez votre musique

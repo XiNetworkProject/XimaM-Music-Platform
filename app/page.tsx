@@ -67,6 +67,20 @@ export default function HomePage() {
   const { incrementPlaysBatch, isBatchLoading: isPlaysLoading } = useBatchPlaysSystem();
   const router = useRouter();
   
+  // Fonction wrapper pour arrêter l'animation avant la navigation
+  const navigateWithAnimationStop = useCallback((path: string) => {
+    // Arrêter l'animation du carrousel
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    setAutoProgress(0);
+    setIsAutoPlaying(false);
+    
+    // Naviguer
+    router.push(path, { scroll: false });
+  }, [router]);
+  
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -798,7 +812,16 @@ export default function HomePage() {
 
   // Auto-play avec barre de progression fluide + pause on hover/blur
   useEffect(() => {
-    if (!isAutoPlaying || !isCarouselInView || featuredTracks.length === 0) return;
+    if (!isAutoPlaying || !isCarouselInView || featuredTracks.length === 0) {
+      // Arrêter l'animation si les conditions ne sont pas remplies
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      setAutoProgress(0);
+      return;
+    }
+    
     let start: number | null = null;
     const durationMs = 8000;
 
@@ -808,14 +831,19 @@ export default function HomePage() {
       const progress = Math.min(100, (elapsed / durationMs) * 100);
       setAutoProgress(progress);
       if (elapsed >= durationMs) {
-      setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
+        setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
         start = ts;
       }
       rafRef.current = requestAnimationFrame(step);
     };
+    
     rafRef.current = requestAnimationFrame(step);
+    
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
       setAutoProgress(0);
     };
   }, [isAutoPlaying, isCarouselInView, featuredTracks.length]);
@@ -834,6 +862,11 @@ export default function HomePage() {
     setCurrentSlide((prev) => (prev + 1) % Math.min(featuredTracks.length, 5));
     setIsAutoPlaying(false);
     setAutoProgress(0);
+    // Arrêter l'animation
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
   }, [featuredTracks.length]);
 
   const prevSlide = useCallback(() => {
@@ -3060,7 +3093,7 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => router.push('/discover', { scroll: false })}
+                            onClick={() => navigateWithAnimationStop('/discover')}
                             className="px-3 py-1.5 bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 text-xs rounded-full border border-purple-500/30 hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300"
                           >
                             Découvrir plus
@@ -3068,7 +3101,7 @@ export default function HomePage() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => router.push('/upload', { scroll: false })}
+                            onClick={() => navigateWithAnimationStop('/upload')}
                             className="px-3 py-1.5 bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 text-xs rounded-full border border-green-500/30 hover:from-green-500/30 hover:to-emerald-500/30 transition-all duration-300"
                           >
                             Partager ma musique

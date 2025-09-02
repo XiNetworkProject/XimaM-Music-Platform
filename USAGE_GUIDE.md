@@ -1,4 +1,4 @@
-# 📖 Guide d'Utilisation - XimaM
+# 📖 Guide d'Utilisation - Synaura
 
 ## 🚀 Accès Rapide aux Fonctionnalités
 
