@@ -752,8 +752,8 @@ export default function DiscoverPage() {
       >
         <div className="max-w-7xl mx-auto">
           {/* Mode d'affichage et tri - Style identique à l'accueil */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-8">
+            <div className="flex items-center gap-2 sm:gap-4">
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -780,7 +780,7 @@ export default function DiscoverPage() {
               </motion.button>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
                              <div className="relative">
                  <select
                    value={sortBy}
@@ -865,7 +865,7 @@ export default function DiscoverPage() {
                {/* Container scrollable avec ID pour les contrôles */}
                <div 
                  id="categories-scroll"
-                 className="flex gap-4 overflow-x-auto pb-4 scroll-smooth"
+                 className="flex gap-2 sm:gap-4 overflow-x-auto pb-4 scroll-smooth"
                  style={{
                    scrollbarWidth: 'thin',
                    scrollbarColor: 'rgba(168, 85, 247, 0.5) transparent'
@@ -1002,7 +1002,7 @@ export default function DiscoverPage() {
                 </motion.div>
 
                 {viewMode === 'grid' ? (
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
                   {filteredTracks.filter(track => track.isFeatured).slice(0, 6).map((track: Track, index: number) => (
                       <motion.div
                         key={track._id}
@@ -1167,7 +1167,7 @@ export default function DiscoverPage() {
                   </div>
                 </motion.div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
                   {trendingArtists.filter(artist => 
                     // Afficher l'artiste seulement s'il a des tracks dans la catégorie sélectionnée
                     selectedCategory === 'all' || 
@@ -1273,7 +1273,7 @@ export default function DiscoverPage() {
                   </div>
                 </motion.div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
                   {filteredTracks.filter(track => {
                     // Une track est "nouvelle" si isNew est true OU si elle a été créée dans les 30 derniers jours
                     if (track.isNew) return true;
@@ -1381,7 +1381,7 @@ export default function DiscoverPage() {
                   </div>
                 </motion.div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
                   {filteredTracks.filter(track => track.plays > 30).slice(0, 6).map((track, index) => (
                     <motion.div
                       key={track._id}
@@ -1494,7 +1494,7 @@ export default function DiscoverPage() {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-6xl max-h-[90vh] overflow-hidden"
+              className="bg-[var(--surface)] border border-[var(--border)] rounded-xl sm:rounded-2xl p-3 sm:p-6 w-full max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center justify-between mb-6">
@@ -1510,7 +1510,7 @@ export default function DiscoverPage() {
               {/* Grille conditionnelle : tracks OU artistes selon le type */}
               {modalType === 'artists' ? (
                 // Grille d'artistes en tendance
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto max-h-[60vh]">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4 overflow-y-auto max-h-[60vh]">
                   {modalArtists.map((artist: Artist) => (
                     <div key={artist._id} className="bg-white/10 rounded-xl p-4 border border-gray-700 text-center">
                       <div className="w-16 h-16 rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 mx-auto">
@@ -1553,7 +1553,7 @@ export default function DiscoverPage() {
                 </div>
               ) : (
                 // Grille de tracks (featured, new, trending)
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 overflow-y-auto max-h-[60vh]">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-4 overflow-y-auto max-h-[60vh]">
                   {modalTracks.map((track: Track) => (
                     <div key={track._id} className="bg-white/10 rounded-xl p-4 border border-gray-700">
                       <div className="w-16 h-16 rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20">

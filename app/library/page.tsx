@@ -467,7 +467,7 @@ export default function LibraryPage() {
           <div className="panel-suno border border-[var(--border)] rounded-xl p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Barre de recherche */}
-              <div className="relative flex-1 max-w-md">
+              <div className="relative flex-1 max-w-xs sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" size={20} />
                 <input
                   type="text"
@@ -577,7 +577,7 @@ export default function LibraryPage() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 sm:p-6 w-full max-w-[90vw] sm:max-w-md"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">Créer une playlist</h3>
@@ -662,7 +662,7 @@ export default function LibraryPage() {
                   initial={{ scale: 0.9, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
                   exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 w-full max-w-md max-h-96 overflow-y-auto"
+                  className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 sm:p-6 w-full max-w-[90vw] sm:max-w-md max-h-96 overflow-y-auto"
                 >
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">Ajouter à une playlist</h3>
@@ -822,7 +822,7 @@ export default function LibraryPage() {
                           )}
                       </div>
                     ) : (
-                        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6' : 'space-y-4'}>
+                        <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6' : 'space-y-4'}>
                           {filteredPlaylists.map((playlist) => (
                           <motion.div
                             key={playlist._id}
