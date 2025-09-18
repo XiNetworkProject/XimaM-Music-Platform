@@ -1820,27 +1820,19 @@ export default function HomePage() {
         <div
           className="flex flex-col gap-4 mt-4 pb-4"
           style={{
-            ['--carousel-columns' as any]: 3,
-            ['--carousel-gap' as any]: '1.5rem',
-            ['--carousel-column-width' as any]: 'clamp(min(22rem, calc(100vw - 2rem)), calc((100% - (var(--carousel-columns) - 1) * var(--carousel-gap)) / var(--carousel-columns)), 40rem)'
+            ['--carousel-columns' as any]: 'clamp(1, 100vw / 300px, 3)',
+            ['--carousel-gap' as any]: 'clamp(0.5rem, 2vw, 1.5rem)',
+            ['--carousel-column-width' as any]: 'clamp(280px, calc((100vw - 4rem) / var(--carousel-columns)), 400px)'
           }}
         >
           <div className="flex flex-row items-center justify-start gap-2">
             <div className="flex-1" />
           </div>
 
-          <div className="relative flex-1 overflow-hidden max-sm:-mx-4 max-sm:px-4">
+          <div className="relative flex-1 overflow-hidden">
             <div className="w-full">
               <div>
-                <div
-                  className="grid"
-                  style={{
-                    gridAutoFlow: 'column',
-                    gridTemplateColumns: 'repeat(var(--carousel-columns), var(--carousel-column-width))',
-                    gap: 'var(--carousel-gap)',
-                    transform: 'translate3d(0,0,0)'
-                  }}
-                >
+                <div className="flex flex-col sm:grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Colonne 1: For You */}
                   <div>
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
@@ -2038,7 +2030,7 @@ export default function HomePage() {
       <div className="py-6 space-y-12">
 
         {/* Section Artistes Émergents - Design futuriste */}
-        <section className="container mx-auto px-6">
+        <section className="container mx-auto px-2 sm:px-4 md:px-6">
           <div
             className="mb-6 animate-fade-in"
           >
@@ -2114,7 +2106,7 @@ export default function HomePage() {
 
 
         {/* Section Radio Mixx Party - Version Améliorée */}
-        <section id="radio" className="container mx-auto px-4 sm:px-6 py-8">
+        <section id="radio" className="container mx-auto px-2 sm:px-4 md:px-6 py-8">
           <div className="relative animate-fade-in">
             {/* En-tête avec badge animé */}
             <div className="text-center mb-8">
@@ -2347,7 +2339,7 @@ export default function HomePage() {
         </section>
 
         {/* Section Créations Récentes */}
-        <section className="container mx-auto px-4 py-8">
+        <section className="container mx-auto px-2 sm:px-4 py-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-white">Nouvelles Créations</h2>
@@ -2468,7 +2460,7 @@ export default function HomePage() {
           if (tracks.length === 0 && !categoryData.loading) return null;
 
           return (
-            <section key={config.key} className="container mx-auto px-8">
+            <section key={config.key} className="container mx-auto px-2 sm:px-4 md:px-6">
               <div
                 className="mb-8 animate-fade-in"
               >
