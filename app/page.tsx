@@ -1548,8 +1548,8 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="text-white pt-0">
-      <div className="max-w-7xl mx-auto px-4 md:px-6">
+    <div className="text-white pt-0 pb-20 lg:pb-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6">
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-2 md:p-4">
       {/* Banderoles fines et élégantes */}
       <div className="relative z-20">
@@ -1594,7 +1594,7 @@ export default function HomePage() {
       <div className="relative bg-transparent" style={{ background: 'transparent !important' }}>
         {/* Carrousel Hero - Design futuriste complet */}
         {heroTracks.length > 0 && (
-          <div className="relative w-full h-[48vh] min-h-[260px] max-h-[420px] overflow-hidden panel-suno border border-[var(--border)] rounded-2xl">
+          <div className="relative w-full h-[40vh] sm:h-[48vh] min-h-[240px] sm:min-h-[260px] max-h-[320px] sm:max-h-[420px] overflow-hidden panel-suno border border-[var(--border)] rounded-xl sm:rounded-2xl">
             {/* Fond dynamique avec particules */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(110,86,207,0.12),transparent_55%)]"></div>
@@ -1631,7 +1631,7 @@ export default function HomePage() {
                   </div>
 
                 {/* Contenu principal centré */}
-                <div className="relative z-10 text-center px-8 max-w-4xl mx-auto">
+                <div className="relative z-10 text-center px-4 sm:px-8 max-w-4xl mx-auto">
                   {/* Badge de statut */}
                       <div
                     className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-md border border-[var(--border)] rounded-full animate-slide-up text-[var(--text)]"
@@ -1662,7 +1662,7 @@ export default function HomePage() {
 
                   {/* Titre principal */}
                         <h1
-                    className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-[var(--text)] mb-4 leading-tight cursor-pointer hover:text-purple-300 transition-all duration-500 animate-slide-up title-suno"
+                    className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-[var(--text)] mb-3 sm:mb-4 leading-tight cursor-pointer hover:text-purple-300 transition-all duration-500 animate-slide-up title-suno"
                     style={{
                       textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(236, 72, 153, 0.3)'
                     }}
@@ -1694,12 +1694,12 @@ export default function HomePage() {
 
                   {/* Boutons d'action principaux */}
                         <div
-                    className="flex flex-wrap items-center justify-center gap-3 mb-4 animate-slide-up"
+                    className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 animate-slide-up"
                         >
                     {/* Bouton Play principal */}
                           <button
                             onClick={() => handlePlayTrack(heroTracks[currentSlide])}
-                      className="group relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-xl hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
+                      className="group relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-sm hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-xl hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
                       aria-label={currentTrack?._id === heroTracks[currentSlide]._id && audioState.isPlaying ? 'Mettre en pause' : 'Lire la piste'}
                           >
                       {/* Effet de lueur */}

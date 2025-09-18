@@ -75,6 +75,11 @@ export default function BottomNav() {
     }
   };
 
+  const handleNavClick = (path: string) => {
+    // Navigation immédiate sans blocage ni transition
+    router.push(path, { scroll: false });
+  };
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -92,153 +97,60 @@ export default function BottomNav() {
     load();
   }, [session?.user]);
 
-  const handleNavClick = (path: string) => {
-    // Navigation immédiate sans blocage ni transition
-    router.push(path, { scroll: false });
-  };
-
   return (
     <>
-      {/* Bottom Navigation - Design futuriste */}
+      {/* Bottom Navigation - Mobile optimisé */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-        {/* Effet de fond panel suno */}
-        <div className="absolute inset-0 panel-suno bg-[var(--surface)]/70 backdrop-blur-2xl border-t border-[var(--border)]"></div>
-
-        {/* Contenu de la navigation */}
-            <div className="relative px-3 sm:px-6 py-3 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-0 sm:justify-between">
-            
-            {/* Section supérieure - Bouton lecteur et upload (visible sur mobile) */}
-            <div className="flex items-center gap-3 w-full sm:w-auto justify-center sm:justify-start">
-              {/* Bouton lecteur principal */}
-              {!audioState.showPlayer && (
-                <motion.button
-                  onClick={() => setShowPlayer(true)}
-                  className="group relative flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl sm:rounded-2xl text-white font-medium shadow-lg hover:shadow-purple-500/40 transition-all duration-300"
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-xl sm:rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
-                  <Music size={16} className="relative sm:w-5 sm:h-5" />
-                  <span className="relative text-xs sm:text-sm font-semibold">Lecteur</span>
-                </motion.button>
-              )}
-
-              {/* Bouton upload rapide */}
-                              <motion.button
-                  onClick={() => router.push('/upload', { scroll: false })}
-                className="group relative w-10 h-10 sm:w-12 sm:h-12 bg-white/10 backdrop-blur-md rounded-xl flex items-center justify-center hover:bg-white/20 transition-all duration-300 border border-white/20"
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Partager ma musique"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <Plus size={16} className="relative text-green-400 sm:w-5 sm:h-5" />
-              </motion.button>
-            </div>
-
-            {/* Section centrale - Navigation principale (simplifiée pour mobile) */}
-            <div className="flex items-center gap-1 w-full sm:w-auto justify-center">
-              {navItems.map((item) => (
-                <motion.div
-                  key={item.path}
-                  className="relative"
-                  onMouseEnter={() => setHoveredItem(item.path)}
-                  onMouseLeave={() => setHoveredItem(null)}
-                >
-                  <motion.button
+        <div className="panel-suno bg-[var(--surface)]/90 backdrop-blur-xl border-t border-[var(--border)]">
+          <div className="px-2 py-2">
+            <div className="flex items-center justify-between">
+              {/* Navigation principale - 4 icônes compactes */}
+              <div className="flex items-center justify-center flex-1 gap-1">
+                {navItems.map((item) => (
+                  <button
+                    key={item.path}
                     onClick={() => handleNavClick(item.path)}
-                    className={`group relative flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl transition-all duration-300 ${
+                    className={`flex flex-col items-center justify-center w-14 h-12 rounded-lg transition-all ${
                       item.active 
-                        ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 border border-purple-500/40 shadow-purple-500/20 shadow-lg' 
-                        : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-white/5 border border-[var(--border)]/0 hover:border-[var(--border)]/40'
+                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40' 
+                        : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
                     }`}
-                    whileHover={{ scale: 1.05, y: -3 }}
-                    whileTap={{ scale: 0.95 }}
                   >
-                    {/* Effet de lueur au hover */}
-                    {item.active && (
-                      <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl sm:rounded-2xl blur-xl"></div>
-                    )}
-                    
-                    <div className="relative flex flex-col items-center">
-                      <div className="relative">
-                        <item.icon size={18} className="sm:w-6 sm:h-6" />
-                      </div>
-                      <span className="text-xs mt-1 font-semibold">{item.label}</span>
-                    </div>
-                  </motion.button>
+                    <item.icon size={18} />
+                    <span className="text-[10px] mt-0.5 font-medium">{item.label}</span>
+                  </button>
+                ))}
+              </div>
 
-                  {/* Tooltip au hover (seulement sur desktop) */}
-                  <AnimatePresence>
-                    {hoveredItem === item.path && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 z-50 hidden sm:block"
-                      >
-                        <div className="bg-black/90 backdrop-blur-xl border border-white/20 rounded-xl px-3 py-2 shadow-2xl">
-                          <p className="text-white text-sm font-medium whitespace-nowrap">{item.description}</p>
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-black/90"></div>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
-              ))}
-            </div>
-
-            {/* Section inférieure - Profil et paramètres (visible sur mobile) */}
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto justify-center sm:justify-end">
-              {/* Bouton paramètres */}
-                              <motion.button
-                  onClick={() => router.push('/settings', { scroll: false })}
-                className={`group relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 border ${
-                  pathname.startsWith('/settings') 
-                    ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-500/50' 
-                    : 'bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20'
-                }`}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Paramètres"
-              >
-                {pathname.startsWith('/settings') && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl"></div>
-                )}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                <Settings size={16} className="relative text-blue-400 sm:w-5 sm:h-5" />
-              </motion.button>
-
-              {/* Bouton profil */}
-              <motion.button
-                onClick={handleProfileClick}
-                className={`group relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center transition-all duration-300 border ${
-                  pathname.startsWith('/profile') 
-                    ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-purple-500/50' 
-                    : 'bg-white/10 backdrop-blur-md border-white/20 hover:bg-white/20'
-                }`}
-                whileHover={{ scale: 1.1, rotate: -5 }}
-                whileTap={{ scale: 0.9 }}
-                aria-label="Profil"
-              >
-                {pathname.startsWith('/profile') && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl"></div>
-                )}
-                <div className="relative">
+              {/* Actions rapides - Upload, Profil */}
+              <div className="flex items-center gap-1 ml-2">
+                <button
+                  onClick={() => router.push('/upload', { scroll: false })}
+                  className="w-10 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg flex items-center justify-center text-white"
+                  aria-label="Upload"
+                >
+                  <Plus size={16} />
+                </button>
+                
+                <button
+                  onClick={handleProfileClick}
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
+                    pathname.startsWith('/profile') 
+                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40' 
+                      : 'border-[var(--border)] hover:bg-[var(--surface-2)]'
+                  }`}
+                  aria-label="Profil"
+                >
                   <img
                     src={avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture || '/default-avatar.png'}
                     alt="Profile"
-                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white/30"
+                    className="w-6 h-6 rounded-full object-cover"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
                   />
-                </div>
-              </motion.button>
+                </button>
+              </div>
             </div>
           </div>
-
-          {/* Espace réservé pour éventuelles fonctionnalités futures */}
         </div>
       </nav>
     </>
