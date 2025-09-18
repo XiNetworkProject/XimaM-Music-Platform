@@ -686,7 +686,7 @@ export default function DiscoverPage() {
   };
 
     return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white pt-0">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pt-0 pb-20 lg:pb-4">
       {/* Header Hero - Style identique à l'accueil */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -700,7 +700,7 @@ export default function DiscoverPage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(120,119,198,0.1),transparent_50%)]"></div>
           </div>
         
-        <div className="relative z-10 px-6 py-16 text-center">
+        <div className="relative z-10 px-2 sm:px-4 md:px-6 py-12 sm:py-16 text-center">
           {/* Badge de statut - Style identique à l'accueil */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -748,7 +748,7 @@ export default function DiscoverPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8 }}
-        className="px-6 py-8"
+        className="px-2 sm:px-4 md:px-6 py-8"
       >
         <div className="max-w-7xl mx-auto">
           {/* Mode d'affichage et tri - Style identique à l'accueil */}
@@ -948,7 +948,7 @@ export default function DiscoverPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.0 }}
-        className="px-6 pb-16"
+        className="px-2 sm:px-4 md:px-6 pb-16"
       >
         <div className="max-w-7xl mx-auto">
                      {isLoading ? (

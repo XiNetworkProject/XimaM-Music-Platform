@@ -441,7 +441,7 @@ export default function LibraryPage() {
 
   return (
     <div className="min-h-screen text-[var(--text)]">
-      <main className="container mx-auto px-4 pt-16 pb-32">
+      <main className="container mx-auto px-2 sm:px-4 pt-16 pb-32">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-10">
