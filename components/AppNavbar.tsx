@@ -180,16 +180,15 @@ export default function AppNavbar() {
             <span className="hidden sm:block font-extrabold tracking-tight text-base sm:text-lg">Synaura</span>
           </Link>
 
-          {/* Search */}
-          <div className="flex-1" />
-          <div className="hidden md:flex items-center gap-2">
-            <div className="relative w-72 search-container">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)]" />
+          {/* Search - Visible sur mobile */}
+          <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg mx-2 sm:mx-4">
+            <div className="relative w-full search-container">
+              <Search className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-[var(--text-muted)]" />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher des artistes, titres, genres..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg)]/60 border border-[var(--border)] text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+                placeholder="Rechercher..."
+                className="w-full pl-8 sm:pl-9 pr-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl bg-[var(--bg)]/60 border border-[var(--border)] text-xs sm:text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
               />
               
               {/* Résultats de recherche modale */}
