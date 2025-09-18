@@ -686,7 +686,7 @@ export default function DiscoverPage() {
   };
 
     return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pt-0 pb-20 lg:pb-4">
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
       {/* Header Hero - Style identique à l'accueil */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -750,7 +750,7 @@ export default function DiscoverPage() {
         transition={{ delay: 0.8 }}
         className="px-2 sm:px-4 md:px-6 py-8"
       >
-        <div className="max-w-7xl mx-auto overflow-hidden">
+        <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto overflow-hidden px-0">
           {/* Mode d'affichage et tri - Style identique à l'accueil */}
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-8">
             <div className="flex items-center gap-2 sm:gap-4">
@@ -950,7 +950,7 @@ export default function DiscoverPage() {
         transition={{ delay: 1.0 }}
         className="px-2 sm:px-4 md:px-6 pb-16"
       >
-        <div className="max-w-7xl mx-auto overflow-hidden">
+        <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto overflow-hidden px-0">
                      {isLoading ? (
              <div className="text-center py-20">
                {/* Spinner ultra-stylisé sans fond blanc */}

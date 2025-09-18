@@ -440,9 +440,9 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen text-[var(--text)]">
+    <div className="min-h-screen text-[var(--text)] overflow-x-hidden w-full">
       <main className="container mx-auto px-2 sm:px-4 pt-16 pb-32">
-        <div className="max-w-6xl mx-auto overflow-hidden">
+        <div className="w-full max-w-none sm:max-w-6xl sm:mx-auto overflow-hidden">
           {/* Header */}
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
