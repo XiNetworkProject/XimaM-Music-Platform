@@ -1,81 +1,44 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // output: 'export', // Désactivé car incompatible avec les API routes
-  // trailingSlash: true, // Désactivé car peut causer des problèmes avec les API routes
   experimental: {
-    serverComponentsExternalPackages: ['mongoose'],
+    serverComponentsExternalPackages: ['sharp'],
   },
-
-  // Configuration pour augmenter les limites de taille
+  
+  // Optimisations pour réduire les coûts Vercel
+  compress: true,
+  
+  // Configuration des headers pour le cache
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/api/suno/status',
         headers: [
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
-          {
-            key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',
+            key: 'Cache-Control',
+            value: 'no-cache, no-store, must-revalidate',
           },
         ],
       },
       {
-        source: '/api/:path*',
-        headers: [
-          { key: 'Access-Control-Allow-Credentials', value: 'true' },
-          { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Access-Control-Allow-Methods', value: 'GET,DELETE,PATCH,POST,PUT' },
-          { key: 'Access-Control-Allow-Headers', value: 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version' },
-        ],
-      },
-      {
-        source: '/api/auth/:path*',
+        source: '/api/ai/generations',
         headers: [
           {
-            key: 'Access-Control-Allow-Origin',
-            value: 'https://xima-m-music-platform.vercel.app',
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-          {
-            key: 'Access-Control-Allow-Headers',
-            value: 'Content-Type, Authorization',
+            key: 'Cache-Control',
+            value: 'public, max-age=30, stale-while-revalidate=60',
           },
         ],
       },
     ];
   },
+  
+  // Configuration des images
   images: {
-    unoptimized: true,
-    domains: [
-      'images.unsplash.com', 
-      'res.cloudinary.com',
-      'lh3.googleusercontent.com',
-      'avatars.githubusercontent.com',
-    ],
+    domains: ['res.cloudinary.com', 'lh3.googleusercontent.com'],
+    formats: ['image/webp', 'image/avif'],
   },
-  env: {
-    NEXTAUTH_URL: process.env.NEXTAUTH_URL || 'https://xima-m-music-platform.vercel.app',
-    NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    MONGODB_URI: process.env.MONGODB_URI,
-    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
-  },
-  // Webpack pour optimiser les bundles
+  
+  // Optimisation du bundle
   webpack: (config, { isServer }) => {
-    // Optimisations pour le client
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -85,12 +48,30 @@ const nextConfig = {
       };
     }
     
-
+    // Optimisation des chunks
+    config.optimization.splitChunks = {
+      chunks: 'all',
+      cacheGroups: {
+        vendor: {
+          test: /[\\/]node_modules[\\/]/,
+          name: 'vendors',
+          chunks: 'all',
+        },
+      },
+    };
     
     return config;
   },
-  // Optimisation des polices
-  optimizeFonts: true,
+  
+  // Configuration du service worker
+  async rewrites() {
+    return [
+      {
+        source: '/sw-polling.js',
+        destination: '/_next/static/sw-polling.js',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig; 

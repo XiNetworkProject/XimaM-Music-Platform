@@ -205,6 +205,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id, audioState.tracks.length]);
 
   const updatePlayCount = useCallback(async (trackId: string) => {
+    // Ignorer les pistes IA (générées par l'IA)
+    if (trackId.startsWith('gen_') || trackId.startsWith('ai-')) {
+      return;
+    }
+    
     try {
       const response = await fetch(`/api/tracks/${trackId}/plays`, {
         method: 'POST',

@@ -11,9 +11,9 @@ export function usePlaysSync() {
     const handleTrackPlayed = (event: CustomEvent) => {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
-        // Ne pas synchroniser les écoutes pour la radio
-        if (trackId === 'radio-mixx-party') {
-          console.log(`🎵 Radio détectée, pas de synchronisation des écoutes`);
+        // Ne pas synchroniser les écoutes pour la radio ou les pistes IA
+        if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+          console.log(`🎵 ${trackId.startsWith('ai-') ? 'Piste IA' : 'Radio'} détectée, pas de synchronisation des écoutes`);
           return;
         }
         
@@ -47,9 +47,9 @@ export function usePlaysSync() {
     const handleTrackChanged = (event: CustomEvent) => {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
-        // Ne pas synchroniser les écoutes pour la radio
-        if (trackId === 'radio-mixx-party') {
-          console.log(`🔄 Radio détectée, pas de synchronisation des écoutes`);
+        // Ne pas synchroniser les écoutes pour la radio ou les pistes IA
+        if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+          console.log(`🔄 ${trackId.startsWith('ai-') ? 'Piste IA' : 'Radio'} détectée, pas de synchronisation des écoutes`);
           return;
         }
         
@@ -91,9 +91,9 @@ export function usePlaysSync() {
   // Fonction pour déclencher manuellement une synchronisation
   const triggerPlaysSync = useCallback((trackId: string) => {
     if (trackId && session?.user?.id) {
-      // Ne pas déclencher la synchronisation pour la radio
-      if (trackId === 'radio-mixx-party') {
-        console.log(`🎵 Radio détectée, pas de déclenchement de synchronisation`);
+      // Ne pas déclencher la synchronisation pour la radio ou les pistes IA
+      if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+        console.log(`🎵 ${trackId.startsWith('ai-') ? 'Piste IA' : 'Radio'} détectée, pas de déclenchement de synchronisation`);
         return;
       }
       

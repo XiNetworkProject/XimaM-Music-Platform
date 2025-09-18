@@ -1,9 +1,11 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import './suno.css';
 import Providers from './providers';
 import BottomNav from '@/components/BottomNav';
 import AppNavbar from '@/components/AppNavbar';
+import AppSidebar from '@/components/AppSidebar';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 
 // Déclaration des types pour les fonctions globales
@@ -95,15 +97,26 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className={inter.className}>
+      <body className={`theme-suno ${inter.className}`}>
         <Providers>
-          <div className="flex flex-col min-h-screen">
-            <AppNavbar />
-            <main className="flex-1">
-              {children}
-            </main>
-            <BottomNav />
-            <FullScreenPlayer />
+          {/* Aurora background (fixed layers) */}
+          <div className="aurora-bg" aria-hidden>
+            <div className="aurora-layer aurora-1"></div>
+            <div className="aurora-layer aurora-2"></div>
+            <div className="aurora-layer aurora-3"></div>
+            <div className="aurora-vignette"></div>
+          </div>
+
+          <div className="flex min-h-screen">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col lg:pl-72">
+              <AppNavbar />
+              <main className="flex-1">
+                {children}
+              </main>
+              <BottomNav />
+              <FullScreenPlayer />
+            </div>
           </div>
         </Providers>
       </body>

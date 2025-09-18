@@ -328,7 +328,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+    <div className="min-h-screen text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-4xl mx-auto">
           <div className="mb-10">
@@ -340,7 +340,7 @@ export default function SettingsPage() {
         </div>
 
           {/* Profil utilisateur */}
-          <div className="glass-effect rounded-xl p-6 mb-8">
+          <div className="panel-suno rounded-xl p-6 mb-8 border border-[var(--border)]">
             <div className="flex items-center space-x-4">
               <img
                 src={user?.image || '/default-avatar.png'}
@@ -367,16 +367,16 @@ export default function SettingsPage() {
                 key={section.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="glass-effect rounded-xl overflow-hidden"
+                className="panel-suno rounded-xl overflow-hidden border border-[var(--border)]"
               >
-                <div className="p-4 border-b border-white/10">
+                <div className="p-4 border-b border-[var(--border)]">
                   <div className="flex items-center space-x-3">
                     <section.icon size={20} className="text-primary-400" />
                     <h3 className="font-semibold">{section.title}</h3>
                   </div>
                 </div>
                 
-                <div className="divide-y divide-white/10">
+                <div className="divide-y divide-[var(--border)]/80">
                   {section.items.map((item) => (
                     <div key={item.id} className="p-4">
                       {renderSettingItem(item)}
@@ -391,7 +391,7 @@ export default function SettingsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               onClick={handleLogout}
-              className="w-full glass-effect rounded-xl p-4 text-red-400 hover:bg-red-500/20 transition-colors"
+              className="w-full panel-suno rounded-xl p-4 text-red-400 border border-[var(--border)] hover:bg-red-500/10 transition-colors"
             >
               <div className="flex items-center space-x-3">
                 <LogOut size={20} />

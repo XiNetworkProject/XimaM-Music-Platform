@@ -1,0 +1,420 @@
+// lib/aiGenerationService.ts
+import { supabase, supabaseAdmin } from './supabase';
+import { Track } from '@/lib/suno-normalize';
+
+export interface AIGeneration {
+  id: string;
+  user_id: string;
+  task_id: string;
+  prompt: string;
+  model: string;
+  status: 'pending' | 'completed' | 'failed';
+  created_at: string;
+  completed_at?: string;
+  is_favorite: boolean;
+  is_public: boolean;
+  play_count: number;
+  like_count: number;
+  share_count: number;
+  metadata: {
+    title?: string;
+    style?: string;
+    total_duration?: number;
+    [key: string]: any;
+  };
+  tracks?: AITrack[];
+}
+
+export interface AITrack {
+  id: string;
+  generation_id: string;
+  suno_id?: string;
+  title: string;
+  audio_url: string;
+  stream_audio_url?: string;
+  image_url?: string;
+  duration: number; // En secondes, entier
+  prompt?: string;
+  model_name?: string;
+  tags?: string[];
+  created_at: string;
+  is_favorite: boolean;
+  play_count: number;
+  like_count: number;
+}
+
+export interface UserQuota {
+  id: string;
+  user_id: string;
+  plan_type: 'free' | 'basic' | 'pro' | 'enterprise';
+  monthly_limit: number;
+  used_this_month: number;
+  reset_date: string;
+  remaining: number;
+}
+
+export interface AIPlaylist {
+  id: string;
+  user_id: string;
+  name: string;
+  description?: string;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+  tracks?: AITrack[];
+}
+
+export interface AIUsageStats {
+  total_generations: number;
+  total_tracks: number;
+  total_duration: number;
+  favorite_count: number;
+  recent_activity: Array<{
+    date: string;
+    generations: number;
+    duration: number;
+  }>;
+}
+
+class AIGenerationService {
+  // 🎵 Créer une nouvelle génération
+  async createGeneration(userId: string, taskId: string, title: string, style: string, prompt: string, model: string, metadata: any = {}): Promise<AIGeneration> {
+    console.log("🔧 Création génération avec userId:", userId);
+    
+    const { data, error } = await supabaseAdmin
+      .from('ai_generations')
+      .insert({
+        user_id: userId,
+        task_id: taskId,
+        prompt,
+        model,
+        status: 'pending', // Statut initial
+        metadata: {
+          ...metadata,
+          total_duration: metadata.duration || 120,
+          title: title,
+          style: style
+        }
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Erreur création génération:", error);
+      throw new Error(`Erreur création génération: ${error.message}`);
+    }
+    
+    console.log("✅ Génération créée avec succès:", data.id);
+    return data;
+  }
+
+  // 🎵 Mettre à jour le statut d'une génération
+  async updateGenerationStatus(generationId: string, status: string, tracks?: Track[]): Promise<void> {
+    console.log("🔄 Mise à jour statut génération:", generationId, "->", status);
+    
+    const updateData: any = { status };
+
+    const { error } = await supabaseAdmin
+      .from('ai_generations')
+      .update(updateData)
+      .eq('id', generationId);
+
+    if (error) {
+      console.error("❌ Erreur mise à jour statut:", error);
+      throw new Error(`Erreur mise à jour statut: ${error.message}`);
+    }
+
+    console.log("✅ Statut mis à jour avec succès:", generationId, "->", status);
+
+    // Sauvegarder les tracks si fournies
+    if (tracks && tracks.length > 0) {
+      await this.saveTracks(generationId, tracks);
+    }
+  }
+
+  // 🎵 Sauvegarder les tracks d'une génération
+  async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
+    console.log("💾 Sauvegarde tracks pour génération:", generationId);
+    console.log("📊 Tracks à sauvegarder:", tracks);
+    
+    // Récupérer le titre de la génération pour l'utiliser dans les tracks
+    const { data: generation } = await supabaseAdmin
+      .from('ai_generations')
+      .select('metadata')
+      .eq('id', generationId)
+      .single();
+    
+    const generationTitle = generation?.metadata?.title || 'Musique générée';
+    
+    const tracksData = tracks.map((track, index) => ({
+      generation_id: generationId,
+      suno_id: track.id,
+      title: track.title || `${generationTitle} ${index + 1}`,
+      audio_url: track.audio || '',
+      stream_audio_url: track.stream || '',
+      image_url: track.image || '',
+      duration: Math.round(track.duration || 120), // Convertir en entier
+      prompt: '',
+      model_name: '',
+      tags: []
+    }));
+
+    console.log("📊 Données tracks formatées:", tracksData);
+
+    const { error } = await supabaseAdmin
+      .from('ai_tracks')
+      .insert(tracksData);
+
+    if (error) {
+      console.error("❌ Erreur Supabase:", error);
+      throw new Error(`Erreur sauvegarde tracks: ${error.message}`);
+    }
+    
+    console.log("✅ Tracks sauvegardées avec succès");
+  }
+
+  // 📊 Obtenir le quota d'un utilisateur
+  async getUserQuota(userId: string): Promise<UserQuota> {
+    const { data, error } = await supabase
+      .rpc('get_user_quota_remaining', { user_uuid: userId });
+
+    if (error) throw new Error(`Erreur quota: ${error.message}`);
+
+    // Récupérer les détails du quota
+    const { data: quotaData, error: quotaError } = await supabase
+      .from('user_quotas')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (quotaError && quotaError.code !== 'PGRST116') {
+      throw new Error(`Erreur détails quota: ${quotaError.message}`);
+    }
+
+    return {
+      id: quotaData?.id || '',
+      user_id: userId,
+      plan_type: quotaData?.plan_type || 'free',
+      monthly_limit: quotaData?.monthly_limit || 5,
+      used_this_month: quotaData?.used_this_month || 0,
+      reset_date: quotaData?.reset_date || new Date().toISOString(),
+      remaining: data
+    };
+  }
+
+  // 📊 Incrémenter l'utilisation du quota
+  async incrementQuota(userId: string): Promise<boolean> {
+    const { data, error } = await supabase
+      .rpc('increment_ai_usage', { user_uuid: userId });
+
+    if (error) throw new Error(`Erreur incrément quota: ${error.message}`);
+    return data;
+  }
+
+  // 📚 Obtenir la bibliothèque IA d'un utilisateur
+  async getUserLibrary(userId: string, limit: number = 50, offset: number = 0): Promise<AIGeneration[]> {
+    const { data, error } = await supabase
+      .from('ai_generations')
+      .select(`
+        *,
+        tracks:ai_tracks(*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(`Erreur bibliothèque: ${error.message}`);
+    return data || [];
+  }
+
+  // 📊 Obtenir les générations récentes d'un utilisateur
+  async getUserGenerations(userId: string): Promise<AIGeneration[]> {
+    const { data, error } = await supabase
+      .from('ai_generations')
+      .select(`
+        *,
+        tracks:ai_tracks(*)
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    if (error) {
+      console.error('Erreur récupération générations utilisateur:', error);
+      return [];
+    }
+
+    return data || [];
+  }
+
+  // ❤️ Marquer comme favori
+  async toggleFavorite(generationId: string, userId: string): Promise<boolean> {
+    const { data: current, error: fetchError } = await supabase
+      .from('ai_generations')
+      .select('is_favorite')
+      .eq('id', generationId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError) throw new Error(`Erreur récupération favori: ${fetchError.message}`);
+
+    const newFavoriteState = !current.is_favorite;
+
+    const { error } = await supabase
+      .from('ai_generations')
+      .update({ is_favorite: newFavoriteState })
+      .eq('id', generationId)
+      .eq('user_id', userId);
+
+    if (error) throw new Error(`Erreur mise à jour favori: ${error.message}`);
+    return newFavoriteState;
+  }
+
+  // 📈 Obtenir les statistiques d'un utilisateur
+  async getUserStats(userId: string, daysBack: number = 30): Promise<AIUsageStats> {
+    const { data, error } = await supabase
+      .rpc('get_user_ai_stats', { 
+        user_uuid: userId, 
+        days_back: daysBack 
+      });
+
+    if (error) throw new Error(`Erreur statistiques: ${error.message}`);
+    return data || {
+      total_generations: 0,
+      total_tracks: 0,
+      total_duration: 0,
+      favorite_count: 0,
+      recent_activity: []
+    };
+  }
+
+  // 📝 Créer une playlist IA
+  async createPlaylist(userId: string, name: string, description?: string, isPublic: boolean = false): Promise<AIPlaylist> {
+    const { data, error } = await supabase
+      .from('ai_playlists')
+      .insert({
+        user_id: userId,
+        name,
+        description,
+        is_public: isPublic
+      })
+      .select()
+      .single();
+
+    if (error) throw new Error(`Erreur création playlist: ${error.message}`);
+    return data;
+  }
+
+  // 🎵 Ajouter une track à une playlist
+  async addTrackToPlaylist(playlistId: string, trackId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ai_playlist_tracks')
+      .insert({
+        playlist_id: playlistId,
+        track_id: trackId,
+        position: 0 // TODO: Calculer la position
+      });
+
+    if (error) throw new Error(`Erreur ajout track: ${error.message}`);
+  }
+
+  // 📚 Obtenir les playlists d'un utilisateur
+  async getUserPlaylists(userId: string): Promise<AIPlaylist[]> {
+    const { data, error } = await supabase
+      .from('ai_playlists')
+      .select(`
+        *,
+        tracks:ai_playlist_tracks(
+          track:ai_tracks(*)
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Erreur playlists: ${error.message}`);
+    return data || [];
+  }
+
+  // 🎵 Incrémenter le compteur de lecture
+  async incrementPlayCount(generationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ai_generations')
+      .update({ 
+        play_count: supabase.rpc('increment', { value: 1 })
+      })
+      .eq('id', generationId);
+
+    if (error) throw new Error(`Erreur incrément plays: ${error.message}`);
+  }
+
+  // 🎵 Incrémenter le compteur de likes
+  async incrementLikeCount(generationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ai_generations')
+      .update({ 
+        like_count: supabase.rpc('increment', { value: 1 })
+      })
+      .eq('id', generationId);
+
+    if (error) throw new Error(`Erreur incrément likes: ${error.message}`);
+  }
+
+  // 🎵 Incrémenter le compteur de partages
+  async incrementShareCount(generationId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ai_generations')
+      .update({ 
+        share_count: supabase.rpc('increment', { value: 1 })
+      })
+      .eq('id', generationId);
+
+    if (error) throw new Error(`Erreur incrément shares: ${error.message}`);
+  }
+
+  // 🔍 Rechercher dans la bibliothèque
+  async searchLibrary(userId: string, query: string): Promise<AIGeneration[]> {
+    const { data, error } = await supabase
+      .from('ai_generations')
+      .select(`
+        *,
+        tracks:ai_tracks(*)
+      `)
+      .eq('user_id', userId)
+      .or(`prompt.ilike.%${query}%,tracks.title.ilike.%${query}%`)
+      .order('created_at', { ascending: false });
+
+    if (error) throw new Error(`Erreur recherche: ${error.message}`);
+    return data || [];
+  }
+
+  // 🗑️ Supprimer une génération
+  async deleteGeneration(generationId: string, userId: string): Promise<void> {
+    const { error } = await supabase
+      .from('ai_generations')
+      .delete()
+      .eq('id', generationId)
+      .eq('user_id', userId);
+
+    if (error) throw new Error(`Erreur suppression: ${error.message}`);
+  }
+
+  // 📊 Obtenir les générations publiques (découverte)
+  async getPublicGenerations(limit: number = 20, offset: number = 0): Promise<AIGeneration[]> {
+    const { data, error } = await supabase
+      .from('ai_generations')
+      .select(`
+        *,
+        tracks:ai_tracks(*),
+        user:users!ai_generations_user_id_fkey(name, username, avatar)
+      `)
+      .eq('is_public', true)
+      .eq('status', 'completed')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw new Error(`Erreur générations publiques: ${error.message}`);
+    return data || [];
+  }
+}
+
+export const aiGenerationService = new AIGenerationService();

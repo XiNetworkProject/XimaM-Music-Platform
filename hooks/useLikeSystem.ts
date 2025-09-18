@@ -66,8 +66,8 @@ export function useLikeSystem({
   const checkLikeStatus = useCallback(async () => {
     if (!session?.user?.id || !trackId) return;
     
-    // Ne pas vérifier le statut de like pour la radio
-    if (trackId === 'radio-mixx-party') return;
+    // Ne pas vérifier le statut de like pour la radio ou les pistes IA
+    if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) return;
 
     try {
       const response = await fetch(`/api/tracks/${trackId}/like`, {
@@ -96,9 +96,9 @@ export function useLikeSystem({
       return;
     }
     
-    // Ne pas permettre de liker la radio
-    if (trackId === 'radio-mixx-party') {
-      toast.error('Impossible de liker la radio');
+    // Ne pas permettre de liker la radio ou les pistes IA
+    if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+      toast.error(`Impossible de liker ${trackId.startsWith('ai-') ? 'une piste IA' : 'la radio'}`);
       return;
     }
 

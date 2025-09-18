@@ -670,14 +670,14 @@ export default function ProfileUserPage() {
 
   if (loading) {
   return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      <div className="min-h-screen flex items-center justify-center text-white">
         <Loader2 className="animate-spin w-10 h-10 text-purple-400" />
       </div>
     );
   }
   if (error || !profile) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      <div className="min-h-screen flex items-center justify-center text-white">
         <div className="text-center">
           <User size={40} className="mx-auto mb-4 text-purple-400" />
           <p className="text-lg font-bold mb-2">Profil introuvable</p>
@@ -688,7 +688,7 @@ export default function ProfileUserPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+    <div className="min-h-screen text-white">
       <main className="max-w-3xl mx-auto px-2 pt-0 pb-32">
         {/* Bannière */}
         <div className="relative h-40 md:h-56 rounded-b-3xl overflow-hidden mb-8">
@@ -878,7 +878,7 @@ export default function ProfileUserPage() {
         </div>
 
         {/* Tabs Navigation */}
-        <div className="border-b border-white/10 bg-black/20 backdrop-blur-sm">
+        <div className="panel-suno border border-[var(--border)] rounded-xl">
           <div className="max-w-4xl mx-auto px-4">
             <div className="flex space-x-8">
               <button
@@ -959,7 +959,7 @@ export default function ProfileUserPage() {
                 {trackViewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {userTracks.map((track: any) => (
-                      <div key={track.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                      <div key={track.id} className="panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative">
                         {/* Banderole de mise en avant */}
                         {track.is_featured && (
                           <div className="absolute -top-2 -left-2 z-10">
@@ -1088,7 +1088,7 @@ export default function ProfileUserPage() {
                 ) : (
                   <div className="space-y-3">
                     {userTracks.map((track: any) => (
-                      <div key={track.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group relative">
+                      <div key={track.id} className="panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative">
                         {/* Banderole de mise en avant */}
                         {track.is_featured && (
                           <div className="absolute -top-2 -left-2 z-10">

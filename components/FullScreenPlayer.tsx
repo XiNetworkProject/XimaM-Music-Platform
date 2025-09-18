@@ -181,7 +181,7 @@ export default function FullScreenPlayer() {
         />
         <div className="flex-1 min-w-0 relative z-10">
           <div className="flex items-center space-x-1 sm:space-x-2">
-            <span className="truncate font-semibold text-white text-xs sm:text-sm">{currentTrack?.title || 'Titre inconnu'}</span>
+            <span className="truncate font-semibold text-white text-xs sm:text-sm title-suno">{currentTrack?.title || 'Titre inconnu'}</span>
             {/* Animation d'onde/barre */}
             {audioState.isPlaying && !audioState.isLoading && (
               <div className="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
@@ -216,7 +216,7 @@ export default function FullScreenPlayer() {
         )}
         
         <button
-          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/20 hover:bg-white/40 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed relative z-10"
+          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--color-primary)]/80 hover:bg-[var(--color-primary)] transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed relative z-10 shadow-md"
           onClick={e => { e.stopPropagation(); togglePlay(); }}
           disabled={audioState.isLoading}
         >
@@ -234,7 +234,7 @@ export default function FullScreenPlayer() {
       <AnimatePresence>
         {showFull && (
           <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-lg"
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--surface)]/80 backdrop-blur-lg"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -259,11 +259,11 @@ export default function FullScreenPlayer() {
                 <motion.img 
                   src={currentTrack?.coverUrl || '/default-cover.jpg'} 
                   alt={currentTrack?.title || 'Track'} 
-                  className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation" 
+                  className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation border border-[var(--border)]" 
                   loading="lazy"
                 />
                 <button
-                  className="absolute w-10 h-10 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                  className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
                   style={{
                     top: '-20px',
                     right: '20px'
@@ -274,7 +274,7 @@ export default function FullScreenPlayer() {
                 </button>
                 {/* Bouton minimiser */}
                 <button
-                  className="absolute w-10 h-10 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition-colors"
+                  className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
                   style={{
                     top: '-20px',
                     left: '20px'
@@ -287,7 +287,7 @@ export default function FullScreenPlayer() {
               
               {/* Centre : titre, artiste, animation d'onde/barre + statistiques */}
               <div className="flex flex-col items-center flex-1 justify-center">
-                <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center">{currentTrack?.title || 'Titre inconnu'}</span>
+                <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center title-suno">{currentTrack?.title || 'Titre inconnu'}</span>
                 <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
                 
                 {/* Statistiques de la piste */}
@@ -322,17 +322,17 @@ export default function FullScreenPlayer() {
                 {/* Barre de progression améliorée */}
                 <div className="mb-4">
                   <div 
-                    className="w-full h-2 bg-gray-700 rounded-full relative cursor-pointer"
+                    className="w-full h-2 bg-white/10 rounded-full relative cursor-pointer border border-[var(--border)]"
                     onClick={handleSeek}
                   >
                     <div 
-                      className="h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full relative transition-all duration-100"
+                      className="h-2 bg-gradient-to-r from-[var(--color-primary)] to-pink-400 rounded-full relative transition-all duration-100"
                       style={{ width: `${progressPercentage}%` }}
                     >
                       <div className="progress-shimmer absolute inset-0 rounded-full"></div>
                     </div>
                     <div 
-                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100"
+                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100 border border-[var(--border)]"
                       style={{ left: `calc(${progressPercentage}% - 8px)` }}
                     />
                   </div>
@@ -352,7 +352,7 @@ export default function FullScreenPlayer() {
                     <SkipBack size={28} className="text-white" />
                   </button>
                   <button 
-                    className="p-3 bg-white/20 rounded-full hover:bg-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                    className="p-3 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed btn-suno" 
                     onClick={togglePlay}
                     disabled={audioState.isLoading}
                   >
@@ -376,13 +376,13 @@ export default function FullScreenPlayer() {
                 {/* Contrôles secondaires */}
                 <div className="flex items-center justify-center space-x-4">
                   <button 
-                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.shuffle ? 'text-purple-400' : 'text-white/60'}`} 
+                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.shuffle ? 'text-[var(--color-accent)]' : 'text-white/60'}`} 
                     onClick={toggleShuffle}
                   >
                     <Shuffle size={22} />
                   </button>
                   <button 
-                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.repeat !== 'none' ? 'text-purple-400' : 'text-white/60'}`} 
+                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.repeat !== 'none' ? 'text-[var(--color-accent)]' : 'text-white/60'}`} 
                     onClick={cycleRepeat}
                   >
                     <Repeat size={22} />

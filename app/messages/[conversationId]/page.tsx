@@ -1861,9 +1861,9 @@ Paramètres Linux à vérifier :
 
   if (!session?.user) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--text)]">
         <div className="text-center">
-          <h2 className="text-xl font-semibold text-gray-600">Connectez-vous pour accéder aux messages</h2>
+          <h2 className="text-xl font-semibold">Connectez-vous pour accéder aux messages</h2>
         </div>
       </div>
     );
@@ -1972,13 +1972,13 @@ Paramètres Linux à vérifier :
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
+    <div className="relative min-h-screen text-[var(--text)]">
       {/* Élément audio caché pour la prévisualisation */}
       <audio ref={previewAudioRef} className="hidden" />
       
       {/* Header fixed amélioré */}
       <motion.div 
-        className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/80 via-indigo-900/80 to-purple-900/80 backdrop-blur-xl border-b border-purple-400/30 rounded-b-3xl shadow-2xl"
+        className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 panel-suno border-b border-[var(--border)] rounded-none"
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -1986,7 +1986,7 @@ Paramètres Linux à vérifier :
         <div className="flex items-center space-x-3">
           <motion.button
             onClick={() => router.back()}
-            className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+            className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-all duration-300 border border-[var(--border)]"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -2032,7 +2032,7 @@ Paramètres Linux à vérifier :
           )}
         </div>
         <motion.button 
-          className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+          className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-all duration-300 border border-[var(--border)]"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -2121,10 +2121,10 @@ Paramètres Linux à vérifier :
                     className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
                   >
                     <motion.div
-                      className={`max-w-xs lg:max-w-md px-6 py-4 rounded-3xl shadow-2xl backdrop-blur-xl transition-all duration-300
+                      className={`max-w-xs lg:max-w-md px-6 py-4 rounded-3xl transition-all duration-300
                         ${isOwnMessage
-                          ? 'bg-gradient-to-br from-purple-600 via-purple-500 to-indigo-500 text-white border-2 border-purple-400 shadow-purple-500/25'
-                          : 'bg-gradient-to-br from-white/10 to-white/5 text-white border border-purple-400/30 shadow-lg'}
+                          ? 'bg-[var(--color-primary)] text-white border border-[var(--border)]'
+                          : 'panel-suno border border-[var(--border)]'}
                     `}
                     style={{ wordBreak: 'break-word' }}
                       whileHover={{ scale: 1.02 }}
@@ -2156,7 +2156,7 @@ Paramètres Linux à vérifier :
                     )}
                     {message.type === 'audio' && (
                         <motion.div 
-                          className="mt-3 bg-gradient-to-r from-purple-600/30 to-indigo-600/30 rounded-2xl p-5 border border-purple-400/40"
+                          className="mt-3 panel-suno rounded-2xl p-5 border border-[var(--border)]"
                           initial={{ scale: 0.9, opacity: 0 }}
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ delay: 0.2 }}
@@ -2164,10 +2164,10 @@ Paramètres Linux à vérifier :
                           <div className="flex items-center space-x-4">
                             <motion.button
                           onClick={() => playAudio(message.content, message._id)}
-                              className={`p-4 rounded-full transition-all duration-300 shadow-xl ${
+                              className={`p-4 rounded-full transition-all duration-300 ${
                                 playingAudio === message._id 
-                                  ? 'bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 scale-110 shadow-red-500/50' 
-                                  : 'bg-gradient-to-br from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 shadow-purple-500/50'
+                                  ? 'bg-red-500 hover:bg-red-600 scale-110' 
+                                  : 'bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)]'
                               }`}
                               title={playingAudio === message._id ? 'Arrêter' : 'Écouter'}
                               whileHover={{ scale: 1.05 }}
@@ -2206,7 +2206,7 @@ Paramètres Linux à vérifier :
                                     {[...Array(5)].map((_, index) => (
                                       <motion.div
                                         key={index}
-                                        className="w-1 bg-purple-400/50 rounded-full"
+                                        className="w-1 bg-[var(--text-muted)] rounded-full"
                                         style={{ height: '5px' }}
                                         initial={{ height: '5px' }}
                                         animate={{ height: ['5px', '15px', '5px'] }}

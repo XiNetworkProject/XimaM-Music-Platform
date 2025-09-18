@@ -29,27 +29,32 @@ export async function GET(
       });
     }
 
-    // Vérifier si la piste existe
-    const { data: track, error: trackError } = await supabase
-      .from('tracks')
-      .select('id, likes')
-      .eq('id', trackId)
-      .single();
+    // Vérifier si l'utilisateur a liké
+    const { data: likeRow, error: likeErr } = await supabase
+      .from('track_likes')
+      .select('id')
+      .eq('track_id', trackId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (trackError || !track) {
-      return NextResponse.json(
-        { error: 'Piste non trouvée' },
-        { status: 404 }
-      );
+    if (likeErr) {
+      return NextResponse.json({ error: 'Erreur lecture like' }, { status: 500 });
     }
 
-    // Version simplifiée : toujours retourner false pour isLiked
-    // car nous n'avons pas encore la table track_likes
-    const likesCount = track.likes || 0;
+    // Récupérer le compteur depuis track_stats (créé par triggers)
+    const { data: stats, error: statsErr } = await supabase
+      .from('track_stats')
+      .select('likes_count')
+      .eq('track_id', trackId)
+      .maybeSingle();
+
+    if (statsErr) {
+      return NextResponse.json({ error: 'Erreur lecture stats' }, { status: 500 });
+    }
 
     return NextResponse.json({
-      liked: false, // Temporairement false
-      likesCount: likesCount
+      liked: !!likeRow,
+      likesCount: stats?.likes_count ?? 0
     });
 
   } catch (error) {
@@ -88,47 +93,60 @@ export async function POST(
       });
     }
 
-    // Vérifier si la piste existe
-    const { data: track, error: trackError } = await supabase
-      .from('tracks')
-      .select('id, likes')
-      .eq('id', trackId)
-      .single();
+    // Toggle like: si existe -> delete, sinon -> insert
+    const { data: existing, error: exErr } = await supabase
+      .from('track_likes')
+      .select('id')
+      .eq('track_id', trackId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (trackError || !track) {
-      return NextResponse.json(
-        { error: 'Piste non trouvée' },
-        { status: 404 }
-      );
+    if (exErr) {
+      return NextResponse.json({ error: 'Erreur lecture like' }, { status: 500 });
     }
 
-    // Version simplifiée : incrémenter le compteur de likes
-    // sans vérifier si l'utilisateur a déjà liké
-    const currentLikes = track.likes || 0;
-    const newLikesCount = currentLikes + 1;
+    if (existing) {
+      const { error: delErr } = await supabase
+        .from('track_likes')
+        .delete()
+        .eq('id', existing.id);
+      if (delErr) {
+        return NextResponse.json({ error: 'Erreur suppression like' }, { status: 500 });
+      }
+    } else {
+      const { error: insErr } = await supabase
+        .from('track_likes')
+        .insert({ track_id: trackId, user_id: userId });
+      if (insErr) {
+        // Conflit unique = déjà liké ailleurs en concurrence
+        if (insErr.code !== '23505') {
+          return NextResponse.json({ error: 'Erreur ajout like' }, { status: 500 });
+        }
+      }
+    }
 
-    // Mettre à jour le compteur de likes dans la table tracks
-    const { error: updateError } = await supabase
-      .from('tracks')
-      .update({ likes: newLikesCount })
-      .eq('id', trackId);
+    // Lire état final
+    const { data: likeRow, error: likeErr } = await supabase
+      .from('track_likes')
+      .select('id')
+      .eq('track_id', trackId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (updateError) {
-      console.error('❌ Erreur mise à jour compteur likes:', updateError);
-      return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour des likes' },
-        { status: 500 }
-      );
+    const { data: stats, error: statsErr } = await supabase
+      .from('track_stats')
+      .select('likes_count')
+      .eq('track_id', trackId)
+      .maybeSingle();
+
+    if (likeErr || statsErr) {
+      return NextResponse.json({ error: 'Erreur lecture état final' }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      isLiked: true, // Temporairement toujours true
-      likesCount: newLikesCount,
-      track: {
-        id: trackId,
-        likes: newLikesCount
-      }
+      isLiked: !!likeRow,
+      likesCount: stats?.likes_count ?? 0
     });
 
   } catch (error) {

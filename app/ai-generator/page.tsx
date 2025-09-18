@@ -1,514 +1,754 @@
+
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
-import { 
-  Sparkles, Brain, Music, Zap, Target, Clock, Users, Star, 
-  Play, Pause, Download, Share2, Heart, Headphones, 
-  ArrowRight, ChevronRight, CheckCircle, Lightbulb, 
-  BarChart3, Globe, Award, Crown
-} from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX } from 'lucide-react';
+import { useAIQuota } from '@/hooks/useAIQuota';
+import { useAudioPlayer } from '@/app/providers';
+import { useSunoWaiter } from '@/hooks/useSunoWaiter';
+import { useAIGenerations } from '@/hooks/useAIGenerations';
+import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
 
-export default function AIGeneratorPage() {
-  const router = useRouter();
-  const [selectedGenre, setSelectedGenre] = useState('pop');
-  const [selectedMood, setSelectedMood] = useState('energetic');
-  const [selectedDuration, setSelectedDuration] = useState(180);
+interface GeneratedTrack {
+  id: string;
+  audioUrl: string;
+  prompt: string;
+  title: string;
+  style: string;
+  lyrics: string;
+  isInstrumental: boolean;
+  duration: number;
+  createdAt: string;
+}
+
+// Interface Track compatible avec le lecteur principal
+interface PlayerTrack {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  duration: number;
+  likes: string[];
+  comments: string[];
+  plays: number;
+  isLiked?: boolean;
+  genre?: string[];
+}
+
+export default function AIGenerator() {
+  const { quota, loading: quotaLoading } = useAIQuota();
+  const { playTrack } = useAudioPlayer();
+  const { generations, loading: generationsLoading, refreshGenerations } = useAIGenerations();
+  const { generations: bgGenerations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
+  
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedTrack, setGeneratedTrack] = useState<GeneratedTrack | null>(null);
+  const [generationStatus, setGenerationStatus] = useState<'idle' | 'pending' | 'completed' | 'failed'>('idle');
+  const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
+  const [generatedTracks, setGeneratedTracks] = useState<GeneratedTrack[]>([]);
+  
+  // Utiliser le nouveau hook Suno
+  const { state: sunoState, tracks: sunoTracks, error: sunoError } = useSunoWaiter(currentTaskId || undefined);
+  const [customMode, setCustomMode] = useState(false);
+  const [modelVersion, setModelVersion] = useState('V3_5');
+  const [title, setTitle] = useState('');
+  const [style, setStyle] = useState('');
+  const [lyrics, setLyrics] = useState('');
+  const [isInstrumental, setIsInstrumental] = useState(false);
+  const [description, setDescription] = useState('');
 
-  const genres = [
-    { id: 'pop', name: 'Pop', icon: '🎵', color: 'from-pink-500 to-purple-600' },
-    { id: 'rock', name: 'Rock', icon: '🤘', color: 'from-red-500 to-orange-600' },
-    { id: 'electronic', name: 'Électronique', icon: '⚡', color: 'from-blue-500 to-cyan-600' },
-    { id: 'jazz', name: 'Jazz', icon: '🎷', color: 'from-amber-500 to-yellow-600' },
-    { id: 'classical', name: 'Classique', icon: '🎻', color: 'from-emerald-500 to-teal-600' },
-    { id: 'hiphop', name: 'Hip-Hop', icon: '🎤', color: 'from-purple-500 to-indigo-600' }
-  ];
+  // Synchroniser l'état Suno avec l'état local
+  React.useEffect(() => {
+    console.log('🔄 useEffect triggered:', { 
+      sunoState, 
+      sunoTracksLength: sunoTracks.length, 
+      sunoError, 
+      currentTaskId,
+      customMode,
+      title,
+      style,
+      lyrics
+    });
+    
+    console.log('🎯 Condition check:', {
+      sunoState,
+      sunoTracksLength: sunoTracks.length,
+      condition: sunoState === 'success' && sunoTracks.length > 0
+    });
+    
+    if (sunoState === 'success' && sunoTracks.length > 0) {
+      console.log('🎵 Suno tracks brutes:', sunoTracks);
+      
+      // Convertir les tracks Suno en format local
+      const convertedTracks: GeneratedTrack[] = sunoTracks.map((track, index) => {
+        const audioUrl = track.audio || track.stream || '';
+        console.log(`🎵 Track ${index} conversion:`, { 
+          originalTrack: track, 
+          audioUrl, 
+          hasAudio: !!track.audio, 
+          hasStream: !!track.stream 
+        });
+        
+        return {
+          id: track.id || `${currentTaskId}_${index}`,
+          audioUrl,
+          prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
+          title: customMode ? (track.title || title) : (track.title || `Musique générée ${index + 1}`),
+          style: customMode ? style : (style || 'Custom'),
+          lyrics: customMode ? lyrics : '',
+          isInstrumental,
+          duration: track.duration || 120,
+          createdAt: new Date().toISOString()
+        };
+      });
 
-  const moods = [
-    { id: 'energetic', name: 'Énergique', icon: '🔥', color: 'from-red-500 to-orange-600' },
-    { id: 'chill', name: 'Détendu', icon: '😌', color: 'from-blue-500 to-cyan-600' },
-    { id: 'romantic', name: 'Romantique', icon: '💕', color: 'from-pink-500 to-rose-600' },
-    { id: 'mysterious', name: 'Mystérieux', icon: '🌙', color: 'from-purple-500 to-indigo-600' },
-    { id: 'happy', name: 'Joyeux', icon: '😊', color: 'from-yellow-500 to-green-600' },
-    { id: 'melancholic', name: 'Mélancolique', icon: '🌧️', color: 'from-gray-500 to-blue-600' }
-  ];
+      console.log('🎵 Tracks converties:', convertedTracks);
 
-  const durations = [
-    { value: 60, label: '1 min' },
-    { value: 180, label: '3 min' },
-    { value: 300, label: '5 min' },
-    { value: 600, label: '10 min' }
-  ];
-
-  const features = [
-    {
-      icon: Brain,
-      title: 'IA Avancée',
-      description: 'Technologie de pointe basée sur les derniers modèles de génération musicale',
-      color: 'from-purple-500 to-pink-600'
-    },
-    {
-      icon: Zap,
-      title: 'Génération Rapide',
-      description: 'Créez des morceaux complets en moins de 2 minutes',
-      color: 'from-blue-500 to-cyan-600'
-    },
-    {
-      icon: Target,
-      title: 'Personnalisation Totale',
-      description: 'Contrôlez le genre, l\'ambiance, la durée et bien plus encore',
-      color: 'from-green-500 to-emerald-600'
-    },
-    {
-      icon: Users,
-      title: 'Collaboration IA',
-      description: 'L\'IA s\'adapte à votre style et vous aide à développer vos idées',
-      color: 'from-orange-500 to-red-600'
+      setGeneratedTracks(convertedTracks);
+      setGeneratedTrack(convertedTracks[0]);
+      setGenerationStatus('completed');
+      setCurrentTaskId(null);
+      
+      console.log('✅ États mis à jour:', {
+        generatedTracksLength: convertedTracks.length,
+        generatedTrack: convertedTracks[0]?.title,
+        generationStatus: 'completed'
+      });
+      
+      // Rafraîchir la bibliothèque IA après génération
+      setTimeout(() => {
+        refreshGenerations();
+        console.log('🔄 Bibliothèque IA rafraîchie');
+      }, 2000);
+    } else if (sunoState === 'error') {
+      console.error('❌ Suno error:', sunoError);
+      setGenerationStatus('failed');
+      setCurrentTaskId(null);
+    } else if (sunoState === 'first') {
+      // Première piste terminée
+      console.log('🎵 Première piste terminée !');
     }
-  ];
+  }, [sunoState, sunoTracks, sunoError, currentTaskId, description, style, lyrics, isInstrumental, customMode, title]);
 
-  const benefits = [
-    {
-      icon: '🎯',
-      title: 'Inspiration Illimitée',
-      description: 'Trouvez de nouvelles idées musicales en quelques clics'
-    },
-    {
-      icon: '⚡',
-      title: 'Productivité Décuplée',
-      description: 'Accélérez votre processus de création musicale'
-    },
-    {
-      icon: '🎨',
-      title: 'Exploration Créative',
-      description: 'Découvrez des styles et genres que vous n\'auriez jamais explorés'
-    },
-    {
-      icon: '💡',
-      title: 'Apprentissage Continu',
-      description: 'L\'IA vous aide à comprendre les structures musicales'
+  const generateMusic = async () => {
+    if (quotaLoading || quota.remaining <= 0) {
+      alert('Quota épuisé. Améliorez votre plan pour continuer.');
+      return;
     }
-  ];
 
-  const howItWorks = [
-    {
-      step: 1,
-      title: 'Choisissez vos Préférences',
-      description: 'Sélectionnez le genre, l\'ambiance et la durée souhaités',
-      icon: Target
-    },
-    {
-      step: 2,
-      title: 'L\'IA Analyse et Crée',
-      description: 'Notre intelligence artificielle génère une composition unique',
-      icon: Brain
-    },
-    {
-      step: 3,
-      title: 'Personnalisez le Résultat',
-      description: 'Ajustez les éléments selon vos préférences',
-      icon: Music
-    },
-    {
-      step: 4,
-      title: 'Téléchargez et Partagez',
-      description: 'Récupérez votre création et partagez-la avec le monde',
-      icon: Download
-    }
-  ];
-
-  const handleGenerate = () => {
     setIsGenerating(true);
-    // Simulation de génération
-    setTimeout(() => {
+    setGenerationStatus('pending');
+    setGeneratedTracks([]);
+    
+    try {
+      let prompt = '';
+      
+      if (customMode) {
+        // Mode personnalisé : utiliser titre, style, paroles
+        if (!title.trim() || !style.trim()) {
+          alert('Veuillez remplir le titre et le style de musique');
+          return;
+        }
+        
+        prompt = `Titre: "${title}". Style: ${style}`;
+        if (lyrics.trim()) {
+          prompt += `. Paroles: ${lyrics}`;
+        }
+        if (isInstrumental) {
+          prompt += '. Musique instrumentale uniquement, sans voix';
+        }
+      } else {
+        // Mode description : utiliser la description
+        if (!description.trim()) {
+          alert('Veuillez décrire la musique que vous souhaitez');
+          return;
+        }
+        prompt = description;
+      }
+
+      const requestBody = {
+        title: customMode ? title : 'Musique générée',
+        style: customMode ? style : description,
+        prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
+        instrumental: isInstrumental,
+        model: modelVersion
+      };
+
+      console.log('🎵 Requête génération:', requestBody);
+
+      const response = await fetch('/api/suno/generate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la génération');
+      }
+
+      const data = await response.json();
+      
+      console.log('🎵 Réponse API génération:', data);
+      
+      if (data.taskId) {
+        // Génération Suno en cours - démarrer le suivi en arrière-plan
+        const promptText = data.prompt || description || 'Musique générée';
+        const customTitle = customMode ? title : promptText.substring(0, 50) + (promptText.length > 50 ? '...' : '');
+        
+        startBackgroundGeneration({
+          id: data.id,
+          taskId: data.taskId,
+          status: 'pending',
+          title: customTitle,
+          style: customMode ? style : 'Custom',
+          prompt: promptText,
+          progress: 0,
+          startTime: Date.now(),
+          estimatedTime: 60000 // 60 secondes estimées
+        });
+        
+        setCurrentTaskId(data.taskId);
+        console.log('🎵 Génération Suno initiée en arrière-plan:', data.taskId);
+        console.log('🎵 Mode:', customMode ? 'personnalisé' : 'simple');
+      } else {
+        // Génération simulée terminée
+        const promptText = data.prompt || description || 'Musique générée';
+        const track: GeneratedTrack = {
+          id: data.id,
+          audioUrl: data.audioUrl,
+          prompt: promptText,
+          title: customMode ? title : promptText.substring(0, 50) + (promptText.length > 50 ? '...' : ''),
+          style: customMode ? style : 'Custom',
+          lyrics: customMode ? lyrics : '',
+          isInstrumental,
+          duration: data.duration,
+          createdAt: new Date().toISOString()
+        };
+
+        setGeneratedTrack(track);
+        setGenerationStatus('completed');
+      }
+    } catch (error) {
+      console.error('Erreur:', error);
+      alert('Erreur lors de la génération');
+      setGenerationStatus('failed');
+    } finally {
       setIsGenerating(false);
-      // Ici vous pourriez rediriger vers un player ou afficher le résultat
-    }, 3000);
+    }
+  };
+
+
+
+  const playAITrack = (track: GeneratedTrack) => {
+    console.log('🎵 Playing AI track:', track);
+    
+    // Convertir la génération IA en Track compatible avec le lecteur principal
+    const aiTrack: PlayerTrack = {
+      _id: `ai-${track.id}`,
+      title: track.title,
+      artist: {
+        _id: 'ai-generator',
+        name: 'Synaura IA',
+        username: 'synaura-ai'
+      },
+      duration: track.duration,
+      audioUrl: track.audioUrl, // Cette propriété contient maintenant l'URL normalisée
+      coverUrl: '/synaura_symbol.svg', // Logo Synaura comme cover
+      genre: ['IA', 'Généré'],
+      plays: 0,
+      likes: [],
+      comments: []
+    };
+
+    console.log('🎵 Converted AI track:', aiTrack);
+
+    // Jouer avec le lecteur principal
+    playTrack(aiTrack as any);
+  };
+
+  const downloadTrack = async (track: GeneratedTrack) => {
+    try {
+      const response = await fetch(track.audioUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `synaura-${track.title || track.id}.wav`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erreur de téléchargement:', error);
+    }
+  };
+
+  const shareTrack = async (track: GeneratedTrack) => {
+    try {
+      await navigator.share({
+        title: 'Musique générée par Synaura',
+        text: `Écoutez "${track.title}" généré par IA`,
+        url: track.audioUrl
+      });
+    } catch (error) {
+      // Fallback: copy to clipboard
+      navigator.clipboard.writeText(track.audioUrl);
+      alert('Lien copié dans le presse-papiers');
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-      {/* Header Hero */}
-      <section className="relative pt-20 pb-16 overflow-hidden">
-        {/* Fond avec particules */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(120,119,198,0.1),transparent_50%)]"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(255,20,147,0.1),transparent_50%)]"></div>
+    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+      {/* Header */}
+      <div className="container mx-auto px-4 py-8 pb-24">
+        <div className="text-center mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-center gap-3 mb-4"
+          >
+            <Sparkles className="w-7 h-7 text-yellow-400" />
+            <h1 className="text-3xl md:text-4xl font-extrabold title-suno">
+              Générateur IA
+            </h1>
+          </motion.div>
+          <p className="text-[var(--text-muted)] text-base mb-4">
+            Créez de la musique unique avec l'intelligence artificielle
+          </p>
+          {/* Bandeau Prochainement */}
+          <div className="max-w-3xl mx-auto">
+            <div className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden">
+              <div className="relative">
+                <div className="absolute inset-0 opacity-10" aria-hidden></div>
+                <div className="relative p-6 md:p-8 text-center">
+                  <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> Prochainement
+                  </span>
+                  <h2 className="mt-4 text-2xl md:text-3xl font-bold">
+                    Bientôt disponible
+                  </h2>
+                  <p className="mt-2 text-[var(--text-muted)]">
+                    Le générateur IA arrive très vite. En attendant, explorez les tendances et votre bibliothèque.
+                  </p>
+                  <div className="mt-5 flex items-center justify-center gap-3">
+                    <a href="/discover" className="px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium">
+                      Voir Découvrir
+                    </a>
+                    <a href="/ai-library" className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] font-medium">
+                      Ma bibliothèque IA
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="relative z-10 container mx-auto px-4 text-center">
-          {/* Badge de statut */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-gradient-to-r from-blue-500/20 to-purple-500/20 backdrop-blur-md border border-blue-500/30 rounded-full"
-          >
-            <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full animate-pulse"></div>
-            <span className="text-white/90 text-sm font-medium">Nouveau</span>
-            <Sparkles size={14} className="text-blue-400" />
-          </motion.div>
-
-          {/* Titre principal */}
-          <motion.h1
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-            className="text-5xl md:text-7xl lg:text-8xl font-black text-white mb-6 leading-tight"
-            style={{
-              textShadow: '0 0 30px rgba(59, 130, 246, 0.5), 0 0 60px rgba(147, 51, 234, 0.3)'
-            }}
-          >
-            Générateur
-            <span className="block bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              IA Musicale
+        {/* Quota Display (désactivé pour prochainement) */}
+        <div className="max-w-md mx-auto mb-8 opacity-50 pointer-events-none select-none">
+          <div className="bg-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-300">Quota mensuel</span>
+              <span className="text-sm text-green-400">
+                {quota.remaining} / {quota.monthly_limit} restants
             </span>
-          </motion.h1>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2">
+              <div 
+                className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((quota.monthly_limit - quota.remaining) / quota.monthly_limit) * 100}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              Plan: {quota.plan_type}
+            </p>
+          </div>
+        </div>
 
-          {/* Description */}
-          <motion.p
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-            className="text-xl md:text-2xl text-gray-300 max-w-4xl mx-auto mb-8"
-          >
-            Créez des morceaux uniques et professionnels en quelques clics grâce à notre intelligence artificielle de pointe
-          </motion.p>
+        {/* Mode Toggle (désactivé) */}
+        <div className="max-w-2xl mx-auto mb-8 opacity-50 pointer-events-none select-none">
+          <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={customMode}
+                  onChange={(e) => setCustomMode(e.target.checked)}
+                  className="sr-only"
+                />
+                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  customMode ? 'bg-purple-600' : 'bg-gray-600'
+                }`}>
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    customMode ? 'translate-x-6' : 'translate-x-1'
+                  }`} />
+                </div>
+                <span className="text-sm font-medium">Mode personnalisé</span>
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={modelVersion}
+                onChange={(e) => setModelVersion(e.target.value)}
+                className="bg-gray-700 border border-gray-600 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="V3_5">V3.5</option>
+                <option value="V4">V4</option>
+                <option value="V4_5">V4.5</option>
+                <option value="V4_5PLUS">V4.5+</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
-          {/* CTA Principal */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center items-center"
-          >
+        {/* Input Form (désactivé) */}
+        <div className="max-w-2xl mx-auto space-y-6 opacity-50 pointer-events-none select-none">
+          {/* le formulaire existant reste visible mais inactif */}
+          {customMode ? (
+            // Mode personnalisé
+            <>
+              {/* Titre */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <label className="block text-sm font-medium mb-2">Titre</label>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Entrez un titre"
+                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Style de musique */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <label className="block text-sm font-medium mb-2">Style de musique</label>
+                <textarea
+                  value={style}
+                  onChange={(e) => setStyle(e.target.value)}
+                  placeholder="Entrez le style de musique"
+                  rows={3}
+                  maxLength={1000}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                />
+                <div className="text-xs text-gray-400 mt-2 text-right">
+                  {style.length}/1000
+                </div>
+              </div>
+
+              {/* Instrumental Toggle */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isInstrumental}
+                    onChange={(e) => setIsInstrumental(e.target.checked)}
+                    className="sr-only"
+                  />
+                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    isInstrumental ? 'bg-purple-600' : 'bg-gray-600'
+                  }`}>
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      isInstrumental ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </div>
+                  <span className="text-sm font-medium">Instrumental</span>
+                </label>
+              </div>
+
+              {/* Paroles */}
+              <div className="bg-gray-800 rounded-lg p-6">
+                <label className="block text-sm font-medium mb-2">Paroles</label>
+                <textarea
+                  value={lyrics}
+                  onChange={(e) => setLyrics(e.target.value)}
+                  placeholder="Écrivez vos propres paroles, deux couplets (8 lignes) pour un meilleur résultat."
+                  rows={6}
+                  maxLength={5000}
+                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                />
+                <div className="text-xs text-gray-400 mt-2 text-right">
+                  {lyrics.length}/5000
+                </div>
+              </div>
+            </>
+          ) : (
+            // Mode description
+            <div className="bg-gray-800 rounded-lg p-6">
+              <label className="block text-sm font-medium mb-2">Description de la chanson</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Décrivez le style de musique et le sujet que vous souhaitez, l'IA générera les paroles pour vous."
+                rows={4}
+                maxLength={199}
+                className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+              />
+              <div className="text-xs text-gray-400 mt-2 text-right">
+                {description.length}/199
+              </div>
+            </div>
+          )}
+
+          {/* Generate Button */}
             <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 flex items-center space-x-3 disabled:opacity-50"
+            onClick={generateMusic}
+            disabled={isGenerating || quotaLoading || quota.remaining <= 0}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             >
               {isGenerating ? (
                 <>
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                  <span>Génération en cours...</span>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                {generationStatus === 'pending' ? 'Génération en cours...' : 'Génération en cours...'}
                 </>
               ) : (
                 <>
-                  <Sparkles size={24} />
-                  <span>Commencer la Création</span>
-                  <ArrowRight size={24} />
+                <Music className="w-5 h-5" />
+                Générer de la musique
                 </>
               )}
             </motion.button>
 
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => router.push('/subscriptions')}
-              className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-semibold hover:bg-white/20 transition-all duration-300 flex items-center space-x-3"
-            >
-              <Crown size={20} />
-              <span>Voir les Abonnements</span>
-            </motion.button>
-          </motion.div>
+          {/* Status Display */}
+          {currentTaskId && (
+            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                <span className="text-blue-400 font-medium">
+                  {sunoState === 'pending' && 'Génération Suno en cours...'}
+                  {sunoState === 'first' && 'Première piste terminée !'}
+                  {sunoState === 'success' && 'Génération terminée !'}
+                  {sunoState === 'error' && 'Erreur de génération'}
+                </span>
+              </div>
+              <p className="text-sm text-gray-400">
+                Task ID: {currentTaskId.substring(0, 8)}... | Statut: {sunoState}
+              </p>
+              {sunoError && (
+                <p className="text-sm text-red-400 mt-2">Erreur: {sunoError}</p>
+              )}
+              <div className="mt-2 text-xs text-gray-500">
+                <p>Génération de 2 musiques en parallèle</p>
+                <p>Streaming disponible en 30-40 secondes</p>
+                <p>Téléchargement en 2-3 minutes</p>
+              </div>
+            </div>
+          )}
         </div>
-      </section>
 
-      {/* Section Fonctionnalités */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
+        {/* Générations en arrière-plan */}
+        {generations.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto mb-8"
           >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Pourquoi Choisir Notre IA ?
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Une technologie révolutionnaire qui transforme votre créativité musicale
-            </p>
-          </motion.div>
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold text-blue-400 mb-2">
+                🎵 Générations récentes
+              </h3>
+              <p className="text-gray-400">
+                Retrouvez vos dernières créations
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
+            <div className="space-y-3">
+              {generations.slice(0, 3).map((gen) => (
               <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '50px' }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="group"
-              >
-                <div className="relative p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10 hover:border-white/20 transition-all duration-300 h-full">
-                  <div className={`inline-flex p-4 rounded-xl bg-gradient-to-br ${feature.color} mb-4`}>
-                    <feature.icon size={24} className="text-white" />
+                  key={gen.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold">{gen.title}</h4>
+                      <p className="text-gray-400 text-sm">{gen.style}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(gen.createdAt).toLocaleDateString('fr-FR')} - 
+                        {gen.tracks.length} track{gen.tracks.length > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          const convertedTracks: GeneratedTrack[] = gen.tracks.map((track: any, index) => ({
+                            id: track.id,
+                            audioUrl: track.audio_url || track.stream_audio_url || '',
+                            prompt: '',
+                            title: track.title,
+                            style: gen.style,
+                            lyrics: '',
+                            isInstrumental: false,
+                            duration: track.duration,
+                            createdAt: new Date().toISOString()
+                          }));
+                          setGeneratedTracks(convertedTracks);
+                          setGeneratedTrack(convertedTracks[0]);
+                        }}
+                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Play className="w-4 h-4" />
+                        Écouter
+                      </button>
+                      <a
+                        href="/ai-library"
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Music className="w-4 h-4" />
+                        Voir tout
+                      </a>
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">{feature.title}</h3>
-                  <p className="text-gray-400">{feature.description}</p>
                 </div>
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Section Comment ça marche */}
-      <section className="py-20 bg-gradient-to-r from-blue-900/10 via-purple-900/10 to-pink-900/10">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Comment ça Marche ?
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              En 4 étapes simples, créez votre musique unique
-            </p>
           </motion.div>
+        )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {howItWorks.map((step, index) => (
+        {/* Generated Tracks Display */}
+        {(() => {
+          console.log('🎵 Rendu - generatedTracks:', {
+            length: generatedTracks.length,
+            tracks: generatedTracks.map(t => ({ id: t.id, title: t.title, audioUrl: t.audioUrl }))
+          });
+          return generatedTracks.length > 0;
+        })() && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto mt-8"
+          >
+            <div className="text-center mb-6">
+              <h3 className="text-xl font-semibold text-green-400 mb-2">
+                🎵 Génération terminée !
+              </h3>
+              <p className="text-gray-400">
+                Suno a généré {generatedTracks.length} version{generatedTracks.length > 1 ? 's' : ''} de votre musique
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {generatedTracks.map((track, index) => (
               <motion.div
-                key={step.step}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: '50px' }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="relative text-center"
-              >
-                {/* Numéro d'étape */}
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-6">
-                  {step.step}
+                  key={track.id}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors"
+                >
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                      <Music className="w-8 h-8 text-white" />
                 </div>
-                
-                <div className="p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
-                  <div className="inline-flex p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 mb-4">
-                    <step.icon size={24} className="text-blue-400" />
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold">{track.title}</h3>
+                      <p className="text-gray-400 text-sm">{track.style}</p>
+                      {track.isInstrumental && (
+                        <span className="inline-block bg-purple-600 text-white text-xs px-2 py-1 rounded-full mt-1">
+                          Instrumental
+                        </span>
+                      )}
                   </div>
-                  <h3 className="text-xl font-bold text-white mb-3">{step.title}</h3>
-                  <p className="text-gray-400">{step.description}</p>
                 </div>
 
-                {/* Flèche entre les étapes */}
-                {index < howItWorks.length - 1 && (
-                  <div className="hidden lg:block absolute top-1/2 -right-4 transform -translate-y-1/2">
-                    <ChevronRight size={32} className="text-blue-500/50" />
+                  {track.lyrics && (
+                    <div className="mb-4 p-4 bg-gray-700 rounded-lg">
+                      <h4 className="text-sm font-medium mb-2">Paroles générées :</h4>
+                      <p className="text-sm text-gray-300 whitespace-pre-line">{track.lyrics}</p>
                   </div>
                 )}
+
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => playAITrack(track)}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Play className="w-4 h-4" />
+                      Écouter
+                    </button>
+                    <button
+                      onClick={() => downloadTrack(track)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => shareTrack(track)}
+                      className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
               </motion.div>
             ))}
           </div>
-        </div>
-      </section>
-
-      {/* Section Générateur Interactif */}
-      <section className="py-20">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Testez le Générateur
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Personnalisez vos préférences et créez votre première composition
-            </p>
           </motion.div>
+        )}
 
+        {/* Single Generated Track Display (fallback) */}
+        {generatedTrack && generatedTracks.length === 0 && (
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="max-w-4xl mx-auto"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-2xl mx-auto mt-8"
           >
-            <div className="bg-white/5 backdrop-blur-sm border border-white/20 rounded-3xl p-8">
-              {/* Sélection du genre */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Choisissez un Genre</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {genres.map((genre) => (
-                    <button
-                      key={genre.id}
-                      onClick={() => setSelectedGenre(genre.id)}
-                      className={`p-4 rounded-xl border transition-all duration-300 ${
-                        selectedGenre === genre.id
-                          ? `bg-gradient-to-br ${genre.color} border-transparent`
-                          : 'bg-white/5 border-white/20 hover:bg-white/10'
-                      }`}
-                    >
-                      <div className="text-2xl mb-2">{genre.icon}</div>
-                      <div className="text-sm font-medium text-white">{genre.name}</div>
-                    </button>
-                  ))}
+            <div className="bg-gray-800 rounded-lg p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                  <Music className="w-8 h-8 text-white" />
                 </div>
-              </div>
-
-              {/* Sélection de l'ambiance */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Choisissez une Ambiance</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {moods.map((mood) => (
-                    <button
-                      key={mood.id}
-                      onClick={() => setSelectedMood(mood.id)}
-                      className={`p-4 rounded-xl border transition-all duration-300 ${
-                        selectedMood === mood.id
-                          ? `bg-gradient-to-br ${mood.color} border-transparent`
-                          : 'bg-white/5 border-white/20 hover:bg-white/10'
-                      }`}
-                    >
-                      <div className="text-2xl mb-2">{mood.icon}</div>
-                      <div className="text-sm font-medium text-white">{mood.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Sélection de la durée */}
-              <div className="mb-8">
-                <h3 className="text-xl font-semibold text-white mb-4">Choisissez la Durée</h3>
-                <div className="flex flex-wrap gap-4">
-                  {durations.map((duration) => (
-                    <button
-                      key={duration.value}
-                      onClick={() => setSelectedDuration(duration.value)}
-                      className={`px-6 py-3 rounded-xl border transition-all duration-300 ${
-                        selectedDuration === duration.value
-                          ? 'bg-gradient-to-r from-blue-600 to-purple-600 border-transparent'
-                          : 'bg-white/5 border-white/20 hover:bg-white/10'
-                      }`}
-                    >
-                      <span className="text-white font-medium">{duration.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Bouton de génération */}
-              <div className="text-center">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleGenerate}
-                  disabled={isGenerating}
-                  className="px-12 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 disabled:opacity-50"
-                >
-                  {isGenerating ? (
-                    <div className="flex items-center space-x-3">
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                      <span>Génération en cours...</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-3">
-                      <Sparkles size={24} />
-                      <span>Générer ma Musique</span>
-                      <ArrowRight size={24} />
-                    </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{generatedTrack.title}</h3>
+                  <p className="text-gray-400 text-sm">{generatedTrack.style}</p>
+                  {generatedTrack.isInstrumental && (
+                    <span className="inline-block bg-purple-600 text-white text-xs px-2 py-1 rounded-full mt-1">
+                      Instrumental
+                    </span>
                   )}
-                </motion.button>
+                </div>
+              </div>
+
+              {generatedTrack.lyrics && (
+                <div className="mb-4 p-4 bg-gray-700 rounded-lg">
+                  <h4 className="text-sm font-medium mb-2">Paroles générées :</h4>
+                  <p className="text-sm text-gray-300 whitespace-pre-line">{generatedTrack.lyrics}</p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
+                    <button
+                  onClick={() => playAITrack(generatedTrack)}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  <Play className="w-4 h-4" />
+                  Écouter
+                    </button>
+                    <button
+                  onClick={() => downloadTrack(generatedTrack)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                    </button>
+                <button
+                  onClick={() => shareTrack(generatedTrack)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
               </div>
             </div>
           </motion.div>
-        </div>
-      </section>
-
-      {/* Section Avantages */}
-      <section className="py-20 bg-gradient-to-r from-green-900/10 via-emerald-900/10 to-teal-900/10">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Avantages du Générateur IA
-            </h2>
-            <p className="text-xl text-gray-400 max-w-3xl mx-auto">
-              Découvrez pourquoi les musiciens choisissent notre technologie
-            </p>
-          </motion.div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {benefits.map((benefit, index) => (
-              <motion.div
-                key={benefit.title}
-                initial={{ opacity: 0, x: index % 2 === 0 ? -30 : 30 }}
-                whileInView={{ opacity: 1, x: 0 }}
-                viewport={{ once: true, margin: '50px' }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                className="flex items-start space-x-4"
-              >
-                <div className="text-4xl">{benefit.icon}</div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">{benefit.title}</h3>
-                  <p className="text-gray-400">{benefit.description}</p>
-                </div>
-              </motion.div>
-            ))}
+        )}
           </div>
-        </div>
-      </section>
-
-      {/* Section CTA Final */}
-      <section className="py-20">
-        <div className="container mx-auto px-4 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: '50px' }}
-            transition={{ duration: 0.6 }}
-            className="max-w-4xl mx-auto"
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              Prêt à Révolutionner votre Créativité ?
-            </h2>
-            <p className="text-xl text-gray-400 mb-8">
-              Rejoignez des milliers de musiciens qui utilisent déjà notre générateur IA
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleGenerate}
-                className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-300 flex items-center space-x-3"
-              >
-                <Sparkles size={24} />
-                <span>Essayer Gratuitement</span>
-                <ArrowRight size={24} />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => router.push('/subscriptions')}
-                className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-semibold hover:bg-white/20 transition-all duration-300 flex items-center space-x-3"
-              >
-                <Crown size={20} />
-                <span>Voir les Plans Premium</span>
-              </motion.button>
-            </div>
-          </motion.div>
-        </div>
-      </section>
     </div>
   );
 }

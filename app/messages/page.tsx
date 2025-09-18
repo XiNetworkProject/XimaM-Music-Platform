@@ -301,7 +301,7 @@ export default function MessagesPage() {
 
   if (!session?.user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
+      <div className="flex items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--text)]">
         <motion.div 
           className="text-center"
           initial={{ opacity: 0, y: 20 }}
@@ -324,10 +324,10 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-black via-neutral-900 to-black">
+    <div className="min-h-screen text-[var(--text)]">
       {/* Header moderne */}
       <motion.div 
-        className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/80 via-indigo-900/80 to-purple-900/80 backdrop-blur-xl border-b border-purple-400/30 rounded-b-3xl shadow-2xl"
+        className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 panel-suno border-b border-[var(--border)] rounded-none"
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
@@ -335,7 +335,7 @@ export default function MessagesPage() {
         <div className="flex items-center space-x-3">
           <motion.button
             onClick={() => router.back()}
-            className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+            className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-all duration-300 border border-[var(--border)]"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -356,7 +356,7 @@ export default function MessagesPage() {
           </div>
         </div>
         <motion.button 
-          className="p-3 rounded-full bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 transition-all duration-300 shadow-lg border border-purple-400/30"
+          className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-all duration-300 border border-[var(--border)]"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -368,18 +368,18 @@ export default function MessagesPage() {
       <div className="pt-24 pb-8 px-4">
         {/* Barre de recherche améliorée */}
         <motion.div 
-          className="relative mb-8"
+          className="relative mb-8 panel-suno p-2 rounded-2xl border border-[var(--border)]"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
         >
-          <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-purple-300" />
+          <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" />
           <motion.input
             type="text"
             placeholder="Rechercher des conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-purple-400/30 rounded-2xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 shadow-lg"
+            className="w-full pl-12 pr-4 py-4 bg-[var(--bg)] border border-[var(--border)] rounded-2xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-0 focus:border-[var(--color-primary)] shadow-none"
             whileFocus={{ scale: 1.02 }}
             transition={{ duration: 0.2 }}
           />
@@ -506,7 +506,7 @@ export default function MessagesPage() {
                           delay: index * 0.1,
                           ease: "easeOut"
                         }}
-                        className="bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl border border-purple-400/30 rounded-3xl p-6 hover:from-white/15 hover:to-white/10 transition-all duration-300 cursor-pointer shadow-lg"
+                        className="panel-suno rounded-2xl p-6 transition-all duration-300 cursor-pointer"
                         onClick={() => {
                           if (conversation.accepted) {
                             router.push(`/messages/${conversation._id}`);

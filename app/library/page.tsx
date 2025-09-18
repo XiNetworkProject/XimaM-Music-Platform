@@ -30,7 +30,8 @@ import {
   Eye,
   EyeOff,
   Copy,
-  Settings
+  Settings,
+  Sparkles
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
@@ -439,20 +440,31 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen text-[var(--text)]">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] flex items-center gap-3 mb-2">
-              <Music size={28} className="text-[var(--color-primary)]" />
-              Ma Bibliothèque
-            </h1>
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] flex items-center gap-3">
+                <Music size={28} className="text-[var(--color-primary)]" />
+                Ma Bibliothèque
+              </h1>
+              
+              {/* Bouton Bibliothèque IA */}
+              <a
+                href="/ai-library"
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-full font-medium transition-all shadow-lg"
+              >
+                <Sparkles size={16} />
+                <span>Bibliothèque IA</span>
+              </a>
+            </div>
             <p className="text-[var(--text-muted)] text-lg">Vos playlists, écoutes récentes et favoris.</p>
           </div>
           
           {/* Barre de recherche et contrôles */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 mb-8">
+          <div className="panel-suno border border-[var(--border)] rounded-xl p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Barre de recherche */}
               <div className="relative flex-1 max-w-md">
@@ -503,7 +515,7 @@ export default function LibraryPage() {
           </div>
           
           {/* Onglets */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 mb-8">
+          <div className="panel-suno border border-[var(--border)] rounded-xl p-6 mb-8">
             <div className="flex space-x-1 bg-[var(--surface-2)] rounded-xl p-1">
               <button
                 onClick={() => setActiveTab('playlists')}
@@ -689,7 +701,7 @@ export default function LibraryPage() {
           </AnimatePresence>
 
           {/* Contenu des onglets */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6">
+          <div className="panel-suno border border-[var(--border)] rounded-xl p-6">
           <AnimatePresence mode="wait">
             {activeTab === 'playlists' && (
               <motion.div

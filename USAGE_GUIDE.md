@@ -1,3 +1,4 @@
+
 # 📖 Guide d'Utilisation - Synaura
 
 ## 🚀 Accès Rapide aux Fonctionnalités

@@ -295,4 +295,8 @@ export const GiftIcon = (props: Omit<IconProps, 'name'>) => (
   <IconSystem name="gift" {...props} />
 );
 
+export const HeadphonesIcon = (props: Omit<IconProps, 'name'>) => (
+  <IconSystem name="headphones" {...props} />
+);
+
 export default IconSystem; 

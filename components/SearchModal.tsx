@@ -111,7 +111,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.1 }} // Animation très rapide
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
@@ -119,7 +119,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }} // Animation plus rapide
-            className="absolute top-0 left-0 right-0 glass-effect border-b border-white/10"
+            className="absolute top-0 left-0 right-0 panel-suno border-b border-[var(--border)]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -133,7 +133,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    className="w-full pl-10 pr-4 py-3 bg-white/10 rounded-xl border border-white/20 focus:border-primary-400 focus:outline-none text-white placeholder-white/60"
+                    className="w-full pl-10 pr-4 py-3 bg-[var(--surface)]/60 rounded-xl border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none text-white placeholder-white/60"
                     autoFocus
                   />
                 </div>

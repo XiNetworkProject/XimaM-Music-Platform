@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +27,7 @@ export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const { notifications } = useMessageNotifications();
   const { audioState, setShowPlayer } = useAudioPlayer();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
@@ -74,6 +75,23 @@ export default function BottomNav() {
     }
   };
 
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const username = (session?.user as any)?.username;
+        if (!username) return;
+        const res = await fetch(`/api/users/${encodeURIComponent(username)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const candidate = data?.user?.avatar || data?.user?.image || data?.avatar || data?.image;
+        if (candidate && typeof candidate === 'string') {
+          setAvatarUrl(candidate);
+        }
+      } catch {}
+    };
+    load();
+  }, [session?.user]);
+
   const handleNavClick = (path: string) => {
     // Navigation immédiate sans blocage ni transition
     router.push(path, { scroll: false });
@@ -82,14 +100,12 @@ export default function BottomNav() {
   return (
     <>
       {/* Bottom Navigation - Design futuriste */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40">
-        {/* Effet de fond avec blur et gradient */}
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-2xl border-t border-white/20">
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
-        </div>
+      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
+        {/* Effet de fond panel suno */}
+        <div className="absolute inset-0 panel-suno bg-[var(--surface)]/70 backdrop-blur-2xl border-t border-[var(--border)]"></div>
 
         {/* Contenu de la navigation */}
-        <div className="relative px-3 sm:px-6 py-3 sm:py-4">
+            <div className="relative px-3 sm:px-6 py-3 sm:py-4">
           <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-0 sm:justify-between">
             
             {/* Section supérieure - Bouton lecteur et upload (visible sur mobile) */}
@@ -134,8 +150,8 @@ export default function BottomNav() {
                     onClick={() => handleNavClick(item.path)}
                     className={`group relative flex flex-col items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl transition-all duration-300 ${
                       item.active 
-                        ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 border border-purple-500/50' 
-                        : 'text-white/70 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/20'
+                        ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-300 border border-purple-500/40 shadow-purple-500/20 shadow-lg' 
+                        : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-white/5 border border-[var(--border)]/0 hover:border-[var(--border)]/40'
                     }`}
                     whileHover={{ scale: 1.05, y: -3 }}
                     whileTap={{ scale: 0.95 }}
@@ -149,7 +165,7 @@ export default function BottomNav() {
                       <div className="relative">
                         <item.icon size={18} className="sm:w-6 sm:h-6" />
                       </div>
-                      <span className="text-xs mt-1 font-medium">{item.label}</span>
+                      <span className="text-xs mt-1 font-semibold">{item.label}</span>
                     </div>
                   </motion.button>
 
@@ -210,17 +226,13 @@ export default function BottomNav() {
                 {pathname.startsWith('/profile') && (
                   <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl blur-xl"></div>
                 )}
-                
                 <div className="relative">
-                  {session?.user?.image ? (
-                    <img
-                      src={session.user.image}
-                      alt="Profile"
-                      className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white/30"
-                    />
-                  ) : (
-                    <UserPlus size={16} className="text-white sm:w-5 sm:h-5" />
-                  )}
+                  <img
+                    src={avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture || '/default-avatar.png'}
+                    alt="Profile"
+                    className="w-6 h-6 sm:w-8 sm:h-8 rounded-full object-cover border-2 border-white/30"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                  />
                 </div>
               </motion.button>
             </div>

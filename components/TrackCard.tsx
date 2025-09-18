@@ -111,12 +111,12 @@ export default function TrackCard({
       whileHover={{ y: -2, scale: 1.04 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700 ${sizeClasses[size].card} ${className}`}
+      className={`panel-suno rounded-2xl hover:shadow-xl transition-all duration-200 border border-[var(--border)]/80 bg-[var(--surface)]/70 ${sizeClasses[size].card} ${className}`}
     >
       <div className="flex flex-col items-center gap-1.5">
         {/* Image de couverture avec bouton play */}
         <div className="relative group">
-          <div className={`${sizeClasses[size].image} relative overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700`}>
+          <div className={`${sizeClasses[size].image} relative overflow-hidden rounded-xl bg-[var(--surface-2)] border border-[var(--border)]`}> 
             {track.coverUrl ? (
               <Image
                 src={track.coverUrl}
@@ -125,7 +125,7 @@ export default function TrackCard({
                 className="object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-[var(--color-primary)] to-pink-500 flex items-center justify-center">
                 <span className="text-white font-bold text-lg">
                   {track.title[0].toUpperCase()}
                 </span>
@@ -138,11 +138,11 @@ export default function TrackCard({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+                  className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"
                 >
                   <motion.button
                     onClick={handlePlayPause}
-                    className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-colors"
+                    className="w-7 h-7 rounded-full flex items-center justify-center text-white hover:opacity-90 transition-colors btn-suno"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -168,19 +168,19 @@ export default function TrackCard({
         {/* Informations de la piste */}
         <div className="flex-1 min-w-0 w-full">
           <div className="flex flex-col items-center justify-between gap-1 w-full">
-            <h3 className={`font-semibold text-gray-900 dark:text-white truncate w-full text-center ${sizeClasses[size].title}`}>
+            <h3 className={`font-semibold text-[var(--text)] truncate w-full text-center ${sizeClasses[size].title} title-suno`}>
               {track.title}
             </h3>
             <Link
               href={`/profile/${track.artist?.username || 'unknown'}`}
-              className={`text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors ${sizeClasses[size].artist} w-full text-center`}
+              className={`text-[var(--text-muted)] hover:text-[var(--color-accent)] transition-colors ${sizeClasses[size].artist} w-full text-center`}
             >
               {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
             </Link>
-            <div className="flex items-center gap-2 text-gray-500 justify-center mt-1">
+            <div className="flex items-center gap-2 text-[var(--text-muted)] justify-center mt-1">
               <span className={`${sizeClasses[size].duration}`}>{formatDuration(track.duration)}</span>
               <PlaysCounter trackId={track._id} initialPlays={track.plays || 0} size={size} />
-              <button className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded">
+              <button className="p-1 hover:bg-white/10 rounded border border-[var(--border)]">
                 <MoreVertical size={10} />
               </button>
             </div>

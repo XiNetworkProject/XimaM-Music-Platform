@@ -1,0 +1,4 @@
+# Fichiers audio temporaires générés par l'IA
+temp/
+*.wav
+*.mp3

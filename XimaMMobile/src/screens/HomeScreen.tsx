@@ -9,10 +9,12 @@ import {
   Dimensions,
   RefreshControl,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { 
   MusicIcon, 
   PlayIcon, 
+  PauseIcon,
   HeartIcon, 
   RadioIcon, 
   TrendingIcon, 
@@ -21,11 +23,15 @@ import {
   ArrowRightIcon,
   UserIcon,
   GiftIcon,
-  SparklesIcon
+  SparklesIcon,
+  HeadphonesIcon,
+  EyeIcon,
+  ShareIcon
 } from '../components/IconSystem';
 import { TrackCover, UserAvatar } from '../components/ImageSystem';
 import { useAuth } from '../contexts/AuthContext';
 import apiService from '../services/api';
+import radioService, { RadioData } from '../services/radioService';
 import SearchBar from '../components/SearchBar';
 
 const { width } = Dimensions.get('window');
@@ -87,11 +93,58 @@ const HomeScreen: React.FC = () => {
 
   // États pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
-  const [radioInfo, setRadioInfo] = useState({
-    currentTrack: { title: 'Mixx Party Radio', artist: 'En boucle continue' },
-    listeners: 0,
-    status: 'EN DIRECT'
+  const [showProgramDialog, setShowProgramDialog] = useState(false);
+  const [radioData, setRadioData] = useState<RadioData>({
+    name: 'Mixx Party Radio',
+    description: 'Radio électronique en continu 24h/24',
+    status: 'LIVE',
+    isOnline: true,
+    currentTrack: {
+      title: 'Mixx Party Radio',
+      artist: 'En boucle continue',
+      genre: 'Electronic',
+      album: 'Mixx Party Collection'
+    },
+    stats: {
+      listeners: 0,
+      bitrate: 128,
+      uptime: '24h/24',
+      quality: 'Standard'
+    },
+    technical: {
+      serverName: 'Mixx Party Server',
+      serverDescription: 'Radio en boucle continue',
+      contentType: 'audio/mpeg',
+      serverType: 'Icecast',
+      serverVersion: '2.4.0'
+    },
+    lastUpdate: new Date().toISOString(),
+    streamUrl: 'https://rocket.streamradio.fr/stream/mixxparty'
   });
+
+  // Fonction pour charger les données radio
+  const loadRadioData = async () => {
+    try {
+      const response = await radioService.getRadioStatus();
+      if (response.success) {
+        setRadioData(response.data);
+        console.log('📻 Données radio chargées:', {
+          listeners: response.data.stats.listeners,
+          currentTrack: response.data.currentTrack.title,
+          quality: response.data.stats.quality
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur chargement données radio:', error);
+    }
+  };
+
+  // Fonction pour gérer la lecture/arrêt de la radio
+  const handleRadioToggle = () => {
+    setIsRadioPlaying(!isRadioPlaying);
+    // Ici vous pouvez ajouter la logique pour démarrer/arrêter la radio
+    console.log('Radio toggle:', !isRadioPlaying ? 'Playing' : 'Stopped');
+  };
 
   // États pour les recommandations personnalisées
   const [personalRecommendations, setPersonalRecommendations] = useState<any[]>([]);
@@ -148,6 +201,15 @@ const HomeScreen: React.FC = () => {
     loadInitialData();
   }, []);
 
+  // Mise à jour automatique des données radio toutes les 30 secondes
+  useEffect(() => {
+    const radioInterval = setInterval(() => {
+      loadRadioData();
+    }, 30000);
+
+    return () => clearInterval(radioInterval);
+  }, []);
+
   const loadInitialData = async () => {
     setLoading(true);
     try {
@@ -173,7 +235,7 @@ const HomeScreen: React.FC = () => {
         apiService.getRecommendedTracks(),
         apiService.getRealTimeStats(),
         apiService.getPersonalRecommendations(),
-        apiService.getRadioInfo()
+        loadRadioData()
       ]);
 
       // Mettre à jour les catégories
@@ -277,14 +339,7 @@ const HomeScreen: React.FC = () => {
         ]);
       }
 
-      // Mettre à jour les infos radio
-      if (radioResponse.success) {
-        setRadioInfo({
-          currentTrack: radioResponse.data?.currentTrack || { title: 'Mixx Party Radio', artist: 'En boucle continue' },
-          listeners: radioResponse.data?.listeners || 0,
-          status: radioResponse.data?.status || 'EN DIRECT'
-        });
-      }
+      // Les données radio sont maintenant chargées via loadRadioData()
 
     } catch (error) {
       console.error('Erreur chargement données:', error);
@@ -446,24 +501,140 @@ const HomeScreen: React.FC = () => {
           </View>
       </View>
 
-      {/* Section Radio */}
+      {/* Section Radio - Version Améliorée */}
       <View style={styles.radioSection}>
+        {/* En-tête de la section */}
+        <View style={styles.radioSectionHeader}>
+          <View style={styles.radioBadge}>
+            <View style={styles.radioBadgeDot} />
+            <Text style={styles.radioBadgeText}>EN DIRECT</Text>
+            <RadioIcon size={14} color="#06B6D4" />
+          </View>
+          <Text style={styles.radioSectionTitle}>Mixx Party Radio</Text>
+          <Text style={styles.radioSectionSubtitle}>La radio électronique qui pulse 24h/24</Text>
+        </View>
+
+        {/* Carte principale de la radio */}
         <View style={styles.radioCard}>
+          {/* En-tête de la radio */}
           <View style={styles.radioHeader}>
             <View style={styles.radioIconContainer}>
-              <RadioIcon size={24} color="white" />
+              <RadioIcon size={28} color="white" />
+              <View style={styles.radioIconGlow} />
             </View>
             <View style={styles.radioInfo}>
               <Text style={styles.radioTitle}>Mixx Party Radio</Text>
-              <Text style={styles.radioStatus}>{radioInfo.status}</Text>
+              <Text style={styles.radioSubtitle}>Musique électronique en continu • 24h/24</Text>
+              <View style={styles.radioStatusContainer}>
+                <View style={styles.radioStatusDot} />
+                <Text style={styles.radioStatusText}>LIVE</Text>
+              </View>
             </View>
-            <TouchableOpacity style={styles.radioPlayButton}>
-              <PlayIcon size={24} color="white" />
-            </TouchableOpacity>
           </View>
-          <View style={styles.radioTrackInfo}>
-            <Text style={styles.radioTrackTitle}>{radioInfo.currentTrack.title}</Text>
-            <Text style={styles.radioTrackArtist}>{radioInfo.currentTrack.artist}</Text>
+
+          {/* Statistiques */}
+          <View style={styles.radioStats}>
+            <View style={styles.radioStatItem}>
+              <View style={styles.radioStatHeader}>
+                <HeadphonesIcon size={16} color="#06B6D4" />
+                <Text style={styles.radioStatLabel}>Auditeurs</Text>
+              </View>
+              <Text style={styles.radioStatValue}>{radioService.formatListeners(radioData.stats.listeners)}</Text>
+            </View>
+            
+            <View style={styles.radioStatItem}>
+              <View style={styles.radioStatHeader}>
+                <View style={styles.radioStatDot} />
+                <Text style={styles.radioStatLabel}>Statut</Text>
+              </View>
+              <Text style={styles.radioStatValueLive}>LIVE</Text>
+            </View>
+            
+            <View style={styles.radioStatItem}>
+              <View style={styles.radioStatHeader}>
+                <View style={[styles.radioStatDot, { backgroundColor: '#8B5CF6' }]} />
+                <Text style={styles.radioStatLabel}>Qualité</Text>
+              </View>
+              <Text style={[styles.radioStatValueHD, { color: radioService.getQualityColor(radioData.stats.quality) }]}>
+                {radioData.stats.quality}
+              </Text>
+            </View>
+          </View>
+
+          {/* Bouton de contrôle principal */}
+          <TouchableOpacity 
+            style={[
+              styles.radioPlayButtonMain,
+              isRadioPlaying ? styles.radioPlayButtonStop : styles.radioPlayButtonPlay
+            ]}
+            onPress={handleRadioToggle}
+          >
+            <View style={styles.radioPlayButtonContent}>
+              {isRadioPlaying ? (
+                <>
+                  <PauseIcon size={24} color="white" />
+                  <Text style={styles.radioPlayButtonText}>Arrêter la Radio</Text>
+                </>
+              ) : (
+                <>
+                  <PlayIcon size={24} color="white" />
+                  <Text style={styles.radioPlayButtonText}>Écouter la Radio</Text>
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {/* Informations sur la piste actuelle */}
+          <View style={styles.radioTrackCard}>
+            <View style={styles.radioTrackHeader}>
+              <View style={styles.radioTrackDot} />
+              <Text style={styles.radioTrackHeaderText}>En cours de lecture</Text>
+            </View>
+            
+            <View style={styles.radioTrackContent}>
+              <View style={styles.radioTrackIcon}>
+                <RadioIcon size={32} color="#8B5CF6" />
+              </View>
+              <View style={styles.radioTrackInfo}>
+                <Text style={styles.radioTrackTitle} numberOfLines={2}>
+                  {radioData.currentTrack.title || 'Chargement...'}
+                </Text>
+                <Text style={styles.radioTrackArtist}>Mixx Party Radio</Text>
+                <Text style={styles.radioTrackUpdate}>
+                  Mis à jour: {radioService.getTimeSinceUpdate(radioData.lastUpdate)}
+                </Text>
+                <View style={styles.radioStatusIndicator}>
+                  <View style={styles.radioStatusDot} />
+                  <Text style={styles.radioStatusText}>Simulation réaliste</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Boutons d'action secondaires */}
+          <View style={styles.radioActions}>
+            <TouchableOpacity 
+              style={styles.radioActionButton}
+              onPress={() => setShowProgramDialog(true)}
+            >
+              <EyeIcon size={18} color="white" />
+              <Text style={styles.radioActionText}>Programme</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.radioActionButton, styles.radioActionButtonSecondary]}
+              onPress={() => {
+                // Fonctionnalité de partage
+                Share.share({
+                  title: 'Mixx Party Radio',
+                  message: 'Écoutez Mixx Party Radio en direct !',
+                  url: 'https://synaura.com'
+                });
+              }}
+            >
+              <ShareIcon size={18} color="white" />
+              <Text style={styles.radioActionText}>Partager</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -697,63 +868,278 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.6)',
     marginTop: 4,
   },
+  // Styles améliorés pour la section radio
   radioSection: {
     paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  radioSectionHeader: {
+    alignItems: 'center',
     marginBottom: 20,
   },
-  radioCard: {
-    backgroundColor: 'rgba(139, 92, 246, 0.2)',
-    borderRadius: 16,
-    padding: 20,
+  radioBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(6, 182, 212, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(139, 92, 246, 0.3)',
+    borderColor: 'rgba(6, 182, 212, 0.3)',
+    marginBottom: 12,
+  },
+  radioBadgeDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#06B6D4',
+    marginRight: 6,
+  },
+  radioBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#06B6D4',
+    marginRight: 6,
+  },
+  radioSectionTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  radioSectionSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255, 255, 255, 0.7)',
+    textAlign: 'center',
+  },
+  radioCard: {
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   radioHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 20,
   },
   radioIconContainer: {
-    width: 40,
-    height: 40,
+    width: 64,
+    height: 64,
     borderRadius: 20,
-    backgroundColor: 'rgba(139, 92, 246, 0.3)',
+    backgroundColor: 'rgba(6, 182, 212, 0.3)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 16,
+    position: 'relative',
+  },
+  radioIconGlow: {
+    position: 'absolute',
+    top: -2,
+    left: -2,
+    right: -2,
+    bottom: -2,
+    borderRadius: 22,
+    backgroundColor: 'rgba(6, 182, 212, 0.3)',
+    opacity: 0.5,
   },
   radioInfo: {
     flex: 1,
   },
   radioTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: 'white',
+    marginBottom: 4,
+  },
+  radioSubtitle: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginBottom: 8,
+  },
+  radioStatusContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  radioStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  radioStatItem: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  radioStatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  radioStatDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+  },
+  radioStatLabel: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '500',
+  },
+  radioStatValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#06B6D4',
+  },
+  radioStatValueLive: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#10B981',
+  },
+  radioStatValueHD: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#8B5CF6',
+  },
+  radioPlayButtonMain: {
+    height: 64,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  radioPlayButtonPlay: {
+    backgroundColor: '#8B5CF6',
+  },
+  radioPlayButtonStop: {
+    backgroundColor: '#EF4444',
+  },
+  radioPlayButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  radioPlayButtonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: 'white',
+    marginLeft: 8,
+  },
+  radioTrackCard: {
+    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139, 92, 246, 0.2)',
+  },
+  radioTrackHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  radioTrackDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: '#EF4444',
+    marginRight: 8,
+  },
+  radioTrackHeaderText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: 'white',
   },
-  radioStatus: {
-    fontSize: 12,
-    color: '#8B5CF6',
-    fontWeight: '600',
+  radioTrackContent: {
+    alignItems: 'center',
   },
-  radioPlayButton: {
-    width: 40,
-    height: 40,
+  radioTrackIcon: {
+    width: 80,
+    height: 80,
     borderRadius: 20,
-    backgroundColor: '#8B5CF6',
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  radioTrackInfo: {
+    alignItems: 'center',
+  },
+  radioTrackTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'white',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  radioTrackArtist: {
+    fontSize: 14,
+    color: 'rgba(139, 92, 246, 0.8)',
+  },
+  radioTrackUpdate: {
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.5)',
+    marginTop: 2,
+  },
+  radioStatusIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  radioStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3B82F6',
+    marginRight: 4,
+  },
+  radioStatusText: {
+    fontSize: 10,
+    color: '#3B82F6',
+    fontWeight: '500',
+  },
+  radioActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  radioActionButton: {
+    flex: 1,
+    backgroundColor: 'rgba(6, 182, 212, 0.2)',
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(6, 182, 212, 0.4)',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  radioTrackInfo: {
-    marginTop: 8,
+  radioActionButtonSecondary: {
+    backgroundColor: 'rgba(236, 72, 153, 0.2)',
+    borderColor: 'rgba(236, 72, 153, 0.4)',
   },
-  radioTrackTitle: {
+  radioActionText: {
     fontSize: 14,
-    color: 'white',
     fontWeight: '600',
-  },
-  radioTrackArtist: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.6)',
+    color: 'white',
+    marginLeft: 6,
   },
   categorySection: {
     marginBottom: 24,

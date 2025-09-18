@@ -1,0 +1,150 @@
+// hooks/useSunoWaiter.ts
+import { useEffect, useRef, useState } from "react";
+import { SunoRecordInfo } from "@/lib/suno";
+
+export type WaiterState = "idle" | "pending" | "first" | "success" | "error";
+
+export function useSunoWaiter(taskId?: string) {
+  const [state, setState] = useState<WaiterState>("idle");
+  const [tracks, setTracks] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const timer = useRef<any>(null);
+  const pollCount = useRef<number>(0);
+  const startTime = useRef<number>(Date.now());
+
+  useEffect(() => {
+    if (!taskId) {
+      setState("idle");
+      setTracks([]);
+      setError(null);
+      return;
+    }
+
+    setState("pending");
+    setError(null);
+    pollCount.current = 0;
+    startTime.current = Date.now();
+
+    // Poll toutes les 10–15s tant qu'on n'a pas SUCCESS/ERROR
+    const poll = async () => {
+      pollCount.current++;
+      
+      // Timeout de sécurité après 30 tentatives (5 minutes)
+      if (pollCount.current > 30) {
+        setState("error");
+        setError("Timeout: Impossible de récupérer les tracks après 5 minutes");
+        console.error("❌ Timeout polling après 30 tentatives");
+        return;
+      }
+      try {
+        console.log(`🔍 Polling Suno pour ${taskId}...`);
+        
+        const res = await fetch(`/api/suno/status?taskId=${encodeURIComponent(taskId)}`, { 
+          cache: "no-store",
+          credentials: 'include'
+        });
+        
+        const json = await res.json();
+        
+        if (!res.ok) {
+          throw new Error(json?.error || "Polling failed");
+        }
+
+        const status = json.status as string;
+        const tracks = json.tracks || [];
+        setTracks(tracks);
+
+        console.log(`📊 Status Suno: ${status}`);
+        console.log(`🎵 Tracks reçues:`, tracks);
+        console.log(`🎵 Nombre de tracks:`, tracks.length);
+        console.log(`🎵 JSON complet:`, json);
+
+        if (status === "FIRST_SUCCESS" || status === "first") {
+          setState("first");
+          console.log("🎵 Première piste terminée !");
+          // Continuer le polling pour la deuxième piste
+          timer.current = setTimeout(poll, 5000);
+          return;
+        }
+        
+        if (status === "SUCCESS" || status === "success") { 
+          // Vérifier si on a des tracks
+          console.log("🎯 Statut SUCCESS détecté, vérification des tracks...");
+          console.log("📊 Tracks disponibles:", tracks);
+          console.log("📊 JSON complet:", json);
+          
+          if (tracks && tracks.length > 0) {
+            // Sauvegarder les tracks en base de données
+            try {
+              const response = await fetch('/api/suno/save-tracks', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  taskId: taskId,
+                  tracks: tracks,
+                  status: 'completed'
+                }),
+              });
+              
+              if (response.ok) {
+                console.log("✅ Tracks sauvegardées en base de données");
+              } else {
+                console.error("❌ Erreur sauvegarde tracks:", await response.text());
+              }
+            } catch (error) {
+              console.error("❌ Erreur sauvegarde tracks:", error);
+            }
+            
+            setState("success"); 
+            console.log("✅ Génération terminée avec tracks !");
+            return; 
+          } else {
+            console.log("⚠️ Statut SUCCESS mais tracks vides, continuer le polling...");
+            // Continuer le polling pour récupérer les tracks
+            timer.current = setTimeout(poll, 5000);
+            return;
+          }
+        }
+        
+        if (status === "ERROR" || status === "error") {
+          setState("error");
+          setError(json.error || `Erreur: ${status}`);
+          console.error("❌ Erreur Suno:", status, json.error);
+          return;
+        }
+
+        // Polling intelligent avec délai adaptatif
+        const elapsed = Date.now() - startTime.current;
+        let delay = 12000; // Délai de base
+        
+        // Réduire la fréquence de polling au fil du temps
+        if (elapsed > 180000) { // Après 3 minutes
+          delay = 30000; // 30 secondes
+        } else if (elapsed > 120000) { // Après 2 minutes
+          delay = 20000; // 20 secondes
+        } else if (elapsed > 60000) { // Après 1 minute
+          delay = 15000; // 15 secondes
+        }
+        
+        timer.current = setTimeout(poll, delay);
+        
+      } catch (err: any) {
+        console.error("❌ Erreur polling:", err.message);
+        setError(err.message);
+        timer.current = setTimeout(poll, 15000);
+      }
+    };
+
+    poll();
+    
+    return () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+      }
+    };
+  }, [taskId]);
+
+  return { state, tracks, error };
+}

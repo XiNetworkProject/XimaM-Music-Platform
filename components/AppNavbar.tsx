@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useCallback, useEffect } from 'react';
-import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play } from 'lucide-react';
+import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioPlayer } from '../app/providers';
 
@@ -171,9 +171,9 @@ export default function AppNavbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--border)] bg-[var(--surface)]/80 backdrop-blur-xl">
-      <div className="mx-auto max-w-7xl px-4 md:px-6">
-        <div className="h-16 flex items-center gap-3">
+    <header className="sticky top-0 z-40">
+      <div className="mx-auto max-w-7xl px-4 md:px-6 py-2">
+        <div className="panel-suno rounded-2xl px-3 md:px-4 h-16 flex items-center gap-3 border border-[var(--border)]/80 bg-[var(--surface)]/60">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <Image src="/synaura_symbol.svg" alt="Synaura" width={28} height={28} priority />
@@ -189,7 +189,7 @@ export default function AppNavbar() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher des artistes, titres, genres..."
-                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg)]/60 border border-[var(--border)] text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)]"
+                className="w-full pl-9 pr-3 py-2 rounded-xl bg-[var(--bg)]/60 border border-[var(--border)] text-sm outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
               />
               
               {/* Résultats de recherche modale */}
@@ -200,7 +200,7 @@ export default function AppNavbar() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="absolute top-full left-0 right-0 mt-2 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl max-h-96 overflow-y-auto z-50"
+                    className="absolute top-full left-0 right-0 mt-2 panel-suno bg-[var(--surface)]/95 border border-[var(--border)] rounded-xl shadow-2xl max-h-96 overflow-y-auto z-50"
                   >
                     {/* Header des résultats */}
                     <div className="p-4 border-b border-[var(--border)]">
@@ -383,14 +383,18 @@ export default function AppNavbar() {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            <Link href="/upload" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white">
+            <Link href="/ai-generator" className="btn-suno inline-flex items-center gap-2">
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:block">IA</span>
+            </Link>
+            <Link href="/upload" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-md">
               <Plus className="w-4 h-4" />
               <span className="hidden sm:block">Uploader</span>
             </Link>
-            <button aria-label="Notifications" className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)]">
+            <button aria-label="Notifications" className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
               <Bell className="w-5 h-5" />
             </button>
-            <button aria-label="Toggle theme" onClick={toggleTheme} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)]">
+            <button aria-label="Toggle theme" onClick={toggleTheme} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>

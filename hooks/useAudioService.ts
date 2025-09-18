@@ -438,6 +438,12 @@ export const useAudioService = () => {
 
   // Fonction pour incrémenter les écoutes avec debounce et suivi
   const updatePlayCount = useCallback(async (trackId: string) => {
+    // Ignorer les pistes IA et éviter les doublons
+    if (trackId.startsWith('ai-')) {
+      console.log(`🎵 Piste IA détectée, pas de mise à jour des écoutes pour ${trackId}`);
+      return;
+    }
+    
     // Éviter les doublons pour la même piste
     if (trackedPlays.has(trackId)) {
       console.log(`🚫 Écoutes déjà en cours pour ${trackId}, ignoré`);
