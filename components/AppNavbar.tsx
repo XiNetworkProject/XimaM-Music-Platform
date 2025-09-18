@@ -172,12 +172,12 @@ export default function AppNavbar() {
 
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-auto max-w-7xl px-4 md:px-6 py-2">
-        <div className="panel-suno rounded-2xl px-3 md:px-4 h-16 flex items-center gap-3 border border-[var(--border)]/80 bg-[var(--surface)]/60">
+      <div className="mx-auto max-w-7xl px-2 sm:px-4 md:px-6 py-2">
+        <div className="panel-suno rounded-xl sm:rounded-2xl px-2 sm:px-3 md:px-4 h-14 sm:h-16 flex items-center gap-2 sm:gap-3 border border-[var(--border)]/80 bg-[var(--surface)]/60">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <Image src="/synaura_symbol.svg" alt="Synaura" width={28} height={28} priority />
-            <span className="hidden sm:block font-extrabold tracking-tight text-lg">Synaura</span>
+          <Link href="/" className="flex items-center gap-1 sm:gap-2">
+            <Image src="/synaura_symbol.svg" alt="Synaura" width={24} height={24} className="sm:w-7 sm:h-7" priority />
+            <span className="hidden sm:block font-extrabold tracking-tight text-base sm:text-lg">Synaura</span>
           </Link>
 
           {/* Search */}
@@ -381,20 +381,20 @@ export default function AppNavbar() {
             </div>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Link href="/ai-generator" className="btn-suno inline-flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:block">IA</span>
+          {/* Actions - Mobile optimisé */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <Link href="/ai-generator" className="btn-suno inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2">
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:block text-sm">IA</span>
             </Link>
-            <Link href="/upload" className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-md">
-              <Plus className="w-4 h-4" />
+            <Link href="/upload" className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-md">
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:block">Uploader</span>
             </Link>
-            <button aria-label="Notifications" className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
-              <Bell className="w-5 h-5" />
+            <button aria-label="Notifications" className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
+              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <button aria-label="Toggle theme" onClick={toggleTheme} className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
+            <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
           </div>

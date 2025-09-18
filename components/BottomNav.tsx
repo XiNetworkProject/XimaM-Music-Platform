@@ -122,8 +122,19 @@ export default function BottomNav() {
                 ))}
               </div>
 
-              {/* Actions rapides - Upload, Profil */}
+              {/* Actions rapides - Lecteur, Upload, Profil */}
               <div className="flex items-center gap-1 ml-2">
+                {/* Bouton lecteur mini */}
+                {!audioState.showPlayer && (
+                  <button
+                    onClick={() => setShowPlayer(true)}
+                    className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg flex items-center justify-center text-white"
+                    aria-label="Lecteur"
+                  >
+                    <Music size={16} />
+                  </button>
+                )}
+                
                 <button
                   onClick={() => router.push('/upload', { scroll: false })}
                   className="w-10 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg flex items-center justify-center text-white"
