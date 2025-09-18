@@ -442,7 +442,7 @@ export default function LibraryPage() {
   return (
     <div className="min-h-screen text-[var(--text)]">
       <main className="container mx-auto px-2 sm:px-4 pt-16 pb-32">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto overflow-hidden">
           {/* Header */}
           <div className="mb-10">
             <div className="flex items-center justify-between mb-4">
@@ -464,7 +464,7 @@ export default function LibraryPage() {
           </div>
           
           {/* Barre de recherche et contrôles */}
-          <div className="panel-suno border border-[var(--border)] rounded-xl p-6 mb-8">
+          <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6 mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               {/* Barre de recherche */}
               <div className="relative flex-1 max-w-xs sm:max-w-md">
@@ -514,8 +514,8 @@ export default function LibraryPage() {
             </div>
           </div>
           
-          {/* Onglets */}
-          <div className="panel-suno border border-[var(--border)] rounded-xl p-6 mb-8">
+            {/* Onglets */}
+            <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6 mb-8">
             <div className="flex space-x-1 bg-[var(--surface-2)] rounded-xl p-1">
               <button
                 onClick={() => setActiveTab('playlists')}
@@ -700,8 +700,8 @@ export default function LibraryPage() {
             )}
           </AnimatePresence>
 
-          {/* Contenu des onglets */}
-          <div className="panel-suno border border-[var(--border)] rounded-xl p-6">
+            {/* Contenu des onglets */}
+            <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6">
           <AnimatePresence mode="wait">
             {activeTab === 'playlists' && (
               <motion.div

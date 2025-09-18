@@ -750,7 +750,7 @@ export default function DiscoverPage() {
         transition={{ delay: 0.8 }}
         className="px-2 sm:px-4 md:px-6 py-8"
       >
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto overflow-hidden">
           {/* Mode d'affichage et tri - Style identique à l'accueil */}
           <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-4 mb-8">
             <div className="flex items-center gap-2 sm:gap-4">
@@ -865,7 +865,7 @@ export default function DiscoverPage() {
                {/* Container scrollable avec ID pour les contrôles */}
                <div 
                  id="categories-scroll"
-                 className="flex gap-2 sm:gap-4 overflow-x-auto pb-4 scroll-smooth"
+                 className="flex gap-2 sm:gap-4 overflow-x-auto pb-4 scroll-smooth scrollbar-hide"
                  style={{
                    scrollbarWidth: 'thin',
                    scrollbarColor: 'rgba(168, 85, 247, 0.5) transparent'
@@ -950,7 +950,7 @@ export default function DiscoverPage() {
         transition={{ delay: 1.0 }}
         className="px-2 sm:px-4 md:px-6 pb-16"
       >
-        <div className="max-w-7xl mx-auto">
+        <div className="max-w-7xl mx-auto overflow-hidden">
                      {isLoading ? (
              <div className="text-center py-20">
                {/* Spinner ultra-stylisé sans fond blanc */}
