@@ -155,10 +155,14 @@ export function useServiceWorkerPolling() {
     const maxAge = 30 * 60 * 1000; // 30 minutes
 
     setResults(prev => {
-      const newMap = new Map();
-      for (const [taskId, result] of prev.entries()) {
-        // Garder seulement les résultats récents
-        if (result.status === 'SUCCESS' || result.status === 'success') {
+      const newMap = new Map<string, PollingResult>();
+      // Remplacer l'itération for...of par un spread compatible ES5
+      const entries = Array.from(prev.entries());
+      for (let i = 0; i < entries.length; i++) {
+        const tuple = entries[i];
+        const taskId = tuple[0];
+        const result = tuple[1];
+        if (result && (result.status === 'SUCCESS' || result.status === 'success')) {
           newMap.set(taskId, result);
         }
       }
