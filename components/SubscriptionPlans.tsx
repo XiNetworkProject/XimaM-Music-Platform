@@ -370,8 +370,7 @@ export default function SubscriptionPlans() {
           )}
 
           {/* Current Plan Status (Suno-like header) */}
-          {currentSubscription?.hasSubscription && (
-            <motion.div
+          <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05 }}
@@ -380,43 +379,44 @@ export default function SubscriptionPlans() {
               <div className="flex w-full flex-col items-center gap-4 max-[1125px]:justify-center min-[1125px]:justify-between md:flex-row md:flex-wrap">
                 <div className="space-between flex flex-row divide-x divide-white/10">
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-gray-800/60">Current Plan</span>
-                    <span className="text-sm text-gray-950/90">{currentSubscription.subscription?.name || '—'}</span>
+                    <span className="text-xs text-[var(--text-muted)]">Current Plan</span>
+                    <span className="text-sm text-[var(--text)]">{(currentSubscription?.subscription?.name || 'Free Plan')}</span>
                   </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-gray-800/60">Billing Period</span>
-                    <span className="text-sm text-gray-950/90">{currentSubscription.subscription?.interval === 'month' ? 'Month' : 'Year'}</span>
+                    <span className="text-xs text-[var(--text-muted)]">Billing Period</span>
+                    <span className="text-sm text-[var(--text)]">{currentSubscription?.subscription?.interval === 'month' ? 'Month' : currentSubscription?.subscription?.interval === 'year' ? 'Year' : '—'}</span>
                   </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-gray-800/60">Next Billing Date</span>
-                    <span className="text-sm text-gray-950/90">
+                    <span className="text-xs text-[var(--text-muted)]">Next Billing Date</span>
+                    <span className="text-sm text-[var(--text)]">
                       <span className="flex w-full flex-row items-center gap-2">
                         <Calendar size={16} className="hidden md:block" />
-                        {new Date(currentSubscription.userSubscription?.currentPeriodEnd || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        {(currentSubscription?.userSubscription?.currentPeriodEnd
+                          ? new Date(currentSubscription.userSubscription.currentPeriodEnd)
+                          : null)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || '—'}
                       </span>
                     </span>
                   </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-gray-800/60">Credits Remaining</span>
-                    <span className="text-sm text-gray-950/90">{currentSubscription.userSubscription?.usage?.uploads ?? 0}</span>
+                    <span className="text-xs text-[var(--text-muted)]">Credits Remaining</span>
+                    <span className="text-sm text-[var(--text)]">{currentSubscription?.userSubscription?.usage?.uploads ?? 0}</span>
                   </div>
                 </div>
                 <div className="flex flex-row justify-center gap-2">
-                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50">
+                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent hover:before:bg-[var(--surface-3)]">
                     <span className="relative flex flex-row items-center justify-center gap-2">Cancel subscription</span>
                   </button>
-                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50">
+                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent hover:before:bg-[var(--surface-3)]">
                     <span className="relative flex flex-row items-center justify-center gap-2">Update payment</span>
                   </button>
                   <div className="flex">
-                    <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-background-primary bg-foreground-primary enabled:hover:before:bg-overlay-on-light disabled:after:bg-background-primary disabled:after:opacity-50">
+                    <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--bg)] bg-[var(--text)] hover:opacity-90">
                       <span className="relative flex flex-row items-center justify-center gap-2">Buy more credits</span>
                     </button>
                   </div>
                 </div>
               </div>
             </motion.div>
-          )}
 
           {/* Usage Info */}
           {usageInfo && (
