@@ -16,10 +16,9 @@ import {
   Play, Heart, Pause, Headphones, 
   Users, TrendingUp, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Mic2, Share2, Eye, 
-  X, MessageCircle, ChevronLeft, ChevronRight, MoreHorizontal
+  X, MessageCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
 
 interface Track {
   _id: string;
@@ -87,6 +86,14 @@ export default function HomePage() {
   const [autoProgress, setAutoProgress] = useState(0);
   const [isCarouselInView, setIsCarouselInView] = useState(true);
   const rafRef = useRef<number | null>(null);
+  const newSongsRef = useRef<HTMLDivElement>(null);
+
+  const scrollNewSongs = useCallback((direction: 'left' | 'right') => {
+    const el = newSongsRef.current;
+    if (!el) return;
+    const cardWidth = 172 + 12; // largeur de carte + interstice approx
+    el.scrollBy({ left: (direction === 'left' ? -1 : 1) * cardWidth * 3, behavior: 'smooth' });
+  }, []);
 
   // États pour les différentes catégories avec cache
   const [categories, setCategories] = useState<Record<string, CategoryData>>({
@@ -205,23 +212,6 @@ export default function HomePage() {
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
-
-  // Debug: Vérifier les données disponibles
-  const newSongsData = useMemo(() => {
-    const data = featuredTracks?.length > 0 ? featuredTracks : 
-                 categories.trending.tracks.length > 0 ? categories.trending.tracks : 
-                 categories.popular.tracks;
-    console.log('🎵 New Songs Data DEBUG:', {
-      featuredCount: featuredTracks?.length || 0,
-      trendingCount: categories.trending.tracks.length,
-      popularCount: categories.popular.tracks.length,
-      selectedData: data?.length || 0,
-      loading,
-      categories: Object.keys(categories).map(key => ({ key, count: categories[key].tracks.length })),
-      shouldShow: !loading && data && data.length > 0
-    });
-    return data;
-  }, [featuredTracks, categories.trending.tracks, categories.popular.tracks, loading]);
 
   // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
   useEffect(() => {
@@ -2044,185 +2034,83 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Section Nouvelles Musiques - Style Suno */}
-      {console.log('🎵 Render condition check:', { loading, newSongsData: newSongsData?.length, shouldRender: !loading && newSongsData && newSongsData.length > 0 })}
-      {/* Test: Affichage forcé pour debug */}
-      <div className="container mx-auto px-2 sm:px-4 md:px-6 mb-8 sm:mb-12 bg-red-500/20 p-4 rounded">
-        <h2 className="text-white text-xl mb-4">🎵 DEBUG - Section Nouvelles Musiques</h2>
-        <p className="text-white">Loading: {loading ? 'true' : 'false'}</p>
-        <p className="text-white">NewSongsData length: {newSongsData?.length || 0}</p>
-        <p className="text-white">Featured: {featuredTracks?.length || 0}</p>
-        <p className="text-white">Trending: {categories.trending.tracks.length}</p>
-        <p className="text-white">Popular: {categories.popular.tracks.length}</p>
-      </div>
-      {!loading && newSongsData && newSongsData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="container mx-auto px-2 sm:px-4 md:px-6 mb-8 sm:mb-12"
-        >
+      {/* New Songs - Carrousel horizontal inspiré Suno */}
+      {categories.recent?.tracks?.length > 0 && (
+        <section className="container mx-auto px-2 sm:px-4 md:px-6">
           <div className="h-full w-full overflow-hidden">
             <div className="mb-2 flex w-full flex-row justify-between pb-2">
               <div className="flex items-center gap-4">
-                <h1 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">Nouvelles Musiques</h1>
+                <h2 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">New Songs</h2>
+              </div>
+              <div className="hidden sm:flex items-center gap-2">
+                <button aria-label="Scroll left" onClick={() => scrollNewSongs('left')} className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75">
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1"><path d="m9.398 12.005 6.194-6.193q.315-.316.305-.748a1.06 1.06 0 0 0-.326-.748Q15.255 4 14.823 4t-.748.316l-6.467 6.488a1.7 1.7 0 0 0-.38.57 1.7 1.7 0 0 0-.126.631q0 .315.127.632.126.315.379.569l6.488 6.488q.316.316.738.306a1.05 1.05 0 0 0 .737-.327q.316-.316.316-.748t-.316-.748z"/></svg>
+                  </span>
+                </button>
+                <button aria-label="Scroll right" onClick={() => scrollNewSongs('right')} className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75">
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1"><path d="M14.602 12.005 8.407 5.812a.99.99 0 0 1-.305-.748q.01-.432.326-.748T9.177 4t.748.316l6.467 6.488q.253.253.38.57.126.315.126.631 0 .315-.127.632-.126.315-.379.569l-6.488 6.488a.97.97 0 0 1-.738.306 1.05 1.05 0 0 1-.737-.327q-.316-.316-.316-.748t.316-.748z"/></svg>
+                  </span>
+                </button>
               </div>
             </div>
-            
             <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
-              {/* Bouton scroll gauche */}
-              <button className="absolute top-0 left-0 z-20 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-none opacity-0" aria-label="Scroll left">
-                <div className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
-                  <span className="relative flex flex-row items-center justify-center gap-2">
-                    <ChevronLeft className="w-4 h-4" />
-                  </span>
-                </div>
-              </button>
-
-              {/* Container avec masque de dégradé */}
-              <div className="h-full w-full overflow-hidden" style={{ maskImage: 'linear-gradient(to right, black, black 80%, transparent)', maskSize: '100% 100%' }}>
-                <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
-                  <section className="flex h-auto w-full overflow-x-auto scroll-smooth scrollbar-hide" style={{ position: 'relative', height: '384px', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}>
-                    <div className="flex gap-4 px-2">
-                      {newSongsData.slice(0, 12).map((track, index) => (
-                        <div key={track._id} className="relative flex w-[172px] shrink-0 cursor-pointer flex-col">
-                          {/* Cover avec overlay */}
-                          <div className="relative mb-4 cursor-pointer group">
-                            <div className="relative h-[256px] w-full overflow-hidden rounded-xl">
-                              <img
-                                alt={`Image for ${track.title}`}
-                                src={getValidImageUrl(track.coverUrl, '/default-cover.jpg')}
-                                className="absolute inset-0 h-full w-full rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                                }}
-                              />
-                            </div>
-                            
-                            {/* Overlay avec bouton play */}
-                            <div className="absolute inset-0 z-20 group">
-                              <button 
-                                onClick={() => handlePlayTrack(track)}
-                                className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-[var(--surface)]/60 backdrop-blur-xl border-none outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300 scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100"
-                              >
-                                {currentTrack?._id === track._id && audioState.isPlaying ? (
-                                  <Pause className="h-5 w-5 text-white" />
-                                ) : (
-                                  <Play className="h-5 w-5 text-white" />
-                                )}
-                              </button>
-                              
-                              {/* Badges en haut */}
-                              <div className="absolute inset-x-2 top-2 flex flex-row items-center gap-1">
-                                <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding border border-[var(--border)] text-white bg-black/30 inline-flex w-auto border-none">
-                                  <div>{formatDuration(track.duration)}</div>
-                                </div>
+              <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_90%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
+                <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-3" ref={newSongsRef}>
+                  {categories.recent.tracks.map((track) => (
+                    <div key={track._id} className="relative flex w-[172px] shrink-0 cursor-pointer flex-col" onClick={() => handlePlayTrack(track)}>
+                      <div className="relative mb-4 cursor-pointer">
+                        <div className="relative h-[256px] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+                          <img alt={track.title} src={track.coverUrl || '/default-cover.jpg'} className="absolute inset-0 h-full w-full rounded-xl object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                          <div className="absolute inset-0 z-20">
+                            <button className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-[var(--surface-2)]/60 backdrop-blur-xl border border-[var(--border)] outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-[var(--text)]"><path d="M6 18.705V5.294q0-.55.415-.923Q6.829 4 7.383 4q.173 0 .363.049.189.048.363.145L19.378 10.9a1.285 1.285 0 0 1 0 2.202l-11.27 6.705a1.5 1.5 0 0 1-.725.194q-.554 0-.968-.372A1.19 1.19 0 0 1 6 18.704"/></svg>
+                            </button>
+                            <div className="absolute inset-x-2 top-2 flex flex-row items-center gap-1">
+                              <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding border border-[var(--border)] text-[var(--text)] bg-black/30 inline-flex w-auto">
+                                <div>{formatDuration(track.duration)}</div>
                               </div>
-                            </div>
-                          </div>
-
-                          {/* Informations de la piste */}
-                          <div className="flex w-full flex-col">
-                            {/* Titre avec bouton options */}
-                            <div className="line-clamp-1 w-full cursor-pointer font-sans text-base font-medium text-[var(--text)] hover:underline font-500 text-md leading-[24px] font-normal flex items-center justify-between">
-                              <div className="min-w-0 flex-1 overflow-hidden text-ellipsis">
-                                <button
-                                  onClick={() => handlePlayTrack(track)}
-                                  className="block overflow-hidden text-ellipsis whitespace-nowrap hover:underline text-left w-full"
-                                  title={track.title}
-                                >
-                                  {track.title}
-                                </button>
-                              </div>
-                              <button
-                                type="button"
-                                className="cursor-pointer rounded-full outline-none p-0.5"
-                                aria-label="More Options"
-                              >
-                                <MoreHorizontal className="w-4 h-4 text-[var(--text)]" />
-                              </button>
-                            </div>
-
-                            {/* Genres */}
-                            <div>
-                              <div className="gap-2 font-sans break-all mb-1 line-clamp-1 flex-nowrap text-[var(--text-muted)] text-[14px] leading-[20px] font-normal">
-                                <div>
-                                  {Array.isArray(track.genre) && track.genre.length > 0 ? (
-                                    track.genre.slice(0, 3).map((genre, idx) => (
-                                      <span key={idx}>
-                                        <span className="hover:underline cursor-pointer">{genre}</span>
-                                        {idx < Math.min(track.genre?.length || 0, 3) - 1 && ', '}
-                                      </span>
-                                    ))
-                                  ) : (
-                                    <span className="hover:underline cursor-pointer">Electronic</span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Stats */}
-                            <div className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
-                              <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
-                                <Play className="h-[12px] w-[12px]" />
-                                <span className="text-[12px] leading-4 font-medium font-normal">{formatNumber(track.plays || 0)}</span>
-                              </div>
-                              <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
-                                <Heart className="h-[12px] w-[12px]" />
-                                <span className="text-[12px] leading-4 font-medium font-normal">{formatNumber(track.likes || 0)}</span>
-                              </div>
-                              <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
-                                <MessageCircle className="h-[12px] w-[12px]" />
-                                <span className="text-[12px] leading-4 font-medium font-normal">{track.comments?.length || 0}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Artiste */}
-                          <div className="mt-1 flex w-full items-center justify-between">
-                            <div className="flex w-fit flex-row items-center gap-2 font-sans text-sm font-medium text-[var(--text)]">
-                              <div className="relative h-8 shrink-0 aspect-square">
-                                <button
-                                  onClick={() => router.push(`/profile/${track.artist?.username}`, { scroll: false })}
-                                  className="hover:underline relative z-10 block aspect-square h-full"
-                                >
-                                  <img
-                                    alt="Profile avatar"
-                                    src={getValidImageUrl(track.artist?.avatar, '/default-avatar.png')}
-                                    className="rounded-full h-full w-full object-cover p-1"
-                                    onError={(e) => {
-                                      (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-                                    }}
-                                  />
-                                </button>
-                              </div>
-                              <button
-                                onClick={() => router.push(`/profile/${track.artist?.username}`, { scroll: false })}
-                                className="hover:underline line-clamp-1 max-w-fit break-all"
-                                title={track.artist?.name || track.artist?.username}
-                              >
-                                {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                              </button>
                             </div>
                           </div>
                         </div>
-                      ))}
+                      </div>
+                      <div className="flex w-full flex-col">
+                        <div className="line-clamp-1 w-full font-sans text-base font-medium text-[var(--text)] hover:underline leading-[24px] flex items-center justify-between">
+                          <div className="min-w-0 flex-1 overflow-hidden text-ellipsis" title={track.title}>{track.title || 'Titre inconnu'}</div>
+                        </div>
+                        <div className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
+                          <div className="flex items-center gap-[2px]">
+                            <Headphones size={12} />
+                            <span className="text-[12px] leading-4 font-medium">{formatNumber(track.plays)}</span>
+                          </div>
+                          <div className="flex items-center gap-[2px]">
+                            <Heart size={12} />
+                            <span className="text-[12px] leading-4 font-medium">{formatNumber(track.likes || 0)}</span>
+                          </div>
+                          <div className="flex items-center gap-[2px]">
+                            <MessageCircle size={12} />
+                            <span className="text-[12px] leading-4 font-medium">{track.comments?.length || 0}</span>
+                          </div>
+                        </div>
+                        <div className="mt-1 flex w-full items-center justify-between">
+                          <div className="flex w-fit flex-row items-center gap-2 font-sans text-sm font-medium text-[var(--text)]">
+                            <div className="relative h-8 shrink-0 aspect-square">
+                              <img alt="Profile avatar" src={track.artist?.avatar || '/default-avatar.png'} className="rounded-full h-full w-full object-cover p-1" />
+                            </div>
+                            <span className="line-clamp-1 max-w-fit break-all" title={track.artist?.name || track.artist?.username || 'Artiste inconnu'}>
+                              {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </section>
-                </div>
+                  ))}
+                </section>
               </div>
-
-              {/* Bouton scroll droite */}
-              <button className="absolute top-0 right-0 z-20 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100" aria-label="Scroll right">
-                <div className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
-                  <span className="relative flex flex-row items-center justify-center gap-2">
-                    <ChevronRight className="w-4 h-4" />
-                  </span>
-                </div>
-              </button>
             </div>
           </div>
-        </motion.div>
+        </section>
       )}
 
       {/* Sections de catégories améliorées */}
