@@ -211,12 +211,14 @@ export default function HomePage() {
     const data = featuredTracks?.length > 0 ? featuredTracks : 
                  categories.trending.tracks.length > 0 ? categories.trending.tracks : 
                  categories.popular.tracks;
-    console.log('🎵 New Songs Data:', {
+    console.log('🎵 New Songs Data DEBUG:', {
       featuredCount: featuredTracks?.length || 0,
       trendingCount: categories.trending.tracks.length,
       popularCount: categories.popular.tracks.length,
       selectedData: data?.length || 0,
-      loading
+      loading,
+      categories: Object.keys(categories).map(key => ({ key, count: categories[key].tracks.length })),
+      shouldShow: !loading && data && data.length > 0
     });
     return data;
   }, [featuredTracks, categories.trending.tracks, categories.popular.tracks, loading]);
@@ -2043,6 +2045,16 @@ export default function HomePage() {
       </div>
 
       {/* Section Nouvelles Musiques - Style Suno */}
+      {console.log('🎵 Render condition check:', { loading, newSongsData: newSongsData?.length, shouldRender: !loading && newSongsData && newSongsData.length > 0 })}
+      {/* Test: Affichage forcé pour debug */}
+      <div className="container mx-auto px-2 sm:px-4 md:px-6 mb-8 sm:mb-12 bg-red-500/20 p-4 rounded">
+        <h2 className="text-white text-xl mb-4">🎵 DEBUG - Section Nouvelles Musiques</h2>
+        <p className="text-white">Loading: {loading ? 'true' : 'false'}</p>
+        <p className="text-white">NewSongsData length: {newSongsData?.length || 0}</p>
+        <p className="text-white">Featured: {featuredTracks?.length || 0}</p>
+        <p className="text-white">Trending: {categories.trending.tracks.length}</p>
+        <p className="text-white">Popular: {categories.popular.tracks.length}</p>
+      </div>
       {!loading && newSongsData && newSongsData.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
