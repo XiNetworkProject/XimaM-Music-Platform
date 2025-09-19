@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { 
   Crown, Star, Zap, Music, Headphones, MessageCircle, 
   Upload, Play, Check, X, ChevronRight, Sparkles,
-  Shield, Users, Globe, Radio, Award, Target, CheckCircle
+  Shield, Users, Globe, Radio, Award, Target, CheckCircle, Calendar
 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
@@ -369,67 +369,51 @@ export default function SubscriptionPlans() {
             </motion.div>
           )}
 
-          {/* Current Plan Status */}
+          {/* Bandeau infos plan courant - style Suno */}
           {currentSubscription?.hasSubscription && (
             <motion.div
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.1 }}
-              className="panel-suno rounded-2xl p-6 mb-8 border border-[var(--border)]"
+              transition={{ duration: 0.4, delay: 0.05 }}
+              className="w-full rounded-2xl p-4 md:p-5 backdrop-blur-lg bg-white/5 border border-[var(--border)]"
             >
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
-                  <CheckCircle size={20} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    Votre abonnement actuel : {currentSubscription.subscription?.name ? currentSubscription.subscription.name.charAt(0).toUpperCase() + currentSubscription.subscription.name.slice(1) : 'Inconnu'}
-                  </h2>
-                  {getCurrentPlanStatus() && (
-                    <p className={`text-sm ${getCurrentPlanStatus()?.color}`}>
-                      {getCurrentPlanStatus()?.text}
-                    </p>
-                  )}
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6 text-[var(--text)]">
-                <div className="text-center">
-                  <div className="text-gray-300">Période</div>
-                  <div className="text-white font-semibold">
-                    {new Date(currentSubscription.userSubscription?.currentPeriodStart || '').toLocaleDateString('fr-FR')} - {new Date(currentSubscription.userSubscription?.currentPeriodEnd || '').toLocaleDateString('fr-FR')}
+              <div className="flex w-full flex-col items-center gap-4 md:flex-row md:flex-wrap max-[1125px]:justify-center min-[1125px]:justify-between">
+                <div className="space-between flex flex-row divide-x divide-white/10">
+                  <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                    <span className="text-xs text-[var(--text-muted)]">Current Plan</span>
+                    <span className="text-sm text-[var(--text)]">{currentSubscription.subscription?.name || '—'}</span>
+                  </div>
+                  <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                    <span className="text-xs text-[var(--text-muted)]">Billing Period</span>
+                    <span className="text-sm text-[var(--text)]">{currentSubscription.subscription?.interval === 'month' ? 'Month' : 'Year'}</span>
+                  </div>
+                  <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                    <span className="text-xs text-[var(--text-muted)]">Next Billing Date</span>
+                    <span className="text-sm text-[var(--text)]">
+                      <span className="flex w-full flex-row items-center gap-2">
+                        <Calendar size={16} className="hidden md:block" />
+                        {new Date(currentSubscription.userSubscription?.currentPeriodEnd || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                    </span>
+                  </div>
+                  <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                    <span className="text-xs text-[var(--text-muted)]">Credits Remaining</span>
+                    <span className="text-sm text-[var(--text)]">{currentSubscription.userSubscription?.usage?.uploads ?? 0}</span>
                   </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-gray-300">Prix</div>
-                  <div className="text-white font-semibold">
-                    {currentSubscription.subscription?.price}€/{currentSubscription.subscription?.interval}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-300">Qualité audio</div>
-                  <div className="text-white font-semibold">
-                    {getQualityLabel(currentSubscription.subscription?.limits.audioQuality || '128kbps')}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-300">Support</div>
-                  <div className="text-white font-semibold">
-                    {currentSubscription.subscription?.limits.support || 'Community'}
-                  </div>
-                </div>
-              </div>
 
-              {/* Fonctionnalités de l'abonnement actuel */}
-              <div className="border-t border-gray-700 pt-6">
-                <h3 className="text-lg font-semibold text-white mb-4">Vos fonctionnalités incluses :</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {currentSubscription.subscription?.features?.map((feature, index) => (
-                    <div key={index} className="flex items-center text-sm">
-                      <Check size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                      <span className="text-gray-300">{feature}</span>
-                    </div>
-                  ))}
+                <div className="flex flex-row justify-center gap-2">
+                  <button type="button" className="relative inline-block font-sans font-medium text-center select-none px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] hover:before:bg-[var(--surface-3)] transition">
+                    <span className="relative flex flex-row items-center justify-center gap-2">Cancel subscription</span>
+                  </button>
+                  <button type="button" className="relative inline-block font-sans font-medium text-center select-none px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] hover:before:bg-[var(--surface-3)] transition">
+                    <span className="relative flex flex-row items-center justify-center gap-2">Update payment</span>
+                  </button>
+                  <div className="flex">
+                    <button type="button" className="relative inline-block font-sans font-medium text-center select-none px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--bg)] bg-[var(--text)] hover:opacity-90 transition">
+                      <span className="relative flex flex-row items-center justify-center gap-2">Buy more credits</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
