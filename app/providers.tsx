@@ -241,6 +241,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Ecoute globale: si playsUpdated vient d'ailleurs, synchroniser l'état du player
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { trackId, plays } = e.detail || {};
+      if (!trackId || typeof plays !== 'number') return;
+      setAudioState(prev => {
+        const newTracks = prev.tracks.map((t) => t._id === trackId ? { ...t, plays } : t);
+        return { ...prev, tracks: newTracks };
+      });
+    };
+    window.addEventListener('playsUpdated', handler as EventListener);
+    return () => window.removeEventListener('playsUpdated', handler as EventListener);
+  }, []);
+
   const playTrack = useCallback(async (trackIdOrTrack: string | Track) => {
     let trackId: string;
     let trackData: Track | undefined;

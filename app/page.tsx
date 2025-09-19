@@ -213,6 +213,29 @@ export default function HomePage() {
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
 
+  // Synchronisation temps réel pour les listes d'accueil
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { trackId, plays } = e.detail || {};
+      if (!trackId || typeof plays !== 'number') return;
+      setCategories(prev => {
+        const next = { ...prev } as any;
+        Object.keys(next).forEach((k) => {
+          if (!next[k]?.tracks) return;
+          next[k] = {
+            ...next[k],
+            tracks: next[k].tracks.map((t: any) => t._id === trackId ? { ...t, plays } : t)
+          };
+        });
+        return next;
+      });
+      setDailyDiscoveries(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+      setCollaborations(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+    };
+    window.addEventListener('playsUpdated', handler as EventListener);
+    return () => window.removeEventListener('playsUpdated', handler as EventListener);
+  }, []);
+
   // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
   useEffect(() => {
     const updateTrackStats = async () => {
