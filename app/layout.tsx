@@ -97,7 +97,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
       </head>
-      <body className={`theme-suno ${inter.className}`}>
+          <body className={`theme-suno ${inter.className} overflow-x-hidden max-w-full`}>
         <Providers>
           {/* Aurora background (fixed layers) */}
           <div className="aurora-bg" aria-hidden>
@@ -107,11 +107,11 @@ export default function RootLayout({
             <div className="aurora-vignette"></div>
           </div>
 
-          <div className="flex min-h-screen">
+          <div className="flex min-h-screen overflow-x-hidden max-w-full">
             <AppSidebar />
-            <div className="flex-1 flex flex-col lg:pl-72">
+            <div className="flex-1 flex flex-col lg:pl-72 overflow-x-hidden max-w-full">
               <AppNavbar />
-              <main className="flex-1">
+              <main className="flex-1 overflow-x-hidden max-w-full">
                 {children}
               </main>
               <BottomNav />
