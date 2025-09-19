@@ -1825,14 +1825,7 @@ export default function HomePage() {
 
       {/* Section type Suno: colonnes For You / Suggested Creators / Trending */}
       <div className="opacity-100" style={{ transform: 'none' }}>
-        <div
-          className="flex flex-col gap-4 mt-4 pb-4"
-          style={{
-            ['--carousel-columns' as any]: 'clamp(1, 100vw / 300px, 3)',
-            ['--carousel-gap' as any]: 'clamp(0.5rem, 2vw, 1.5rem)',
-            ['--carousel-column-width' as any]: 'clamp(280px, calc((100vw - 4rem) / var(--carousel-columns)), 400px)'
-          }}
-        >
+        <div className="flex flex-col gap-4 mt-4 pb-4 w-full max-w-full overflow-hidden">
           <div className="flex flex-row items-center justify-start gap-2">
             <div className="flex-1" />
           </div>
@@ -1840,9 +1833,9 @@ export default function HomePage() {
           <div className="relative flex-1 overflow-hidden">
             <div className="w-full">
               <div>
-                <div className="flex flex-col sm:grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex flex-col gap-4 w-full max-w-full overflow-hidden sm:grid sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   {/* Colonne 1: For You */}
-                  <div>
+                  <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
                       <div className="flex flex-row justify-between items-center">
                         <button
@@ -1920,7 +1913,7 @@ export default function HomePage() {
                   </div>
 
                   {/* Colonne 2: Suggested Creators */}
-                  <div>
+                  <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
                       <div className="flex flex-row justify-between items-center">
                         <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Suggested Creators</div>
@@ -1954,7 +1947,7 @@ export default function HomePage() {
                   </div>
 
                   {/* Colonne 3: Trending */}
-                  <div>
+                  <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
                       <div className="flex flex-row justify-between items-center">
                         <button
@@ -2055,13 +2048,13 @@ export default function HomePage() {
                 </button>
               </div>
             </div>
-            <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
+            <div className="relative w-full overflow-hidden" style={{ height: '20rem' }}>
               <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_90%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
-                <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-3" ref={newSongsRef}>
+                <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-3 px-1" ref={newSongsRef}>
                   {categories.recent.tracks.map((track) => (
-                    <div key={track._id} className="relative flex w-[172px] shrink-0 cursor-pointer flex-col" onClick={() => handlePlayTrack(track)}>
+                    <div key={track._id} className="relative flex w-[140px] sm:w-[172px] shrink-0 cursor-pointer flex-col" onClick={() => handlePlayTrack(track)}>
                       <div className="relative mb-4 cursor-pointer">
-                        <div className="relative h-[256px] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+                        <div className="relative h-[200px] sm:h-[256px] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
                           <img alt={track.title} src={track.coverUrl || '/default-cover.jpg'} className="absolute inset-0 h-full w-full rounded-xl object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
                           <div className="absolute inset-0 z-20">
                             <button className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-[var(--surface-2)]/60 backdrop-blur-xl border border-[var(--border)] outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300">
