@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export async function GET(
   request: NextRequest,
@@ -56,6 +58,8 @@ export async function POST(
 ) {
   try {
     const trackId = params.id;
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id || null;
 
     // Gestion spéciale pour la radio
     if (trackId === 'radio-mixx-party') {
@@ -103,6 +107,44 @@ export async function POST(
       );
     }
 
+    // Enregistrer la vue pour les stats (y compris anonymes)
+    {
+      const ua = request.headers.get('user-agent') || '';
+      const device = /mobile|iphone|android/i.test(ua)
+        ? 'mobile'
+        : /ipad|tablet/i.test(ua)
+        ? 'tablet'
+        : 'desktop';
+
+      const headerCountry =
+        request.headers.get('x-vercel-ip-country') ||
+        request.headers.get('cf-ipcountry') ||
+        request.headers.get('x-geo-country') ||
+        null;
+      let country = (headerCountry || '').toUpperCase() || null;
+
+      const acceptLang = request.headers.get('accept-language') || '';
+      if (!country) country = extractCountryFromAcceptLanguage(acceptLang);
+
+      const xff = request.headers.get('x-forwarded-for') || '';
+      const ip = (xff.split(',')[0] || '').trim() || null;
+      if (!country && ip) {
+        country = await lookupCountryFromIp(ip, 400).catch(() => null);
+      }
+
+      const viewerId = userId || '00000000-0000-0000-0000-000000000000';
+      const insertPayload: any = { track_id: trackId, user_id: viewerId, device, user_agent: ua };
+      if (country) insertPayload.country = country;
+      if (ip) insertPayload.ip = ip;
+
+      const { error: viewError } = await supabaseAdmin
+        .from('track_views')
+        .insert(insertPayload);
+      if (viewError) {
+        console.warn('⚠️ Erreur insertion track_views:', viewError);
+      }
+    }
+
     console.log(`✅ Lectures incrémentées pour la piste ${trackId}: ${newPlays}`);
     return NextResponse.json({ plays: newPlays });
 
@@ -112,5 +154,34 @@ export async function POST(
       { error: 'Erreur serveur interne' },
       { status: 500 }
     );
+  }
+}
+
+function extractCountryFromAcceptLanguage(al: string): string | null {
+  // Exemples: "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7"
+  const first = al.split(',')[0]?.trim();
+  if (!first) return null;
+  const parts = first.split('-');
+  if (parts.length === 2) return parts[1].toUpperCase();
+  // fallback: code langue -> pays par défaut
+  const lang = parts[0]?.toLowerCase();
+  if (!lang) return null;
+  const map: Record<string, string> = { fr: 'FR', en: 'US', es: 'ES', de: 'DE', it: 'IT' };
+  return map[lang] || null;
+}
+
+async function lookupCountryFromIp(ip: string, timeoutMs = 400): Promise<string | null> {
+  try {
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
+    // ipapi.co est simple; vous pouvez passer à ipinfo ou un provider pro si besoin
+    const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/country/`, { signal: controller.signal });
+    clearTimeout(t);
+    if (!res.ok) return null;
+    const text = (await res.text()).trim();
+    if (/^[A-Z]{2}$/.test(text)) return text;
+    return null;
+  } catch {
+    return null;
   }
 }
