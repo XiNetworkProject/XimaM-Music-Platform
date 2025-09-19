@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // GET /api/tracks/[id]/like - Vérifier l'état du like (version simplifiée)
 export async function GET(
@@ -30,7 +30,7 @@ export async function GET(
     }
 
     // Vérifier si l'utilisateur a liké
-    const { data: likeRow, error: likeErr } = await supabase
+    const { data: likeRow, error: likeErr } = await supabaseAdmin
       .from('track_likes')
       .select('id')
       .eq('track_id', trackId)
@@ -42,7 +42,7 @@ export async function GET(
     }
 
     // Récupérer le compteur depuis track_stats (créé par triggers)
-    const { data: stats, error: statsErr } = await supabase
+    const { data: stats, error: statsErr } = await supabaseAdmin
       .from('track_stats')
       .select('likes_count')
       .eq('track_id', trackId)
@@ -94,7 +94,7 @@ export async function POST(
     }
 
     // Toggle like: si existe -> delete, sinon -> insert
-    const { data: existing, error: exErr } = await supabase
+    const { data: existing, error: exErr } = await supabaseAdmin
       .from('track_likes')
       .select('id')
       .eq('track_id', trackId)
@@ -106,7 +106,7 @@ export async function POST(
     }
 
     if (existing) {
-      const { error: delErr } = await supabase
+      const { error: delErr } = await supabaseAdmin
         .from('track_likes')
         .delete()
         .eq('id', existing.id);
@@ -114,7 +114,7 @@ export async function POST(
         return NextResponse.json({ error: 'Erreur suppression like' }, { status: 500 });
       }
     } else {
-      const { error: insErr } = await supabase
+      const { error: insErr } = await supabaseAdmin
         .from('track_likes')
         .insert({ track_id: trackId, user_id: userId });
       if (insErr) {
@@ -126,14 +126,14 @@ export async function POST(
     }
 
     // Lire état final
-    const { data: likeRow, error: likeErr } = await supabase
+    const { data: likeRow, error: likeErr } = await supabaseAdmin
       .from('track_likes')
       .select('id')
       .eq('track_id', trackId)
       .eq('user_id', userId)
       .maybeSingle();
 
-    const { data: stats, error: statsErr } = await supabase
+    const { data: stats, error: statsErr } = await supabaseAdmin
       .from('track_stats')
       .select('likes_count')
       .eq('track_id', trackId)
