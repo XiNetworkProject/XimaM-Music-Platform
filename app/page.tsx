@@ -206,6 +206,21 @@ export default function HomePage() {
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
 
+  // Debug: Vérifier les données disponibles
+  const newSongsData = useMemo(() => {
+    const data = featuredTracks?.length > 0 ? featuredTracks : 
+                 categories.trending.tracks.length > 0 ? categories.trending.tracks : 
+                 categories.popular.tracks;
+    console.log('🎵 New Songs Data:', {
+      featuredCount: featuredTracks?.length || 0,
+      trendingCount: categories.trending.tracks.length,
+      popularCount: categories.popular.tracks.length,
+      selectedData: data?.length || 0,
+      loading
+    });
+    return data;
+  }, [featuredTracks, categories.trending.tracks, categories.popular.tracks, loading]);
+
   // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
   useEffect(() => {
     const updateTrackStats = async () => {
@@ -2028,7 +2043,7 @@ export default function HomePage() {
       </div>
 
       {/* Section Nouvelles Musiques - Style Suno */}
-      {!loading && featuredTracks && featuredTracks.length > 0 && (
+      {!loading && newSongsData && newSongsData.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -2057,7 +2072,7 @@ export default function HomePage() {
                 <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
                   <section className="flex h-auto w-full overflow-x-auto scroll-smooth scrollbar-hide" style={{ position: 'relative', height: '384px', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}>
                     <div className="flex gap-4 px-2">
-                      {featuredTracks.slice(0, 12).map((track, index) => (
+                      {newSongsData.slice(0, 12).map((track, index) => (
                         <div key={track._id} className="relative flex w-[172px] shrink-0 cursor-pointer flex-col">
                           {/* Cover avec overlay */}
                           <div className="relative mb-4 cursor-pointer group">
