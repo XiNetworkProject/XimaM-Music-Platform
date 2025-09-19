@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Compass, BookOpen, MessageCircle, Settings, Plus, Music } from 'lucide-react';
+import { Home, Compass, BookOpen, MessageCircle, Settings, Plus, Music, TrendingUp } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useEffect, useState } from 'react';
@@ -46,6 +46,7 @@ export default function AppSidebar() {
     { icon: Compass, label: 'Découvrir', desc: 'Explorer', href: '/discover' },
     { icon: BookOpen, label: 'Bibliothèque', desc: 'Vos favoris', href: '/library' },
     { icon: MessageCircle, label: 'Messages', desc: 'Discuter', href: '/messages' },
+    { icon: TrendingUp, label: 'Stats', desc: 'Vos statistiques', href: '/stats' },
   ];
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));

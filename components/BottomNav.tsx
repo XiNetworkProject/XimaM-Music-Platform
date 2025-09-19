@@ -58,6 +58,14 @@ export default function BottomNav() {
       description: 'Vos favoris'
     },
     {
+      icon: TrendingUp,
+      label: 'Stats',
+      path: '/stats',
+      active: pathname === '/stats',
+      color: 'from-cyan-500 to-purple-500',
+      description: 'Vos statistiques'
+    },
+    {
       icon: MessageCircle,
       label: 'Messages',
       path: '/messages',
