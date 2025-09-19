@@ -27,6 +27,7 @@ type CurrentSubscription = {
 export default function SubscriptionsPage() {
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [current, setCurrent] = useState<CurrentSubscription>(null);
+  const [period, setPeriod] = useState<'month' | 'year'>('year');
 
   useEffect(() => {
     // Usage: pistes / stockage / playlists
@@ -145,34 +146,54 @@ export default function SubscriptionsPage() {
           <span className="text-sm text-[var(--text-muted)]">Choisissez la période et le plan (à définir)</span>
 
           {/* Toggle période (Mensuel / Annuel) - style Synaura */}
-          <PeriodToggle />
+          <PeriodToggle value={period} onChange={setPeriod} />
         </div>
 
         {/* Grille plans vides (contenu à venir) */}
-        <div className="mt-8 grid w-full grid-cols-1 min-[600px]:grid-cols-2 xl:grid-cols-3 gap-6">
-          {['Plan 1', 'Plan 2', 'Plan 3'].map((label, idx) => (
-            <div key={idx} className="flex h-full w-full flex-col rounded-3xl border border-[var(--border)]/70 overflow-hidden">
-              <div className="flex h-full flex-col bg-white/[0.04] backdrop-blur-md p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.07),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.06),transparent)]">
-                <div className="flex flex-col gap-6 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-[20px] lg:text-[24px] font-light text-white/90 truncate">{label}</h3>
-                    <span className="inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[10px] uppercase bg-white/10 text-white/80 ring-1 ring-white/10">Bientôt</span>
-                  </div>
+        <div className="mt-8 grid w-full grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
+          {/* FREE */}
+          <PlanCard
+            title="Free"
+            highlight={false}
+            badge={undefined}
+            priceMonthly={0}
+            period={period}
+            disabled={false}
+            limits={{ tracks: '10/mois', storage: '1 GB', playlists: '3', quality: '128 kbps' }}
+          />
 
-                  <div className="flex flex-col gap-1 text-white/80">
-                    <div className="text-xl">— <span className="text-sm text-white/50">/ période</span></div>
-                    <div className="text-xs text-white/50">Taxes calculées au paiement</div>
-                  </div>
+          {/* STARTER */}
+          <PlanCard
+            title="Starter"
+            highlight
+            badge="Populaire"
+            priceMonthly={4.99}
+            period={period}
+            disabled={false}
+            limits={{ tracks: '100/mois', storage: '10 GB', playlists: '20', quality: '256 kbps' }}
+          />
 
-                  <div className="mt-2">
-                    <button disabled className="w-full px-6 py-3 rounded-full text-white/70 bg-white/10 ring-1 ring-white/15 cursor-not-allowed">
-                      À venir
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
+          {/* PRO */}
+          <PlanCard
+            title="Pro"
+            highlight={false}
+            badge={undefined}
+            priceMonthly={14.99}
+            period={period}
+            disabled={false}
+            limits={{ tracks: '500/mois', storage: '100 GB', playlists: '100', quality: '320 kbps' }}
+          />
+
+          {/* ENTERPRISE */}
+          <PlanCard
+            title="Enterprise"
+            highlight={false}
+            badge="Pour bientôt"
+            priceMonthly={59.99}
+            period={period}
+            disabled
+            limits={{ tracks: 'Illimité', storage: '1 TB', playlists: 'Illimité', quality: '320 kbps' }}
+          />
         </div>
       </div>
     </div>
@@ -180,8 +201,7 @@ export default function SubscriptionsPage() {
 }
 
 // Composant local: sélecteur période
-function PeriodToggle() {
-  const [value, setValue] = useState<'month' | 'year'>('year');
+function PeriodToggle({ value, onChange }: { value: 'month' | 'year'; onChange: (v: 'month' | 'year') => void }) {
   return (
     <div role="radiogroup" aria-required="false" className="mt-4 flex flex-row gap-3" tabIndex={0} style={{ outline: 'none' }}>
       {([
@@ -199,7 +219,7 @@ function PeriodToggle() {
             value={v}
             className="group flex cursor-pointer items-center gap-2 outline-none"
             tabIndex={-1}
-            onClick={() => setValue(v as 'month' | 'year')}
+            onClick={() => onChange(v as 'month' | 'year')}
           >
             <div className="relative flex h-4 w-4 items-center justify-center rounded-full border border-white/20 bg-white/5">
               <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="opacity-0 group-data-[state=checked]:opacity-100 text-white">
@@ -217,6 +237,66 @@ function PeriodToggle() {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function PlanCard({
+  title,
+  badge,
+  highlight,
+  priceMonthly,
+  period,
+  disabled,
+  limits
+}: {
+  title: string;
+  badge?: string;
+  highlight?: boolean;
+  priceMonthly: number;
+  period: 'month' | 'year';
+  disabled?: boolean;
+  limits: { tracks: string; storage: string; playlists: string; quality: string };
+}) {
+  const price = useMemo(() => {
+    if (period === 'year') {
+      // -20% environ sur annuel
+      const yearly = Math.max(0, priceMonthly * 12 * 0.8);
+      return `${yearly.toFixed(2)}€ / an`;
+    }
+    return `${priceMonthly.toFixed(2)}€ / mois`;
+  }, [priceMonthly, period]);
+
+  return (
+    <div className={`flex h-full w-full flex-col rounded-3xl border overflow-hidden ${highlight ? 'border-purple-400/40 shadow-[0_0_40px_rgba(168,85,247,0.15)]' : 'border-[var(--border)]/70'}`}>
+      <div className="flex h-full flex-col bg-white/[0.04] backdrop-blur-md p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.07),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.06),transparent)]">
+        <div className="flex flex-col gap-6 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-[20px] lg:text-[24px] font-light text-white/90 truncate">{title}</h3>
+            {badge && (
+              <span className="inline-flex items-center gap-1 rounded-xl px-2 py-0.5 text-[10px] uppercase bg-white/10 text-white/80 ring-1 ring-white/10">{badge}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1 text-white/85">
+            <div className="text-2xl">{title === 'Free' ? 'Gratuit' : price}</div>
+            <div className="text-xs text-white/50">Taxes calculées au paiement</div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 text-sm text-white/80">
+            <div className="flex items-center justify-between"><span>Pistes</span><span className="font-medium">{limits.tracks}</span></div>
+            <div className="flex items-center justify-between"><span>Stockage</span><span className="font-medium">{limits.storage}</span></div>
+            <div className="flex items-center justify-between"><span>Playlists</span><span className="font-medium">{limits.playlists}</span></div>
+            <div className="flex items-center justify-between"><span>Qualité</span><span className="font-medium">{limits.quality}</span></div>
+          </div>
+
+          <div className="mt-2">
+            <button disabled={disabled} className={`w-full px-6 py-3 rounded-full transition ${disabled ? 'text-white/60 bg-white/10 ring-1 ring-white/15 cursor-not-allowed' : 'text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95'}`}>
+              {disabled ? 'À venir' : 'Choisir'}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
