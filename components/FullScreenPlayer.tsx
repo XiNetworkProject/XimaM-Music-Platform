@@ -156,78 +156,74 @@ export default function FullScreenPlayer() {
 
   return (
     <>
-      {/* Mini-player */}
+      {/* Mini-player - Suno-like playbar */}
       <motion.div
-        className="glass-player relative"
-        style={{
-          display: showFull ? 'none' : 'flex'
-        }}
+        className="glass-player relative w-full"
+        style={{ display: showFull ? 'none' : 'flex' }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
         onClick={() => setShowFull(true)}
       >
-        {/* Particules volantes AUTOUR du mini player quand en lecture */}
-        <FloatingParticles 
-          isPlaying={audioState.isPlaying && !audioState.isLoading} 
-        />
-        
-        <img 
-          src={currentTrack?.coverUrl || '/default-cover.jpg'} 
-          alt={currentTrack?.title || 'Track'} 
-          className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg object-cover mr-2 sm:mr-3 flex-shrink-0 relative z-10" 
-          loading="lazy"
-        />
-        <div className="flex-1 min-w-0 relative z-10">
-          <div className="flex items-center space-x-1 sm:space-x-2">
-            <span className="truncate font-semibold text-white text-xs sm:text-sm title-suno">{currentTrack?.title || 'Titre inconnu'}</span>
-            {/* Animation d'onde/barre */}
-            {audioState.isPlaying && !audioState.isLoading && (
-              <div className="flex space-x-0.5 sm:space-x-1 flex-shrink-0">
-                <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
-                <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-0.5 sm:w-1 h-2 sm:h-3 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.4s' }}></div>
+        <FloatingParticles isPlaying={audioState.isPlaying && !audioState.isLoading} />
+
+        <div className="flex flex-1 flex-row content-between items-center p-2 w-full">
+          {/* Left: cover + title/artist marquee */}
+          <div className="w-full overflow-hidden md:w-8 relative flex flex-1 items-center">
+            <a className="mr-2 h-16 w-10 shrink-0 overflow-clip rounded-md md:h-14" onClick={(e) => { e.stopPropagation(); }} href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>
+              <img src={currentTrack?.coverUrl || '/default-cover.jpg'} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" />
+            </a>
+            <div className="md:w-auto relative flex w-full flex-col pr-2 min-w-0">
+              {/* Title marquee */}
+              <div className="relative flex w-fit cursor-pointer overflow-x-hidden text-sm font-medium hover:underline" onClick={(e)=>{e.stopPropagation();}}>
+                <div className="animate-marquee md:animate-none">
+                  <a className="mr-24 whitespace-nowrap" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
+                </div>
+                <div className="absolute top-0 animate-marquee2 md:animate-none">
+                  <a className="mr-24 whitespace-nowrap md:hidden" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
+                </div>
+                <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
               </div>
-            )}
+              {/* Artist + quick actions (mobile-only subset) */}
+              <span className="flex flex-col text-sm font-medium md:flex-row">
+                <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
+                  <span className="line-clamp-1 w-full lg:max-w-[150px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+                </a>
+              </span>
+            </div>
           </div>
-          <span className="text-xs text-gray-300 truncate text-xs sm:text-xs">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+
+          {/* Center controls (md and up) */}
+          <div className="hidden flex-1 flex-row items-center justify-center gap-1 w-8 md:flex" onClick={(e)=>e.stopPropagation()}>
+            <button onClick={toggleShuffle} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Shuffle"><Shuffle size={16} /></button>
+            <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Previous"><SkipBack size={20} /></button>
+            <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>{audioState.isPlaying? <Pause size={24}/> : <Play size={24}/>}</button>
+            <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Next"><SkipForward size={20} /></button>
+            <button onClick={cycleRepeat} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Repeat"><Repeat size={16} /></button>
+          </div>
+
+          {/* Right: volume + duration (md), minimal on mobile */}
+          <div className="items-left justify-right flex w-fit flex-row-reverse gap-2 md:flex-1" onClick={(e)=>e.stopPropagation()}>
+            {/* Duration */}
+            <span className="hidden md:flex items-center whitespace-nowrap text-white/70">
+              <span className="w-12 text-right">{formatTime(audioState.currentTime)}</span>
+              <span className="w-3 text-center">/</span>
+              <span className="w-12">{formatTime(audioState.duration)}</span>
+            </span>
+            {/* Volume */}
+            <div className="relative hidden md:block" ref={volumeSliderRef}>
+              <button className="p-2 text-white/70 hover:bg-white/10 rounded-full" onClick={()=>setShowVolumeSlider(!showVolumeSlider)} aria-label="Volume">
+                {audioState.isMuted ? <VolumeX size={18}/> : <Volume2 size={18}/>}
+              </button>
+              {showVolumeSlider && (
+                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
+                  <input type="range" min="0" max="1" step="0.1" value={audioState.volume} onChange={handleVolumeChange} className="w-24 h-2" />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-        
-        {/* Indicateur de chargement */}
-        {audioState.isLoading && (
-          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 relative z-10">
-            <Loader2 size={16} className="text-white animate-spin" />
-          </div>
-        )}
-        
-        {/* Indicateur d'erreur */}
-        {showError && (
-          <div className="ml-2 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 relative z-10">
-            <AlertCircle size={16} className="text-red-400" />
-          </div>
-        )}
-        
-        {/* Message d'aide pour première lecture mobile */}
-        {audioState.error && audioState.error.includes('Première lecture') && (
-          <div className="ml-2 px-2 py-1 bg-blue-500/20 rounded text-xs text-blue-300 max-w-32 relative z-10">
-            Cliquez sur play
-          </div>
-        )}
-        
-        <button
-          className="ml-2 sm:ml-3 flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[var(--color-primary)]/80 hover:bg-[var(--color-primary)] transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed relative z-10 shadow-md"
-          onClick={e => { e.stopPropagation(); togglePlay(); }}
-          disabled={audioState.isLoading}
-        >
-          {audioState.isLoading ? (
-            <Loader2 size={14} className="text-white animate-spin sm:w-[18px] sm:h-[18px]" />
-          ) : audioState.isPlaying ? (
-            <Pause size={14} className="text-white sm:w-[18px] sm:h-[18px]" />
-          ) : (
-            <Play size={14} className="text-white sm:w-[18px] sm:h-[18px]" />
-          )}
-        </button>
       </motion.div>
 
       {/* Player plein écran (modal/dialog) */}
