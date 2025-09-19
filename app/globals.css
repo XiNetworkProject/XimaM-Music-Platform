@@ -586,7 +586,7 @@ a {
   position: fixed !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
-  bottom: 120px !important;
+  bottom: 16px !important;
   z-index: 9999 !important;
   width: 95vw;
   max-width: 500px;
@@ -701,7 +701,7 @@ a {
 @media (max-width: 768px) {
   .glass-player {
     width: 92vw;
-    bottom: 130px !important;
+    bottom: 84px !important;
     padding: 10px 14px;
   }
   
