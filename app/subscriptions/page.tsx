@@ -160,6 +160,11 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={false}
             limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps' }}
+            features={[
+              'Profil public et bibliothèque',
+              'Uploads limités',
+              'Lecture et découverte de base'
+            ]}
           />
 
           {/* STARTER */}
@@ -171,6 +176,12 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={false}
             limits={{ tracks: '20/mois', storage: '1 GB', playlists: '20', quality: '256 kbps' }}
+            features={[
+              'Accès à la messagerie',
+              'Pas de publicité',
+              'Statistiques de base',
+              'Téléversements plus lourds'
+            ]}
           />
 
           {/* PRO */}
@@ -182,6 +193,13 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={false}
             limits={{ tracks: '50/mois', storage: '5 GB', playlists: 'Illimité', quality: '320 kbps' }}
+            features={[
+              'Accès à la messagerie',
+              'Playlists collaboratives',
+              'Analyses avancées',
+              'Support prioritaire',
+              'Publication privée'
+            ]}
           />
 
           {/* ENTERPRISE */}
@@ -193,6 +211,12 @@ export default function SubscriptionsPage() {
             period={period}
             disabled
             limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps' }}
+            features={[
+              'Accès à la messagerie',
+              'SLA et support dédié',
+              'API & intégrations',
+              'Sièges équipe / multi-comptes'
+            ]}
           />
         </div>
       </div>
@@ -248,7 +272,8 @@ function PlanCard({
   priceMonthly,
   period,
   disabled,
-  limits
+  limits,
+  features
 }: {
   title: string;
   badge?: string;
@@ -257,6 +282,7 @@ function PlanCard({
   period: 'month' | 'year';
   disabled?: boolean;
   limits: { tracks: string; storage: string; playlists: string; quality: string };
+  features?: string[];
 }) {
   const price = useMemo(() => {
     if (period === 'year') {
@@ -290,6 +316,17 @@ function PlanCard({
             <div className="flex items-center justify-between"><span>Qualité</span><span className="font-medium">{limits.quality}</span></div>
           </div>
 
+          {features && features.length > 0 && (
+            <ul className="mt-3 space-y-1 text-sm text-white/75">
+              {features.map((f, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-purple-400 to-cyan-300"></span>
+                  <span>{f}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
           <div className="mt-2">
             <button disabled={disabled} className={`w-full px-6 py-3 rounded-full transition ${disabled ? 'text-white/60 bg-white/10 ring-1 ring-white/15 cursor-not-allowed' : 'text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95'}`}>
               {disabled ? 'À venir' : 'Choisir'}
@@ -299,4 +336,4 @@ function PlanCard({
       </div>
     </div>
   );
-}
+} 
