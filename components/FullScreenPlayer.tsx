@@ -194,6 +194,19 @@ export default function FullScreenPlayer() {
             </div>
           </div>
 
+          {/* Mobile controls (always visible on mobile) */}
+          <div className="flex items-center gap-1 md:hidden ml-2" onClick={(e)=>e.stopPropagation()}>
+            <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Previous">
+              <SkipBack size={18} />
+            </button>
+            <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full bg-[var(--color-primary)]/85 hover:bg-[var(--color-primary)] text-white disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>
+              {audioState.isPlaying ? <Pause size={18}/> : <Play size={18}/>}
+            </button>
+            <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Next">
+              <SkipForward size={18} />
+            </button>
+          </div>
+
           {/* Center controls (md and up) */}
           <div className="hidden flex-1 flex-row items-center justify-center gap-1 w-8 md:flex" onClick={(e)=>e.stopPropagation()}>
             <button onClick={toggleShuffle} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Shuffle"><Shuffle size={16} /></button>
@@ -206,7 +219,7 @@ export default function FullScreenPlayer() {
           {/* Right: volume + duration (md), minimal on mobile */}
           <div className="items-left justify-right flex w-fit flex-row-reverse gap-2 md:flex-1" onClick={(e)=>e.stopPropagation()}>
             {/* Duration */}
-            <span className="hidden md:flex items-center whitespace-nowrap text-white/70">
+            <span className="flex md:flex items-center whitespace-nowrap text-white/70 text-[11px] md:text-[12px]">
               <span className="w-12 text-right">{formatTime(audioState.currentTime)}</span>
               <span className="w-3 text-center">/</span>
               <span className="w-12">{formatTime(audioState.duration)}</span>
