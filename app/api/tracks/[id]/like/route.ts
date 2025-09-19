@@ -38,7 +38,7 @@ export async function GET(
       .maybeSingle();
 
     if (likeErr) {
-      return NextResponse.json({ error: 'Erreur lecture like' }, { status: 500 });
+      console.error('likes GET: erreur lecture likeRow', likeErr);
     }
 
     // Récupérer le compteur depuis track_stats (créé par triggers)
@@ -48,14 +48,21 @@ export async function GET(
       .eq('track_id', trackId)
       .maybeSingle();
 
-    if (statsErr) {
-      return NextResponse.json({ error: 'Erreur lecture stats' }, { status: 500 });
+    let likesCount = stats?.likes_count ?? 0;
+    if (statsErr || stats == null) {
+      // Fallback: compter directement les likes si stats indisponible
+      console.warn('likes GET: stats indisponible, fallback count', statsErr);
+      const { count, error: countErr } = await supabaseAdmin
+        .from('track_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('track_id', trackId);
+      if (countErr) {
+        console.error('likes GET: erreur fallback count', countErr);
+      }
+      likesCount = typeof count === 'number' ? count : 0;
     }
 
-    return NextResponse.json({
-      liked: !!likeRow,
-      likesCount: stats?.likes_count ?? 0
-    });
+    return NextResponse.json({ liked: !!likeRow, likesCount });
 
   } catch (error) {
     console.error('❌ Erreur vérification like:', error);
@@ -102,7 +109,7 @@ export async function POST(
       .maybeSingle();
 
     if (exErr) {
-      return NextResponse.json({ error: 'Erreur lecture like' }, { status: 500 });
+      console.error('likes POST: erreur lecture existing', exErr);
     }
 
     if (existing) {
@@ -111,6 +118,7 @@ export async function POST(
         .delete()
         .eq('id', existing.id);
       if (delErr) {
+        console.error('likes POST: erreur suppression like', delErr);
         return NextResponse.json({ error: 'Erreur suppression like' }, { status: 500 });
       }
     } else {
@@ -120,6 +128,7 @@ export async function POST(
       if (insErr) {
         // Conflit unique = déjà liké ailleurs en concurrence
         if (insErr.code !== '23505') {
+          console.error('likes POST: erreur insertion like', insErr);
           return NextResponse.json({ error: 'Erreur ajout like' }, { status: 500 });
         }
       }
@@ -139,15 +148,24 @@ export async function POST(
       .eq('track_id', trackId)
       .maybeSingle();
 
-    if (likeErr || statsErr) {
-      return NextResponse.json({ error: 'Erreur lecture état final' }, { status: 500 });
+    if (likeErr) {
+      console.error('likes POST: erreur lecture likeRow final', likeErr);
     }
 
-    return NextResponse.json({
-      success: true,
-      isLiked: !!likeRow,
-      likesCount: stats?.likes_count ?? 0
-    });
+    let likesCount = stats?.likes_count ?? 0;
+    if (statsErr || stats == null) {
+      console.warn('likes POST: stats indisponible, fallback count', statsErr);
+      const { count, error: countErr } = await supabaseAdmin
+        .from('track_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('track_id', trackId);
+      if (countErr) {
+        console.error('likes POST: erreur fallback count', countErr);
+      }
+      likesCount = typeof count === 'number' ? count : likesCount;
+    }
+
+    return NextResponse.json({ success: true, isLiked: !!likeRow, likesCount });
 
   } catch (error) {
     console.error('❌ Erreur toggle like:', error);
