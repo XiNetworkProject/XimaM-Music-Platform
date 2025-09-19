@@ -11,6 +11,7 @@ export async function GET(request: NextRequest) {
     }
     const { searchParams } = new URL(request.url);
     const range = searchParams.get('range');
+    const trackParam = searchParams.get('track');
 
     // Récupérer les pistes de l'utilisateur
     // Récupérer pistes par creator_id puis fallback artist_id
@@ -29,6 +30,11 @@ export async function GET(request: NextRequest) {
         if (!err2 && rows2) trackIds = rows2.map((r: any) => r.id);
       }
     }
+    // Filtrer sur une piste précise si demandée et détenue par l'utilisateur
+    if (trackParam && trackParam !== 'all' && trackIds.includes(trackParam)) {
+      trackIds = [trackParam];
+    }
+
     if (trackIds.length === 0) {
       return NextResponse.json({ countries: {}, devices: {} });
     }
@@ -60,7 +66,20 @@ export async function GET(request: NextRequest) {
     const countriesObj = toPercentagesObject(countriesCount);
     const devicesObj = toPercentagesObject(devicesCount);
 
-    return NextResponse.json({ countries: countriesObj, devices: devicesObj });
+    // OS & navigateurs (sans changer le schéma)
+    const osCount = new Map<string, number>();
+    const browserCount = new Map<string, number>();
+    for (const v of views || []) {
+      const os = inferOS(v.user_agent);
+      const br = inferBrowser(v.user_agent);
+      osCount.set(os, (osCount.get(os) || 0) + 1);
+      browserCount.set(br, (browserCount.get(br) || 0) + 1);
+    }
+
+    const osObj = toPercentagesObject(osCount);
+    const browsersObj = toPercentagesObject(browserCount);
+
+    return NextResponse.json({ countries: countriesObj, devices: devicesObj, os: osObj, browsers: browsersObj });
   } catch (e) {
     // Défaut: vide pour ne pas casser l’UI
     return NextResponse.json({ countries: {}, devices: {} });
@@ -97,6 +116,27 @@ function inferDeviceFromUA(ua?: string | null) {
   if (/mobile|iphone|android/.test(s)) return 'mobile';
   if (/ipad|tablet/.test(s)) return 'tablette';
   return 'desktop';
+}
+
+function inferOS(ua?: string | null) {
+  if (!ua) return 'Autre';
+  const s = ua.toLowerCase();
+  if (s.includes('windows')) return 'Windows';
+  if (s.includes('mac os') || s.includes('macintosh')) return 'macOS';
+  if (s.includes('android')) return 'Android';
+  if (s.includes('iphone') || s.includes('ipad') || s.includes('ios')) return 'iOS';
+  if (s.includes('linux')) return 'Linux';
+  return 'Autre';
+}
+
+function inferBrowser(ua?: string | null) {
+  if (!ua) return 'Autre';
+  const s = ua.toLowerCase();
+  if (s.includes('edg/')) return 'Edge';
+  if (s.includes('chrome/')) return 'Chrome';
+  if (s.includes('safari/') && !s.includes('chrome/')) return 'Safari';
+  if (s.includes('firefox/')) return 'Firefox';
+  return 'Autre';
 }
 
 function toPercentagesObject(map: Map<string, number>) {

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 
-type Point = { date: string; plays: number };
+type Point = { date: string; plays: number; uniques?: number; likes?: number };
 
 function startFromRange(range: string | null): Date {
   const now = new Date();
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
     // Récupérer les vues (écoutes) dans la période
     const { data: viewRows, error: viewsErr } = await supabaseAdmin
       .from('track_views')
-      .select('created_at, track_id')
+      .select('created_at, track_id, user_id')
       .in('track_id', trackIds)
       .gte('created_at', startDate.toISOString());
     if (viewsErr) {
@@ -92,11 +92,14 @@ export async function GET(request: NextRequest) {
 
     // Agréger par jour
     const counts = new Map<string, number>();
+    const uniqueSets = new Map<string, Set<string>>();
     for (const row of viewRows || []) {
       const d = new Date(row.created_at);
       d.setHours(0, 0, 0, 0);
       const key = formatDateISO(d);
       counts.set(key, (counts.get(key) || 0) + 1);
+      if (!uniqueSets.has(key)) uniqueSets.set(key, new Set());
+      if (row.user_id) uniqueSets.get(key)!.add(row.user_id);
     }
 
     // Construire série complète avec zéros
@@ -105,9 +108,32 @@ export async function GET(request: NextRequest) {
     const cursor = new Date(startDate);
     while (cursor <= today) {
       const k = formatDateISO(cursor);
-      series.push({ date: k, plays: counts.get(k) || 0 });
+      series.push({
+        date: k,
+        plays: counts.get(k) || 0,
+        uniques: (uniqueSets.get(k)?.size || 0)
+      });
       cursor.setDate(cursor.getDate() + 1);
     }
+
+    // Likes par jour (en parallèle) pour la même plage, si table likes existe
+    try {
+      const { data: likeRows } = await supabaseAdmin
+        .from('track_likes')
+        .select('created_at, track_id')
+        .in('track_id', trackIds)
+        .gte('created_at', startDate.toISOString());
+      const likeCounts = new Map<string, number>();
+      for (const row of likeRows || []) {
+        const d = new Date(row.created_at);
+        d.setHours(0, 0, 0, 0);
+        const key = formatDateISO(d);
+        likeCounts.set(key, (likeCounts.get(key) || 0) + 1);
+      }
+      for (const p of series) {
+        p.likes = likeCounts.get(p.date) || 0;
+      }
+    } catch {}
 
     return NextResponse.json(series);
   } catch (e) {
@@ -122,7 +148,7 @@ function buildEmptySeries(start: Date, end: Date): Point[] {
   const out: Point[] = [];
   const c = new Date(start);
   while (c <= end) {
-    out.push({ date: formatDateISO(c), plays: 0 });
+    out.push({ date: formatDateISO(c), plays: 0, uniques: 0, likes: 0 });
     c.setDate(c.getDate() + 1);
   }
   return out;
