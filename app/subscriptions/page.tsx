@@ -159,7 +159,7 @@ export default function SubscriptionsPage() {
             priceMonthly={0}
             period={period}
             disabled={false}
-            limits={{ tracks: '10/mois', storage: '1 GB', playlists: '3', quality: '128 kbps' }}
+            limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps' }}
           />
 
           {/* STARTER */}
@@ -170,7 +170,7 @@ export default function SubscriptionsPage() {
             priceMonthly={4.99}
             period={period}
             disabled={false}
-            limits={{ tracks: '100/mois', storage: '10 GB', playlists: '20', quality: '256 kbps' }}
+            limits={{ tracks: '20/mois', storage: '1 GB', playlists: '20', quality: '256 kbps' }}
           />
 
           {/* PRO */}
@@ -181,7 +181,7 @@ export default function SubscriptionsPage() {
             priceMonthly={14.99}
             period={period}
             disabled={false}
-            limits={{ tracks: '500/mois', storage: '100 GB', playlists: '100', quality: '320 kbps' }}
+            limits={{ tracks: '50/mois', storage: '5 GB', playlists: 'Illimité', quality: '320 kbps' }}
           />
 
           {/* ENTERPRISE */}
@@ -192,7 +192,7 @@ export default function SubscriptionsPage() {
             priceMonthly={59.99}
             period={period}
             disabled
-            limits={{ tracks: 'Illimité', storage: '1 TB', playlists: 'Illimité', quality: '320 kbps' }}
+            limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps' }}
           />
         </div>
       </div>
