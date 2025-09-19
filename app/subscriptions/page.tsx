@@ -80,49 +80,49 @@ export default function SubscriptionsPage() {
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-10 pb-16 text-[var(--text)]">
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="flex w-full flex-col gap-3">
-          <div className="w-full rounded-2xl p-4 backdrop-blur-lg bg-white/5 border border-[var(--border)]">
+          <div className="w-full rounded-2xl p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]">
             <div className="flex w-full flex-col items-center gap-4 max-[1125px]:justify-center min-[1125px]:justify-between md:flex-row md:flex-wrap">
               <div className="space-between flex flex-row divide-x divide-white/10">
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]">Plan actuel</span>
-                  <span className="text-sm text-[var(--text)] capitalize">{planName}</span>
+                  <span className="text-xs text-[var(--text-muted)]/90">Plan actuel</span>
+                  <span className="text-sm text-[var(--text)] capitalize"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{planName}</span></span>
                 </div>
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]">Période</span>
-                  <span className="text-sm text-[var(--text)]">{billingPeriod}</span>
+                  <span className="text-xs text-[var(--text-muted)]/90">Période</span>
+                  <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{billingPeriod}</span></span>
                 </div>
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]">Prochain prélèvement</span>
+                  <span className="text-xs text-[var(--text-muted)]/90">Prochain prélèvement</span>
                   <span className="text-sm text-[var(--text)]">
                     <span className="flex w-full flex-row items-center gap-2">
                       <Calendar size={16} className="hidden md:block" />
-                      {nextBilling}
+                      <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{nextBilling}</span>
                     </span>
                   </span>
                 </div>
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]">Pistes uploadées</span>
-                  <span className="text-sm text-[var(--text)]">{uploadsText}</span>
+                  <span className="text-xs text-[var(--text-muted)]/90">Pistes uploadées</span>
+                  <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{uploadsText}</span></span>
                 </div>
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]">Stockage</span>
-                  <span className="text-sm text-[var(--text)]">{storageText}</span>
+                  <span className="text-xs text-[var(--text-muted)]/90">Stockage</span>
+                  <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{storageText}</span></span>
                 </div>
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]">Playlists</span>
-                  <span className="text-sm text-[var(--text)]">{playlistsText}</span>
+                  <span className="text-xs text-[var(--text-muted)]/90">Playlists</span>
+                  <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{playlistsText}</span></span>
                 </div>
               </div>
 
               <div className="flex flex-row justify-center gap-2">
-                <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent hover:before:bg-[var(--surface-3)]">
+                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition">
                   <span className="relative flex flex-row items-center justify-center gap-2">Annuler l'abonnement</span>
                 </button>
-                <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent hover:before:bg-[var(--surface-3)]">
+                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-cyan-400/30 transition">
                   <span className="relative flex flex-row items-center justify-center gap-2">Mettre à jour le paiement</span>
                 </button>
                 <div className="flex">
-                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--bg)] bg-[var(--text)] hover:opacity-90">
+                  <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]">
                     <span className="relative flex flex-row items-center justify-center gap-2">Acheter plus</span>
                   </button>
                 </div>
@@ -131,7 +131,7 @@ export default function SubscriptionsPage() {
           </div>
 
           <div className="w-full text-center font-sans text-xs text-white/30">
-            Besoin d'aide ? Support/abonnements à <a className="underline" href="mailto:billing@suno.com">billing@suno.com</a>.
+            Besoin d'aide ? Support/abonnements à <a className="underline" href="mailto:billing@suno.com">synaura.fr</a>.
           </div>
         </div>
       </div>
