@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -17,7 +17,7 @@ export async function GET(
     }
 
     // Récupérer le nombre de lectures de la piste
-    const { data: track, error } = await supabase
+    const { data: track, error } = await supabaseAdmin
       .from('tracks')
       .select('plays')
       .eq('id', trackId)
@@ -66,7 +66,7 @@ export async function POST(
     }
 
     // Incrémenter le nombre de lectures de la piste
-    const { data: track, error } = await supabase
+    const { data: track, error } = await supabaseAdmin
       .from('tracks')
       .select('plays')
       .eq('id', trackId)
@@ -90,7 +90,7 @@ export async function POST(
     const newPlays = (track.plays || 0) + 1;
 
     // Mettre à jour le nombre de lectures
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
       .from('tracks')
       .update({ plays: newPlays })
       .eq('id', trackId);

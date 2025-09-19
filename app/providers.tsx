@@ -218,23 +218,23 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         },
       });
       
-      if (!response.ok) {
-        throw new Error('Erreur lors de la mise à jour des écoutes');
-      }
+      if (!response.ok) return; // silencieux, on ne bloque pas les replays successifs
       
       const data = await response.json();
       
-      // Mettre à jour l'état avec le nouveau nombre d'écoutes de manière atomique
-      setAudioState(prev => {
-        const newTracks = prev.tracks.map((track) => {
-          if (track._id !== trackId) return track;
-          return { 
-            ...track, 
-            plays: data.plays || track.plays
-          };
+      // Mettre à jour l'état local si fourni
+      if (data?.plays !== undefined) {
+        setAudioState(prev => {
+          const newTracks = prev.tracks.map((track) => {
+            if (track._id !== trackId) return track;
+            return { 
+              ...track, 
+              plays: data.plays || track.plays
+            };
+          });
+          return { ...prev, tracks: newTracks };
         });
-        return { ...prev, tracks: newTracks };
-      });
+      }
       
     } catch (error) {
       console.error('Erreur mise à jour plays:', error);

@@ -444,11 +444,8 @@ export const useAudioService = () => {
       return;
     }
     
-    // Éviter les doublons pour la même piste
-    if (trackedPlays.has(trackId)) {
-      console.log(`🚫 Écoutes déjà en cours pour ${trackId}, ignoré`);
-      return;
-    }
+    // Autoriser plusieurs écoutes du même utilisateur: on ne bloque plus par piste
+    // On garde un très léger throttle pour éviter le spam en rafale (1 maj toutes 2s déjà plus bas)
     
     // Marquer cette piste comme en cours de mise à jour
     setTrackedPlays(prev => new Set([...Array.from(prev), trackId]));
