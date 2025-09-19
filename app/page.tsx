@@ -16,9 +16,10 @@ import {
   Play, Heart, Pause, Headphones, 
   Users, TrendingUp, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Mic2, Share2, Eye, 
-  X, MessageCircle
+  X, MessageCircle, ChevronLeft, ChevronRight, MoreHorizontal
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 
 interface Track {
   _id: string;
@@ -2025,6 +2026,177 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* Section Nouvelles Musiques - Style Suno */}
+      {!loading && featuredTracks && featuredTracks.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="container mx-auto px-2 sm:px-4 md:px-6 mb-8 sm:mb-12"
+        >
+          <div className="h-full w-full overflow-hidden">
+            <div className="mb-2 flex w-full flex-row justify-between pb-2">
+              <div className="flex items-center gap-4">
+                <h1 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">Nouvelles Musiques</h1>
+              </div>
+            </div>
+            
+            <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
+              {/* Bouton scroll gauche */}
+              <button className="absolute top-0 left-0 z-20 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-none opacity-0" aria-label="Scroll left">
+                <div className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <ChevronLeft className="w-4 h-4" />
+                  </span>
+                </div>
+              </button>
+
+              {/* Container avec masque de dégradé */}
+              <div className="h-full w-full overflow-hidden" style={{ maskImage: 'linear-gradient(to right, black, black 80%, transparent)', maskSize: '100% 100%' }}>
+                <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
+                  <section className="flex h-auto w-full overflow-x-auto scroll-smooth scrollbar-hide" style={{ position: 'relative', height: '384px', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}>
+                    <div className="flex gap-4 px-2">
+                      {featuredTracks.slice(0, 12).map((track, index) => (
+                        <div key={track._id} className="relative flex w-[172px] shrink-0 cursor-pointer flex-col">
+                          {/* Cover avec overlay */}
+                          <div className="relative mb-4 cursor-pointer group">
+                            <div className="relative h-[256px] w-full overflow-hidden rounded-xl">
+                              <img
+                                alt={`Image for ${track.title}`}
+                                src={getValidImageUrl(track.coverUrl, '/default-cover.jpg')}
+                                className="absolute inset-0 h-full w-full rounded-xl object-cover transition-transform duration-300 group-hover:scale-105"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                                }}
+                              />
+                            </div>
+                            
+                            {/* Overlay avec bouton play */}
+                            <div className="absolute inset-0 z-20 group">
+                              <button 
+                                onClick={() => handlePlayTrack(track)}
+                                className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-[var(--surface)]/60 backdrop-blur-xl border-none outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300 scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100"
+                              >
+                                {currentTrack?._id === track._id && audioState.isPlaying ? (
+                                  <Pause className="h-5 w-5 text-white" />
+                                ) : (
+                                  <Play className="h-5 w-5 text-white" />
+                                )}
+                              </button>
+                              
+                              {/* Badges en haut */}
+                              <div className="absolute inset-x-2 top-2 flex flex-row items-center gap-1">
+                                <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding border border-[var(--border)] text-white bg-black/30 inline-flex w-auto border-none">
+                                  <div>{formatDuration(track.duration)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Informations de la piste */}
+                          <div className="flex w-full flex-col">
+                            {/* Titre avec bouton options */}
+                            <div className="line-clamp-1 w-full cursor-pointer font-sans text-base font-medium text-[var(--text)] hover:underline font-500 text-md leading-[24px] font-normal flex items-center justify-between">
+                              <div className="min-w-0 flex-1 overflow-hidden text-ellipsis">
+                                <button
+                                  onClick={() => handlePlayTrack(track)}
+                                  className="block overflow-hidden text-ellipsis whitespace-nowrap hover:underline text-left w-full"
+                                  title={track.title}
+                                >
+                                  {track.title}
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                className="cursor-pointer rounded-full outline-none p-0.5"
+                                aria-label="More Options"
+                              >
+                                <MoreHorizontal className="w-4 h-4 text-[var(--text)]" />
+                              </button>
+                            </div>
+
+                            {/* Genres */}
+                            <div>
+                              <div className="gap-2 font-sans break-all mb-1 line-clamp-1 flex-nowrap text-[var(--text-muted)] text-[14px] leading-[20px] font-normal">
+                                <div>
+                                  {Array.isArray(track.genre) && track.genre.length > 0 ? (
+                                    track.genre.slice(0, 3).map((genre, idx) => (
+                                      <span key={idx}>
+                                        <span className="hover:underline cursor-pointer">{genre}</span>
+                                        {idx < Math.min(track.genre?.length || 0, 3) - 1 && ', '}
+                                      </span>
+                                    ))
+                                  ) : (
+                                    <span className="hover:underline cursor-pointer">Electronic</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Stats */}
+                            <div className="mt-1 flex items-center gap-1 text-[12px] text-[var(--text-muted)]">
+                              <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
+                                <Play className="h-[12px] w-[12px]" />
+                                <span className="text-[12px] leading-4 font-medium font-normal">{formatNumber(track.plays || 0)}</span>
+                              </div>
+                              <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
+                                <Heart className="h-[12px] w-[12px]" />
+                                <span className="text-[12px] leading-4 font-medium font-normal">{formatNumber(track.likes || 0)}</span>
+                              </div>
+                              <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
+                                <MessageCircle className="h-[12px] w-[12px]" />
+                                <span className="text-[12px] leading-4 font-medium font-normal">{track.comments?.length || 0}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Artiste */}
+                          <div className="mt-1 flex w-full items-center justify-between">
+                            <div className="flex w-fit flex-row items-center gap-2 font-sans text-sm font-medium text-[var(--text)]">
+                              <div className="relative h-8 shrink-0 aspect-square">
+                                <button
+                                  onClick={() => router.push(`/profile/${track.artist?.username}`, { scroll: false })}
+                                  className="hover:underline relative z-10 block aspect-square h-full"
+                                >
+                                  <img
+                                    alt="Profile avatar"
+                                    src={getValidImageUrl(track.artist?.avatar, '/default-avatar.png')}
+                                    className="rounded-full h-full w-full object-cover p-1"
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                                    }}
+                                  />
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => router.push(`/profile/${track.artist?.username}`, { scroll: false })}
+                                className="hover:underline line-clamp-1 max-w-fit break-all"
+                                title={track.artist?.name || track.artist?.username}
+                              >
+                                {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+              </div>
+
+              {/* Bouton scroll droite */}
+              <button className="absolute top-0 right-0 z-20 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100" aria-label="Scroll right">
+                <div className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <ChevronRight className="w-4 h-4" />
+                  </span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* Sections de catégories améliorées */}
       <div className="py-6 space-y-12">
