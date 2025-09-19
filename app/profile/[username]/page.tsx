@@ -172,33 +172,17 @@ export default function ProfileUserPage() {
 
   // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
   useEffect(() => {
-    // Écouter les événements de lecture
-    const handleTrackPlayed = (event: CustomEvent) => {
-      const { trackId } = event.detail;
+    const handlePlaysUpdated = (event: CustomEvent) => {
+      const { trackId, plays } = event.detail || {};
       setUserTracks(prev => prev.map(track => 
-        track.id === trackId 
-          ? { ...track, plays: track.plays + 1 }
+        (track._id || track.id) === trackId 
+          ? { ...track, plays: typeof plays === 'number' ? plays : (track.plays || 0) + 1 }
           : track
       ));
     };
 
-    const handleTrackChanged = (event: CustomEvent) => {
-      const { trackId, plays } = event.detail;
-      setUserTracks(prev => prev.map(track => 
-        track.id === trackId 
-          ? { ...track, plays: plays || track.plays }
-          : track
-      ));
-    };
-
-    // Ajouter les écouteurs d'événements
-    window.addEventListener('trackPlayed', handleTrackPlayed as EventListener);
-    window.addEventListener('trackChanged', handleTrackChanged as EventListener);
-
-    return () => {
-      window.removeEventListener('trackPlayed', handleTrackPlayed as EventListener);
-      window.removeEventListener('trackChanged', handleTrackChanged as EventListener);
-    };
+    window.addEventListener('playsUpdated', handlePlaysUpdated as EventListener);
+    return () => window.removeEventListener('playsUpdated', handlePlaysUpdated as EventListener);
   }, []);
 
   // Gestion demande de messagerie

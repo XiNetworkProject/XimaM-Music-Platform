@@ -209,6 +209,23 @@ export default function LibraryPage() {
     return () => clearTimeout(timeoutId);
   }, [fetchLibraryData]);
 
+  // Synchronisation temps réel des écoutes via event global
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { trackId, plays } = e.detail || {};
+      if (!trackId || typeof plays !== 'number') return;
+      setRecentTracks(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+      setFavoriteTracks(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+      setAllTracks(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+      setPlaylists(prev => prev.map(pl => ({
+        ...pl,
+        tracks: pl.tracks?.map(t => t._id === trackId ? { ...t, plays } : t) || pl.tracks
+      })));
+    };
+    window.addEventListener('playsUpdated', handler as EventListener);
+    return () => window.removeEventListener('playsUpdated', handler as EventListener);
+  }, []);
+
   // Créer une nouvelle playlist
   const createPlaylist = async () => {
     if (!newPlaylist.name.trim()) return;

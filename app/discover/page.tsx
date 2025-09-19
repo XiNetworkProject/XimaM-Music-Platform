@@ -268,6 +268,20 @@ export default function DiscoverPage() {
     }
   };
 
+  // Synchronisation temps réel des écoutes via event global
+  useEffect(() => {
+    const handler = (e: any) => {
+      const { trackId, plays } = e.detail || {};
+      if (!trackId || typeof plays !== 'number') return;
+      setTracks(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+      if (showAllModal && modalTracks.length) {
+        setModalTracks(prev => prev.map(t => t._id === trackId ? { ...t, plays } : t));
+      }
+    };
+    window.addEventListener('playsUpdated', handler as EventListener);
+    return () => window.removeEventListener('playsUpdated', handler as EventListener);
+  }, [showAllModal, modalTracks.length]);
+
   // Fonction pour naviguer vers un profil
   const handleArtistClick = (artist: Artist) => {
     console.log('👤 Navigation vers le profil:', artist.username);
