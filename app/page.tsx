@@ -1556,8 +1556,8 @@ export default function HomePage() {
   ];
 
   return (
-    <div className="text-white pt-0 pb-20 lg:pb-4">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6">
+    <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
+        <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-2 md:p-4">
       {/* Banderoles fines et élégantes */}
       <div className="relative z-20">
@@ -2036,7 +2036,7 @@ export default function HomePage() {
 
       {/* New Songs - Carrousel horizontal inspiré Suno */}
       {categories.recent?.tracks?.length > 0 && (
-        <section className="container mx-auto px-2 sm:px-4 md:px-6">
+        <section className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
           <div className="h-full w-full overflow-hidden">
             <div className="mb-2 flex w-full flex-row justify-between pb-2">
               <div className="flex items-center gap-4">
@@ -2117,7 +2117,7 @@ export default function HomePage() {
       <div className="py-6 space-y-12">
 
         {/* Section Artistes Émergents - Design futuriste */}
-        <section className="container mx-auto px-2 sm:px-4 md:px-6">
+        <section className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
           <div
             className="mb-6 animate-fade-in"
           >
@@ -2193,7 +2193,7 @@ export default function HomePage() {
 
 
         {/* Section Radio Mixx Party - Version Améliorée */}
-        <section id="radio" className="container mx-auto px-2 sm:px-4 md:px-6 py-8">
+        <section id="radio" className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6 py-8">
           <div className="relative animate-fade-in">
             {/* En-tête avec badge animé */}
             <div className="text-center mb-8">
@@ -2426,7 +2426,7 @@ export default function HomePage() {
         </section>
 
         {/* Section Créations Récentes */}
-        <section className="container mx-auto px-2 sm:px-4 py-8">
+        <section className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 py-8">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className="text-2xl font-bold text-white">Nouvelles Créations</h2>
@@ -2547,7 +2547,7 @@ export default function HomePage() {
           if (tracks.length === 0 && !categoryData.loading) return null;
 
           return (
-            <section key={config.key} className="container mx-auto px-2 sm:px-4 md:px-6">
+            <section key={config.key} className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
               <div
                 className="mb-8 animate-fade-in"
               >
