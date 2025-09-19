@@ -328,8 +328,8 @@ export default function SubscriptionPlans() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-      <main className="container mx-auto px-4 pt-16 pb-32">
+    <div className="min-h-screen theme-suno text-[var(--text)]">
+      <main className="container mx-auto px-2 sm:px-4 md:px-6 pt-16 pb-32">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
           <motion.div
@@ -339,15 +339,15 @@ export default function SubscriptionPlans() {
             className="text-center mb-12"
           >
             <div className="flex items-center justify-center mb-6">
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500">
-                <Crown size={32} className="text-white" />
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-[var(--border)]">
+                <Crown size={32} className="text-[var(--text)]" />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">
-              Plans d'abonnement Synaura
+            <h1 className="text-4xl md:text-5xl font-bold mb-2 text-[var(--text)]">
+              Abonnements
             </h1>
-            <p className="text-xl text-gray-300 max-w-3xl mx-auto">
-              Choisissez le plan qui correspond à vos besoins de création musicale
+            <p className="text-xl text-[var(--text-muted)] max-w-3xl mx-auto">
+              Choisissez le plan qui correspond à vos besoins
             </p>
           </motion.div>
 
@@ -375,7 +375,7 @@ export default function SubscriptionPlans() {
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="glass-effect rounded-2xl p-6 mb-8 border-2 border-green-500/30"
+              className="panel-suno rounded-2xl p-6 mb-8 border border-[var(--border)]"
             >
               <div className="flex items-center space-x-3 mb-4">
                 <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
@@ -393,7 +393,7 @@ export default function SubscriptionPlans() {
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-6 text-[var(--text)]">
                 <div className="text-center">
                   <div className="text-gray-300">Période</div>
                   <div className="text-white font-semibold">
@@ -450,7 +450,7 @@ export default function SubscriptionPlans() {
                 <h2 className="text-2xl font-bold text-white">Votre utilisation actuelle</h2>
               </div>
               
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-[var(--text)]">
                 {usageInfo && Object.entries(usageInfo).map(([key, data], index) => {
                   const label = key === 'tracks' ? 'Pistes' : 
                                key === 'playlists' ? 'Playlists' :
@@ -527,7 +527,7 @@ export default function SubscriptionPlans() {
               </p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {subscriptions.map((plan, index) => {
                 if (!plan || !plan.name) {
                   console.warn('Plan invalide détecté:', plan);
