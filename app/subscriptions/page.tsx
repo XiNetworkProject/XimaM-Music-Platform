@@ -78,12 +78,12 @@ export default function SubscriptionsPage() {
   }, [usage]);
 
   return (
-    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-10 pb-16 text-[var(--text)]">
+    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="flex w-full flex-col gap-3">
-          <div className="w-full rounded-2xl p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]">
-            <div className="flex w-full flex-col items-center gap-4 max-[1125px]:justify-center min-[1125px]:justify-between md:flex-row md:flex-wrap">
-              <div className="space-between flex flex-row divide-x divide-white/10">
+          <div className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]">
+            <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+              <div className="space-between flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10">
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
                   <span className="text-xs text-[var(--text-muted)]/90">Plan actuel</span>
                   <span className="text-sm text-[var(--text)] capitalize"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{planName}</span></span>
@@ -115,15 +115,15 @@ export default function SubscriptionsPage() {
                 </div>
               </div>
 
-              <div className="flex flex-row justify-center gap-2">
-                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition">
+              <div className="flex flex-row flex-wrap justify-center gap-2">
+                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition">
                   <span className="relative flex flex-row items-center justify-center gap-2">Annuler l'abonnement</span>
                 </button>
-                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-cyan-400/30 transition">
+                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-cyan-400/30 transition">
                   <span className="relative flex flex-row items-center justify-center gap-2">Mettre à jour le paiement</span>
                 </button>
                 <div className="flex">
-                  <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]">
+                  <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]">
                     <span className="relative flex flex-row items-center justify-center gap-2">Acheter plus</span>
                   </button>
                 </div>

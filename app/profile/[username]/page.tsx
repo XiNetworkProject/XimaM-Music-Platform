@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle } from 'lucide-react';
+import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
@@ -345,6 +345,12 @@ export default function ProfileUserPage() {
       label: 'Following',
       icon: <UserPlus size={20} />,
       count: profile?.followingCount || 0
+    },
+    {
+      id: 'stats' as const,
+      label: 'Stats',
+      icon: <TrendingUp size={20} />,
+      count: 0
     }
   ];
 

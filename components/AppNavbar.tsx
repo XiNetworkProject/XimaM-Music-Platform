@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useCallback, useEffect } from 'react';
-import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles } from 'lucide-react';
+import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioPlayer } from '../app/providers';
 
@@ -382,6 +382,10 @@ export default function AppNavbar() {
 
           {/* Actions - Mobile optimisé */}
           <div className="flex items-center gap-1 sm:gap-2">
+            <Link href="/stats" className="hidden lg:inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10">
+              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:block">Stats</span>
+            </Link>
             <Link href="/ai-generator" className="btn-suno inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2">
               <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:block text-sm">IA</span>
