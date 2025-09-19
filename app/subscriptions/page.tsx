@@ -196,9 +196,7 @@ export default function SubscriptionsPage() {
             features={[
               'Accès à la messagerie',
               'Playlists collaboratives',
-              'Analyses avancées',
-              'Support prioritaire',
-              'Publication privée'
+              'Analyses avancées'
             ]}
           />
 
@@ -213,9 +211,7 @@ export default function SubscriptionsPage() {
             limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps' }}
             features={[
               'Accès à la messagerie',
-              'SLA et support dédié',
-              'API & intégrations',
-              'Sièges équipe / multi-comptes'
+              
             ]}
           />
         </div>
