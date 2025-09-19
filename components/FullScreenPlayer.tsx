@@ -324,24 +324,30 @@ export default function FullScreenPlayer() {
               
               {/* Bas : barre de progression + contrôles */}
               <div className="w-full mt-auto">
-                {/* Barre de progression améliorée */}
-                <div className="mb-4">
+                {/* Barre de progression améliorée (plus longue et plus fine) */}
+                <div className="mb-4 mx-[-8px] md:mx-[-12px]">
                   <div 
-                    className="w-full h-2 bg-white/10 rounded-full relative cursor-pointer border border-[var(--border)]"
+                    className="w-full h-[4px] md:h-[6px] bg-white/10 rounded-full relative cursor-pointer border border-[var(--border)]"
                     onClick={handleSeek}
                   >
                     <div 
-                      className="h-2 bg-gradient-to-r from-[var(--color-primary)] to-pink-400 rounded-full relative transition-all duration-100"
+                      className="h-[4px] md:h-[6px] bg-gradient-to-r from-[var(--color-primary)] to-pink-400 rounded-full relative transition-all duration-100"
                       style={{ width: `${progressPercentage}%` }}
                     >
                       <div className="progress-shimmer absolute inset-0 rounded-full"></div>
                     </div>
+                    {/* Mobile knob (12px) */}
                     <div 
-                      className="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100 border border-[var(--border)]"
+                      className="absolute md:hidden top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100 border border-[var(--border)]"
+                      style={{ left: `calc(${progressPercentage}% - 6px)` }}
+                    />
+                    {/* Desktop knob (16px) */}
+                    <div 
+                      className="absolute hidden md:block top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100 border border-[var(--border)]"
                       style={{ left: `calc(${progressPercentage}% - 8px)` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <div className="flex justify-between text-xs text-gray-400 mt-1 px-2 md:px-3">
                     <span>{formatTime(audioState.currentTime)}</span>
                     <span>{formatTime(audioState.duration)}</span>
                   </div>
