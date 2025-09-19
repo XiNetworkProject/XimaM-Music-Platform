@@ -169,29 +169,30 @@ export default function FullScreenPlayer() {
         <FloatingParticles isPlaying={audioState.isPlaying && !audioState.isLoading} />
 
         <div className="flex flex-1 flex-row content-between items-center p-2 w-full">
-          {/* Left: cover + title/artist marquee */}
-          <div className="w-full overflow-hidden md:w-8 relative flex flex-1 items-center">
+          {/* Left: cover */}
+          <div className="md:w-8 relative flex items-center">
             <a className="mr-2 h-16 w-10 shrink-0 overflow-clip rounded-md md:h-14" onClick={(e) => { e.stopPropagation(); }} href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>
               <img src={currentTrack?.coverUrl || '/default-cover.jpg'} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" />
             </a>
-            <div className="md:w-auto relative flex w-full flex-col pr-2 min-w-0">
-              {/* Title marquee */}
-              <div className="relative flex w-fit cursor-pointer overflow-x-hidden text-sm font-medium hover:underline" onClick={(e)=>{e.stopPropagation();}}>
-                <div className="animate-marquee md:animate-none">
-                  <a className="mr-24 whitespace-nowrap" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
-                </div>
-                <div className="absolute top-0 animate-marquee2 md:animate-none">
-                  <a className="mr-24 whitespace-nowrap md:hidden" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
-                </div>
-                <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
+          </div>
+
+          {/* Middle: title/artist (mobile au-dessus des boutons) */}
+          <div className="flex flex-col flex-1 min-w-0 pr-2">
+            {/* Title marquee */}
+            <div className="relative flex w-fit cursor-pointer overflow-x-hidden text-sm font-medium hover:underline" onClick={(e)=>{e.stopPropagation();}}>
+              <div className="animate-marquee md:animate-none">
+                <a className="mr-24 whitespace-nowrap" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
               </div>
-              {/* Artist + quick actions (mobile-only subset) */}
-              <span className="flex flex-col text-sm font-medium md:flex-row">
-                <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
-                  <span className="line-clamp-1 w-full lg:max-w-[150px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
-                </a>
-              </span>
+              <div className="absolute top-0 animate-marquee2 md:animate-none">
+                <a className="mr-24 whitespace-nowrap md:hidden" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
+              </div>
+              <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
             </div>
+            <span className="flex flex-col text-sm font-medium md:flex-row">
+              <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
+                <span className="line-clamp-1 w-full lg:max-w-[220px] md:max-w-[180px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+              </a>
+            </span>
           </div>
 
           {/* Mobile controls (always visible on mobile) */}
