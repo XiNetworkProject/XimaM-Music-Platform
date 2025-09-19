@@ -11,18 +11,14 @@ export function usePlaysSync() {
     const handleTrackPlayed = (event: CustomEvent) => {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
-        // Ne pas synchroniser les écoutes pour la radio ou les pistes IA
-        if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
-          console.log(`🎵 ${trackId.startsWith('ai-') ? 'Piste IA' : 'Radio'} détectée, pas de synchronisation des écoutes`);
+        // Ne pas synchroniser les écoutes pour la radio uniquement
+        if (trackId === 'radio-mixx-party') {
           return;
         }
         
         console.log(`🎵 Synchronisation écoutes pour ${trackId}`);
         
-        // Mise à jour optimiste immédiate
-        updatePlays(trackId, 1, true);
-        
-        // Synchronisation avec le serveur
+        // Synchronisation avec le serveur (pas d'optimistic à 1)
         fetch(`/api/tracks/${trackId}/plays`, {
           method: 'POST',
           headers: {
@@ -34,11 +30,11 @@ export function usePlaysSync() {
           // Mise à jour avec les vraies données du serveur
           syncPlays(trackId, data.plays);
           console.log(`✅ Écoutes synchronisées pour ${trackId}: ${data.plays}`);
+          // Broadcast global pour les composants qui écoutent
+          window.dispatchEvent(new CustomEvent('playsUpdated', { detail: { trackId, plays: data.plays } }));
         })
         .catch(error => {
           console.error(`❌ Erreur synchronisation écoutes pour ${trackId}:`, error);
-          // Rollback en cas d'erreur
-          updatePlays(trackId, 0, false, 'Erreur de synchronisation');
         });
       }
     };
@@ -47,18 +43,13 @@ export function usePlaysSync() {
     const handleTrackChanged = (event: CustomEvent) => {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
-        // Ne pas synchroniser les écoutes pour la radio ou les pistes IA
-        if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
-          console.log(`🔄 ${trackId.startsWith('ai-') ? 'Piste IA' : 'Radio'} détectée, pas de synchronisation des écoutes`);
+        // Ne pas synchroniser les écoutes pour la radio uniquement
+        if (trackId === 'radio-mixx-party') {
           return;
         }
         
         console.log(`🔄 Changement de piste détecté: ${trackId}`);
-        
-        // Incrémenter les écoutes pour la nouvelle piste
-        updatePlays(trackId, 1, true);
-        
-        // Synchronisation avec le serveur
+        // Synchronisation avec le serveur (pas d'optimistic à 1)
         fetch(`/api/tracks/${trackId}/plays`, {
           method: 'POST',
           headers: {
@@ -69,10 +60,10 @@ export function usePlaysSync() {
         .then(data => {
           syncPlays(trackId, data.plays);
           console.log(`✅ Écoutes mises à jour pour ${trackId}: ${data.plays}`);
+          window.dispatchEvent(new CustomEvent('playsUpdated', { detail: { trackId, plays: data.plays } }));
         })
         .catch(error => {
           console.error(`❌ Erreur mise à jour écoutes pour ${trackId}:`, error);
-          updatePlays(trackId, 0, false, 'Erreur de mise à jour');
         });
       }
     };
@@ -91,9 +82,8 @@ export function usePlaysSync() {
   // Fonction pour déclencher manuellement une synchronisation
   const triggerPlaysSync = useCallback((trackId: string) => {
     if (trackId && session?.user?.id) {
-      // Ne pas déclencher la synchronisation pour la radio ou les pistes IA
-      if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
-        console.log(`🎵 ${trackId.startsWith('ai-') ? 'Piste IA' : 'Radio'} détectée, pas de déclenchement de synchronisation`);
+      // Ne pas déclencher la synchronisation pour la radio uniquement
+      if (trackId === 'radio-mixx-party') {
         return;
       }
       

@@ -311,10 +311,10 @@ export default function FullScreenPlayer() {
                 
                 {/* Statistiques de la piste */}
                 <div className="flex items-center space-x-6 mb-4 text-sm text-gray-400">
-                  <div className="flex items-center space-x-1">
-                    <Headphones size={16} />
-                    <span>{currentTrack?.plays || 0}</span>
-                  </div>
+                      <div className="flex items-center space-x-1">
+                        <Headphones size={16} />
+                        <span>{currentTrack?.plays || 0}</span>
+                      </div>
                   <div className="flex items-center space-x-1">
                     <Heart size={16} />
                     <span>{currentTrack?.likes?.length || 0}</span>

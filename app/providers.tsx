@@ -230,6 +230,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           });
           return { ...prev, tracks: newTracks };
         });
+        // Broadcast global pour synchroniser les listes et compteurs
+        try {
+          window.dispatchEvent(new CustomEvent('playsUpdated', { detail: { trackId, plays: data.plays } }));
+        } catch {}
       }
       
     } catch (error) {
