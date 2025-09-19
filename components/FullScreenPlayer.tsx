@@ -224,6 +224,15 @@ export default function FullScreenPlayer() {
             </div>
           </div>
         </div>
+        {/* Mini progress bar: plus longue et plus fine */}
+        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-1 w-[92%] md:w-[94%]">
+          <div className="h-[2px] md:h-[3px] bg-white/15 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[var(--color-primary)] to-pink-400 rounded-full transition-[width] duration-150 ease-linear"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
       </motion.div>
 
       {/* Player plein écran (modal/dialog) */}
