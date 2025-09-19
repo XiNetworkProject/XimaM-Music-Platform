@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -145,7 +147,11 @@ export async function GET(request: NextRequest) {
           trendingThreshold: 100, // score
           artistTrendingThreshold: 30 // score simplifié
         }
-      });
+      }, { headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }});
       
     } catch (artistsError) {
       console.log('⚠️ Erreur lors de la récupération des artistes:', artistsError);
@@ -162,7 +168,11 @@ export async function GET(request: NextRequest) {
           trendingThreshold: 100,
           artistTrendingThreshold: 30
         }
-      });
+      }, { headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }});
     }
 
   } catch (error) {

@@ -145,7 +145,7 @@ export default function LibraryPage() {
 
       // Charger les pistes récentes
       try {
-        const recentResponse = await fetch('/api/tracks?recent=true&limit=20');
+        const recentResponse = await fetch('/api/tracks?recent=true&limit=20', { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache' } });
         if (recentResponse.ok) {
           const recentData = await recentResponse.json();
           setRecentTracks(recentData.tracks || []);
@@ -158,7 +158,7 @@ export default function LibraryPage() {
 
       // Charger les favoris
       try {
-        const favoritesResponse = await fetch('/api/tracks?liked=true&limit=50');
+        const favoritesResponse = await fetch('/api/tracks?liked=true&limit=50', { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache' } });
         if (favoritesResponse.ok) {
           const favoritesData = await favoritesResponse.json();
           setFavoriteTracks(favoritesData.tracks || []);
@@ -171,7 +171,7 @@ export default function LibraryPage() {
 
       // Charger toutes les pistes pour l'ajout aux playlists
       try {
-        const allTracksResponse = await fetch('/api/tracks?limit=100');
+        const allTracksResponse = await fetch('/api/tracks?limit=100', { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache' } });
         if (allTracksResponse.ok) {
           const allTracksData = await allTracksResponse.json();
           setAllTracks(allTracksData.tracks || []);

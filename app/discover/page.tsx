@@ -204,7 +204,12 @@ export default function DiscoverPage() {
       setError(null);
 
       // Utiliser la nouvelle API discover complète - TOUJOURS charger TOUTES les données
-      const discoverResponse = await fetch(`/api/discover?category=all&sort=trending&limit=100`);
+      const discoverResponse = await fetch(`/api/discover?category=all&sort=trending&limit=100`, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
       if (discoverResponse.ok) {
         const discoverData = await discoverResponse.json();
         

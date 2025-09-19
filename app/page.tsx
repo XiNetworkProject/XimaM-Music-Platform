@@ -319,7 +319,7 @@ export default function HomePage() {
       
       const response = await fetch(urlWithTimestamp, {
         headers: {
-          'Cache-Control': 'no-cache',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
           'Pragma': 'no-cache'
         }
       });

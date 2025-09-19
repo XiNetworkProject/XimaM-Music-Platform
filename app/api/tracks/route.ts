@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -107,7 +109,11 @@ export async function GET(request: NextRequest) {
           total: formattedTracks.length,
           sort,
           category: category || 'all'
-        });
+        }, { headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }});
       }
     }
 
@@ -116,7 +122,11 @@ export async function GET(request: NextRequest) {
       total: 0,
       sort,
       category: category || 'all'
-    });
+    }, { headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    }});
 
   } catch (error) {
     console.error('Erreur lors de la récupération des tracks:', error);
