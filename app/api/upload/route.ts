@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getEntitlements } from '@/lib/entitlements';
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,6 +17,26 @@ export async function POST(request: NextRequest) {
     }
 
     const contentType = request.headers.get('content-type') || '';
+
+    // Vérifier quota de pistes selon le plan
+    try {
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('plan')
+        .eq('id', session.user.id)
+        .maybeSingle();
+      const plan = (profile?.plan || 'free') as any;
+      const ent = getEntitlements(plan);
+      if (ent.uploads.maxTracks > -1) {
+        const { count } = await supabaseAdmin
+          .from('tracks')
+          .select('*', { count: 'exact', head: true })
+          .eq('creator_id', session.user.id);
+        if ((count || 0) >= ent.uploads.maxTracks) {
+          return NextResponse.json({ error: `Quota atteint: ${ent.uploads.maxTracks} pistes` }, { status: 403 });
+        }
+      }
+    } catch {}
     
     // Accepter à la fois JSON et multipart/form-data
     if (contentType.includes('application/json')) {

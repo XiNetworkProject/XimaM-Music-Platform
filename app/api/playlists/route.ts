@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { getEntitlements } from '@/lib/entitlements';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -65,14 +68,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { name, description, isPublic } = await request.json();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
     
     if (!name?.trim()) {
       return NextResponse.json({ error: 'Nom de playlist requis' }, { status: 400 });
     }
 
-    // Pour l'instant, on utilise un user ID par défaut
-    // TODO: Implémenter l'authentification JWT avec NextAuth
-    const userId = 'default-user-id';
+    // Appliquer quota playlists
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('plan')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    const plan = (profile?.plan || 'free') as any;
+    const ent = getEntitlements(plan);
+    if (ent.uploads.maxPlaylists > -1) {
+      const { count } = await supabase
+        .from('playlists')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', session.user.id);
+      if ((count || 0) >= ent.uploads.maxPlaylists) {
+        return NextResponse.json({ error: `Quota playlists atteint: ${ent.uploads.maxPlaylists}` }, { status: 403 });
+      }
+    }
+
+    const userId = session.user.id;
     
     console.log('🎵 Création de playlist:', { name, description, isPublic, userId });
 

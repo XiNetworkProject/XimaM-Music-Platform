@@ -2132,75 +2132,43 @@ export default function HomePage() {
       {/* Sections de catégories améliorées */}
       <div className="py-6 space-y-12">
 
-        {/* Section Artistes Émergents - Design futuriste */}
+        {/* Créateurs suggérés - Style carrousel Synaura */}
         <section className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
-          <div
-            className="mb-6 animate-fade-in"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                  <UserPlus size={20} className="text-purple-400" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-white">Artistes Émergents</h2>
-                  <p className="text-gray-400 text-sm">Découvrez les nouveaux talents</p>
-                </div>
+          <div className="h-full w-full overflow-hidden animate-fade-in">
+            <div className="mb-2 flex w-full flex-row justify-between pb-2">
+              <div className="flex items-center gap-4">
+                <h2 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">Créateurs que vous pourriez aimer</h2>
               </div>
-              <button
-                className="text-purple-400 hover:text-purple-300 font-medium text-sm hover:scale-105 active:scale-95"
-              >
-                Voir tout
-              </button>
             </div>
-            
             {usersLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500"></div>
+              <div className="flex items-center justify-center py-10">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[var(--color-primary)]"></div>
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {popularUsers?.map((user, index) => (
-                  <div
-                    key={user._id || user.id || index}
-                    className="group panel-suno p-4 flex flex-col items-center hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-[var(--border)] focus-within:ring-2 focus-within:ring-[var(--color-primary)] cursor-pointer text-center text-[var(--text)]"
-                    tabIndex={0}
-                    aria-label={`Artiste : ${user.name || user.username}`}
-                    onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
-                  >
-                    {/* Avatar */}
-                    <div className="relative mb-3">
-                      <img
-                        src={user.avatar || '/default-avatar.png'}
-                        alt={user.name || user.username}
-                        className="w-20 h-20 rounded-full mx-auto object-cover group-hover:ring-2 ring-purple-500/50 transition-all duration-300"
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          // Logique follow/unfollow ici
-                        }}
-                        className="absolute bottom-1 right-1 w-8 h-8 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white shadow opacity-0 group-hover:opacity-100 transition-opacity duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                        aria-label={`Suivre ${user.name || user.username}`}
+              <div className="relative w-full overflow-hidden" style={{ height: '20.5rem' }}>
+                <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_85%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
+                  <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 px-1">
+                    {popularUsers?.map((user, index) => (
+                      <div key={user._id || user.id || index} className="relative flex h-fit w-48 shrink-0 cursor-pointer flex-col gap-4 rounded-lg p-4 transition ease-in-out hover:bg-[var(--surface-2)]/60 border border-transparent hover:border-[var(--border)]"
+                        title={user.name || user.username}
+                        onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
+                        aria-label={`Créateur : ${user.name || user.username}`}
                       >
-                        <UserPlus size={16} />
-                      </button>
-                    </div>
-                    <h3 className="font-semibold text-[var(--text)] text-base truncate w-full mb-0.5">{user.name || user.username}</h3>
-                    <p className="text-[var(--text-muted)] text-xs mb-1">@{user.username}</p>
-                    <div className="flex items-center gap-1 text-[var(--text-muted)] text-xs">
-                      <AnimatedPlaysCounter
-                        value={user.followers?.length || 0}
-                        size="sm"
-                        variant="minimal"
-                        showIcon={false}
-                        animation="slide"
-                        className="text-[var(--text-muted)]"
-                      />
-                      <span>abonnés</span>
-                    </div>
-                  </div>
-                ))}
+                        <img
+                          alt={user.name || user.username}
+                          src={user.avatar || '/default-avatar.png'}
+                          className="aspect-square h-auto w-full rounded-full object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                        />
+                        <div className="flex h-fit w-full flex-col">
+                          <h3 className="overflow-hidden font-sans text-lg font-semibold text-ellipsis whitespace-nowrap text-[var(--text)]">{user.name || user.username}</h3>
+                          <span className="line-clamp-1 font-sans text-sm font-normal text-[var(--text-muted)]">@{user.username}</span>
+                          <span className="font-mono text-sm text-[var(--text-muted)]">{formatNumber((user.followers?.length || 0))} abonnés</span>
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                </div>
               </div>
             )}
           </div>
@@ -2209,45 +2177,45 @@ export default function HomePage() {
 
 
         {/* Section Radio Mixx Party - Version Améliorée */}
-        <section id="radio" className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6 py-8">
+        <section id="radio" className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6 py-4">
           <div className="relative animate-fade-in">
             {/* En-tête avec badge animé */}
-            <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 mb-4 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 backdrop-blur-md border border-cyan-500/30 rounded-full">
+            <div className="text-center mb-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 mb-2 bg-gradient-to-r from-cyan-500/15 to-purple-500/15 backdrop-blur-md border border-cyan-500/25 rounded-full">
                 <div className="w-2 h-2 bg-gradient-to-r from-cyan-400 to-purple-400 rounded-full animate-pulse"></div>
                 <span className="text-cyan-200 text-sm font-medium">EN DIRECT</span>
                 <Radio size={14} className="text-cyan-400" />
               </div>
-              <h2 className="text-3xl md:text-4xl font-black text-white mb-3 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+              <h2 className="text-2xl md:text-3xl font-bold text-white mb-2 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Mixx Party Radio
               </h2>
-              <p className="text-gray-300 text-lg">La radio électronique qui pulse 24h/24</p>
+              <p className="text-gray-300 text-sm md:text-base">La radio électronique qui pulse 24h/24</p>
             </div>
             
             {/* Carte principale avec design amélioré */}
-            <div className="relative bg-gradient-to-br from-gray-900/80 via-black/60 to-gray-900/80 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-white/10 shadow-2xl">
+            <div className="relative bg-gradient-to-br from-gray-900/80 via-black/60 to-gray-900/80 backdrop-blur-xl rounded-2xl p-4 md:p-5 border border-[var(--border)] shadow-lg">
               {/* Effet de particules en arrière-plan */}
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(34,197,94,0.1),transparent_50%)] rounded-3xl"></div>
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(168,85,247,0.1),transparent_50%)] rounded-3xl"></div>
               
               <div className="relative z-10">
                 {/* Layout responsive amélioré */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
                   
                   {/* Section principale - Contrôles et infos */}
                   <div className="lg:col-span-2 space-y-6">
                     {/* En-tête de la radio */}
                     <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                       <div className="relative">
-                        <div className="w-16 h-16 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center shadow-lg">
-                          <Radio size={24} className="text-white" />
+                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-400 via-purple-500 to-pink-500 rounded-xl flex items-center justify-center shadow-md">
+                          <Radio size={18} className="text-white" />
                         </div>
                         {/* Effet de lueur */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-2xl blur-xl opacity-30 animate-pulse"></div>
+                        <div className="absolute inset-0 bg-gradient-to-br from-cyan-400 to-purple-500 rounded-xl blur-lg opacity-20"></div>
                       </div>
                       <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-white mb-1">Mixx Party Radio</h3>
-                        <p className="text-gray-300">Musique électronique en continu • 24h/24</p>
+                        <h3 className="text-xl md:text-2xl font-bold text-white mb-0.5">Mixx Party Radio</h3>
+                        <p className="text-gray-300 text-sm">Musique électronique en continu • 24h/24</p>
                         <div className="flex items-center gap-2 mt-2">
                           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                           <span className="text-green-400 text-sm font-medium">LIVE</span>
@@ -2256,37 +2224,37 @@ export default function HomePage() {
                     </div>
                     
                     {/* Statistiques en grille responsive */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
                           <Headphones size={16} className="text-cyan-400" />
                           <span className="text-gray-400 text-sm font-medium">Auditeurs</span>
                         </div>
                         <AnimatedPlaysCounter
                           value={radioInfo.listeners || 0}
-                          size="lg"
+                          size="md"
                           variant="minimal"
                           showIcon={false}
                           animation="slide"
-                          className="text-2xl font-bold text-cyan-400"
+                          className="text-xl font-bold text-cyan-400"
                         />
                       </div>
                       
-                      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                           <span className="text-gray-400 text-sm font-medium">Statut</span>
                         </div>
-                        <span className="text-2xl font-bold text-green-400">LIVE</span>
+                        <span className="text-xl font-bold text-green-400">LIVE</span>
                       </div>
                       
-                      <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-4 border border-white/10 sm:col-span-1 col-span-2">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/10 sm:col-span-1 col-span-2">
                         <div className="flex items-center gap-2 mb-2">
                           <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
                           <span className="text-gray-400 text-sm font-medium">Qualité</span>
                         </div>
                         <div className="space-y-1">
-                          <span className="text-2xl font-bold text-purple-400">{radioInfo.quality}</span>
+                          <span className="text-xl font-bold text-purple-400">{radioInfo.quality}</span>
                           <div className="text-xs text-gray-500">{radioInfo.bitrate} kbps</div>
                         </div>
                       </div>
@@ -2295,25 +2263,25 @@ export default function HomePage() {
                     {/* Bouton de contrôle principal */}
                     <button
                       onClick={handleRadioToggle}
-                      className={`group relative w-full h-16 rounded-2xl flex items-center justify-center gap-3 transition-all duration-500 shadow-2xl hover:shadow-cyan-500/25 hover:scale-[1.02] active:scale-[0.98] ${
+                      className={`group relative w-full h-12 rounded-xl flex items-center justify-center gap-3 transition-all duration-300 shadow-lg hover:shadow-cyan-500/20 hover:scale-[1.01] active:scale-[0.99] ${
                         isRadioPlaying 
                           ? 'bg-gradient-to-r from-red-500 via-pink-500 to-red-600' 
                           : 'bg-gradient-to-r from-cyan-400 via-purple-500 to-pink-500'
                       }`}
                     >
-                      {/* Effet de lueur au hover */}
-                      <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      {/* Effet de lueur discret */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200"></div>
                       
                       <div className="relative flex items-center gap-3">
                         {isRadioPlaying ? (
                           <>
-                            <Pause size={24} className="text-white" />
-                            <span className="text-white font-bold text-lg">Arrêter la Radio</span>
+                            <Pause size={20} className="text-white" />
+                            <span className="text-white font-semibold text-sm md:text-base">Arrêter la Radio</span>
                           </>
                         ) : (
                           <>
-                            <Play size={24} className="text-white ml-1" />
-                            <span className="text-white font-bold text-lg">Écouter la Radio</span>
+                            <Play size={20} className="text-white ml-1" />
+                            <span className="text-white font-semibold text-sm md:text-base">Écouter la Radio</span>
                           </>
                         )}
                       </div>
@@ -2323,19 +2291,19 @@ export default function HomePage() {
                   {/* Section latérale - Informations sur la piste */}
                   <div className="space-y-4">
                     {/* Carte de la piste actuelle */}
-                    <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-sm rounded-2xl p-6 border border-purple-500/20">
+                    <div className="bg-gradient-to-br from-purple-500/10 via-pink-500/10 to-cyan-500/10 backdrop-blur-sm rounded-xl p-4 border border-purple-500/20">
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-3 h-3 bg-red-400 rounded-full animate-pulse"></div>
                         <h4 className="text-lg font-bold text-white">En cours de lecture</h4>
                       </div>
                       
                       <div className="text-center space-y-3">
-                        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-2xl flex items-center justify-center">
-                          <Radio size={32} className="text-purple-400" />
+                        <div className="w-14 h-14 mx-auto bg-gradient-to-br from-purple-500/20 to-pink-500/20 rounded-xl flex items-center justify-center">
+                          <Radio size={22} className="text-purple-400" />
                         </div>
                         
                         <div>
-                          <p className="text-white font-semibold text-lg mb-1 line-clamp-2">
+                          <p className="text-white font-semibold text-base md:text-lg mb-1 line-clamp-2">
                             {radioInfo.currentTrack || 'Chargement...'}
                           </p>
                           <p className="text-purple-300 text-sm">Mixx Party Radio</p>
@@ -2360,11 +2328,11 @@ export default function HomePage() {
                     <div className="space-y-3">
                       <button
                         onClick={() => setShowProgramDialog(true)}
-                        className="w-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/40 rounded-2xl p-4 hover:bg-gradient-to-r hover:from-cyan-500/30 hover:to-purple-500/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full bg-gradient-to-r from-cyan-500/20 to-purple-500/20 border border-cyan-500/40 rounded-xl p-3 hover:bg-gradient-to-r hover:from-cyan-500/30 hover:to-purple-500/30 transition-all duration-200"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Eye size={18} className="text-white" />
-                          <span className="text-white font-semibold">Programme</span>
+                          <span className="text-white font-semibold text-sm">Programme</span>
                         </div>
                       </button>
                       
@@ -2381,11 +2349,11 @@ export default function HomePage() {
                             navigator.clipboard.writeText(window.location.href);
                           }
                         }}
-                        className="w-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/40 rounded-2xl p-4 hover:bg-gradient-to-r hover:from-pink-500/30 hover:to-purple-500/30 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+                        className="w-full bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/40 rounded-xl p-3 hover:bg-gradient-to-r hover:from-pink-500/30 hover:to-purple-500/30 transition-all duration-200"
                       >
                         <div className="flex items-center justify-center gap-2">
                           <Share2 size={18} className="text-white" />
-                          <span className="text-white font-semibold">Partager</span>
+                          <span className="text-white font-semibold text-sm">Partager</span>
                         </div>
                       </button>
                     </div>

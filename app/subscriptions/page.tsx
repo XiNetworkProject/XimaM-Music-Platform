@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Calendar } from 'lucide-react';
+import PaymentElementCard from './PaymentElementCard';
+import { getEntitlements, PLAN_ENTITLEMENTS } from '@/lib/entitlements';
 
 type UsageInfo = {
   tracks: { used: number; limit: number; percentage: number };
@@ -28,20 +30,61 @@ export default function SubscriptionsPage() {
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [current, setCurrent] = useState<CurrentSubscription>(null);
   const [period, setPeriod] = useState<'month' | 'year'>('year');
+  const [selectedPriceId, setSelectedPriceId] = useState<string>('');
+  const [paid, setPaid] = useState(false);
+  const payRef = useRef<HTMLDivElement>(null);
+
+  const fetchAll = useMemo(() => {
+    return async () => {
+      try {
+        const [u, c] = await Promise.all([
+          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null)
+        ]);
+        if (u) setUsage(u);
+        if (c) setCurrent(c);
+      } catch {}
+    };
+  }, []);
+
+  const priceMap = useMemo(() => ({
+    Starter: { month: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || '', year: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR || '' },
+    Pro: { month: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || '', year: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR || '' },
+    Enterprise: { month: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || '', year: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR || '' },
+  }), []);
+
+  const activePlanName = (current?.subscription?.name || 'Free').toLowerCase();
+  const isFreeActive = activePlanName === 'free';
+  const isStarterActive = activePlanName === 'starter';
+  const isProActive = activePlanName === 'pro';
+
+  const choosePlan = (priceId: string) => {
+    if (!priceId) return;
+    setSelectedPriceId(priceId);
+    setPaid(false);
+    requestAnimationFrame(() => {
+      payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   useEffect(() => {
-    // Usage: pistes / stockage / playlists
-    fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } })
-      .then(r => r.ok ? r.json() : null)
-      .then(setUsage)
-      .catch(() => {});
+    fetchAll();
+  }, [fetchAll]);
 
-    // Abonnement courant
-    fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } })
-      .then(r => r.ok ? r.json() : null)
-      .then(setCurrent)
-      .catch(() => {});
-  }, []);
+  // Rafraîchissement au retour d'onglet et intervalle léger
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAll();
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    const id = setInterval(fetchAll, 60000);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      clearInterval(id);
+    };
+  }, [fetchAll]);
 
   const planName = useMemo(() => current?.subscription?.name || 'Free Plan', [current]);
   const billingPeriod = useMemo(() => {
@@ -149,16 +192,17 @@ export default function SubscriptionsPage() {
           <PeriodToggle value={period} onChange={setPeriod} />
         </div>
 
-        {/* Grille plans vides (contenu à venir) */}
+        {/* Grille plans (droits affichés) */}
         <div className="mt-8 grid w-full grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6">
           {/* FREE */}
           <PlanCard
             title="Free"
             highlight={false}
-            badge={undefined}
+            badge={isFreeActive ? 'Actif' : undefined}
             priceMonthly={0}
             period={period}
-            disabled={false}
+            disabled={isFreeActive}
+            isActive={isFreeActive}
             limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps' }}
             features={[
               'Profil public et bibliothèque',
@@ -171,33 +215,37 @@ export default function SubscriptionsPage() {
           <PlanCard
             title="Starter"
             highlight
-            badge="Populaire"
+            badge={isStarterActive ? 'Actif' : 'Populaire'}
             priceMonthly={4.99}
             period={period}
-            disabled={false}
-            limits={{ tracks: '20/mois', storage: '1 GB', playlists: '20', quality: '256 kbps' }}
+            disabled={isStarterActive}
+            isActive={isStarterActive}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps' }}
             features={[
-              'Accès à la messagerie',
-              'Pas de publicité',
-              'Statistiques de base',
+              PLAN_ENTITLEMENTS.starter.features.messaging ? 'Messagerie' : '',
+              PLAN_ENTITLEMENTS.starter.features.adFree ? 'Sans publicité' : '',
+              PLAN_ENTITLEMENTS.starter.features.analyticsBasic ? 'Statistiques de base' : '',
               'Téléversements plus lourds'
             ]}
+            onChoose={() => choosePlan(priceMap.Starter[period])}
           />
 
           {/* PRO */}
           <PlanCard
             title="Pro"
             highlight={false}
-            badge={undefined}
+            badge={isProActive ? 'Actif' : undefined}
             priceMonthly={14.99}
             period={period}
-            disabled={false}
-            limits={{ tracks: '50/mois', storage: '5 GB', playlists: 'Illimité', quality: '320 kbps' }}
+            disabled={isProActive}
+            isActive={isProActive}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps' }}
             features={[
-              'Accès à la messagerie',
-              'Playlists collaboratives',
-              'Analyses avancées'
+              PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
+              PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists ? 'Playlists collaboratives' : '',
+              PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Analyses avancées' : ''
             ]}
+            onChoose={() => choosePlan(priceMap.Pro[period])}
           />
 
           {/* ENTERPRISE */}
@@ -216,6 +264,16 @@ export default function SubscriptionsPage() {
           />
         </div>
       </div>
+
+      {selectedPriceId && !paid && (
+        <div className="mt-6" ref={payRef}>
+          <PaymentElementCard priceId={selectedPriceId} onSuccess={() => { setPaid(true); fetchAll(); }} />
+        </div>
+      )}
+
+      {paid && (
+        <div className="mt-6 panel-suno border border-[var(--border)] rounded-2xl p-4 text-green-400">Paiement réussi. Abonnement activé.</div>
+      )}
     </div>
   );
 }
@@ -268,8 +326,10 @@ function PlanCard({
   priceMonthly,
   period,
   disabled,
+  isActive,
   limits,
-  features
+  features,
+  onChoose
 }: {
   title: string;
   badge?: string;
@@ -277,8 +337,10 @@ function PlanCard({
   priceMonthly: number;
   period: 'month' | 'year';
   disabled?: boolean;
+  isActive?: boolean;
   limits: { tracks: string; storage: string; playlists: string; quality: string };
   features?: string[];
+  onChoose?: () => void;
 }) {
   const price = useMemo(() => {
     if (period === 'year') {
@@ -324,8 +386,8 @@ function PlanCard({
           )}
 
           <div className="mt-2">
-            <button disabled={disabled} className={`w-full px-6 py-3 rounded-full transition ${disabled ? 'text-white/60 bg-white/10 ring-1 ring-white/15 cursor-not-allowed' : 'text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95'}`}>
-              {disabled ? 'À venir' : 'Choisir'}
+            <button disabled={disabled} onClick={onChoose} className={`w-full px-6 py-3 rounded-full transition ${disabled ? 'text-white/60 bg-white/10 ring-1 ring-white/15 cursor-not-allowed' : 'text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95'}`}>
+              {disabled ? (isActive ? 'Actif' : 'À venir') : 'Choisir'}
             </button>
           </div>
         </div>
