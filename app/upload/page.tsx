@@ -923,7 +923,7 @@ export default function UploadPage() {
                     </div>
                     <div className="flex justify-between">
                       <span>Taille :</span>
-                      <span>{(audioFile?.size || 0 / 1024 / 1024).toFixed(2)} MB</span>
+                      <span>{((audioFile?.size || 0) / 1024 / 1024).toFixed(2)} MB</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Visibilité :</span>
@@ -934,6 +934,51 @@ export default function UploadPage() {
                       <span>{formData.isExplicit ? 'Explicite' : 'Tout public'}</span>
                     </div>
                   </div>
+
+                  {/* Prévisualisation impact stockage */}
+                  {usage && (
+                    <div className="bg-white/[0.02] border border-[var(--border)] rounded-lg p-3">
+                      <h4 className="text-sm font-medium text-white/80 mb-2">Impact sur votre stockage</h4>
+                      <div className="space-y-2 text-xs text-white/70">
+                        <div className="flex justify-between">
+                          <span>Stockage actuel :</span>
+                          <span>{usage.storage.used.toFixed(2)} / {usage.storage.limit} GB</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Taille audio :</span>
+                          <span>+{((audioFile?.size || 0) / 1024 / 1024 / 1024).toFixed(3)} GB</span>
+                        </div>
+                        {coverFile && (
+                          <div className="flex justify-between">
+                            <span>Taille cover :</span>
+                            <span>+{((coverFile?.size || 0) / 1024 / 1024 / 1024).toFixed(3)} GB</span>
+                          </div>
+                        )}
+                        <div className="border-t border-white/10 pt-2 flex justify-between font-medium">
+                          <span>Après upload :</span>
+                          <span className={`${
+                            (usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) > usage.storage.limit 
+                              ? 'text-red-400' 
+                              : 'text-green-400'
+                          }`}>
+                            {(usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024).toFixed(2)} / {usage.storage.limit} GB
+                          </span>
+                        </div>
+                        <div className="w-full bg-white/10 rounded-full h-1.5 mt-2">
+                          <div
+                            className={`h-1.5 rounded-full transition-all duration-300 ${
+                              (usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) > usage.storage.limit
+                                ? 'bg-red-500'
+                                : 'bg-green-500'
+                            }`}
+                            style={{ 
+                              width: `${Math.min(100, ((usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) / usage.storage.limit) * 100)}%` 
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
