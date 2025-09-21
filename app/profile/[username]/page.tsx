@@ -651,7 +651,7 @@ export default function ProfileUserPage() {
         track.id === trackId ? { 
           ...track, 
           is_featured: data.track.is_featured,
-          featuredBanner: data.track.featured_banner
+          featuredBanner: data.track.featuredBanner || featuredBanner
         } : track
       ));
       
@@ -661,7 +661,7 @@ export default function ProfileUserPage() {
           track.id === trackId ? { 
             ...track, 
             is_featured: data.track.is_featured,
-            featuredBanner: data.track.featured_banner
+            featuredBanner: data.track.featuredBanner || featuredBanner
           } : track
         )
       }));
