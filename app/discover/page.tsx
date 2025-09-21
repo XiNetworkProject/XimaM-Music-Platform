@@ -708,7 +708,7 @@ export default function DiscoverPage() {
                 const categoryTracks = filteredTracks.filter(track => 
                   track.genre && 
                   Array.isArray(track.genre) && 
-                  track.genre.some(g => genres.includes(g))
+                  track.genre.some(g => (genres as readonly string[]).includes(g))
                 );
 
                 if (categoryTracks.length === 0) return null;
