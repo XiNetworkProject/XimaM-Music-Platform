@@ -1528,15 +1528,6 @@ export default function HomePage() {
   }
 
    const categoryConfigs = [
-    {
-      key: 'popular',
-      title: '⭐ Créations Populaires',
-      subtitle: 'Les favoris de la communauté',
-      icon: Crown,
-      color: 'from-yellow-500 to-orange-500',
-      bgColor: 'bg-yellow-500/10',
-      borderColor: 'border-yellow-500/20'
-    },
 
     {
       key: 'following',
