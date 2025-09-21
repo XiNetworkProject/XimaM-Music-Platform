@@ -205,10 +205,10 @@ export default function DiscoverPage() {
       } else {
         // Filtrage direct par genre si c'est un genre spécifique
         filtered = tracks.filter(track => 
-          track.genre && 
-          Array.isArray(track.genre) && 
-          track.genre.includes(selectedCategory)
-        );
+      track.genre && 
+      Array.isArray(track.genre) && 
+      track.genre.includes(selectedCategory)
+    );
       }
     }
     
@@ -639,22 +639,22 @@ export default function DiscoverPage() {
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-[var(--text)] mb-2">Découvrir</h1>
               <p className="text-[var(--text-muted)] text-sm sm:text-base">Explorez les dernières créations musicales</p>
-            </div>
+          </div>
             <div className="flex items-center gap-3">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                 <select
+                   value={sortBy}
+                   onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-3 py-2 text-sm bg-[var(--surface-2)] border border-[var(--border)] rounded-lg text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-transparent"
               >
                 <option value="trending">Tendances</option>
                 <option value="newest">Nouveautés</option>
                 <option value="popular">Populaires</option>
                 <option value="featured">En Vedette</option>
-              </select>
+                 </select>
+          </div>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
 
           {/* Catégories - Style avec boutons de navigation */}
           <div className="px-2 sm:px-4 md:px-6 mb-8">
@@ -664,35 +664,35 @@ export default function DiscoverPage() {
                   <h2 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">Genres</h2>
                 </div>
                 <div className="hidden sm:flex items-center gap-2">
-                  <button 
+                 <button
                     aria-label="Scroll left" 
-                    onClick={() => {
+                   onClick={() => {
                       const section = document.getElementById('genres-scroll');
                       if (section) section.scrollBy({ left: -300, behavior: 'smooth' });
-                    }}
+                   }}
                     className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75"
-                  >
+                 >
                     <span className="relative flex flex-row items-center justify-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
                         <path d="m9.398 12.005 6.194-6.193q.315-.316.305-.748a1.06 1.06 0 0 0-.326-.748Q15.255 4 14.823 4t-.748.316l-6.467 6.488a1.7 1.7 0 0 0-.38.57 1.7 1.7 0 0 0-.126.631q0 .315.127.632.126.315.379.569l6.488 6.488q.316.316.738.306a1.05 1.05 0 0 0 .737-.327q.316-.316.316-.748t-.316-.748z"></path>
-                      </svg>
+                   </svg>
                     </span>
-                  </button>
-                  <button 
+                 </button>
+                 <button
                     aria-label="Scroll right" 
-                    onClick={() => {
+                   onClick={() => {
                       const section = document.getElementById('genres-scroll');
                       if (section) section.scrollBy({ left: 300, behavior: 'smooth' });
-                    }}
+                   }}
                     className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75"
-                  >
+                 >
                     <span className="relative flex flex-row items-center justify-center gap-2">
                       <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
                         <path d="M14.602 12.005 8.407 5.812a.99.99 0 0 1-.305-.748q.01-.432.326-.748T9.177 4t.748.316l6.467 6.488q.253.253.38.57.126.315.126.631 0 .315-.127.632-.126.315-.379.569l-6.488 6.488a.97.97 0 0 1-.738.306 1.05 1.05 0 0 1-.737-.327q-.316-.316-.316-.748t.316-.748z"></path>
-                      </svg>
+                   </svg>
                     </span>
-                  </button>
-                </div>
+                 </button>
+               </div>
               </div>
               <div className="relative w-full overflow-hidden">
                 <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_90%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
@@ -700,25 +700,25 @@ export default function DiscoverPage() {
                     id="genres-scroll"
                     className="flex gap-2 sm:gap-3 overflow-x-auto pb-4 scroll-smooth [&::-webkit-scrollbar]:hidden" 
                     style={{ scrollbarWidth: 'none' }}
-                  >
-                    {categories.map((category, index) => (
+               >
+                 {categories.map((category, index) => (
                       <button
-                        key={category.id}
-                        onClick={() => setSelectedCategory(category.id)}
+                     key={category.id}
+                     onClick={() => setSelectedCategory(category.id)}
                         className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
-                          selectedCategory === category.id
+                       selectedCategory === category.id
                             ? 'bg-[var(--accent)] text-white'
                             : 'bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-3)] border border-[var(--border)]'
                         }`}
                       >
                         {category.name}
                       </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
+                 ))}
+               </div>
+             </div>
           </div>
+            </div>
+                </div>
 
       {/* Contenu principal - Sections par genres */}
         <motion.div
@@ -776,8 +776,8 @@ export default function DiscoverPage() {
             )}
 
 
-            </div>
-          )}
+                  </div>
+                )}
         </motion.div>
       
       {/* Modale "Voir tout" avec AnimatePresence */}

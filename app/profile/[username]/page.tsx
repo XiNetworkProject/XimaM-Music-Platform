@@ -470,36 +470,82 @@ export default function ProfileUserPage() {
     setLikeLoading(trackId);
     try {
       // Utiliser le système batch pour la synchronisation temps réel
-      await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
+      const result = await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
       
-      // Mettre à jour l'état local
-      setUserTracks(prev => prev.map(track => 
-        track.id === trackId 
-          ? { ...track, isLiked: !track.isLiked, likes: track.isLiked ? track.likes.filter((id: string) => id !== session?.user?.id) : [...track.likes, session?.user?.id || ''] }
-          : track
-      ));
+      if (result) {
+        // Mettre à jour l'état local avec les vraies données de l'API
+        setUserTracks(prev => prev.map(track => 
+          track.id === trackId 
+            ? { 
+                ...track, 
+                isLiked: result.isLiked, 
+                likes: typeof result.likes === 'number' ? result.likes : track.likes 
+              }
+            : track
+        ));
+        
+        setProfile((prev: any) => ({
+          ...prev,
+          tracks: prev.tracks.map((track: any) => 
+            track.id === trackId 
+              ? { 
+                  ...track, 
+                  isLiked: result.isLiked, 
+                  likes: typeof result.likes === 'number' ? result.likes : track.likes 
+                }
+              : track
+          )
+        }));
+        
+        toast.success(result.isLiked ? 'Track ajoutée aux favoris' : 'Track retirée des favoris');
+      }
     } catch (e: any) {
       setError(e.message || 'Erreur like');
+      toast.error(e.message || 'Erreur like');
     } finally {
       setLikeLoading(null);
     }
   };
 
   const handleDeleteTrack = async (trackId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette piste ?')) return;
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette piste ? Cette action est irréversible.')) return;
     setDeleteLoading(trackId);
+    setError('');
     try {
       const res = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Erreur suppression');
       
-      // Mettre à jour l'état local
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erreur suppression');
+      }
+      
+      // Mettre à jour l'état local - supprimer de toutes les listes
+      setUserTracks(prev => prev.filter(track => track.id !== trackId));
+      
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.filter((track: any) => track.id !== trackId),
-        trackCount: prev.trackCount - 1
+        trackCount: Math.max(0, (prev.trackCount || 0) - 1)
       }));
+      
+      setShowTrackOptions(null);
+      toast.success('Track supprimée avec succès');
+      
+      // Rafraîchir les données d'usage pour mettre à jour le stockage
+      try {
+        const usageRes = await fetch('/api/subscriptions/usage', { 
+          headers: { 'Cache-Control': 'no-store' } 
+        });
+        if (usageRes.ok) {
+          console.log('💾 Stockage mis à jour après suppression');
+        }
+      } catch (e) {
+        console.warn('⚠️ Impossible de rafraîchir l\'usage');
+      }
+      
     } catch (e: any) {
       setError(e.message || 'Erreur suppression');
+      toast.error(e.message || 'Erreur suppression');
     } finally {
       setDeleteLoading(null);
     }
@@ -522,31 +568,43 @@ export default function ProfileUserPage() {
     setUploading(true);
     setError('');
     try {
-      const targetId = editingTrack.id || editingTrack._id;
-      if (!targetId) throw new Error('Identifiant piste manquant');
-      const res = await fetch(`/api/tracks/${targetId}`, {
+      const trackId = editingTrack.id || editingTrack._id;
+      const res = await fetch(`/api/tracks/${trackId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...trackEditData,
+          title: trackEditData.title,
           genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean),
-          tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean)
+          isPublic: trackEditData.isPublic
         }),
       });
-      if (!res.ok) throw new Error('Erreur modification');
-      const data = await res.json();
       
-      // Mettre à jour l'état local
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erreur modification');
+      }
+      
+      const updatedTrack = await res.json();
+      
+      // Mettre à jour l'état local avec les nouvelles données
+      setUserTracks(prev => prev.map(track => 
+        track.id === trackId ? { ...track, ...updatedTrack } : track
+      ));
+      
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((track: any) => 
-          track.id === targetId ? data.track : track
+          track.id === trackId ? { ...track, ...updatedTrack } : track
         )
       }));
+      
       setShowEditTrackModal(false);
       setEditingTrack(null);
+      setShowTrackOptions(null);
+      toast.success('Track modifiée avec succès');
     } catch (e: any) {
       setError(e.message || 'Erreur modification');
+      toast.error(e.message || 'Erreur modification');
     } finally {
       setUploading(false);
     }
@@ -563,30 +621,50 @@ export default function ProfileUserPage() {
     setUploading(true);
     setError('');
     try {
-      const targetId = featuringTrack.id || featuringTrack._id;
-      if (!targetId) throw new Error('Identifiant piste manquant');
-      const res = await fetch(`/api/tracks/${targetId}/featured`, {
+      const trackId = featuringTrack.id || featuringTrack._id;
+      const res = await fetch(`/api/tracks/${trackId}/featured`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          isFeatured: !featuringTrack.isFeatured,
+          isFeatured: !featuringTrack.is_featured,
           featuredBanner: featuredBanner
         }),
       });
-      if (!res.ok) throw new Error('Erreur mise en avant');
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erreur mise en avant');
+      }
+      
       const data = await res.json();
       
       // Mettre à jour l'état local
+      setUserTracks(prev => prev.map(track => 
+        track.id === trackId ? { 
+          ...track, 
+          is_featured: data.track.is_featured,
+          featuredBanner: data.track.featured_banner
+        } : track
+      ));
+      
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((track: any) => 
-          track.id === targetId ? data.track : track
+          track.id === trackId ? { 
+            ...track, 
+            is_featured: data.track.is_featured,
+            featuredBanner: data.track.featured_banner
+          } : track
         )
       }));
+      
       setShowFeatureTrackModal(false);
       setFeaturingTrack(null);
+      setShowTrackOptions(null);
+      toast.success(data.track.is_featured ? 'Track mise en vedette' : 'Track retirée de la vedette');
     } catch (e: any) {
       setError(e.message || 'Erreur mise en avant');
+      toast.error(e.message || 'Erreur mise en avant');
     } finally {
       setUploading(false);
     }
@@ -955,93 +1033,104 @@ export default function ProfileUserPage() {
                 {trackViewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {userTracks.map((track: any) => (
-                      <div key={track.id} className={`panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative ${showTrackOptions === track.id ? 'pr-52' : ''}`}> 
-                        {/* Banderole de mise en avant */}
-                        {track.is_featured && (
-                          <div className="absolute -top-2 -left-2 z-10">
-                            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                              <Crown size={12} />
-                              {track.featuredBanner || 'En vedette'}
+                      <div key={track.id} className={`group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ${showTrackOptions === track.id ? 'z-20' : 'z-10'}`}>
+                        <div className={`relative panel-suno rounded-xl p-4 border border-[var(--border)] hover:shadow-xl hover:border-purple-500/30 transition-all duration-300 ${showTrackOptions === track.id ? 'pr-52' : ''}`}>
+                          {/* Banderole de mise en avant */}
+                          {track.is_featured && (
+                            <div className="absolute -top-2 -left-2 z-10">
+                              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-lg">
+                                <Crown size={12} />
+                                {track.featuredBanner || 'En vedette'}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-start space-x-3">
-                          <div className="relative flex-shrink-0">
-                            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                              {track.cover_url || track.cover_url || track.coverUrl ? (
-                                <img src={track.cover_url || track.cover_url || track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
-                              ) : (
-                                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                            </div>
-                            <button 
-                              className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" 
-                              onClick={() => handlePlayTrack(track)}
-                              title="Lire"
-                            >
-                              {audioState.currentTrackIndex !== -1 && 
-                               audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
-                               audioState.isPlaying ? (
-                                <Pause className="w-6 h-6 text-white" />
-                              ) : (
-                                <Play className="w-6 h-6 text-white" />
-                              )}
-                            </button>
-                          </div>
+                          )}
                           
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-white truncate">{track.title}</h4>
-                            <p className="text-sm text-gray-400 truncate">
-                              {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
-                            </p>
-                            <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={track.likes}
-                                isActive={track.isLiked}
-                                onToggle={async (newState) => {
-                                  await handleLikeTrack(track.id);
+                          {/* Cover avec overlay play */}
+                          <div className="relative mb-4 group/cover">
+                            <div className="aspect-square w-full rounded-xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                              <img 
+                                src={track.cover_url || track.coverUrl || '/default-cover.jpg'} 
+                                alt={track.title} 
+                                className="w-full h-full object-cover" 
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
                                 }}
-                                size="sm"
-                                showIcon={true}
-                                disabled={likeLoading === track.id}
-                                className="hover:text-pink-400 transition-colors"
-                              />
-                              <AnimatedPlaysCounter
-                                value={track.plays}
-                                size="sm"
-                                variant="minimal"
-                                showIcon={false}
-                                animation="slide"
-                                className="text-gray-500"
                               />
                             </div>
-                          </div>
-                          
-                          {/* Menu d'options pour le propriétaire - tiroir accolé */}
-                          {isOwnProfile && (
-                            <>
+                            {/* Bouton play overlay */}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/cover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-xl">
                               <button 
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                                }}
+                                className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow-lg hover:scale-110 active:scale-95" 
+                                onClick={() => handlePlayTrack(track)}
+                                title="Lire"
                               >
-                                <MoreVertical className="w-4 h-4" />
+                                {audioState.currentTrackIndex !== -1 && 
+                                 audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
+                                 audioState.isPlaying ? (
+                                  <Pause className="w-6 h-6 text-white ml-0" />
+                                ) : (
+                                  <Play className="w-6 h-6 text-white ml-1" />
+                                )}
                               </button>
-                              {/* Tiroir attaché à la carte (ancré au conteneur relatif de la carte) */}
-                              <AnimatePresence>
-                                {showTrackOptions === track.id && (
-                                  <motion.div
-                                    initial={{ x: 192, opacity: 0 }}
-                                    animate={{ x: 0, opacity: 1 }}
-                                    exit={{ x: 192, opacity: 0 }}
-                                    transition={{ type: 'tween', duration: 0.18 }}
-                                    className="absolute top-0 right-0 h-full w-48 overflow-hidden"
+                            </div>
+                            {/* Badge durée */}
+                            <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-medium">
+                              {formatDuration(track.duration)}
+                            </div>
+                          </div>
+                          
+                          {/* Informations track */}
+                          <div className="space-y-3">
+                            <div>
+                              <h4 className="font-semibold text-[var(--text)] text-base mb-1 line-clamp-1 title-suno">{track.title}</h4>
+                              <p className="text-[var(--text-muted)] text-sm line-clamp-1">
+                                {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
+                              </p>
+                            </div>
+                            
+                            {/* Stats */}
+                            <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-1">
+                                  <TrendingUp size={12} className="text-blue-400" />
+                                  <AnimatedPlaysCounter
+                                    value={track.plays}
+                                    size="sm"
+                                    variant="minimal"
+                                    showIcon={false}
+                                    animation="slide"
+                                    className="text-[var(--text-muted)] font-medium"
+                                  />
+                                </div>
+                                <InteractiveCounter
+                                  type="likes"
+                                  initialCount={track.likes}
+                                  isActive={track.isLiked}
+                                  onToggle={async (newState) => {
+                                    await handleLikeTrack(track.id);
+                                  }}
+                                  size="sm"
+                                  showIcon={true}
+                                  disabled={likeLoading === track.id}
+                                  className="hover:text-pink-400 transition-colors"
+                                />
+                              </div>
+                              
+                              {/* Menu d'options pour le propriétaire */}
+                              {isOwnProfile && (
+                                <div className="relative">
+                                  <button 
+                                    className="p-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
+                                    }}
+                                  >
+                                    <MoreVertical className="w-4 h-4" />
+                                  </button>
+                                  {/* Tiroir attaché à la carte */}
+                                  <div
+                                    className={`absolute top-0 right-0 h-full overflow-hidden transition-[width] duration-200 ease-out ${showTrackOptions === track.id ? 'w-48' : 'w-0'}`}
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
@@ -1073,11 +1162,11 @@ export default function ProfileUserPage() {
                                         Supprimer
                                       </button>
                                     </div>
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </>
-                          )}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
