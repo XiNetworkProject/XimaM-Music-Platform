@@ -1546,15 +1546,6 @@ export default function HomePage() {
       bgColor: 'bg-yellow-500/10',
       borderColor: 'border-yellow-500/20'
     },
-    {
-      key: 'recent',
-      title: '🆕 Nouvelles Créations',
-      subtitle: 'Les derniers partages',
-      icon: Calendar,
-      color: 'from-green-500 to-emerald-500',
-      bgColor: 'bg-green-500/10',
-      borderColor: 'border-green-500/20'
-    },
 
     {
       key: 'following',
@@ -2409,113 +2400,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Section Créations Récentes */}
-        <section className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-2xl font-bold text-white">Nouvelles Créations</h2>
-              <p className="text-gray-400">Les dernières créations partagées par la communauté</p>
-            </div>
-            <button
-              className="text-purple-400 hover:text-purple-300 font-medium text-sm px-4 py-2 rounded-lg border border-purple-500/30 bg-purple-900/10 transition"
-            >
-              Voir tout
-            </button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-            {dailyDiscoveries.length > 0 ? (
-              dailyDiscoveries.map((track, index) => (
-                <div
-                  key={track._id}
-                  className="group panel-suno p-4 flex flex-col items-center hover:shadow-lg hover:scale-[1.03] transition-all duration-200 border border-[var(--border)] focus-within:ring-2 focus-within:ring-[var(--color-primary)] cursor-pointer"
-                  tabIndex={0}
-                  aria-label={`Création : ${track.title || 'Titre inconnu'} par ${track.artist?.name || track.artist?.username || 'Artiste inconnu'}`}
-                >
-                  {/* Image */}
-                  <div className="w-28 h-28 rounded-xl overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                    <img
-                      src={track.coverUrl || '/default-cover.jpg'}
-                      alt={track.title || 'Titre inconnu'}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.currentTarget.src = '/default-cover.jpg';
-                      }}
-                    />
-                  </div>
-                  {/* Titre */}
-                  <h4 className="font-semibold text-[var(--text)] text-base text-center truncate w-full mb-0.5 title-suno">
-                    {track.title || 'Titre inconnu'}
-                  </h4>
-                  {/* Artiste */}
-                  <p className="text-[var(--text-muted)] text-xs text-center truncate w-full mb-2">
-                    {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
-                  </p>
-                  {/* Durée + Bouton play */}
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                      {formatDuration(track.duration)}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handlePlayTrack(track);
-                      }}
-                      className="w-10 h-10 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white shadow transition focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      aria-label={`Écouter ${track.title || 'Titre inconnu'}`}
-                    >
-                      {currentTrack?._id === track._id && audioState.isPlaying ? (
-                        <Pause size={18} />
-                      ) : (
-                        <Play size={18} className="ml-0.5" />
-                      )}
-                    </button>
-                  </div>
-                  {/* Stats */}
-                  <div className="flex items-center justify-between w-full mt-auto pt-2 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
-                    <div className="flex items-center gap-1">
-                      <AnimatedPlaysCounter
-                        value={track.plays}
-                        size="sm"
-                        variant="minimal"
-                        showIcon={false}
-                        animation="slide"
-                        className="text-[var(--text-muted)]"
-                      />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <LikeButton
-                        trackId={track._id}
-                        initialLikesCount={track.likes || 0}
-                        initialIsLiked={track.isLiked || false}
-                        size="sm"
-                        variant="minimal"
-                        showCount={false}
-                        className="text-[var(--text-muted)] hover:text-red-500"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              // Skeleton loading si pas de données
-              [...Array(6)].map((_, index) => (
-                <div key={index} className="animate-pulse">
-                  <div className="relative rounded-xl overflow-hidden">
-                    <div className="aspect-square bg-gray-800"></div>
-                    <div className="p-3 bg-gray-800">
-                      <div className="h-4 bg-gray-700 rounded mb-1"></div>
-                      <div className="h-3 bg-gray-700 rounded w-2/3 mb-2"></div>
-                      <div className="flex justify-between">
-                        <div className="h-3 bg-gray-700 rounded w-1/3"></div>
-                        <div className="h-3 bg-gray-700 rounded w-1/4"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
 
 
 
