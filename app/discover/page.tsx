@@ -628,7 +628,7 @@ export default function DiscoverPage() {
   };
 
     return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
+    <div className="min-h-screen bg-transparent text-[var(--text)] pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
 
       {/* Contrôles et filtres - Style Suno épuré */}
       <motion.div 
