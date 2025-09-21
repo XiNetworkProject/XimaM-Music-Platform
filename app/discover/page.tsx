@@ -592,14 +592,6 @@ export default function DiscoverPage() {
     { id: 'Asian', name: 'Asian', icon: <Globe size={20} />, color: 'from-red-700 to-purple-600', description: 'Musique asiatique', trackCount: 0 }
   ];
 
-  // Moods pour le filtrage
-  const moods = [
-    { name: 'Énergique', icon: <Zap size={16} />, color: 'bg-yellow-500' },
-    { name: 'Relaxant', icon: <Sparkles size={16} />, color: 'bg-blue-500' },
-    { name: 'Romantique', icon: <Heart size={16} />, color: 'bg-pink-500' },
-    { name: 'Mystérieux', icon: <Gem size={16} />, color: 'bg-purple-500' },
-    { name: 'Festif', icon: <Flame size={16} />, color: 'bg-orange-500' }
-  ];
 
   // SUPPRIMÉ : Ce useEffect causait le rechargement des données à chaque changement de catégorie
   // useEffect(() => {
@@ -788,45 +780,6 @@ export default function DiscoverPage() {
              </div>
           </div>
 
-          {/* Moods - Style identique à l'accueil */}
-          <div className="mb-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '50px' }}
-              transition={{ duration: 0.6 }}
-              className="mb-6"
-            >
-              <div className="flex items-center space-x-4 mb-6">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 bg-pink-500/10 border border-pink-500/20">
-                  <Sparkles size={24} className="text-white" />
-            </div>
-                <div>
-                                     <h2 className="text-2xl font-bold text-white">Ambiances</h2>
-                   <p className="text-gray-400">Filtrez par humeur musicale</p>
-                </div>
-              </div>
-            </motion.div>
-            
-            <div className="flex flex-wrap gap-3">
-              {moods.map((mood, index) => (
-                <motion.button
-                  key={mood.name}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.4, delay: index * 0.05 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm border border-gray-700 rounded-full text-white hover:bg-white/20 transition-all"
-                >
-                  <div className={`w-3 h-3 rounded-full ${mood.color}`} />
-                  {mood.icon}
-                  <span className="text-sm">{mood.name}</span>
-                </motion.button>
-              ))}
-            </div>
-            </div>
           </div>
         </motion.div>
 
