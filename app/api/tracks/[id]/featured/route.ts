@@ -23,11 +23,22 @@ export async function POST(
     console.log(`🌟 Mise en vedette track: ${id}, featured: ${isFeatured}`);
 
     // Vérifier que l'utilisateur est le propriétaire de la track
-    const { data: track, error: trackError } = await supabaseAdmin
+    let { data: track, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('creator_id, artist_id')
-      .eq('id', id)
+      .select('id, _id, creator_id, artist_id')
+      .eq('_id', id)
       .single();
+    
+    // Si pas trouvé avec _id, essayer avec id
+    if (trackError && trackError.code === 'PGRST116') {
+      const result = await supabaseAdmin
+        .from('tracks')
+        .select('id, _id, creator_id, artist_id')
+        .eq('id', id)
+        .single();
+      track = result.data;
+      trackError = result.error;
+    }
 
     if (trackError || !track) {
       return NextResponse.json({ error: 'Track non trouvée' }, { status: 404 });
@@ -37,7 +48,7 @@ export async function POST(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    // Mettre à jour le statut en vedette
+    // Mettre à jour le statut en vedette (utiliser le même champ que pour la recherche)
     const { data: updatedTrack, error: updateError } = await supabaseAdmin
       .from('tracks')
       .update({
@@ -45,7 +56,7 @@ export async function POST(
         featured_banner: featuredBanner || null,
         updated_at: new Date().toISOString()
       })
-      .eq('id', id)
+      .eq(track._id ? '_id' : 'id', id)
       .select()
       .single();
 

@@ -20,12 +20,23 @@ export async function GET(
 
     console.log(`🔍 Récupération de la track: ${id}`);
 
-    // Récupérer la track depuis Supabase
-    const { data: track, error: trackError } = await supabase
+    // Récupérer la track depuis Supabase (essayer _id d'abord, puis id)
+    let { data: track, error: trackError } = await supabase
       .from('tracks')
       .select('*')
-      .eq('id', id)
+      .eq('_id', id)
       .single();
+    
+    // Si pas trouvé avec _id, essayer avec id
+    if (trackError && trackError.code === 'PGRST116') {
+      const result = await supabase
+        .from('tracks')
+        .select('*')
+        .eq('id', id)
+        .single();
+      track = result.data;
+      trackError = result.error;
+    }
 
     if (trackError || !track) {
       console.log(`❌ Track non trouvée: ${id}`);
@@ -88,11 +99,22 @@ export async function PUT(
     console.log(`🔄 Mise à jour de la track: ${id}`, body);
 
     // Vérifier que la track existe et que l'utilisateur est le propriétaire
-    const { data: existingTrack, error: trackError } = await supabaseAdmin
+    let { data: existingTrack, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('id, creator_id, artist_id')
-      .eq('id', id)
+      .select('id, _id, creator_id, artist_id')
+      .eq('_id', id)
       .single();
+    
+    // Si pas trouvé avec _id, essayer avec id
+    if (trackError && trackError.code === 'PGRST116') {
+      const result = await supabaseAdmin
+        .from('tracks')
+        .select('id, _id, creator_id, artist_id')
+        .eq('id', id)
+        .single();
+      existingTrack = result.data;
+      trackError = result.error;
+    }
 
     if (trackError || !existingTrack) {
       console.error('❌ Track non trouvée:', trackError);
@@ -120,11 +142,11 @@ export async function PUT(
     if (typeof body.isPublic === 'boolean') updateData.is_public = body.isPublic;
     if (typeof body.isFeatured === 'boolean') updateData.is_featured = body.isFeatured;
 
-    // Mettre à jour la track
+    // Mettre à jour la track (utiliser le même champ que pour la recherche)
     const { data: updatedTrack, error: updateError } = await supabaseAdmin
       .from('tracks')
       .update(updateData)
-      .eq('id', id)
+      .eq(existingTrack._id ? '_id' : 'id', id)
       .select()
       .single();
 
@@ -181,20 +203,31 @@ export async function DELETE(
     console.log(`🗑️  Suppression de la track: ${id}`);
 
     // Récupérer d'abord les public_id Cloudinary pour suppression
-    const { data: existing, error: fetchErr } = await supabase
+    let { data: existing, error: fetchErr } = await supabaseAdmin
       .from('tracks')
-      .select('audio_public_id, cover_public_id')
-      .eq('id', id)
+      .select('audio_public_id, cover_public_id, id, _id')
+      .eq('_id', id)
       .maybeSingle();
+    
+    // Si pas trouvé avec _id, essayer avec id
+    if (fetchErr && fetchErr.code === 'PGRST116') {
+      const result = await supabaseAdmin
+        .from('tracks')
+        .select('audio_public_id, cover_public_id, id, _id')
+        .eq('id', id)
+        .maybeSingle();
+      existing = result.data;
+      fetchErr = result.error;
+    }
     if (fetchErr) {
       console.warn('⚠️ Impossible de récupérer les public_id avant suppression:', fetchErr.message);
     }
 
-    // Supprimer la track en base
-    const { error: deleteError } = await supabase
+    // Supprimer la track en base (utiliser le même champ que pour la recherche)
+    const { error: deleteError } = await supabaseAdmin
       .from('tracks')
       .delete()
-      .eq('id', id);
+      .eq(existing?._id ? '_id' : 'id', id);
 
     if (deleteError) {
       console.error('❌ Erreur lors de la suppression:', deleteError);
