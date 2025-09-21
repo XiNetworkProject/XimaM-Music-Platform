@@ -1033,8 +1033,8 @@ export default function ProfileUserPage() {
                 {trackViewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {userTracks.map((track: any) => (
-                      <div key={track.id} className={`group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 ${showTrackOptions === track.id ? 'z-20' : 'z-10'}`}>
-                        <div className={`relative panel-suno rounded-xl p-4 border border-[var(--border)] hover:shadow-xl hover:border-purple-500/30 transition-all duration-300 ${showTrackOptions === track.id ? 'pr-52' : ''}`}>
+                      <div key={track.id} className="group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 relative">
+                        <div className="relative panel-suno rounded-xl p-4 border border-[var(--border)] hover:shadow-xl hover:border-purple-500/30 transition-all duration-300 overflow-hidden">
                           {/* Banderole de mise en avant */}
                           {track.is_featured && (
                             <div className="absolute -top-2 -left-2 z-10">
@@ -1118,52 +1118,15 @@ export default function ProfileUserPage() {
                               
                               {/* Menu d'options pour le propriétaire */}
                               {isOwnProfile && (
-                                <div className="relative">
-                                  <button 
-                                    className="p-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                                    }}
-                                  >
-                                    <MoreVertical className="w-4 h-4" />
-                                  </button>
-                                  {/* Tiroir attaché à la carte */}
-                                  <div
-                                    className={`absolute top-0 right-0 h-full overflow-hidden transition-[width] duration-200 ease-out ${showTrackOptions === track.id ? 'w-48' : 'w-0'}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
-                                      <button
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
-                                        onClick={() => handleEditTrack(track)}
-                                      >
-                                        <Edit3 className="w-4 h-4" />
-                                        Modifier
-                                      </button>
-                                      <button
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
-                                        onClick={() => handleFeatureTrack(track)}
-                                      >
-                                        <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                                        {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
-                                      </button>
-                                      <div className="my-1 border-t border-[var(--border)]" />
-                                      <button
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-2"
-                                        onClick={() => handleDeleteTrack(track.id)}
-                                        disabled={deleteLoading === track.id}
-                                      >
-                                        {deleteLoading === track.id ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <Trash2 className="w-4 h-4" />
-                                        )}
-                                        Supprimer
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
+                                <button 
+                                  className="p-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
+                                  }}
+                                >
+                                  <MoreVertical className="w-4 h-4" />
+                                </button>
                               )}
                             </div>
                           </div>
@@ -1241,60 +1204,103 @@ export default function ProfileUserPage() {
                             </div>
                           </div>
                           
-                          {/* Menu d'options pour le propriétaire - tiroir accolé */}
+                          {/* Menu d'options pour le propriétaire */}
                           {isOwnProfile && (
-                            <>
-                              <button 
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                                }}
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                              {/* Tiroir attaché à la carte (ancré au conteneur relatif de la carte) */}
-                              <div
-                                className={`absolute top-0 right-0 h-full overflow-hidden transition-[width] duration-200 ease-out ${showTrackOptions === track.id ? 'w-48' : 'w-0'}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
-                                  <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
-                                    onClick={() => handleEditTrack(track)}
-                                  >
-                                    <Edit3 className="w-4 h-4" />
-                                    Modifier
-                                  </button>
-                                  <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
-                                    onClick={() => handleFeatureTrack(track)}
-                                  >
-                                    <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                                    {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
-                                  </button>
-                                  <div className="my-1 border-t border-[var(--border)]" />
-                                  <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-2"
-                                    onClick={() => handleDeleteTrack(track.id)}
-                                    disabled={deleteLoading === track.id}
-                                  >
-                                    {deleteLoading === track.id ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-4 h-4" />
-                                    )}
-                                    Supprimer
-                                  </button>
-                                </div>
-                              </div>
-                            </>
+                            <button 
+                              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
+                              }}
+                            >
+                              <MoreVertical className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Tiroir d'options global pour toutes les vues */}
+            {isOwnProfile && showTrackOptions && (
+              <div className="fixed inset-0 z-50" onClick={() => setShowTrackOptions(null)}>
+                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
+                <div 
+                  className="absolute bg-[var(--surface-2)] border border-[var(--border)] rounded-xl shadow-2xl p-1 min-w-[220px] animate-fade-in"
+                  style={{
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {userTracks.find(t => t.id === showTrackOptions) && (
+                    <>
+                      <div className="p-4 border-b border-[var(--border)]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                            <img 
+                              src={userTracks.find(t => t.id === showTrackOptions)?.cover_url || userTracks.find(t => t.id === showTrackOptions)?.coverUrl || '/default-cover.jpg'} 
+                              alt={userTracks.find(t => t.id === showTrackOptions)?.title} 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-[var(--text)] text-sm line-clamp-1">
+                              {userTracks.find(t => t.id === showTrackOptions)?.title}
+                            </h4>
+                            <p className="text-[var(--text-muted)] text-xs">
+                              {formatDuration(userTracks.find(t => t.id === showTrackOptions)?.duration)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-2 space-y-1">
+                        <button
+                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
+                          onClick={() => {
+                            const track = userTracks.find(t => t.id === showTrackOptions);
+                            if (track) handleEditTrack(track);
+                          }}
+                        >
+                          <Edit3 className="w-4 h-4 text-blue-400" />
+                          <span>Modifier</span>
+                        </button>
+                        <button
+                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
+                          onClick={() => {
+                            const track = userTracks.find(t => t.id === showTrackOptions);
+                            if (track) handleFeatureTrack(track);
+                          }}
+                        >
+                          <Star className={`w-4 h-4 ${userTracks.find(t => t.id === showTrackOptions)?.is_featured ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
+                          <span>{userTracks.find(t => t.id === showTrackOptions)?.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}</span>
+                        </button>
+                        <div className="border-t border-[var(--border)] my-2"></div>
+                        <button
+                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-3 rounded-lg transition-colors"
+                          onClick={() => {
+                            if (showTrackOptions) handleDeleteTrack(showTrackOptions);
+                          }}
+                          disabled={deleteLoading === showTrackOptions}
+                        >
+                          {deleteLoading === showTrackOptions ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                          <span>Supprimer</span>
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             )}
 
