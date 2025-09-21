@@ -606,57 +606,7 @@ export default function ProfileUserPage() {
     setFollowLoading(null);
   };
 
-  const [menuDirection, setMenuDirection] = useState<{ [trackId: string]: 'up' | 'down' }>({});
-  const menuButtonRefs = useRef<{ [trackId: string]: HTMLButtonElement | null }>({});
-  const menuRefs = useRef<{ [trackId: string]: HTMLDivElement | null }>({});
-
-  // Gestion dynamique de la direction du menu
-  useEffect(() => {
-    if (!showTrackOptions) return;
-    const button = menuButtonRefs.current[showTrackOptions];
-    const menu = menuRefs.current[showTrackOptions];
-    if (button && typeof window !== 'undefined') {
-      const rect = button.getBoundingClientRect();
-      const menuHeight = menu ? menu.offsetHeight : 120;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const margin = 16; // marge de sécurité
-      if (spaceBelow < menuHeight + margin && spaceAbove > menuHeight + margin) {
-        setMenuDirection((prev) => ({ ...prev, [showTrackOptions]: 'up' }));
-      } else {
-        setMenuDirection((prev) => ({ ...prev, [showTrackOptions]: 'down' }));
-      }
-    }
-  }, [showTrackOptions]);
-
-  const [menuPosition, setMenuPosition] = useState<{ [trackId: string]: { top: number, left: number, direction: 'up' | 'down' } }>({});
-
-  useEffect(() => {
-    if (!showTrackOptions) return;
-    const button = menuButtonRefs.current[showTrackOptions];
-    const menu = menuRefs.current[showTrackOptions];
-    if (button && typeof window !== 'undefined') {
-      const rect = button.getBoundingClientRect();
-      const menuHeight = menu ? menu.offsetHeight : 120;
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const spaceAbove = rect.top;
-      const margin = 16;
-      let direction: 'up' | 'down' = 'down';
-      let top = rect.bottom + 8; // 8px de marge
-      if (spaceBelow < menuHeight + margin && spaceAbove > menuHeight + margin) {
-        direction = 'up';
-        top = rect.top - menuHeight - 8;
-      }
-      setMenuPosition((prev) => ({
-        ...prev,
-        [showTrackOptions]: {
-          top,
-          left: rect.right - 180, // 180px = largeur du menu + petit décalage
-          direction
-        }
-      }));
-    }
-  }, [showTrackOptions]);
+  // Menu d'options: tiroir accolé à la carte
 
   if (loading) {
   return (
@@ -717,24 +667,24 @@ export default function ProfileUserPage() {
         {/* Avatar + infos modernes */}
         <div className="relative flex flex-col items-center -mt-24 mb-8">
           <div className="relative mb-6">
-          <div className="relative">
-            <img
-              src={editData.avatar || profile.avatar || '/default-avatar.png'}
-              alt="Avatar"
+            <div className="relative">
+              <img
+                src={editData.avatar || profile.avatar || '/default-avatar.png'}
+                alt="Avatar"
                 className="w-36 h-36 rounded-full object-cover border-4 border-[var(--border)] shadow-2xl bg-[var(--surface-2)] ring-4 ring-[var(--surface-1)]/50"
-            />
+              />
               {/* Effet de lueur autour de l'avatar */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-pink-500/20 blur-xl -z-10"></div>
               
-            {isOwnProfile && (
-              <button
+              {isOwnProfile && (
+                <button
                   className="absolute bottom-2 right-2 bg-[var(--surface-2)]/90 backdrop-blur-md hover:bg-[var(--surface-3)]/90 text-white p-2.5 rounded-full border border-[var(--border)] transition-all duration-200 hover:scale-105 shadow-lg"
-                onClick={() => fileInputRef.current?.click()}
-                title="Changer l'avatar"
-              >
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Changer l'avatar"
+                >
                   <Camera size={16} />
-              </button>
-            )}
+                </button>
+              )}
             </div>
             <input
               type="file"
@@ -757,15 +707,15 @@ export default function ProfileUserPage() {
                 <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
                   {profile.name}
                 </h1>
-              {profile.isVerified && (
+                {profile.isVerified && (
                   <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
-                  <Check className="text-white w-4 h-4" />
-                </div>
-              )}
-            </div>
+                    <Check className="text-white w-4 h-4" />
+                  </div>
+                )}
+              </div>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--text-muted)] text-lg">@{profile.username}</span>
-            {profile.isArtist && profile.artistName && (
+                {profile.isArtist && profile.artistName && (
                   <span className="px-3 py-1 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-full text-pink-400 text-sm font-medium">
                     {profile.artistName}
                   </span>
@@ -778,7 +728,7 @@ export default function ProfileUserPage() {
               <div className="panel-suno border border-[var(--border)] rounded-xl p-4 text-center hover:scale-105 transition-all duration-200">
                 <div className="flex items-center justify-center mb-2">
                   <Users className="w-5 h-5 text-purple-400" />
-            </div>
+                </div>
                 <div className="text-xl font-bold text-[var(--text)]">{profile.followerCount || 0}</div>
                 <div className="text-xs text-[var(--text-muted)]">Abonnés</div>
               </div>
@@ -809,19 +759,19 @@ export default function ProfileUserPage() {
               <div className="mt-6 max-w-2xl mx-auto">
                 <div className="panel-suno border border-[var(--border)] rounded-xl p-4">
                   <div className="text-[var(--text)] text-sm leading-relaxed">
-                {profile.bio.length > bioMaxLength && !showFullBio ? (
-                  <>
-                    {profile.bio.slice(0, bioMaxLength)}...{' '}
+                    {profile.bio.length > bioMaxLength && !showFullBio ? (
+                      <>
+                        {profile.bio.slice(0, bioMaxLength)}...{' '}
                         <button className="text-purple-400 hover:text-purple-300 underline font-medium transition-colors" onClick={() => setShowFullBio(true)}>Voir plus</button>
-                  </>
-                ) : (
-                  <>
-                    {profile.bio}
-                    {profile.bio.length > bioMaxLength && (
+                      </>
+                    ) : (
+                      <>
+                        {profile.bio}
+                        {profile.bio.length > bioMaxLength && (
                           <button className="text-purple-400 hover:text-purple-300 underline font-medium ml-2 transition-colors" onClick={() => setShowFullBio(false)}>Réduire</button>
+                        )}
+                      </>
                     )}
-                  </>
-                )}
                   </div>
                 </div>
               </div>
@@ -830,39 +780,39 @@ export default function ProfileUserPage() {
             {profile.socialLinks && Object.entries(profile.socialLinks).some(([_, value]) => value) && (
               <div className="flex flex-wrap justify-center gap-3 mt-6">
                 {Object.entries(profile.socialLinks).map(([key, value]) => {
-                const IconComponent = socialIcons[key as keyof typeof socialIcons];
+                  const IconComponent = socialIcons[key as keyof typeof socialIcons];
                   return value ? (
-                  <a
-                    key={key}
-                    href={value as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                    <a
+                      key={key}
+                      href={value as string}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-[var(--text)] hover:text-purple-400 px-4 py-2 panel-suno border border-[var(--border)] rounded-full hover:scale-105 transition-all duration-200 hover:border-purple-500/50"
-                  >
-                    {IconComponent ? (
+                    >
+                      {IconComponent ? (
                         <IconComponent size={16} />
-                    ) : (
+                      ) : (
                         <Link2 size={16} />
-                    )}
+                      )}
                       <span className="text-sm font-medium">
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
+                        {key.charAt(0).toUpperCase() + key.slice(1)}
                       </span>
-                  </a>
+                    </a>
                   ) : null;
-              })}
-            </div>
+                })}
+              </div>
             )}
             {/* Boutons actions modernes */}
             <div className="flex flex-wrap justify-center gap-4 mt-8">
               {isOwnProfile ? (
                 <>
-                <button
+                  <button
                     className="flex items-center gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-lg hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
-                  onClick={handleEdit}
-                  disabled={editMode || uploading}
-                >
+                    onClick={handleEdit}
+                    disabled={editMode || uploading}
+                  >
                     <Edit3 size={18} /> Modifier le profil
-                </button>
+                  </button>
                   <button
                     className="flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] px-6 py-3 rounded-xl font-semibold hover:bg-[var(--surface-3)] transition-all duration-300 hover:scale-105 active:scale-95"
                     onClick={() => router.push('/stats')}
@@ -912,44 +862,44 @@ export default function ProfileUserPage() {
         {/* Navigation moderne style Suno */}
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-1 mb-8">
           <div className="flex gap-2">
-              <button
-                onClick={() => setActiveTab('tracks')}
+            <button
+              onClick={() => setActiveTab('tracks')}
               className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === 'tracks'
+                activeTab === 'tracks'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-                }`}
-              >
-                  <Music size={20} />
-                  <span className="hidden sm:inline">Tracks</span>
+              }`}
+            >
+              <Music size={20} />
+              <span className="hidden sm:inline">Tracks</span>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                 activeTab === 'tracks' 
                   ? 'bg-white/20 text-white' 
                   : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
               }`}>
-                    {profile?.tracks?.length || 0}
-                  </span>
-              </button>
-              <button
-                onClick={() => setActiveTab('playlists')}
+                {profile?.tracks?.length || 0}
+              </span>
+            </button>
+            <button
+              onClick={() => setActiveTab('playlists')}
               className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === 'playlists'
+                activeTab === 'playlists'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-                }`}
-              >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                  <span className="hidden sm:inline">Playlists</span>
+              }`}
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <span className="hidden sm:inline">Playlists</span>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                 activeTab === 'playlists' 
                   ? 'bg-white/20 text-white' 
                   : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
               }`}>
-                    {profile?.playlists?.length || 0}
-                  </span>
-              </button>
+                {profile?.playlists?.length || 0}
+              </span>
+            </button>
           </div>
         </div>
 
@@ -999,11 +949,10 @@ export default function ProfileUserPage() {
                 </div>
                 
                 {trackViewMode === 'grid' ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {userTracks.map((track: any) => (
-                      <div key={track.id} className="relative">
-                        <div className="panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group hover:border-purple-500/30">
-                          {/* Banderole de mise en avant */}
+                      <div key={track.id} className={`panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative ${showTrackOptions === track.id ? 'pr-52' : ''}`}> 
+                        {/* Banderole de mise en avant */}
                         {track.is_featured && (
                           <div className="absolute -top-2 -left-2 z-10">
                             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
@@ -1068,61 +1017,54 @@ export default function ProfileUserPage() {
                             </div>
                           </div>
                           
-                          {/* Menu d'options pour le propriétaire */}
+                          {/* Menu d'options pour le propriétaire - tiroir accolé */}
                           {isOwnProfile && (
-                            <div className="relative">
+                            <>
                               <button 
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
                                 }}
-                                ref={el => { menuButtonRefs.current[track.id] = el; }}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
-                              
-                              {showTrackOptions === track.id && menuPosition[track.id] && (
-                                <div
-                                  ref={el => { menuRefs.current[track.id] = el; }}
-                                  className="fixed min-w-[180px] bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-[9999]"
-                                  style={{
-                                    top: menuPosition[track.id].top,
-                                    left: menuPosition[track.id].left,
-                                  }}
-                                  onClick={e => e.stopPropagation()}
-                                >
+                              {/* Tiroir attaché à la carte (ancré au conteneur relatif de la carte) */}
+                              <div
+                                className={`absolute top-0 right-0 h-full overflow-hidden transition-[width] duration-200 ease-out ${showTrackOptions === track.id ? 'w-48' : 'w-0'}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
                                     onClick={() => handleEditTrack(track)}
                                   >
                                     <Edit3 className="w-4 h-4" />
                                     Modifier
                                   </button>
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
                                     onClick={() => handleFeatureTrack(track)}
                                   >
                                     <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                                     {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
                                   </button>
+                                  <div className="my-1 border-t border-[var(--border)]" />
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-2"
                                     onClick={() => handleDeleteTrack(track.id)}
                                     disabled={deleteLoading === track.id}
                                   >
                                     {deleteLoading === track.id ? (
-                                      <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      </div>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : (
                                       <Trash2 className="w-4 h-4" />
                                     )}
                                     Supprimer
                                   </button>
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1131,7 +1073,7 @@ export default function ProfileUserPage() {
                 ) : (
                   <div className="space-y-3">
                     {userTracks.map((track: any) => (
-                      <div key={track.id} className="panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative">
+                      <div key={track.id} className={`panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative ${showTrackOptions === track.id ? 'pr-52' : ''}`}> 
                         {/* Banderole de mise en avant */}
                         {track.is_featured && (
                           <div className="absolute -top-2 -left-2 z-10">
@@ -1198,61 +1140,54 @@ export default function ProfileUserPage() {
                             </div>
                           </div>
                           
-                          {/* Menu d'options pour le propriétaire */}
+                          {/* Menu d'options pour le propriétaire - tiroir accolé */}
                           {isOwnProfile && (
-                            <div className="relative">
+                            <>
                               <button 
-                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100"
+                                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
                                 }}
-                                ref={el => { menuButtonRefs.current[track.id] = el; }}
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
-                              
-                              {showTrackOptions === track.id && menuPosition[track.id] && (
-                                <div
-                                  ref={el => { menuRefs.current[track.id] = el; }}
-                                  className="fixed min-w-[180px] bg-gray-800 rounded-lg shadow-2xl border border-white/10 z-[9999]"
-                                  style={{
-                                    top: menuPosition[track.id].top,
-                                    left: menuPosition[track.id].left,
-                                  }}
-                                  onClick={e => e.stopPropagation()}
-                                >
+                              {/* Tiroir attaché à la carte (ancré au conteneur relatif de la carte) */}
+                              <div
+                                className={`absolute top-0 right-0 h-full overflow-hidden transition-[width] duration-200 ease-out ${showTrackOptions === track.id ? 'w-48' : 'w-0'}`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
                                     onClick={() => handleEditTrack(track)}
                                   >
                                     <Edit3 className="w-4 h-4" />
                                     Modifier
                                   </button>
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-white/10 flex items-center gap-2"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
                                     onClick={() => handleFeatureTrack(track)}
                                   >
                                     <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
                                     {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
                                   </button>
+                                  <div className="my-1 border-t border-[var(--border)]" />
                                   <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/20 text-red-400 flex items-center gap-2"
+                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-2"
                                     onClick={() => handleDeleteTrack(track.id)}
                                     disabled={deleteLoading === track.id}
                                   >
                                     {deleteLoading === track.id ? (
-                                      <div className="flex items-center justify-center w-4 h-4 min-h-[16px]">
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                      </div>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
                                     ) : (
                                       <Trash2 className="w-4 h-4" />
                                     )}
                                     Supprimer
                                   </button>
                                 </div>
-                              )}
-                            </div>
+                              </div>
+                            </>
                           )}
                         </div>
                       </div>
