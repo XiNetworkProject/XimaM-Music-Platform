@@ -40,6 +40,7 @@ export default function SubscriptionsPage() {
   const [preview, setPreview] = useState<{ total: number; currency: string; lines: { amount: number; description?: string | null }[] } | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const plansRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   const fetchAll = useMemo(() => {
     return async () => {
@@ -181,7 +182,17 @@ export default function SubscriptionsPage() {
             <div className="w-full rounded-xl p-3 sm:p-4 border border-yellow-400/30 bg-yellow-500/10 text-yellow-200">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm">Problème de paiement détecté ({subscriptionStatus}). Mettez à jour votre moyen de paiement pour éviter l’interruption.</div>
-                <button onClick={() => pmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs px-3 py-1.5 rounded-md bg-yellow-400/20 ring-1 ring-yellow-400/30 hover:bg-yellow-400/25">Mettre à jour</button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => pmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs px-3 py-1.5 rounded-md bg-yellow-400/20 ring-1 ring-yellow-400/30 hover:bg-yellow-400/25">Mettre à jour</button>
+                  <button onClick={async () => {
+                    const res = await fetch('/api/billing/retry-payment', { method: 'POST' });
+                    if (res.ok) {
+                      const j = await res.json();
+                      if (j.ok) { setToast({ type: 'success', msg: 'Paiement relancé avec succès.' }); await fetchAll(); }
+                      else setToast({ type: 'error', msg: `Échec (statut: ${j.status || 'inconnu'})` });
+                    } else setToast({ type: 'error', msg: 'Échec de la relance.' });
+                  }} className="text-xs px-3 py-1.5 rounded-md bg-yellow-400/20 ring-1 ring-yellow-400/30 hover:bg-yellow-400/25">Retenter le paiement</button>
+                </div>
               </div>
             </div>
           )}
@@ -452,6 +463,15 @@ export default function SubscriptionsPage() {
 
       {paid && (
         <div className="mt-6 panel-suno border border-[var(--border)] rounded-2xl p-4 text-green-400">Paiement réussi. Abonnement activé.</div>
+      )}
+
+      {toast && (
+        <div className={`fixed bottom-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-lg text-sm ${toast.type === 'success' ? 'bg-green-500/20 text-green-200 ring-1 ring-green-400/30' : 'bg-red-500/20 text-red-200 ring-1 ring-red-400/30'}`}>
+          <div className="flex items-center gap-2">
+            <span>{toast.msg}</span>
+            <button className="opacity-80 hover:opacity-100" onClick={() => setToast(null)}>OK</button>
+          </div>
+        </div>
       )}
     </div>
   );
