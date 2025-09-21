@@ -1030,40 +1030,48 @@ export default function ProfileUserPage() {
                                 <MoreVertical className="w-4 h-4" />
                               </button>
                               {/* Tiroir attaché à la carte (ancré au conteneur relatif de la carte) */}
-                              <div
-                                className={`absolute top-0 right-0 h-full overflow-hidden transition-[width] duration-200 ease-out ${showTrackOptions === track.id ? 'w-48' : 'w-0'}`}
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
-                                  <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
-                                    onClick={() => handleEditTrack(track)}
+                              <AnimatePresence>
+                                {showTrackOptions === track.id && (
+                                  <motion.div
+                                    initial={{ x: 192, opacity: 0 }}
+                                    animate={{ x: 0, opacity: 1 }}
+                                    exit={{ x: 192, opacity: 0 }}
+                                    transition={{ type: 'tween', duration: 0.18 }}
+                                    className="absolute top-0 right-0 h-full w-48 overflow-hidden"
+                                    onClick={(e) => e.stopPropagation()}
                                   >
-                                    <Edit3 className="w-4 h-4" />
-                                    Modifier
-                                  </button>
-                                  <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
-                                    onClick={() => handleFeatureTrack(track)}
-                                  >
-                                    <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
-                                    {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
-                                  </button>
-                                  <div className="my-1 border-t border-[var(--border)]" />
-                                  <button
-                                    className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-2"
-                                    onClick={() => handleDeleteTrack(track.id)}
-                                    disabled={deleteLoading === track.id}
-                                  >
-                                    {deleteLoading === track.id ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-4 h-4" />
-                                    )}
-                                    Supprimer
-                                  </button>
-                                </div>
-                              </div>
+                                    <div className="h-full bg-[var(--surface-2)] border border-[var(--border)] rounded-tr-xl rounded-br-xl shadow-xl flex flex-col py-2">
+                                      <button
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
+                                        onClick={() => handleEditTrack(track)}
+                                      >
+                                        <Edit3 className="w-4 h-4" />
+                                        Modifier
+                                      </button>
+                                      <button
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-2 text-[var(--text)]"
+                                        onClick={() => handleFeatureTrack(track)}
+                                      >
+                                        <Star className={`w-4 h-4 ${track.is_featured ? 'fill-yellow-400 text-yellow-400' : ''}`} />
+                                        {track.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+                                      </button>
+                                      <div className="my-1 border-t border-[var(--border)]" />
+                                      <button
+                                        className="w-full px-3 py-2 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-2"
+                                        onClick={() => handleDeleteTrack(track.id)}
+                                        disabled={deleteLoading === track.id}
+                                      >
+                                        {deleteLoading === track.id ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          <Trash2 className="w-4 h-4" />
+                                        )}
+                                        Supprimer
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </>
                           )}
                         </div>
