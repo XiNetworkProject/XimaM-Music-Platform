@@ -2364,6 +2364,7 @@ export default function HomePage() {
 
 
         {/* Sections supprimées pour épurer l'interface */}
+        </div>
       </div>
     </div>
   );
