@@ -1527,6 +1527,38 @@ export default function HomePage() {
     );
   }
 
+   const categoryConfigs = [
+    {
+      key: 'popular',
+      title: '⭐ Créations Populaires',
+      subtitle: 'Les favoris de la communauté',
+      icon: Crown,
+      color: 'from-yellow-500 to-orange-500',
+      bgColor: 'bg-yellow-500/10',
+      borderColor: 'border-yellow-500/20'
+    },
+
+    {
+      key: 'following',
+      title: '👥 Vos Artistes',
+      subtitle: 'Les artistes que vous suivez',
+      icon: UserPlus,
+      color: 'from-blue-500 to-indigo-500',
+      bgColor: 'bg-blue-500/10',
+      borderColor: 'border-blue-500/20',
+      showOnlyIfLoggedIn: true
+    },
+    {
+      key: 'recommended',
+      title: '🎯 Pour Vous',
+      subtitle: 'Basé sur vos goûts',
+      icon: Sparkles,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'bg-purple-500/10',
+      borderColor: 'border-purple-500/20',
+      showOnlyIfLoggedIn: true
+    }
+  ];
 
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
@@ -2363,7 +2395,160 @@ export default function HomePage() {
 
 
 
-        {/* Sections supprimées pour épurer l'interface */}
+        {/* Sections de catégories existantes améliorées */}
+        {categoryConfigs.map((config, configIndex) => {
+          // Ne pas afficher les sections qui nécessitent une connexion si l'utilisateur n'est pas connecté
+          if (config.showOnlyIfLoggedIn && !session) return null;
+          
+          const categoryData = categories[config.key];
+          const tracks = categoryData.tracks;
+
+          if (tracks.length === 0 && !categoryData.loading) return null;
+
+          return (
+            <section key={config.key} className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
+              <div
+                className="mb-8 animate-fade-in"
+              >
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-4">
+                  <div className={`p-3 rounded-xl bg-gradient-to-r ${config.color} ${config.bgColor} ${config.borderColor} border`}>
+                    <config.icon size={24} className="text-white" />
+                  </div>
+                  <div>
+                      <h2 className="text-2xl font-bold text-white">{config.title}</h2>
+                    <p className="text-gray-400">{config.subtitle}</p>
+                  </div>
+                  </div>
+                  <button
+                    className="text-purple-400 hover:text-purple-300 font-medium hover:scale-105 active:scale-95"
+                  >
+                    Voir tout
+                  </button>
+                </div>
+              </div>
+
+              {categoryData.loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                  {tracks?.map((track, index) => (
+                    <div
+                      key={track._id}
+                      className="group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-102"
+                    >
+                      <div className="relative rounded-xl overflow-hidden panel-suno border border-[var(--border)] hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 text-[var(--text)]">
+                        {/* Badge Découverte */}
+                        {track.isDiscovery && (
+                          <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
+                            <Sparkles size={12} className="inline" />
+                            Découverte
+                          </div>
+                        )}
+                        
+                        {/* Image */}
+                        <div className="w-20 h-20 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
+                          <img
+                            src={track.coverUrl || '/default-cover.jpg'}
+                            alt={track.title || 'Titre inconnu'}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = '/default-cover.jpg';
+                            }}
+                          />
+                        </div>
+                        
+                        {/* Titre */}
+                        <h3 className="font-semibold text-[var(--text)] text-sm mb-1 truncate title-suno">
+                          {track.title || 'Titre inconnu'}
+                        </h3>
+                        
+                        {/* Artiste */}
+                        <p className="text-[var(--text-muted)] text-xs mb-2 truncate">
+                          {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
+                        </p>
+                        
+                        {/* Durée + Bouton play */}
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                            {formatDuration(track.duration)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handlePlayTrack(track);
+                            }}
+                            className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow hover:scale-110 active:scale-95"
+                          >
+                            {currentTrack?._id === track._id && audioState.isPlaying ? (
+                              <Pause size={14} fill="white" />
+                            ) : (
+                              <Play size={14} fill="white" className="ml-0.5" />
+                            )}
+                          </button>
+                        </div>
+                        
+                        {/* Stats */}
+                        <div className="flex items-center justify-between w-full pt-2 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
+                          <div className="flex items-center gap-1">
+                            <AnimatedPlaysCounter
+                              value={track.plays}
+                              size="sm"
+                              variant="minimal"
+                              showIcon={false}
+                              animation="slide"
+                              className="text-[var(--text-muted)]"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <LikeButton
+                              trackId={track._id}
+                              initialLikesCount={track.likes || 0}
+                              initialIsLiked={track.isLiked || false}
+                              size="sm"
+                              variant="minimal"
+                              showCount={true}
+                              className="text-[var(--text-muted)] hover:text-red-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      {/* Message si aucune musique */}
+      {Object.values(categories).every(cat => cat.tracks.length === 0) && !loading && (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <Music size={64} className="text-gray-600 mx-auto mb-6" />
+            <h2 className="text-2xl font-bold text-gray-400 mb-4">Aucune musique disponible</h2>
+            <p className="text-gray-500 mb-8">Soyez le premier à partager votre musique !</p>
+            <a
+              href="/upload"
+              className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300"
+            >
+              <Mic2 size={20} />
+              <span>Uploader ma musique</span>
+            </a>
+          </div>
+        </div>
+      )}
+
+
+
+      {/* Dialog Radio supprimé - remplacé par un dépliant intégré dans la section radio */}
+
+
+
+      
         </div>
       </div>
     </div>
