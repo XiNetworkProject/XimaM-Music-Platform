@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -372,7 +372,7 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen text-white [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]">
       <main className="container mx-auto px-4 pt-16 pb-28">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-[1280px] mx-auto">
           {/* Hero Synaura */}
           <div className="w-full mb-6 sm:mb-8">
             <div className="rounded-2xl p-4 sm:p-6 backdrop-blur-xl border border-white/10 bg-white/5">
@@ -401,19 +401,10 @@ export default function UploadPage() {
               </div>
             </div>
           </div>
-          {blockedMsg && (
-            <div className="mb-4 rounded-xl p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
-              <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
-              <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
-            </div>
-          )}
-          {/* Ancien titre conservé pour SEO, rendu plus discret */}
-          <div className="mb-6">
-            <h2 className="text-xl md:text-2xl font-medium text-white/80 flex items-center gap-3 mb-1">
-              <Upload size={20} className="text-purple-400" />
-              Upload de Musique
-            </h2>
-            <p className="text-white/50">Partagez vos créations avec la communauté.</p>
+          {/* Ancien titre SEO (caché) */}
+          <div className="sr-only">
+            <h2>Upload de Musique</h2>
+            <p>Partagez vos créations avec la communauté.</p>
           </div>
 
       {/* Progress Steps */}
@@ -438,12 +429,13 @@ export default function UploadPage() {
         </div>
       </div>
 
-      {/* Main Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-            className="glass-effect rounded-xl p-6"
-        >
+      {/* Grille Studio: contenu + sidebar sticky */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+              className="rounded-2xl p-4 sm:p-6 backdrop-blur-xl border border-white/10 bg-white/5"
+          >
           <form onSubmit={handleSubmit} className="space-y-8">
             {/* Étape 1: Upload des fichiers */}
             {currentStep === 1 && (
@@ -833,13 +825,13 @@ export default function UploadPage() {
           </form>
         </motion.div>
 
-        {/* Panneau quotas/plan */}
-        <div className="mt-6 rounded-2xl p-4 sm:p-6 backdrop-blur-xl border border-white/10 bg-white/5">
+        {/* Sidebar sticky quotas/plan + CTA Publier */}
+        <aside className="lg:sticky lg:top-24 h-fit rounded-2xl p-4 sm:p-6 backdrop-blur-xl border border-white/10 bg-white/5">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white/90 font-medium">Votre plan</h3>
             <span className="text-xs text-white/60 capitalize">{planKey}</span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-4">
             <div>
               <div className="flex justify-between text-xs text-white/70 mb-1"><span>Pistes</span><span>{usage?.tracks?.used ?? 0}/{usage?.tracks?.limit ?? 0}</span></div>
               <div className="w-full bg-white/10 rounded-full h-2">
@@ -859,17 +851,27 @@ export default function UploadPage() {
               </div>
             </div>
           </div>
-          {almostFull ? (
-            <div className="mt-4 text-xs text-white/80">
-              <div className="mb-2">Espace presque plein — passez à un plan supérieur.</div>
-              <button onClick={() => router.push('/subscriptions')} className="w-full text-sm px-3 py-2 rounded-xl text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95">Améliorer mon plan</button>
-            </div>
-          ) : (
-            <div className="mt-4 text-xs text-white/60">
-              Formats supportés: MP3, WAV, FLAC (max 50MB). Couverture JPG/PNG/WebP.
+          <div className="mt-5">
+            <button
+              type="submit"
+              form=""
+              onClick={(e) => { e.preventDefault(); (document.querySelector('form') as HTMLFormElement)?.requestSubmit(); }}
+              disabled={isUploading || !canUpload}
+              className="w-full text-sm px-4 py-3 rounded-xl text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 disabled:bg-white/10 disabled:cursor-not-allowed"
+            >
+              {isUploading ? 'Upload en cours…' : 'Publier maintenant'}
+            </button>
+          </div>
+          <div className="mt-3 text-xs text-white/60">
+            Formats supportés: MP3, WAV, FLAC (max 50MB). Couverture JPG/PNG/WebP.
+          </div>
+          {almostFull && (
+            <div className="mt-3 text-xs text-white/80">
+              Espace presque plein — <button onClick={() => router.push('/subscriptions')} className="underline">Améliorer mon plan</button>
             </div>
           )}
-        </div>
+        </aside>
+      </div>
         </div>
       </main>
 
