@@ -2270,6 +2270,33 @@ Paramètres Linux à vérifier :
         cancelRecording={cancelRecording}
         handleTyping={handleTyping}
       />
+
+      {/* Garde messagerie pour plans payants */}
+      {/* Petit bandeau discret si l'utilisateur est en plan gratuit */}
+      {/* On récupère le plan via l'API et on affiche une bannière d'upgrade si nécessaire */}
+      {typeof window !== 'undefined' && (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (async function(){
+                try{
+                  const r=await fetch('/api/subscriptions/my-subscription',{headers:{'Cache-Control':'no-store'}});
+                  if(!r.ok) return;
+                  const j=await r.json();
+                  var plan=(j?.subscription?.name||'Free').toLowerCase();
+                  if(plan==='free'){
+                    var bar=document.createElement('div');
+                    bar.className='fixed bottom-28 left-1/2 -translate-x-1/2 z-40 px-3 py-2 rounded-lg text-xs bg-cyan-500/20 text-cyan-100 ring-1 ring-cyan-400/30';
+                    bar.innerHTML='Messagerie réservée aux plans payants. <button id="upgrade-msg" class="underline">Upgrade</button>';
+                    document.body.appendChild(bar);
+                    document.getElementById('upgrade-msg')?.addEventListener('click',function(){window.location.href='/subscriptions'});
+                  }
+                }catch(e){}
+              })();
+            `,
+          }}
+        />
+      )}
     </div>
   );
 } 

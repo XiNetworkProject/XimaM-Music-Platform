@@ -1213,7 +1213,32 @@ export default function ProfileUserPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-bold text-white">Playlists</h3>
-                  <button className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors" onClick={() => setShowCreatePlaylistModal(true)}>
+                  <button
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
+                    onClick={async () => {
+                      // Vérifier quota playlists avant d'ouvrir la modale
+                      try {
+                        const [u, c] = await Promise.all([
+                          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+                          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+                        ]);
+                        const limit = u?.playlists?.limit ?? -1;
+                        const used = u?.playlists?.used ?? 0;
+                        if (limit >= 0 && used >= limit) {
+                          // Bloquer + CTA upgrade
+                          if (typeof window !== 'undefined') {
+                            // Info compacte
+                            alert("Limite de playlists atteinte. Rendez-vous sur Abonnements pour améliorer votre plan.");
+                            window.location.href = '/subscriptions';
+                            return;
+                          }
+                        }
+                        setShowCreatePlaylistModal(true);
+                      } catch {
+                        setShowCreatePlaylistModal(true);
+                      }
+                    }}
+                  >
                     Créer une playlist
                   </button>
                 </div>

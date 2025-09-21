@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -23,6 +23,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 import BottomNav from '@/components/BottomNav';
+import { getEntitlements } from '@/lib/entitlements';
 
 interface UploadFormData {
   title: string;
@@ -121,6 +122,9 @@ export default function UploadPage() {
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({ audio: 0, cover: 0 });
   const [isUploading, setIsUploading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [usage, setUsage] = useState<any | null>(null);
+  const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
+  const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -141,6 +145,36 @@ export default function UploadPage() {
 
   // Vérifier l'authentification
   requireAuth();
+
+  // Charger usage + plan pour afficher les CTA/limitations
+  useEffect(() => {
+    (async () => {
+      try {
+        const [u, c] = await Promise.all([
+          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+        ]);
+        if (u) setUsage(u);
+        const name = (c?.subscription?.name || 'Free').toLowerCase();
+        if (['free','starter','pro','enterprise'].includes(name)) setPlanKey(name as any);
+      } catch {}
+    })();
+  }, []);
+
+  const canUpload = (() => {
+    if (!usage) return true;
+    const overTracks = usage.tracks.limit >= 0 && usage.tracks.used >= usage.tracks.limit;
+    const overStorage = usage.storage.percentage >= 100;
+    return !(overTracks || overStorage);
+  })();
+
+  useEffect(() => {
+    if (!usage) return;
+    const msgs: string[] = [];
+    if (usage.tracks.limit >= 0 && usage.tracks.used >= usage.tracks.limit) msgs.push('Limite de pistes atteinte');
+    if (usage.storage.percentage >= 100) msgs.push('Stockage plein');
+    setBlockedMsg(msgs.length ? msgs.join(' • ') : null);
+  }, [usage]);
 
   const onAudioDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -213,6 +247,10 @@ export default function UploadPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canUpload) {
+      toast.error("Limite atteinte. Passez au plan supérieur pour uploader plus.");
+      return;
+    }
     
     if (!audioFile) {
       toast.error('Veuillez sélectionner un fichier audio');
@@ -303,6 +341,12 @@ export default function UploadPage() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-4xl mx-auto">
+          {blockedMsg && (
+            <div className="mb-4 rounded-xl p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
+              <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
+              <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
+            </div>
+          )}
           <div className="mb-10">
             <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
               <Upload size={28} className="text-purple-400" />
@@ -506,7 +550,7 @@ export default function UploadPage() {
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    disabled={!audioFile || isUploading}
+                    disabled={!audioFile || isUploading || !canUpload}
                     className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
                   >
                     Suivant
@@ -727,7 +771,7 @@ export default function UploadPage() {
                   </button>
                   <button
                     type="submit"
-                    disabled={isUploading}
+                    disabled={isUploading || !canUpload}
                     className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
                   >
                     {isUploading ? 'Upload en cours...' : 'Publier'}
