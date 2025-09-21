@@ -89,17 +89,65 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
   return await uploadResponse.json();
 };
 
-// Composant Waveform SVG simulé
-function WaveformDisplay({ duration = 70, currentTime = 0, isPlaying = false }: { duration?: number; currentTime?: number; isPlaying?: boolean }) {
-  const waveformData = Array.from({ length: 200 }, (_, i) => {
-    const progress = i / 200;
-    const amplitude = Math.sin(progress * Math.PI * 8) * 0.4 + 0.6;
-    const variation = Math.random() * 0.3;
-    return Math.max(0.1, amplitude + variation);
-  });
+// Composant Waveform réelle avec seek
+function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: { audioFile: File | null; currentTime?: number; duration?: number; onSeek?: (time: number) => void }) {
+  const [waveformData, setWaveformData] = useState<number[]>([]);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (!audioFile) return;
+    
+    // Générer waveform à partir du fichier audio
+    const generateWaveform = async () => {
+      try {
+        const arrayBuffer = await audioFile.arrayBuffer();
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        const rawData = audioBuffer.getChannelData(0);
+        const samples = 200;
+        const blockSize = Math.floor(rawData.length / samples);
+        const filteredData = [];
+        
+        for (let i = 0; i < samples; i++) {
+          let blockStart = blockSize * i;
+          let sum = 0;
+          for (let j = 0; j < blockSize; j++) {
+            sum += Math.abs(rawData[blockStart + j]);
+          }
+          filteredData.push(sum / blockSize);
+        }
+        
+        const multiplier = Math.pow(Math.max(...filteredData), -1);
+        setWaveformData(filteredData.map(n => n * multiplier));
+      } catch (error) {
+        // Fallback: waveform simulée
+        const fallback = Array.from({ length: 200 }, (_, i) => {
+          const progress = i / 200;
+          const amplitude = Math.sin(progress * Math.PI * 8) * 0.4 + 0.6;
+          const variation = Math.random() * 0.3;
+          return Math.max(0.1, amplitude + variation);
+        });
+        setWaveformData(fallback);
+      }
+    };
+    
+    generateWaveform();
+  }, [audioFile]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!onSeek || duration === 0) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const progress = x / rect.width;
+    const newTime = progress * duration;
+    onSeek(Math.max(0, Math.min(duration, newTime)));
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   return (
-    <div className="relative h-12 w-full text-white/80">
+    <div className="relative h-12 w-full text-white/80 cursor-pointer" onClick={handleClick}>
       <div className="absolute inset-x-6 inset-y-0">
         <div className="absolute inset-y-0 left-0 w-full overflow-clip rounded-md bg-white/5">
           <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 32" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -110,36 +158,53 @@ function WaveformDisplay({ duration = 70, currentTime = 0, isPlaying = false }: 
               return `M${x} ${y1}l0 ${y2 - y1}`;
             }).join('')} />
           </svg>
+          {/* Barre de progression */}
+          <div 
+            className="absolute inset-y-0 left-0 bg-purple-400/30 rounded-md"
+            style={{ width: `${progress}%` }}
+          />
+          {/* Curseur de position */}
+          <div 
+            className="absolute inset-y-0 w-0.5 bg-white rounded-full"
+            style={{ left: `${progress}%` }}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-// Composant Preview Audio/Video
-function MediaPreview({ file, type, isPlaying, onTogglePlay }: { file: File | null; type: 'audio' | 'video'; isPlaying: boolean; onTogglePlay: () => void }) {
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+// Composant Preview Audio/Video avec contrôles réels
+function MediaPreview({ 
+  file, 
+  coverFile, 
+  type, 
+  isPlaying, 
+  onTogglePlay, 
+  currentTime, 
+  duration, 
+  onSeek 
+}: { 
+  file: File | null; 
+  coverFile?: File | null;
+  type: 'audio' | 'video'; 
+  isPlaying: boolean; 
+  onTogglePlay: () => void;
+  currentTime: number;
+  duration: number;
+  onSeek: (time: number) => void;
+}) {
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const audio = new Audio(url);
-    audio.addEventListener('loadedmetadata', () => setDuration(audio.duration));
-    audio.addEventListener('timeupdate', () => setCurrentTime(audio.currentTime));
-    audioRef.current = audio;
-    return () => {
-      URL.revokeObjectURL(url);
-      audio.remove();
-    };
-  }, [file]);
-
-  useEffect(() => {
-    if (!audioRef.current) return;
-    if (isPlaying) audioRef.current.play();
-    else audioRef.current.pause();
-  }, [isPlaying]);
+    if (!coverFile) {
+      setCoverPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(coverFile);
+    setCoverPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [coverFile]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -153,11 +218,28 @@ function MediaPreview({ file, type, isPlaying, onTogglePlay }: { file: File | nu
     <div className="relative flex w-full flex-row justify-center gap-4 overflow-clip px-4 h-[calc(100vh-30rem)] min-h-40">
       <div className="relative aspect-[9/16] h-full max-w-sm">
         <div className="absolute inset-0 h-full w-full overflow-clip rounded-xl bg-gradient-to-br from-purple-900/20 to-cyan-900/20 border border-white/10 flex items-center justify-center">
-          <div className="text-center">
-            <Music size={48} className="mx-auto mb-4 text-white/60" />
-            <div className="text-white/80 font-medium">{file.name}</div>
-            <div className="text-white/50 text-sm">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
-          </div>
+          {coverPreview ? (
+            <div className="relative w-full h-full">
+              <img 
+                src={coverPreview} 
+                alt="Cover preview" 
+                className="w-full h-full object-cover rounded-xl"
+              />
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                <div className="text-center text-white">
+                  <Music size={48} className="mx-auto mb-4" />
+                  <div className="font-medium">{file.name}</div>
+                  <div className="text-sm opacity-80">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <Music size={48} className="mx-auto mb-4 text-white/60" />
+              <div className="text-white/80 font-medium">{file.name}</div>
+              <div className="text-white/50 text-sm">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -190,13 +272,17 @@ export default function UploadPage() {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({ audio: 0, cover: 0 });
   const [isUploading, setIsUploading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const totalSteps = 4;
   const [usage, setUsage] = useState<any | null>(null);
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
   const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string }>({});
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -246,6 +332,64 @@ export default function UploadPage() {
     if (usage.storage.percentage >= 100) msgs.push('Stockage plein');
     setBlockedMsg(msgs.length ? msgs.join(' • ') : null);
   }, [usage]);
+
+  // Gestion audio réelle avec HTMLAudioElement
+  useEffect(() => {
+    if (!audioFile) {
+      setDuration(0);
+      setCurrentTime(0);
+      setIsPlaying(false);
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+      return;
+    }
+    
+    const url = URL.createObjectURL(audioFile);
+    const audio = new Audio(url);
+    
+    const onLoadedMetadata = () => setDuration(audio.duration);
+    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onEnded = () => setIsPlaying(false);
+    
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.addEventListener('ended', onEnded);
+    
+    audioRef.current = audio;
+    
+    return () => {
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
+      audio.removeEventListener('ended', onEnded);
+      audio.pause();
+      URL.revokeObjectURL(url);
+    };
+  }, [audioFile]);
+
+  useEffect(() => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.play().catch(() => setIsPlaying(false));
+    } else {
+      audioRef.current.pause();
+    }
+  }, [isPlaying]);
+
+  // Synchroniser artiste et copyright avec le profil utilisateur
+  useEffect(() => {
+    if (user?.name) {
+      setFormData(prev => ({
+        ...prev,
+        artist: user.name || '',
+        copyright: {
+          ...prev.copyright,
+          owner: user.name || ''
+        }
+      }));
+    }
+  }, [user?.name]);
 
   const onAudioDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -499,9 +643,18 @@ export default function UploadPage() {
                   ) : (
                     <MediaPreview 
                       file={audioFile} 
+                      coverFile={coverFile}
                       type="audio" 
                       isPlaying={isPlaying} 
-                      onTogglePlay={() => setIsPlaying(!isPlaying)} 
+                      onTogglePlay={() => setIsPlaying(!isPlaying)}
+                      currentTime={currentTime}
+                      duration={duration}
+                      onSeek={(time) => {
+                        if (audioRef.current) {
+                          audioRef.current.currentTime = time;
+                          setCurrentTime(time);
+                        }
+                      }}
                     />
                   )}
 
@@ -532,7 +685,7 @@ export default function UploadPage() {
                           </button>
                         </div>
                         <div className="font-mono text-xs tracking-tight text-white/60 tabular-nums">
-                          <span className="text-[var(--text)]">0:00</span> / 1:10
+                          <span className="text-[var(--text)]">{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span> / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
                         </div>
                       </div>
                       <div className="flex flex-1 flex-row justify-end"></div>
@@ -540,7 +693,19 @@ export default function UploadPage() {
                   )}
 
                   {/* Waveform */}
-                  {audioFile && <WaveformDisplay isPlaying={isPlaying} />}
+                  {audioFile && (
+                    <WaveformDisplay 
+                      audioFile={audioFile}
+                      currentTime={currentTime}
+                      duration={duration}
+                      onSeek={(time) => {
+                        if (audioRef.current) {
+                          audioRef.current.currentTime = time;
+                          setCurrentTime(time);
+                        }
+                      }}
+                    />
+                  )}
                 </motion.div>
               )}
 
@@ -572,10 +737,11 @@ export default function UploadPage() {
                       <input
                         type="text"
                         value={formData.artist}
-                        onChange={(e) => handleInputChange('artist', e.target.value)}
-                        className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)]"
-                        placeholder="Nom d'artiste"
+                        disabled
+                        className="w-full px-4 py-3 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-xl text-[var(--text)]/70 cursor-not-allowed"
+                        placeholder="Synchronisé avec votre profil"
                       />
+                      <p className="text-xs text-white/50">Modifiez votre nom de profil pour changer l'artiste</p>
                     </div>
                   </div>
 
@@ -693,10 +859,11 @@ export default function UploadPage() {
                         <input
                           type="text"
                           value={formData.copyright.owner}
-                          onChange={(e) => handleCopyrightChange('owner', e.target.value)}
-                          className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)]"
-                          placeholder="Votre nom ou nom d'artiste"
+                          disabled
+                          className="w-full px-4 py-3 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-xl text-[var(--text)]/70 cursor-not-allowed"
+                          placeholder="Synchronisé avec votre profil"
                         />
+                        <p className="text-xs text-white/50">Automatiquement synchronisé avec votre nom de profil</p>
                       </div>
                       
                       <div className="space-y-2">
@@ -709,6 +876,96 @@ export default function UploadPage() {
                           placeholder="2024"
                         />
                       </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {currentStep === 4 && (
+                <motion.div
+                  key="step4"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="flex flex-col gap-6 p-6 overflow-y-auto"
+                >
+                  <h2 className="text-xl font-semibold">Prévisualisation finale</h2>
+                  
+                  {/* Rendu final comme une TrackCard */}
+                  <div className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
+                        {coverFile ? (
+                          <img 
+                            src={URL.createObjectURL(coverFile)} 
+                            alt="Cover" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Music className="w-8 h-8 text-white" />
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-[var(--text)] truncate">{formData.title || 'Sans titre'}</h3>
+                        <p className="text-sm text-white/70">{formData.artist}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {formData.genre.slice(0, 2).map(g => (
+                            <span key={g} className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{g}</span>
+                          ))}
+                          {formData.genre.length > 2 && (
+                            <span className="text-xs text-white/50">+{formData.genre.length - 2}</span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsPlaying(!isPlaying)}
+                          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                        >
+                          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Mini waveform dans la preview */}
+                    {audioFile && (
+                      <div className="mt-4">
+                        <WaveformDisplay 
+                          audioFile={audioFile}
+                          currentTime={currentTime}
+                          duration={duration}
+                          onSeek={(time) => {
+                            if (audioRef.current) {
+                              audioRef.current.currentTime = time;
+                              setCurrentTime(time);
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3 text-sm text-white/70">
+                    <div className="flex justify-between">
+                      <span>Durée :</span>
+                      <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Taille :</span>
+                      <span>{(audioFile?.size || 0 / 1024 / 1024).toFixed(2)} MB</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Visibilité :</span>
+                      <span>{formData.isPublic ? 'Public' : 'Privé'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Contenu :</span>
+                      <span>{formData.isExplicit ? 'Explicite' : 'Tout public'}</span>
                     </div>
                   </div>
                 </motion.div>
@@ -762,11 +1019,15 @@ export default function UploadPage() {
                 <span className="relative flex flex-row items-center justify-center gap-2">Cancel</span>
               </button>
               
-              {currentStep < 3 ? (
+              {currentStep < totalSteps ? (
                 <button 
                   type="button"
                   onClick={() => setCurrentStep(currentStep + 1)}
-                  disabled={currentStep === 1 && !audioFile || currentStep === 2 && !formData.title.trim() || !canUpload}
+                  disabled={
+                    (currentStep === 1 && !audioFile) || 
+                    (currentStep === 2 && !formData.title.trim()) || 
+                    !canUpload
+                  }
                   className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-8 py-2.5 text-[17px] leading-[24px] rounded-full text-black bg-white enabled:hover:before:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <span className="relative flex flex-row items-center justify-center gap-2">Next</span>
