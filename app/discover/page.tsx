@@ -1120,42 +1120,13 @@ const GenreSection: React.FC<GenreSectionProps> = ({ title, tracks, onPlayTrack 
           </div>
         </div>
 
-        {/* Container scrollable */}
-        <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
-          {/* Boutons de navigation */}
-          <button 
-            className="absolute top-0 left-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-none opacity-0"
-            aria-label="Scroll left"
-          >
-            <div className="inline-block font-sans font-medium text-center rounded-full aspect-square p-2 text-white bg-black/20 hover:bg-black/40 absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
-              <ChevronLeft className="w-4 h-4" />
-            </div>
-          </button>
-
-          {/* Masque de dégradé */}
-          <div className="h-full w-full overflow-hidden mask-[linear-gradient(to_right,black,black_80%,transparent)] mask-size-[100%_100%] transition-[mask-image] duration-500">
-            <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
-              <section 
-                className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden"
-                style={{ position: 'relative', height: '384px', width: '100%', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}
-              >
-                <div className="flex gap-4" style={{ height: '100%' }}>
-                  {tracks.slice(0, 20).map((track, index) => (
-                    <TrackCard key={track._id} track={track} onPlay={onPlayTrack} />
-                  ))}
-                </div>
-              </section>
-            </div>
+        {/* Container scrollable - VERSION SIMPLIFIEE */}
+        <div className="relative w-full overflow-x-auto" style={{ height: '400px' }}>
+          <div className="flex gap-4 pb-4" style={{ width: 'max-content' }}>
+            {tracks.slice(0, 20).map((track, index) => (
+              <TrackCard key={track._id} track={track} onPlay={onPlayTrack} />
+            ))}
           </div>
-
-          <button 
-            className="absolute top-0 right-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
-            aria-label="Scroll right"
-          >
-            <div className="inline-block font-sans font-medium text-center rounded-full aspect-square p-2 text-white bg-black/20 hover:bg-black/40 absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
-              <ChevronRight className="w-4 h-4" />
-            </div>
-          </button>
         </div>
       </div>
     </motion.div>
@@ -1181,132 +1152,54 @@ const TrackCard: React.FC<TrackCardProps> = ({ track, onPlay }) => {
   };
 
   return (
-    <div className="relative flex w-[172px] shrink-0 cursor-pointer flex-col group">
-      {/* Image container */}
-      <div className="relative mb-4 cursor-pointer">
-        <div className="relative h-[256px] w-full overflow-hidden rounded-xl">
-          <img
-            alt={`Image for ${track.title}`}
-            src={track.coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop'}
-            className="absolute inset-0 h-full w-full rounded-xl object-cover"
-            style={{ transform: 'scale(1)', transition: 'transform 0.3s ease-in-out' }}
-            onError={(e) => {
-              e.currentTarget.src = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop';
-            }}
-          />
-        </div>
-
-        {/* Overlay avec bouton play */}
-        <div className="absolute inset-0 z-20">
-          <button 
-            onClick={() => onPlay(track)}
-            className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-white/60 backdrop-blur-xl border-none outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300 scale-75 opacity-0 group-hover:opacity-100 group-hover:scale-100"
-          >
-            <Play className="h-5 w-5" fill="currentColor" />
-          </button>
-
-          {/* Badges top */}
-          <div className="absolute inset-x-2 top-2 flex flex-row items-center gap-1">
-            <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding text-white bg-black/30 inline-flex w-auto border-none">
-              <div>{formatDuration(track.duration)}</div>
-            </div>
-            {track.isFeatured && (
-              <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding text-foreground-primary-on-dark bg-background-dark-overlay inline-flex w-auto border-none" 
-                   style={{ color: 'rgb(253, 66, 156)', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderColor: 'rgba(0, 0, 0, 0)' }}>
-                <div>Featured</div>
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="w-[200px] shrink-0 bg-gray-800 rounded-lg p-4 text-white">
+      {/* Image */}
+      <div className="w-full h-[200px] bg-gray-700 rounded-lg mb-3 overflow-hidden">
+        <img
+          src={track.coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop'}
+          alt={track.title}
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop';
+          }}
+        />
       </div>
 
-      {/* Info section */}
-      <div className="flex w-full flex-col">
-        {/* Titre et menu */}
-        <div className="line-clamp-1 w-full cursor-pointer font-sans text-base font-medium text-white hover:underline font-500 text-md leading-[24px] font-normal flex items-center justify-between">
-          <div className="min-w-0 flex-1 overflow-hidden text-ellipsis">
-            <a 
-              title={track.title}
-              className="block overflow-hidden text-ellipsis whitespace-nowrap"
-              href={`/track/${track._id}`}
-            >
-              {track.title}
-            </a>
-          </div>
-          <button 
-            type="button"
-            className="cursor-pointer rounded-full outline-none"
-            aria-label="More Options"
-          >
-            <MoreHorizontal className="w-4 h-4 text-white opacity-0 group-hover:opacity-100" />
-          </button>
-        </div>
-
+      {/* Info */}
+      <div>
+        <h3 className="font-semibold text-sm mb-1 truncate">{track.title}</h3>
+        <p className="text-gray-400 text-xs mb-2 truncate">{track.artist.name}</p>
+        
         {/* Genres */}
         {track.genre && track.genre.length > 0 && (
-          <div className="gap-2 font-sans break-all mb-1 line-clamp-1 flex-nowrap text-gray-400 text-[14px] leading-[20px] font-normal">
-            <div>
-              {track.genre.slice(0, 3).map((genre, index) => (
-                <span key={genre}>
-                  <a className="hover:underline" title={genre} href={`/genre/${genre}`}>
-                    {genre}
-                  </a>
-                  {index < Math.min(track.genre!.length, 3) - 1 && ', '}
-                </span>
-              ))}
-            </div>
+          <div className="mb-2">
+            {track.genre.slice(0, 2).map((genre, index) => (
+              <span key={genre} className="inline-block bg-purple-600 text-xs px-2 py-1 rounded mr-1">
+                {genre}
+              </span>
+            ))}
           </div>
         )}
 
         {/* Stats */}
-        <div className="mt-1 flex items-center gap-1 text-[12px] text-[#8B8785]">
-          <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
-            <Play className="h-[12px] w-[12px]" fill="currentColor" />
-            <span className="text-[12px] leading-4 font-medium font-normal">
-              {formatNumber(track.plays)}
-            </span>
-          </div>
-          <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
-            <Heart className="h-[12px] w-[12px]" fill="currentColor" />
-            <span className="text-[12px] leading-4 font-medium font-normal">
-              {formatNumber(track.likes)}
-            </span>
-          </div>
-          <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
-            <MessageCircle className="h-[12px] w-[12px]" fill="currentColor" />
-            <span className="text-[12px] leading-4 font-medium font-normal">
-              {Math.floor(Math.random() * 50)}
-            </span>
-          </div>
+        <div className="flex items-center gap-3 text-xs text-gray-400">
+          <span className="flex items-center gap-1">
+            <Play className="h-3 w-3" />
+            {formatNumber(track.plays)}
+          </span>
+          <span className="flex items-center gap-1">
+            <Heart className="h-3 w-3" />
+            {formatNumber(track.likes)}
+          </span>
         </div>
 
-        {/* Artiste */}
-        <div className="mt-1 flex w-full items-center justify-between">
-          <div className="flex w-fit flex-row items-center gap-2 font-sans text-sm font-medium text-white">
-            <div className="relative h-8 shrink-0 aspect-square">
-              <a 
-                className="hover:underline relative z-10 block aspect-square h-full"
-                href={`/profile/${track.artist.username}`}
-              >
-                <img
-                  alt="Profile avatar"
-                  src={track.artist.avatar || 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop'}
-                  className="rounded-full h-full w-full object-cover p-1"
-                  onError={(e) => {
-                    e.currentTarget.src = 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop';
-                  }}
-                />
-              </a>
-            </div>
-            <a 
-              className="hover:underline line-clamp-1 max-w-fit break-all"
-              title={track.artist.name}
-              href={`/profile/${track.artist.username}`}
-            >
-              {track.artist.name}
-            </a>
-          </div>
-        </div>
+        {/* Bouton play */}
+        <button 
+          onClick={() => onPlay(track)}
+          className="w-full mt-3 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded text-sm"
+        >
+          ▶ Écouter
+        </button>
       </div>
     </div>
   );
