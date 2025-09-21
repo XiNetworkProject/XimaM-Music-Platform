@@ -125,6 +125,68 @@ export default function DiscoverPage() {
     }
   }, [tracks]); // Dépendance UNIQUEMENT sur tracks, JAMAIS sur selectedCategory
 
+  // Catégories basées sur les VRAIS genres disponibles dans la base + NOUVELLES
+  const categories: Category[] = [
+    // Catégorie principale
+    { id: 'all', name: 'Toutes', icon: <Compass size={20} />, color: 'from-blue-500 to-purple-600', description: 'Découvrez tout le contenu', trackCount: 0 },
+    
+    // Genres RÉELS disponibles dans la base (GARDER)
+    { id: 'Electronic', name: 'Électronique', icon: <Zap size={20} />, color: 'from-purple-500 to-pink-600', description: 'Beats et synthés futuristes', trackCount: 0 },
+    { id: 'Pop', name: 'Pop', icon: <Music size={20} />, color: 'from-pink-500 to-purple-600', description: 'Mélodies accrocheuses et rythmes entraînants', trackCount: 0 },
+    { id: 'Hip-Hop', name: 'Hip-Hop', icon: <Flame size={20} />, color: 'from-orange-500 to-red-600', description: 'Rap et beats urbains', trackCount: 0 },
+    { id: 'Classical', name: 'Classique', icon: <Crown size={20} />, color: 'from-yellow-500 to-orange-600', description: 'Musique orchestrale', trackCount: 0 },
+    
+    // Catégories populaires pour l'expansion future (GARDER)
+    { id: 'Rock', name: 'Rock', icon: <Target size={20} />, color: 'from-red-500 to-yellow-600', description: 'Guitares et énergie brute', trackCount: 0 },
+    { id: 'Jazz', name: 'Jazz', icon: <Gem size={20} />, color: 'from-indigo-500 to-blue-600', description: 'Improvisation et swing', trackCount: 0 },
+    { id: 'R&B', name: 'R&B', icon: <Heart size={20} />, color: 'from-pink-500 to-red-600', description: 'Soul et rythmes blues', trackCount: 0 },
+    { id: 'Country', name: 'Country', icon: <Target size={20} />, color: 'from-green-500 to-yellow-600', description: 'Histoires rurales et guitares acoustiques', trackCount: 0 },
+    
+    // NOUVELLES catégories électroniques
+    { id: 'Reggae', name: 'Reggae', icon: <Music size={20} />, color: 'from-green-600 to-yellow-500', description: 'Reggae jamaïcain', trackCount: 0 },
+    { id: 'Blues', name: 'Blues', icon: <Mic size={20} />, color: 'from-blue-600 to-indigo-500', description: 'Blues traditionnel', trackCount: 0 },
+    { id: 'Folk', name: 'Folk', icon: <Users size={20} />, color: 'from-yellow-600 to-orange-500', description: 'Folk acoustique', trackCount: 0 },
+    { id: 'Metal', name: 'Metal', icon: <Target size={20} />, color: 'from-gray-700 to-black', description: 'Metal puissant', trackCount: 0 },
+    { id: 'Ambient', name: 'Ambient', icon: <Globe size={20} />, color: 'from-blue-400 to-cyan-500', description: 'Ambient relaxant', trackCount: 0 },
+    { id: 'Trap', name: 'Trap', icon: <Music size={20} />, color: 'from-purple-600 to-pink-500', description: 'Trap moderne', trackCount: 0 },
+    { id: 'Dubstep', name: 'Dubstep', icon: <Music size={20} />, color: 'from-green-500 to-blue-500', description: 'Dubstep énergique', trackCount: 0 },
+    { id: 'House', name: 'House', icon: <Music size={20} />, color: 'from-blue-500 to-purple-500', description: 'House dance', trackCount: 0 },
+    { id: 'Techno', name: 'Techno', icon: <Music size={20} />, color: 'from-gray-500 to-black', description: 'Techno industriel', trackCount: 0 },
+    { id: 'Trance', name: 'Trance', icon: <Music size={20} />, color: 'from-purple-400 to-pink-500', description: 'Trance hypnotique', trackCount: 0 },
+    { id: 'Drum & Bass', name: 'Drum & Bass', icon: <Music size={20} />, color: 'from-orange-500 to-red-500', description: 'Drum & Bass', trackCount: 0 },
+    
+    // NOUVELLES catégories acoustiques
+    { id: 'Acoustic', name: 'Acoustic', icon: <Mic size={20} />, color: 'from-yellow-500 to-orange-500', description: 'Acoustique pur', trackCount: 0 },
+    { id: 'Instrumental', name: 'Instrumental', icon: <Music size={20} />, color: 'from-blue-400 to-indigo-500', description: 'Instrumental', trackCount: 0 },
+    { id: 'Orchestral', name: 'Orchestral', icon: <Globe size={20} />, color: 'from-purple-500 to-blue-500', description: 'Orchestral', trackCount: 0 },
+    { id: 'A Cappella', name: 'A Cappella', icon: <Mic size={20} />, color: 'from-pink-400 to-purple-500', description: 'A Cappella', trackCount: 0 },
+    { id: 'Choir', name: 'Choir', icon: <Users size={20} />, color: 'from-blue-500 to-cyan-500', description: 'Chœur', trackCount: 0 },
+    { id: 'Gospel', name: 'Gospel', icon: <Mic size={20} />, color: 'from-yellow-600 to-orange-500', description: 'Gospel spirituel', trackCount: 0 },
+    
+    // NOUVELLES catégories fusion
+    { id: 'Fusion', name: 'Fusion', icon: <Music size={20} />, color: 'from-indigo-500 to-purple-500', description: 'Fusion musicale', trackCount: 0 },
+    { id: 'Experimental', name: 'Experimental', icon: <Globe size={20} />, color: 'from-purple-600 to-pink-500', description: 'Expérimental', trackCount: 0 },
+    { id: 'Avant-Garde', name: 'Avant-Garde', icon: <Music size={20} />, color: 'from-gray-600 to-black', description: 'Avant-garde', trackCount: 0 },
+    
+    // NOUVELLES catégories d'ambiance
+    { id: 'Retro', name: 'Retro', icon: <Globe size={20} />, color: 'from-orange-400 to-yellow-500', description: 'Rétro nostalgique', trackCount: 0 },
+    { id: 'Vintage', name: 'Vintage', icon: <Music size={20} />, color: 'from-yellow-400 to-orange-500', description: 'Vintage classique', trackCount: 0 },
+    { id: 'Futuristic', name: 'Futuristic', icon: <Globe size={20} />, color: 'from-blue-600 to-cyan-500', description: 'Futuriste', trackCount: 0 },
+    { id: 'Energetic', name: 'Energetic', icon: <Music size={20} />, color: 'from-red-400 to-orange-500', description: 'Énergique', trackCount: 0 },
+    { id: 'Chill', name: 'Chill', icon: <Globe size={20} />, color: 'from-blue-300 to-cyan-400', description: 'Chill relaxant', trackCount: 0 },
+    { id: 'Romantic', name: 'Romantic', icon: <Mic size={20} />, color: 'from-pink-300 to-red-400', description: 'Romantique', trackCount: 0 },
+    { id: 'Mysterious', name: 'Mysterious', icon: <Globe size={20} />, color: 'from-purple-700 to-black', description: 'Mystérieux', trackCount: 0 },
+    { id: 'Festive', name: 'Festive', icon: <Music size={20} />, color: 'from-orange-300 to-yellow-400', description: 'Festif joyeux', trackCount: 0 },
+    
+    // NOUVELLES catégories mondiales
+    { id: 'African', name: 'African', icon: <Globe size={20} />, color: 'from-yellow-700 to-orange-600', description: 'Musique africaine', trackCount: 0 },
+    { id: 'Latin', name: 'Latin', icon: <Music size={20} />, color: 'from-red-600 to-orange-500', description: 'Musique latine', trackCount: 0 },
+    { id: 'Celtic', name: 'Celtic', icon: <Globe size={20} />, color: 'from-green-700 to-blue-600', description: 'Musique celtique', trackCount: 0 },
+    { id: 'Indian', name: 'Indian', icon: <Globe size={20} />, color: 'from-orange-600 to-red-500', description: 'Musique indienne', trackCount: 0 },
+    { id: 'Arabic', name: 'Arabic', icon: <Globe size={20} />, color: 'from-green-800 to-blue-700', description: 'Musique arabe', trackCount: 0 },
+    { id: 'Asian', name: 'Asian', icon: <Globe size={20} />, color: 'from-red-700 to-purple-600', description: 'Musique asiatique', trackCount: 0 }
+  ];
+
   // Filtrer et trier les tracks
   const filteredTracks = useMemo(() => {
     let filtered = tracks;
@@ -540,69 +602,6 @@ export default function DiscoverPage() {
     console.log('🚀 Chargement initial des données - UNE SEULE FOIS');
     fetchDiscoverData();
   }, []); // AUCUNE dépendance - chargement unique et définitif
-
-  // Catégories basées sur les VRAIS genres disponibles dans la base + NOUVELLES
-  const categories: Category[] = [
-    // Catégorie principale
-    { id: 'all', name: 'Toutes', icon: <Compass size={20} />, color: 'from-blue-500 to-purple-600', description: 'Découvrez tout le contenu', trackCount: 0 },
-    
-    // Genres RÉELS disponibles dans la base (GARDER)
-    { id: 'Electronic', name: 'Électronique', icon: <Zap size={20} />, color: 'from-purple-500 to-pink-600', description: 'Beats et synthés futuristes', trackCount: 0 },
-    { id: 'Pop', name: 'Pop', icon: <Music size={20} />, color: 'from-pink-500 to-purple-600', description: 'Mélodies accrocheuses et rythmes entraînants', trackCount: 0 },
-    { id: 'Hip-Hop', name: 'Hip-Hop', icon: <Flame size={20} />, color: 'from-orange-500 to-red-600', description: 'Rap et beats urbains', trackCount: 0 },
-    { id: 'Classical', name: 'Classique', icon: <Crown size={20} />, color: 'from-yellow-500 to-orange-600', description: 'Musique orchestrale', trackCount: 0 },
-    
-    // Catégories populaires pour l'expansion future (GARDER)
-    { id: 'Rock', name: 'Rock', icon: <Target size={20} />, color: 'from-red-500 to-yellow-600', description: 'Guitares et énergie brute', trackCount: 0 },
-    { id: 'Jazz', name: 'Jazz', icon: <Gem size={20} />, color: 'from-indigo-500 to-blue-600', description: 'Improvisation et swing', trackCount: 0 },
-    { id: 'R&B', name: 'R&B', icon: <Heart size={20} />, color: 'from-pink-500 to-red-600', description: 'Soul et rythmes blues', trackCount: 0 },
-    { id: 'Country', name: 'Country', icon: <Target size={20} />, color: 'from-green-500 to-yellow-600', description: 'Histoires rurales et guitares acoustiques', trackCount: 0 },
-    
-    // NOUVELLES catégories électroniques
-    { id: 'Reggae', name: 'Reggae', icon: <Music size={20} />, color: 'from-green-600 to-yellow-500', description: 'Reggae jamaïcain', trackCount: 0 },
-    { id: 'Blues', name: 'Blues', icon: <Mic size={20} />, color: 'from-blue-600 to-indigo-500', description: 'Blues traditionnel', trackCount: 0 },
-    { id: 'Folk', name: 'Folk', icon: <Users size={20} />, color: 'from-yellow-600 to-orange-500', description: 'Folk acoustique', trackCount: 0 },
-    { id: 'Metal', name: 'Metal', icon: <Target size={20} />, color: 'from-gray-700 to-black', description: 'Metal puissant', trackCount: 0 },
-    { id: 'Ambient', name: 'Ambient', icon: <Globe size={20} />, color: 'from-blue-400 to-cyan-500', description: 'Ambient relaxant', trackCount: 0 },
-    { id: 'Trap', name: 'Trap', icon: <Music size={20} />, color: 'from-purple-600 to-pink-500', description: 'Trap moderne', trackCount: 0 },
-    { id: 'Dubstep', name: 'Dubstep', icon: <Music size={20} />, color: 'from-green-500 to-blue-500', description: 'Dubstep énergique', trackCount: 0 },
-    { id: 'House', name: 'House', icon: <Music size={20} />, color: 'from-blue-500 to-purple-500', description: 'House dance', trackCount: 0 },
-    { id: 'Techno', name: 'Techno', icon: <Music size={20} />, color: 'from-gray-500 to-black', description: 'Techno industriel', trackCount: 0 },
-    { id: 'Trance', name: 'Trance', icon: <Music size={20} />, color: 'from-purple-400 to-pink-500', description: 'Trance hypnotique', trackCount: 0 },
-    { id: 'Drum & Bass', name: 'Drum & Bass', icon: <Music size={20} />, color: 'from-orange-500 to-red-500', description: 'Drum & Bass', trackCount: 0 },
-    
-    // NOUVELLES catégories acoustiques
-    { id: 'Acoustic', name: 'Acoustic', icon: <Mic size={20} />, color: 'from-yellow-500 to-orange-500', description: 'Acoustique pur', trackCount: 0 },
-    { id: 'Instrumental', name: 'Instrumental', icon: <Music size={20} />, color: 'from-blue-400 to-indigo-500', description: 'Instrumental', trackCount: 0 },
-    { id: 'Orchestral', name: 'Orchestral', icon: <Globe size={20} />, color: 'from-purple-500 to-blue-500', description: 'Orchestral', trackCount: 0 },
-    { id: 'A Cappella', name: 'A Cappella', icon: <Mic size={20} />, color: 'from-pink-400 to-purple-500', description: 'A Cappella', trackCount: 0 },
-    { id: 'Choir', name: 'Choir', icon: <Users size={20} />, color: 'from-blue-500 to-cyan-500', description: 'Chœur', trackCount: 0 },
-    { id: 'Gospel', name: 'Gospel', icon: <Mic size={20} />, color: 'from-yellow-600 to-orange-500', description: 'Gospel spirituel', trackCount: 0 },
-    
-    // NOUVELLES catégories fusion
-    { id: 'Fusion', name: 'Fusion', icon: <Music size={20} />, color: 'from-indigo-500 to-purple-500', description: 'Fusion musicale', trackCount: 0 },
-    { id: 'Experimental', name: 'Experimental', icon: <Globe size={20} />, color: 'from-purple-600 to-pink-500', description: 'Expérimental', trackCount: 0 },
-    { id: 'Avant-Garde', name: 'Avant-Garde', icon: <Music size={20} />, color: 'from-gray-600 to-black', description: 'Avant-garde', trackCount: 0 },
-    
-    // NOUVELLES catégories d'ambiance
-    { id: 'Retro', name: 'Retro', icon: <Globe size={20} />, color: 'from-orange-400 to-yellow-500', description: 'Rétro nostalgique', trackCount: 0 },
-    { id: 'Vintage', name: 'Vintage', icon: <Music size={20} />, color: 'from-yellow-400 to-orange-500', description: 'Vintage classique', trackCount: 0 },
-    { id: 'Futuristic', name: 'Futuristic', icon: <Globe size={20} />, color: 'from-blue-600 to-cyan-500', description: 'Futuriste', trackCount: 0 },
-    { id: 'Energetic', name: 'Energetic', icon: <Music size={20} />, color: 'from-red-400 to-orange-500', description: 'Énergique', trackCount: 0 },
-    { id: 'Chill', name: 'Chill', icon: <Globe size={20} />, color: 'from-blue-300 to-cyan-400', description: 'Chill relaxant', trackCount: 0 },
-    { id: 'Romantic', name: 'Romantic', icon: <Mic size={20} />, color: 'from-pink-300 to-red-400', description: 'Romantique', trackCount: 0 },
-    { id: 'Mysterious', name: 'Mysterious', icon: <Globe size={20} />, color: 'from-purple-700 to-black', description: 'Mystérieux', trackCount: 0 },
-    { id: 'Festive', name: 'Festive', icon: <Music size={20} />, color: 'from-orange-300 to-yellow-400', description: 'Festif joyeux', trackCount: 0 },
-    
-    // NOUVELLES catégories mondiales
-    { id: 'African', name: 'African', icon: <Globe size={20} />, color: 'from-yellow-700 to-orange-600', description: 'Musique africaine', trackCount: 0 },
-    { id: 'Latin', name: 'Latin', icon: <Music size={20} />, color: 'from-red-600 to-orange-500', description: 'Musique latine', trackCount: 0 },
-    { id: 'Celtic', name: 'Celtic', icon: <Globe size={20} />, color: 'from-green-700 to-blue-600', description: 'Musique celtique', trackCount: 0 },
-    { id: 'Indian', name: 'Indian', icon: <Globe size={20} />, color: 'from-orange-600 to-red-500', description: 'Musique indienne', trackCount: 0 },
-    { id: 'Arabic', name: 'Arabic', icon: <Globe size={20} />, color: 'from-green-800 to-blue-700', description: 'Musique arabe', trackCount: 0 },
-    { id: 'Asian', name: 'Asian', icon: <Globe size={20} />, color: 'from-red-700 to-purple-600', description: 'Musique asiatique', trackCount: 0 }
-  ];
-
 
   // SUPPRIMÉ : Ce useEffect causait le rechargement des données à chaque changement de catégorie
   // useEffect(() => {
