@@ -251,27 +251,26 @@ export async function DELETE(
           console.log('✅ Résultat suppression audio:', audioResult);
         } else if (existing.audio_url && existing.audio_url.includes('cloudinary.com')) {
           // Extraire public_id depuis l'URL Cloudinary
-          // URL format: https://res.cloudinary.com/dtgglgtfx/video/upload/v1234567890/ximam/audio/public_id.mp3
-          const urlParts = existing.audio_url.split('/');
-          const filenamePart = urlParts[urlParts.length - 1]; // ex: public_id.mp3
-          const publicIdWithFolder = urlParts.slice(-2).join('/').split('.')[0]; // ex: audio/public_id
+          // URL format: https://res.cloudinary.com/dtgglgtfx/video/upload/v1234567890/ximam/audio/filename.mp3
+          // Public_id = ximam/audio/filename
           
-          console.log('🎵 Extraction public_id audio:', {
-            url: existing.audio_url,
-            filenamePart,
-            publicIdWithFolder
-          });
-          
-          // Essayer d'abord avec le chemin complet
-          try {
-            const audioResult = await cloudinary.uploader.destroy(publicIdWithFolder, { resource_type: 'video' });
-            console.log('✅ Résultat suppression audio (avec dossier):', audioResult);
-          } catch (e) {
-            // Fallback: essayer juste le nom de fichier
-            const simplePublicId = filenamePart.split('.')[0];
-            console.log('🎵 Fallback suppression audio simple:', simplePublicId);
-            const audioResult = await cloudinary.uploader.destroy(simplePublicId, { resource_type: 'video' });
-            console.log('✅ Résultat suppression audio (simple):', audioResult);
+          const url = existing.audio_url;
+          const uploadIndex = url.indexOf('/upload/');
+          if (uploadIndex !== -1) {
+            const afterUpload = url.substring(uploadIndex + 8); // Après "/upload/"
+            const versionRemoved = afterUpload.replace(/^v\d+\//, ''); // Supprimer v1234567890/
+            const publicIdWithExt = versionRemoved; // ximam/audio/filename.mp3
+            const publicId = publicIdWithExt.split('.')[0]; // ximam/audio/filename
+            
+            console.log('🎵 Extraction public_id audio:', {
+              url,
+              afterUpload,
+              versionRemoved,
+              publicId
+            });
+            
+            const audioResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'video' });
+            console.log('✅ Résultat suppression audio:', audioResult);
           }
         }
         
@@ -282,27 +281,26 @@ export async function DELETE(
           console.log('✅ Résultat suppression cover:', coverResult);
         } else if (existing.cover_url && existing.cover_url.includes('cloudinary.com')) {
           // Extraire public_id depuis l'URL Cloudinary
-          // URL format: https://res.cloudinary.com/dtgglgtfx/image/upload/v1234567890/ximam/images/public_id.jpg
-          const urlParts = existing.cover_url.split('/');
-          const filenamePart = urlParts[urlParts.length - 1]; // ex: public_id.jpg
-          const publicIdWithFolder = urlParts.slice(-2).join('/').split('.')[0]; // ex: images/public_id
+          // URL format: https://res.cloudinary.com/dtgglgtfx/image/upload/v1234567890/ximam/images/filename.jpg
+          // Public_id = ximam/images/filename
           
-          console.log('🖼️ Extraction public_id cover:', {
-            url: existing.cover_url,
-            filenamePart,
-            publicIdWithFolder
-          });
-          
-          // Essayer d'abord avec le chemin complet
-          try {
-            const coverResult = await cloudinary.uploader.destroy(publicIdWithFolder, { resource_type: 'image' });
-            console.log('✅ Résultat suppression cover (avec dossier):', coverResult);
-          } catch (e) {
-            // Fallback: essayer juste le nom de fichier
-            const simplePublicId = filenamePart.split('.')[0];
-            console.log('🖼️ Fallback suppression cover simple:', simplePublicId);
-            const coverResult = await cloudinary.uploader.destroy(simplePublicId, { resource_type: 'image' });
-            console.log('✅ Résultat suppression cover (simple):', coverResult);
+          const url = existing.cover_url;
+          const uploadIndex = url.indexOf('/upload/');
+          if (uploadIndex !== -1) {
+            const afterUpload = url.substring(uploadIndex + 8); // Après "/upload/"
+            const versionRemoved = afterUpload.replace(/^v\d+\//, ''); // Supprimer v1234567890/
+            const publicIdWithExt = versionRemoved; // ximam/images/filename.jpg
+            const publicId = publicIdWithExt.split('.')[0]; // ximam/images/filename
+            
+            console.log('🖼️ Extraction public_id cover:', {
+              url,
+              afterUpload,
+              versionRemoved,
+              publicId
+            });
+            
+            const coverResult = await cloudinary.uploader.destroy(publicId, { resource_type: 'image' });
+            console.log('✅ Résultat suppression cover:', coverResult);
           }
         }
       } catch (e) {
