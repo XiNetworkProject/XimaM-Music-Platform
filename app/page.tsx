@@ -1527,8 +1527,7 @@ export default function HomePage() {
     );
   }
 
-   const categoryConfigs = [
-   ];
+   const categoryConfigs: any[] = [];
 
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
