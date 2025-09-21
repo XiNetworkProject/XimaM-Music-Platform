@@ -201,41 +201,56 @@ export default function DiscoverPage() {
     };
   }, []);
 
-  // Fonction pour récupérer les vraies données avec catégories et tri
+  // Fonction pour récupérer les vraies données (comme dans l'accueil)
   const fetchDiscoverData = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Utiliser la nouvelle API discover complète - TOUJOURS charger TOUTES les données
-      const discoverResponse = await fetch(`/api/discover?category=all&sort=trending&limit=100`, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache'
-        }
-      });
-      if (discoverResponse.ok) {
-        const discoverData = await discoverResponse.json();
-        
-        // Mettre à jour tous les états
-        setTracks(discoverData.tracks || []);
-        setTrendingArtists(discoverData.artists || []);
-        
-        console.log('✅ Données discover chargées (TOUTES les données):', {
-          total: discoverData.total,
-          tracks: discoverData.tracks?.length || 0,
-          artists: discoverData.artists?.length || 0
-        });
-      } else {
-        console.log('⚠️ Erreur API discover, utilisation des APIs simplifiées');
-        // Fallback vers les APIs simplifiées
-        await fetchFallbackData();
+      // Utiliser les mêmes APIs que l'accueil pour être sûr d'avoir des données
+      const [tracksResponse, artistsResponse] = await Promise.all([
+        fetch('/api/tracks?limit=100', {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache'
+          }
+        }),
+        fetch('/api/users/trending', {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache'
+          }
+        })
+      ]);
+
+      let allTracks: Track[] = [];
+      let allArtists: Artist[] = [];
+
+      // Récupérer les tracks
+      if (tracksResponse.ok) {
+        const tracksData = await tracksResponse.json();
+        allTracks = tracksData.tracks || tracksData || [];
       }
+
+      // Récupérer les artistes
+      if (artistsResponse.ok) {
+        const artistsData = await artistsResponse.json();
+        allArtists = artistsData.users || artistsData || [];
+      }
+
+      // Mettre à jour les états
+      setTracks(allTracks);
+      setTrendingArtists(allArtists);
+      
+      console.log('✅ Données discover chargées:', {
+        tracks: allTracks.length,
+        artists: allArtists.length
+      });
 
     } catch (err) {
       console.error('Erreur lors du chargement des données:', err);
       setError('Erreur lors du chargement des données');
-      // Fallback vers les APIs simplifiées
+      // Fallback vers les données de test
       await fetchFallbackData();
     } finally {
       setIsLoading(false);
@@ -341,49 +356,82 @@ export default function DiscoverPage() {
     setShowAllModal(true);
   };
 
-  // Fonction de fallback avec les APIs simplifiées
+  // Fonction de fallback avec des APIs qui existent vraiment
   const fetchFallbackData = async () => {
     try {
-      console.log('🔍 Récupération des données via APIs simplifiées...');
+      console.log('🔍 Récupération des données via APIs de fallback...');
       
-      // Récupérer les artistes tendance (API simplifiée)
-      const artistsResponse = await fetch('/api/artists/simple');
-      if (artistsResponse.ok) {
-        const artistsData = await artistsResponse.json();
-        setTrendingArtists(artistsData.artists || []);
-        console.log('✅ Artistes tendance:', artistsData.artists?.length || 0);
-      } else {
-        console.log('⚠️ Erreur API artists, création de données par défaut');
-        // Données par défaut en cas d'erreur
-        setTrendingArtists([
-          {
-            _id: '1',
-            username: 'artiste1',
-            name: 'Artiste 1',
-            avatar: '',
-            bio: 'Bio par défaut',
-            genre: [],
-            totalPlays: 0,
-            totalLikes: 0,
-            followerCount: 0,
-            isVerified: false,
-            isTrending: false,
-            featuredTracks: 0
+      // Essayer différentes APIs de tracks qui existent
+      const trackApis = ['/api/tracks/recent', '/api/tracks/popular', '/api/tracks/trending'];
+      let allTracks: Track[] = [];
+
+      for (const api of trackApis) {
+        try {
+          const response = await fetch(`${api}?limit=50`);
+          if (response.ok) {
+            const data = await response.json();
+            const tracks = data.tracks || data || [];
+            allTracks = [...allTracks, ...tracks];
+            console.log(`✅ ${api}: ${tracks.length} tracks`);
           }
-        ]);
+        } catch (err) {
+          console.log(`⚠️ Erreur ${api}:`, err);
+        }
       }
 
-      // Récupérer toutes les tracks pour les catégories (API simplifiée)
-      const allTracksResponse = await fetch('/api/tracks/simple');
-      if (allTracksResponse.ok) {
-        const allTracksData = await allTracksResponse.json();
-        setTracks(allTracksData.tracks || []);
-        console.log('✅ Toutes les tracks:', allTracksData.tracks?.length || 0);
+      // Déduplication des tracks par ID
+      const uniqueTracks = allTracks.filter((track, index, self) => 
+        index === self.findIndex(t => t._id === track._id)
+      );
+
+      setTracks(uniqueTracks);
+      console.log(`✅ Total tracks uniques: ${uniqueTracks.length}`);
+
+      // Essayer de récupérer les utilisateurs/artistes
+      try {
+        const usersResponse = await fetch('/api/users?limit=20');
+        if (usersResponse.ok) {
+          const usersData = await usersResponse.json();
+          const users = usersData.users || usersData || [];
+          // Convertir les utilisateurs en format Artist
+          const artists: Artist[] = users.map((user: any) => ({
+            _id: user._id || user.id,
+            username: user.username,
+            name: user.name,
+            avatar: user.avatar,
+            bio: user.bio || 'Artiste Synaura',
+            genre: user.genre || [],
+            totalPlays: user.total_plays || 0,
+            totalLikes: user.total_likes || 0,
+            followerCount: user.follower_count || 0,
+            isVerified: user.is_verified || false,
+            isTrending: true,
+            featuredTracks: user.featured_tracks || 0
+          }));
+          setTrendingArtists(artists);
+          console.log(`✅ Artistes: ${artists.length}`);
+        }
+      } catch (err) {
+        console.log('⚠️ Erreur récupération artistes:', err);
       }
       
-      console.log('✅ Toutes les données récupérées avec succès !');
     } catch (fallbackErr) {
       console.error('Erreur fallback:', fallbackErr);
+      // En dernier recours, créer quelques données de test
+      setTracks([
+        {
+          _id: 'test-1',
+          title: 'Test Track 1',
+          artist: { _id: 'artist-1', username: 'testartist', name: 'Test Artist', avatar: '' },
+          duration: 180,
+          genre: ['Electronic', 'Pop'],
+          plays: 1000,
+          likes: 50,
+          isFeatured: true,
+          isNew: false,
+          coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop'
+        }
+      ]);
     }
   };
 
@@ -468,224 +516,6 @@ export default function DiscoverPage() {
   // useEffect(() => {
   //   fetchDiscoverData();
   // }, [selectedCategory, sortBy]);
-
-  const loadDiscoverContent = async () => {
-    setIsLoading(true);
-    try {
-      // Simuler le chargement des données
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      // Données simulées pour la démo
-      const mockTracks: Track[] = [
-        {
-          _id: '1',
-          title: 'Neon Dreams',
-          artist: { _id: '1', username: 'synthwave', name: 'SynthWave' },
-          coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
-          duration: 180,
-          genre: ['electronic', 'synthwave'],
-          plays: 15420,
-          likes: 892,
-          isFeatured: true,
-          isNew: false,
-          mood: ['énergique', 'mystérieux'],
-          energy: 8
-        },
-        {
-          _id: '2',
-          title: 'Urban Flow',
-          artist: { _id: '2', username: 'beatmaster', name: 'BeatMaster' },
-          coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300&h=300&fit=crop',
-          duration: 210,
-          genre: ['hiphop', 'trap'],
-          plays: 8920,
-          likes: 456,
-          isFeatured: false,
-          isNew: true,
-          mood: ['énergique', 'festif'],
-          energy: 9
-        },
-        {
-          _id: '3',
-          title: 'Crystal Echoes',
-          artist: { _id: '3', username: 'ambient', name: 'Ambient Dreams' },
-          coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
-          duration: 300,
-          genre: ['ambient', 'chill'],
-          plays: 2340,
-          likes: 234,
-          isFeatured: true,
-          isNew: false,
-          mood: ['relaxant', 'mystérieux'],
-          energy: 3
-        },
-        {
-          _id: '4',
-          title: 'Midnight Groove',
-          artist: { _id: '4', username: 'groovemaster', name: 'Groove Master' },
-          coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300&h=300&fit=crop',
-          duration: 240,
-          genre: ['funk', 'soul'],
-          plays: 5670,
-          likes: 345,
-          isFeatured: true,
-          isNew: false,
-          mood: ['festif', 'énergique'],
-          energy: 7
-        },
-        {
-          _id: '5',
-          title: 'Desert Wind',
-          artist: { _id: '5', username: 'worldmusic', name: 'World Music' },
-          coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
-          duration: 320,
-          genre: ['world', 'ethnic'],
-          plays: 1890,
-          likes: 123,
-          isFeatured: false,
-          isNew: true,
-          mood: ['mystérieux', 'relaxant'],
-          energy: 4
-        },
-        {
-          _id: '6',
-          title: 'Electric Storm',
-          artist: { _id: '6', username: 'electroking', name: 'Electro King' },
-          coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
-          duration: 195,
-          genre: ['electronic', 'dance'],
-          plays: 12340,
-          likes: 678,
-          isFeatured: true,
-          isNew: false,
-          mood: ['énergique', 'festif'],
-          energy: 9
-        },
-        {
-          _id: '7',
-          title: 'Jazz Night',
-          artist: { _id: '7', username: 'jazzcat', name: 'Jazz Cat' },
-          coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
-          duration: 280,
-          genre: ['jazz', 'blues'],
-          plays: 3450,
-          likes: 234,
-          isFeatured: false,
-          isNew: true,
-          mood: ['romantique', 'mystérieux'],
-          energy: 5
-        },
-        {
-          _id: '8',
-          title: 'Rock Anthem',
-          artist: { _id: '8', username: 'rockstar', name: 'Rock Star' },
-          coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300&h=300&fit=crop',
-          duration: 260,
-          genre: ['rock', 'alternative'],
-          plays: 9870,
-          likes: 567,
-          isFeatured: true,
-          isNew: false,
-          mood: ['énergique', 'festif'],
-          energy: 8
-        }
-      ];
-
-      const mockArtists: Artist[] = [
-        {
-          _id: '1',
-          username: 'synthwave',
-          name: 'SynthWave',
-          avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop',
-          bio: 'Pionnier du synthwave moderne',
-          genre: ['electronic', 'synthwave'],
-          totalPlays: 154200,
-          totalLikes: 8920,
-          followerCount: 15420,
-          isVerified: true,
-          isTrending: true,
-          featuredTracks: 3
-        },
-        {
-          _id: '2',
-          username: 'beatmaster',
-          name: 'BeatMaster',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
-          bio: 'Créateur de beats urbains',
-          genre: ['hiphop', 'trap'],
-          totalPlays: 89200,
-          totalLikes: 4560,
-          followerCount: 8920,
-          isVerified: false,
-          isTrending: true,
-          featuredTracks: 1
-        },
-        {
-          _id: '3',
-          username: 'groovemaster',
-          name: 'Groove Master',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
-          bio: 'Maître du funk et de la soul',
-          genre: ['funk', 'soul'],
-          totalPlays: 67800,
-          totalLikes: 3450,
-          followerCount: 6780,
-          isVerified: true,
-          isTrending: true,
-          featuredTracks: 2
-        },
-        {
-          _id: '4',
-          username: 'worldmusic',
-          name: 'World Music',
-          avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop',
-          bio: 'Explorateur des musiques du monde',
-          genre: ['world', 'ethnic'],
-          totalPlays: 23400,
-          totalLikes: 1230,
-          followerCount: 2340,
-          isVerified: false,
-          isTrending: true,
-          featuredTracks: 1
-        },
-        {
-          _id: '5',
-          username: 'electroking',
-          name: 'Electro King',
-          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop',
-          bio: 'Roi de l\'électro et de la dance',
-          genre: ['electronic', 'dance'],
-          totalPlays: 123400,
-          totalLikes: 6780,
-          followerCount: 12340,
-          isVerified: true,
-          isTrending: true,
-          featuredTracks: 4
-        },
-        {
-          _id: '6',
-          username: 'jazzcat',
-          name: 'Jazz Cat',
-          avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop',
-          bio: 'Virtuose du jazz et du blues',
-          genre: ['jazz', 'blues'],
-          totalPlays: 45600,
-          totalLikes: 2340,
-          followerCount: 4560,
-          isVerified: false,
-          isTrending: true,
-          featuredTracks: 2
-        }
-      ];
-
-      setTracks(mockTracks);
-              setTrendingArtists(mockArtists);
-    } catch (error) {
-      console.error('Erreur chargement discover:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
 
 
