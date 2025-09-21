@@ -262,6 +262,16 @@ export default function SubscriptionsPage() {
                     <span className="relative flex flex-row items-center justify-center gap-2">Acheter plus</span>
                   </button>
                 </div>
+                {!isFreeActive && (
+                  <button type="button" onClick={async () => {
+                    if (!window.confirm('Revenir immédiatement au plan gratuit ?')) return;
+                    const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
+                    if (res.ok) { await fetchAll(); setToast({ type: 'success', msg: 'Rétrogradation appliquée.' }); }
+                    else setToast({ type: 'error', msg: 'Échec de la rétrogradation.' });
+                  }} className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-red-400/30 transition">
+                    <span className="relative flex flex-row items-center justify-center gap-2">Revenir au plan gratuit</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -314,6 +324,26 @@ export default function SubscriptionsPage() {
             })}
           </ul>
         )}
+
+        {/* Bouton ajouter/mettre à jour carte via SetupIntent */}
+        <div className="mt-4">
+          <button onClick={async () => {
+            try {
+              const r = await fetch('/api/billing/create-setup-intent', { method: 'POST' });
+              if (!r.ok) { setToast({ type: 'error', msg: 'Erreur initialisation carte.' }); return; }
+              const j = await r.json();
+              // Ouvrir le PaymentElement minimal dans une modale simplifiée
+              const url = new URL(window.location.href);
+              url.hash = 'update-card';
+              sessionStorage.setItem('stripe:update_card', JSON.stringify(j));
+              window.location.href = url.toString();
+              setToast({ type: 'success', msg: 'Initialisation OK. Faites défiler vers le paiement.' });
+              requestAnimationFrame(() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+            } catch {
+              setToast({ type: 'error', msg: 'Erreur réseau.' });
+            }
+          }} className="text-xs px-3 py-1.5 rounded-md bg-white/10 ring-1 ring-white/15 hover:bg-white/15">Ajouter / mettre à jour une carte</button>
+        </div>
       </div>
 
       {/* Sélecteur période + cartes de plans (coquilles vides) */}
