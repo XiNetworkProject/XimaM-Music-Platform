@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
@@ -125,31 +125,9 @@ export default function UploadPage() {
   const [usage, setUsage] = useState<any | null>(null);
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
+  const audioInputRef = useRef<HTMLInputElement | null>(null);
+  const coverInputRef = useRef<HTMLInputElement | null>(null);
   const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string }>({});
-  const scrollToAudio = () => {
-    const el = document.getElementById('audio-input') as HTMLInputElement | null;
-    if (el) el.click();
-  };
-  const scrollToCover = () => {
-    const el = document.getElementById('cover-input') as HTMLInputElement | null;
-    if (el) el.click();
-  };
-  const handleCancelUpload = async () => {
-    try {
-      if (tempPublicIds.audio || tempPublicIds.cover) {
-        await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover }) });
-      }
-      setAudioFile(null);
-      setCoverFile(null);
-      setAudioPreview(null);
-      setCoverPreview(null);
-      setUploadProgress({ audio: 0, cover: 0 });
-      setCurrentStep(1);
-      toast.success('Téléversement annulé');
-    } catch {
-      toast.error("Impossible d'annuler maintenant");
-    }
-  };
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -397,22 +375,18 @@ export default function UploadPage() {
               <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
             </div>
           )}
-          <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
-            <div className="flex items-center justify-between p-4">
-              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight flex items-center gap-3">
-                <Upload size={24} className="text-purple-400" />
-                Téléverser une musique
-              </h1>
+          <div className="mb-2 rounded-lg border border-white/10 bg-white/5 backdrop-blur">
+            <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-white/90">
+              <h1 className="text-2xl max-md:text-base">Éditer l’upload</h1>
               <div className="flex flex-row gap-2">
-                <button type="button" onClick={scrollToAudio} className="relative inline-block px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">
-                  <span className="relative">Remplacer audio</span>
+                <button type="button" onClick={() => audioInputRef.current?.click()} className="relative inline-block px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">
+                  <span className="relative">Remplacer Audio</span>
                 </button>
-                <button type="button" onClick={scrollToCover} className="relative inline-block px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">
-                  <span className="relative">Remplacer cover</span>
+                <button type="button" onClick={() => coverInputRef.current?.click()} className="relative inline-block px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">
+                  <span className="relative">Remplacer Cover</span>
                 </button>
               </div>
             </div>
-            <div className="border-t border-white/10" />
           </div>
 
       {/* Progress Steps */}
@@ -480,7 +454,7 @@ export default function UploadPage() {
                         : 'border-white/20 hover:border-white/40'
                     }`}
                   >
-                    <input id="audio-input" {...getAudioInputProps()} />
+                    <input ref={audioInputRef} {...getAudioInputProps()} />
                     {audioFile ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-center space-x-2">
@@ -535,7 +509,7 @@ export default function UploadPage() {
                         : 'border-white/20 hover:border-white/40'
                     }`}
                   >
-                    <input id="cover-input" {...getCoverInputProps()} />
+                    <input ref={coverInputRef} {...getCoverInputProps()} />
                     {coverFile ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-center space-x-2">
@@ -606,12 +580,12 @@ export default function UploadPage() {
                 )}
 
                 {/* Navigation */}
-                <div className="flex justify-end pt-6">
+                <div className="flex justify-end pt-4">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
                     disabled={!audioFile || isUploading || !canUpload}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+                    className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg-white hover:opacity-95 disabled:opacity-50"
                   >
                     Suivant
                   </button>
@@ -716,11 +690,11 @@ export default function UploadPage() {
                 </div>
 
                 {/* Navigation */}
-                <div className="flex justify-between pt-6">
+                <div className="flex justify-between pt-4">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(1)}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
+                    className="relative inline-block px-6 py-2.5 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15"
                   >
                     Précédent
                   </button>
@@ -728,7 +702,7 @@ export default function UploadPage() {
                     type="button"
                     onClick={() => setCurrentStep(3)}
                     disabled={!formData.title.trim()}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+                    className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg:white bg-white hover:opacity-95 disabled:opacity-50"
                   >
                     Suivant
                   </button>
@@ -821,18 +795,18 @@ export default function UploadPage() {
                 </div>
 
                 {/* Navigation */}
-                <div className="flex justify-between pt-6">
+                <div className="flex justify-between pt-4">
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl font-medium transition-colors"
+                    className="relative inline-block px-6 py-2.5 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15"
                   >
                     Précédent
                   </button>
                   <button
                     type="submit"
                     disabled={isUploading || !canUpload}
-                    className="px-6 py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-white/20 disabled:cursor-not-allowed rounded-xl font-medium transition-colors"
+                    className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg-white hover:opacity-95 disabled:opacity-50"
                   >
                     {isUploading ? 'Upload en cours...' : 'Publier'}
                   </button>
@@ -841,14 +815,6 @@ export default function UploadPage() {
             )}
           </form>
         </motion.div>
-        <div className="flex flex-row items-center justify-end gap-3 mt-4 p-4 border-t border-white/10 rounded-b-2xl bg-white/5 backdrop-blur">
-          <button type="button" onClick={handleCancelUpload} className="relative inline-block px-6 py-2.5 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">Annuler</button>
-          {currentStep < 3 ? (
-            <button type="button" onClick={() => currentStep === 1 ? setCurrentStep(2) : setCurrentStep(3)} disabled={(currentStep === 1 && (!audioFile || isUploading || !canUpload)) || (currentStep === 2 && !formData.title.trim())} className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg-white hover:opacity-95 disabled:opacity-50">Suivant</button>
-          ) : (
-            <button type="button" onClick={() => (document.querySelector('#upload-form') as HTMLFormElement | null)?.requestSubmit()} disabled={isUploading || !canUpload} className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg-white hover:opacity-95 disabled:opacity-50">Publier</button>
-          )}
-        </div>
         </div>
       </main>
 
