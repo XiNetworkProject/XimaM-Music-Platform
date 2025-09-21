@@ -522,7 +522,9 @@ export default function ProfileUserPage() {
     setUploading(true);
     setError('');
     try {
-      const res = await fetch(`/api/tracks/${editingTrack._id}`, {
+      const targetId = editingTrack.id || editingTrack._id;
+      if (!targetId) throw new Error('Identifiant piste manquant');
+      const res = await fetch(`/api/tracks/${targetId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -538,7 +540,7 @@ export default function ProfileUserPage() {
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((track: any) => 
-          track.id === editingTrack._id ? data.track : track
+          track.id === targetId ? data.track : track
         )
       }));
       setShowEditTrackModal(false);
@@ -561,7 +563,9 @@ export default function ProfileUserPage() {
     setUploading(true);
     setError('');
     try {
-      const res = await fetch(`/api/tracks/${featuringTrack._id}/featured`, {
+      const targetId = featuringTrack.id || featuringTrack._id;
+      if (!targetId) throw new Error('Identifiant piste manquant');
+      const res = await fetch(`/api/tracks/${targetId}/featured`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -576,7 +580,7 @@ export default function ProfileUserPage() {
       setProfile((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((track: any) => 
-          track.id === featuringTrack._id ? data.track : track
+          track.id === targetId ? data.track : track
         )
       }));
       setShowFeatureTrackModal(false);
