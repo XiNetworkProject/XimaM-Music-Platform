@@ -569,9 +569,9 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="h-screen w-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="h-screen w-screen text-[var(--text)]">
       <div className="h-full w-screen p-3">
-        <div className="flex h-full flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-secondary)]">
+        <div className="flex h-full flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl">
           
           {/* Header */}
           <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
@@ -892,7 +892,7 @@ export default function UploadPage() {
                   <h2 className="text-xl font-semibold">Prévisualisation finale</h2>
                   
                   {/* Rendu final comme une TrackCard */}
-                  <div className="bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl p-4">
+                  <div className="bg-white/[0.04] backdrop-blur-md border border-[var(--border)] rounded-xl p-4">
                     <div className="flex items-center gap-4">
                       <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
                         {coverFile ? (
