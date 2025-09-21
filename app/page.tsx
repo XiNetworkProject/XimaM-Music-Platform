@@ -1528,17 +1528,7 @@ export default function HomePage() {
   }
 
    const categoryConfigs = [
-    {
-      key: 'recommended',
-      title: '🎯 Pour Vous',
-      subtitle: 'Basé sur vos goûts',
-      icon: Sparkles,
-      color: 'from-purple-500 to-pink-500',
-      bgColor: 'bg-purple-500/10',
-      borderColor: 'border-purple-500/20',
-      showOnlyIfLoggedIn: true
-    }
-  ];
+   ];
 
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
