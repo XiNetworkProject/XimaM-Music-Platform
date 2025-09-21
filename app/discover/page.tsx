@@ -1156,21 +1156,17 @@ const GenreSection: React.FC<GenreSectionProps> = ({ title, tracks, onPlayTrack 
               </div>
             </button>
             <div className="h-full w-full overflow-hidden mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)] mask-size-[100%_100%] transition-[mask-image] duration-500">
-              <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
-                <section 
-                  id={sectionId}
-                  className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden"
-                  style={{ position: 'relative', height: '384px', width: '776px', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}
-                >
-                  <div style={{ height: '100%', width: `${tracks.length * 185.85}px` }}>
-                    {tracks.slice(0, 20).map((track, index) => (
-                      <div key={track._id} style={{ position: 'absolute', left: `${index * 185.85}px`, top: '0px', height: '100%', width: '177px' }}>
-                        <TrackCard track={track} onPlay={onPlayTrack} />
-                      </div>
-                    ))}
+              <section 
+                id={sectionId}
+                className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden gap-3 px-4"
+                style={{ height: '384px', scrollbarWidth: 'none' }}
+              >
+                {tracks.slice(0, 20).map((track, index) => (
+                  <div key={track._id} className="shrink-0">
+                    <TrackCard track={track} onPlay={onPlayTrack} />
                   </div>
-                </section>
-              </div>
+                ))}
+              </section>
             </div>
             <button 
               className="absolute top-0 right-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
