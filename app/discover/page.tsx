@@ -702,21 +702,21 @@ export default function DiscoverPage() {
           ) : (
           <div className="space-y-8">
             {selectedCategory === 'all' ? (
-              // Afficher toutes les sections par genre
-              Object.entries(GENRE_CATEGORIES).map(([categoryName, genres]) => {
-                const categoryTracks = filteredTracks.filter(track => 
+              // Afficher TOUS les genres individuels qui ont des tracks
+              MUSIC_GENRES.map(genre => {
+                const genreTracks = tracks.filter(track => 
                   track.genre && 
                   Array.isArray(track.genre) && 
-                  track.genre.some(g => (genres as readonly string[]).includes(g))
+                  track.genre.includes(genre)
                 );
 
-                if (categoryTracks.length === 0) return null;
+                if (genreTracks.length === 0) return null;
 
                 return (
                   <GenreSection
-                    key={categoryName}
-                    title={categoryName}
-                    tracks={categoryTracks}
+                    key={genre}
+                    title={genre}
+                    tracks={genreTracks}
                     onPlayTrack={handlePlayTrack}
                   />
                 );
