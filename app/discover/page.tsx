@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
-import SeeAllButton from '@/components/SeeAllButton';
 import { 
   Music, 
   Star, 
@@ -26,8 +25,13 @@ import {
   Mic,
   Users,
   Globe,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle,
+  MoreHorizontal
 } from 'lucide-react';
+import { MUSIC_GENRES, GENRE_CATEGORIES, getGenreColor } from '@/lib/genres';
 
 interface Track {
   _id: string;
@@ -962,542 +966,68 @@ export default function DiscoverPage() {
           </div>
         </motion.div>
 
-      {/* Contenu principal - Style identique à l'accueil */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+      {/* Contenu principal - Sections par genres */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.0 }}
         className="px-2 sm:px-4 md:px-6 pb-16"
       >
-        <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto overflow-hidden px-0">
-                     {isLoading ? (
-             <div className="text-center py-20">
-               {/* Spinner ultra-stylisé sans fond blanc */}
-               <div className="relative mx-auto mb-8">
-                 {/* Cercle de rotation principal avec gradient */}
-                 <div className="w-24 h-24 rounded-full border-4 border-transparent border-t-purple-500 border-r-pink-500 border-b-blue-500 border-l-cyan-400 animate-spin"></div>
-                 
-                 {/* Cercle intérieur avec rotation inverse */}
-                 <div className="absolute inset-2 w-20 h-20 rounded-full border-2 border-transparent border-t-pink-400 border-r-purple-400 border-b-cyan-500 border-l-blue-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-                 
-                 {/* Point central avec pulse */}
-                 <div className="absolute inset-8 w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-pulse"></div>
-                 
-                 {/* Particules orbitales */}
-                 <div className="absolute inset-0">
-                   <div className="absolute top-0 left-1/2 w-2 h-2 bg-purple-400 rounded-full animate-ping" style={{ transform: 'translateX(-50%)' }}></div>
-                   <div className="absolute top-1/2 right-0 w-1.5 h-1.5 bg-pink-400 rounded-full animate-ping" style={{ transform: 'translateY(-50%)', animationDelay: '0.3s' }}></div>
-                   <div className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping" style={{ transform: 'translateX(-50%)', animationDelay: '0.6s' }}></div>
-                   <div className="absolute top-1/2 left-0 w-1 h-1 bg-cyan-400 rounded-full animate-ping" style={{ transform: 'translateY(-50%)', animationDelay: '0.9s' }}></div>
-                 </div>
-               </div>
-               
-               <p className="text-gray-300 text-lg font-medium">Chargement de la boutique...</p>
-               <p className="text-gray-500 text-sm mt-2">Préparation de votre expérience musicale</p>
-             </div>
-          ) : (
-            <>
-              {/* Tracks en vedette - Style identique à l'accueil */}
-              <div className="mb-16">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.6 }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 bg-yellow-500/10 border border-yellow-500/20">
-                        <Crown size={24} className="text-white" />
-                      </div>
-                                             <div>
-                         <h2 className="text-2xl font-bold text-white">Tracks en Vedette</h2>
-                         <p className="text-gray-400">Les meilleures créations de la communauté</p>
-                       </div>
-                    </div>
-                    <SeeAllButton type="featured" onClick={openAllModal} />
-                  </div>
-                </motion.div>
-
-                {viewMode === 'grid' ? (
-                                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-                  {filteredTracks.filter(track => track.isFeatured).slice(0, 6).map((track: Track, index: number) => (
-                      <motion.div
-                        key={track._id}
-                        initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '50px' }}
-                        transition={{ duration: 0.4, delay: index * 0.05 }}
-                        whileHover={{ y: -4, scale: 1.02 }}
-                        className="group cursor-pointer"
-                      >
-                        <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
-                          {/* Badge Découverte - Style identique à l'accueil */}
-                          {track.isFeatured && (
-                            <div className="absolute top-3 left-3 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                              <Crown size={12} className="inline" />
-                              Vedette
-                            </div>
-                          )}
-                          
-                          {/* Image - Style identique à l'accueil */}
-                          <div className="w-20 h-20 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                            {track.coverUrl ? (
-                              <img
-                                src={track.coverUrl}
-                                alt={track.title}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop';
-                                }}
-                              />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
-                                {track.title.charAt(0).toUpperCase()}
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Titre - Style identique à l'accueil */}
-                          <h3 className="font-semibold text-white text-sm mb-1 truncate">
-                            {track.title}
-                          </h3>
-                          
-                          {/* Artiste - Style identique à l'accueil */}
-                          <p className="text-gray-300 text-xs mb-2 truncate">
-                            {track.artist.name}
-                          </p>
-                          
-                          {/* Durée + Bouton play - Style identique à l'accueil */}
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                              {formatDuration(track.duration)}
-                            </span>
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.95 }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handlePlayTrack(track);
-                              }}
-                              className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
-                            >
-                              <Play size={14} fill="white" className="ml-0.5" />
-                            </motion.button>
-                          </div>
-                          
-                          {/* Stats - Style identique à l'accueil */}
-                          <div className="flex items-center justify-between w-full pt-2 border-t border-gray-700 text-xs text-gray-400">
-                            <div className="flex items-center gap-1">
-                              <Headphones size={12} />
-                              {formatNumber(track.plays)}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Heart size={12} />
-                              {formatNumber(track.likes)}
-                            </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))}
+        {isLoading ? (
+          <div className="text-center py-20">
+            <div className="relative mx-auto mb-8">
+              <div className="w-24 h-24 rounded-full border-4 border-transparent border-t-purple-500 border-r-pink-500 border-b-blue-500 border-l-cyan-400 animate-spin"></div>
+              <div className="absolute inset-2 w-20 h-20 rounded-full border-2 border-transparent border-t-pink-400 border-r-purple-400 border-b-cyan-500 border-l-blue-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+              <div className="absolute inset-8 w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-pulse"></div>
             </div>
-          ) : (
-                  <div className="space-y-2">
-                    {filteredTracks.filter(track => track.isFeatured).slice(0, 5).map((track: Track, index: number) => (
-                <motion.div
-                        key={track._id}
-                  initial={{ opacity: 0, y: 20 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true, margin: '50px' }}
-                        transition={{ duration: 0.4, delay: index * 0.05 }}
-                        whileHover={{ x: 2, backgroundColor: 'rgba(255, 255, 255, 0.08)' }}
-                        onClick={() => handlePlayTrack(track)}
-                        className="flex items-center gap-3 p-3 bg-white/10 backdrop-blur-sm border border-gray-700 rounded-lg group cursor-pointer transition-all hover:shadow-lg"
-                      >
-                        {track.coverUrl ? (
-                          <img
-                            src={track.coverUrl}
-                      alt={track.title}
-                            className="w-12 h-12 rounded-lg object-cover"
-                      onError={(e) => {
-                              e.currentTarget.src = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
-                            {track.title.charAt(0).toUpperCase()}
-                          </div>
-                        )}
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-white text-sm truncate">{track.title}</h3>
-                          <p className="text-gray-400 text-xs truncate">{track.artist.name}</p>
-                          <div className="flex items-center gap-3 text-xs text-gray-500 mt-1">
-                            <span className="flex items-center gap-1">
-                              <Clock size={12} />
-                              {formatDuration(track.duration)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Headphones size={12} />
-                              {formatNumber(track.plays)}
-                            </span>
-                            <span className="flex items-center gap-1">
-                              <Heart size={12} />
-                              {formatNumber(track.likes)}
-                            </span>
-                          </div>
-                        </div>
+            <p className="text-gray-300 text-lg font-medium">Chargement des genres...</p>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Générer les sections pour chaque genre qui a des tracks */}
+            {Object.entries(GENRE_CATEGORIES).map(([categoryName, genres]) => {
+              // Trouver les tracks pour cette catégorie
+              const categoryTracks = tracks.filter(track => 
+                track.genre && 
+                Array.isArray(track.genre) && 
+                track.genre.some(g => (genres as readonly string[]).includes(g))
+              );
 
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => handlePlayTrack(track)}
-                          className="p-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full text-white hover:from-purple-600 hover:to-pink-600 transition-all opacity-0 group-hover:opacity-100 shadow-lg"
-                        >
-                          <Play size={16} />
-                        </motion.button>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              // Ne pas afficher la section si aucune track
+              if (categoryTracks.length === 0) return null;
 
-              {/* Artistes tendance - Style identique à l'accueil */}
-              <div className="mb-16">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.6 }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 bg-green-500/10 border border-green-500/20">
-                        <TrendingUp size={24} className="text-white" />
-                      </div>
-                                             <div>
-                         <h2 className="text-2xl font-bold text-white">Artistes Tendance</h2>
-                         <p className="text-gray-400">Les artistes qui montent en flèche</p>
-                       </div>
-                    </div>
-                    <SeeAllButton type="artists" onClick={openAllModal} />
-                  </div>
-                </motion.div>
+              return (
+                <GenreSection
+                  key={categoryName}
+                  title={categoryName}
+                  tracks={categoryTracks}
+                  onPlayTrack={handlePlayTrack}
+                />
+              );
+            })}
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-                  {trendingArtists.filter(artist => 
-                    // Afficher l'artiste seulement s'il a des tracks dans la catégorie sélectionnée
-                    selectedCategory === 'all' || 
-                    filteredTracks.some(track => track.artist._id === artist._id)
-                  ).map((artist, index) => (
-                    <motion.div
-                      key={artist._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: '50px' }}
-                      transition={{ duration: 0.4, delay: index * 0.05 }}
-                      whileHover={{ y: -4, scale: 1.02 }}
-                      className="group cursor-pointer"
-                    >
-                      <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4 text-center">
-                        {/* Badge Vérifié - Style identique à l'accueil */}
-                        {artist.isVerified && (
-                          <div className="absolute top-3 right-3 bg-gradient-to-r from-blue-400 to-cyan-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                            <Star size={12} className="inline" />
-                            Vérifié
-                      </div>
-                    )}
+            {/* Section pour les genres individuels populaires */}
+            {MUSIC_GENRES.slice(0, 10).map(genre => {
+              const genreTracks = tracks.filter(track => 
+                track.genre && 
+                Array.isArray(track.genre) && 
+                track.genre.includes(genre)
+              );
 
-                        {/* Avatar - Style identique à l'accueil */}
-                        <div className="w-20 h-20 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20 mx-auto">
-                          {artist.avatar && artist.avatar.trim() !== '' ? (
-                            <img
-                              src={artist.avatar}
-                              alt={artist.name}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
-                              {artist.name.charAt(0).toUpperCase()}
-                    </div>
-                          )}
-                  </div>
+              if (genreTracks.length === 0) return null;
 
-                        {/* Nom - Style identique à l'accueil */}
-                        <h3 className="font-semibold text-white text-sm mb-1 truncate">
-                          {artist.name}
-                        </h3>
-                        
-                        {/* Bio - Style identique à l'accueil */}
-                        <p className="text-gray-300 text-xs mb-3 line-clamp-2 leading-tight">
-                          {artist.bio}
-                        </p>
-                        
-                        {/* Stats - Style identique à l'accueil */}
-                        <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3">
-                          <div>
-                            <div className="text-white font-bold">{formatNumber(artist.totalPlays)}</div>
-                            <div className="text-gray-500">Écoutes</div>
-                          </div>
-                          <div>
-                            <div className="text-white font-bold">{formatNumber(artist.totalLikes)}</div>
-                            <div className="text-gray-500">Likes</div>
-                          </div>
-                          <div>
-                            <div className="text-white font-bold">{formatNumber(artist.followerCount)}</div>
-                            <div className="text-gray-500">Suiveurs</div>
-                          </div>
-                        </div>
-                        
-                        {/* Bouton - Style identique à l'accueil */}
-                        <motion.button
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
-                          onClick={() => window.location.href = `/profile/${artist.username}`}
-                          className="w-full py-2 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-sm text-purple-300 text-xs rounded-lg hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300 border border-purple-500/30 hover:border-purple-500/50"
-                        >
-                          Voir le profil
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  ))}
-                    </div>
-                  </div>
-
-              {/* Nouveautés - Style identique à l'accueil */}
-              <div className="mb-16">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.6 }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-xl bg-gradient-to-r from-yellow-500 to-orange-500 bg-yellow-500/10 border border-yellow-500/20">
-                        <Zap size={24} className="text-white" />
-                      </div>
-                                             <div>
-                         <h2 className="text-2xl font-bold text-white">Nouveautés</h2>
-                         <p className="text-gray-400">Les dernières créations de la communauté</p>
-                       </div>
-                    </div>
-                    <SeeAllButton type="new" onClick={openAllModal} />
-                  </div>
-                </motion.div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-                  {filteredTracks.filter(track => {
-                    // Une track est "nouvelle" si isNew est true OU si elle a été créée dans les 30 derniers jours
-                    if (track.isNew) return true;
-                    if (track.createdAt) {
-                      const trackDate = new Date(track.createdAt);
-                      const thirtyDaysAgo = new Date();
-                      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                      return trackDate > thirtyDaysAgo;
-                    }
-                    return false;
-                  }).slice(0, 6).map((track: Track, index: number) => (
-                    <motion.div
-                      key={track._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: '50px' }}
-                      transition={{ duration: 0.4, delay: index * 0.05 }}
-                      whileHover={{ y: -4, scale: 1.02 }}
-                      className="group cursor-pointer"
-                    >
-                      <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
-                        {/* Badge Nouveau - Style identique à l'accueil */}
-                        <div className="absolute top-3 left-3 bg-gradient-to-r from-green-400 to-emerald-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                          <Zap size={12} className="inline" />
-                          Nouveau
-                        </div>
-                        
-                        {/* Image - Style identique à l'accueil */}
-                        <div className="w-20 h-20 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                          <img
-                            src={track.coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop'}
-                            alt={track.title}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = '/default-cover.jpg';
-                            }}
-                          />
-                        </div>
-                        
-                        {/* Titre - Style identique à l'accueil */}
-                        <h3 className="font-semibold text-white text-sm mb-1 truncate">
-                      {track.title}
-                    </h3>
-                        
-                        {/* Artiste - Style identique à l'accueil */}
-                        <p className="text-gray-300 text-xs mb-2 truncate">
-                          {track.artist.name}
-                        </p>
-                        
-                        {/* Durée + Bouton play - Style identique à l'accueil */}
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                            {formatDuration(track.duration)}
-                          </span>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePlayTrack(track);
-                            }}
-                            className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
-                          >
-                            <Play size={14} fill="white" className="ml-0.5" />
-                          </motion.button>
-                        </div>
-                        
-                        {/* Stats - Style identique à l'accueil */}
-                        <div className="flex items-center justify-between w-full pt-2 border-t border-gray-700 text-xs text-gray-400">
-                      <div className="flex items-center gap-1">
-                        <Headphones size={12} />
-                            {formatNumber(track.plays)}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Heart size={12} />
-                            {formatNumber(track.likes)}
-                      </div>
-                      </div>
-                    </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tendances du Moment - Style identique à l'accueil */}
-              <div className="mb-16">
-                <motion.div
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '50px' }}
-                  transition={{ duration: 0.6 }}
-                  className="mb-8"
-                >
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-xl bg-gradient-to-r from-orange-500 to-red-500 bg-orange-500/10 border border-orange-500/20">
-                        <TrendingUp size={24} className="text-white" />
-                      </div>
-                                             <div>
-                         <h2 className="text-2xl font-bold text-white">Tendances du Moment</h2>
-                         <p className="text-gray-400">Ce qui fait vibrer la communauté en ce moment</p>
-                       </div>
-                    </div>
-                    <SeeAllButton type="trending" onClick={openAllModal} />
-                  </div>
-                </motion.div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-4">
-                  {filteredTracks.filter(track => track.plays > 30).slice(0, 6).map((track, index) => (
-                    <motion.div
-                      key={track._id}
-                      initial={{ opacity: 0, y: 20 }}
-                      whileInView={{ opacity: 1, y: 0 }}
-                      viewport={{ once: true, margin: '50px' }}
-                      transition={{ duration: 0.4, delay: index * 0.05 }}
-                      whileHover={{ y: -4, scale: 1.02 }}
-                      className="group cursor-pointer"
-                    >
-                      <div className="relative rounded-xl overflow-hidden bg-white/10 dark:bg-gray-800/60 border border-gray-700 hover:shadow-xl hover:scale-105 transition-all duration-200 p-4">
-                        {/* Badge Tendance - Style identique à l'accueil */}
-                        <div className="absolute top-3 left-3 bg-gradient-to-r from-orange-400 to-red-400 text-white text-xs px-2 py-0.5 rounded-full shadow font-semibold z-10 flex items-center gap-1">
-                          <TrendingUp size={12} className="inline" />
-                          Tendance
-                        </div>
-                        
-                        {/* Image - Style identique à l'accueil */}
-                        <div className="w-20 h-20 rounded-lg overflow-hidden mb-3 flex items-center justify-center bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                          {track.coverUrl ? (
-                            <img
-                              src={track.coverUrl}
-                              alt={track.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop';
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-2xl font-bold">
-                              {track.title.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-                        
-                        {/* Titre - Style identique à l'accueil */}
-                        <h3 className="font-semibold text-white text-sm mb-1 truncate">
-                          {track.title}
-                        </h3>
-                        
-                        {/* Artiste - Style identique à l'accueil */}
-                        <p className="text-gray-300 text-xs mb-2 truncate">
-                          {track.artist.name}
-                        </p>
-                        
-                        {/* Genres - Style identique à l'accueil */}
-                        {track.genre && track.genre.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mb-2">
-                            {track.genre.slice(0, 2).map((genre: string, index: number) => (
-                              <span
-                                key={index}
-                                className="bg-purple-500/20 text-purple-300 text-xs px-2 py-0.5 rounded-full border border-purple-500/30"
-                              >
-                                {genre}
-                              </span>
-              ))}
-            </div>
-          )}
-                        
-                        {/* Durée + Bouton play - Style identique à l'accueil */}
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                            {formatDuration(track.duration)}
-                          </span>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.95 }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handlePlayTrack(track);
-                            }}
-                            className="w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow"
-                          >
-                            <Play size={14} fill="white" className="ml-0.5" />
-                          </motion.button>
-                        </div>
-                        
-                        {/* Stats - Style identique à l'accueil */}
-                        <div className="flex items-center justify-between w-full pt-2 border-t border-gray-700 text-xs text-gray-400">
-                      <div className="flex items-center gap-1">
-                            <Headphones size={12} />
-                            {formatNumber(track.plays)}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Heart size={12} />
-                            {formatNumber(track.likes)}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-              </div>
-            </>
-          )}
-        </div>
-        </motion.div>
+              return (
+                <GenreSection
+                  key={genre}
+                  title={genre}
+                  tracks={genreTracks}
+                  onPlayTrack={handlePlayTrack}
+                />
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
       
       {/* Modale "Voir tout" avec AnimatePresence */}
       <AnimatePresence>
@@ -1602,7 +1132,231 @@ export default function DiscoverPage() {
       </AnimatePresence>
     </div>
   );
-} 
+}
+
+// Composant GenreSection avec style Suno
+interface GenreSectionProps {
+  title: string;
+  tracks: Track[];
+  onPlayTrack: (track: Track) => void;
+}
+
+const GenreSection: React.FC<GenreSectionProps> = ({ title, tracks, onPlayTrack }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true }}
+      className="w-full py-4 bg-[var(--bg)] mb-0 md:mb-2"
+      aria-label={`section-${title}`}
+    >
+      <div className="h-full w-full overflow-hidden">
+        {/* Header de section */}
+        <div className="mb-2 flex w-full flex-row justify-between pb-2">
+          <div className="flex items-center gap-4">
+            <h1 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-white">
+              {title}
+            </h1>
+          </div>
+          <div className="flex flex-1 items-center justify-end">
+            <div className="line-clamp-1 cursor-pointer gap-2 font-sans text-sm hover:underline text-gray-400">
+              Show More
+            </div>
+            <ChevronRight className="h-4 w-4 text-gray-400" />
+          </div>
+        </div>
+
+        {/* Container scrollable */}
+        <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
+          {/* Boutons de navigation */}
+          <button 
+            className="absolute top-0 left-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-none opacity-0"
+            aria-label="Scroll left"
+          >
+            <div className="inline-block font-sans font-medium text-center rounded-full aspect-square p-2 text-white bg-black/20 hover:bg-black/40 absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
+              <ChevronLeft className="w-4 h-4" />
+            </div>
+          </button>
+
+          {/* Masque de dégradé */}
+          <div className="h-full w-full overflow-hidden mask-[linear-gradient(to_right,black,black_80%,transparent)] mask-size-[100%_100%] transition-[mask-image] duration-500">
+            <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
+              <section 
+                className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden"
+                style={{ position: 'relative', height: '384px', width: '100%', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}
+              >
+                <div className="flex gap-4" style={{ height: '100%' }}>
+                  {tracks.slice(0, 20).map((track, index) => (
+                    <TrackCard key={track._id} track={track} onPlay={onPlayTrack} />
+                  ))}
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <button 
+            className="absolute top-0 right-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
+            aria-label="Scroll right"
+          >
+            <div className="inline-block font-sans font-medium text-center rounded-full aspect-square p-2 text-white bg-black/20 hover:bg-black/40 absolute left-0 -translate-y-1/2" style={{ top: '9rem' }}>
+              <ChevronRight className="w-4 h-4" />
+            </div>
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// Composant TrackCard avec style Suno
+interface TrackCardProps {
+  track: Track;
+  onPlay: (track: Track) => void;
+}
+
+const TrackCard: React.FC<TrackCardProps> = ({ track, onPlay }) => {
+  const formatNumber = (num: number) => {
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toString();
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="relative flex w-[172px] shrink-0 cursor-pointer flex-col group">
+      {/* Image container */}
+      <div className="relative mb-4 cursor-pointer">
+        <div className="relative h-[256px] w-full overflow-hidden rounded-xl">
+          <img
+            alt={`Image for ${track.title}`}
+            src={track.coverUrl || 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop'}
+            className="absolute inset-0 h-full w-full rounded-xl object-cover"
+            style={{ transform: 'scale(1)', transition: 'transform 0.3s ease-in-out' }}
+            onError={(e) => {
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop';
+            }}
+          />
+        </div>
+
+        {/* Overlay avec bouton play */}
+        <div className="absolute inset-0 z-20">
+          <button 
+            onClick={() => onPlay(track)}
+            className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-white/60 backdrop-blur-xl border-none outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300 scale-75 opacity-0 group-hover:opacity-100 group-hover:scale-100"
+          >
+            <Play className="h-5 w-5" fill="currentColor" />
+          </button>
+
+          {/* Badges top */}
+          <div className="absolute inset-x-2 top-2 flex flex-row items-center gap-1">
+            <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding text-white bg-black/30 inline-flex w-auto border-none">
+              <div>{formatDuration(track.duration)}</div>
+            </div>
+            {track.isFeatured && (
+              <div className="flex-row items-center gap-1 rounded-md px-2 py-1 font-sans font-semibold text-[12px] leading-snug backdrop-blur-lg bg-clip-padding text-foreground-primary-on-dark bg-background-dark-overlay inline-flex w-auto border-none" 
+                   style={{ color: 'rgb(253, 66, 156)', backgroundColor: 'rgba(0, 0, 0, 0.3)', borderColor: 'rgba(0, 0, 0, 0)' }}>
+                <div>Featured</div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Info section */}
+      <div className="flex w-full flex-col">
+        {/* Titre et menu */}
+        <div className="line-clamp-1 w-full cursor-pointer font-sans text-base font-medium text-white hover:underline font-500 text-md leading-[24px] font-normal flex items-center justify-between">
+          <div className="min-w-0 flex-1 overflow-hidden text-ellipsis">
+            <a 
+              title={track.title}
+              className="block overflow-hidden text-ellipsis whitespace-nowrap"
+              href={`/track/${track._id}`}
+            >
+              {track.title}
+            </a>
+          </div>
+          <button 
+            type="button"
+            className="cursor-pointer rounded-full outline-none"
+            aria-label="More Options"
+          >
+            <MoreHorizontal className="w-4 h-4 text-white opacity-0 group-hover:opacity-100" />
+          </button>
+        </div>
+
+        {/* Genres */}
+        {track.genre && track.genre.length > 0 && (
+          <div className="gap-2 font-sans break-all mb-1 line-clamp-1 flex-nowrap text-gray-400 text-[14px] leading-[20px] font-normal">
+            <div>
+              {track.genre.slice(0, 3).map((genre, index) => (
+                <span key={genre}>
+                  <a className="hover:underline" title={genre} href={`/genre/${genre}`}>
+                    {genre}
+                  </a>
+                  {index < Math.min(track.genre!.length, 3) - 1 && ', '}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Stats */}
+        <div className="mt-1 flex items-center gap-1 text-[12px] text-[#8B8785]">
+          <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
+            <Play className="h-[12px] w-[12px]" fill="currentColor" />
+            <span className="text-[12px] leading-4 font-medium font-normal">
+              {formatNumber(track.plays)}
+            </span>
+          </div>
+          <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
+            <Heart className="h-[12px] w-[12px]" fill="currentColor" />
+            <span className="text-[12px] leading-4 font-medium font-normal">
+              {formatNumber(track.likes)}
+            </span>
+          </div>
+          <div className="flex cursor-pointer items-center gap-[2px] hover:opacity-80">
+            <MessageCircle className="h-[12px] w-[12px]" fill="currentColor" />
+            <span className="text-[12px] leading-4 font-medium font-normal">
+              {Math.floor(Math.random() * 50)}
+            </span>
+          </div>
+        </div>
+
+        {/* Artiste */}
+        <div className="mt-1 flex w-full items-center justify-between">
+          <div className="flex w-fit flex-row items-center gap-2 font-sans text-sm font-medium text-white">
+            <div className="relative h-8 shrink-0 aspect-square">
+              <a 
+                className="hover:underline relative z-10 block aspect-square h-full"
+                href={`/profile/${track.artist.username}`}
+              >
+                <img
+                  alt="Profile avatar"
+                  src={track.artist.avatar || 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop'}
+                  className="rounded-full h-full w-full object-cover p-1"
+                  onError={(e) => {
+                    e.currentTarget.src = 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop';
+                  }}
+                />
+              </a>
+            </div>
+            <a 
+              className="hover:underline line-clamp-1 max-w-fit break-all"
+              title={track.artist.name}
+              href={`/profile/${track.artist.username}`}
+            >
+              {track.artist.name}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Fonctions utilitaires
 const formatDuration = (seconds: number) => {
