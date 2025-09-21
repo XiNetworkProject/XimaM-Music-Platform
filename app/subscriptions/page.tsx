@@ -33,6 +33,12 @@ export default function SubscriptionsPage() {
   const [selectedPriceId, setSelectedPriceId] = useState<string>('');
   const [paid, setPaid] = useState(false);
   const payRef = useRef<HTMLDivElement>(null);
+  const pmRef = useRef<HTMLDivElement>(null);
+  const [pmList, setPmList] = useState<any[]>([]);
+  const [pmDefault, setPmDefault] = useState<string | null>(null);
+  const [pmLoading, setPmLoading] = useState(false);
+  const [preview, setPreview] = useState<{ total: number; currency: string; lines: { amount: number; description?: string | null }[] } | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
 
   const fetchAll = useMemo(() => {
     return async () => {
@@ -62,6 +68,26 @@ export default function SubscriptionsPage() {
     if (!priceId) return;
     setSelectedPriceId(priceId);
     setPaid(false);
+    // Aperçu proration si déjà abonné
+    if (!isFreeActive) {
+      (async () => {
+        try {
+          const res = await fetch('/api/billing/preview-proration', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priceId }) });
+          if (res.ok) {
+            const j = await res.json();
+            setPreview(j);
+            requestAnimationFrame(() => {
+              (previewRef.current || payRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            return;
+          }
+        } catch {}
+        requestAnimationFrame(() => {
+          payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      })();
+      return;
+    }
     requestAnimationFrame(() => {
       payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -69,6 +95,20 @@ export default function SubscriptionsPage() {
 
   useEffect(() => {
     fetchAll();
+    // charger moyens de paiement
+    (async () => {
+      try {
+        setPmLoading(true);
+        const res = await fetch('/api/billing/payment-methods', { headers: { 'Cache-Control': 'no-store' } });
+        if (res.ok) {
+          const j = await res.json();
+          setPmList(j.paymentMethods || []);
+          setPmDefault(j.defaultPaymentMethod || null);
+        }
+      } finally {
+        setPmLoading(false);
+      }
+    })();
   }, [fetchAll]);
 
   // Rafraîchissement au retour d'onglet et intervalle léger
@@ -159,10 +199,17 @@ export default function SubscriptionsPage() {
               </div>
 
               <div className="flex flex-row flex-wrap justify-center gap-2">
-                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition">
+                <button type="button" onClick={async () => {
+                  if (isFreeActive) return;
+                  if (!window.confirm("Confirmer l'annulation à la fin de la période ?")) return;
+                  const res = await fetch('/api/billing/cancel-subscription', { method: 'POST' });
+                  if (res.ok) {
+                    await fetchAll();
+                  }
+                }} className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition">
                   <span className="relative flex flex-row items-center justify-center gap-2">Annuler l'abonnement</span>
                 </button>
-                <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-cyan-400/30 transition">
+                <button type="button" onClick={() => pmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-cyan-400/30 transition">
                   <span className="relative flex flex-row items-center justify-center gap-2">Mettre à jour le paiement</span>
                 </button>
                 <div className="flex">
@@ -178,6 +225,50 @@ export default function SubscriptionsPage() {
             Besoin d'aide ? Support/abonnements à <a className="underline" href="mailto:billing@suno.com">synaura.fr</a>.
           </div>
         </div>
+      </div>
+
+      {/* Moyens de paiement */}
+      <div ref={pmRef} className="relative z-10 w-full max-w-[1280px] mx-auto mt-6 p-4 sm:p-6 panel-suno border border-[var(--border)] rounded-2xl">
+        <div className="flex items-center justify-between">
+          <h3 className="text-white/90 text-lg">Moyens de paiement</h3>
+          {pmLoading && <span className="text-xs text-white/50">Chargement…</span>}
+        </div>
+        {pmList.length === 0 ? (
+          <div className="text-sm text-white/70 mt-2">Aucune carte enregistrée. Vous pourrez en ajouter lors du paiement.</div>
+        ) : (
+          <ul className="mt-3 divide-y divide-white/10">
+            {pmList.map((pm) => {
+              const isDefault = pmDefault === pm.id;
+              const card = pm.card || {};
+              return (
+                <li key={pm.id} className="py-3 flex items-center justify-between gap-3">
+                  <div className="text-white/85 text-sm">
+                    <span className="mr-2 uppercase">{card.brand}</span>
+                    <span>•••• {card.last4}</span>
+                    <span className="ml-2 text-white/60">{String(card.exp_month).padStart(2, '0')}/{card.exp_year}</span>
+                    {isDefault && <span className="ml-2 text-xs rounded-md px-1.5 py-0.5 bg-white/10 ring-1 ring-white/10">Par défaut</span>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!isDefault && (
+                      <button onClick={async () => {
+                        await fetch('/api/billing/payment-methods', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethodId: pm.id }) });
+                        const r = await fetch('/api/billing/payment-methods');
+                        if (r.ok) { const j = await r.json(); setPmList(j.paymentMethods || []); setPmDefault(j.defaultPaymentMethod || null); }
+                      }} className="text-xs px-2 py-1 rounded-md bg-white/10 ring-1 ring-white/10 hover:bg-white/15">Définir par défaut</button>
+                    )}
+                    {!isDefault && (
+                      <button onClick={async () => {
+                        await fetch('/api/billing/payment-methods', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentMethodId: pm.id }) });
+                        const r = await fetch('/api/billing/payment-methods');
+                        if (r.ok) { const j = await r.json(); setPmList(j.paymentMethods || []); setPmDefault(j.defaultPaymentMethod || null); }
+                      }} className="text-xs px-2 py-1 rounded-md bg-white/10 ring-1 ring-white/10 hover:bg-white/15 text-red-300">Supprimer</button>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
       {/* Sélecteur période + cartes de plans (coquilles vides) */}
@@ -264,6 +355,19 @@ export default function SubscriptionsPage() {
           />
         </div>
       </div>
+
+      {/* Aperçu proration (si upgrade/downgrade) */}
+      {preview && (
+        <div ref={previewRef} className="mt-6 panel-suno border border-[var(--border)] rounded-2xl p-4">
+          <div className="text-white/85 text-sm">Aperçu du changement de plan</div>
+          <ul className="mt-2 text-white/75 text-sm space-y-1">
+            {preview.lines?.map((l, i) => (
+              <li key={i} className="flex justify-between"><span>{l.description || 'Ligne'}</span><span>{(l.amount / 100).toFixed(2)} €</span></li>
+            ))}
+          </ul>
+          <div className="mt-2 flex justify-between text-white/90 font-medium"><span>Total dû maintenant</span><span>{(preview.total / 100).toFixed(2)} €</span></div>
+        </div>
+      )}
 
       {selectedPriceId && !paid && (
         <div className="mt-6" ref={payRef}>
