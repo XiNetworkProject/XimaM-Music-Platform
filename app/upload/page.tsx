@@ -125,6 +125,7 @@ export default function UploadPage() {
   const [usage, setUsage] = useState<any | null>(null);
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
+  const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string }>({});
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -271,16 +272,18 @@ export default function UploadPage() {
       setUploadProgress(prev => ({ ...prev, audio: 25 }));
       
       const audioResult = await uploadToCloudinary(audioFile, 'video');
+      setTempPublicIds(prev => ({ ...prev, audio: audioResult.public_id }));
       setUploadProgress(prev => ({ ...prev, audio: 75 }));
       toast.dismiss(audioLoadingToast);
 
       // Upload cover si fourni
-      let coverResult = null;
+      let coverResult: { public_id?: string; secure_url?: string } | null = null;
       if (coverFile) {
         const coverLoadingToast = toast.loading('Upload image de couverture...');
         setUploadProgress(prev => ({ ...prev, cover: 25 }));
         
         coverResult = await uploadToCloudinary(coverFile, 'image');
+        setTempPublicIds(prev => ({ ...prev, cover: coverResult?.public_id }));
         setUploadProgress(prev => ({ ...prev, cover: 75 }));
         toast.dismiss(coverLoadingToast);
       }
@@ -296,8 +299,8 @@ export default function UploadPage() {
         body: JSON.stringify({
           audioUrl: audioResult.secure_url,
           audioPublicId: audioResult.public_id,
-          coverUrl: coverResult?.secure_url || null,
-          coverPublicId: coverResult?.public_id || null,
+          coverUrl: (coverResult && coverResult.secure_url) ? coverResult.secure_url : null,
+          coverPublicId: (coverResult && coverResult.public_id) ? coverResult.public_id : null,
           trackData: formData,
           duration: audioResult.duration || 0,
           audioBytes: Math.round((audioFile?.size || 0)),
@@ -332,6 +335,27 @@ export default function UploadPage() {
       setUploadProgress({ audio: 0, cover: 0 });
     }
   };
+
+  // Nettoyage Cloudinary si l’utilisateur quitte la page avant la sauvegarde
+  useEffect(() => {
+    const handler = async () => {
+      if (!tempPublicIds.audio && !tempPublicIds.cover) return;
+      try {
+        await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover }) });
+      } catch {}
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!tempPublicIds.audio && !tempPublicIds.cover) return;
+      const payload = new Blob([JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover })], { type: 'application/json' });
+      if (navigator.sendBeacon) navigator.sendBeacon('/api/upload/cleanup', payload);
+    };
+    window.addEventListener('pagehide', handler);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('pagehide', handler);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+    };
+  }, [tempPublicIds]);
 
   const steps = [
     { id: 1, title: 'Fichiers', icon: Upload },
