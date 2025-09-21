@@ -215,7 +215,7 @@ function MediaPreview({
   if (!file) return null;
 
   return (
-    <div className="relative flex w-full flex-row justify-center gap-4 overflow-clip px-4 h-[calc(100vh-30rem)] min-h-40">
+    <div className="relative flex w-full flex-row justify-center gap-2 sm:gap-4 overflow-clip px-2 sm:px-4 h-48 sm:h-64">
       <div className="relative aspect-[9/16] h-full max-w-sm">
         <div className="absolute inset-0 h-full w-full overflow-clip rounded-xl bg-gradient-to-br from-purple-900/20 to-cyan-900/20 border border-white/10 flex items-center justify-center">
           {coverPreview ? (
@@ -569,9 +569,9 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="h-screen w-screen text-[var(--text)]">
-      <div className="h-full w-screen p-3">
-        <div className="flex h-full flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl">
+    <div className="min-h-screen w-full text-[var(--text)] pb-20">
+      <div className="w-full p-2 sm:p-3">
+        <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-4xl mx-auto">
           
           {/* Header */}
           <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
@@ -602,14 +602,14 @@ export default function UploadPage() {
 
           {/* Alertes quotas */}
           {blockedMsg && (
-            <div className="mx-4 mt-2 rounded-xl p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
-              <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
-              <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
+            <div className="mx-2 sm:mx-4 mt-1 rounded-lg p-2 sm:p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
+              <span className="text-xs sm:text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
+              <button onClick={() => router.push('/subscriptions')} className="text-xs px-2 py-1 sm:px-3 sm:py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
             </div>
           )}
 
           {/* Contenu principal */}
-          <div className="flex flex-1 flex-col overflow-y-auto">
+          <div className="flex flex-col">
             <AnimatePresence mode="wait">
               {currentStep === 1 && (
                 <motion.div
@@ -617,25 +617,25 @@ export default function UploadPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex w-full flex-col items-stretch justify-start gap-4 m-auto p-4"
+                  className="flex w-full flex-col items-stretch justify-start gap-3 p-3 sm:p-4"
                 >
                   {!audioFile ? (
                     <div
                       {...getAudioRootProps()}
-                      className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer ${
+                      className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-colors cursor-pointer ${
                         isAudioDragActive
                           ? 'border-purple-400 bg-purple-500/10'
                           : 'border-[var(--border)] hover:border-purple-400/50'
                       }`}
                     >
                       <input {...getAudioInputProps()} />
-                      <div className="space-y-4">
-                        <Upload size={64} className="mx-auto text-white/40" />
+                      <div className="space-y-3">
+                        <Upload size={40} className="mx-auto text-white/40 sm:w-16 sm:h-16" />
                         <div>
-                          <p className="text-xl font-medium">Glissez votre fichier audio ici</p>
-                          <p className="text-white/60">ou cliquez pour sélectionner</p>
+                          <p className="text-lg sm:text-xl font-medium">Glissez votre fichier audio ici</p>
+                          <p className="text-white/60 text-sm">ou cliquez pour sélectionner</p>
                         </div>
-                        <p className="text-sm text-white/40">
+                        <p className="text-xs sm:text-sm text-white/40">
                           Formats supportés: MP3, WAV, FLAC (max 50MB)
                         </p>
                       </div>
@@ -658,37 +658,19 @@ export default function UploadPage() {
                     />
                   )}
 
-                  {/* Contrôles audio */}
+                  {/* Contrôles audio compacts */}
                   {audioFile && (
-                    <div className="flex flex-row items-center justify-between gap-2 px-4">
-                      <div className="flex flex-1 flex-row justify-start">
-                        <button 
-                          type="button"
-                          onClick={() => setIsPlaying(!isPlaying)}
-                          className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-transparent enabled:hover:before:bg-white/10"
-                        >
-                          <span className="relative flex flex-row items-center justify-center gap-2">
-                            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                          </span>
-                        </button>
+                    <div className="flex flex-row items-center justify-center gap-3 px-2 sm:px-4 py-2">
+                      <button 
+                        type="button"
+                        onClick={() => setIsPlaying(!isPlaying)}
+                        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                      >
+                        {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
+                      </button>
+                      <div className="font-mono text-xs sm:text-sm tracking-tight text-white/80 tabular-nums">
+                        <span className="text-[var(--text)]">{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span> / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
                       </div>
-                      <div className="flex flex-2 flex-row items-center justify-center gap-2">
-                        <div className="flex flex-row items-center justify-center">
-                          <button 
-                            type="button"
-                            onClick={() => setIsPlaying(!isPlaying)}
-                            className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[17px] leading-[24px] rounded-full aspect-square p-2.5 text-[var(--text)] bg-transparent enabled:hover:before:bg-white/10"
-                          >
-                            <span className="relative flex flex-row items-center justify-center gap-2">
-                              {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6" />}
-                            </span>
-                          </button>
-                        </div>
-                        <div className="font-mono text-xs tracking-tight text-white/60 tabular-nums">
-                          <span className="text-[var(--text)]">{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span> / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
-                        </div>
-                      </div>
-                      <div className="flex flex-1 flex-row justify-end"></div>
                     </div>
                   )}
 
@@ -715,50 +697,50 @@ export default function UploadPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col gap-6 p-6 overflow-y-auto"
+                  className="flex flex-col gap-4 p-3 sm:p-4"
                 >
                   <h2 className="text-xl font-semibold">Informations de la piste</h2>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-white/80">Titre *</label>
                       <input
                         type="text"
                         value={formData.title}
                         onChange={(e) => handleInputChange('title', e.target.value)}
-                        className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)]"
+                        className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
                         placeholder="Titre de votre musique"
                         required
                       />
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-white/80">Artiste</label>
                       <input
                         type="text"
                         value={formData.artist}
                         disabled
-                        className="w-full px-4 py-3 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-xl text-[var(--text)]/70 cursor-not-allowed"
+                        className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-lg text-[var(--text)]/70 cursor-not-allowed text-sm"
                         placeholder="Synchronisé avec votre profil"
                       />
                       <p className="text-xs text-white/50">Modifiez votre nom de profil pour changer l'artiste</p>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Description</label>
                     <textarea
                       value={formData.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
-                      rows={3}
-                      className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-purple-400 transition-colors resize-none text-[var(--text)]"
+                      rows={2}
+                      className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors resize-none text-[var(--text)] text-sm"
                       placeholder="Décrivez votre musique..."
                     />
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Genre</label>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       {[
                         'Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B',
                         'Reggae', 'Blues', 'Folk', 'Metal', 'Ambient', 'Trap', 'Dubstep', 'House',
@@ -768,7 +750,7 @@ export default function UploadPage() {
                           key={genre}
                           type="button"
                           onClick={() => formData.genre.includes(genre) ? removeGenre(genre) : addGenre(genre)}
-                          className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                          className={`px-2.5 py-1 rounded-full text-xs sm:text-sm transition-colors ${
                             formData.genre.includes(genre)
                               ? 'bg-purple-500 text-white'
                               : 'bg-[var(--bg-tertiary)] text-white/60 hover:bg-white/10'
@@ -780,11 +762,11 @@ export default function UploadPage() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Image de couverture</label>
                     <div
                       {...getCoverRootProps()}
-                      className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors cursor-pointer ${
+                      className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${
                         isCoverDragActive
                           ? 'border-purple-400 bg-purple-500/10'
                           : coverFile
@@ -794,21 +776,23 @@ export default function UploadPage() {
                     >
                       <input {...getCoverInputProps()} />
                       {coverFile ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Image size={20} className="text-green-400" />
-                            <span className="font-medium">{coverFile.name}</span>
-                          </div>
-                          <div className="text-sm text-white/60">
-                            {(coverFile.size / 1024 / 1024).toFixed(2)} MB
+                        <div className="flex items-center justify-center gap-3">
+                          <img 
+                            src={URL.createObjectURL(coverFile)} 
+                            alt="Cover preview" 
+                            className="w-12 h-12 object-cover rounded-lg"
+                          />
+                          <div className="text-left">
+                            <div className="text-sm font-medium text-green-400">{coverFile.name}</div>
+                            <div className="text-xs text-white/60">{(coverFile.size / 1024 / 1024).toFixed(2)} MB</div>
                           </div>
                         </div>
                       ) : (
-                        <div className="space-y-3">
-                          <Image size={32} className="mx-auto text-white/40" />
-                          <div>
-                            <p className="font-medium">Ajouter une image de couverture</p>
-                            <p className="text-sm text-white/60">JPG, PNG, WebP (max 5MB)</p>
+                        <div className="flex items-center justify-center gap-3">
+                          <Image size={24} className="text-white/40" />
+                          <div className="text-left">
+                            <p className="text-sm font-medium">Ajouter une image de couverture</p>
+                            <p className="text-xs text-white/60">JPG, PNG, WebP (max 5MB)</p>
                           </div>
                         </div>
                       )}
@@ -823,20 +807,20 @@ export default function UploadPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col gap-6 p-6 overflow-y-auto"
+                  className="flex flex-col gap-4 p-3 sm:p-4"
                 >
                   <h2 className="text-xl font-semibold">Paramètres de publication</h2>
                   
-                  <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="flex items-center space-x-3">
                       <input
                         type="checkbox"
                         id="isPublic"
                         checked={formData.isPublic}
                         onChange={(e) => handleInputChange('isPublic', e.target.checked)}
-                        className="w-5 h-5 text-purple-500 bg-[var(--bg-tertiary)] border-[var(--border)] rounded focus:ring-purple-500"
+                        className="w-4 h-4 text-purple-500 bg-[var(--bg-tertiary)] border-[var(--border)] rounded focus:ring-purple-500"
                       />
-                      <label htmlFor="isPublic" className="text-[var(--text)] cursor-pointer">Rendre public</label>
+                      <label htmlFor="isPublic" className="text-sm text-[var(--text)] cursor-pointer">Rendre public</label>
                     </div>
                     
                     <div className="flex items-center space-x-3">
@@ -845,34 +829,34 @@ export default function UploadPage() {
                         id="isExplicit"
                         checked={formData.isExplicit}
                         onChange={(e) => handleInputChange('isExplicit', e.target.checked)}
-                        className="w-5 h-5 text-purple-500 bg-[var(--bg-tertiary)] border-[var(--border)] rounded focus:ring-purple-500"
+                        className="w-4 h-4 text-purple-500 bg-[var(--bg-tertiary)] border-[var(--border)] rounded focus:ring-purple-500"
                       />
-                      <label htmlFor="isExplicit" className="text-[var(--text)] cursor-pointer">Contenu explicite</label>
+                      <label htmlFor="isExplicit" className="text-sm text-[var(--text)] cursor-pointer">Contenu explicite</label>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <h3 className="text-lg font-medium">Copyright</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-white/80">Propriétaire</label>
                         <input
                           type="text"
                           value={formData.copyright.owner}
                           disabled
-                          className="w-full px-4 py-3 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-xl text-[var(--text)]/70 cursor-not-allowed"
+                          className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-lg text-[var(--text)]/70 cursor-not-allowed text-sm"
                           placeholder="Synchronisé avec votre profil"
                         />
                         <p className="text-xs text-white/50">Automatiquement synchronisé avec votre nom de profil</p>
                       </div>
                       
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-white/80">Année</label>
                         <input
                           type="number"
                           value={formData.copyright.year}
                           onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
-                          className="w-full px-4 py-3 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)]"
+                          className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
                           placeholder="2024"
                         />
                       </div>
@@ -887,14 +871,14 @@ export default function UploadPage() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
-                  className="flex flex-col gap-6 p-6 overflow-y-auto"
+                  className="flex flex-col gap-4 p-3 sm:p-4"
                 >
                   <h2 className="text-xl font-semibold">Prévisualisation finale</h2>
                   
-                  {/* Rendu final comme une TrackCard */}
-                  <div className="bg-white/[0.04] backdrop-blur-md border border-[var(--border)] rounded-xl p-4">
-                    <div className="flex items-center gap-4">
-                      <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
+                  {/* Rendu final comme une TrackCard compacte */}
+                  <div className="bg-white/[0.04] backdrop-blur-md border border-[var(--border)] rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
                         {coverFile ? (
                           <img 
                             src={URL.createObjectURL(coverFile)} 
@@ -903,17 +887,17 @@ export default function UploadPage() {
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
-                            <Music className="w-8 h-8 text-white" />
+                            <Music className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                           </div>
                         )}
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-[var(--text)] truncate">{formData.title || 'Sans titre'}</h3>
-                        <p className="text-sm text-white/70">{formData.artist}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <h3 className="font-semibold text-[var(--text)] truncate text-sm sm:text-base">{formData.title || 'Sans titre'}</h3>
+                        <p className="text-xs sm:text-sm text-white/70">{formData.artist}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
                           {formData.genre.slice(0, 2).map(g => (
-                            <span key={g} className="text-xs px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{g}</span>
+                            <span key={g} className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{g}</span>
                           ))}
                           {formData.genre.length > 2 && (
                             <span className="text-xs text-white/50">+{formData.genre.length - 2}</span>
@@ -925,16 +909,16 @@ export default function UploadPage() {
                         <button
                           type="button"
                           onClick={() => setIsPlaying(!isPlaying)}
-                          className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                         >
-                          {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                          {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </button>
                       </div>
                     </div>
                     
                     {/* Mini waveform dans la preview */}
                     {audioFile && (
-                      <div className="mt-4">
+                      <div className="mt-3">
                         <WaveformDisplay 
                           audioFile={audioFile}
                           currentTime={currentTime}
@@ -950,7 +934,7 @@ export default function UploadPage() {
                     )}
                   </div>
 
-                  <div className="space-y-3 text-sm text-white/70">
+                  <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm text-white/70">
                     <div className="flex justify-between">
                       <span>Durée :</span>
                       <span>{Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}</span>
@@ -972,18 +956,18 @@ export default function UploadPage() {
               )}
             </AnimatePresence>
 
-            {/* Progress Bars */}
+            {/* Progress Bars compactes */}
             {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
-              <div className="space-y-4 p-4">
+              <div className="space-y-2 p-3">
                 {uploadProgress.audio > 0 && (
                   <div>
-                    <div className="flex justify-between text-sm mb-2">
+                    <div className="flex justify-between text-xs mb-1">
                       <span>Upload Audio</span>
                       <span>{uploadProgress.audio}%</span>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
+                    <div className="w-full bg-white/10 rounded-full h-1.5">
                       <div
-                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress.audio}%` }}
                       />
                     </div>
@@ -992,13 +976,13 @@ export default function UploadPage() {
                 
                 {uploadProgress.cover > 0 && (
                   <div>
-                    <div className="flex justify-between text-sm mb-2">
+                    <div className="flex justify-between text-xs mb-1">
                       <span>Upload Image</span>
                       <span>{uploadProgress.cover}%</span>
                     </div>
-                    <div className="w-full bg-white/10 rounded-full h-2">
+                    <div className="w-full bg-white/10 rounded-full h-1.5">
                       <div
-                        className="bg-purple-500 h-2 rounded-full transition-all duration-300"
+                        className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress.cover}%` }}
                       />
                     </div>
@@ -1008,55 +992,55 @@ export default function UploadPage() {
             )}
           </div>
 
-          {/* Footer avec navigation */}
-          <div className="flex h-fit flex-col justify-end gap-4 p-4 border-t border-[var(--border)]">
-            <div className="flex flex-row justify-end gap-4">
-              <button 
-                type="button"
-                onClick={cancelUpload}
-                className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-8 py-2.5 text-[17px] leading-[24px] rounded-full text-[var(--text)] bg-[var(--bg-tertiary)] enabled:hover:before:bg-white/10"
-              >
-                <span className="relative flex flex-row items-center justify-center gap-2">Cancel</span>
-              </button>
-              
-              {currentStep < totalSteps ? (
-                <button 
-                  type="button"
-                  onClick={() => setCurrentStep(currentStep + 1)}
-                  disabled={
-                    (currentStep === 1 && !audioFile) || 
-                    (currentStep === 2 && !formData.title.trim()) || 
-                    !canUpload
-                  }
-                  className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-8 py-2.5 text-[17px] leading-[24px] rounded-full text-black bg-white enabled:hover:before:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="relative flex flex-row items-center justify-center gap-2">Next</span>
-                </button>
-              ) : (
-                <button 
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={isUploading || !canUpload}
-                  className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-8 py-2.5 text-[17px] leading-[24px] rounded-full text-black bg-white enabled:hover:before:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <span className="relative flex flex-row items-center justify-center gap-2">
-                    {isUploading ? 'Upload en cours...' : 'Publier'}
-                  </span>
-                </button>
-              )}
-            </div>
-            
-            {currentStep > 1 && (
-              <div className="flex justify-center">
+          {/* Footer avec navigation compacte */}
+          <div className="flex h-fit flex-col justify-end gap-2 p-3 sm:p-4 border-t border-[var(--border)]">
+            <div className="flex flex-row justify-between sm:justify-end gap-2 sm:gap-4">
+              {currentStep > 1 && (
                 <button 
                   type="button"
                   onClick={() => setCurrentStep(currentStep - 1)}
-                  className="text-sm text-white/60 hover:text-white/80 transition-colors"
+                  className="px-4 py-2 text-sm text-white/60 hover:text-white/80 transition-colors"
                 >
                   ← Retour
                 </button>
+              )}
+              
+              <div className="flex gap-2">
+                <button 
+                  type="button"
+                  onClick={cancelUpload}
+                  className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-[var(--text)] bg-[var(--bg-tertiary)] enabled:hover:before:bg-white/10"
+                >
+                  <span className="relative flex flex-row items-center justify-center gap-2">Cancel</span>
+                </button>
+                
+                {currentStep < totalSteps ? (
+                  <button 
+                    type="button"
+                    onClick={() => setCurrentStep(currentStep + 1)}
+                    disabled={
+                      (currentStep === 1 && !audioFile) || 
+                      (currentStep === 2 && !formData.title.trim()) || 
+                      !canUpload
+                    }
+                    className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-black bg-white enabled:hover:before:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">Next</span>
+                  </button>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isUploading || !canUpload}
+                    className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-black bg-white enabled:hover:before:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      {isUploading ? 'Upload en cours...' : 'Publier'}
+                    </span>
+                  </button>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       </div>
