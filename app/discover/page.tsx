@@ -1151,20 +1151,14 @@ const GenreSection: React.FC<GenreSectionProps> = ({ title, tracks, onPlayTrack 
             className="h-full w-full overflow-hidden mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)] mask-size-[100%_100%] transition-[mask-image] duration-500"
             data-section={title}
           >
-            <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
-              <section 
-                className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden"
-                style={{ position: 'relative', height: '384px', width: '100%', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}
-              >
-                <div style={{ height: '100%', width: `${tracks.length * 185}px` }}>
-                  {tracks.slice(0, 20).map((track, index) => (
-                    <div key={track._id} style={{ position: 'absolute', left: `${index * 185.85}px`, top: '0px', height: '100%', width: '177px' }}>
-                      <TrackCard track={track} onPlay={onPlayTrack} />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </div>
+            <section 
+              className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden gap-3 px-1"
+              style={{ height: '384px', scrollbarWidth: 'none' }}
+            >
+              {tracks.slice(0, 20).map((track, index) => (
+                <TrackCard key={track._id} track={track} onPlay={onPlayTrack} />
+              ))}
+            </section>
           </div>
 
           <button 
