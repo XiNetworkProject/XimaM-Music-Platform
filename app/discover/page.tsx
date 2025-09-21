@@ -903,6 +903,16 @@ export default function DiscoverPage() {
           </div>
         ) : (
           <div className="space-y-8">
+            {/* DEBUG: Section avec toutes les tracks */}
+            {tracks.length > 0 && (
+              <GenreSection
+                key="all-tracks"
+                title={`Toutes les tracks (${tracks.length})`}
+                tracks={tracks}
+                onPlayTrack={handlePlayTrack}
+              />
+            )}
+
             {/* Générer les sections pour chaque genre qui a des tracks */}
             {Object.entries(GENRE_CATEGORIES).map(([categoryName, genres]) => {
               // Trouver les tracks pour cette catégorie
@@ -912,13 +922,19 @@ export default function DiscoverPage() {
                 track.genre.some(g => (genres as readonly string[]).includes(g))
               );
 
+              console.log(`🎯 Catégorie ${categoryName}:`, {
+                genres: genres,
+                tracksFiltered: categoryTracks.length,
+                sampleTracks: categoryTracks.slice(0, 2).map(t => ({ title: t.title, genre: t.genre }))
+              });
+
               // Ne pas afficher la section si aucune track
               if (categoryTracks.length === 0) return null;
 
               return (
                 <GenreSection
                   key={categoryName}
-                  title={categoryName}
+                  title={`${categoryName} (${categoryTracks.length})`}
                   tracks={categoryTracks}
                   onPlayTrack={handlePlayTrack}
                 />
@@ -933,17 +949,36 @@ export default function DiscoverPage() {
                 track.genre.includes(genre)
               );
 
+              console.log(`🎵 Genre individuel ${genre}:`, {
+                tracksFiltered: genreTracks.length,
+                sampleTracks: genreTracks.slice(0, 1).map(t => ({ title: t.title, genre: t.genre }))
+              });
+
               if (genreTracks.length === 0) return null;
 
               return (
                 <GenreSection
                   key={genre}
-                  title={genre}
+                  title={`${genre} (${genreTracks.length})`}
                   tracks={genreTracks}
                   onPlayTrack={handlePlayTrack}
                 />
               );
             })}
+
+            {/* DEBUG: Affichage des genres trouvés dans les tracks */}
+            {tracks.length > 0 && (
+              <div className="text-white p-4 bg-black/20 rounded-lg">
+                <h3 className="text-lg font-bold mb-2">DEBUG - Genres trouvés dans les tracks:</h3>
+                <div className="text-sm">
+                  {Array.from(new Set(tracks.flatMap(t => t.genre || []))).map(genre => (
+                    <span key={genre} className="inline-block bg-purple-500/20 text-purple-300 px-2 py-1 rounded mr-2 mb-1">
+                      {genre}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </motion.div>
