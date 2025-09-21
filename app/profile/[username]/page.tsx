@@ -831,7 +831,7 @@ export default function ProfileUserPage() {
               <div className="flex flex-wrap justify-center gap-3 mt-6">
                 {Object.entries(profile.socialLinks).map(([key, value]) => {
                   const IconComponent = socialIcons[key as keyof typeof socialIcons];
-                  return value && (
+                  return value ? (
                     <a
                       key={key}
                       href={value as string}
@@ -848,7 +848,7 @@ export default function ProfileUserPage() {
                         {key.charAt(0).toUpperCase() + key.slice(1)}
                       </span>
                     </a>
-                  );
+                  ) : null;
                 })}
               </div>
             )}
