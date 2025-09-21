@@ -21,7 +21,8 @@ export async function POST() {
     const updated = await stripe.subscriptions.update(currentSub.id, { cancel_at_period_end: true });
 
     // MAJ profil
-    const periodEnd = updated.current_period_end ? new Date(updated.current_period_end * 1000).toISOString() : null;
+    const periodEndUnix = (updated as any).current_period_end as number | undefined;
+    const periodEnd = periodEndUnix ? new Date(periodEndUnix * 1000).toISOString() : null;
     await supabaseAdmin.from('profiles').update({ subscription_status: updated.status, subscription_current_period_end: periodEnd }).eq('id', session.user.id);
 
     return NextResponse.json({ ok: true });

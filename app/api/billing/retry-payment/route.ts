@@ -18,7 +18,11 @@ export async function POST() {
     const invoice = invoices.data[0];
     if (!invoice) return NextResponse.json({ ok: true });
 
-    const paid = await stripe.invoices.pay(invoice.id, { payment_method: (customer as any)?.invoice_settings?.default_payment_method as string | undefined });
+    const invoiceId = invoice.id as string;
+    const defaultPm = (customer as any)?.invoice_settings?.default_payment_method;
+    const paid = (defaultPm && typeof defaultPm === 'string')
+      ? await stripe.invoices.pay(invoiceId, { payment_method: defaultPm })
+      : await stripe.invoices.pay(invoiceId);
     return NextResponse.json({ ok: paid.status === 'paid', status: paid.status });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
