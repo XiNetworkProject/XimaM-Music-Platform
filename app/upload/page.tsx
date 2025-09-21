@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import toast from 'react-hot-toast';
 import BottomNav from '@/components/BottomNav';
 import { getEntitlements } from '@/lib/entitlements';
+import { MUSIC_GENRES } from '@/lib/genres';
 
 interface UploadFormData {
   title: string;
@@ -712,11 +713,7 @@ export default function UploadPage() {
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Genre</label>
                     <div className="flex flex-wrap gap-1.5">
-                      {[
-                        'Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B',
-                        'Reggae', 'Blues', 'Folk', 'Metal', 'Ambient', 'Trap', 'Dubstep', 'House',
-                        'Techno', 'Trance', 'Drum & Bass', 'Acoustic', 'Instrumental'
-                      ].map((genre) => (
+                      {MUSIC_GENRES.map((genre) => (
                         <button
                           key={genre}
                           type="button"
