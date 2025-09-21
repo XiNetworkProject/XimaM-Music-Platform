@@ -125,44 +125,55 @@ export default function DiscoverPage() {
     }
   }, [tracks]); // Dépendance UNIQUEMENT sur tracks, JAMAIS sur selectedCategory
 
-  // Filtrer les tracks par catégorie sélectionnée (OPTIMISÉ - PAS de rechargement)
+  // Filtrer et trier les tracks
   const filteredTracks = useMemo(() => {
-    if (!selectedCategory || selectedCategory === 'all') {
-      return tracks;
+    let filtered = tracks;
+    
+    // 1. Filtrer par catégorie
+    if (selectedCategory && selectedCategory !== 'all') {
+      // Trouver la catégorie sélectionnée
+      const categoryData = categories.find(cat => cat.id === selectedCategory);
+      if (categoryData && GENRE_CATEGORIES[categoryData.name]) {
+        const categoryGenres = GENRE_CATEGORIES[categoryData.name];
+        filtered = tracks.filter(track => 
+          track.genre && 
+          Array.isArray(track.genre) && 
+          track.genre.some(g => (categoryGenres as readonly string[]).includes(g))
+        );
+      } else {
+        // Filtrage direct par genre si c'est un genre spécifique
+        filtered = tracks.filter(track => 
+          track.genre && 
+          Array.isArray(track.genre) && 
+          track.genre.includes(selectedCategory)
+        );
+      }
     }
     
-    // Filtrage optimisé SANS recharger les données - juste un filtre local
-    const filtered = tracks.filter(track => 
-      track.genre && 
-      Array.isArray(track.genre) && 
-      track.genre.includes(selectedCategory)
-    );
-    
-    console.log(`🎯 Filtrage local ${selectedCategory}: ${filtered.length} tracks trouvées (pas de rechargement)`);
-    
-    // Log des sections avec le nombre de tracks filtrées
-    const featuredCount = filtered.filter(track => track.isFeatured).length;
-    const newCount = filtered.filter(track => {
-      // Une track est "nouvelle" si isNew est true OU si elle a été créée dans les 30 derniers jours
-      if (track.isNew) return true;
-      if (track.createdAt) {
-        const trackDate = new Date(track.createdAt);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return trackDate > thirtyDaysAgo;
+    // 2. Trier selon le critère sélectionné
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'trending':
+          return (b.plays || 0) - (a.plays || 0);
+        case 'newest':
+          const dateA = new Date(a.createdAt || 0);
+          const dateB = new Date(b.createdAt || 0);
+          return dateB.getTime() - dateA.getTime();
+        case 'popular':
+          return (b.likes || 0) - (a.likes || 0);
+        case 'featured':
+          if (a.isFeatured && !b.isFeatured) return -1;
+          if (!a.isFeatured && b.isFeatured) return 1;
+          return (b.plays || 0) - (a.plays || 0);
+        default:
+          return 0;
       }
-      return false;
-    }).length;
-    const trendingCount = filtered.filter(track => track.plays > 30).length;
-    
-    console.log(`📊 Sections avec tracks filtrées:`, {
-      'En Vedette': featuredCount,
-      'Nouveautés': newCount,
-      'Tendances': trendingCount
     });
     
-    return filtered;
-  }, [tracks, selectedCategory]);
+    console.log(`🎯 Filtrage: ${selectedCategory}, Tri: ${sortBy}, Résultat: ${sorted.length} tracks`);
+    
+    return sorted;
+  }, [tracks, selectedCategory, sortBy]);
 
   // CSS pour la barre de scroll personnalisée
   useEffect(() => {
@@ -691,82 +702,44 @@ export default function DiscoverPage() {
              </div>
           ) : (
           <div className="space-y-8">
-            {/* DEBUG: Section avec toutes les tracks */}
-            {tracks.length > 0 && (
-              <GenreSection
-                key="all-tracks"
-                title={`Toutes les tracks (${tracks.length})`}
-                tracks={tracks}
-                onPlayTrack={handlePlayTrack}
-              />
+            {selectedCategory === 'all' ? (
+              // Afficher toutes les sections par genre
+              Object.entries(GENRE_CATEGORIES).map(([categoryName, genres]) => {
+                const categoryTracks = filteredTracks.filter(track => 
+                  track.genre && 
+                  Array.isArray(track.genre) && 
+                  track.genre.some(g => (genres as readonly string[]).includes(g))
+                );
+
+                if (categoryTracks.length === 0) return null;
+
+                return (
+                  <GenreSection
+                    key={categoryName}
+                    title={categoryName}
+                    tracks={categoryTracks}
+                    onPlayTrack={handlePlayTrack}
+                  />
+                );
+              })
+            ) : (
+              // Afficher seulement la catégorie sélectionnée
+              (() => {
+                const selectedCategoryData = categories.find(cat => cat.id === selectedCategory);
+                if (!selectedCategoryData) return null;
+
+                return (
+                  <GenreSection
+                    key={selectedCategory}
+                    title={selectedCategoryData.name}
+                    tracks={filteredTracks}
+                    onPlayTrack={handlePlayTrack}
+                  />
+                );
+              })()
             )}
 
-            {/* Générer les sections pour chaque genre qui a des tracks */}
-            {Object.entries(GENRE_CATEGORIES).map(([categoryName, genres]) => {
-              // Trouver les tracks pour cette catégorie
-              const categoryTracks = tracks.filter(track => 
-                track.genre && 
-                Array.isArray(track.genre) && 
-                track.genre.some(g => (genres as readonly string[]).includes(g))
-              );
 
-              console.log(`🎯 Catégorie ${categoryName}:`, {
-                genres: genres,
-                tracksFiltered: categoryTracks.length,
-                sampleTracks: categoryTracks.slice(0, 2).map(t => ({ title: t.title, genre: t.genre }))
-              });
-
-              // Ne pas afficher la section si aucune track
-              if (categoryTracks.length === 0) return null;
-
-              return (
-                <GenreSection
-                  key={categoryName}
-                  title={`${categoryName} (${categoryTracks.length})`}
-                  tracks={categoryTracks}
-                  onPlayTrack={handlePlayTrack}
-                />
-              );
-            })}
-
-            {/* Section pour les genres individuels populaires */}
-            {MUSIC_GENRES.slice(0, 10).map(genre => {
-              const genreTracks = tracks.filter(track => 
-                track.genre && 
-                Array.isArray(track.genre) && 
-                track.genre.includes(genre)
-              );
-
-              console.log(`🎵 Genre individuel ${genre}:`, {
-                tracksFiltered: genreTracks.length,
-                sampleTracks: genreTracks.slice(0, 1).map(t => ({ title: t.title, genre: t.genre }))
-              });
-
-              if (genreTracks.length === 0) return null;
-
-              return (
-                <GenreSection
-                  key={genre}
-                  title={`${genre} (${genreTracks.length})`}
-                  tracks={genreTracks}
-                  onPlayTrack={handlePlayTrack}
-                />
-              );
-            })}
-
-            {/* DEBUG: Affichage des genres trouvés dans les tracks */}
-            {tracks.length > 0 && (
-              <div className="text-white p-4 bg-black/20 rounded-lg">
-                <h3 className="text-lg font-bold mb-2">DEBUG - Genres trouvés dans les tracks:</h3>
-                <div className="text-sm">
-                  {Array.from(new Set(tracks.flatMap(t => t.genre || []))).map(genre => (
-                    <span key={genre} className="inline-block bg-purple-500/20 text-purple-300 px-2 py-1 rounded mr-2 mb-1">
-                      {genre}
-                          </span>
-                  ))}
-                </div>
-                            </div>
-                          )}
             </div>
           )}
         </motion.div>
