@@ -1120,15 +1120,77 @@ const GenreSection: React.FC<GenreSectionProps> = ({ title, tracks, onPlayTrack 
           </div>
         </div>
 
-        {/* Container scrollable - STYLE SUNO EXACT */}
-        <div className="relative w-full overflow-hidden" style={{ height: '20rem' }}>
-          <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_90%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
-            <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-3 px-1">
-              {tracks.slice(0, 20).map((track, index) => (
-                <TrackCard key={track._id} track={track} onPlay={onPlayTrack} />
-              ))}
-            </section>
+        {/* Container scrollable - STYLE SUNO COMPLET */}
+        <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
+          <button 
+            className="absolute top-0 left-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
+            aria-label="Scroll left"
+            onClick={() => {
+              const section = document.querySelector(`[data-section="${title}"] section`);
+              if (section) {
+                section.scrollBy({ left: -300, behavior: 'smooth' });
+              }
+            }}
+          >
+            <div 
+              aria-label="Previous"
+              className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2"
+              style={{ top: '9rem' }}
+            >
+              <span className="relative flex flex-row items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
+                  <g>
+                    <path d="m9.398 12.005 6.194-6.193q.315-.316.305-.748a1.06 1.06 0 0 0-.326-.748Q15.255 4 14.823 4t-.748.316l-6.467 6.488a1.7 1.7 0 0 0-.38.57 1.7 1.7 0 0 0-.126.631q0 .315.127.632.126.315.379.569l6.488 6.488q.316.316.738.306a1.05 1.05 0 0 0 .737-.327q.316-.316.316-.748t-.316-.748z"></path>
+                  </g>
+                </svg>
+              </span>
+            </div>
+          </button>
+
+          <div 
+            className="h-full w-full overflow-hidden mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)] mask-size-[100%_100%] transition-[mask-image] duration-500"
+            data-section={title}
+          >
+            <div style={{ overflow: 'visible', height: '0px', width: '0px' }}>
+              <section 
+                className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden"
+                style={{ position: 'relative', height: '384px', width: '100%', overflow: 'auto', willChange: 'transform', direction: 'ltr', scrollbarWidth: 'none' }}
+              >
+                <div style={{ height: '100%', width: `${tracks.length * 185}px` }}>
+                  {tracks.slice(0, 20).map((track, index) => (
+                    <div key={track._id} style={{ position: 'absolute', left: `${index * 185.85}px`, top: '0px', height: '100%', width: '177px' }}>
+                      <TrackCard track={track} onPlay={onPlayTrack} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
           </div>
+
+          <button 
+            className="absolute top-0 right-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
+            aria-label="Scroll right"
+            onClick={() => {
+              const section = document.querySelector(`[data-section="${title}"] section`);
+              if (section) {
+                section.scrollBy({ left: 300, behavior: 'smooth' });
+              }
+            }}
+          >
+            <div 
+              aria-label="Next"
+              className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2"
+              style={{ top: '9rem' }}
+            >
+              <span className="relative flex flex-row items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
+                  <g>
+                    <path d="M14.602 12.005 8.407 5.812a.99.99 0 0 1-.305-.748q.01-.432.326-.748T9.177 4t.748.316l6.467 6.488q.253.253.38.57.126.315.126.631 0 .315-.127.632-.126.315-.379.569l-6.488 6.488a.97.97 0 0 1-.738.306 1.05 1.05 0 0 1-.737-.327q-.316-.316-.316-.748t.316-.748z"></path>
+                  </g>
+                </svg>
+              </span>
+            </div>
+          </button>
         </div>
       </div>
     </motion.div>
