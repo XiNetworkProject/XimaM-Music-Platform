@@ -201,54 +201,85 @@ export default function DiscoverPage() {
     };
   }, []);
 
-  // Fonction pour récupérer les vraies données (comme dans l'accueil)
+  // Fonction pour récupérer les vraies données avec debugging
   const fetchDiscoverData = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      // Utiliser les mêmes APIs que l'accueil pour être sûr d'avoir des données
-      const [tracksResponse, artistsResponse] = await Promise.all([
-        fetch('/api/tracks?limit=100', {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache'
-          }
-        }),
-        fetch('/api/users/trending', {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-            'Pragma': 'no-cache'
-          }
-        })
-      ]);
+      console.log('🚀 Début du chargement des données discover...');
+
+      // Essayer d'abord l'API principale des tracks
+      const tracksResponse = await fetch('/api/tracks?limit=100', {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      console.log('📡 Réponse API /api/tracks:', {
+        ok: tracksResponse.ok,
+        status: tracksResponse.status,
+        statusText: tracksResponse.statusText
+      });
 
       let allTracks: Track[] = [];
-      let allArtists: Artist[] = [];
 
-      // Récupérer les tracks
       if (tracksResponse.ok) {
         const tracksData = await tracksResponse.json();
+        console.log('📦 Données reçues de /api/tracks:', tracksData);
+        
         allTracks = tracksData.tracks || tracksData || [];
+        console.log('🎵 Tracks parsées:', allTracks.length, allTracks.slice(0, 2));
+      } else {
+        const errorText = await tracksResponse.text();
+        console.error('❌ Erreur API /api/tracks:', errorText);
       }
 
-      // Récupérer les artistes
-      if (artistsResponse.ok) {
-        const artistsData = await artistsResponse.json();
-        allArtists = artistsData.users || artistsData || [];
+      // Si pas de tracks, essayer le fallback
+      if (allTracks.length === 0) {
+        console.log('⚠️ Aucune track trouvée, essai du fallback...');
+        await fetchFallbackData();
+        return;
       }
 
-      // Mettre à jour les états
+      // Essayer de récupérer les artistes (optionnel)
+      try {
+        const artistsResponse = await fetch('/api/users?limit=20');
+        if (artistsResponse.ok) {
+          const artistsData = await artistsResponse.json();
+          const users = artistsData.users || artistsData || [];
+          const artists: Artist[] = users.map((user: any) => ({
+            _id: user._id || user.id,
+            username: user.username,
+            name: user.name,
+            avatar: user.avatar,
+            bio: user.bio || 'Artiste Synaura',
+            genre: user.genre || [],
+            totalPlays: user.total_plays || 0,
+            totalLikes: user.total_likes || 0,
+            followerCount: user.follower_count || 0,
+            isVerified: user.is_verified || false,
+            isTrending: true,
+            featuredTracks: user.featured_tracks || 0
+          }));
+          setTrendingArtists(artists);
+          console.log('👥 Artistes chargés:', artists.length);
+        }
+      } catch (err) {
+        console.log('⚠️ Erreur chargement artistes (non critique):', err);
+      }
+
+      // Mettre à jour les tracks
       setTracks(allTracks);
-      setTrendingArtists(allArtists);
       
-      console.log('✅ Données discover chargées:', {
+      console.log('✅ Données discover chargées avec succès:', {
         tracks: allTracks.length,
-        artists: allArtists.length
+        artists: trendingArtists.length
       });
 
     } catch (err) {
-      console.error('Erreur lors du chargement des données:', err);
+      console.error('💥 Erreur lors du chargement des données:', err);
       setError('Erreur lors du chargement des données');
       // Fallback vers les données de test
       await fetchFallbackData();
@@ -417,21 +448,79 @@ export default function DiscoverPage() {
       
     } catch (fallbackErr) {
       console.error('Erreur fallback:', fallbackErr);
-      // En dernier recours, créer quelques données de test
-      setTracks([
+      // En dernier recours, créer quelques données de test complètes
+      console.log('🆘 Création de données de test...');
+      
+      const testTracks: Track[] = [
         {
           _id: 'test-1',
-          title: 'Test Track 1',
-          artist: { _id: 'artist-1', username: 'testartist', name: 'Test Artist', avatar: '' },
+          title: 'Neon Dreams',
+          artist: { _id: 'artist-1', username: 'synthwave', name: 'SynthWave Artist', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop' },
           duration: 180,
-          genre: ['Electronic', 'Pop'],
-          plays: 1000,
-          likes: 50,
+          genre: ['Electronic', 'Synthwave'],
+          plays: 1500,
+          likes: 89,
           isFeatured: true,
           isNew: false,
-          coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop'
+          coverUrl: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop',
+          audioUrl: '#'
+        },
+        {
+          _id: 'test-2',
+          title: 'Urban Flow',
+          artist: { _id: 'artist-2', username: 'beatmaker', name: 'Beat Maker', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' },
+          duration: 210,
+          genre: ['Hip-Hop', 'Rap'],
+          plays: 2300,
+          likes: 156,
+          isFeatured: false,
+          isNew: true,
+          coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300&h=300&fit=crop',
+          audioUrl: '#'
+        },
+        {
+          _id: 'test-3',
+          title: 'Chill Vibes',
+          artist: { _id: 'artist-3', username: 'chillartist', name: 'Chill Artist', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop' },
+          duration: 240,
+          genre: ['Lo-Fi', 'Chill'],
+          plays: 890,
+          likes: 67,
+          isFeatured: true,
+          isNew: false,
+          coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
+          audioUrl: '#'
+        },
+        {
+          _id: 'test-4',
+          title: 'Rock Anthem',
+          artist: { _id: 'artist-4', username: 'rockstar', name: 'Rock Star', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop' },
+          duration: 195,
+          genre: ['Rock', 'Alternative'],
+          plays: 3400,
+          likes: 234,
+          isFeatured: false,
+          isNew: true,
+          coverUrl: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=300&h=300&fit=crop',
+          audioUrl: '#'
+        },
+        {
+          _id: 'test-5',
+          title: 'Jazz Night',
+          artist: { _id: 'artist-5', username: 'jazzcat', name: 'Jazz Cat', avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop' },
+          duration: 280,
+          genre: ['Jazz', 'Blues'],
+          plays: 1200,
+          likes: 98,
+          isFeatured: true,
+          isNew: false,
+          coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=300&fit=crop',
+          audioUrl: '#'
         }
-      ]);
+      ];
+      
+      setTracks(testTracks);
+      console.log('✅ Données de test créées:', testTracks.length, 'tracks');
     }
   };
 
