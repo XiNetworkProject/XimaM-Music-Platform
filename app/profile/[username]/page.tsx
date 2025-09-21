@@ -556,11 +556,12 @@ export default function ProfileUserPage() {
     setTrackEditData({
       title: track.title,
       description: track.description || '',
-      genre: track.genre?.join(', ') || '',
+      genre: Array.isArray(track.genre) ? track.genre.join(', ') : (track.genre || ''),
       tags: track.tags?.join(', ') || '',
-      isPublic: track.isPublic
+      isPublic: track.is_public !== false // Par défaut true si undefined
     });
     setShowEditTrackModal(true);
+    setShowTrackOptions(null); // Fermer le tiroir
   };
 
   const handleSaveTrackEdit = async () => {
@@ -612,8 +613,9 @@ export default function ProfileUserPage() {
 
   const handleFeatureTrack = (track: any) => {
     setFeaturingTrack(track);
-    setFeaturedBanner(track.featuredBanner || '');
+    setFeaturedBanner(track.featuredBanner || track.featured_banner || '');
     setShowFeatureTrackModal(true);
+    setShowTrackOptions(null); // Fermer le tiroir
   };
 
   const handleSaveFeatureTrack = async () => {

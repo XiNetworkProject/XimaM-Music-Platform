@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 import cloudinary from '@/lib/cloudinary';
 
 export async function GET(
@@ -68,6 +69,11 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
     const { id } = params;
     const body = await request.json();
 
@@ -78,32 +84,45 @@ export async function PUT(
       );
     }
 
-    console.log(`🔄 Mise à jour de la track: ${id}`);
+    console.log(`🔄 Mise à jour de la track: ${id}`, body);
 
-    // Vérifier que la track existe
-    const { data: existingTrack, error: trackError } = await supabase
+    // Vérifier que la track existe et que l'utilisateur est le propriétaire
+    const { data: existingTrack, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('id')
+      .select('id, creator_id, artist_id')
       .eq('id', id)
       .single();
 
     if (trackError || !existingTrack) {
+      console.error('❌ Track non trouvée:', trackError);
       return NextResponse.json(
         { error: 'Track non trouvée' },
         { status: 404 }
       );
     }
 
+    // Vérifier les droits de propriété
+    if (existingTrack.creator_id !== session.user.id && existingTrack.artist_id !== session.user.id) {
+      return NextResponse.json(
+        { error: 'Non autorisé - vous n\'êtes pas le propriétaire de cette track' },
+        { status: 403 }
+      );
+    }
+
+    // Préparer les données de mise à jour
+    const updateData: any = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (body.title) updateData.title = body.title;
+    if (body.genre) updateData.genre = Array.isArray(body.genre) ? body.genre : [body.genre];
+    if (typeof body.isPublic === 'boolean') updateData.is_public = body.isPublic;
+    if (typeof body.isFeatured === 'boolean') updateData.is_featured = body.isFeatured;
+
     // Mettre à jour la track
-    const { data: updatedTrack, error: updateError } = await supabase
+    const { data: updatedTrack, error: updateError } = await supabaseAdmin
       .from('tracks')
-      .update({
-        title: body.title,
-        genre: body.genre,
-        is_featured: body.isFeatured,
-        is_public: body.isPublic,
-        updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -111,13 +130,29 @@ export async function PUT(
     if (updateError) {
       console.error('❌ Erreur lors de la mise à jour:', updateError);
       return NextResponse.json(
-        { error: 'Erreur lors de la mise à jour' },
+        { error: `Erreur lors de la mise à jour: ${updateError.message}` },
         { status: 500 }
       );
     }
 
     console.log(`✅ Track mise à jour: ${id}`);
-    return NextResponse.json(updatedTrack);
+    
+    // Retourner la track mise à jour avec format cohérent
+    const formattedTrack = {
+      id: updatedTrack.id,
+      title: updatedTrack.title,
+      genre: updatedTrack.genre,
+      is_featured: updatedTrack.is_featured,
+      is_public: updatedTrack.is_public,
+      cover_url: updatedTrack.cover_url,
+      audio_url: updatedTrack.audio_url,
+      duration: updatedTrack.duration,
+      plays: updatedTrack.plays || 0,
+      likes: updatedTrack.likes || 0,
+      updated_at: updatedTrack.updated_at
+    };
+    
+    return NextResponse.json(formattedTrack);
 
   } catch (error) {
     console.error('❌ Erreur lors de la mise à jour de la track:', error);
