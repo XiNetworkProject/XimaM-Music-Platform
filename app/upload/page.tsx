@@ -126,13 +126,7 @@ export default function UploadPage() {
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
   const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string }>({});
-  const [calculatedDuration, setCalculatedDuration] = useState<number>(0);
-  const [bpm, setBpm] = useState<string>('');
-  const [keySig, setKeySig] = useState<string>('');
-  const [language, setLanguage] = useState<string>('fr');
-  const [moods, setMoods] = useState<string[]>([]);
-  const [downloadsAllowed, setDownloadsAllowed] = useState<boolean>(false);
-  const [collaborators, setCollaborators] = useState<string>('');
+  const formatMb = (bytes?: number) => typeof bytes === 'number' ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : '—';
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -194,13 +188,6 @@ export default function UploadPage() {
       setAudioFile(file);
       const url = URL.createObjectURL(file);
       setAudioPreview(url);
-      try {
-        const audioEl = new Audio();
-        audioEl.src = url;
-        audioEl.onloadedmetadata = () => {
-          if (!isNaN(audioEl.duration)) setCalculatedDuration(Math.round(audioEl.duration));
-        };
-      } catch {}
     }
   }, []);
 
@@ -315,19 +302,8 @@ export default function UploadPage() {
           audioPublicId: audioResult.public_id,
           coverUrl: (coverResult && coverResult.secure_url) ? coverResult.secure_url : null,
           coverPublicId: (coverResult && coverResult.public_id) ? coverResult.public_id : null,
-          trackData: {
-            ...formData,
-            bpm: bpm ? parseInt(bpm, 10) : undefined,
-            key: keySig || undefined,
-            language,
-            moods,
-            downloadsAllowed,
-            collaborators: collaborators
-              .split(',')
-              .map(s => s.trim())
-              .filter(Boolean),
-          },
-          duration: audioResult.duration || calculatedDuration || 0,
+          trackData: formData,
+          duration: audioResult.duration || 0,
           audioBytes: Math.round((audioFile?.size || 0)),
           coverBytes: Math.round((coverFile?.size || 0)),
         }),
@@ -391,60 +367,45 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
-        <div className="max-w-4xl mx-auto">
-          {blockedMsg && (
-            <div className="mb-4 rounded-xl p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
-              <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
-              <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
-            </div>
-          )}
-          <div className="mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
-              <Upload size={28} className="text-purple-400" />
-              Upload de Musique
-            </h1>
-            <p className="text-white/60 text-lg">Partagez vos créations avec la communauté.</p>
-          </div>
+        {/* En-tête */}
+        <div className="mb-6">
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight flex items-center gap-3 mb-2">
+            <Upload size={28} className="text-purple-400" />
+            Téléverser une musique
+          </h1>
+          <p className="text-white/60">Simple, harmonieux, moderne — inspiré de Suno.</p>
+        </div>
 
-      {/* Progress Steps */}
-          <div className="glass-effect rounded-xl p-6 mb-8">
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center space-x-4">
-              {steps.map((step, index) => (
-                <div key={step.id} className="flex items-center">
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                      currentStep >= step.id
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-white/10 text-white/60'
-                    }`}
-                  >
-                    {currentStep > step.id ? (
-                      <Check size={20} />
-                    ) : (
-                      <step.icon size={20} />
+        {blockedMsg && (
+          <div className="mb-6 rounded-2xl p-4 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
+            <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
+            <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
+          </div>
+        )}
+
+        {/* Grille principale: Formulaire (2 col) + Résumé (1 col) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Colonne formulaire */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Steps compact style Suno */}
+            <div className="rounded-2xl p-5 border border-white/10 bg-white/5 backdrop-blur">
+              <div className="flex items-center justify-center gap-3">
+                {steps.map((step, index) => (
+                  <div key={step.id} className="flex items-center">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= step.id ? 'bg-gradient-to-r from-purple-500 to-cyan-400 text-white' : 'bg-white/10 text-white/60'}`}>
+                      {currentStep > step.id ? <Check size={18} /> : <step.icon size={18} />}
+                    </div>
+                    {index < steps.length - 1 && (
+                      <div className={`w-12 h-[2px] mx-2 ${currentStep > step.id ? 'bg-gradient-to-r from-purple-500 to-cyan-400' : 'bg-white/10'}`} />
                     )}
                   </div>
-                  {index < steps.length - 1 && (
-                    <div
-                      className={`w-16 h-1 mx-2 transition-colors ${
-                        currentStep > step.id ? 'bg-primary-500' : 'bg-white/10'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
-          </div>
-        </div>
-      </div>
+                ))}
+              </div>
+            </div>
 
-      {/* Main Content */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-            className="glass-effect rounded-xl p-6"
-        >
-          <form onSubmit={handleSubmit} className="space-y-8">
+            {/* Carte formulaire */}
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl p-6 border border-white/10 bg-white/5 backdrop-blur">
+              <form onSubmit={handleSubmit} className="space-y-8">
             {/* Étape 1: Upload des fichiers */}
             {currentStep === 1 && (
               <motion.div
@@ -644,45 +605,17 @@ export default function UploadPage() {
                   />
                 </div>
 
-                {/* Langue + Téléchargements + Collaborateurs */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium">Langue</label>
-                    <select
-                      value={language}
-                      onChange={(e) => setLanguage(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                    >
-                      {['fr','en','es','de','it','pt','ar','hi','zh','ja','ru'].map(l => (
-                        <option key={l} value={l}>{l.toUpperCase()}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium">Autoriser le téléchargement</label>
-                    <label className="flex items-center gap-2 text-white/80">
-                      <input type="checkbox" checked={downloadsAllowed} onChange={(e) => setDownloadsAllowed(e.target.checked)} />
-                      <span>Téléchargement par les auditeurs</span>
-                    </label>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium">Collaborateurs (séparés par des virgules)</label>
-                    <input
-                      type="text"
-                      value={collaborators}
-                      onChange={(e) => setCollaborators(e.target.value)}
-                      className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                      placeholder="@user1, @user2"
-                    />
-                  </div>
-                </div>
-
                 {/* Genre */}
                 <div className="space-y-2">
                   <label className="block text-sm font-medium">Genre</label>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      'Pop','Rock','Hip-Hop','Electronic','Jazz','Classical','Country','R&B','Trap','Drill','Afrobeats','Amapiano','Dancehall','Reggae','Blues','Folk','Metal','Hardstyle','Ambient','Dubstep','House','Techno','Trance','DnB','Acoustic','Instrumental','Orchestral','Chill','Lofi','Synthwave','Retrowave','EDM','K-Pop','Latin','Arabic','Indian','African','Gospel','Choir','Experimental'
+                      'Pop', 'Rock', 'Hip-Hop', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B',
+                      'Reggae', 'Blues', 'Folk', 'Metal', 'Ambient', 'Trap', 'Dubstep', 'House',
+                      'Techno', 'Trance', 'Drum & Bass', 'Acoustic', 'Instrumental', 'Orchestral',
+                      'A Cappella', 'Choir', 'Gospel', 'Fusion', 'Experimental', 'Avant-Garde',
+                      'Retro', 'Vintage', 'Futuristic', 'Energetic', 'Chill', 'Romantic', 'Mysterious',
+                      'Festive', 'African', 'Latin', 'Celtic', 'Indian', 'Arabic', 'Asian'
                     ].map((genre) => (
                       <button
                         key={genre}
@@ -836,49 +769,6 @@ export default function UploadPage() {
                       />
                       <span>Contenu explicite</span>
                     </label>
-
-                    {/* BPM / Tonalité / Humeurs */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium">BPM</label>
-                        <input
-                          type="number"
-                          min={40}
-                          max={240}
-                          value={bpm}
-                          onChange={(e) => setBpm(e.target.value.replace(/[^0-9]/g, ''))}
-                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                          placeholder="120"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium">Tonalité</label>
-                        <select
-                          value={keySig}
-                          onChange={(e) => setKeySig(e.target.value)}
-                          className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl focus:outline-none focus:border-primary-500 transition-colors"
-                        >
-                          {['','C','C#','D','D#','E','F','F#','G','G#','A','A#','B','Cm','C#m','Dm','D#m','Em','Fm','F#m','Gm','G#m','Am','A#m','Bm'].map(k => (
-                            <option key={k || 'none'} value={k}>{k || '—'}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <label className="block text-sm font-medium">Humeurs</label>
-                        <div className="flex flex-wrap gap-2">
-                          {['Happy','Sad','Energetic','Calm','Dark','Romantic','Epic','Chill','Aggressive','Uplifting'].map(m => (
-                            <button
-                              key={m}
-                              type="button"
-                              onClick={() => setMoods(prev => prev.includes(m) ? prev.filter(x => x!==m) : [...prev, m])}
-                              className={`px-3 py-1 rounded-full text-sm transition-colors ${moods.includes(m) ? 'bg-primary-500 text-white' : 'bg-white/10 text-white/60 hover:bg-white/20'}`}
-                            >
-                              {m}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 </div>
 
@@ -901,8 +791,49 @@ export default function UploadPage() {
                 </div>
               </motion.div>
             )}
-          </form>
-        </motion.div>
+              </form>
+            </motion.div>
+          </div>
+
+          {/* Colonne résumé/quotas (sticky) */}
+          <aside className="lg:col-span-1">
+            <div className="sticky top-24 space-y-6">
+              {/* Résumé */}
+              <div className="rounded-2xl p-5 border border-white/10 bg-white/5 backdrop-blur">
+                <h3 className="text-white/90 font-medium mb-3">Résumé</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between"><span className="text-white/60">Audio</span><span className="text-white/85">{audioFile ? `${audioFile.name} · ${formatMb(audioFile.size)}` : '—'}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-white/60">Cover</span><span className="text-white/85">{coverFile ? `${coverFile.name} · ${formatMb(coverFile.size)}` : '—'}</span></div>
+                  <div className="flex items-center justify-between"><span className="text-white/60">Visibilité</span><span className="text-white/85">{formData.isPublic ? 'Public' : 'Privé'}</span></div>
+                </div>
+                <div className="mt-4">
+                  <button onClick={() => setCurrentStep(2)} disabled={!audioFile} className="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-400 text-white disabled:opacity-50">Compléter les infos</button>
+                </div>
+              </div>
+
+              {/* Quotas */}
+              <div className="rounded-2xl p-5 border border-white/10 bg-white/5 backdrop-blur">
+                <h3 className="text-white/90 font-medium mb-3">Quotas</h3>
+                <div className="space-y-4 text-sm">
+                  <div>
+                    <div className="flex justify-between mb-1"><span className="text-white/60">Pistes</span><span className="text-white/80">{usage ? `${usage.tracks.used}/${usage.tracks.limit < 0 ? '∞' : usage.tracks.limit}` : '—'}</span></div>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-2 bg-gradient-to-r from-purple-500 to-cyan-400" style={{ width: `${usage?.tracks.percentage || 0}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1"><span className="text-white/60">Stockage</span><span className="text-white/80">{usage ? `${usage.storage.used}/${usage.storage.limit} GB` : '—'}</span></div>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-2 bg-gradient-to-r from-purple-500 to-cyan-400" style={{ width: `${usage?.storage.percentage || 0}%` }} /></div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1"><span className="text-white/60">Playlists</span><span className="text-white/80">{usage ? `${usage.playlists.used}/${usage.playlists.limit < 0 ? '∞' : usage.playlists.limit}` : '—'}</span></div>
+                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-2 bg-gradient-to-r from-purple-500 to-cyan-400" style={{ width: `${usage?.playlists.percentage || 0}%` }} /></div>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <button onClick={() => router.push('/subscriptions')} className="w-full px-4 py-2 rounded-xl bg-white/10 ring-1 ring-white/15 text-white hover:bg-white/15">Améliorer mon plan</button>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </main>
 
