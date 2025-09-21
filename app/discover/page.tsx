@@ -134,7 +134,7 @@ export default function DiscoverPage() {
       // Trouver la catégorie sélectionnée
       const categoryData = categories.find(cat => cat.id === selectedCategory);
       if (categoryData && categoryData.name in GENRE_CATEGORIES) {
-        const categoryGenres = GENRE_CATEGORIES[categoryData.name as keyof typeof GENRE_CATEGORIES];
+        const categoryGenres = GENRE_CATEGORIES[categoryData.name as keyof typeof GENRE_CATEGORIES] as readonly string[];
         filtered = tracks.filter(track => 
           track.genre && 
           Array.isArray(track.genre) && 
