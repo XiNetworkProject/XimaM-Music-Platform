@@ -28,7 +28,6 @@ interface UploadFormData {
   artist: string;
   album?: string;
   genre: string[];
-  tags: string[];
   description: string;
   lyrics?: string;
   isExplicit: boolean;
@@ -271,7 +270,6 @@ export default function UploadPage() {
     artist: user?.name || '',
     album: '',
     genre: [],
-    tags: [],
     description: '',
     lyrics: '',
     isExplicit: false,
@@ -428,15 +426,6 @@ export default function UploadPage() {
     setFormData(prev => ({ ...prev, genre: prev.genre.filter(g => g !== genre) }));
   };
 
-  const addTag = (tag: string) => {
-    if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
-    }
-  };
-
-  const removeTag = (tag: string) => {
-    setFormData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
-  };
 
   const handleSubmit = async () => {
     if (!canUpload) {
