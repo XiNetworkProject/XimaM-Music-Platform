@@ -39,6 +39,7 @@ export default function SubscriptionsPage() {
   const [pmLoading, setPmLoading] = useState(false);
   const [preview, setPreview] = useState<{ total: number; currency: string; lines: { amount: number; description?: string | null }[] } | null>(null);
   const previewRef = useRef<HTMLDivElement>(null);
+  const plansRef = useRef<HTMLDivElement>(null);
 
   const fetchAll = useMemo(() => {
     return async () => {
@@ -134,6 +135,18 @@ export default function SubscriptionsPage() {
     return '—';
   }, [current?.subscription?.interval]);
 
+  const subscriptionStatus = (current?.userSubscription?.status as any) || 'none';
+  const hasPaymentIssue = subscriptionStatus === 'past_due' || subscriptionStatus === 'unpaid';
+
+  const quotaWarnings = useMemo(() => {
+    if (!usage) return [] as string[];
+    const warns: string[] = [];
+    if (usage.tracks.percentage >= 90) warns.push('Vos pistes sont presque au maximum.');
+    if (usage.storage.percentage >= 90) warns.push('Votre stockage est presque plein.');
+    if (usage.playlists.percentage >= 90) warns.push('Vos playlists sont presque au maximum.');
+    return warns;
+  }, [usage]);
+
   const nextBilling = useMemo(() => {
     const dateStr = current?.userSubscription?.currentPeriodEnd;
     if (!dateStr) return '—';
@@ -164,6 +177,27 @@ export default function SubscriptionsPage() {
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="flex w-full flex-col gap-3">
+          {hasPaymentIssue && (
+            <div className="w-full rounded-xl p-3 sm:p-4 border border-yellow-400/30 bg-yellow-500/10 text-yellow-200">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-sm">Problème de paiement détecté ({subscriptionStatus}). Mettez à jour votre moyen de paiement pour éviter l’interruption.</div>
+                <button onClick={() => pmRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs px-3 py-1.5 rounded-md bg-yellow-400/20 ring-1 ring-yellow-400/30 hover:bg-yellow-400/25">Mettre à jour</button>
+              </div>
+            </div>
+          )}
+
+          {quotaWarnings.length > 0 && (
+            <div className="w-full rounded-xl p-3 sm:p-4 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200">
+              <div className="flex flex-col gap-2">
+                {quotaWarnings.map((w, i) => (
+                  <div key={i} className="text-sm">{w}</div>
+                ))}
+                <div>
+                  <button onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]">
             <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
               <div className="space-between flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10">
@@ -272,7 +306,7 @@ export default function SubscriptionsPage() {
       </div>
 
       {/* Sélecteur période + cartes de plans (coquilles vides) */}
-      <div className="relative z-10 w-full max-w-[1280px] mx-auto mt-8 p-4 sm:p-6">
+      <div ref={plansRef} className="relative z-10 w-full max-w-[1280px] mx-auto mt-8 p-4 sm:p-6">
         <div className="flex flex-col items-center gap-2">
           <h2 className="font-light text-[28px] lg:text-[40px] leading-[48px] text-white/90 text-center">
             Gérer votre plan Synaura
@@ -353,6 +387,47 @@ export default function SubscriptionsPage() {
               
             ]}
           />
+        </div>
+      </div>
+
+      {/* Comparateur de plans compact */}
+      <div className="relative z-10 w-full max-w-[1280px] mx-auto mt-6 p-4 sm:p-6 panel-suno border border-[var(--border)] rounded-2xl overflow-x-auto">
+        <div className="min-w-[720px] grid grid-cols-5 gap-2 text-sm">
+          <div className="text-white/60">Caractéristiques</div>
+          <div className="text-white/80">Free</div>
+          <div className="text-white/80">Starter</div>
+          <div className="text-white/80">Pro</div>
+          <div className="text-white/80">Enterprise</div>
+
+          <div className="text-white/60">Pistes/mois</div>
+          <div>5</div>
+          <div>{PLAN_ENTITLEMENTS.starter.uploads.maxTracks}</div>
+          <div>{PLAN_ENTITLEMENTS.pro.uploads.maxTracks}</div>
+          <div>Illimité</div>
+
+          <div className="text-white/60">Stockage</div>
+          <div>0.5 GB</div>
+          <div>{PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB</div>
+          <div>{PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB</div>
+          <div>Illimité</div>
+
+          <div className="text-white/60">Playlists</div>
+          <div>3</div>
+          <div>{PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}</div>
+          <div>Illimité</div>
+          <div>Illimité</div>
+
+          <div className="text-white/60">Messagerie</div>
+          <div>—</div>
+          <div>{PLAN_ENTITLEMENTS.starter.features.messaging ? 'Oui' : '—'}</div>
+          <div>{PLAN_ENTITLEMENTS.pro.features.messaging ? 'Oui' : '—'}</div>
+          <div>Oui</div>
+
+          <div className="text-white/60">Statistiques avancées</div>
+          <div>—</div>
+          <div>—</div>
+          <div>{PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Oui' : '—'}</div>
+          <div>Oui</div>
         </div>
       </div>
 
