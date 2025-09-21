@@ -189,6 +189,12 @@ function MediaPreview({
   setShowVolumeSlider,
   showAudioSettings,
   setShowAudioSettings,
+  audioQuality,
+  setAudioQuality,
+  normalize,
+  setNormalize,
+  enhanceBass,
+  setEnhanceBass,
   onSeek 
 }: { 
   file: File | null; 
@@ -204,6 +210,12 @@ function MediaPreview({
   setShowVolumeSlider: (show: boolean) => void;
   showAudioSettings: boolean;
   setShowAudioSettings: (show: boolean) => void;
+  audioQuality: string;
+  setAudioQuality: (quality: string) => void;
+  normalize: boolean;
+  setNormalize: (norm: boolean) => void;
+  enhanceBass: boolean;
+  setEnhanceBass: (enhance: boolean) => void;
   onSeek: (time: number) => void;
 }) {
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
@@ -257,11 +269,14 @@ function MediaPreview({
       
       {/* Contrôles latéraux */}
       <div className="absolute inset-y-0 right-2 flex flex-col items-center justify-center gap-2">
-        <div className="relative">
+        <div className="relative" data-menu="audio-settings">
           <button
             type="button"
             aria-label="Audio Settings"
-            onClick={() => setShowAudioSettings(!showAudioSettings)}
+            onClick={() => {
+              setShowAudioSettings(!showAudioSettings);
+              setShowVolumeSlider(false);
+            }}
             className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[17px] leading-[24px] rounded-full aspect-square p-2.5 text-white bg-white/10 enabled:hover:before:bg-white/20"
           >
             <span className="relative flex flex-row items-center justify-center gap-2">
@@ -271,22 +286,51 @@ function MediaPreview({
           
           {/* Menu paramètres audio */}
           {showAudioSettings && (
-            <div className="absolute right-0 top-full mt-2 bg-black/90 backdrop-blur-md border border-white/20 rounded-lg p-3 min-w-48 z-10">
+            <div className="absolute right-0 bottom-full mb-2 bg-black/95 backdrop-blur-md border border-white/20 rounded-lg p-3 min-w-52 z-50 shadow-xl">
               <div className="space-y-3">
-                <div className="text-sm font-medium text-white">Paramètres audio</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-white">Paramètres audio</div>
+                  <button
+                    onClick={() => setShowAudioSettings(false)}
+                    className="text-white/60 hover:text-white/80 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
                 <div className="space-y-2">
                   <label className="text-xs text-white/70">Qualité de lecture</label>
-                  <select className="w-full text-xs bg-white/10 border border-white/20 rounded px-2 py-1 text-white">
-                    <option value="auto">Automatique</option>
-                    <option value="high">Haute qualité</option>
-                    <option value="medium">Qualité moyenne</option>
+                  <select 
+                    value={audioQuality}
+                    onChange={(e) => setAudioQuality(e.target.value)}
+                    className="w-full text-xs bg-white/10 border border-white/20 rounded px-2 py-1.5 text-white focus:outline-none focus:border-purple-400"
+                  >
+                    <option value="auto" className="bg-black text-white">Automatique</option>
+                    <option value="high" className="bg-black text-white">Haute qualité</option>
+                    <option value="medium" className="bg-black text-white">Qualité moyenne</option>
                   </select>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs text-white/70">Normalisation</label>
                   <div className="flex items-center gap-2">
-                    <input type="checkbox" className="w-3 h-3" defaultChecked />
-                    <span className="text-xs text-white/80">Activer</span>
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 text-purple-500 bg-white/10 border-white/20 rounded focus:ring-purple-500" 
+                      checked={normalize}
+                      onChange={(e) => setNormalize(e.target.checked)}
+                    />
+                    <span className="text-xs text-white/80">Normaliser le volume</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs text-white/70">Égaliseur</label>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 text-purple-500 bg-white/10 border-white/20 rounded focus:ring-purple-500" 
+                      checked={enhanceBass}
+                      onChange={(e) => setEnhanceBass(e.target.checked)}
+                    />
+                    <span className="text-xs text-white/80">Améliorer les basses</span>
                   </div>
                 </div>
               </div>
@@ -294,11 +338,14 @@ function MediaPreview({
           )}
         </div>
         
-        <div className="relative">
+        <div className="relative" data-menu="volume">
           <button
             type="button"
             aria-label="Volume Control"
-            onClick={() => setShowVolumeSlider(!showVolumeSlider)}
+            onClick={() => {
+              setShowVolumeSlider(!showVolumeSlider);
+              setShowAudioSettings(false);
+            }}
             className="relative inline-block font-sans font-medium text-center text-[17px] leading-[24px] rounded-full aspect-square p-2.5 text-black bg-white hover:bg-white/90 transition-colors"
           >
             <span className="relative flex flex-row items-center justify-center gap-2">
@@ -308,20 +355,36 @@ function MediaPreview({
           
           {/* Slider de volume */}
           {showVolumeSlider && (
-            <div className="absolute right-0 top-full mt-2 bg-black/90 backdrop-blur-md border border-white/20 rounded-lg p-3 min-w-32 z-10">
+            <div className="absolute right-0 bottom-full mb-2 bg-black/95 backdrop-blur-md border border-white/20 rounded-lg p-3 min-w-36 z-50 shadow-xl">
               <div className="space-y-2">
-                <div className="text-xs font-medium text-white">Volume</div>
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-medium text-white">Volume</div>
+                  <button
+                    onClick={() => setShowVolumeSlider(false)}
+                    className="text-white/60 hover:text-white/80 transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="range"
                     min="0"
                     max="1"
-                    step="0.1"
+                    step="0.05"
                     value={volume}
                     onChange={(e) => setVolume(parseFloat(e.target.value))}
-                    className="flex-1 h-1 bg-white/20 rounded-full appearance-none slider"
+                    className="flex-1 h-2 bg-white/20 rounded-full appearance-none cursor-pointer"
+                    style={{
+                      background: `linear-gradient(to right, #a855f7 0%, #a855f7 ${volume * 100}%, rgba(255,255,255,0.2) ${volume * 100}%, rgba(255,255,255,0.2) 100%)`
+                    }}
                   />
-                  <span className="text-xs text-white/70 w-8">{Math.round(volume * 100)}%</span>
+                  <span className="text-xs text-white/70 w-10 text-right">{Math.round(volume * 100)}%</span>
+                </div>
+                <div className="flex justify-between text-xs text-white/50">
+                  <button onClick={() => setVolume(0)} className="hover:text-white/70">🔇</button>
+                  <button onClick={() => setVolume(0.5)} className="hover:text-white/70">🔉</button>
+                  <button onClick={() => setVolume(1)} className="hover:text-white/70">🔊</button>
                 </div>
               </div>
             </div>
@@ -353,6 +416,9 @@ export default function UploadPage() {
   const [volume, setVolume] = useState(1);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
+  const [audioQuality, setAudioQuality] = useState('auto');
+  const [normalize, setNormalize] = useState(true);
+  const [enhanceBass, setEnhanceBass] = useState(false);
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -453,6 +519,22 @@ export default function UploadPage() {
       audioRef.current.volume = volume;
     }
   }, [volume]);
+
+  // Fermer les menus au clic extérieur
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('[data-menu="audio-settings"]') && !target.closest('[data-menu="volume"]')) {
+        setShowAudioSettings(false);
+        setShowVolumeSlider(false);
+      }
+    };
+    
+    if (showAudioSettings || showVolumeSlider) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showAudioSettings, showVolumeSlider]);
 
   // Synchroniser artiste et copyright avec le profil utilisateur
   useEffect(() => {
@@ -732,6 +814,12 @@ export default function UploadPage() {
                       setShowVolumeSlider={setShowVolumeSlider}
                       showAudioSettings={showAudioSettings}
                       setShowAudioSettings={setShowAudioSettings}
+                      audioQuality={audioQuality}
+                      setAudioQuality={setAudioQuality}
+                      normalize={normalize}
+                      setNormalize={setNormalize}
+                      enhanceBass={enhanceBass}
+                      setEnhanceBass={setEnhanceBass}
                       onSeek={(time) => {
                         if (audioRef.current) {
                           audioRef.current.currentTime = time;
