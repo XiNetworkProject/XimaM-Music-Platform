@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlements } from '@/lib/entitlements';
+import cloudinary from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +30,11 @@ export async function POST(request: NextRequest) {
       const jsonData = await request.json();
       const { audioUrl, audioPublicId, coverUrl, coverPublicId, trackData, duration } = jsonData;
       if (!audioUrl || !trackData?.title) {
+        // rollback best-effort si l'audio a été déjà uploadé
+        try {
+          if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
+          if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
+        } catch {}
         return NextResponse.json({ error: 'URL audio et titre requis' }, { status: 400 });
       }
 
@@ -59,6 +65,11 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
+        // rollback Cloudinary (best-effort)
+        try {
+          if (audioPublicId) await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
+          if (coverPublicId) await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
+        } catch {}
         return NextResponse.json({ error: `Erreur lors de la sauvegarde en base de données: ${error.message}` }, { status: 500 });
       }
 
