@@ -1528,17 +1528,6 @@ export default function HomePage() {
   }
 
    const categoryConfigs = [
-
-    {
-      key: 'following',
-      title: '👥 Vos Artistes',
-      subtitle: 'Les artistes que vous suivez',
-      icon: UserPlus,
-      color: 'from-blue-500 to-indigo-500',
-      bgColor: 'bg-blue-500/10',
-      borderColor: 'border-blue-500/20',
-      showOnlyIfLoggedIn: true
-    },
     {
       key: 'recommended',
       title: '🎯 Pour Vous',
