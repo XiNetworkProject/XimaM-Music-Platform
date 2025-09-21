@@ -181,6 +181,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
     const { id } = params;
 
     if (!id) {
@@ -192,14 +197,25 @@ export async function DELETE(
 
     console.log(`🗑️  Suppression de la track: ${id}`);
 
-    // Récupérer d'abord les public_id Cloudinary pour suppression
+    // Récupérer d'abord les URLs et public_id Cloudinary pour suppression + vérifier propriétaire
     const { data: existing, error: fetchErr } = await supabaseAdmin
       .from('tracks')
-      .select('audio_public_id, cover_public_id')
+      .select('audio_url, cover_url, audio_public_id, cover_public_id, creator_id')
       .eq('id', id)
       .maybeSingle();
+    
+    console.log('🔍 Données track avant suppression:', existing);
+    
     if (fetchErr) {
-      console.warn('⚠️ Impossible de récupérer les public_id avant suppression:', fetchErr.message);
+      console.warn('⚠️ Impossible de récupérer les données avant suppression:', fetchErr.message);
+    }
+
+    // Vérifier les droits de propriété
+    if (existing && existing.creator_id !== session.user.id) {
+      return NextResponse.json(
+        { error: 'Non autorisé - vous n\'êtes pas le propriétaire de cette track' },
+        { status: 403 }
+      );
     }
 
     // Supprimer la track en base
@@ -218,12 +234,50 @@ export async function DELETE(
 
     console.log(`✅ Track supprimée: ${id}`);
 
-    // Supprimer les fichiers Cloudinary associés (meilleur effort)
-    try {
-      if (existing?.audio_public_id) await cloudinary.uploader.destroy(existing.audio_public_id, { resource_type: 'video' });
-      if (existing?.cover_public_id) await cloudinary.uploader.destroy(existing.cover_public_id, { resource_type: 'image' });
-    } catch (e) {
-      console.warn('⚠️ Suppression Cloudinary échouée (ignorée):', (e as any)?.message || e);
+    // Supprimer les fichiers Cloudinary associés
+    if (existing) {
+      console.log('🗑️ Tentative suppression Cloudinary:', {
+        audio_public_id: existing.audio_public_id,
+        cover_public_id: existing.cover_public_id,
+        audio_url: existing.audio_url,
+        cover_url: existing.cover_url
+      });
+      
+      try {
+        // Supprimer l'audio
+        if (existing.audio_public_id) {
+          console.log('🎵 Suppression audio Cloudinary:', existing.audio_public_id);
+          const audioResult = await cloudinary.uploader.destroy(existing.audio_public_id, { resource_type: 'video' });
+          console.log('✅ Résultat suppression audio:', audioResult);
+        } else if (existing.audio_url && existing.audio_url.includes('cloudinary.com')) {
+          // Extraire public_id depuis l'URL si pas de public_id stocké
+          const audioPublicId = existing.audio_url.split('/').pop()?.split('.')[0];
+          if (audioPublicId) {
+            console.log('🎵 Suppression audio via URL:', audioPublicId);
+            const audioResult = await cloudinary.uploader.destroy(audioPublicId, { resource_type: 'video' });
+            console.log('✅ Résultat suppression audio via URL:', audioResult);
+          }
+        }
+        
+        // Supprimer la cover
+        if (existing.cover_public_id) {
+          console.log('🖼️ Suppression cover Cloudinary:', existing.cover_public_id);
+          const coverResult = await cloudinary.uploader.destroy(existing.cover_public_id, { resource_type: 'image' });
+          console.log('✅ Résultat suppression cover:', coverResult);
+        } else if (existing.cover_url && existing.cover_url.includes('cloudinary.com')) {
+          // Extraire public_id depuis l'URL si pas de public_id stocké
+          const coverPublicId = existing.cover_url.split('/').pop()?.split('.')[0];
+          if (coverPublicId) {
+            console.log('🖼️ Suppression cover via URL:', coverPublicId);
+            const coverResult = await cloudinary.uploader.destroy(coverPublicId, { resource_type: 'image' });
+            console.log('✅ Résultat suppression cover via URL:', coverResult);
+          }
+        }
+      } catch (e) {
+        console.error('❌ Erreur suppression Cloudinary:', (e as any)?.message || e);
+      }
+    } else {
+      console.warn('⚠️ Aucune donnée track trouvée pour suppression Cloudinary');
     }
 
     return NextResponse.json({ success: true });
