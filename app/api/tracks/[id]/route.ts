@@ -90,7 +90,7 @@ export async function PUT(
     // Vérifier que la track existe et que l'utilisateur est le propriétaire
     const { data: existingTrack, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('id, creator_id, artist_id')
+      .select('id, creator_id')
       .eq('id', id)
       .single();
 
@@ -115,7 +115,7 @@ export async function PUT(
     }
 
     // Vérifier les droits de propriété
-    if (existingTrack.creator_id !== session.user.id && existingTrack.artist_id !== session.user.id) {
+    if (existingTrack.creator_id !== session.user.id) {
       return NextResponse.json(
         { error: 'Non autorisé - vous n\'êtes pas le propriétaire de cette track' },
         { status: 403 }

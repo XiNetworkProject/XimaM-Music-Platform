@@ -552,6 +552,12 @@ export default function ProfileUserPage() {
   };
 
   const handleEditTrack = (track: any) => {
+    console.log('🎵 Édition track:', { 
+      trackId: track.id, 
+      trackData: track,
+      allIds: userTracks.map(t => ({ id: t.id, title: t.title }))
+    });
+    
     setEditingTrack(track);
     setTrackEditData({
       title: track.title,

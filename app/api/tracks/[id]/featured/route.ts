@@ -25,7 +25,7 @@ export async function POST(
     // Vérifier que l'utilisateur est le propriétaire de la track
     const { data: track, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('id, creator_id, artist_id')
+      .select('id, creator_id')
       .eq('id', id)
       .single();
 
@@ -33,7 +33,7 @@ export async function POST(
       return NextResponse.json({ error: 'Track non trouvée' }, { status: 404 });
     }
 
-    if (track.creator_id !== session.user.id && track.artist_id !== session.user.id) {
+    if (track.creator_id !== session.user.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
