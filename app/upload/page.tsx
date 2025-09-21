@@ -126,7 +126,30 @@ export default function UploadPage() {
   const [planKey, setPlanKey] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
   const [blockedMsg, setBlockedMsg] = useState<string | null>(null);
   const [tempPublicIds, setTempPublicIds] = useState<{ audio?: string; cover?: string }>({});
-  const formatMb = (bytes?: number) => typeof bytes === 'number' ? `${(bytes / 1024 / 1024).toFixed(2)} MB` : '—';
+  const scrollToAudio = () => {
+    const el = document.getElementById('audio-input') as HTMLInputElement | null;
+    if (el) el.click();
+  };
+  const scrollToCover = () => {
+    const el = document.getElementById('cover-input') as HTMLInputElement | null;
+    if (el) el.click();
+  };
+  const handleCancelUpload = async () => {
+    try {
+      if (tempPublicIds.audio || tempPublicIds.cover) {
+        await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: tempPublicIds.audio, coverPublicId: tempPublicIds.cover }) });
+      }
+      setAudioFile(null);
+      setCoverFile(null);
+      setAudioPreview(null);
+      setCoverPreview(null);
+      setUploadProgress({ audio: 0, cover: 0 });
+      setCurrentStep(1);
+      toast.success('Téléversement annulé');
+    } catch {
+      toast.error("Impossible d'annuler maintenant");
+    }
+  };
   
   const [formData, setFormData] = useState<UploadFormData>({
     title: '',
@@ -367,45 +390,70 @@ export default function UploadPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
-        {/* En-tête */}
-        <div className="mb-6">
-          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight flex items-center gap-3 mb-2">
-            <Upload size={28} className="text-purple-400" />
-            Téléverser une musique
-          </h1>
-          <p className="text-white/60">Simple, harmonieux, moderne — inspiré de Suno.</p>
-        </div>
-
-        {blockedMsg && (
-          <div className="mb-6 rounded-2xl p-4 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
-            <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
-            <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
-          </div>
-        )}
-
-        {/* Grille principale: Formulaire (2 col) + Résumé (1 col) */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Colonne formulaire */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Steps compact style Suno */}
-            <div className="rounded-2xl p-5 border border-white/10 bg-white/5 backdrop-blur">
-              <div className="flex items-center justify-center gap-3">
-                {steps.map((step, index) => (
-                  <div key={step.id} className="flex items-center">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= step.id ? 'bg-gradient-to-r from-purple-500 to-cyan-400 text-white' : 'bg-white/10 text-white/60'}`}>
-                      {currentStep > step.id ? <Check size={18} /> : <step.icon size={18} />}
-                    </div>
-                    {index < steps.length - 1 && (
-                      <div className={`w-12 h-[2px] mx-2 ${currentStep > step.id ? 'bg-gradient-to-r from-purple-500 to-cyan-400' : 'bg-white/10'}`} />
-                    )}
-                  </div>
-                ))}
+        <div className="max-w-4xl mx-auto">
+          {blockedMsg && (
+            <div className="mb-4 rounded-xl p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
+              <span className="text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
+              <button onClick={() => router.push('/subscriptions')} className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
+            </div>
+          )}
+          <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur">
+            <div className="flex items-center justify-between p-4">
+              <h1 className="text-2xl md:text-3xl font-semibold tracking-tight flex items-center gap-3">
+                <Upload size={24} className="text-purple-400" />
+                Téléverser une musique
+              </h1>
+              <div className="flex flex-row gap-2">
+                <button type="button" onClick={scrollToAudio} className="relative inline-block px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">
+                  <span className="relative">Remplacer audio</span>
+                </button>
+                <button type="button" onClick={scrollToCover} className="relative inline-block px-4 py-2 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">
+                  <span className="relative">Remplacer cover</span>
+                </button>
               </div>
             </div>
+            <div className="border-t border-white/10" />
+          </div>
 
-            {/* Carte formulaire */}
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="rounded-2xl p-6 border border-white/10 bg-white/5 backdrop-blur">
-              <form onSubmit={handleSubmit} className="space-y-8">
+      {/* Progress Steps */}
+          <div className="glass-effect rounded-xl p-6 mb-8">
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center space-x-4">
+              {steps.map((step, index) => (
+                <div key={step.id} className="flex items-center">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                      currentStep >= step.id
+                        ? 'bg-primary-500 text-white'
+                        : 'bg-white/10 text-white/60'
+                    }`}
+                  >
+                    {currentStep > step.id ? (
+                      <Check size={20} />
+                    ) : (
+                      <step.icon size={20} />
+                    )}
+                  </div>
+                  {index < steps.length - 1 && (
+                    <div
+                      className={`w-16 h-1 mx-2 transition-colors ${
+                        currentStep > step.id ? 'bg-primary-500' : 'bg-white/10'
+                      }`}
+                    />
+                  )}
+                </div>
+              ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+            className="glass-effect rounded-xl p-6"
+        >
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Étape 1: Upload des fichiers */}
             {currentStep === 1 && (
               <motion.div
@@ -432,7 +480,7 @@ export default function UploadPage() {
                         : 'border-white/20 hover:border-white/40'
                     }`}
                   >
-                    <input {...getAudioInputProps()} />
+                    <input id="audio-input" {...getAudioInputProps()} />
                     {audioFile ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-center space-x-2">
@@ -487,7 +535,7 @@ export default function UploadPage() {
                         : 'border-white/20 hover:border-white/40'
                     }`}
                   >
-                    <input {...getCoverInputProps()} />
+                    <input id="cover-input" {...getCoverInputProps()} />
                     {coverFile ? (
                       <div className="space-y-4">
                         <div className="flex items-center justify-center space-x-2">
@@ -791,49 +839,16 @@ export default function UploadPage() {
                 </div>
               </motion.div>
             )}
-              </form>
-            </motion.div>
-          </div>
-
-          {/* Colonne résumé/quotas (sticky) */}
-          <aside className="lg:col-span-1">
-            <div className="sticky top-24 space-y-6">
-              {/* Résumé */}
-              <div className="rounded-2xl p-5 border border-white/10 bg-white/5 backdrop-blur">
-                <h3 className="text-white/90 font-medium mb-3">Résumé</h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center justify-between"><span className="text-white/60">Audio</span><span className="text-white/85">{audioFile ? `${audioFile.name} · ${formatMb(audioFile.size)}` : '—'}</span></div>
-                  <div className="flex items-center justify-between"><span className="text-white/60">Cover</span><span className="text-white/85">{coverFile ? `${coverFile.name} · ${formatMb(coverFile.size)}` : '—'}</span></div>
-                  <div className="flex items-center justify-between"><span className="text-white/60">Visibilité</span><span className="text-white/85">{formData.isPublic ? 'Public' : 'Privé'}</span></div>
-                </div>
-                <div className="mt-4">
-                  <button onClick={() => setCurrentStep(2)} disabled={!audioFile} className="w-full px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-cyan-400 text-white disabled:opacity-50">Compléter les infos</button>
-                </div>
-              </div>
-
-              {/* Quotas */}
-              <div className="rounded-2xl p-5 border border-white/10 bg-white/5 backdrop-blur">
-                <h3 className="text-white/90 font-medium mb-3">Quotas</h3>
-                <div className="space-y-4 text-sm">
-                  <div>
-                    <div className="flex justify-between mb-1"><span className="text-white/60">Pistes</span><span className="text-white/80">{usage ? `${usage.tracks.used}/${usage.tracks.limit < 0 ? '∞' : usage.tracks.limit}` : '—'}</span></div>
-                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-2 bg-gradient-to-r from-purple-500 to-cyan-400" style={{ width: `${usage?.tracks.percentage || 0}%` }} /></div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1"><span className="text-white/60">Stockage</span><span className="text-white/80">{usage ? `${usage.storage.used}/${usage.storage.limit} GB` : '—'}</span></div>
-                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-2 bg-gradient-to-r from-purple-500 to-cyan-400" style={{ width: `${usage?.storage.percentage || 0}%` }} /></div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between mb-1"><span className="text-white/60">Playlists</span><span className="text-white/80">{usage ? `${usage.playlists.used}/${usage.playlists.limit < 0 ? '∞' : usage.playlists.limit}` : '—'}</span></div>
-                    <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden"><div className="h-2 bg-gradient-to-r from-purple-500 to-cyan-400" style={{ width: `${usage?.playlists.percentage || 0}%` }} /></div>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <button onClick={() => router.push('/subscriptions')} className="w-full px-4 py-2 rounded-xl bg-white/10 ring-1 ring-white/15 text-white hover:bg-white/15">Améliorer mon plan</button>
-                </div>
-              </div>
-            </div>
-          </aside>
+          </form>
+        </motion.div>
+        <div className="flex flex-row items-center justify-end gap-3 mt-4 p-4 border-t border-white/10 rounded-b-2xl bg-white/5 backdrop-blur">
+          <button type="button" onClick={handleCancelUpload} className="relative inline-block px-6 py-2.5 text-[15px] leading-[24px] rounded-full text-white bg-white/10 ring-1 ring-white/15 hover:bg-white/15">Annuler</button>
+          {currentStep < 3 ? (
+            <button type="button" onClick={() => currentStep === 1 ? setCurrentStep(2) : setCurrentStep(3)} disabled={(currentStep === 1 && (!audioFile || isUploading || !canUpload)) || (currentStep === 2 && !formData.title.trim())} className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg-white hover:opacity-95 disabled:opacity-50">Suivant</button>
+          ) : (
+            <button type="button" onClick={() => (document.querySelector('#upload-form') as HTMLFormElement | null)?.requestSubmit()} disabled={isUploading || !canUpload} className="relative inline-block px-8 py-2.5 text-[15px] leading-[24px] rounded-full text-black bg-white hover:opacity-95 disabled:opacity-50">Publier</button>
+          )}
+        </div>
         </div>
       </main>
 
