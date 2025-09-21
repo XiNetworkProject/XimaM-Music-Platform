@@ -300,6 +300,8 @@ export default function UploadPage() {
           coverPublicId: coverResult?.public_id || null,
           trackData: formData,
           duration: audioResult.duration || 0,
+          audioBytes: Math.round((audioFile?.size || 0)),
+          coverBytes: Math.round((coverFile?.size || 0)),
         }),
       });
 

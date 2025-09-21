@@ -105,7 +105,9 @@ export async function POST(request: NextRequest) {
           is_public: trackData.isPublic !== false,
           plays: 0,
           likes: 0,
-          is_featured: false
+          is_featured: false,
+          audio_size_mb: (jsonData.audioBytes ? Math.round(jsonData.audioBytes / (1024*1024)) : null),
+          cover_size_mb: (jsonData.coverBytes ? Math.round(jsonData.coverBytes / (1024*1024)) : null)
         })
         .select()
         .single();

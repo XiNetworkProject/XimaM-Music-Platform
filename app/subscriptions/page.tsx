@@ -375,6 +375,13 @@ export default function SubscriptionsPage() {
               'Uploads limités',
               'Lecture et découverte de base'
             ]}
+            onChoose={async () => {
+              if (isFreeActive) return;
+              if (!window.confirm('Confirmer le passage au plan gratuit ?')) return;
+              const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
+              if (res.ok) { await fetchAll(); setToast({ type: 'success', msg: 'Vous êtes repassé sur le plan gratuit.' }); }
+              else setToast({ type: 'error', msg: 'Échec du passage au plan gratuit.' });
+            }}
           />
 
           {/* STARTER */}
