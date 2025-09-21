@@ -42,6 +42,7 @@ export async function POST(
       .from('tracks')
       .update({
         is_featured: isFeatured,
+        featured_banner: featuredBanner || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -61,7 +62,7 @@ export async function POST(
         ...updatedTrack,
         id: updatedTrack.id,
         is_featured: updatedTrack.is_featured,
-        featuredBanner: featuredBanner // Utiliser la valeur envoyée car pas stockée en BDD
+        featuredBanner: updatedTrack.featured_banner
       }
     });
 
