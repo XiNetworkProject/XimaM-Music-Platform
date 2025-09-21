@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { Calendar } from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
+import PaymentUpdateCard from './PaymentUpdateCard';
 import { getEntitlements, PLAN_ENTITLEMENTS } from '@/lib/entitlements';
 
 type UsageInfo = {
@@ -41,6 +42,7 @@ export default function SubscriptionsPage() {
   const previewRef = useRef<HTMLDivElement>(null);
   const plansRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const [updateClientSecret, setUpdateClientSecret] = useState<string>('');
 
   const fetchAll = useMemo(() => {
     return async () => {
@@ -332,12 +334,8 @@ export default function SubscriptionsPage() {
               const r = await fetch('/api/billing/create-setup-intent', { method: 'POST' });
               if (!r.ok) { setToast({ type: 'error', msg: 'Erreur initialisation carte.' }); return; }
               const j = await r.json();
-              // Ouvrir le PaymentElement minimal dans une modale simplifiée
-              const url = new URL(window.location.href);
-              url.hash = 'update-card';
-              sessionStorage.setItem('stripe:update_card', JSON.stringify(j));
-              window.location.href = url.toString();
-              setToast({ type: 'success', msg: 'Initialisation OK. Faites défiler vers le paiement.' });
+              setUpdateClientSecret(j.clientSecret);
+              setToast({ type: 'success', msg: 'Initialisation OK.' });
               requestAnimationFrame(() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
             } catch {
               setToast({ type: 'error', msg: 'Erreur réseau.' });
@@ -495,6 +493,12 @@ export default function SubscriptionsPage() {
       {selectedPriceId && !paid && (
         <div className="mt-6" ref={payRef}>
           <PaymentElementCard priceId={selectedPriceId} onSuccess={() => { setPaid(true); fetchAll(); }} />
+        </div>
+      )}
+
+      {updateClientSecret && (
+        <div className="mt-6" ref={payRef}>
+          <PaymentUpdateCard clientSecret={updateClientSecret} onSuccess={async () => { setToast({ type: 'success', msg: 'Carte mise à jour.' }); setUpdateClientSecret(''); const r = await fetch('/api/billing/payment-methods'); if (r.ok){ const j = await r.json(); setPmList(j.paymentMethods||[]); setPmDefault(j.defaultPaymentMethod||null);} }} />
         </div>
       )}
 

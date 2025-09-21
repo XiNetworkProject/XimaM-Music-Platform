@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -158,6 +158,7 @@ export async function DELETE(
     }
 
     console.log(`✅ Track supprimée: ${id}`);
+    // Rien d'autre à faire pour le stockage: l'endpoint usage somme les tailles restantes
     return NextResponse.json({ success: true });
 
   } catch (error) {
