@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
           title: trackData.title,
           description: trackData.description || '',
           genre: trackGenre,
-          tags: Array.isArray(trackData?.tags) ? trackData.tags : [],
           audio_url: audioUrl,
           cover_url: coverUrl || null,
           duration: trackDuration,
