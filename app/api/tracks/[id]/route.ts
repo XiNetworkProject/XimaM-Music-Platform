@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+import cloudinary from '@/lib/cloudinary';
 
 export async function GET(
   request: NextRequest,
@@ -143,7 +144,17 @@ export async function DELETE(
 
     console.log(`🗑️  Suppression de la track: ${id}`);
 
-    // Supprimer la track
+    // Récupérer d'abord les public_id Cloudinary pour suppression
+    const { data: existing, error: fetchErr } = await supabase
+      .from('tracks')
+      .select('audio_public_id, cover_public_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (fetchErr) {
+      console.warn('⚠️ Impossible de récupérer les public_id avant suppression:', fetchErr.message);
+    }
+
+    // Supprimer la track en base
     const { error: deleteError } = await supabase
       .from('tracks')
       .delete()
@@ -158,7 +169,15 @@ export async function DELETE(
     }
 
     console.log(`✅ Track supprimée: ${id}`);
-    // Rien d'autre à faire pour le stockage: l'endpoint usage somme les tailles restantes
+
+    // Supprimer les fichiers Cloudinary associés (meilleur effort)
+    try {
+      if (existing?.audio_public_id) await cloudinary.uploader.destroy(existing.audio_public_id, { resource_type: 'video' });
+      if (existing?.cover_public_id) await cloudinary.uploader.destroy(existing.cover_public_id, { resource_type: 'image' });
+    } catch (e) {
+      console.warn('⚠️ Suppression Cloudinary échouée (ignorée):', (e as any)?.message || e);
+    }
+
     return NextResponse.json({ success: true });
 
   } catch (error) {
