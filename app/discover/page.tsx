@@ -266,7 +266,7 @@ export default function DiscoverPage() {
           setTrendingArtists(artists);
           console.log('👥 Artistes chargés:', artists.length);
         }
-      } catch (err) {
+    } catch (err) {
         console.log('⚠️ Erreur chargement artistes (non critique):', err);
       }
 
@@ -629,68 +629,13 @@ export default function DiscoverPage() {
 
     return (
     <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
-      {/* Header Hero - Style identique à l'accueil */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        className="relative overflow-hidden"
-      >
-        {/* Fond dynamique avec particules - Style identique à l'accueil */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(120,119,198,0.1),transparent_50%)]"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,20,147,0.1),transparent_50%)]"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(120,119,198,0.1),transparent_50%)]"></div>
-          </div>
-        
-        <div className="relative z-10 px-2 sm:px-4 md:px-6 py-12 sm:py-16 text-center">
-          {/* Badge de statut - Style identique à l'accueil */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.6 }}
-            className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-md border border-white/20 rounded-full"
-          >
-            <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
-            <span className="text-white/90 text-sm font-medium">Découverte</span>
-            <Compass size={14} className="text-purple-400" />
-        </motion.div>
 
-          {/* Titre principal - Style identique à l'accueil */}
-          <motion.h1 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-            className="text-4xl md:text-6xl lg:text-7xl font-black text-white mb-6 leading-tight"
-            style={{
-              textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(236, 72, 153, 0.3)'
-            }}
-          >
-            Découvrez la
-            <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
-              {' '}Musique
-            </span>
-          </motion.h1>
-          
-          <motion.p 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
-            className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto"
-          >
-            Explorez des milliers de tracks et d'artistes, organisés par notre algorithme intelligent pour vous faire découvrir les meilleures créations
-          </motion.p>
-          
-  
-
-          </div>
-      </motion.div>
-
-      {/* Contrôles et filtres - Style identique à l'accueil */}
+      {/* Contrôles et filtres - Style Suno épuré */}
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
-        className="px-2 sm:px-4 md:px-6 py-8"
+        transition={{ delay: 0.2 }}
+        className="px-2 sm:px-4 md:px-6 py-4"
       >
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto overflow-hidden px-0">
           {/* Mode d'affichage et tri - Style identique à l'accueil */}
@@ -886,22 +831,22 @@ export default function DiscoverPage() {
         </motion.div>
 
       {/* Contenu principal - Sections par genres */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 1.0 }}
         className="px-2 sm:px-4 md:px-6 pb-16"
       >
-        {isLoading ? (
-          <div className="text-center py-20">
-            <div className="relative mx-auto mb-8">
-              <div className="w-24 h-24 rounded-full border-4 border-transparent border-t-purple-500 border-r-pink-500 border-b-blue-500 border-l-cyan-400 animate-spin"></div>
-              <div className="absolute inset-2 w-20 h-20 rounded-full border-2 border-transparent border-t-pink-400 border-r-purple-400 border-b-cyan-500 border-l-blue-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
-              <div className="absolute inset-8 w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-pulse"></div>
-            </div>
+                     {isLoading ? (
+             <div className="text-center py-20">
+               <div className="relative mx-auto mb-8">
+                 <div className="w-24 h-24 rounded-full border-4 border-transparent border-t-purple-500 border-r-pink-500 border-b-blue-500 border-l-cyan-400 animate-spin"></div>
+                 <div className="absolute inset-2 w-20 h-20 rounded-full border-2 border-transparent border-t-pink-400 border-r-purple-400 border-b-cyan-500 border-l-blue-400 animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}></div>
+                 <div className="absolute inset-8 w-8 h-8 rounded-full bg-gradient-to-r from-purple-400 to-pink-400 animate-pulse"></div>
+                 </div>
             <p className="text-gray-300 text-lg font-medium">Chargement des genres...</p>
-          </div>
-        ) : (
+             </div>
+          ) : (
           <div className="space-y-8">
             {/* DEBUG: Section avec toutes les tracks */}
             {tracks.length > 0 && (
@@ -974,14 +919,14 @@ export default function DiscoverPage() {
                   {Array.from(new Set(tracks.flatMap(t => t.genre || []))).map(genre => (
                     <span key={genre} className="inline-block bg-purple-500/20 text-purple-300 px-2 py-1 rounded mr-2 mb-1">
                       {genre}
-                    </span>
+                          </span>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-      </motion.div>
+                            </div>
+                          )}
+            </div>
+          )}
+        </motion.div>
       
       {/* Modale "Voir tout" avec AnimatePresence */}
       <AnimatePresence>
@@ -1086,7 +1031,7 @@ export default function DiscoverPage() {
       </AnimatePresence>
     </div>
   );
-}
+} 
 
 // Composant GenreSection avec style Suno
 interface GenreSectionProps {
