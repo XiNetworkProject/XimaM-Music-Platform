@@ -50,8 +50,18 @@ export async function POST(
       .single();
 
     if (updateError) {
-      console.error('❌ Erreur mise à jour featured:', updateError);
-      return NextResponse.json({ error: 'Erreur lors de la mise à jour' }, { status: 500 });
+      console.error('❌ Erreur mise à jour featured:', {
+        id,
+        updateError: updateError.message || updateError,
+        updateData: {
+          is_featured: isFeatured,
+          featured_banner: featuredBanner || null,
+          updated_at: new Date().toISOString()
+        }
+      });
+      return NextResponse.json({ 
+        error: `Erreur lors de la mise à jour: ${updateError.message || updateError}` 
+      }, { status: 500 });
     }
 
     console.log(`✅ Track ${isFeatured ? 'mise en vedette' : 'retirée de la vedette'}: ${id}`);
