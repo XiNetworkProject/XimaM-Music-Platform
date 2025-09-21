@@ -133,12 +133,12 @@ export default function DiscoverPage() {
     if (selectedCategory && selectedCategory !== 'all') {
       // Trouver la catégorie sélectionnée
       const categoryData = categories.find(cat => cat.id === selectedCategory);
-      if (categoryData && GENRE_CATEGORIES[categoryData.name]) {
-        const categoryGenres = GENRE_CATEGORIES[categoryData.name];
+      if (categoryData && categoryData.name in GENRE_CATEGORIES) {
+        const categoryGenres = GENRE_CATEGORIES[categoryData.name as keyof typeof GENRE_CATEGORIES];
         filtered = tracks.filter(track => 
           track.genre && 
           Array.isArray(track.genre) && 
-          track.genre.some(g => (categoryGenres as readonly string[]).includes(g))
+          track.genre.some(g => categoryGenres.includes(g))
         );
       } else {
         // Filtrage direct par genre si c'est un genre spécifique
@@ -708,7 +708,7 @@ export default function DiscoverPage() {
                 const categoryTracks = filteredTracks.filter(track => 
                   track.genre && 
                   Array.isArray(track.genre) && 
-                  track.genre.some(g => (genres as readonly string[]).includes(g))
+                  track.genre.some(g => genres.includes(g))
                 );
 
                 if (categoryTracks.length === 0) return null;
