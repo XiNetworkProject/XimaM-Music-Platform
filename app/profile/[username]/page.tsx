@@ -679,21 +679,23 @@ export default function ProfileUserPage() {
 
   return (
     <div className="min-h-screen text-white">
-      <main className="max-w-3xl mx-auto px-2 pt-0 pb-32">
-        {/* Bannière */}
-        <div className="relative h-40 md:h-56 rounded-b-3xl overflow-hidden mb-8">
+      <main className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 pt-0 pb-32">
+        {/* Bannière - Style Suno */}
+        <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden mb-8 panel-suno border border-[var(--border)]">
           <img
             src={editData.banner || profile.banner || '/default-cover.jpg'}
             alt="Bannière"
             className="w-full h-full object-cover object-center"
           />
+          {/* Gradient overlay pour meilleure lisibilité */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
           {isOwnProfile && (
             <button
-              className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full"
+              className="absolute top-4 right-4 bg-[var(--surface-2)]/80 backdrop-blur-sm hover:bg-[var(--surface-3)] text-white p-2.5 rounded-full transition-all duration-200 border border-[var(--border)]"
               onClick={() => bannerInputRef.current?.click()}
               title="Changer la bannière"
             >
-              <Camera size={20} />
+              <Camera size={18} />
             </button>
           )}
           <input
@@ -710,21 +712,23 @@ export default function ProfileUserPage() {
             }}
           />
         </div>
-        {/* Avatar + infos */}
-        <div className="relative flex flex-col items-center -mt-20 mb-6">
+        {/* Avatar + infos - Style Suno */}
+        <div className="relative flex flex-col items-center -mt-24 mb-8">
           <div className="relative">
-            <img
-              src={editData.avatar || profile.avatar || '/default-avatar.png'}
-              alt="Avatar"
-              className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-xl bg-gray-800"
-            />
+            <div className="w-36 h-36 rounded-full p-1 bg-gradient-to-br from-purple-500 via-pink-500 to-cyan-500 shadow-2xl">
+              <img
+                src={editData.avatar || profile.avatar || '/default-avatar.png'}
+                alt="Avatar"
+                className="w-full h-full rounded-full object-cover bg-gray-800"
+              />
+            </div>
             {isOwnProfile && (
               <button
-                className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 text-white p-2 rounded-full"
+                className="absolute bottom-2 right-2 bg-[var(--surface-2)]/90 backdrop-blur-sm hover:bg-[var(--surface-3)] text-white p-2.5 rounded-full transition-all duration-200 border border-[var(--border)] shadow-lg"
                 onClick={() => fileInputRef.current?.click()}
                 title="Changer l'avatar"
               >
-                <Camera size={18} />
+                <Camera size={16} />
               </button>
             )}
             <input
@@ -741,187 +745,241 @@ export default function ProfileUserPage() {
               }}
             />
           </div>
-          <div className="mt-4 text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <span className="text-2xl font-bold gradient-text">{profile.name}</span>
+          <div className="mt-6 text-center">
+            {/* Nom et badge vérification */}
+            <div className="flex items-center justify-center gap-3 mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                {profile.name}
+              </h1>
               {profile.isVerified && (
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
                   <Check className="text-white w-4 h-4" />
                 </div>
               )}
             </div>
-            <span className="text-white/60 text-sm">@{profile.username}</span>
+            
+            <div className="text-[var(--text-muted)] text-lg mb-1">@{profile.username}</div>
             {profile.isArtist && profile.artistName && (
-              <div className="text-xs text-pink-400 mt-1">Artiste : {profile.artistName}</div>
+              <div className="text-sm text-pink-400 mb-3 font-medium">🎵 {profile.artistName}</div>
             )}
             
-            {/* Statistiques avec nouveaux composants */}
-            <div className="mt-3">
-              <SocialStats
-                userId={profile._id}
-                initialStats={{
-                  followers: profile.followerCount || 0,
-                  following: profile.followingCount || 0
-                }}
-                size="sm"
-                showLabels={true}
-                layout="horizontal"
-                className="justify-center"
-              />
+            {/* Statistiques principales - Style Suno */}
+            <div className="mt-6 mb-6">
+              <div className="flex items-center justify-center gap-6 md:gap-8">
+                <div className="text-center">
+                  <div className="text-2xl md:text-3xl font-bold text-white mb-1">
+                    {profile.followerCount || 0}
+                  </div>
+                  <div className="text-sm text-[var(--text-muted)]">Abonnés</div>
+                </div>
+                <div className="w-px h-12 bg-[var(--border)]"></div>
+                <div className="text-center">
+                  <div className="text-2xl md:text-3xl font-bold text-white mb-1">
+                    {profile.followingCount || 0}
+                  </div>
+                  <div className="text-sm text-[var(--text-muted)]">Abonnements</div>
+                </div>
+                <div className="w-px h-12 bg-[var(--border)]"></div>
+                <div className="text-center">
+                  <div className="text-2xl md:text-3xl font-bold text-white mb-1">
+                    {profile.trackCount || 0}
+                  </div>
+                  <div className="text-sm text-[var(--text-muted)]">Tracks</div>
+                </div>
+              </div>
             </div>
             
-            {/* Badges et statistiques */}
-            <div className="flex flex-wrap justify-center gap-3 mt-3">
-              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full">
-                <Music size={14} /> {profile.trackCount || 0} morceaux
-              </span>
-              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full">
-                <Heart size={14} /> {profile.likeCount || 0} likes
-              </span>
-              <span className="flex items-center gap-1 text-xs bg-white/10 px-3 py-1 rounded-full">
-                <Users size={14} /> {profile.totalPlays || 0} écoutes
-              </span>
+            {/* Badges secondaires */}
+            <div className="flex flex-wrap justify-center gap-2 mt-4">
+              <div className="flex items-center gap-1.5 text-sm bg-[var(--surface-2)] border border-[var(--border)] px-4 py-2 rounded-full">
+                <Heart size={16} className="text-pink-400" />
+                <span>{profile.likeCount || 0} likes</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm bg-[var(--surface-2)] border border-[var(--border)] px-4 py-2 rounded-full">
+                <TrendingUp size={16} className="text-cyan-400" />
+                <span>{profile.totalPlays || 0} écoutes</span>
+              </div>
             </div>
-            {/* Bio */}
+            {/* Bio - Style Suno */}
             {profile.bio && (
-              <div className="mt-4 text-white/80 text-sm max-w-xl mx-auto">
-                {profile.bio.length > bioMaxLength && !showFullBio ? (
-                  <>
-                    {profile.bio.slice(0, bioMaxLength)}...{' '}
-                    <button className="text-purple-400 underline" onClick={() => setShowFullBio(true)}>Voir plus</button>
-                  </>
-                ) : (
-                  <>
-                    {profile.bio}
-                    {profile.bio.length > bioMaxLength && (
-                      <button className="text-purple-400 underline ml-2" onClick={() => setShowFullBio(false)}>Réduire</button>
-                    )}
-                  </>
-                )}
+              <div className="mt-6 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 max-w-2xl mx-auto">
+                <div className="text-[var(--text)] text-sm leading-relaxed">
+                  {profile.bio.length > bioMaxLength && !showFullBio ? (
+                    <>
+                      {profile.bio.slice(0, bioMaxLength)}...{' '}
+                      <button 
+                        className="text-purple-400 hover:text-purple-300 underline font-medium" 
+                        onClick={() => setShowFullBio(true)}
+                      >
+                        Voir plus
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {profile.bio}
+                      {profile.bio.length > bioMaxLength && (
+                        <button 
+                          className="text-purple-400 hover:text-purple-300 underline font-medium ml-2" 
+                          onClick={() => setShowFullBio(false)}
+                        >
+                          Réduire
+                        </button>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
-            {/* Réseaux sociaux */}
-            <div className="flex flex-wrap justify-center gap-2 mt-3">
-              {profile.socialLinks && Object.entries(profile.socialLinks).map(([key, value]) => {
-                const IconComponent = socialIcons[key as keyof typeof socialIcons];
-                return value && (
-                  <a
-                    key={key}
-                    href={value as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-white/70 hover:text-purple-400 text-xs px-2 py-1 bg-white/10 rounded-full"
-                  >
-                    {IconComponent ? (
-                      <IconComponent size={14} className="mr-1" />
-                    ) : (
-                      <Link2 size={14} className="mr-1" />
-                    )}
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                  </a>
-                );
-              })}
-            </div>
-            {/* Boutons actions */}
-            <div className="flex justify-center gap-3 mt-6">
+            
+            {/* Réseaux sociaux - Style Suno */}
+            {profile.socialLinks && Object.entries(profile.socialLinks).some(([_, value]) => value) && (
+              <div className="flex flex-wrap justify-center gap-2 mt-4">
+                {Object.entries(profile.socialLinks).map(([key, value]) => {
+                  const IconComponent = socialIcons[key as keyof typeof socialIcons];
+                  return value && (
+                    <a
+                      key={key}
+                      href={value as string}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-[var(--text)] hover:text-purple-400 text-sm px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-full hover:bg-[var(--surface-3)] transition-all duration-200"
+                    >
+                      {IconComponent ? (
+                        <IconComponent size={16} />
+                      ) : (
+                        <Link2 size={16} />
+                      )}
+                      <span className="hidden sm:inline">{key.charAt(0).toUpperCase() + key.slice(1)}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* Boutons actions - Style Suno */}
+            <div className="flex justify-center gap-3 mt-8">
               {isOwnProfile ? (
-                <button
-                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-5 py-2 rounded-full font-medium hover:from-purple-700 hover:to-pink-700 transition-all"
-                  onClick={handleEdit}
-                  disabled={editMode || uploading}
-                >
-                  <Edit3 size={16} /> Modifier le profil
-                </button>
-              ) : (
-                <>
+                <div className="flex gap-3">
                   <button
-                    className={`flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all ${
+                    className="flex items-center gap-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-medium hover:from-purple-600 hover:to-pink-600 transition-all duration-200 shadow-lg hover:shadow-purple-500/25"
+                    onClick={handleEdit}
+                    disabled={editMode || uploading}
+                  >
+                    <Edit3 size={18} />
+                    <span>Modifier le profil</span>
+                  </button>
+                  <button
+                    className="flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] px-6 py-3 rounded-xl font-medium hover:bg-[var(--surface-3)] transition-all duration-200"
+                    onClick={() => router.push('/stats')}
+                  >
+                    <TrendingUp size={18} />
+                    <span>Statistiques</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <button
+                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg ${
                       profile.isFollowing 
-                        ? 'bg-pink-600 text-white hover:bg-pink-700' 
-                        : 'bg-purple-600 text-white hover:bg-purple-700'
+                        ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600 hover:shadow-pink-500/25' 
+                        : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 hover:shadow-purple-500/25'
                     }`}
                     onClick={handleFollow}
                     disabled={uploading}
                   >
                     {profile.isFollowing ? (
                       <>
-                        <Check size={16} /> Abonné
+                        <Check size={18} />
+                        <span>Abonné</span>
                       </>
                     ) : (
                       <>
-                        <UserPlus size={16} /> Suivre
+                        <UserPlus size={18} />
+                        <span>Suivre</span>
                       </>
                     )}
                   </button>
                   <button
-                    className="flex items-center gap-2 px-5 py-2 rounded-full font-medium transition-all bg-blue-600 text-white hover:bg-blue-700"
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)]"
                     onClick={handleMessageRequest}
                     disabled={uploading}
                   >
-                    <MessageCircle size={16} /> Message
+                    <MessageCircle size={18} />
+                    <span>Message</span>
                   </button>
-                </>
+                </div>
               )}
             </div>
             {error && <div className="text-red-400 text-sm mt-2">{error}</div>}
           </div>
         </div>
 
-        {/* Tabs Navigation */}
-        <div className="panel-suno border border-[var(--border)] rounded-xl">
-          <div className="max-w-4xl mx-auto px-4">
-            <div className="flex space-x-8">
+        {/* Tabs Navigation - Style Suno */}
+        <div className="panel-suno border border-[var(--border)] rounded-xl mb-6">
+          <div className="px-4 sm:px-6">
+            <div className="flex space-x-1">
               <button
                 onClick={() => setActiveTab('tracks')}
-                className={`py-4 px-2 border-b-2 font-medium transition-all duration-200 ${
+                className={`relative py-4 px-4 font-medium transition-all duration-200 rounded-t-lg ${
                   activeTab === 'tracks'
-                    ? 'border-purple-500 text-purple-400'
-                    : 'border-transparent text-gray-300 hover:text-white hover:border-white/30'
+                    ? 'text-purple-400 bg-[var(--surface-2)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]/50'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3">
                   <Music size={20} />
-                  <span className="hidden sm:inline">Tracks</span>
-                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full">
+                  <span className="font-semibold">Tracks</span>
+                  <span className="text-xs bg-[var(--surface-3)] border border-[var(--border)] px-2.5 py-1 rounded-full min-w-[2rem] text-center">
                     {profile?.tracks?.length || 0}
                   </span>
                 </div>
+                {activeTab === 'tracks' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab('playlists')}
-                className={`py-4 px-2 border-b-2 font-medium transition-all duration-200 ${
+                className={`relative py-4 px-4 font-medium transition-all duration-200 rounded-t-lg ${
                   activeTab === 'playlists'
-                    ? 'border-purple-500 text-purple-400'
-                    : 'border-transparent text-gray-300 hover:text-white hover:border-white/30'
+                    ? 'text-purple-400 bg-[var(--surface-2)]'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]/50'
                 }`}
               >
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-3">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
                   </svg>
-                  <span className="hidden sm:inline">Playlists</span>
-                  <span className="text-xs bg-white/10 px-2 py-1 rounded-full">
+                  <span className="font-semibold">Playlists</span>
+                  <span className="text-xs bg-[var(--surface-3)] border border-[var(--border)] px-2.5 py-1 rounded-full min-w-[2rem] text-center">
                     {profile?.playlists?.length || 0}
                   </span>
                 </div>
+                {activeTab === 'playlists' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                )}
               </button>
             </div>
           </div>
         </div>
 
-        {/* Tab Content */}
-        <div className="flex-1 overflow-hidden">
-          <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Tab Content - Style Suno */}
+        <div className="panel-suno border border-[var(--border)] rounded-xl">
+          <div className="p-4 sm:p-6">
             {activeTab === 'tracks' && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">Tracks</h3>
+                  <div>
+                    <h3 className="text-2xl font-bold text-[var(--text)] mb-1">Tracks</h3>
+                    <p className="text-[var(--text-muted)] text-sm">
+                      {userTracks.length} track{userTracks.length !== 1 ? 's' : ''} publié{userTracks.length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
                   <div className="flex items-center space-x-2">
                     <button 
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-2.5 rounded-lg transition-all duration-200 ${
                         trackViewMode === 'list' 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' 
+                          : 'bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-3)] hover:text-[var(--text)]'
                       }`}
                       onClick={() => setTrackViewMode('list')}
                       title="Vue liste"
@@ -931,10 +989,10 @@ export default function ProfileUserPage() {
                       </svg>
                     </button>
                     <button 
-                      className={`p-2 rounded-lg transition-colors ${
+                      className={`p-2.5 rounded-lg transition-all duration-200 ${
                         trackViewMode === 'grid' 
-                          ? 'bg-purple-600 text-white' 
-                          : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                          ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' 
+                          : 'bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--surface-3)] hover:text-[var(--text)]'
                       }`}
                       onClick={() => setTrackViewMode('grid')}
                       title="Vue grille"
