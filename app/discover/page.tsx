@@ -1113,84 +1113,53 @@ const GenreSection: React.FC<GenreSectionProps> = ({ title, tracks, onPlayTrack 
   };
 
   return (
-    <div style={{ opacity: 1, transform: 'none' }}>
-      <div className="w-full py-4 bg-[var(--bg)] mb-0 md:mb-2" aria-label={`section-${title}`}>
-        <div className="h-full w-full overflow-hidden">
-          <div className="mb-2 flex w-full flex-row justify-between pb-2">
-            <div className="flex items-center gap-4">
-              <a className="w-auto" href={`/style/${title.toLowerCase()}`}>
-                <h1 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">
-                  {title}
-                </h1>
-              </a>
-            </div>
-            <a className="flex flex-1 items-center justify-end" href={`/style/${title.toLowerCase()}`}>
-              <div className="line-clamp-1 cursor-pointer gap-2 font-sans text-sm hover:underline text-[var(--text-muted)]">
-                Show More
-              </div>
-              <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-[var(--text-muted)]">
-                <g>
-                  <path d="m13.902 11.702-3.9-3.9a.99.99 0 1 1 1.4-1.4l4.593 4.593a1 1 0 0 1 0 1.414l-4.593 4.593a.99.99 0 1 1-1.4-1.4z"></path>
-                </g>
-              </svg>
-            </a>
+    <section className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
+      <div className="h-full w-full overflow-hidden">
+        <div className="mb-2 flex w-full flex-row justify-between pb-2">
+          <div className="flex items-center gap-4">
+            <h2 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">{title}</h2>
           </div>
-          <div className="relative w-full overflow-hidden" style={{ height: '24rem' }}>
+          <div className="hidden sm:flex items-center gap-2">
             <button 
-              className="absolute top-0 left-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
-              aria-label="Scroll left"
+              aria-label="Scroll left" 
               onClick={scrollLeft}
+              className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75"
             >
-              <div 
-                aria-label="Previous"
-                className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2"
-                style={{ top: '9rem' }}
-              >
-                <span className="relative flex flex-row items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
-                    <g>
-                      <path d="m9.398 12.005 6.194-6.193q.315-.316.305-.748a1.06 1.06 0 0 0-.326-.748Q15.255 4 14.823 4t-.748.316l-6.467 6.488a1.7 1.7 0 0 0-.38.57 1.7 1.7 0 0 0-.126.631q0 .315.127.632.126.315.379.569l6.488 6.488q.316.316.738.306a1.05 1.05 0 0 0 .737-.327q.316-.316.316-.748t-.316-.748z"></path>
-                    </g>
-                  </svg>
-                </span>
-              </div>
+              <span className="relative flex flex-row items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
+                  <path d="m9.398 12.005 6.194-6.193q.315-.316.305-.748a1.06 1.06 0 0 0-.326-.748Q15.255 4 14.823 4t-.748.316l-6.467 6.488a1.7 1.7 0 0 0-.38.57 1.7 1.7 0 0 0-.126.631q0 .315.127.632.126.315.379.569l6.488 6.488q.316.316.738.306a1.05 1.05 0 0 0 .737-.327q.316-.316.316-.748t-.316-.748z"></path>
+                </svg>
+              </span>
             </button>
-            <div className="h-full w-full overflow-hidden mask-[linear-gradient(to_right,transparent,black_20%,black_80%,transparent)] mask-size-[100%_100%] transition-[mask-image] duration-500">
-              <section 
-                id={sectionId}
-                className="flex h-auto w-full overflow-x-auto scroll-smooth [&::-webkit-overflow-scrolling]:touch-auto [&::-webkit-scrollbar]:hidden gap-3 px-4"
-                style={{ height: '384px', scrollbarWidth: 'none' }}
-              >
-                {tracks.slice(0, 20).map((track, index) => (
-                  <div key={track._id} className="shrink-0">
-                    <TrackCard track={track} onPlay={onPlayTrack} />
-                  </div>
-                ))}
-              </section>
-            </div>
             <button 
-              className="absolute top-0 right-0 z-2 hidden h-full w-16 items-center justify-center transition ease-linear sm:flex pointer-events-auto opacity-100"
-              aria-label="Scroll right"
+              aria-label="Scroll right" 
               onClick={scrollRight}
+              className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75"
             >
-              <div 
-                aria-label="Next"
-                className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] absolute left-0 -translate-y-1/2"
-                style={{ top: '9rem' }}
-              >
-                <span className="relative flex flex-row items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
-                    <g>
-                      <path d="M14.602 12.005 8.407 5.812a.99.99 0 0 1-.305-.748q.01-.432.326-.748T9.177 4t.748.316l6.467 6.488q.253.253.38.57.126.315.126.631 0 .315-.127.632-.126.315-.379.569l-6.488 6.488a.97.97 0 0 1-.738.306 1.05 1.05 0 0 1-.737-.327q-.316-.316-.316-.748t.316-.748z"></path>
-                    </g>
-                  </svg>
-                </span>
-              </div>
+              <span className="relative flex flex-row items-center justify-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
+                  <path d="M14.602 12.005 8.407 5.812a.99.99 0 0 1-.305-.748q.01-.432.326-.748T9.177 4t.748.316l6.467 6.488q.253.253.38.57.126.315.126.631 0 .315-.127.632-.126.315-.379.569l-6.488 6.488a.97.97 0 0 1-.738.306 1.05 1.05 0 0 1-.737-.327q-.316-.316-.316-.748t.316-.748z"></path>
+                </svg>
+              </span>
             </button>
           </div>
         </div>
+        <div className="relative w-full overflow-hidden" style={{ height: '20rem' }}>
+          <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_90%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
+            <section 
+              id={sectionId}
+              className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-3 px-1"
+            >
+              {tracks.slice(0, 20).map((track, index) => (
+                <div key={track._id} className="shrink-0">
+                  <TrackCard track={track} onPlay={onPlayTrack} />
+                </div>
+              ))}
+            </section>
+          </div>
+        </div>
       </div>
-    </div>
+    </section>
   );
 };
 
@@ -1304,6 +1273,7 @@ const formatNumber = (num: number) => {
   }
   return num.toString();
 };
+
 
 
 
