@@ -3,30 +3,35 @@ import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    // Vérifier si les tables existent
-    const { data: tables, error: tablesError } = await supabaseAdmin
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-      .in('table_name', ['comments', 'comment_likes']);
+    // Test simple : essayer de sélectionner depuis comments
+    const { data: comments, error: commentsError } = await supabaseAdmin
+      .from('comments')
+      .select('id')
+      .limit(1);
 
-    if (tablesError) {
-      return NextResponse.json({ 
-        error: 'Erreur vérification tables', 
-        details: tablesError.message 
-      }, { status: 500 });
-    }
+    const commentsExists = !commentsError || commentsError.code !== 'PGRST116';
+    
+    // Test simple : essayer de sélectionner depuis comment_likes
+    const { data: likes, error: likesError } = await supabaseAdmin
+      .from('comment_likes')
+      .select('id')
+      .limit(1);
 
-    const tableNames = tables?.map(t => t.table_name) || [];
+    const likesExists = !likesError || likesError.code !== 'PGRST116';
     
     return NextResponse.json({
       success: true,
       tablesExist: {
-        comments: tableNames.includes('comments'),
-        comment_likes: tableNames.includes('comment_likes')
+        comments: commentsExists,
+        comment_likes: likesExists
       },
-      allTables: tableNames,
-      message: 'Vérifiez que les tables comments et comment_likes existent'
+      errors: {
+        comments: commentsError?.message || null,
+        likes: likesError?.message || null
+      },
+      message: commentsExists && likesExists 
+        ? 'Tables commentaires existent' 
+        : 'Tables commentaires manquantes - exécutez scripts/fix_comments_schema.sql'
     });
 
   } catch (error) {

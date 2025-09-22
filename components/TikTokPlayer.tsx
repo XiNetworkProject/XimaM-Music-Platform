@@ -121,10 +121,11 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       if (!track?.audioUrl) return;
       
       try {
-        // Créer un élément audio pour précharger
-        const audio = new Audio(track.audioUrl);
-        audio.preload = 'metadata';
-        audio.crossOrigin = 'anonymous';
+            // Créer un élément audio pour précharger
+            const audio = new Audio(track.audioUrl);
+            audio.preload = 'metadata';
+            audio.crossOrigin = 'anonymous';
+            audio.cache = 'reload'; // Forcer le rechargement pour éviter les erreurs de cache
         
         return new Promise<void>((resolve) => {
           const handleCanPlay = () => {
