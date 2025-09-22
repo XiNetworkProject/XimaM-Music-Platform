@@ -62,6 +62,17 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const [lastTapTs, setLastTapTs] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
   const [commentsSort, setCommentsSort] = useState<'top' | 'recent'>('top');
+  interface CommentItem {
+    id: string;
+    authorName: string;
+    avatar?: string;
+    text: string;
+    createdAt: number; // epoch ms
+    likes: number;
+    isLiked?: boolean;
+  }
+  const [commentItems, setCommentItems] = useState<CommentItem[]>([]);
+  const [commentText, setCommentText] = useState('');
   const analyserRef = useRef<AnalyserNode | null>(null);
   const levelArrayRef = useRef<Uint8Array | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -441,7 +452,64 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     if (!audioState.duration || audioState.duration <= 0 || currentTrack?._id === 'radio-mixx-party') return 0;
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
-  const commentsCount = useMemo(() => (currentTrack?.comments?.length || 0), [currentTrack?.comments]);
+  const commentsCount = useMemo(() => commentItems.length, [commentItems.length]);
+
+  // Seed comments when track changes (UI-only for now)
+  useEffect(() => {
+    const seed = () => {
+      const now = Date.now();
+      const base = (currentTrack?.comments || []).slice(0, 5);
+      const generated: CommentItem[] = base.map((text, i) => ({
+        id: `${currentTrack?._id || 't'}-${i}`,
+        authorName: i % 2 === 0 ? 'Synaura User' : 'Guest',
+        avatar: '/default-avatar.jpg',
+        text: typeof text === 'string' && text.trim().length > 0 ? text : 'Trop lourd 🔥',
+        createdAt: now - (i + 1) * 1000 * 60 * 3,
+        likes: Math.floor(Math.random() * 12),
+        isLiked: false,
+      }));
+      setCommentItems(generated);
+      setCommentText('');
+    };
+    if (currentTrack?._id) seed();
+  }, [currentTrack?._id]);
+
+  const sortedComments = useMemo(() => {
+    const arr = [...commentItems];
+    if (commentsSort === 'top') {
+      arr.sort((a, b) => b.likes - a.likes || b.createdAt - a.createdAt);
+    } else {
+      arr.sort((a, b) => b.createdAt - a.createdAt);
+    }
+    return arr;
+  }, [commentItems, commentsSort]);
+
+  const handleToggleLikeComment = useCallback((id: string) => {
+    setCommentItems(prev => prev.map(c => {
+      if (c.id !== id) return c;
+      const isLiked = !c.isLiked;
+      return { ...c, isLiked, likes: Math.max(0, c.likes + (isLiked ? 1 : -1)) };
+    }));
+    try { (navigator as any)?.vibrate?.(8); } catch {}
+  }, []);
+
+  const handleSendComment = useCallback(() => {
+    const text = commentText.trim();
+    if (!text) return;
+    const now = Date.now();
+    const newItem: CommentItem = {
+      id: `local-${now}`,
+      authorName: 'Vous',
+      avatar: '/default-avatar.jpg',
+      text,
+      createdAt: now,
+      likes: 0,
+      isLiked: false,
+    };
+    setCommentItems(prev => [newItem, ...prev]);
+    setCommentText('');
+    try { (navigator as any)?.vibrate?.(10); } catch {}
+  }, [commentText]);
 
   // Effet audio‑réactif: récupérer l'analyser du provider et mesurer le niveau
   useEffect(() => {
@@ -803,7 +871,35 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {/* À connecter à l'API plus tard */}
+                          {sortedComments.map((c) => (
+                            <div key={c.id} className="flex items-start gap-3">
+                              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
+                                <img src={c.avatar || '/default-avatar.jpg'} alt={c.authorName} className="w-full h-full object-cover" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-white text-sm font-medium truncate">{c.authorName}</span>
+                                    <span className="text-white/50 text-xs">{new Date(c.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                  </div>
+                                  <button className="text-white/40 hover:text-white/70">
+                                    <MoreVertical size={16} />
+                                  </button>
+                                </div>
+                                <div className="mt-1 text-white/85 text-sm leading-5 break-words">{c.text}</div>
+                                <div className="mt-2 flex items-center gap-3 text-xs">
+                                  <button
+                                    onClick={() => handleToggleLikeComment(c.id)}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors ${c.isLiked ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white bg-white/10'}`}
+                                  >
+                                    <Heart size={14} className={c.isLiked ? 'fill-current' : ''} />
+                                    <span>{c.likes}</span>
+                                  </button>
+                                  <button className="text-white/60 hover:text-white">Répondre</button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -817,8 +913,15 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                         <input
                           placeholder="Écrire un commentaire…"
                           className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none"
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(); }}
                         />
-                        <button className="shrink-0 px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center gap-1">
+                        <button
+                          onClick={handleSendComment}
+                          disabled={!commentText.trim()}
+                          className="shrink-0 px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 disabled:opacity-50 text-white flex items-center gap-1"
+                        >
                           <Send size={16} />
                           Envoyer
                         </button>
