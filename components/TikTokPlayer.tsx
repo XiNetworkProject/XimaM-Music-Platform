@@ -454,25 +454,29 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
   const commentsCount = useMemo(() => commentItems.length, [commentItems.length]);
 
-  // Seed comments when track changes (UI-only for now)
+  // Charger les commentaires depuis l'API
+  const loadComments = useCallback(async () => {
+    if (!currentTrack?._id) return;
+    
+    try {
+      const response = await fetch(`/api/comments/${currentTrack._id}?sort=${commentsSort}`);
+      if (!response.ok) throw new Error('Erreur chargement commentaires');
+      
+      const data = await response.json();
+      if (data.success) {
+        setCommentItems(data.comments);
+      }
+    } catch (error) {
+      console.error('Erreur chargement commentaires:', error);
+    }
+  }, [currentTrack?._id, commentsSort]);
+
+  // Charger les commentaires au changement de track ou de tri
   useEffect(() => {
-    const seed = () => {
-      const now = Date.now();
-      const base = (currentTrack?.comments || []).slice(0, 5);
-      const generated: CommentItem[] = base.map((text, i) => ({
-        id: `${currentTrack?._id || 't'}-${i}`,
-        authorName: i % 2 === 0 ? 'Synaura User' : 'Guest',
-        avatar: '/default-avatar.jpg',
-        text: typeof text === 'string' && text.trim().length > 0 ? text : 'Trop lourd 🔥',
-        createdAt: now - (i + 1) * 1000 * 60 * 3,
-        likes: Math.floor(Math.random() * 12),
-        isLiked: false,
-      }));
-      setCommentItems(generated);
-      setCommentText('');
-    };
-    if (currentTrack?._id) seed();
-  }, [currentTrack?._id]);
+    if (currentTrack?._id) {
+      loadComments();
+    }
+  }, [currentTrack?._id, commentsSort, loadComments]);
 
   const sortedComments = useMemo(() => {
     const arr = [...commentItems];
@@ -484,32 +488,52 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     return arr;
   }, [commentItems, commentsSort]);
 
-  const handleToggleLikeComment = useCallback((id: string) => {
-    setCommentItems(prev => prev.map(c => {
-      if (c.id !== id) return c;
-      const isLiked = !c.isLiked;
-      return { ...c, isLiked, likes: Math.max(0, c.likes + (isLiked ? 1 : -1)) };
-    }));
-    try { (navigator as any)?.vibrate?.(8); } catch {}
+  const handleToggleLikeComment = useCallback(async (id: string) => {
+    try {
+      const response = await fetch(`/api/comments/${id}/like`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      
+      if (!response.ok) throw new Error('Erreur like commentaire');
+      
+      const data = await response.json();
+      if (data.success) {
+        setCommentItems(prev => prev.map(c => 
+          c.id === id 
+            ? { ...c, isLiked: data.isLiked, likes: data.likesCount }
+            : c
+        ));
+        try { (navigator as any)?.vibrate?.(8); } catch {}
+      }
+    } catch (error) {
+      console.error('Erreur like commentaire:', error);
+    }
   }, []);
 
-  const handleSendComment = useCallback(() => {
+  const handleSendComment = useCallback(async () => {
     const text = commentText.trim();
-    if (!text) return;
-    const now = Date.now();
-    const newItem: CommentItem = {
-      id: `local-${now}`,
-      authorName: 'Vous',
-      avatar: '/default-avatar.jpg',
-      text,
-      createdAt: now,
-      likes: 0,
-      isLiked: false,
-    };
-    setCommentItems(prev => [newItem, ...prev]);
-    setCommentText('');
-    try { (navigator as any)?.vibrate?.(10); } catch {}
-  }, [commentText]);
+    if (!text || !currentTrack?._id) return;
+    
+    try {
+      const response = await fetch('/api/comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: currentTrack._id, text }),
+      });
+      
+      if (!response.ok) throw new Error('Erreur envoi commentaire');
+      
+      const data = await response.json();
+      if (data.success) {
+        setCommentItems(prev => [data.comment, ...prev]);
+        setCommentText('');
+        try { (navigator as any)?.vibrate?.(10); } catch {}
+      }
+    } catch (error) {
+      console.error('Erreur envoi commentaire:', error);
+    }
+  }, [commentText, currentTrack?._id]);
 
   // Effet audio‑réactif: récupérer l'analyser du provider et mesurer le niveau
   useEffect(() => {
