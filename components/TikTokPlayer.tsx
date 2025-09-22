@@ -920,7 +920,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           {sortedComments.map((c) => (
                             <div key={c.id} className="flex items-start gap-3">
                               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <img src={c.avatar || '/default-avatar.jpg'} alt={c.authorName} className="w-full h-full object-cover" />
+                                <img src={c.avatar || 'https://via.placeholder.com/32x32/6366f1/ffffff?text=U'} alt={c.authorName} className="w-full h-full object-cover" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
@@ -963,15 +963,10 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           onChange={(e) => setCommentText(e.target.value)}
                           onKeyDown={(e) => { 
                             e.stopPropagation(); // Empêcher la propagation vers les handlers globaux
-                            e.stopImmediatePropagation(); // Empêcher complètement la propagation
                             if (e.key === 'Enter') {
                               e.preventDefault();
                               handleSendComment();
                             }
-                          }}
-                          onKeyUp={(e) => {
-                            e.stopPropagation();
-                            e.stopImmediatePropagation();
                           }}
                         />
                         <button

@@ -88,7 +88,7 @@ export async function GET(
         likes: comment.likes_count,
         createdAt: new Date(comment.created_at).getTime(),
         authorName: profile?.name || profile?.username || 'Utilisateur',
-        avatar: profile?.avatar_url || '/default-avatar.jpg',
+        avatar: profile?.avatar_url || 'https://via.placeholder.com/32x32/6366f1/ffffff?text=U',
         isLiked: userLikes.includes(comment.id),
       };
     }) || [];
