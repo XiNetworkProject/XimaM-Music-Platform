@@ -532,16 +532,28 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
         body: JSON.stringify({ trackId: currentTrack._id, text }),
       });
       
-      if (!response.ok) throw new Error('Erreur envoi commentaire');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Erreur API commentaires:', response.status, errorData);
+        
+        if (response.status === 401) {
+          toast.error('Vous devez être connecté pour commenter');
+          return;
+        }
+        
+        throw new Error(`Erreur ${response.status}: ${errorData.error || 'Erreur serveur'}`);
+      }
       
       const data = await response.json();
       if (data.success) {
         setCommentItems(prev => [data.comment, ...prev]);
         setCommentText('');
         try { (navigator as any)?.vibrate?.(10); } catch {}
+        toast.success('Commentaire ajouté !');
       }
     } catch (error) {
       console.error('Erreur envoi commentaire:', error);
+      toast.error('Erreur lors de l\'envoi du commentaire');
     }
   }, [commentText, currentTrack?._id]);
 
@@ -949,7 +961,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none"
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(); }}
+                          onKeyDown={(e) => { 
+                            e.stopPropagation(); // Empêcher la propagation vers les handlers globaux
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleSendComment();
+                            }
+                          }}
                         />
                         <button
                           onClick={handleSendComment}
