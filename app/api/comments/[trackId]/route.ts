@@ -28,7 +28,7 @@ export async function GET(
       return NextResponse.json({ error: 'Track introuvable' }, { status: 404 });
     }
 
-    // Construire la requête avec tri
+    // Construire la requête avec tri (sans jointure pour éviter l'erreur 500)
     let query = supabaseAdmin
       .from('comments')
       .select(`
@@ -36,12 +36,7 @@ export async function GET(
         text,
         likes_count,
         created_at,
-        user_id,
-        profiles (
-          username,
-          name,
-          avatar_url
-        )
+        user_id
       `)
       .eq('track_id', trackId);
 
@@ -71,14 +66,14 @@ export async function GET(
       userLikes = likes?.map(l => l.comment_id) || [];
     }
 
-    // Formater les commentaires
+    // Formater les commentaires (sans données profil pour l'instant)
     const formattedComments = comments?.map(comment => ({
       id: comment.id,
       text: comment.text,
       likes: comment.likes_count,
       createdAt: new Date(comment.created_at).getTime(),
-      authorName: comment.profiles?.[0]?.name || comment.profiles?.[0]?.username || 'Utilisateur',
-      avatar: comment.profiles?.[0]?.avatar_url || '/default-avatar.jpg',
+      authorName: 'Utilisateur', // Placeholder en attendant la correction de la jointure
+      avatar: '/default-avatar.jpg',
       isLiked: userLikes.includes(comment.id),
     })) || [];
 

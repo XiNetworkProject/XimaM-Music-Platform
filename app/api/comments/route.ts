@@ -44,12 +44,7 @@ export async function POST(request: NextRequest) {
         text,
         likes_count,
         created_at,
-        user_id,
-        profiles (
-          username,
-          name,
-          avatar_url
-        )
+        user_id
       `)
       .single();
 
@@ -65,8 +60,8 @@ export async function POST(request: NextRequest) {
         text: comment.text,
         likes: comment.likes_count,
         createdAt: new Date(comment.created_at).getTime(),
-        authorName: comment.profiles?.[0]?.name || comment.profiles?.[0]?.username || 'Utilisateur',
-        avatar: comment.profiles?.[0]?.avatar_url || '/default-avatar.jpg',
+        authorName: 'Vous', // Placeholder en attendant la correction de la jointure
+        avatar: '/default-avatar.jpg',
         isLiked: false,
       }
     });
