@@ -61,7 +61,12 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [lastTapTs, setLastTapTs] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
-  const [commentsSort, setCommentsSort] = useState<'top' | 'recent'>('top');
+  const [commentsSort, setCommentsSort] = useState<'top' | 'recent'>('recent');
+  const [commentItems, setCommentItems] = useState<CommentItem[]>([]);
+  const [commentText, setCommentText] = useState('');
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
   interface CommentItem {
     id: string;
     authorName: string;
@@ -71,8 +76,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     likes: number;
     isLiked?: boolean;
   }
-  const [commentItems, setCommentItems] = useState<CommentItem[]>([]);
-  const [commentText, setCommentText] = useState('');
   const analyserRef = useRef<AnalyserNode | null>(null);
   const levelArrayRef = useRef<Uint8Array | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -121,10 +124,10 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       if (!track?.audioUrl) return;
       
       try {
-            // Créer un élément audio pour précharger
-            const audio = new Audio(track.audioUrl);
-            audio.preload = 'metadata';
-            audio.crossOrigin = 'anonymous';
+        // Créer un élément audio pour précharger
+        const audio = new Audio(track.audioUrl);
+        audio.preload = 'metadata';
+        audio.crossOrigin = 'anonymous';
         
         return new Promise<void>((resolve) => {
           const handleCanPlay = () => {
@@ -456,37 +459,30 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
   // Charger les commentaires depuis l'API
   const loadComments = useCallback(async () => {
-    if (!currentTrack?._id) return;
+    if (!currentTrack?._id || isLoadingComments) return;
     
+    setIsLoadingComments(true);
     try {
-      const response = await fetch(`/api/comments/${currentTrack._id}?sort=${commentsSort}`);
-      if (!response.ok) {
-        console.error('Erreur API commentaires:', response.status, response.statusText);
-        // Fallback: garder les commentaires existants ou vider la liste
-        setCommentItems([]);
-        return;
-      }
-      
-      const data = await response.json();
-      if (data.success) {
-        setCommentItems(data.comments || []);
-      } else {
-        console.error('Erreur données commentaires:', data.error);
-        setCommentItems([]);
+      const response = await fetch(`/api/tracks/${currentTrack._id}/comments?sort=${commentsSort}&limit=50`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCommentItems(data.comments || []);
+        }
       }
     } catch (error) {
       console.error('Erreur chargement commentaires:', error);
-      // Fallback: vider la liste en cas d'erreur
-      setCommentItems([]);
+    } finally {
+      setIsLoadingComments(false);
     }
-  }, [currentTrack?._id, commentsSort]);
+  }, [currentTrack?._id, commentsSort, isLoadingComments]);
 
-  // Charger les commentaires au changement de track ou de tri
+  // Charger les commentaires quand la track change ou que le tri change
   useEffect(() => {
-    if (currentTrack?._id) {
+    if (currentTrack?._id && commentsOpen) {
       loadComments();
     }
-  }, [currentTrack?._id, commentsSort, loadComments]);
+  }, [currentTrack?._id, commentsOpen, commentsSort, loadComments]);
 
   const sortedComments = useMemo(() => {
     const arr = [...commentItems];
@@ -499,63 +495,59 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   }, [commentItems, commentsSort]);
 
   const handleToggleLikeComment = useCallback(async (id: string) => {
+    if (!currentTrack?._id) return;
+    
     try {
-      const response = await fetch(`/api/comments/${id}/like`, {
+      const response = await fetch(`/api/tracks/${currentTrack._id}/comments/${id}/like`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
       
-      if (!response.ok) throw new Error('Erreur like commentaire');
-      
-      const data = await response.json();
-      if (data.success) {
-        setCommentItems(prev => prev.map(c => 
-          c.id === id 
-            ? { ...c, isLiked: data.isLiked, likes: data.likesCount }
-            : c
-        ));
-        try { (navigator as any)?.vibrate?.(8); } catch {}
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCommentItems(prev => prev.map(c => 
+            c.id === id 
+              ? { ...c, isLiked: data.isLiked, likes: data.likesCount }
+              : c
+          ));
+          try { (navigator as any)?.vibrate?.(8); } catch {}
+        }
       }
     } catch (error) {
       console.error('Erreur like commentaire:', error);
     }
-  }, []);
+  }, [currentTrack?._id]);
 
   const handleSendComment = useCallback(async () => {
     const text = commentText.trim();
-    if (!text || !currentTrack?._id) return;
+    if (!text || !currentTrack?._id || isSubmittingComment) return;
     
+    setIsSubmittingComment(true);
     try {
-      const response = await fetch('/api/comments', {
+      const response = await fetch(`/api/tracks/${currentTrack._id}/comments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ trackId: currentTrack._id, text }),
+        body: JSON.stringify({ text }),
       });
       
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Erreur API commentaires:', response.status, errorData);
-        
-        if (response.status === 401) {
-          toast.error('Vous devez être connecté pour commenter');
-          return;
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setCommentItems(prev => [data.comment, ...prev]);
+          setCommentText('');
+          try { (navigator as any)?.vibrate?.(10); } catch {}
         }
-        
-        throw new Error(`Erreur ${response.status}: ${errorData.error || 'Erreur serveur'}`);
-      }
-      
-      const data = await response.json();
-      if (data.success) {
-        setCommentItems(prev => [data.comment, ...prev]);
-        setCommentText('');
-        try { (navigator as any)?.vibrate?.(10); } catch {}
-        toast.success('Commentaire ajouté !');
+      } else {
+        const error = await response.json();
+        console.error('Erreur envoi commentaire:', error.error);
       }
     } catch (error) {
       console.error('Erreur envoi commentaire:', error);
-      toast.error('Erreur lors de l\'envoi du commentaire');
+    } finally {
+      setIsSubmittingComment(false);
     }
-  }, [commentText, currentTrack?._id]);
+  }, [commentText, currentTrack?._id, isSubmittingComment]);
 
   // Effet audio‑réactif: récupérer l'analyser du provider et mesurer le niveau
   useEffect(() => {
@@ -909,10 +901,15 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
                     {/* Liste des commentaires */}
                     <div className="px-4 pb-24 max-h-[45vh] overflow-y-auto custom-scroll">
-                      {commentsCount === 0 ? (
+                      {isLoadingComments ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-white/60 text-sm">
+                          <Loader2 size={22} className="mb-2 text-white/50 animate-spin" />
+                          <div>Chargement des commentaires...</div>
+                        </div>
+                      ) : commentsCount === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-white/60 text-sm">
                           <MessageCircle size={22} className="mb-2 text-white/50" />
-                          <div>Aucun commentaire pour l’instant.</div>
+                          <div>Aucun commentaire pour l'instant.</div>
                           <div className="text-white/40">Soyez le premier à réagir ✨</div>
                         </div>
                       ) : (
@@ -920,7 +917,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           {sortedComments.map((c) => (
                             <div key={c.id} className="flex items-start gap-3">
                               <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <img src={c.avatar || 'https://via.placeholder.com/32x32/6366f1/ffffff?text=U'} alt={c.authorName} className="w-full h-full object-cover" />
+                                <img src={c.avatar || '/default-avatar.jpg'} alt={c.authorName} className="w-full h-full object-cover" />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between">
@@ -961,21 +958,19 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none"
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => { 
-                            e.stopPropagation(); // Empêcher la propagation vers les handlers globaux
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleSendComment();
-                            }
-                          }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(); }}
                         />
                         <button
                           onClick={handleSendComment}
-                          disabled={!commentText.trim()}
+                          disabled={!commentText.trim() || isSubmittingComment}
                           className="shrink-0 px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 disabled:opacity-50 text-white flex items-center gap-1"
                         >
-                          <Send size={16} />
-                          Envoyer
+                          {isSubmittingComment ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <Send size={16} />
+                          )}
+                          {isSubmittingComment ? 'Envoi...' : 'Envoyer'}
                         </button>
                       </div>
                     </div>
