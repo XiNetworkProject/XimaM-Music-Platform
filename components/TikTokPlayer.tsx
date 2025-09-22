@@ -5,7 +5,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown, Send, Smile } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
@@ -61,22 +61,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [lastTapTs, setLastTapTs] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
-  const [commentsSort, setCommentsSort] = useState<'top' | 'recent'>('top');
-  interface CommentItem {
-    id: string;
-    authorName: string;
-    avatar?: string;
-    text: string;
-    createdAt: number; // epoch ms
-    likes: number;
-    isLiked?: boolean;
-  }
-  const [commentItems, setCommentItems] = useState<CommentItem[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const levelArrayRef = useRef<Uint8Array | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const [audioLevel, setAudioLevel] = useState(0);
 
   // Variants d'animation de page
   const pageVariants = useMemo(() => ({
@@ -304,10 +288,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
   // Gestion des touches clavier
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
-    const target = event.target as HTMLElement | null;
-    const tag = (target?.tagName || '').toLowerCase();
-    const isTyping = tag === 'input' || tag === 'textarea' || (target as any)?.isContentEditable;
-    if (commentsOpen || isTyping) return;
     if (event.code === 'ArrowUp' || event.code === 'ArrowLeft') {
       event.preventDefault();
       handlePreviousTrack();
@@ -321,7 +301,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       event.preventDefault();
       onClose();
     }
-  }, [handlePreviousTrack, handleNextTrack, togglePlay, onClose, commentsOpen]);
+  }, [handlePreviousTrack, handleNextTrack, togglePlay, onClose]);
 
   // Gestion du seek
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -456,141 +436,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     if (!audioState.duration || audioState.duration <= 0 || currentTrack?._id === 'radio-mixx-party') return 0;
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
-  const commentsCount = useMemo(() => commentItems.length, [commentItems.length]);
-
-  // Charger les commentaires depuis l'API quand on ouvre le sheet ou change de piste/tri
-  const loadComments = useCallback(async () => {
-    if (!currentTrack?._id) return;
-    try {
-      const response = await fetch(`/api/tracks/${currentTrack._id}/comments?sort=${commentsSort}&limit=50`, { headers: { 'Cache-Control': 'no-store' } });
-      if (response.ok) {
-        const data = await response.json();
-        if (data?.comments) {
-          const mapped: CommentItem[] = data.comments.map((c: any) => ({
-            id: c.id,
-            authorName: c.authorName || c.user?.name || c.user?.username || 'Utilisateur',
-            avatar: c.avatar || c.user?.avatar || '/default-avatar.jpg',
-            text: c.text || c.content || '',
-            createdAt: new Date(c.createdAt || c.created_at || Date.now()).getTime(),
-            likes: c.likesCount ?? c.likes ?? 0,
-            isLiked: !!c.isLiked,
-          }));
-          setCommentItems(mapped);
-        } else {
-          setCommentItems([]);
-        }
-      } else {
-        setCommentItems([]);
-      }
-    } catch {
-      setCommentItems([]);
-    }
-  }, [currentTrack?._id, commentsSort]);
-
-  useEffect(() => {
-    if (commentsOpen) {
-      loadComments();
-    }
-  }, [commentsOpen, loadComments]);
-
-  useEffect(() => {
-    // recharger quand la piste change
-    if (commentsOpen && currentTrack?._id) {
-      loadComments();
-    }
-  }, [currentTrack?._id]);
-
-  const sortedComments = useMemo(() => {
-    const arr = [...commentItems];
-    if (commentsSort === 'top') {
-      arr.sort((a, b) => b.likes - a.likes || b.createdAt - a.createdAt);
-    } else {
-      arr.sort((a, b) => b.createdAt - a.createdAt);
-    }
-    return arr;
-  }, [commentItems, commentsSort]);
-
-  const handleToggleLikeComment = useCallback(async (id: string) => {
-    if (!currentTrack?._id) return;
-    // Optimistic toggle
-    setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !c.isLiked, likes: Math.max(0, c.likes + (!c.isLiked ? 1 : -1)) } : c));
-    try {
-      const target = commentItems.find(c => c.id === id);
-      const like = !(target?.isLiked);
-      const response = await fetch(`/api/tracks/${currentTrack._id}/comments/${id}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ like }) });
-      if (response.ok) {
-        const data = await response.json();
-        setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !!data.isLiked, likes: typeof data.likesCount === 'number' ? data.likesCount : c.likes } : c));
-        try { (navigator as any)?.vibrate?.(8); } catch {}
-      }
-    } catch {
-      // rollback on error
-      setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !c.isLiked, likes: Math.max(0, c.likes + (!c.isLiked ? 1 : -1)) } : c));
-    }
-  }, [currentTrack?._id, commentItems]);
-
-  const handleSendComment = useCallback(async () => {
-    const text = commentText.trim();
-    if (!text || !currentTrack?._id) return;
-    try {
-      const response = await fetch(`/api/tracks/${currentTrack._id}/comments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        const c = data?.comment;
-        if (c) {
-          const mapped: CommentItem = {
-            id: c.id,
-            authorName: c.authorName || 'Vous',
-            avatar: c.avatar || '/default-avatar.jpg',
-            text: c.text || c.content || text,
-            createdAt: new Date(c.createdAt || Date.now()).getTime(),
-            likes: c.likesCount ?? c.likes ?? 0,
-            isLiked: false,
-          };
-          setCommentItems(prev => [mapped, ...prev]);
-        }
-        setCommentText('');
-        try { (navigator as any)?.vibrate?.(10); } catch {}
-      }
-    } catch {}
-  }, [commentText, currentTrack?._id]);
-
-  // Effet audio‑réactif: récupérer l'analyser du provider et mesurer le niveau
-  useEffect(() => {
-    try {
-      const analyser = (typeof window !== 'undefined' && (useAudioPlayer() as any)?.getAnalyser)
-        ? (useAudioPlayer() as any).getAnalyser()
-        : null;
-      analyserRef.current = analyser;
-      if (analyserRef.current && !levelArrayRef.current) {
-        levelArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
-      }
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    const tick = () => {
-      const analyser = analyserRef.current;
-      const arr = levelArrayRef.current;
-      if (analyser && arr) {
-        analyser.getByteFrequencyData(arr);
-        // Calculer un RMS simple / moyenne des basses/médiums
-        let sum = 0;
-        const sampleCount = Math.min(arr.length, 64);
-        for (let i = 0; i < sampleCount; i++) sum += arr[i];
-        const avg = sum / sampleCount; // 0..255
-        const norm = Math.min(1, avg / 200); // normaliser
-        setAudioLevel(norm);
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
 
   if (!isOpen || !currentTrack || !currentTrack.title) {
     return null;
@@ -619,7 +464,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               y: isDragging ? dragY : 0,
             }}
           >
-            {/* Fond vidéo/audio avec cover animé et glow audio‑réactif */}
+            {/* Fond vidéo/audio avec cover animé */}
             <div className="absolute inset-0 w-full h-full overflow-hidden">
               <div className="relative w-full h-full bg-gradient-to-br from-purple-900/20 to-pink-900/20">
                 {/* Cover image avec rotation */}
@@ -645,16 +490,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 
                 {/* Overlay gradient */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-
-                {/* Glow audio‑réactif (cercle flou) */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: `radial-gradient(600px 600px at 50% 50%, rgba(236,72,153,${0.25 + audioLevel * 0.35}), transparent 60%)`,
-                    filter: 'blur(20px)',
-                    opacity: 0.8,
-                  }}
-                />
               </div>
             </div>
 
@@ -694,7 +529,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               </div>
 
               {/* Zone de swipe avec indicateurs */}
-                <div className="flex-1 flex items-center justify-center relative overflow-hidden select-none" onClick={handleSurfaceTap}>
+              <div className="flex-1 flex items-center justify-center relative overflow-hidden select-none" onClick={handleSurfaceTap}>
                 {/* Indicateurs de swipe */}
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
                   <motion.div
@@ -727,12 +562,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                     custom={swipeDirection}
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                   >
-                  <div
-                    className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl will-change-transform"
-                    style={{
-                      transform: `translateY(${(audioLevel - 0.5) * 6}px)`,
-                    }}
-                  >
+                  <div className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl">
                     <img
                       src={currentTrack?.coverUrl || '/default-cover.jpg'}
                       alt={currentTrack?.title || 'Track'}
@@ -872,107 +702,30 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                   </button>
                 </div>
               </div>
-              {/* Bottom sheet commentaires - style Suno */}
+              {/* Bottom sheet commentaires */}
               <AnimatePresence>
                 {commentsOpen && (
                   <motion.div
-                  className="fixed inset-x-0 bottom-0 z-[120] bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-2xl safe-area-bottom"
+                    className="fixed inset-x-0 bottom-0 z-[120] bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-2xl"
                     initial={{ y: 300, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 300, opacity: 0 }}
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                   >
-                    {/* Grip */}
-                    <div className="pt-2 pb-1">
-                      <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
-                    </div>
-                    {/* Header */}
-                    <div className="px-4 py-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2">
-                        <span className="text-white font-medium">Commentaires</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/80">
-                          {commentsCount}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 bg-white/10 rounded-xl p-1">
-                        <button
-                          onClick={() => setCommentsSort('top')}
-                          className={`px-2 py-1 text-xs rounded-lg transition-colors ${commentsSort === 'top' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white'}`}
-                        >Top</button>
-                        <button
-                          onClick={() => setCommentsSort('recent')}
-                          className={`px-2 py-1 text-xs rounded-lg transition-colors ${commentsSort === 'recent' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white'}`}
-                        >Récents</button>
-                      </div>
+                    <div className="p-4 flex items-center justify-between">
+                      <span className="text-white/80 text-sm">Commentaires</span>
                       <button onClick={() => setCommentsOpen(false)} className="text-white/60 hover:text-white">
                         <X size={18} />
                       </button>
                     </div>
-
-                    {/* Liste des commentaires */}
-                    <div className="px-4 pb-24 max-h-[45vh] overflow-y-auto custom-scroll" onClick={(e) => e.stopPropagation()}>
-                      {commentsCount === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-10 text-white/60 text-sm">
-                          <MessageCircle size={22} className="mb-2 text-white/50" />
-                          <div>Aucun commentaire pour l’instant.</div>
-                          <div className="text-white/40">Soyez le premier à réagir ✨</div>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {sortedComments.map((c) => (
-                            <div key={c.id} className="flex items-start gap-3">
-                              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0">
-                                <img src={c.avatar || '/default-avatar.jpg'} alt={c.authorName} className="w-full h-full object-cover" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-white text-sm font-medium truncate">{c.authorName}</span>
-                                    <span className="text-white/50 text-xs">{new Date(c.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                  </div>
-                                  <button className="text-white/40 hover:text-white/70">
-                                    <MoreVertical size={16} />
-                                  </button>
-                                </div>
-                                <div className="mt-1 text-white/85 text-sm leading-5 break-words">{c.text}</div>
-                                <div className="mt-2 flex items-center gap-3 text-xs">
-                                  <button
-                                    onClick={() => handleToggleLikeComment(c.id)}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors ${c.isLiked ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white bg-white/10'}`}
-                                  >
-                                    <Heart size={14} className={c.isLiked ? 'fill-current' : ''} />
-                                    <span>{c.likes}</span>
-                                  </button>
-                                  <button className="text-white/60 hover:text-white">Répondre</button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                    <div className="px-4 pb-20 max-h-[40vh] overflow-y-auto custom-scroll">
+                      {/* Placeholder liste commentaires (brancher API plus tard) */}
+                      <div className="text-white/60 text-sm">Aucun commentaire pour l’instant.</div>
                     </div>
-
-                    {/* Saisie */}
-                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <button className="shrink-0 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white" onClick={(e) => e.stopPropagation()}>
-                          <Smile size={18} />
-                        </button>
-                        <input
-                          placeholder="Écrire un commentaire…"
-                          className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none"
-                          value={commentText}
-                          onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(); e.stopPropagation(); }}
-                        />
-                        <button
-                          onClick={handleSendComment}
-                          disabled={!commentText.trim()}
-                          className="shrink-0 px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 disabled:opacity-50 text-white flex items-center gap-1"
-                        >
-                          <Send size={16} />
-                          Envoyer
-                        </button>
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10">
+                      <div className="flex items-center gap-2">
+                        <input placeholder="Écrire un commentaire…" className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none" />
+                        <button className="px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 text-white">Envoyer</button>
                       </div>
                     </div>
                   </motion.div>

@@ -52,9 +52,6 @@ interface AudioServiceActions {
 export const useAudioService = () => {
   const { data: session } = useSession();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const mediaElementSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const recommendations = useAudioRecommendations();
   const isInitialized = useRef(false);
   const lastTrackId = useRef<string | null>(null);
@@ -145,27 +142,6 @@ export const useAudioService = () => {
     audioRef.current.setAttribute('webkit-playsinline', 'true');
     audioRef.current.setAttribute('x-webkit-airplay', 'allow');
     
-    // Web Audio API: créer AnalyserNode pour effets audio‑réactifs (une seule fois)
-    try {
-      if (!audioContextRef.current) {
-        const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (Ctx) {
-          audioContextRef.current = new Ctx();
-        }
-      }
-      if (audioRef.current && audioContextRef.current && !mediaElementSourceRef.current) {
-        mediaElementSourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        analyserRef.current.fftSize = 256;
-        analyserRef.current.smoothingTimeConstant = 0.8;
-        // Chaînage: source -> analyser -> destination
-        mediaElementSourceRef.current.connect(analyserRef.current);
-        analyserRef.current.connect(audioContextRef.current.destination);
-      }
-    } catch (e) {
-      // Silencieux si Web Audio non dispo
-    }
-
     // Événements audio optimisés
     const audio = audioRef.current;
 
@@ -368,34 +344,12 @@ export const useAudioService = () => {
         throw new Error('URL audio vide');
       }
 
-      // Debug URL audio
-      console.log('🎵 Chargement track:', {
-        id: track._id,
-        title: track.title,
-        audioUrl: track.audioUrl,
-        isCloudinary: track.audioUrl.includes('cloudinary.com'),
-        isHttps: track.audioUrl.startsWith('https://')
-      });
-
-      // En production, utiliser le proxy pour éviter les problèmes CORS
-      let finalAudioUrl = track.audioUrl;
-      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-        if (track.audioUrl.includes('res.cloudinary.com')) {
-          // Encoder l'URL pour le proxy
-          const encodedUrl = encodeURIComponent(track.audioUrl);
-          finalAudioUrl = `/api/proxy/audio/${encodedUrl}`;
-          console.log('🔄 Utilisation du proxy audio:', finalAudioUrl);
-        }
-      }
-
       // Vérifier que l'URL est accessible (optionnel)
       try {
-        const response = await fetch(finalAudioUrl, { method: 'HEAD' });
+        const response = await fetch(track.audioUrl, { method: 'HEAD' });
         if (!response.ok) {
-          console.warn('Fichier audio potentiellement inaccessible:', finalAudioUrl, 'Status:', response.status);
+          console.warn('Fichier audio potentiellement inaccessible:', track.audioUrl);
           // Ne pas bloquer, juste avertir
-        } else {
-          console.log('✅ URL audio accessible:', finalAudioUrl);
         }
       } catch (fetchError) {
         console.warn('Impossible de vérifier l\'URL audio, tentative de chargement direct:', fetchError);
@@ -416,7 +370,7 @@ export const useAudioService = () => {
         setState(prev => ({ ...prev, error: null, isLoading: true }));
         
         // Changer la source audio avec gestion d'erreur
-        audioRef.current.src = finalAudioUrl;
+        audioRef.current.src = track.audioUrl;
         
         // Attendre que l'audio soit chargé
         await new Promise((resolve, reject) => {
@@ -991,8 +945,6 @@ export const useAudioService = () => {
     autoPlayEnabled,
     notificationPermission,
     isFirstPlay,
-    // Fournir un getter pour l'analyser (référence mutable)
-    getAnalyser: (): AnalyserNode | null => analyserRef.current,
     actions: {
       play,
       pause,

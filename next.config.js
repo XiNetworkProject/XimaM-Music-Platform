@@ -7,7 +7,7 @@ const nextConfig = {
   // Optimisations pour réduire les coûts Vercel
   compress: true,
   
-  // Configuration des headers pour le cache et CORS
+  // Configuration des headers pour le cache
   async headers() {
     return [
       {
@@ -25,23 +25,6 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=30, stale-while-revalidate=60',
-          },
-        ],
-      },
-      {
-        source: '/api/:path*',
-        headers: [
-          {
-            key: 'Access-Control-Allow-Origin',
-            value: '*',
-          },
-          {
-            key: 'Access-Control-Allow-Methods',
-            value: 'GET, POST, PUT, DELETE, OPTIONS',
-          },
-          {
-            key: 'Access-Control-Allow-Headers',
-            value: 'Content-Type, Authorization',
           },
         ],
       },

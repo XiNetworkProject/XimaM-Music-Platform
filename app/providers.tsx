@@ -83,8 +83,6 @@ interface AudioPlayerContextType {
   setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
   requestNotificationPermission: () => Promise<boolean>;
   forceUpdateNotification: () => void;
-  // Exposer l'analyser pour effets audio‑réactifs
-  getAnalyser: () => AnalyserNode | null;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
@@ -464,7 +462,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setQueueAndPlay: audioService.actions.setQueueAndPlay,
     requestNotificationPermission: audioService.actions.requestNotificationPermission,
     forceUpdateNotification: audioService.actions.forceUpdateNotification,
-    getAnalyser: (audioService as any).getAnalyser || (() => null),
   }), [
     audioState,
     setTracks,
