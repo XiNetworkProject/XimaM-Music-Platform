@@ -12,6 +12,7 @@ import FloatingParticles from './FloatingParticles';
 import InteractiveCounter from './InteractiveCounter';
 import CommentDialog from './CommentDialog';
 import CommentButton from './CommentButton';
+import TikTokPlayer from './TikTokPlayer';
 
 export default function FullScreenPlayer() {
   const { 
@@ -36,6 +37,7 @@ export default function FullScreenPlayer() {
   } = useAudioPlayer();
   
   const [showFull, setShowFull] = useState(false);
+  const [showTikTok, setShowTikTok] = useState(false);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showError, setShowError] = useState(false);
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
@@ -149,95 +151,105 @@ export default function FullScreenPlayer() {
     return currentTrack?._id === audioState.tracks[audioState.currentTrackIndex]?._id;
   }, [currentTrack?._id, audioState.tracks, audioState.currentTrackIndex]);
 
-  // Mini-player (toujours visible en bas)
+  // Mini-player (toujours visible en bas) - masqué en mode TikTok
   if (!audioState.showPlayer || !currentTrack || !currentTrack.title) {
     return null;
   }
 
   return (
     <>
-      {/* Mini-player - Suno-like playbar */}
-      <motion.div
-        className="glass-player relative w-full"
-        style={{ display: showFull ? 'none' : 'flex' }}
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        onClick={() => setShowFull(true)}
-      >
-        <FloatingParticles isPlaying={audioState.isPlaying && !audioState.isLoading} />
+      {/* Player TikTok */}
+      {showTikTok && (
+        <TikTokPlayer
+          isOpen={showTikTok}
+          onClose={() => setShowTikTok(false)}
+        />
+      )}
 
-        <div className="flex flex-1 flex-row content-between items-center p-2 w-full">
-          {/* Left: cover */}
-          <div className="md:w-8 relative flex items-center">
-            <a className="mr-2 h-16 w-10 shrink-0 overflow-clip rounded-md md:h-14" onClick={(e) => { e.stopPropagation(); }} href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>
-              <img src={currentTrack?.coverUrl || '/default-cover.jpg'} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" />
-            </a>
-          </div>
+      {/* Mini-player - Suno-like playbar - masqué en mode TikTok */}
+      {!showTikTok && (
+        <motion.div
+          className="glass-player relative w-full"
+          style={{ display: showFull ? 'none' : 'flex' }}
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+          onClick={() => setShowTikTok(true)}
+        >
+          <FloatingParticles isPlaying={audioState.isPlaying && !audioState.isLoading} />
 
-          {/* Middle: title/artist (mobile au-dessus des boutons) */}
-          <div className="flex flex-col flex-1 min-w-0 pr-2">
-            {/* Title marquee */}
-            <div className="relative flex w-fit cursor-pointer overflow-x-hidden text-sm font-medium hover:underline" onClick={(e)=>{e.stopPropagation();}}>
-              <div className="animate-marquee md:animate-none">
-                <a className="mr-24 whitespace-nowrap" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
-              </div>
-              <div className="absolute top-0 animate-marquee2 md:animate-none">
-                <a className="mr-24 whitespace-nowrap md:hidden" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
-              </div>
-              <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
-            </div>
-            <span className="flex flex-col text-sm font-medium md:flex-row">
-              <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
-                <span className="line-clamp-1 w-full lg:max-w-[220px] md:max-w-[180px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+          <div className="flex flex-1 flex-row content-between items-center p-2 w-full">
+            {/* Left: cover */}
+            <div className="md:w-8 relative flex items-center">
+              <a className="mr-2 h-16 w-10 shrink-0 overflow-clip rounded-md md:h-14" onClick={(e) => { e.stopPropagation(); }} href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>
+                <img src={currentTrack?.coverUrl || '/default-cover.jpg'} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" />
               </a>
-            </span>
-          </div>
+            </div>
 
-          {/* Mobile controls (always visible on mobile) */}
-          <div className="flex items-center gap-1 md:hidden ml-2" onClick={(e)=>e.stopPropagation()}>
-            <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Previous">
-              <SkipBack size={18} />
-            </button>
-            <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full bg-[var(--color-primary)]/85 hover:bg-[var(--color-primary)] text-white disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>
-              {audioState.isPlaying ? <Pause size={18}/> : <Play size={18}/>}
-            </button>
-            <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Next">
-              <SkipForward size={18} />
-            </button>
-          </div>
-
-          {/* Center controls (md and up) */}
-          <div className="hidden flex-1 flex-row items-center justify-center gap-1 w-8 md:flex" onClick={(e)=>e.stopPropagation()}>
-            <button onClick={toggleShuffle} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Shuffle"><Shuffle size={16} /></button>
-            <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Previous"><SkipBack size={20} /></button>
-            <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>{audioState.isPlaying? <Pause size={24}/> : <Play size={24}/>}</button>
-            <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Next"><SkipForward size={20} /></button>
-            <button onClick={cycleRepeat} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Repeat"><Repeat size={16} /></button>
-          </div>
-
-          {/* Right: volume + duration (md), minimal on mobile */}
-          <div className="items-left justify-right flex w-fit flex-row-reverse gap-2 md:flex-1" onClick={(e)=>e.stopPropagation()}>
-            {/* Duration */}
-            <span className="flex md:flex items-center whitespace-nowrap text-white/70 text-[11px] md:text-[12px]">
-              <span className="w-12 text-right">{formatTime(audioState.currentTime)}</span>
-              <span className="w-3 text-center">/</span>
-              <span className="w-12">{formatTime(audioState.duration)}</span>
-            </span>
-            {/* Volume */}
-            <div className="relative hidden md:block" ref={volumeSliderRef}>
-              <button className="p-2 text-white/70 hover:bg-white/10 rounded-full" onClick={()=>setShowVolumeSlider(!showVolumeSlider)} aria-label="Volume">
-                {audioState.isMuted ? <VolumeX size={18}/> : <Volume2 size={18}/>}
-              </button>
-              {showVolumeSlider && (
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
-                  <input type="range" min="0" max="1" step="0.1" value={audioState.volume} onChange={handleVolumeChange} className="w-24 h-2" />
+            {/* Middle: title/artist (mobile au-dessus des boutons) */}
+            <div className="flex flex-col flex-1 min-w-0 pr-2">
+              {/* Title marquee */}
+              <div className="relative flex w-fit cursor-pointer overflow-x-hidden text-sm font-medium hover:underline" onClick={(e)=>{e.stopPropagation();}}>
+                <div className="animate-marquee md:animate-none">
+                  <a className="mr-24 whitespace-nowrap" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
                 </div>
-              )}
+                <div className="absolute top-0 animate-marquee2 md:animate-none">
+                  <a className="mr-24 whitespace-nowrap md:hidden" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
+                </div>
+                <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
+              </div>
+              <span className="flex flex-col text-sm font-medium md:flex-row">
+                <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
+                  <span className="line-clamp-1 w-full lg:max-w-[220px] md:max-w-[180px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+                </a>
+              </span>
+            </div>
+
+            {/* Mobile controls (always visible on mobile) */}
+            <div className="flex items-center gap-1 md:hidden ml-2" onClick={(e)=>e.stopPropagation()}>
+              <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Previous">
+                <SkipBack size={18} />
+              </button>
+              <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full bg-[var(--color-primary)]/85 hover:bg-[var(--color-primary)] text-white disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>
+                {audioState.isPlaying ? <Pause size={18}/> : <Play size={18}/>}
+              </button>
+              <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Next">
+                <SkipForward size={18} />
+              </button>
+            </div>
+        
+            {/* Center controls (md and up) */}
+            <div className="hidden flex-1 flex-row items-center justify-center gap-1 w-8 md:flex" onClick={(e)=>e.stopPropagation()}>
+              <button onClick={toggleShuffle} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Shuffle"><Shuffle size={16} /></button>
+              <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Previous"><SkipBack size={20} /></button>
+              <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>{audioState.isPlaying? <Pause size={24}/> : <Play size={24}/>}</button>
+              <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Next"><SkipForward size={20} /></button>
+              <button onClick={cycleRepeat} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Repeat"><Repeat size={16} /></button>
+          </div>
+
+            {/* Right: volume + duration (md), minimal on mobile */}
+            <div className="items-left justify-right flex w-fit flex-row-reverse gap-2 md:flex-1" onClick={(e)=>e.stopPropagation()}>
+              {/* Duration */}
+              <span className="flex md:flex items-center whitespace-nowrap text-white/70 text-[11px] md:text-[12px]">
+                <span className="w-12 text-right">{formatTime(audioState.currentTime)}</span>
+                <span className="w-3 text-center">/</span>
+                <span className="w-12">{formatTime(audioState.duration)}</span>
+              </span>
+              {/* Volume */}
+              <div className="relative hidden md:block" ref={volumeSliderRef}>
+                <button className="p-2 text-white/70 hover:bg-white/10 rounded-full" onClick={()=>setShowVolumeSlider(!showVolumeSlider)} aria-label="Volume">
+                  {audioState.isMuted ? <VolumeX size={18}/> : <Volume2 size={18}/>}
+                </button>
+                {showVolumeSlider && (
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
+                    <input type="range" min="0" max="1" step="0.1" value={audioState.volume} onChange={handleVolumeChange} className="w-24 h-2" />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        
         {/* Mini progress bar: plus longue et plus fine */}
         <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-1 w-[92%] md:w-[94%]">
           <div className="h-[2px] md:h-[3px] bg-white/15 rounded-full overflow-hidden">
@@ -248,6 +260,8 @@ export default function FullScreenPlayer() {
           </div>
         </div>
       </motion.div>
+      )}
+
 
       {/* Player plein écran (modal/dialog) */}
       <AnimatePresence>
@@ -291,12 +305,29 @@ export default function FullScreenPlayer() {
                 >
                   <X size={22} className="text-white" />
                 </button>
-                {/* Bouton minimiser */}
+                {/* Bouton TikTok */}
                 <button
                   className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
                   style={{
                     top: '-20px',
                     left: '20px'
+                  }}
+                  onClick={() => {
+                    setShowFull(false);
+                    setShowTikTok(true);
+                  }}
+                >
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="text-white">
+                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
+                  </svg>
+                </button>
+                
+                {/* Bouton minimiser */}
+                <button
+                  className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
+                  style={{
+                    top: '-20px',
+                    left: '60px'
                   }}
                   onClick={() => setShowPlayer(false)}
                 >
@@ -311,10 +342,10 @@ export default function FullScreenPlayer() {
                 
                 {/* Statistiques de la piste */}
                 <div className="flex items-center space-x-6 mb-4 text-sm text-gray-400">
-                      <div className="flex items-center space-x-1">
-                        <Headphones size={16} />
-                        <span>{currentTrack?.plays || 0}</span>
-                      </div>
+                  <div className="flex items-center space-x-1">
+                    <Headphones size={16} />
+                    <span>{currentTrack?.plays || 0}</span>
+                  </div>
                   <div className="flex items-center space-x-1">
                     <Heart size={16} />
                     <span>{currentTrack?.likes?.length || 0}</span>

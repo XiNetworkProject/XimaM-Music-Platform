@@ -1850,7 +1850,7 @@ export default function HomePage() {
                                         (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
                                       }}
                                     />
-                                  </div>
+                </div>
                                   <div className="absolute inset-0 flex items-center justify-center rounded-lg transition-colors duration-150 text-[var(--text)] bg-transparent">
                                     {currentTrack?._id === track._id && audioState.isPlaying ? (
                                       <Pause size={18} />
@@ -1905,21 +1905,21 @@ export default function HomePage() {
                                 </button>
                                 <div className="font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">{(user.followers?.length || 0).toLocaleString()} abonnés</div>
                                 <div className="font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">@{user.username} · Suggested</div>
-                              </div>
-                            </div>
-                            <button
+                </div>
+              </div>
+              <button
                               type="button"
                               className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)]"
                               onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
-                            >
+              >
                               Suivre
-                            </button>
+              </button>
                           </div>
                         ))}
                       </div>
                     </div>
-                  </div>
-
+            </div>
+            
                   {/* Colonne 3: Trending */}
                   <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
@@ -2099,14 +2099,14 @@ export default function HomePage() {
               <div className="relative w-full overflow-hidden" style={{ height: '20.5rem' }}>
                 <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_85%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
                   <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 px-1">
-                    {popularUsers?.map((user, index) => (
+                {popularUsers?.map((user, index) => (
                       <div key={user._id || user.id || index} className="relative flex h-fit w-48 shrink-0 cursor-pointer flex-col gap-4 rounded-lg p-4 transition ease-in-out hover:bg-[var(--surface-2)]/60 border border-transparent hover:border-[var(--border)]"
                         title={user.name || user.username}
-                        onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
+                    onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
                         aria-label={`Créateur : ${user.name || user.username}`}
-                      >
-                        <img
-                          alt={user.name || user.username}
+                  >
+                      <img
+                        alt={user.name || user.username}
                           src={user.avatar || '/default-avatar.png'}
                           className="aspect-square h-auto w-full rounded-full object-cover"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
@@ -2115,9 +2115,9 @@ export default function HomePage() {
                           <h3 className="overflow-hidden font-sans text-lg font-semibold text-ellipsis whitespace-nowrap text-[var(--text)]">{user.name || user.username}</h3>
                           <span className="line-clamp-1 font-sans text-sm font-normal text-[var(--text-muted)]">@{user.username}</span>
                           <span className="font-mono text-sm text-[var(--text-muted)]">{formatNumber((user.followers?.length || 0))} abonnés</span>
-                        </div>
-                      </div>
-                    ))}
+                    </div>
+                  </div>
+                ))}
                   </section>
                 </div>
               </div>
@@ -2517,7 +2517,7 @@ export default function HomePage() {
 
 
 
-      
+
         </div>
       </div>
     </div>
