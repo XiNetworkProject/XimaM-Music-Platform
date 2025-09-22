@@ -460,14 +460,24 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     
     try {
       const response = await fetch(`/api/comments/${currentTrack._id}?sort=${commentsSort}`);
-      if (!response.ok) throw new Error('Erreur chargement commentaires');
+      if (!response.ok) {
+        console.error('Erreur API commentaires:', response.status, response.statusText);
+        // Fallback: garder les commentaires existants ou vider la liste
+        setCommentItems([]);
+        return;
+      }
       
       const data = await response.json();
       if (data.success) {
-        setCommentItems(data.comments);
+        setCommentItems(data.comments || []);
+      } else {
+        console.error('Erreur données commentaires:', data.error);
+        setCommentItems([]);
       }
     } catch (error) {
       console.error('Erreur chargement commentaires:', error);
+      // Fallback: vider la liste en cas d'erreur
+      setCommentItems([]);
     }
   }, [currentTrack?._id, commentsSort]);
 
