@@ -474,15 +474,15 @@ export default function ProfileUserPage() {
       
       if (result) {
         // Mettre à jour l'état local avec les vraies données de l'API
-        setUserTracks(prev => prev.map(track => 
-          track.id === trackId 
+      setUserTracks(prev => prev.map(track => 
+        track.id === trackId 
             ? { 
                 ...track, 
                 isLiked: result.isLiked, 
                 likes: typeof result.likes === 'number' ? result.likes : track.likes 
               }
-            : track
-        ));
+          : track
+      ));
         
         setProfile((prev: any) => ({
           ...prev,
@@ -759,24 +759,24 @@ export default function ProfileUserPage() {
         {/* Avatar + infos modernes */}
         <div className="relative flex flex-col items-center -mt-24 mb-8">
           <div className="relative mb-6">
-            <div className="relative">
-              <img
-                src={editData.avatar || profile.avatar || '/default-avatar.png'}
-                alt="Avatar"
+          <div className="relative">
+            <img
+              src={editData.avatar || profile.avatar || '/default-avatar.png'}
+              alt="Avatar"
                 className="w-36 h-36 rounded-full object-cover border-4 border-[var(--border)] shadow-2xl bg-[var(--surface-2)] ring-4 ring-[var(--surface-1)]/50"
-              />
+            />
               {/* Effet de lueur autour de l'avatar */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-pink-500/20 blur-xl -z-10"></div>
               
-              {isOwnProfile && (
-                <button
+            {isOwnProfile && (
+              <button
                   className="absolute bottom-2 right-2 bg-[var(--surface-2)]/90 backdrop-blur-md hover:bg-[var(--surface-3)]/90 text-white p-2.5 rounded-full border border-[var(--border)] transition-all duration-200 hover:scale-105 shadow-lg"
-                  onClick={() => fileInputRef.current?.click()}
-                  title="Changer l'avatar"
-                >
+                onClick={() => fileInputRef.current?.click()}
+                title="Changer l'avatar"
+              >
                   <Camera size={16} />
-                </button>
-              )}
+              </button>
+            )}
             </div>
             <input
               type="file"
@@ -799,15 +799,15 @@ export default function ProfileUserPage() {
                 <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
                   {profile.name}
                 </h1>
-                {profile.isVerified && (
+              {profile.isVerified && (
                   <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
-                    <Check className="text-white w-4 h-4" />
-                  </div>
-                )}
-              </div>
+                  <Check className="text-white w-4 h-4" />
+                </div>
+              )}
+            </div>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-[var(--text-muted)] text-lg">@{profile.username}</span>
-                {profile.isArtist && profile.artistName && (
+            {profile.isArtist && profile.artistName && (
                   <span className="px-3 py-1 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-full text-pink-400 text-sm font-medium">
                     {profile.artistName}
                   </span>
@@ -820,7 +820,7 @@ export default function ProfileUserPage() {
               <div className="panel-suno border border-[var(--border)] rounded-xl p-4 text-center hover:scale-105 transition-all duration-200">
                 <div className="flex items-center justify-center mb-2">
                   <Users className="w-5 h-5 text-purple-400" />
-                </div>
+            </div>
                 <div className="text-xl font-bold text-[var(--text)]">{profile.followerCount || 0}</div>
                 <div className="text-xs text-[var(--text-muted)]">Abonnés</div>
               </div>
@@ -851,19 +851,19 @@ export default function ProfileUserPage() {
               <div className="mt-6 max-w-2xl mx-auto">
                 <div className="panel-suno border border-[var(--border)] rounded-xl p-4">
                   <div className="text-[var(--text)] text-sm leading-relaxed">
-                    {profile.bio.length > bioMaxLength && !showFullBio ? (
-                      <>
-                        {profile.bio.slice(0, bioMaxLength)}...{' '}
+                {profile.bio.length > bioMaxLength && !showFullBio ? (
+                  <>
+                    {profile.bio.slice(0, bioMaxLength)}...{' '}
                         <button className="text-purple-400 hover:text-purple-300 underline font-medium transition-colors" onClick={() => setShowFullBio(true)}>Voir plus</button>
-                      </>
-                    ) : (
-                      <>
-                        {profile.bio}
-                        {profile.bio.length > bioMaxLength && (
+                  </>
+                ) : (
+                  <>
+                    {profile.bio}
+                    {profile.bio.length > bioMaxLength && (
                           <button className="text-purple-400 hover:text-purple-300 underline font-medium ml-2 transition-colors" onClick={() => setShowFullBio(false)}>Réduire</button>
-                        )}
-                      </>
                     )}
+                  </>
+                )}
                   </div>
                 </div>
               </div>
@@ -872,39 +872,39 @@ export default function ProfileUserPage() {
             {profile.socialLinks && Object.entries(profile.socialLinks).some(([_, value]) => value) && (
               <div className="flex flex-wrap justify-center gap-3 mt-6">
                 {Object.entries(profile.socialLinks).map(([key, value]) => {
-                  const IconComponent = socialIcons[key as keyof typeof socialIcons];
+                const IconComponent = socialIcons[key as keyof typeof socialIcons];
                   return value ? (
-                    <a
-                      key={key}
-                      href={value as string}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                  <a
+                    key={key}
+                    href={value as string}
+                    target="_blank"
+                    rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-[var(--text)] hover:text-purple-400 px-4 py-2 panel-suno border border-[var(--border)] rounded-full hover:scale-105 transition-all duration-200 hover:border-purple-500/50"
-                    >
-                      {IconComponent ? (
+                  >
+                    {IconComponent ? (
                         <IconComponent size={16} />
-                      ) : (
+                    ) : (
                         <Link2 size={16} />
-                      )}
+                    )}
                       <span className="text-sm font-medium">
-                        {key.charAt(0).toUpperCase() + key.slice(1)}
+                    {key.charAt(0).toUpperCase() + key.slice(1)}
                       </span>
-                    </a>
+                  </a>
                   ) : null;
-                })}
-              </div>
+              })}
+            </div>
             )}
             {/* Boutons actions modernes */}
             <div className="flex flex-wrap justify-center gap-4 mt-8">
               {isOwnProfile ? (
                 <>
-                  <button
+                <button
                     className="flex items-center gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-lg hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
-                    onClick={handleEdit}
-                    disabled={editMode || uploading}
-                  >
+                  onClick={handleEdit}
+                  disabled={editMode || uploading}
+                >
                     <Edit3 size={18} /> Modifier le profil
-                  </button>
+                </button>
                   <button
                     className="flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] px-6 py-3 rounded-xl font-semibold hover:bg-[var(--surface-3)] transition-all duration-300 hover:scale-105 active:scale-95"
                     onClick={() => router.push('/stats')}
@@ -954,44 +954,44 @@ export default function ProfileUserPage() {
         {/* Navigation moderne style Suno */}
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-1 mb-8">
           <div className="flex gap-2">
-            <button
-              onClick={() => setActiveTab('tracks')}
+              <button
+                onClick={() => setActiveTab('tracks')}
               className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                activeTab === 'tracks'
+                  activeTab === 'tracks'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-              }`}
-            >
-              <Music size={20} />
-              <span className="hidden sm:inline">Tracks</span>
+                }`}
+              >
+                  <Music size={20} />
+                  <span className="hidden sm:inline">Tracks</span>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                 activeTab === 'tracks' 
                   ? 'bg-white/20 text-white' 
                   : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
               }`}>
-                {profile?.tracks?.length || 0}
-              </span>
-            </button>
-            <button
-              onClick={() => setActiveTab('playlists')}
+                    {profile?.tracks?.length || 0}
+                  </span>
+              </button>
+              <button
+                onClick={() => setActiveTab('playlists')}
               className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                activeTab === 'playlists'
+                  activeTab === 'playlists'
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
                   : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-              }`}
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-              <span className="hidden sm:inline">Playlists</span>
+                }`}
+              >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  </svg>
+                  <span className="hidden sm:inline">Playlists</span>
               <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                 activeTab === 'playlists' 
                   ? 'bg-white/20 text-white' 
                   : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
               }`}>
-                {profile?.playlists?.length || 0}
-              </span>
-            </button>
+                    {profile?.playlists?.length || 0}
+                  </span>
+              </button>
           </div>
         </div>
 
@@ -1045,16 +1045,16 @@ export default function ProfileUserPage() {
                     {userTracks.map((track: any) => (
                       <div key={track.id} className="group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 relative">
                         <div className="relative panel-suno rounded-xl p-4 border border-[var(--border)] hover:shadow-xl hover:border-purple-500/30 transition-all duration-300 overflow-hidden">
-                          {/* Banderole de mise en avant */}
-                          {track.is_featured && (
-                            <div className="absolute -top-2 -left-2 z-10">
+                        {/* Banderole de mise en avant */}
+                        {track.is_featured && (
+                          <div className="absolute -top-2 -left-2 z-10">
                               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-lg">
-                                <Crown size={12} />
-                                {track.featuredBanner || 'En vedette'}
-                              </div>
+                              <Crown size={12} />
+                              {track.featuredBanner || 'En vedette'}
                             </div>
-                          )}
-                          
+                          </div>
+                        )}
+                        
                           {/* Cover avec overlay play */}
                           <div className="relative mb-4 group/cover">
                             <div className="aspect-square w-full rounded-xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20">
@@ -1069,19 +1069,19 @@ export default function ProfileUserPage() {
                             </div>
                             {/* Bouton play overlay */}
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/cover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-xl">
-                              <button 
+                            <button 
                                 className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow-lg hover:scale-110 active:scale-95" 
-                                onClick={() => handlePlayTrack(track)}
-                                title="Lire"
-                              >
-                                {audioState.currentTrackIndex !== -1 && 
-                                 audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
-                                 audioState.isPlaying ? (
+                              onClick={() => handlePlayTrack(track)}
+                              title="Lire"
+                            >
+                              {audioState.currentTrackIndex !== -1 && 
+                               audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
+                               audioState.isPlaying ? (
                                   <Pause className="w-6 h-6 text-white ml-0" />
-                                ) : (
+                              ) : (
                                   <Play className="w-6 h-6 text-white ml-1" />
-                                )}
-                              </button>
+                              )}
+                            </button>
                             </div>
                             {/* Badge durée */}
                             <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-medium">
@@ -1094,8 +1094,8 @@ export default function ProfileUserPage() {
                             <div>
                               <h4 className="font-semibold text-[var(--text)] text-base mb-1 line-clamp-1 title-suno">{track.title}</h4>
                               <p className="text-[var(--text-muted)] text-sm line-clamp-1">
-                                {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
-                              </p>
+                              {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
+                            </p>
                             </div>
                             
                             {/* Stats */}
@@ -1112,34 +1112,34 @@ export default function ProfileUserPage() {
                                     className="text-[var(--text-muted)] font-medium"
                                   />
                                 </div>
-                                <InteractiveCounter
-                                  type="likes"
-                                  initialCount={track.likes}
-                                  isActive={track.isLiked}
-                                  onToggle={async (newState) => {
-                                    await handleLikeTrack(track.id);
-                                  }}
-                                  size="sm"
-                                  showIcon={true}
-                                  disabled={likeLoading === track.id}
-                                  className="hover:text-pink-400 transition-colors"
-                                />
-                              </div>
-                              
-                              {/* Menu d'options pour le propriétaire */}
-                              {isOwnProfile && (
-                                <button 
-                                  className="p-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                                  }}
-                                >
-                                  <MoreVertical className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
+                              <InteractiveCounter
+                                type="likes"
+                                initialCount={track.likes}
+                                isActive={track.isLiked}
+                                onToggle={async (newState) => {
+                                  await handleLikeTrack(track.id);
+                                }}
+                                size="sm"
+                                showIcon={true}
+                                disabled={likeLoading === track.id}
+                                className="hover:text-pink-400 transition-colors"
+                              />
                           </div>
+                          
+                          {/* Menu d'options pour le propriétaire */}
+                          {isOwnProfile && (
+                              <button 
+                                  className="p-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
+                                }}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
+                              )}
+                                </div>
+                            </div>
                         </div>
                       </div>
                     ))}
@@ -1216,15 +1216,15 @@ export default function ProfileUserPage() {
                           
                           {/* Menu d'options pour le propriétaire */}
                           {isOwnProfile && (
-                            <button 
+                              <button 
                               className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                              }}
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
+                                }}
+                              >
+                                <MoreVertical className="w-4 h-4" />
+                              </button>
                           )}
                         </div>
                       </div>
@@ -1240,7 +1240,7 @@ export default function ProfileUserPage() {
                 <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
                 <div 
                   className="absolute bg-[var(--surface-2)] border border-[var(--border)] rounded-xl shadow-2xl p-1 min-w-[220px] animate-fade-in"
-                  style={{
+                                  style={{
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)'
@@ -1272,7 +1272,7 @@ export default function ProfileUserPage() {
                         </div>
                       </div>
                       <div className="p-2 space-y-1">
-                        <button
+                                  <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
                           onClick={() => {
                             const track = userTracks.find(t => t.id === showTrackOptions);
@@ -1281,8 +1281,8 @@ export default function ProfileUserPage() {
                         >
                           <Edit3 className="w-4 h-4 text-blue-400" />
                           <span>Modifier</span>
-                        </button>
-                        <button
+                                  </button>
+                                  <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
                           onClick={() => {
                             const track = userTracks.find(t => t.id === showTrackOptions);
@@ -1291,9 +1291,9 @@ export default function ProfileUserPage() {
                         >
                           <Star className={`w-4 h-4 ${userTracks.find(t => t.id === showTrackOptions)?.is_featured ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
                           <span>{userTracks.find(t => t.id === showTrackOptions)?.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}</span>
-                        </button>
+                                  </button>
                         <div className="border-t border-[var(--border)] my-2"></div>
-                        <button
+                                  <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-3 rounded-lg transition-colors"
                           onClick={() => {
                             if (showTrackOptions) handleDeleteTrack(showTrackOptions);
@@ -1301,16 +1301,16 @@ export default function ProfileUserPage() {
                           disabled={deleteLoading === showTrackOptions}
                         >
                           {deleteLoading === showTrackOptions ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="w-4 h-4" />
-                          )}
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="w-4 h-4" />
+                                    )}
                           <span>Supprimer</span>
-                        </button>
-                      </div>
+                                  </button>
+                                </div>
                     </>
-                  )}
-                </div>
+                              )}
+                            </div>
               </div>
             )}
 
