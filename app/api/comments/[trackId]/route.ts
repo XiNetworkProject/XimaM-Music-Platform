@@ -77,8 +77,8 @@ export async function GET(
       text: comment.text,
       likes: comment.likes_count,
       createdAt: new Date(comment.created_at).getTime(),
-      authorName: comment.profiles?.name || comment.profiles?.username || 'Utilisateur',
-      avatar: comment.profiles?.avatar_url || '/default-avatar.jpg',
+      authorName: comment.profiles?.[0]?.name || comment.profiles?.[0]?.username || 'Utilisateur',
+      avatar: comment.profiles?.[0]?.avatar_url || '/default-avatar.jpg',
       isLiked: userLikes.includes(comment.id),
     })) || [];
 
