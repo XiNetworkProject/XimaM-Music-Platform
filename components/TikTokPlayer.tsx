@@ -758,26 +758,25 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               <AnimatePresence>
                 {commentsOpen && (
                   <motion.div
-                    className="fixed inset-x-0 bottom-0 z-[120] bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-2xl"
+                    className="fixed inset-x-0 bottom-0 z-[120] comments-sheet rounded-t-2xl"
                     initial={{ y: 300, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 300, opacity: 0 }}
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                   >
-                    <div className="p-4 flex items-center justify-between">
-                      <span className="text-white/80 text-sm">Commentaires</span>
-                      <button onClick={() => setCommentsOpen(false)} className="text-white/60 hover:text-white">
+                    <div className="comments-sheet__header flex items-center justify-between">
+                      <span className="comments-sheet__title">Commentaires</span>
+                      <button onClick={() => setCommentsOpen(false)} className="comments-sheet__close">
                         <X size={18} />
                       </button>
                     </div>
-                    <div className="px-4 pb-20 max-h-[40vh] overflow-y-auto custom-scroll">
-                      {/* Placeholder liste commentaires (brancher API plus tard) */}
-                      <div className="text-white/60 text-sm">Aucun commentaire pour l’instant.</div>
+                    <div className="comments-sheet__body custom-scroll">
+                      <div className="comments-empty">Aucun commentaire pour l’instant.</div>
                     </div>
-                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10">
+                    <div className="comments-sheet__footer">
                       <div className="flex items-center gap-2">
-                        <input placeholder="Écrire un commentaire…" className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none" />
-                        <button className="px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 text-white">Envoyer</button>
+                        <input placeholder="Écrire un commentaire…" className="comments-input outline-none" />
+                        <button className="comments-send text-sm">Envoyer</button>
                       </div>
                     </div>
                   </motion.div>
