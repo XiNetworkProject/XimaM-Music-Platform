@@ -125,7 +125,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
             const audio = new Audio(track.audioUrl);
             audio.preload = 'metadata';
             audio.crossOrigin = 'anonymous';
-            audio.cache = 'reload'; // Forcer le rechargement pour éviter les erreurs de cache
         
         return new Promise<void>((resolve) => {
           const handleCanPlay = () => {
