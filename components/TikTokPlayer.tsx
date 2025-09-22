@@ -304,6 +304,10 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
   // Gestion des touches clavier
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
+    const target = event.target as HTMLElement | null;
+    const tag = (target?.tagName || '').toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || (target as any)?.isContentEditable;
+    if (commentsOpen || isTyping) return;
     if (event.code === 'ArrowUp' || event.code === 'ArrowLeft') {
       event.preventDefault();
       handlePreviousTrack();
@@ -317,7 +321,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       event.preventDefault();
       onClose();
     }
-  }, [handlePreviousTrack, handleNextTrack, togglePlay, onClose]);
+  }, [handlePreviousTrack, handleNextTrack, togglePlay, onClose, commentsOpen]);
 
   // Gestion du seek
   const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -508,15 +512,22 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
   const handleToggleLikeComment = useCallback(async (id: string) => {
     if (!currentTrack?._id) return;
+    // Optimistic toggle
+    setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !c.isLiked, likes: Math.max(0, c.likes + (!c.isLiked ? 1 : -1)) } : c));
     try {
-      const response = await fetch(`/api/tracks/${currentTrack._id}/comments/${id}/like`, { method: 'POST' });
+      const target = commentItems.find(c => c.id === id);
+      const like = !(target?.isLiked);
+      const response = await fetch(`/api/tracks/${currentTrack._id}/comments/${id}/like`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ like }) });
       if (response.ok) {
         const data = await response.json();
-        setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !!data.isLiked, likes: typeof data.likesCount === 'number' ? data.likesCount : c.likes + 1 } : c));
+        setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !!data.isLiked, likes: typeof data.likesCount === 'number' ? data.likesCount : c.likes } : c));
         try { (navigator as any)?.vibrate?.(8); } catch {}
       }
-    } catch {}
-  }, [currentTrack?._id]);
+    } catch {
+      // rollback on error
+      setCommentItems(prev => prev.map(c => c.id === id ? { ...c, isLiked: !c.isLiked, likes: Math.max(0, c.likes + (!c.isLiked ? 1 : -1)) } : c));
+    }
+  }, [currentTrack?._id, commentItems]);
 
   const handleSendComment = useCallback(async () => {
     const text = commentText.trim();
@@ -683,7 +694,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               </div>
 
               {/* Zone de swipe avec indicateurs */}
-              <div className="flex-1 flex items-center justify-center relative overflow-hidden select-none" onClick={handleSurfaceTap}>
+                <div className="flex-1 flex items-center justify-center relative overflow-hidden select-none" onClick={handleSurfaceTap}>
                 {/* Indicateurs de swipe */}
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
                   <motion.div
@@ -876,7 +887,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
                     </div>
                     {/* Header */}
-                    <div className="px-4 py-2 flex items-center justify-between">
+                    <div className="px-4 py-2 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
                         <span className="text-white font-medium">Commentaires</span>
                         <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/80">
@@ -899,7 +910,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                     </div>
 
                     {/* Liste des commentaires */}
-                    <div className="px-4 pb-24 max-h-[45vh] overflow-y-auto custom-scroll">
+                    <div className="px-4 pb-24 max-h-[45vh] overflow-y-auto custom-scroll" onClick={(e) => e.stopPropagation()}>
                       {commentsCount === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-white/60 text-sm">
                           <MessageCircle size={22} className="mb-2 text-white/50" />
@@ -942,9 +953,9 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                     </div>
 
                     {/* Saisie */}
-                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10">
-                      <div className="flex items-center gap-2">
-                        <button className="shrink-0 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                        <button className="shrink-0 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white" onClick={(e) => e.stopPropagation()}>
                           <Smile size={18} />
                         </button>
                         <input
@@ -952,7 +963,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none"
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSendComment(); e.stopPropagation(); }}
                         />
                         <button
                           onClick={handleSendComment}

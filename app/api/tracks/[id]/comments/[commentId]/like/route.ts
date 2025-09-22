@@ -25,12 +25,15 @@ export async function POST(
       return NextResponse.json({ error: 'Commentaire introuvable' }, { status: 404 });
     }
 
-    // Comme nous n'avons pas de table comment_likes, on simule un toggle local par utilisateur via un hash in-mem n/a sur serverless.
-    // On applique un simple +1/-1 idempotent par appel en se basant sur un cookie shadow? Pour simplicité: alterner +1/-1 si likes existe.
-    // Mieux: accepter body { like: boolean } mais ici on fait un flip +1.
+    // Toggle basique via body { like: boolean } (fallback increment si absent)
+    let like = true;
+    try {
+      const body = await request.json();
+      if (typeof body?.like === 'boolean') like = body.like;
+    } catch {}
 
     const currentLikes = typeof comment.likes === 'number' ? comment.likes : 0;
-    const newLikes = currentLikes + 1; // simple increment
+    const newLikes = Math.max(0, currentLikes + (like ? 1 : -1));
 
     const { error: updateError } = await supabaseAdmin
       .from('comments')
@@ -41,7 +44,7 @@ export async function POST(
       return NextResponse.json({ error: 'Erreur mise à jour like' }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, isLiked: true, likesCount: newLikes });
+    return NextResponse.json({ success: true, isLiked: like, likesCount: newLikes });
   } catch (e) {
     return NextResponse.json({ error: 'Erreur serveur interne' }, { status: 500 });
   }
