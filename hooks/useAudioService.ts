@@ -377,14 +377,25 @@ export const useAudioService = () => {
         isHttps: track.audioUrl.startsWith('https://')
       });
 
+      // En production, utiliser le proxy pour éviter les problèmes CORS
+      let finalAudioUrl = track.audioUrl;
+      if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+        if (track.audioUrl.includes('res.cloudinary.com')) {
+          // Encoder l'URL pour le proxy
+          const encodedUrl = encodeURIComponent(track.audioUrl);
+          finalAudioUrl = `/api/proxy/audio/${encodedUrl}`;
+          console.log('🔄 Utilisation du proxy audio:', finalAudioUrl);
+        }
+      }
+
       // Vérifier que l'URL est accessible (optionnel)
       try {
-        const response = await fetch(track.audioUrl, { method: 'HEAD' });
+        const response = await fetch(finalAudioUrl, { method: 'HEAD' });
         if (!response.ok) {
-          console.warn('Fichier audio potentiellement inaccessible:', track.audioUrl, 'Status:', response.status);
+          console.warn('Fichier audio potentiellement inaccessible:', finalAudioUrl, 'Status:', response.status);
           // Ne pas bloquer, juste avertir
         } else {
-          console.log('✅ URL audio accessible:', track.audioUrl);
+          console.log('✅ URL audio accessible:', finalAudioUrl);
         }
       } catch (fetchError) {
         console.warn('Impossible de vérifier l\'URL audio, tentative de chargement direct:', fetchError);
@@ -405,7 +416,7 @@ export const useAudioService = () => {
         setState(prev => ({ ...prev, error: null, isLoading: true }));
         
         // Changer la source audio avec gestion d'erreur
-        audioRef.current.src = track.audioUrl;
+        audioRef.current.src = finalAudioUrl;
         
         // Attendre que l'audio soit chargé
         await new Promise((resolve, reject) => {
