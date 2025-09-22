@@ -57,6 +57,21 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const prevIndexRef = useRef<number>(audioState.currentTrackIndex ?? 0);
   const wheelAccumRef = useRef<number>(0);
   const wheelTimerRef = useRef<any>(null);
+  const [swipeDirection, setSwipeDirection] = useState<1 | -1>(1);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [lastTapTs, setLastTapTs] = useState(0);
+  const [showLikeBurst, setShowLikeBurst] = useState(false);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const levelArrayRef = useRef<Uint8Array | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+
+  // Variants d'animation de page
+  const pageVariants = useMemo(() => ({
+    initial: (dir: 1 | -1) => ({ y: dir * 60, opacity: 0 }),
+    animate: { y: 0, opacity: 1 },
+    exit: (dir: 1 | -1) => ({ y: -dir * 60, opacity: 0 })
+  }), []);
 
   const volumeSliderRef = useRef<HTMLDivElement>(null);
   const currentTrack = audioState.tracks[currentIndex] || null;
@@ -229,13 +244,33 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     if (Math.abs(velocity) > 500 || Math.abs(info.offset.y) > threshold) {
       if (velocity < 0 || info.offset.y < -threshold) {
         // Swipe vers le haut - track suivant
+        setSwipeDirection(1);
         if (!isChangingTrack) handleNextTrack();
       } else if (velocity > 0 || info.offset.y > threshold) {
         // Swipe vers le bas - track précédent
+        setSwipeDirection(-1);
         if (!isChangingTrack) handlePreviousTrack();
       }
     }
   }, [isDragging, isChangingTrack, handleNextTrack, handlePreviousTrack]);
+
+  // Tap surface: simple tap => play/pause, double tap => like
+  const handleSurfaceTap = useCallback(() => {
+    if (isDragging || isChangingTrack) return;
+    const now = Date.now();
+    if (now - lastTapTs < 300) {
+      // Double tap => like
+      if (currentTrack?._id) {
+        try { (navigator as any)?.vibrate?.(10); } catch {}
+        handleLike(currentTrack._id);
+        setShowLikeBurst(true);
+        setTimeout(() => setShowLikeBurst(false), 450);
+      }
+    } else {
+      togglePlay();
+    }
+    setLastTapTs(now);
+  }, [isDragging, isChangingTrack, lastTapTs, togglePlay, handleLike, currentTrack?._id]);
 
   // Gestion de la molette de souris
   const handleWheel = useCallback((event: WheelEvent) => {
@@ -406,6 +441,39 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
 
+  // Effet audio‑réactif: récupérer l'analyser du provider et mesurer le niveau
+  useEffect(() => {
+    try {
+      const analyser = (typeof window !== 'undefined' && (useAudioPlayer() as any)?.getAnalyser)
+        ? (useAudioPlayer() as any).getAnalyser()
+        : null;
+      analyserRef.current = analyser;
+      if (analyserRef.current && !levelArrayRef.current) {
+        levelArrayRef.current = new Uint8Array(analyserRef.current.frequencyBinCount);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    const tick = () => {
+      const analyser = analyserRef.current;
+      const arr = levelArrayRef.current;
+      if (analyser && arr) {
+        analyser.getByteFrequencyData(arr);
+        // Calculer un RMS simple / moyenne des basses/médiums
+        let sum = 0;
+        const sampleCount = Math.min(arr.length, 64);
+        for (let i = 0; i < sampleCount; i++) sum += arr[i];
+        const avg = sum / sampleCount; // 0..255
+        const norm = Math.min(1, avg / 200); // normaliser
+        setAudioLevel(norm);
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
   if (!isOpen || !currentTrack || !currentTrack.title) {
     return null;
   }
@@ -433,7 +501,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               y: isDragging ? dragY : 0,
             }}
           >
-            {/* Fond vidéo/audio avec cover animé */}
+            {/* Fond vidéo/audio avec cover animé et glow audio‑réactif */}
             <div className="absolute inset-0 w-full h-full overflow-hidden">
               <div className="relative w-full h-full bg-gradient-to-br from-purple-900/20 to-pink-900/20">
                 {/* Cover image avec rotation */}
@@ -459,6 +527,16 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 
                 {/* Overlay gradient */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+
+                {/* Glow audio‑réactif (cercle flou) */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: `radial-gradient(600px 600px at 50% 50%, rgba(236,72,153,${0.25 + audioLevel * 0.35}), transparent 60%)`,
+                    filter: 'blur(20px)',
+                    opacity: 0.8,
+                  }}
+                />
               </div>
             </div>
 
@@ -498,7 +576,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               </div>
 
               {/* Zone de swipe avec indicateurs */}
-              <div className="flex-1 flex items-center justify-center relative">
+              <div className="flex-1 flex items-center justify-center relative overflow-hidden select-none" onClick={handleSurfaceTap}>
                 {/* Indicateurs de swipe */}
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
                   <motion.div
@@ -519,25 +597,35 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
                 {/* Instructions supprimées à la demande */}
 
-                {/* Cover principale avec animation */}
-                <motion.div
-                  className="relative"
-                  animate={{
-                    scale: isDragging ? 0.95 : 1,
-                    opacity: isDragging ? 0.8 : 1,
-                    y: isChangingTrack ? (Math.random() > 0.5 ? -20 : 20) : 0
-                  }}
-                  transition={{ 
-                    duration: isChangingTrack ? 0.3 : 0.2,
-                    ease: isChangingTrack ? "easeInOut" : "easeOut"
-                  }}
-                >
-                  <div className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl">
+                {/* Cover principale avec animation type page */}
+                <AnimatePresence mode="wait" custom={swipeDirection}>
+                  <motion.div
+                    key={audioState.currentTrackIndex}
+                    className="relative"
+                    variants={pageVariants}
+                    initial="initial"
+                    animate="animate"
+                    exit="exit"
+                    custom={swipeDirection}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                  >
+                  <div
+                    className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl will-change-transform"
+                    style={{
+                      transform: `translateY(${(audioLevel - 0.5) * 6}px)`,
+                    }}
+                  >
                     <img
                       src={currentTrack?.coverUrl || '/default-cover.jpg'}
                       alt={currentTrack?.title || 'Track'}
                       className="w-full h-full object-cover"
                     />
+                    {/* Like burst */}
+                    {showLikeBurst && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center justify-center animate-[tiktok-pulse_450ms_ease-out]">
+                        <Heart size={60} className="text-pink-500 drop-shadow-[0_0_12px_rgba(236,72,153,0.7)]" fill="#ec4899" />
+                      </div>
+                    )}
                     
                     {/* Overlay avec icône play/pause */}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
@@ -565,7 +653,8 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       </div>
                     )}
                   </div>
-                </motion.div>
+                  </motion.div>
+                </AnimatePresence>
 
                 {/* Indicateurs de swipe à droite */}
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
@@ -646,15 +735,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       className="flex items-center gap-1 text-white/70 hover:text-white transition-colors"
                     />
                     
-                    <CommentButton
-                      trackId={currentTrack?._id || ''}
-                      trackTitle={currentTrack?.title || 'Titre inconnu'}
-                      trackArtist={currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
-                      commentCount={currentTrack?.comments?.length || 0}
-                      variant="minimal"
-                      size="sm"
+                    <button
+                      onClick={() => setCommentsOpen(true)}
                       className="flex items-center gap-1 text-white/70 hover:text-white transition-colors"
-                    />
+                    >
+                      <MessageCircle size={16} />
+                      <span className="text-xs">Commentaires</span>
+                    </button>
                     
                     <button className="flex items-center gap-1 text-white/70 hover:text-white transition-colors">
                       <Share2 size={16} />
@@ -667,6 +754,35 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                   </button>
                 </div>
               </div>
+              {/* Bottom sheet commentaires */}
+              <AnimatePresence>
+                {commentsOpen && (
+                  <motion.div
+                    className="fixed inset-x-0 bottom-0 z-[120] bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-2xl"
+                    initial={{ y: 300, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 300, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                  >
+                    <div className="p-4 flex items-center justify-between">
+                      <span className="text-white/80 text-sm">Commentaires</span>
+                      <button onClick={() => setCommentsOpen(false)} className="text-white/60 hover:text-white">
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="px-4 pb-20 max-h-[40vh] overflow-y-auto custom-scroll">
+                      {/* Placeholder liste commentaires (brancher API plus tard) */}
+                      <div className="text-white/60 text-sm">Aucun commentaire pour l’instant.</div>
+                    </div>
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10">
+                      <div className="flex items-center gap-2">
+                        <input placeholder="Écrire un commentaire…" className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none" />
+                        <button className="px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 text-white">Envoyer</button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
         </motion.div>

@@ -52,6 +52,9 @@ interface AudioServiceActions {
 export const useAudioService = () => {
   const { data: session } = useSession();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const mediaElementSourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const recommendations = useAudioRecommendations();
   const isInitialized = useRef(false);
   const lastTrackId = useRef<string | null>(null);
@@ -142,6 +145,27 @@ export const useAudioService = () => {
     audioRef.current.setAttribute('webkit-playsinline', 'true');
     audioRef.current.setAttribute('x-webkit-airplay', 'allow');
     
+    // Web Audio API: créer AnalyserNode pour effets audio‑réactifs (une seule fois)
+    try {
+      if (!audioContextRef.current) {
+        const Ctx: any = (window as any).AudioContext || (window as any).webkitAudioContext;
+        if (Ctx) {
+          audioContextRef.current = new Ctx();
+        }
+      }
+      if (audioRef.current && audioContextRef.current && !mediaElementSourceRef.current) {
+        mediaElementSourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        analyserRef.current.smoothingTimeConstant = 0.8;
+        // Chaînage: source -> analyser -> destination
+        mediaElementSourceRef.current.connect(analyserRef.current);
+        analyserRef.current.connect(audioContextRef.current.destination);
+      }
+    } catch (e) {
+      // Silencieux si Web Audio non dispo
+    }
+
     // Événements audio optimisés
     const audio = audioRef.current;
 
@@ -945,6 +969,8 @@ export const useAudioService = () => {
     autoPlayEnabled,
     notificationPermission,
     isFirstPlay,
+    // Fournir un getter pour l'analyser (référence mutable)
+    getAnalyser: (): AnalyserNode | null => analyserRef.current,
     actions: {
       play,
       pause,
