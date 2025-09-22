@@ -37,7 +37,7 @@ export async function GET(
         likes_count,
         created_at,
         user_id,
-        profiles!comments_user_id_fkey (
+        profiles (
           username,
           name,
           avatar_url
