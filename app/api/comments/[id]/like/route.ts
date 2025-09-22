@@ -19,6 +19,8 @@ export async function POST(
       return NextResponse.json({ error: 'ID du commentaire requis' }, { status: 400 });
     }
 
+    console.log('Like commentaire - ID reçu:', commentId);
+
     // Vérifier que le commentaire existe
     const { data: comment, error: commentError } = await supabaseAdmin
       .from('comments')

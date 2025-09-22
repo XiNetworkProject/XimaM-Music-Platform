@@ -66,16 +66,32 @@ export async function GET(
       userLikes = likes?.map(l => l.comment_id) || [];
     }
 
-    // Formater les commentaires (sans données profil pour l'instant)
-    const formattedComments = comments?.map(comment => ({
-      id: comment.id,
-      text: comment.text,
-      likes: comment.likes_count,
-      createdAt: new Date(comment.created_at).getTime(),
-      authorName: 'Utilisateur', // Placeholder en attendant la correction de la jointure
-      avatar: '/default-avatar.jpg',
-      isLiked: userLikes.includes(comment.id),
-    })) || [];
+    // Récupérer les profils des utilisateurs
+    const userIds = comments?.map(c => c.user_id) || [];
+    let profiles: any[] = [];
+    
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username, name, avatar_url')
+        .in('id', userIds);
+      
+      profiles = profilesData || [];
+    }
+
+    // Formater les commentaires avec les vraies données utilisateur
+    const formattedComments = comments?.map(comment => {
+      const profile = profiles.find(p => p.id === comment.user_id);
+      return {
+        id: comment.id,
+        text: comment.text,
+        likes: comment.likes_count,
+        createdAt: new Date(comment.created_at).getTime(),
+        authorName: profile?.name || profile?.username || 'Utilisateur',
+        avatar: profile?.avatar_url || '/default-avatar.jpg',
+        isLiked: userLikes.includes(comment.id),
+      };
+    }) || [];
 
     return NextResponse.json({
       success: true,

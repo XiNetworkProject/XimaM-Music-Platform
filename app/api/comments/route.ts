@@ -53,6 +53,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la création du commentaire' }, { status: 500 });
     }
 
+    // Récupérer le profil de l'utilisateur connecté
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('username, name, avatar_url')
+      .eq('id', session.user.id)
+      .single();
+
     return NextResponse.json({
       success: true,
       comment: {
@@ -60,8 +67,8 @@ export async function POST(request: NextRequest) {
         text: comment.text,
         likes: comment.likes_count,
         createdAt: new Date(comment.created_at).getTime(),
-        authorName: 'Vous', // Placeholder en attendant la correction de la jointure
-        avatar: '/default-avatar.jpg',
+        authorName: profile?.name || profile?.username || 'Vous',
+        avatar: profile?.avatar_url || '/default-avatar.jpg',
         isLiked: false,
       }
     });

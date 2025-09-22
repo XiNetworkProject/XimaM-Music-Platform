@@ -963,10 +963,15 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           onChange={(e) => setCommentText(e.target.value)}
                           onKeyDown={(e) => { 
                             e.stopPropagation(); // Empêcher la propagation vers les handlers globaux
+                            e.stopImmediatePropagation(); // Empêcher complètement la propagation
                             if (e.key === 'Enter') {
                               e.preventDefault();
                               handleSendComment();
                             }
+                          }}
+                          onKeyUp={(e) => {
+                            e.stopPropagation();
+                            e.stopImmediatePropagation();
                           }}
                         />
                         <button
