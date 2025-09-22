@@ -368,12 +368,23 @@ export const useAudioService = () => {
         throw new Error('URL audio vide');
       }
 
+      // Debug URL audio
+      console.log('🎵 Chargement track:', {
+        id: track._id,
+        title: track.title,
+        audioUrl: track.audioUrl,
+        isCloudinary: track.audioUrl.includes('cloudinary.com'),
+        isHttps: track.audioUrl.startsWith('https://')
+      });
+
       // Vérifier que l'URL est accessible (optionnel)
       try {
         const response = await fetch(track.audioUrl, { method: 'HEAD' });
         if (!response.ok) {
-          console.warn('Fichier audio potentiellement inaccessible:', track.audioUrl);
+          console.warn('Fichier audio potentiellement inaccessible:', track.audioUrl, 'Status:', response.status);
           // Ne pas bloquer, juste avertir
+        } else {
+          console.log('✅ URL audio accessible:', track.audioUrl);
         }
       } catch (fetchError) {
         console.warn('Impossible de vérifier l\'URL audio, tentative de chargement direct:', fetchError);
