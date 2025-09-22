@@ -5,7 +5,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown, Send, Smile } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
@@ -61,6 +61,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [lastTapTs, setLastTapTs] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
+  const [commentsSort, setCommentsSort] = useState<'top' | 'recent'>('top');
   const analyserRef = useRef<AnalyserNode | null>(null);
   const levelArrayRef = useRef<Uint8Array | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -440,6 +441,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     if (!audioState.duration || audioState.duration <= 0 || currentTrack?._id === 'radio-mixx-party') return 0;
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
+  const commentsCount = useMemo(() => (currentTrack?.comments?.length || 0), [currentTrack?.comments]);
 
   // Effet audio‑réactif: récupérer l'analyser du provider et mesurer le niveau
   useEffect(() => {
@@ -754,29 +756,72 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                   </button>
                 </div>
               </div>
-              {/* Bottom sheet commentaires */}
+              {/* Bottom sheet commentaires - style Suno */}
               <AnimatePresence>
                 {commentsOpen && (
                   <motion.div
-                    className="fixed inset-x-0 bottom-0 z-[120] comments-sheet rounded-t-2xl"
+                  className="fixed inset-x-0 bottom-0 z-[120] bg-black/80 backdrop-blur-xl border-t border-white/10 rounded-t-2xl safe-area-bottom"
                     initial={{ y: 300, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
                     exit={{ y: 300, opacity: 0 }}
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                   >
-                    <div className="comments-sheet__header flex items-center justify-between">
-                      <span className="comments-sheet__title">Commentaires</span>
-                      <button onClick={() => setCommentsOpen(false)} className="comments-sheet__close">
+                    {/* Grip */}
+                    <div className="pt-2 pb-1">
+                      <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
+                    </div>
+                    {/* Header */}
+                    <div className="px-4 py-2 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-medium">Commentaires</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+                          {commentsCount}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-white/10 rounded-xl p-1">
+                        <button
+                          onClick={() => setCommentsSort('top')}
+                          className={`px-2 py-1 text-xs rounded-lg transition-colors ${commentsSort === 'top' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white'}`}
+                        >Top</button>
+                        <button
+                          onClick={() => setCommentsSort('recent')}
+                          className={`px-2 py-1 text-xs rounded-lg transition-colors ${commentsSort === 'recent' ? 'bg-white/20 text-white' : 'text-white/70 hover:text-white'}`}
+                        >Récents</button>
+                      </div>
+                      <button onClick={() => setCommentsOpen(false)} className="text-white/60 hover:text-white">
                         <X size={18} />
                       </button>
                     </div>
-                    <div className="comments-sheet__body custom-scroll">
-                      <div className="comments-empty">Aucun commentaire pour l’instant.</div>
+
+                    {/* Liste des commentaires */}
+                    <div className="px-4 pb-24 max-h-[45vh] overflow-y-auto custom-scroll">
+                      {commentsCount === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 text-white/60 text-sm">
+                          <MessageCircle size={22} className="mb-2 text-white/50" />
+                          <div>Aucun commentaire pour l’instant.</div>
+                          <div className="text-white/40">Soyez le premier à réagir ✨</div>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {/* À connecter à l'API plus tard */}
+                        </div>
+                      )}
                     </div>
-                    <div className="comments-sheet__footer">
+
+                    {/* Saisie */}
+                    <div className="absolute inset-x-0 bottom-0 p-3 bg-black/60 border-t border-white/10">
                       <div className="flex items-center gap-2">
-                        <input placeholder="Écrire un commentaire…" className="comments-input outline-none" />
-                        <button className="comments-send text-sm">Envoyer</button>
+                        <button className="shrink-0 w-9 h-9 rounded-full bg-white/10 flex items-center justify-center text-white/70 hover:text-white">
+                          <Smile size={18} />
+                        </button>
+                        <input
+                          placeholder="Écrire un commentaire…"
+                          className="flex-1 bg-white/10 text-white text-sm rounded-xl px-3 py-2 placeholder-white/50 outline-none"
+                        />
+                        <button className="shrink-0 px-3 py-2 text-sm rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center gap-1">
+                          <Send size={16} />
+                          Envoyer
+                        </button>
                       </div>
                     </div>
                   </motion.div>
