@@ -36,11 +36,8 @@ export async function GET(_req: NextRequest) {
     const status = profile?.subscription_status || (plan === 'free' ? 'none' : 'active');
     const currentPeriodEnd = profile?.subscription_current_period_end || null;
 
-    const hasSubscription = plan !== 'free';
-    
     return NextResponse.json({
-      hasSubscription,
-      subscription: hasSubscription ? { id: '', name, price: 0, currency: 'EUR', interval } : null,
+      subscription: { id: '', name, price: 0, currency: 'EUR', interval },
       userSubscription: { status, currentPeriodEnd },
     });
   } catch (e) {

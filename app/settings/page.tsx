@@ -268,215 +268,186 @@ export default function SettingsPage() {
     router.push('/auth/signin');
   };
 
+  const renderSettingItem = (item: SettingItem) => {
+    switch (item.type) {
+      case 'toggle':
+        return (
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <div className="font-medium text-white/90 text-base">{item.label}</div>
+              {item.description && (
+                <div className="text-sm text-white/60 mt-1">{item.description}</div>
+              )}
+            </div>
+            <button
+              onClick={() => handleToggle(item.id)}
+              className={`w-14 h-7 rounded-full transition-all duration-300 shadow-lg ${
+                settings[item.id as keyof typeof settings] 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' 
+                  : 'bg-white/20 shadow-white/10'
+              }`}
+            >
+              <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-md ${
+                settings[item.id as keyof typeof settings] 
+                  ? 'translate-x-7' 
+                  : 'translate-x-0.5'
+              }`} />
+            </button>
+          </div>
+        );
+
+      case 'select':
+        return (
+          <div className="flex items-center justify-between group">
+            <div className="flex-1">
+              <div className="font-medium text-white/90 text-base">{item.label}</div>
+              {item.description && (
+                <div className="text-sm text-white/60 mt-1">{item.description}</div>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-white/60 font-medium">{item.value}</span>
+              <ChevronRight size={18} className="text-white/40 group-hover:text-white/60 transition-colors group-hover:translate-x-1" />
+            </div>
+          </div>
+        );
+
+      case 'link':
+        return (
+          <button
+            onClick={item.action}
+            className="flex items-center justify-between w-full group hover:bg-white/5 rounded-xl p-3 -m-3 transition-all duration-200"
+          >
+            <div className="flex-1 text-left">
+              <div className="font-medium text-white/90 text-base">{item.label}</div>
+              {item.description && (
+                <div className="text-sm text-white/60 mt-1">{item.description}</div>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <ChevronRight size={18} className="text-white/40 group-hover:text-white/60 transition-colors group-hover:translate-x-1" />
+            </div>
+          </button>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-transparent text-white">
       <main className="container mx-auto px-4 pt-8 pb-20">
-        <div className="max-w-2xl mx-auto">
-          {/* Header moderne */}
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8 text-center"
-          >
-            <div className="flex items-center justify-center mb-6">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
-                <Settings className="w-8 h-8 text-white" />
-              </div>
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Paramètres</h1>
-            <p className="text-white/60">Personnalisez votre expérience musicale</p>
-          </motion.div>
+        {/* Carte principale style fourni */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-4xl mx-auto"
+        >
+          {/* Header de carte */}
+          <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
+            <h1 className="text-2xl max-md:text-base">Paramètres</h1>
+            <div className="flex flex-row gap-2"></div>
+          </div>
 
-          {/* Profil utilisateur */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
-          >
-            <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
-              {/* Informations du profil */}
-              <div className="space-between flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10">
-                {/* Nom */}
-                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]/90">Nom</span>
-                  <span className="text-sm text-[var(--text)]">
-                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                      {user?.name || '—'}
-                    </span>
-                  </span>
-                </div>
-
-                {/* Nom d'utilisateur */}
-                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]/90">Nom d'utilisateur</span>
-                  <span className="text-sm text-[var(--text)]">
-                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                      @{user?.username || '—'}
-                    </span>
-                  </span>
-                </div>
-
-                {/* Email */}
-                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]/90">Email</span>
-                  <span className="text-sm text-[var(--text)]">
-                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                      {user?.email || '—'}
-                    </span>
-                  </span>
-                </div>
-
-                {/* Avatar */}
-                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]/90">Avatar</span>
-                  <span className="text-sm text-[var(--text)]">
-                    <div className="flex items-center gap-2">
+          {/* Corps de carte */}
+          <div className="flex flex-col">
+            <div className="flex w-full flex-col items-stretch justify-start gap-3 p-3 sm:p-4">
+              {/* Profil utilisateur */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
+                className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
+                <div className="relative p-6">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
                       <img
                         src={user?.image || '/default-avatar.png'}
                         alt={user?.name || 'Avatar'}
-                        className="w-8 h-8 rounded-full object-cover border border-[var(--border)]/60"
+                        className="w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg"
                       />
-                      <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                        Modifier
-                      </span>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 border-2 border-white/20 flex items-center justify-center">
+                        <Crown className="w-3 h-3 text-white" />
+                      </div>
                     </div>
-                  </span>
-                </div>
-              </div>
-
-              {/* Boutons d'action */}
-              <div className="flex flex-row flex-wrap justify-center gap-2">
-                <button 
-                  type="button" 
-                  className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition"
-                >
-                  <span className="relative flex flex-row items-center justify-center gap-2">Modifier le profil</span>
-                </button>
-                
-                <div className="flex">
-                  <button 
-                    type="button" 
-                    className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]"
-                  >
-                    <span className="relative flex flex-row items-center justify-center gap-2">Voir le profil</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Limites d'abonnement */}
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="mb-6"
-          >
-            <SubscriptionLimits />
-          </motion.div>
-
-          {/* Sections de paramètres */}
-          <div className="space-y-6">
-            {settingSections.map((section, sectionIndex) => (
-              <motion.div
-                key={section.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 + sectionIndex * 0.1 }}
-                className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
-              >
-                <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
-                  {/* Titre de la section */}
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                      <section.icon size={18} className="text-purple-400" />
+                    <div className="flex-1">
+                      <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
+                      <p className="text-white/60">@{user?.username}</p>
+                      <p className="text-sm text-white/40">{user?.email}</p>
                     </div>
-                    <h3 className="font-semibold text-white/90 text-lg">{section.title}</h3>
-                  </div>
-
-                  {/* Items de la section */}
-                  <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10 gap-2">
-                    {section.items.map((item, itemIndex) => (
-                      <motion.div 
-                        key={item.id} 
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ duration: 0.3, delay: 0.5 + sectionIndex * 0.1 + itemIndex * 0.05 }}
-                        className="flex flex-col gap-1 px-4 first:pl-0 last:pr-0"
-                      >
-                        <span className="text-xs text-[var(--text-muted)]/90">{item.label}</span>
-                        <div className="text-sm text-[var(--text)]">
-                          {item.type === 'toggle' ? (
-                            <button
-                              onClick={() => handleToggle(item.id)}
-                              className={`w-12 h-6 rounded-full transition-all duration-300 ${
-                                settings[item.id as keyof typeof settings] 
-                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
-                                  : 'bg-white/20'
-                              }`}
-                            >
-                              <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${
-                                settings[item.id as keyof typeof settings] 
-                                  ? 'translate-x-6' 
-                                  : 'translate-x-1'
-                              }`} />
-                            </button>
-                          ) : item.type === 'select' ? (
-                            <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                              {item.value}
-                            </span>
-                          ) : (
-                            <button
-                              onClick={item.action}
-                              className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5 hover:bg-white/10 transition-colors"
-                            >
-                              {item.description || 'Modifier'}
-                            </button>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
+                    <div className="hidden sm:flex items-center gap-2">
+                      <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
+                        Premium
+                      </div>
+                    </div>
                   </div>
                 </div>
               </motion.div>
-            ))}
 
-            {/* Bouton de déconnexion */}
-            <motion.button
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.8 }}
-              onClick={handleLogout}
-              className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-red-500/30 bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(239,68,68,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(220,38,38,0.08),transparent)]"
-            >
-              <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
-                {/* Informations */}
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
-                    <LogOut size={18} className="text-red-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-red-400 text-lg">Déconnexion</h3>
-                    <p className="text-sm text-red-300/70">Se déconnecter de votre compte</p>
-                  </div>
-                </div>
+              {/* Limites d'abonnement */}
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: 0.1 }}
+              >
+                <SubscriptionLimits />
+              </motion.div>
 
-                {/* Bouton d'action */}
-                <div className="flex flex-row flex-wrap justify-center gap-2">
-                  <button 
-                    type="button" 
-                    className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-red-400 bg-red-500/10 ring-1 ring-red-500/30 hover:bg-red-500/20 hover:ring-red-400/50 transition"
+              {/* Sections paramétrables */}
+              <div className="space-y-4">
+                {settingSections.map((section, sectionIndex) => (
+                  <motion.div
+                    key={section.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.25, delay: 0.12 + sectionIndex * 0.06 }}
+                    className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl"
                   >
-                    <span className="relative flex flex-row items-center justify-center gap-2">Se déconnecter</span>
-                  </button>
-                </div>
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
+                    <div className="relative p-5 border-b border-[var(--border)]/30 flex items-center gap-3">
+                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 shadow-sm">
+                        <section.icon size={18} className="text-purple-400" />
+                      </div>
+                      <h3 className="font-semibold text-white/90 text-lg">{section.title}</h3>
+                    </div>
+
+                    <div className="relative divide-y divide-[var(--border)]/20">
+                      {section.items.map((item, itemIndex) => (
+                        <motion.div 
+                          key={item.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2, delay: 0.14 + sectionIndex * 0.06 + itemIndex * 0.03 }}
+                          className="p-5 hover:bg-white/5 transition-colors duration-200"
+                        >
+                          {renderSettingItem(item)}
+                        </motion.div>
+                      ))}
+                    </div>
+                  </motion.div>
+                ))}
               </div>
-            </motion.button>
+            </div>
           </div>
-        </div>
+
+          {/* Footer de carte */}
+          <div className="flex h-fit flex-col justify-end gap-2 p-3 sm:p-4 border-t border-[var(--border)]">
+            <div className="flex flex-row justify-between sm:justify-end gap-2 sm:gap-4">
+              <div className="flex gap-2">
+                <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-[var(--text)] bg-[var(--bg-tertiary)] enabled:hover:before:bg-white/10">
+                  <span className="relative flex flex-row items-center justify-center gap-2">Annuler</span>
+                </button>
+                <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-black bg-white enabled:hover:before:bg-white/90">
+                  <span className="relative flex flex-row items-center justify-center gap-2">Enregistrer</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </main>
 
       {/* Bottom Navigation */}
