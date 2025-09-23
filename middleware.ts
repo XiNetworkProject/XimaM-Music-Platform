@@ -46,8 +46,8 @@ export async function middleware(req: NextRequest) {
   return NextResponse.rewrite(url);
 }
 
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
-};
+export const config = process.env.NODE_ENV !== 'production'
+  ? { matcher: [] as string[] }
+  : { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
 
 
