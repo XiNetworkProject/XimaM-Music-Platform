@@ -12,14 +12,6 @@ type UsageInfo = {
   storage: { used: number; limit: number; percentage: number };
 };
 
-type AIQuotaInfo = {
-  plan_type: string;
-  monthly_limit: number;
-  used_this_month: number;
-  remaining: number;
-  reset_date: string;
-};
-
 type CurrentSubscription = {
   hasSubscription: boolean;
   subscription: {
@@ -37,7 +29,6 @@ type CurrentSubscription = {
 
 export default function SubscriptionsPage() {
   const [usage, setUsage] = useState<UsageInfo | null>(null);
-  const [aiQuota, setAiQuota] = useState<AIQuotaInfo | null>(null);
   const [current, setCurrent] = useState<CurrentSubscription>(null);
   const [period, setPeriod] = useState<'month' | 'year'>('year');
   const [selectedPriceId, setSelectedPriceId] = useState<string>('');
@@ -56,14 +47,12 @@ export default function SubscriptionsPage() {
   const fetchAll = useMemo(() => {
     return async () => {
       try {
-        const [u, c, ai] = await Promise.all([
+        const [u, c] = await Promise.all([
           fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch('/api/ai/quota', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null)
+          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null)
         ]);
         if (u) setUsage(u);
         if (c) setCurrent(c);
-        if (ai) setAiQuota(ai);
       } catch {}
     };
   }, []);
@@ -254,14 +243,6 @@ export default function SubscriptionsPage() {
                   <span className="text-xs text-[var(--text-muted)]/90">Playlists</span>
                   <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{playlistsText}</span></span>
                 </div>
-                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]/90">Génération IA</span>
-                  <span className="text-sm text-[var(--text)]">
-                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                      {aiQuota ? `${aiQuota.used_this_month}/${aiQuota.monthly_limit}` : '—'}
-                    </span>
-                  </span>
-                </div>
               </div>
 
               <div className="flex flex-row flex-wrap justify-center gap-2">
@@ -386,7 +367,7 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isFreeActive}
             isActive={isFreeActive}
-            limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps', ai: '1/mois' }}
+            limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps' }}
             features={[
               'Profil public et bibliothèque',
               'Uploads limités',
@@ -410,8 +391,9 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isStarterActive}
             isActive={isStarterActive}
-            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', ai: '3/mois' }}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', ai: `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}/mois` }}
             features={[
+              `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth} générations IA/mois`,
               PLAN_ENTITLEMENTS.starter.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.starter.features.adFree ? 'Sans publicité' : '',
               PLAN_ENTITLEMENTS.starter.features.analyticsBasic ? 'Statistiques de base' : '',
@@ -429,8 +411,9 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isProActive}
             isActive={isProActive}
-            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps', ai: '10/mois' }}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}/mois` }}
             features={[
+              `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth} générations IA/mois`,
               PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists ? 'Playlists collaboratives' : '',
               PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Analyses avancées' : ''
@@ -446,7 +429,7 @@ export default function SubscriptionsPage() {
             priceMonthly={59.99}
             period={period}
             disabled
-            limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps', ai: '100/mois' }}
+            limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps' }}
             features={[
               'Accès à la messagerie',
               
@@ -482,17 +465,17 @@ export default function SubscriptionsPage() {
           <div>Illimité</div>
           <div>Illimité</div>
 
+          <div className="text-white/60">Générations IA/mois</div>
+          <div>{PLAN_ENTITLEMENTS.free.ai.maxGenerationsPerMonth}</div>
+          <div>{PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}</div>
+          <div>{PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}</div>
+          <div>{PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}</div>
+
           <div className="text-white/60">Messagerie</div>
           <div>—</div>
           <div>{PLAN_ENTITLEMENTS.starter.features.messaging ? 'Oui' : '—'}</div>
           <div>{PLAN_ENTITLEMENTS.pro.features.messaging ? 'Oui' : '—'}</div>
           <div>Oui</div>
-
-          <div className="text-white/60">Génération IA</div>
-          <div>1/mois</div>
-          <div>3/mois</div>
-          <div>10/mois</div>
-          <div>100/mois</div>
 
           <div className="text-white/60">Statistiques avancées</div>
           <div>—</div>
@@ -603,7 +586,7 @@ function PlanCard({
   period: 'month' | 'year';
   disabled?: boolean;
   isActive?: boolean;
-  limits: { tracks: string; storage: string; playlists: string; quality: string; ai: string };
+  limits: { tracks: string; storage: string; playlists: string; quality: string; ai?: string };
   features?: string[];
   onChoose?: () => void;
 }) {
@@ -637,7 +620,7 @@ function PlanCard({
             <div className="flex items-center justify-between"><span>Stockage</span><span className="font-medium">{limits.storage}</span></div>
             <div className="flex items-center justify-between"><span>Playlists</span><span className="font-medium">{limits.playlists}</span></div>
             <div className="flex items-center justify-between"><span>Qualité</span><span className="font-medium">{limits.quality}</span></div>
-            <div className="flex items-center justify-between"><span>Génération IA</span><span className="font-medium">{limits.ai}</span></div>
+            {limits.ai && <div className="flex items-center justify-between"><span>Générations IA</span><span className="font-medium">{limits.ai}</span></div>}
           </div>
 
           {features && features.length > 0 && (

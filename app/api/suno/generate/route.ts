@@ -3,16 +3,9 @@ import { generateCustomMusic, createProductionPrompt } from "@/lib/suno";
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getEntitlements } from '@/lib/entitlements';
 
 const BASE = "https://api.sunoapi.org";
-
-// Mapping des quotas par plan
-const PLAN_LIMITS: Record<string, number> = {
-  free: 1,
-  starter: 3,
-  pro: 10,
-  enterprise: 100,
-};
 
 type Body = {
   title: string;
@@ -39,46 +32,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "SUNO_API_KEY manquant" }, { status: 500 });
   }
 
-  try {
-    // Vérifier l'authentification
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
-    }
+  // Vérification de l'authentification
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
+  }
 
-    const userId = session.user.id;
+  try {
     const body = (await req.json()) as Body;
     console.log("🎵 Requête génération Suno:", { title: body.title, style: body.style, instrumental: body.instrumental });
 
-    // Vérifier le quota utilisateur
-    const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
-    const planType = (profile?.plan || 'free').toLowerCase();
-    const monthly_limit = PLAN_LIMITS[planType] ?? PLAN_LIMITS.free;
+    // Vérification des quotas IA
+    const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
+    const plan = (profile?.plan || 'free') as any;
+    const entitlements = getEntitlements(plan);
 
-    // Calculer utilisé ce mois
+    if (!entitlements.features.aiGeneration) {
+      return NextResponse.json({ error: "Génération IA non disponible sur votre plan" }, { status: 403 });
+    }
+
+    // Calculer les générations utilisées ce mois
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
-    startOfMonth.setHours(0,0,0,0);
+    startOfMonth.setHours(0, 0, 0, 0);
 
-    const { count } = await supabaseAdmin
+    const { count: usedThisMonth } = await supabaseAdmin
       .from('ai_generations')
       .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
+      .eq('user_id', session.user.id)
       .eq('status', 'completed')
       .gte('created_at', startOfMonth.toISOString());
 
-    const used_this_month = count || 0;
-    const remaining = Math.max(0, monthly_limit - used_this_month);
-
+    const remaining = entitlements.ai.maxGenerationsPerMonth - (usedThisMonth || 0);
+    
     if (remaining <= 0) {
-      console.log("❌ Quota IA épuisé:", { planType, monthly_limit, used_this_month, remaining });
       return NextResponse.json({ 
-        error: `Quota IA épuisé. Vous avez utilisé ${used_this_month}/${monthly_limit} générations ce mois.`,
-        quota: { planType, monthly_limit, used_this_month, remaining }
+        error: `Quota IA atteint: ${entitlements.ai.maxGenerationsPerMonth} générations/mois`,
+        quota: {
+          limit: entitlements.ai.maxGenerationsPerMonth,
+          used: usedThisMonth || 0,
+          remaining: 0
+        }
       }, { status: 403 });
     }
 
-    console.log("✅ Quota IA disponible:", { planType, monthly_limit, used_this_month, remaining });
+    console.log(`📊 Quota IA: ${remaining}/${entitlements.ai.maxGenerationsPerMonth} restantes`);
 
     // Validation minimale selon les règles customMode
     if (!body.title) {
@@ -139,36 +137,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Créer l'enregistrement de génération en base pour décrémenter le quota
+    // Enregistrer la génération en base (status: pending)
     const taskId = json?.data?.taskId || json?.taskId;
     if (taskId) {
-      try {
-        await supabaseAdmin
-          .from('ai_generations')
-          .insert({
-            user_id: userId,
-            task_id: taskId,
-            prompt: finalPrompt || '',
-            model: body.model ?? "V4_5",
-            status: 'pending',
-            metadata: {
-              title: body.title,
-              style: body.style,
-              instrumental: body.instrumental,
-              total_duration: 120
-            }
-          });
-        
-        console.log("✅ Génération créée en base avec taskId:", taskId);
-      } catch (error) {
-        console.error("❌ Erreur création génération en base:", error);
-        // Ne pas faire échouer la requête pour ça
-      }
+      await supabaseAdmin.from('ai_generations').insert({
+        id: `ai_gen_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        user_id: session.user.id,
+        task_id: taskId,
+        status: 'pending',
+        title: body.title,
+        style: body.style,
+        prompt: finalPrompt,
+        instrumental: body.instrumental,
+        model: body.model || 'V4_5',
+        created_at: new Date().toISOString()
+      });
     }
 
     console.log("✅ Génération Suno réussie:", json);
     // Retourner le taskId pour le suivi
-    return NextResponse.json(json?.data ?? json);
+    return NextResponse.json({
+      ...json,
+      quota: {
+        limit: entitlements.ai.maxGenerationsPerMonth,
+        used: (usedThisMonth || 0) + 1,
+        remaining: remaining - 1
+      }
+    });
   } catch (error) {
     console.error("❌ Erreur génération personnalisée:", error);
     return NextResponse.json(

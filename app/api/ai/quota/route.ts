@@ -2,14 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
-
-// Mapping simple: générations/mois par plan pour aperçu limité
-const PLAN_LIMITS: Record<string, number> = {
-  free: 1,
-  starter: 3,
-  pro: 10,
-  enterprise: 100,
-};
+import { getEntitlements } from '@/lib/entitlements';
 
 export async function GET(_req: NextRequest) {
   try {
@@ -19,8 +12,9 @@ export async function GET(_req: NextRequest) {
     const userId = session.user.id;
     // Lire plan depuis profiles
     const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
-    const planType = (profile?.plan || 'free').toLowerCase();
-    const monthly_limit = PLAN_LIMITS[planType] ?? PLAN_LIMITS.free;
+    const plan = (profile?.plan || 'free') as any;
+    const entitlements = getEntitlements(plan);
+    const monthly_limit = entitlements.ai.maxGenerationsPerMonth;
 
     // Calculer utilisé ce mois (compte des générations IA complétées ce mois-ci)
     const startOfMonth = new Date();
@@ -42,11 +36,12 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({
       id: '',
       user_id: userId,
-      plan_type: planType,
+      plan_type: plan,
       monthly_limit,
       used_this_month,
       reset_date: reset.toISOString(),
       remaining,
+      aiGenerationEnabled: entitlements.features.aiGeneration,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });

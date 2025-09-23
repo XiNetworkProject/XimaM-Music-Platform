@@ -9,7 +9,6 @@ import { useAudioPlayer } from '@/app/providers';
 import { useSunoWaiter } from '@/hooks/useSunoWaiter';
 import { useAIGenerations } from '@/hooks/useAIGenerations';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
-import { useSession } from 'next-auth/react';
 
 interface GeneratedTrack {
   id: string;
@@ -44,7 +43,6 @@ interface PlayerTrack {
 }
 
 export default function AIGenerator() {
-  const { data: session } = useSession();
   const { quota, loading: quotaLoading } = useAIQuota();
   const { playTrack } = useAudioPlayer();
   const { generations, loading: generationsLoading, refreshGenerations } = useAIGenerations();
@@ -140,11 +138,6 @@ export default function AIGenerator() {
   }, [sunoState, sunoTracks, sunoError, currentTaskId, description, style, lyrics, isInstrumental, customMode, title]);
 
   const generateMusic = async () => {
-    if (!session?.user?.id) {
-      alert('Vous devez être connecté pour générer de la musique');
-      return;
-    }
-
     if (quotaLoading || quota.remaining <= 0) {
       alert('Quota épuisé. Améliorez votre plan pour continuer.');
       return;
@@ -199,11 +192,6 @@ export default function AIGenerator() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        if (response.status === 403 && errorData.error) {
-          alert(errorData.error);
-          return;
-        }
         throw new Error('Erreur lors de la génération');
       }
 
