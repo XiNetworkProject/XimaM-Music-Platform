@@ -153,10 +153,10 @@ export default function CookiesPage() {
                     Vous pouvez gérer les cookies directement dans votre navigateur :
                   </p>
                   <ul className="text-sm text-white/70 space-y-1">
-                    <li>• <strong>Chrome :</strong> Paramètres > Confidentialité et sécurité > Cookies</li>
-                    <li>• <strong>Firefox :</strong> Options > Vie privée et sécurité > Cookies</li>
-                    <li>• <strong>Safari :</strong> Préférences > Confidentialité > Cookies</li>
-                    <li>• <strong>Edge :</strong> Paramètres > Cookies et autorisations de site</li>
+                    <li>• <strong>Chrome :</strong> Paramètres {'>'} Confidentialité et sécurité {'>'} Cookies</li>
+                    <li>• <strong>Firefox :</strong> Options {'>'} Vie privée et sécurité {'>'} Cookies</li>
+                    <li>• <strong>Safari :</strong> Préférences {'>'} Confidentialité {'>'} Cookies</li>
+                    <li>• <strong>Edge :</strong> Paramètres {'>'} Cookies et autorisations de site</li>
                   </ul>
                 </div>
                 <div className="p-4 bg-white/5 rounded-lg">
