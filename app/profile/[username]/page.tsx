@@ -5,6 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp } from 'lucide-react';
+import dynamic from 'next/dynamic';
+const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
 import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
@@ -722,6 +724,8 @@ export default function ProfileUserPage() {
   return (
     <div className="min-h-screen text-white bg-transparent">
       <main className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 pt-0 pb-32">
+        {/* Onboarding (affiché tant que non complété) */}
+        <OnboardingChecklist />
         {/* Bannière moderne style Suno */}
         <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden mb-8 panel-suno border border-[var(--border)]">
           <img
