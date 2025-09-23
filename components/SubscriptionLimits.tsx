@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { motion } from 'framer-motion';
-import { Crown, Zap, Star, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
 
 interface UsageInfo {
   tracks: {
@@ -72,47 +71,12 @@ export default function SubscriptionLimits() {
     }
   };
 
-  const getUsageColor = (percentage: number) => {
-    if (percentage >= 90) return 'from-red-500 to-red-600';
-    if (percentage >= 75) return 'from-yellow-500 to-orange-500';
-    if (percentage >= 50) return 'from-blue-500 to-blue-600';
-    return 'from-green-500 to-emerald-500';
-  };
-
-  const getUsageText = (percentage: number) => {
-    if (percentage >= 90) return 'text-red-400';
-    if (percentage >= 75) return 'text-yellow-400';
-    if (percentage >= 50) return 'text-blue-400';
-    return 'text-green-400';
-  };
-
-  const getPlanIcon = () => {
-    if (subscriptionData?.hasSubscription) {
-      return <Crown className="w-5 h-5 text-purple-400" />;
-    }
-    return <Star className="w-5 h-5 text-gray-400" />;
-  };
 
   const getPlanName = () => {
     if (subscriptionData?.hasSubscription) {
       return subscriptionData.subscription?.name || 'Premium';
     }
     return 'Gratuit';
-  };
-
-  const getPlanBadge = () => {
-    if (subscriptionData?.hasSubscription) {
-      return (
-        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
-          Actif
-        </div>
-      );
-    }
-    return (
-      <div className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium text-white/60">
-        Gratuit
-      </div>
-    );
   };
 
   if (loading) {
@@ -138,122 +102,116 @@ export default function SubscriptionLimits() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6 }}
-      className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl shadow-lg"
+      className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
     >
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
-      
-      <div className="relative p-6">
-        {/* Plan Header */}
-        <div className="mb-6 p-5 rounded-xl bg-gradient-to-r from-white/5 to-white/10 border border-[var(--border)]/50">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                {getPlanIcon()}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white/90 capitalize">
-                  Plan {getPlanName()}
-                </h3>
-                <div className="text-sm text-white/60">
-                  {subscriptionData?.hasSubscription ? 'Abonnement actif' : 'Accès limité aux fonctionnalités de base'}
-                </div>
-              </div>
-            </div>
-            {getPlanBadge()}
+      <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+        {/* Informations du plan */}
+        <div className="space-between flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10">
+          {/* Plan actuel */}
+          <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+            <span className="text-xs text-[var(--text-muted)]/90">Plan actuel</span>
+            <span className="text-sm text-[var(--text)] capitalize">
+              <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                {getPlanName()}
+              </span>
+            </span>
           </div>
 
-          {/* Fonctionnalités incluses */}
+          {/* Période */}
+          <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+            <span className="text-xs text-[var(--text-muted)]/90">Période</span>
+            <span className="text-sm text-[var(--text)]">
+              <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                {subscriptionData?.subscription?.interval === 'month' ? 'Mois' : 
+                 subscriptionData?.subscription?.interval === 'year' ? 'Année' : '—'}
+              </span>
+            </span>
+          </div>
+
+          {/* Prochain prélèvement */}
+          <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+            <span className="text-xs text-[var(--text-muted)]/90">Prochain prélèvement</span>
+            <span className="text-sm text-[var(--text)]">
+              <span className="flex w-full flex-row items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hidden md:block">
+                  <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+                  <line x1="16" x2="16" y1="2" y2="6"></line>
+                  <line x1="8" x2="8" y1="2" y2="6"></line>
+                  <line x1="3" x2="21" y1="10" y2="10"></line>
+                </svg>
+                <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                  {subscriptionData?.hasSubscription ? '—' : '—'}
+                </span>
+              </span>
+            </span>
+          </div>
+
+          {/* Pistes uploadées */}
+          <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+            <span className="text-xs text-[var(--text-muted)]/90">Pistes uploadées</span>
+            <span className="text-sm text-[var(--text)]">
+              <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                {usageInfo ? `${usageInfo.tracks.used}/${usageInfo.tracks.limit}` : '—'}
+              </span>
+            </span>
+          </div>
+
+          {/* Stockage */}
+          <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+            <span className="text-xs text-[var(--text-muted)]/90">Stockage</span>
+            <span className="text-sm text-[var(--text)]">
+              <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                {usageInfo ? `${usageInfo.storage.used.toFixed(2)}/${usageInfo.storage.limit} GB` : '—'}
+              </span>
+            </span>
+          </div>
+
+          {/* Playlists */}
+          <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+            <span className="text-xs text-[var(--text-muted)]/90">Playlists</span>
+            <span className="text-sm text-[var(--text)]">
+              <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                {usageInfo ? `${usageInfo.playlists.used}/${usageInfo.playlists.limit}` : '—'}
+              </span>
+            </span>
+          </div>
+        </div>
+
+        {/* Boutons d'action */}
+        <div className="flex flex-row flex-wrap justify-center gap-2">
           {subscriptionData?.hasSubscription && (
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Upload illimité
-              </div>
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Qualité HD
-              </div>
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Sans publicités
-              </div>
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Support prioritaire
-              </div>
-            </div>
+            <button 
+              type="button" 
+              className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition"
+            >
+              <span className="relative flex flex-row items-center justify-center gap-2">Annuler l'abonnement</span>
+            </button>
           )}
-        </div>
-
-        {/* Limites */}
-        <div className="space-y-5">
-          <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-purple-400" />
-            {subscriptionData?.hasSubscription ? 'Limites d\'abonnement' : 'Limites gratuites'}
-          </h3>
           
-          {usageInfo && (
-            <div className="space-y-4">
-              {Object.entries(usageInfo).map(([key, data], index) => {
-                const label = key === 'tracks' ? 'Pistes' : 
-                             key === 'playlists' ? 'Playlists' :
-                             key === 'storage' ? 'Stockage (GB)' : key;
-                
-                const formatValue = (value: number) => {
-                  if (key === 'storage') {
-                    return value.toFixed(2);
-                  }
-                  return value.toString();
-                };
-
-                return (
-                  <motion.div 
-                    key={key} 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className="space-y-3"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-white/70 font-medium">{label}</span>
-                      <span className={`font-semibold ${getUsageText(data.percentage)}`}>
-                        {formatValue(data.used)} / {formatValue(data.limit)}
-                      </span>
-                    </div>
-                    
-                    <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(data.percentage, 100)}%` }}
-                        transition={{ duration: 0.8, delay: index * 0.1 }}
-                        className={`h-3 rounded-full bg-gradient-to-r ${getUsageColor(data.percentage)} shadow-sm`}
-                      />
-                    </div>
-                    
-                    {data.percentage >= 90 && (
-                      <div className="flex items-center gap-2 text-xs text-red-400">
-                        <AlertTriangle className="w-4 h-4" />
-                        Limite presque atteinte ({data.percentage.toFixed(0)}%)
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Action Button */}
-        <div className="mt-6 pt-4 border-t border-[var(--border)]/30">
-          <motion.a 
-            href="/subscriptions"
-            className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors group"
-            whileHover={{ x: 2 }}
+          <button 
+            type="button" 
+            className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-cyan-400/30 transition"
           >
-            {subscriptionData?.hasSubscription ? 'Gérer mon abonnement' : 'Voir tous les plans'}
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </motion.a>
+            <span className="relative flex flex-row items-center justify-center gap-2">Mettre à jour le paiement</span>
+          </button>
+          
+          <div className="flex">
+            <button 
+              type="button" 
+              className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]"
+            >
+              <span className="relative flex flex-row items-center justify-center gap-2">Acheter plus</span>
+            </button>
+          </div>
+          
+          {subscriptionData?.hasSubscription && (
+            <button 
+              type="button" 
+              className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-red-400/30 transition"
+            >
+              <span className="relative flex flex-row items-center justify-center gap-2">Revenir au plan gratuit</span>
+            </button>
+          )}
         </div>
       </div>
     </motion.div>
