@@ -24,11 +24,13 @@ type Body = {
 export async function POST(req: NextRequest) {
   const apiKey = process.env.SUNO_API_KEY;
   if (!apiKey) {
+    console.error("❌ SUNO_API_KEY manquant dans les variables d'environnement");
     return NextResponse.json({ error: "SUNO_API_KEY manquant" }, { status: 500 });
   }
 
   try {
     const body = (await req.json()) as Body;
+    console.log("🎵 Requête génération Suno:", { title: body.title, style: body.style, instrumental: body.instrumental });
 
     // Validation minimale selon les règles customMode
     if (!body.title) {
@@ -66,6 +68,8 @@ export async function POST(req: NextRequest) {
       callBackUrl: body.callBackUrl || `${process.env.NEXTAUTH_URL}/api/suno/callback`,
     };
 
+    console.log("🚀 Appel API Suno avec payload:", payload);
+
     const response = await fetch(`${BASE}/api/v1/generate`, {
       method: "POST",
       headers: {
@@ -77,17 +81,21 @@ export async function POST(req: NextRequest) {
 
     const json = await response.json().catch(() => ({}));
     
+    console.log("📡 Réponse Suno:", { status: response.status, json });
+    
     if (!response.ok) {
+      console.error("❌ Erreur API Suno:", json);
       return NextResponse.json(
         { error: json?.msg || "Erreur Suno", raw: json }, 
         { status: response.status }
       );
     }
 
+    console.log("✅ Génération Suno réussie:", json);
     // Retourner le taskId pour le suivi
     return NextResponse.json(json?.data ?? json);
   } catch (error) {
-    console.error("Erreur génération personnalisée:", error);
+    console.error("❌ Erreur génération personnalisée:", error);
     return NextResponse.json(
       { error: "Erreur interne du serveur" }, 
       { status: 500 }
