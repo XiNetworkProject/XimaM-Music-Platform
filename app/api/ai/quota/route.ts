@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getEntitlements } from '@/lib/entitlements';
 
 // Mapping simple: générations/mois par plan pour aperçu limité
 const PLAN_LIMITS: Record<string, number> = {
@@ -21,8 +20,7 @@ export async function GET(_req: NextRequest) {
     // Lire plan depuis profiles
     const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
     const planType = (profile?.plan || 'free').toLowerCase();
-    const entitlements = getEntitlements(planType as any);
-    const monthly_limit = entitlements.aiGenerations;
+    const monthly_limit = PLAN_LIMITS[planType] ?? PLAN_LIMITS.free;
 
     // Calculer utilisé ce mois (compte des générations IA complétées ce mois-ci)
     const startOfMonth = new Date();

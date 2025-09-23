@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { aiGenerationService } from '@/lib/aiGenerationService';
 import { normalizeSunoItem } from "@/lib/suno-normalize";
-import { supabaseAdmin } from '@/lib/supabase';
 
 // Optionnel: ajoute une vérification d'origine IP/signature si Suno en fournit plus tard.
 type CallbackOk = {
@@ -58,25 +57,13 @@ export async function POST(req: NextRequest) {
 
       // Mettre à jour la génération en base
       try {
-        const status = body.data.callbackType === 'complete' ? 'completed' : 'pending';
-        
-        // Mise à jour via le service existant
         await aiGenerationService.updateGenerationStatus(
           body.data.task_id,
-          status,
+          body.data.callbackType === 'complete' ? 'completed' : 'pending',
           tracks
         );
         
-        // Mise à jour directe en base pour le statut
-        await supabaseAdmin
-          .from('ai_generations')
-          .update({ 
-            status: status,
-            completed_at: status === 'completed' ? new Date().toISOString() : null
-          })
-          .eq('task_id', body.data.task_id);
-        
-        console.log("✅ Génération mise à jour en base:", body.data.task_id, "status:", status);
+        console.log("✅ Génération mise à jour en base:", body.data.task_id);
       } catch (error) {
         console.error("❌ Erreur mise à jour base:", error);
       }
