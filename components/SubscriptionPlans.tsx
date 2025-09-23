@@ -370,7 +370,7 @@ export default function SubscriptionPlans() {
           )}
 
           {/* Current Plan Status (Suno-like header) */}
-          <motion.div
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05 }}
@@ -381,11 +381,11 @@ export default function SubscriptionPlans() {
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
                     <span className="text-xs text-[var(--text-muted)]">Current Plan</span>
                     <span className="text-sm text-[var(--text)]">{(currentSubscription?.subscription?.name || 'Free Plan')}</span>
-                  </div>
+                </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
                     <span className="text-xs text-[var(--text-muted)]">Billing Period</span>
                     <span className="text-sm text-[var(--text)]">{currentSubscription?.subscription?.interval === 'month' ? 'Month' : currentSubscription?.subscription?.interval === 'year' ? 'Year' : '—'}</span>
-                  </div>
+                </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
                     <span className="text-xs text-[var(--text-muted)]">Next Billing Date</span>
                     <span className="text-sm text-[var(--text)]">
@@ -396,7 +396,7 @@ export default function SubscriptionPlans() {
                           : null)?.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) || '—'}
                       </span>
                     </span>
-                  </div>
+              </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
                     <span className="text-xs text-[var(--text-muted)]">Credits Remaining</span>
                     <span className="text-sm text-[var(--text)]">{currentSubscription?.userSubscription?.usage?.uploads ?? 0}</span>

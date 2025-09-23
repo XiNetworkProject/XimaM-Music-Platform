@@ -39,7 +39,8 @@ export default function BottomNav() {
       path: '/',
       active: pathname === '/',
       color: 'from-purple-500 to-pink-500',
-      description: 'Découvrez les nouveautés'
+      description: 'Découvrez les nouveautés',
+      public: true
     },
     {
       icon: Compass,
@@ -47,7 +48,8 @@ export default function BottomNav() {
       path: '/discover',
       active: pathname === '/discover',
       color: 'from-green-500 to-emerald-500',
-      description: 'Explorez la musique'
+      description: 'Explorez la musique',
+      public: true
     },
     {
       icon: BookOpen,
@@ -55,7 +57,8 @@ export default function BottomNav() {
       path: '/library',
       active: pathname === '/library',
       color: 'from-blue-500 to-cyan-500',
-      description: 'Vos favoris'
+      description: 'Vos favoris',
+      public: false
     },
     {
       icon: TrendingUp,
@@ -63,7 +66,8 @@ export default function BottomNav() {
       path: '/stats',
       active: pathname === '/stats',
       color: 'from-cyan-500 to-purple-500',
-      description: 'Vos statistiques'
+      description: 'Vos statistiques',
+      public: false
     },
     {
       icon: MessageCircle,
@@ -71,7 +75,8 @@ export default function BottomNav() {
       path: '/messages',
       active: pathname.startsWith('/messages'),
       color: 'from-orange-500 to-red-500',
-      description: 'Communiquez'
+      description: 'Communiquez',
+      public: false
     }
   ];
 
@@ -83,7 +88,12 @@ export default function BottomNav() {
     }
   };
 
-  const handleNavClick = (path: string) => {
+  const handleNavClick = (path: string, isPublic: boolean) => {
+    // Si c'est une page privée et que l'utilisateur n'est pas connecté, rediriger vers la connexion
+    if (!isPublic && !session) {
+      router.push('/auth/signin', { scroll: false });
+      return;
+    }
     // Navigation immédiate sans blocage ni transition
     router.push(path, { scroll: false });
   };
@@ -117,12 +127,13 @@ export default function BottomNav() {
                 {navItems.map((item) => (
                   <button
                     key={item.path}
-                    onClick={() => handleNavClick(item.path)}
+                    onClick={() => handleNavClick(item.path, item.public)}
                     className={`flex flex-col items-center justify-center w-14 h-12 rounded-lg transition-all ${
                       item.active 
                         ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40' 
                         : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-                    }`}
+                    } ${!item.public && !session ? 'opacity-50' : ''}`}
+                    disabled={!item.public && !session}
                   >
                     <item.icon size={18} />
                     <span className="text-[10px] mt-0.5 font-medium">{item.label}</span>
@@ -132,41 +143,53 @@ export default function BottomNav() {
 
               {/* Actions rapides - Lecteur, Upload, Profil */}
               <div className="flex items-center gap-1 ml-2">
-                {/* Bouton lecteur mini */}
-                {!audioState.showPlayer && (
+                {session ? (
+                  <>
+                    {/* Bouton lecteur mini */}
+                    {!audioState.showPlayer && (
+                      <button
+                        onClick={() => setShowPlayer(true)}
+                        className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg flex items-center justify-center text-white"
+                        aria-label="Lecteur"
+                      >
+                        <Music size={16} />
+                      </button>
+                    )}
+                    
+                    <button
+                      onClick={() => router.push('/upload', { scroll: false })}
+                      className="w-10 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg flex items-center justify-center text-white"
+                      aria-label="Upload"
+                    >
+                      <Plus size={16} />
+                    </button>
+                    
+                    <button
+                      onClick={handleProfileClick}
+                      className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
+                        pathname.startsWith('/profile') 
+                          ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40' 
+                          : 'border-[var(--border)] hover:bg-[var(--surface-2)]'
+                      }`}
+                      aria-label="Profil"
+                    >
+                      <img
+                        src={avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture || '/default-avatar.png'}
+                        alt="Profile"
+                        className="w-6 h-6 rounded-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                      />
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={() => setShowPlayer(true)}
-                    className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg flex items-center justify-center text-white"
-                    aria-label="Lecteur"
+                    onClick={() => router.push('/auth/signin', { scroll: false })}
+                    className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg flex items-center justify-center text-white"
+                    aria-label="Se connecter"
                   >
-                    <Music size={16} />
+                    <UserPlus size={16} />
                   </button>
                 )}
-                
-                <button
-                  onClick={() => router.push('/upload', { scroll: false })}
-                  className="w-10 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg flex items-center justify-center text-white"
-                  aria-label="Upload"
-                >
-                  <Plus size={16} />
-                </button>
-                
-                <button
-                  onClick={handleProfileClick}
-                  className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
-                    pathname.startsWith('/profile') 
-                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40' 
-                      : 'border-[var(--border)] hover:bg-[var(--surface-2)]'
-                  }`}
-                  aria-label="Profil"
-                >
-                  <img
-                    src={avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture || '/default-avatar.png'}
-                    alt="Profile"
-                    className="w-6 h-6 rounded-full object-cover"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
-                  />
-                </button>
               </div>
             </div>
           </div>

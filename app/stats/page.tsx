@@ -1,7 +1,5 @@
 "use client";
 
-import { SynauraSpinner } from '@/components/SynauraSpinner';
-
 function DonutWithLegend({ data, topN = 6 }: { data: Record<string, number>; topN?: number }) {
   const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
   const top = sorted.slice(0, topN);
@@ -508,6 +506,24 @@ function TimeseriesBars({ series, compareSeries = [], metric = 'plays' as 'plays
   );
 }
 
+function SynauraSpinner({ label }: { label?: string }) {
+  return (
+    <div className="flex items-center gap-2 text-white" aria-live="polite" aria-busy="true">
+      <span className="relative inline-flex h-7 w-7">
+        {/* Glow */}
+        <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] opacity-50 blur-[4px]"></span>
+        {/* Ring */}
+        <span
+          className="relative inline-flex h-7 w-7 rounded-full border-4 border-transparent animate-spin"
+          style={{ borderTopColor: 'var(--color-accent)', borderRightColor: 'var(--color-primary)' }}
+        />
+        {/* Dot */}
+        <span className="absolute h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.6)] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse"></span>
+      </span>
+      {label && <span className="text-sm font-semibold text-white">{label}</span>}
+    </div>
+  );
+}
 
 function HeatmapGrid({ matrix }: { matrix: number[][] }) {
   const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];

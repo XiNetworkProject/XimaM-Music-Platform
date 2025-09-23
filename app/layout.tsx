@@ -7,7 +7,6 @@ import BottomNav from '@/components/BottomNav';
 import AppNavbar from '@/components/AppNavbar';
 import AppSidebar from '@/components/AppSidebar';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
-import EarlyAccessGate from '@/components/EarlyAccessGate';
 
 // Déclaration des types pour les fonctions globales
 declare global {
@@ -100,27 +99,25 @@ export default function RootLayout({
       </head>
           <body className={`theme-suno ${inter.className} overflow-x-hidden max-w-full`}>
         <Providers>
-          <EarlyAccessGate>
-            {/* Aurora background (fixed layers) */}
-            <div className="aurora-bg" aria-hidden>
-              <div className="aurora-layer aurora-1"></div>
-              <div className="aurora-layer aurora-2"></div>
-              <div className="aurora-layer aurora-3"></div>
-              <div className="aurora-vignette"></div>
-            </div>
+          {/* Aurora background (fixed layers) */}
+          <div className="aurora-bg" aria-hidden>
+            <div className="aurora-layer aurora-1"></div>
+            <div className="aurora-layer aurora-2"></div>
+            <div className="aurora-layer aurora-3"></div>
+            <div className="aurora-vignette"></div>
+          </div>
 
-            <div className="flex min-h-screen overflow-x-hidden max-w-full">
-              <AppSidebar />
-              <div className="flex-1 flex flex-col lg:pl-72 overflow-x-hidden max-w-full">
-                <AppNavbar />
-                <main className="flex-1 overflow-x-hidden max-w-full">
-                  {children}
-                </main>
-                <BottomNav />
-                <FullScreenPlayer />
-              </div>
+          <div className="flex min-h-screen overflow-x-hidden max-w-full">
+            <AppSidebar />
+            <div className="flex-1 flex flex-col lg:pl-72 overflow-x-hidden max-w-full">
+              <AppNavbar />
+              <main className="flex-1 overflow-x-hidden max-w-full">
+                {children}
+              </main>
+              <BottomNav />
+              <FullScreenPlayer />
             </div>
-          </EarlyAccessGate>
+          </div>
         </Providers>
       </body>
     </html>

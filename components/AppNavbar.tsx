@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useCallback, useEffect } from 'react';
-import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles, TrendingUp } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles, TrendingUp, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioPlayer } from '../app/providers';
 
@@ -52,6 +53,7 @@ interface SearchResults {
 }
 
 export default function AppNavbar() {
+  const { data: session } = useSession();
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResults>({ tracks: [], artists: [], playlists: [], total: 0 });
@@ -382,24 +384,38 @@ export default function AppNavbar() {
 
           {/* Actions - Mobile optimisé */}
           <div className="flex items-center gap-1 sm:gap-2">
-            <Link href="/stats" className="hidden lg:inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10">
-              <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:block">Stats</span>
-            </Link>
-            <Link href="/ai-generator" className="btn-suno inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2">
-              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:block text-sm">IA</span>
-            </Link>
-            <Link href="/upload" className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-md">
-              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:block">Uploader</span>
-            </Link>
-            <button aria-label="Notifications" className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
-              <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-            <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
-              {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
+            {session ? (
+              <>
+                <Link href="/stats" className="hidden lg:inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10">
+                  <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:block">Stats</span>
+                </Link>
+                <Link href="/ai-generator" className="btn-suno inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2">
+                  <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:block text-sm">IA</span>
+                </Link>
+                <Link href="/upload" className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-md">
+                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:block">Uploader</span>
+                </Link>
+                <button aria-label="Notifications" className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
+                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+                </button>
+                <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
+                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/auth/signin" className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-md">
+                  <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <span className="hidden sm:block">Se connecter</span>
+                </Link>
+                <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
+                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

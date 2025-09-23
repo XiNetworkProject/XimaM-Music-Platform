@@ -4,7 +4,7 @@ import { signIn, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { Eye, EyeOff, Mail, Lock, Music } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Music, Users, AlertCircle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 function SignInContent() {
@@ -19,6 +19,7 @@ function SignInContent() {
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [userCount, setUserCount] = useState<{userCount: number, maxUsers: number, canRegister: boolean, remainingSlots: number} | null>(null);
 
   // Afficher le message de succès depuis l'URL
   useEffect(() => {
@@ -27,6 +28,20 @@ function SignInContent() {
       setSuccessMessage(message);
     }
   }, [searchParams]);
+
+  // Charger le nombre d'utilisateurs
+  useEffect(() => {
+    const fetchUserCount = async () => {
+      try {
+        const response = await fetch('/api/auth/count-users');
+        const data = await response.json();
+        setUserCount(data);
+      } catch (error) {
+        console.error('Erreur lors du chargement du nombre d\'utilisateurs:', error);
+      }
+    };
+    fetchUserCount();
+  }, []);
 
   // Rediriger si déjà connecté
   useEffect(() => {
@@ -200,10 +215,27 @@ function SignInContent() {
         <div className="mt-8 text-center">
           <p className="text-white/70">
             Pas encore de compte ?{' '}
-            <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 font-medium">
-              Créer un compte
-            </Link>
+            {userCount?.canRegister ? (
+              <Link href="/auth/signup" className="text-blue-400 hover:text-blue-300 font-medium">
+                Créer un compte
+              </Link>
+            ) : (
+              <span className="text-red-400 font-medium">
+                Inscriptions fermées (limite atteinte)
+              </span>
+            )}
           </p>
+          {userCount && (
+            <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10">
+              <div className="flex items-center justify-center gap-2 text-sm text-white/70">
+                <Users className="w-4 h-4" />
+                <span>{userCount.userCount}/{userCount.maxUsers} comptes créés</span>
+                {userCount.remainingSlots > 0 && (
+                  <span className="text-green-400">({userCount.remainingSlots} places restantes)</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 text-center">

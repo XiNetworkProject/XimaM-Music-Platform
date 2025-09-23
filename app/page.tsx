@@ -16,9 +16,10 @@ import {
   Play, Heart, Pause, Headphones, 
   Users, TrendingUp, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Mic2, Share2, Eye, 
-  X, MessageCircle
+  X, MessageCircle, LogIn
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
 
@@ -1534,8 +1535,31 @@ export default function HomePage() {
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
-        {/* Onboarding simple (3 étapes) */}
-        <OnboardingChecklist />
+        {/* Onboarding simple (3 étapes) - seulement si connecté */}
+        {session && <OnboardingChecklist />}
+        
+        {/* Bannière connexion pour utilisateurs non connectés */}
+        {!session && (
+          <div className="mb-6 p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <LogIn className="w-5 h-5 text-blue-400" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-white">Accès limité</h3>
+                  <p className="text-sm text-white/70">Connectez-vous pour accéder à toutes les fonctionnalités</p>
+                </div>
+              </div>
+              <Link 
+                href="/auth/signin"
+                className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 text-sm font-medium"
+              >
+                Se connecter
+              </Link>
+            </div>
+          </div>
+        )}
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-2 md:p-4">
       {/* Banderoles fines et élégantes */}
       <div className="relative z-20">

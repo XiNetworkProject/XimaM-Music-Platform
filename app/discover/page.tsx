@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { 
   Music, 
@@ -29,9 +30,11 @@ import {
   ChevronLeft,
   ChevronRight,
   MessageCircle,
-  MoreHorizontal
+  MoreHorizontal,
+  LogIn
 } from 'lucide-react';
 import { MUSIC_GENRES, GENRE_CATEGORIES, getGenreColor } from '@/lib/genres';
+import Link from 'next/link';
 
 interface Track {
   _id: string;
@@ -81,6 +84,7 @@ interface Category {
 
 export default function DiscoverPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   
   // États pour les vraies données
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -631,6 +635,33 @@ export default function DiscoverPage() {
 
     return (
     <div className="min-h-screen bg-transparent text-[var(--text)] pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
+
+      {/* Bannière connexion pour utilisateurs non connectés */}
+      {!session && (
+        <div className="w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-8 pb-4">
+          <div className="w-full max-w-7xl mx-auto mb-6">
+            <div className="p-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-400/30 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <LogIn className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-white">Accès limité</h3>
+                    <p className="text-sm text-white/70">Connectez-vous pour accéder à toutes les fonctionnalités</p>
+                  </div>
+                </div>
+                <Link 
+                  href="/auth/signin"
+                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 text-sm font-medium"
+                >
+                  Se connecter
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* En-tête épuré - Style moderne */}
       <div className="w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-8 pb-4">
