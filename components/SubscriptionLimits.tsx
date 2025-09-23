@@ -25,6 +25,10 @@ interface UsageInfo {
 interface SubscriptionData {
   hasSubscription: boolean;
   subscription: any;
+  userSubscription: {
+    status: string;
+    currentPeriodEnd?: string;
+  };
   limits: {
     maxTracks: number;
     maxPlaylists: number;
@@ -140,7 +144,9 @@ export default function SubscriptionLimits() {
                   <line x1="3" x2="21" y1="10" y2="10"></line>
                 </svg>
                 <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
-                  {subscriptionData?.hasSubscription ? '—' : '—'}
+                  {subscriptionData?.userSubscription?.currentPeriodEnd ? 
+                    new Date(subscriptionData.userSubscription.currentPeriodEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : 
+                    '—'}
                 </span>
               </span>
             </span>

@@ -268,72 +268,6 @@ export default function SettingsPage() {
     router.push('/auth/signin');
   };
 
-  const renderSettingItem = (item: SettingItem) => {
-    switch (item.type) {
-      case 'toggle':
-        return (
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="font-medium text-white/90 text-base">{item.label}</div>
-              {item.description && (
-                <div className="text-sm text-white/60 mt-1">{item.description}</div>
-              )}
-            </div>
-            <button
-              onClick={() => handleToggle(item.id)}
-              className={`w-14 h-7 rounded-full transition-all duration-300 shadow-lg ${
-                settings[item.id as keyof typeof settings] 
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' 
-                  : 'bg-white/20 shadow-white/10'
-              }`}
-            >
-              <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-md ${
-                settings[item.id as keyof typeof settings] 
-                  ? 'translate-x-7' 
-                  : 'translate-x-0.5'
-              }`} />
-            </button>
-          </div>
-        );
-
-      case 'select':
-        return (
-          <div className="flex items-center justify-between group">
-            <div className="flex-1">
-              <div className="font-medium text-white/90 text-base">{item.label}</div>
-              {item.description && (
-                <div className="text-sm text-white/60 mt-1">{item.description}</div>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-white/60 font-medium">{item.value}</span>
-              <ChevronRight size={18} className="text-white/40 group-hover:text-white/60 transition-colors group-hover:translate-x-1" />
-            </div>
-          </div>
-        );
-
-      case 'link':
-        return (
-          <button
-            onClick={item.action}
-            className="flex items-center justify-between w-full group hover:bg-white/5 rounded-xl p-3 -m-3 transition-all duration-200"
-          >
-            <div className="flex-1 text-left">
-              <div className="font-medium text-white/90 text-base">{item.label}</div>
-              {item.description && (
-                <div className="text-sm text-white/60 mt-1">{item.description}</div>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <ChevronRight size={18} className="text-white/40 group-hover:text-white/60 transition-colors group-hover:translate-x-1" />
-            </div>
-          </button>
-        );
-
-      default:
-        return null;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-transparent text-white">
@@ -360,32 +294,75 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl"
+            className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
           >
-            {/* Background gradient */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
-            
-            <div className="relative p-6">
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <img
-                    src={user?.image || '/default-avatar.png'}
-                    alt={user?.name || 'Avatar'}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg"
-                  />
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 border-2 border-white/20 flex items-center justify-center">
-                    <Crown className="w-3 h-3 text-white" />
-                  </div>
+            <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+              {/* Informations du profil */}
+              <div className="space-between flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10">
+                {/* Nom */}
+                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                  <span className="text-xs text-[var(--text-muted)]/90">Nom</span>
+                  <span className="text-sm text-[var(--text)]">
+                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                      {user?.name || '—'}
+                    </span>
+                  </span>
                 </div>
-                <div className="flex-1">
-                  <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
-                  <p className="text-white/60">@{user?.username}</p>
-                  <p className="text-sm text-white/40">{user?.email}</p>
+
+                {/* Nom d'utilisateur */}
+                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                  <span className="text-xs text-[var(--text-muted)]/90">Nom d'utilisateur</span>
+                  <span className="text-sm text-[var(--text)]">
+                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                      @{user?.username || '—'}
+                    </span>
+                  </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
-                    Premium
-                  </div>
+
+                {/* Email */}
+                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                  <span className="text-xs text-[var(--text-muted)]/90">Email</span>
+                  <span className="text-sm text-[var(--text)]">
+                    <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                      {user?.email || '—'}
+                    </span>
+                  </span>
+                </div>
+
+                {/* Avatar */}
+                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                  <span className="text-xs text-[var(--text-muted)]/90">Avatar</span>
+                  <span className="text-sm text-[var(--text)]">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={user?.image || '/default-avatar.png'}
+                        alt={user?.name || 'Avatar'}
+                        className="w-8 h-8 rounded-full object-cover border border-[var(--border)]/60"
+                      />
+                      <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                        Modifier
+                      </span>
+                    </div>
+                  </span>
+                </div>
+              </div>
+
+              {/* Boutons d'action */}
+              <div className="flex flex-row flex-wrap justify-center gap-2">
+                <button 
+                  type="button" 
+                  className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-[var(--text)] bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 hover:ring-purple-400/30 transition"
+                >
+                  <span className="relative flex flex-row items-center justify-center gap-2">Modifier le profil</span>
+                </button>
+                
+                <div className="flex">
+                  <button 
+                    type="button" 
+                    className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">Voir le profil</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -409,34 +386,60 @@ export default function SettingsPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.4 + sectionIndex * 0.1 }}
-                className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-[var(--border)] bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
               >
-                {/* Background gradient */}
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
-                
-                {/* Header */}
-                <div className="relative p-5 border-b border-[var(--border)]/30">
+                <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+                  {/* Titre de la section */}
                   <div className="flex items-center space-x-3">
-                    <div className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 shadow-sm">
+                    <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
                       <section.icon size={18} className="text-purple-400" />
                     </div>
                     <h3 className="font-semibold text-white/90 text-lg">{section.title}</h3>
                   </div>
-                </div>
-                
-                {/* Items */}
-                <div className="relative divide-y divide-[var(--border)]/20">
-                  {section.items.map((item, itemIndex) => (
-                    <motion.div 
-                      key={item.id} 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: 0.5 + sectionIndex * 0.1 + itemIndex * 0.05 }}
-                      className="p-5 hover:bg-white/5 transition-colors duration-200"
-                    >
-                      {renderSettingItem(item)}
-                    </motion.div>
-                  ))}
+
+                  {/* Items de la section */}
+                  <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10 gap-2">
+                    {section.items.map((item, itemIndex) => (
+                      <motion.div 
+                        key={item.id} 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: 0.5 + sectionIndex * 0.1 + itemIndex * 0.05 }}
+                        className="flex flex-col gap-1 px-4 first:pl-0 last:pr-0"
+                      >
+                        <span className="text-xs text-[var(--text-muted)]/90">{item.label}</span>
+                        <div className="text-sm text-[var(--text)]">
+                          {item.type === 'toggle' ? (
+                            <button
+                              onClick={() => handleToggle(item.id)}
+                              className={`w-12 h-6 rounded-full transition-all duration-300 ${
+                                settings[item.id as keyof typeof settings] 
+                                  ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
+                                  : 'bg-white/20'
+                              }`}
+                            >
+                              <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-300 ${
+                                settings[item.id as keyof typeof settings] 
+                                  ? 'translate-x-6' 
+                                  : 'translate-x-1'
+                              }`} />
+                            </button>
+                          ) : item.type === 'select' ? (
+                            <span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">
+                              {item.value}
+                            </span>
+                          ) : (
+                            <button
+                              onClick={item.action}
+                              className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5 hover:bg-white/10 transition-colors"
+                            >
+                              {item.description || 'Modifier'}
+                            </button>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -447,16 +450,29 @@ export default function SettingsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.8 }}
               onClick={handleLogout}
-              className="w-full relative overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-red-600/10 backdrop-blur-xl p-5 text-red-400 hover:bg-red-500/20 hover:border-red-400/50 transition-all duration-300 group shadow-lg hover:shadow-red-500/20"
+              className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-lg border border-red-500/30 bg-transparent [background:radial-gradient(120%_60%_at_20%_0%,rgba(239,68,68,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(220,38,38,0.08),transparent)]"
             >
-              {/* Background gradient */}
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-red-600/5 pointer-events-none" />
-              
-              <div className="relative flex items-center space-x-3">
-                <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/30 shadow-sm group-hover:bg-red-500/30 transition-colors">
-                  <LogOut size={18} className="text-red-400" />
+              <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
+                {/* Informations */}
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-lg bg-red-500/20 border border-red-500/30">
+                    <LogOut size={18} className="text-red-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-red-400 text-lg">Déconnexion</h3>
+                    <p className="text-sm text-red-300/70">Se déconnecter de votre compte</p>
+                  </div>
                 </div>
-                <span className="font-medium text-lg">Se déconnecter</span>
+
+                {/* Bouton d'action */}
+                <div className="flex flex-row flex-wrap justify-center gap-2">
+                  <button 
+                    type="button" 
+                    className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-red-400 bg-red-500/10 ring-1 ring-red-500/30 hover:bg-red-500/20 hover:ring-red-400/50 transition"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">Se déconnecter</span>
+                  </button>
+                </div>
               </div>
             </motion.button>
           </div>
