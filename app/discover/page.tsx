@@ -647,7 +647,7 @@ export default function DiscoverPage() {
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-500/20 rounded-lg">
                     <LogIn className="w-5 h-5 text-blue-400" />
-                  </div>
+          </div>
                   <div>
                     <h3 className="font-semibold text-white">Accès limité</h3>
                     <p className="text-sm text-white/70">Connectez-vous pour accéder à toutes les fonctionnalités</p>
@@ -659,7 +659,7 @@ export default function DiscoverPage() {
                 >
                   Se connecter
                 </Link>
-              </div>
+            </div>
             </div>
           </div>
         </div>

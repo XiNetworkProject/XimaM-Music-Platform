@@ -391,7 +391,7 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isStarterActive}
             isActive={isStarterActive}
-            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps' }}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', ai: `${PLAN_ENTITLEMENTS.starter.aiGenerations}/mois` }}
             features={[
               PLAN_ENTITLEMENTS.starter.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.starter.features.adFree ? 'Sans publicité' : '',
@@ -410,7 +410,7 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isProActive}
             isActive={isProActive}
-            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps' }}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.pro.aiGenerations}/mois` }}
             features={[
               PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists ? 'Playlists collaboratives' : '',
@@ -468,6 +468,12 @@ export default function SubscriptionsPage() {
           <div>{PLAN_ENTITLEMENTS.starter.features.messaging ? 'Oui' : '—'}</div>
           <div>{PLAN_ENTITLEMENTS.pro.features.messaging ? 'Oui' : '—'}</div>
           <div>Oui</div>
+
+          <div className="text-white/60">Générations IA/mois</div>
+          <div>{PLAN_ENTITLEMENTS.free.aiGenerations}</div>
+          <div>{PLAN_ENTITLEMENTS.starter.aiGenerations}</div>
+          <div>{PLAN_ENTITLEMENTS.pro.aiGenerations}</div>
+          <div>{PLAN_ENTITLEMENTS.enterprise.aiGenerations}</div>
 
           <div className="text-white/60">Statistiques avancées</div>
           <div>—</div>
@@ -578,7 +584,7 @@ function PlanCard({
   period: 'month' | 'year';
   disabled?: boolean;
   isActive?: boolean;
-  limits: { tracks: string; storage: string; playlists: string; quality: string };
+  limits: { tracks: string; storage: string; playlists: string; quality: string; ai?: string };
   features?: string[];
   onChoose?: () => void;
 }) {
@@ -612,6 +618,7 @@ function PlanCard({
             <div className="flex items-center justify-between"><span>Stockage</span><span className="font-medium">{limits.storage}</span></div>
             <div className="flex items-center justify-between"><span>Playlists</span><span className="font-medium">{limits.playlists}</span></div>
             <div className="flex items-center justify-between"><span>Qualité</span><span className="font-medium">{limits.quality}</span></div>
+            {limits.ai && <div className="flex items-center justify-between"><span>IA</span><span className="font-medium">{limits.ai}</span></div>}
           </div>
 
           {features && features.length > 0 && (
