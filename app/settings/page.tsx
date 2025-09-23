@@ -274,23 +274,23 @@ export default function SettingsPage() {
         return (
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="font-medium text-white/90">{item.label}</div>
+              <div className="font-medium text-white/90 text-base">{item.label}</div>
               {item.description && (
-                <div className="text-sm text-white/60">{item.description}</div>
+                <div className="text-sm text-white/60 mt-1">{item.description}</div>
               )}
             </div>
             <button
               onClick={() => handleToggle(item.id)}
-              className={`w-12 h-6 rounded-full transition-all duration-200 ${
+              className={`w-14 h-7 rounded-full transition-all duration-300 shadow-lg ${
                 settings[item.id as keyof typeof settings] 
-                  ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
-                  : 'bg-white/20'
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 shadow-purple-500/30' 
+                  : 'bg-white/20 shadow-white/10'
               }`}
             >
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
+              <div className={`w-6 h-6 bg-white rounded-full transition-transform duration-300 shadow-md ${
                 settings[item.id as keyof typeof settings] 
-                  ? 'translate-x-6' 
-                  : 'translate-x-1'
+                  ? 'translate-x-7' 
+                  : 'translate-x-0.5'
               }`} />
             </button>
           </div>
@@ -300,14 +300,14 @@ export default function SettingsPage() {
         return (
           <div className="flex items-center justify-between group">
             <div className="flex-1">
-              <div className="font-medium text-white/90">{item.label}</div>
+              <div className="font-medium text-white/90 text-base">{item.label}</div>
               {item.description && (
-                <div className="text-sm text-white/60">{item.description}</div>
+                <div className="text-sm text-white/60 mt-1">{item.description}</div>
               )}
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-white/60">{item.value}</span>
-              <ChevronRight size={16} className="text-white/40 group-hover:text-white/60 transition-colors" />
+              <span className="text-sm text-white/60 font-medium">{item.value}</span>
+              <ChevronRight size={18} className="text-white/40 group-hover:text-white/60 transition-colors group-hover:translate-x-1" />
             </div>
           </div>
         );
@@ -316,15 +316,17 @@ export default function SettingsPage() {
         return (
           <button
             onClick={item.action}
-            className="flex items-center justify-between w-full group hover:bg-white/5 rounded-lg p-2 -m-2 transition-colors"
+            className="flex items-center justify-between w-full group hover:bg-white/5 rounded-xl p-3 -m-3 transition-all duration-200"
           >
             <div className="flex-1 text-left">
-              <div className="font-medium text-white/90">{item.label}</div>
+              <div className="font-medium text-white/90 text-base">{item.label}</div>
               {item.description && (
-                <div className="text-sm text-white/60">{item.description}</div>
+                <div className="text-sm text-white/60 mt-1">{item.description}</div>
               )}
             </div>
-            <ChevronRight size={16} className="text-white/40 group-hover:text-white/60 transition-colors" />
+            <div className="flex items-center space-x-2">
+              <ChevronRight size={18} className="text-white/40 group-hover:text-white/60 transition-colors group-hover:translate-x-1" />
+            </div>
           </button>
         );
 
@@ -358,22 +360,32 @@ export default function SettingsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="panel-suno border border-[var(--border)] rounded-2xl p-6 mb-6"
+            className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl"
           >
-            <div className="flex items-center space-x-4">
-              <img
-                src={user?.image || '/default-avatar.png'}
-                alt={user?.name || 'Avatar'}
-                className="w-16 h-16 rounded-full object-cover border-2 border-white/20"
-              />
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
-                <p className="text-white/60">@{user?.username}</p>
-                <p className="text-sm text-white/40">{user?.email}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                  <Crown className="w-5 h-5 text-purple-400" />
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
+            
+            <div className="relative p-6">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <img
+                    src={user?.image || '/default-avatar.png'}
+                    alt={user?.name || 'Avatar'}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 border-2 border-white/20 flex items-center justify-center">
+                    <Crown className="w-3 h-3 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
+                  <p className="text-white/60">@{user?.username}</p>
+                  <p className="text-sm text-white/40">{user?.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
+                    Premium
+                  </div>
                 </div>
               </div>
             </div>
@@ -390,32 +402,37 @@ export default function SettingsPage() {
           </motion.div>
 
           {/* Sections de paramètres */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             {settingSections.map((section, sectionIndex) => (
               <motion.div
                 key={section.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.4 + sectionIndex * 0.1 }}
-                className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden"
+                className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl shadow-lg hover:shadow-xl transition-all duration-300"
               >
-                <div className="p-4 border-b border-[var(--border)]/50">
+                {/* Background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
+                
+                {/* Header */}
+                <div className="relative p-5 border-b border-[var(--border)]/30">
                   <div className="flex items-center space-x-3">
-                    <div className="p-2 rounded-lg bg-white/5">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 shadow-sm">
                       <section.icon size={18} className="text-purple-400" />
                     </div>
-                    <h3 className="font-semibold text-white/90">{section.title}</h3>
+                    <h3 className="font-semibold text-white/90 text-lg">{section.title}</h3>
                   </div>
                 </div>
                 
-                <div className="divide-y divide-[var(--border)]/30">
+                {/* Items */}
+                <div className="relative divide-y divide-[var(--border)]/20">
                   {section.items.map((item, itemIndex) => (
                     <motion.div 
                       key={item.id} 
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: 0.5 + sectionIndex * 0.1 + itemIndex * 0.05 }}
-                      className="p-4"
+                      className="p-5 hover:bg-white/5 transition-colors duration-200"
                     >
                       {renderSettingItem(item)}
                     </motion.div>
@@ -430,13 +447,16 @@ export default function SettingsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.8 }}
               onClick={handleLogout}
-              className="w-full panel-suno border border-red-500/30 rounded-2xl p-4 text-red-400 hover:bg-red-500/10 transition-all duration-200 group"
+              className="w-full relative overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-br from-red-500/10 to-red-600/10 backdrop-blur-xl p-5 text-red-400 hover:bg-red-500/20 hover:border-red-400/50 transition-all duration-300 group shadow-lg hover:shadow-red-500/20"
             >
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+              {/* Background gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-red-600/5 pointer-events-none" />
+              
+              <div className="relative flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/30 shadow-sm group-hover:bg-red-500/30 transition-colors">
                   <LogOut size={18} className="text-red-400" />
                 </div>
-                <span className="font-medium">Se déconnecter</span>
+                <span className="font-medium text-lg">Se déconnecter</span>
               </div>
             </motion.button>
           </div>
