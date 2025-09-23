@@ -34,24 +34,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Interroger endpoint de vérification côté serveur
-  try {
-    const origin = req.nextUrl.origin;
-    const res = await fetch(`${origin}/api/early-access/check`, {
-      headers: {
-        cookie: req.headers.get('cookie') || '',
-      },
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.allowed) {
-        // Définir un cookie court pour éviter l'appel à chaque requête
-        const response = NextResponse.next();
-        response.cookies.set('ea', '1', { httpOnly: false, maxAge: 60 * 10, path: '/' });
-        return response;
-      }
-    }
-  } catch {}
+  // Pas d'appel réseau ici (Edge). La vérification sera faite côté client depuis /waitlist.
 
   // Rediriger vers la waitlist
   const url = req.nextUrl.clone();
