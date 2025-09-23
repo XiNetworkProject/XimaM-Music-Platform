@@ -20,8 +20,10 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
+import dynamicImport from 'next/dynamic';
+const OnboardingChecklist = dynamicImport(() => import('@/components/OnboardingChecklist'), { ssr: false });
+
+export const dynamic = 'force-dynamic';
 
 interface Track {
   _id: string;

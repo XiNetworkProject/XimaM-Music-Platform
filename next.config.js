@@ -48,17 +48,24 @@ const nextConfig = {
       };
     }
     
-    // Optimisation des chunks
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-        },
-      },
+    // Correction pour éviter les erreurs de référence
+    config.resolve.alias = {
+      ...config.resolve.alias,
     };
+    
+    // Optimisation des chunks - seulement côté client
+    if (!isServer) {
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      };
+    }
     
     return config;
   },

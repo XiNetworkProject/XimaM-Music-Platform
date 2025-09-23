@@ -36,6 +36,8 @@ import {
 import { MUSIC_GENRES, GENRE_CATEGORIES, getGenreColor } from '@/lib/genres';
 import Link from 'next/link';
 
+export const dynamic = 'force-dynamic';
+
 interface Track {
   _id: string;
   title: string;
