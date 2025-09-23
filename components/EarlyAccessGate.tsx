@@ -2,9 +2,15 @@
 
 import { useEarlyAccess } from '@/hooks/useEarlyAccess';
 import { SynauraSpinner } from '@/components/SynauraSpinner';
+import { usePathname } from 'next/navigation';
 
 export default function EarlyAccessGate({ children }: { children: React.ReactNode }) {
   const { hasAccess, isLoading, reason } = useEarlyAccess();
+  const pathname = usePathname();
+
+  // Pages publiques accessibles à tous
+  const publicPages = ['/', '/discover'];
+  const isPublicPage = publicPages.includes(pathname);
 
   if (isLoading) {
     return (
@@ -17,6 +23,12 @@ export default function EarlyAccessGate({ children }: { children: React.ReactNod
     );
   }
 
+  // Si c'est une page publique, toujours permettre l'accès
+  if (isPublicPage) {
+    return <>{children}</>;
+  }
+
+  // Pour les pages privées, vérifier l'accès complet
   if (hasAccess === false) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
@@ -28,27 +40,31 @@ export default function EarlyAccessGate({ children }: { children: React.ReactNod
               </svg>
             </div>
             <h1 className="text-3xl font-bold text-white mb-4">
-              Accès Anticipé
+              Accès Limité
             </h1>
             <p className="text-white/70 text-lg mb-6">
-              Synaura est actuellement en accès anticipé limité aux 50 premiers utilisateurs.
+              Cette fonctionnalité nécessite un accès complet à Synaura.
             </p>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 border border-white/20">
               <h2 className="text-xl font-semibold text-white mb-4">
-                🎵 Rejoignez la liste d'attente
+                🎵 Explorez Synaura
               </h2>
               <p className="text-white/70 mb-6">
-                Soyez parmi les premiers à découvrir Synaura dès l'ouverture publique !
+                Vous pouvez toujours découvrir de la musique sur l'accueil et la page de découverte !
               </p>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/70">Position actuelle</span>
-                  <span className="text-purple-400 font-semibold">En attente</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-white/70">Ouverture publique</span>
-                  <span className="text-green-400 font-semibold">Bientôt</span>
-                </div>
+              <div className="space-y-3">
+                <button 
+                  onClick={() => window.location.href = '/'}
+                  className="w-full px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-white rounded-lg transition-colors duration-200"
+                >
+                  🏠 Accueil
+                </button>
+                <button 
+                  onClick={() => window.location.href = '/discover'}
+                  className="w-full px-4 py-2 bg-pink-500/20 hover:bg-pink-500/30 text-white rounded-lg transition-colors duration-200"
+                >
+                  🔍 Découvrir
+                </button>
               </div>
             </div>
             <div className="mt-8">
