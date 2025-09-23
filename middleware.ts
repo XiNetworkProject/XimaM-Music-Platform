@@ -17,6 +17,10 @@ const PUBLIC_PATHS = [
 ];
 
 export async function middleware(req: NextRequest) {
+  // En dev, désactiver le middleware pour éviter les erreurs sandbox/ESM
+  if (process.env.NODE_ENV !== 'production') {
+    return NextResponse.next();
+  }
   const { pathname } = req.nextUrl;
   // Bypass pour fichiers statiques et chemins publics
   if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
