@@ -1,53 +1,56 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { supabaseAdmin } from '@/lib/supabase';
 
-// Chemins autorisés sans restriction (auth, api webhook/public, static)
-const PUBLIC_PATHS = [
-  '/',
-  '/api/health',
-  '/api/auth',
-  '/api/upload/cleanup',
-  '/waitlist',
-  '/_next',
-  '/favicon',
-  '/public',
-  '/assets',
-  '/images',
-  '/icons',
-];
+const EARLY_ACCESS_LIMIT = 50;
 
-export async function middleware(req: NextRequest) {
-  // En dev, désactiver le middleware pour éviter les erreurs sandbox/ESM
-  if (process.env.NODE_ENV !== 'production') {
-    return NextResponse.next();
-  }
-  const { pathname } = req.nextUrl;
-  // Bypass pour fichiers statiques et chemins publics
-  if (PUBLIC_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+export async function middleware(request: NextRequest) {
+  // Vérifier si l'utilisateur est authentifié
+  const session = await getServerSession(authOptions);
+  
+  if (!session?.user?.id) {
+    // Rediriger vers la page d'attente si pas authentifié
+    if (request.nextUrl.pathname !== '/waiting-list') {
+      return NextResponse.redirect(new URL('/waiting-list', request.url));
+    }
     return NextResponse.next();
   }
 
-  // Bypass API publiques spécifiques
-  if (pathname.startsWith('/api/ai/') || pathname.startsWith('/api/billing/webhook')) {
+  try {
+    // Vérifier si l'utilisateur a l'accès anticipé
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('early_access')
+      .eq('id', session.user.id)
+      .single();
+
+    if (!profile?.early_access) {
+      // Rediriger vers la page d'attente si pas d'accès anticipé
+      if (request.nextUrl.pathname !== '/waiting-list') {
+        return NextResponse.redirect(new URL('/waiting-list', request.url));
+      }
+    }
+
+    return NextResponse.next();
+  } catch (error) {
+    console.error('Erreur middleware early access:', error);
+    // En cas d'erreur, permettre l'accès pour éviter de bloquer l'app
     return NextResponse.next();
   }
-
-  // Lire cookies d'accès anticipé
-  const cookieFlag = req.cookies.get('ea')?.value;
-  if (cookieFlag === '1') {
-    return NextResponse.next();
-  }
-
-  // Pas d'appel réseau ici (Edge). La vérification sera faite côté client depuis /waitlist.
-
-  // Rediriger vers la waitlist
-  const url = req.nextUrl.clone();
-  url.pathname = '/waitlist';
-  return NextResponse.rewrite(url);
 }
 
-export const config = process.env.NODE_ENV !== 'production'
-  ? { matcher: [] as string[] }
-  : { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
-
-
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - waiting-list (page d'attente)
+     * - auth (pages d'authentification)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|waiting-list|auth).*)',
+  ],
+};
