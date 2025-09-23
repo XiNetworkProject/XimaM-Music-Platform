@@ -305,7 +305,7 @@ export default function AIGenerator() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen bg-transparent text-[var(--text)]">
       {/* Header */}
       <div className="container mx-auto px-4 py-8 pb-24">
         <div className="text-center mb-6">
