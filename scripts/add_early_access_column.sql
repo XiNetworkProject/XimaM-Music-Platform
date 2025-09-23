@@ -1,23 +1,14 @@
 -- Ajouter la colonne early_access à la table profiles
--- Cette colonne contrôle l'accès anticipé à l'application
+-- Cette colonne détermine si l'utilisateur fait partie des 50 premiers comptes
 
--- Ajouter la colonne si elle n'existe pas
-DO $$ 
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'profiles' 
-        AND column_name = 'early_access'
-        AND table_schema = 'public'
-    ) THEN
-        ALTER TABLE public.profiles 
-        ADD COLUMN early_access BOOLEAN DEFAULT FALSE;
-    END IF;
-END $$;
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS early_access BOOLEAN DEFAULT FALSE;
 
 -- Créer un index pour optimiser les requêtes
 CREATE INDEX IF NOT EXISTS idx_profiles_early_access ON public.profiles(early_access);
 
--- Ajouter une contrainte pour limiter à 50 utilisateurs early access
--- (Cette contrainte sera vérifiée au niveau application)
-COMMENT ON COLUMN public.profiles.early_access IS 'Contrôle l''accès anticipé à l''application (limite: 50 utilisateurs)';
+-- Optionnel: Marquer les premiers utilisateurs existants comme ayant l'accès anticipé
+-- (à exécuter manuellement si nécessaire)
+-- UPDATE public.profiles SET early_access = TRUE WHERE id IN (
+--   SELECT id FROM public.profiles ORDER BY created_at ASC LIMIT 50
+-- );
