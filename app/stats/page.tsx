@@ -301,11 +301,15 @@ export default function StatsPage() {
                   ))}
                 </div>
               </div>
-              {loadingSeries
-                ? <div className="h-48 flex items-center justify-center"><SynauraSpinner label="Évolution" /></div>
-                : series.length === 0
-                  ? <div className="text-[var(--text-muted)] text-sm">Aucune écoute dans cette période.</div>
-                  : <TimeseriesBars series={series as any} compareSeries={compareSeries as any} metric={metric} onHover={setHoverPoint} />}
+              {loadingSeries ? (
+                <div className="h-48 flex items-center justify-center"><SynauraSpinner label="Évolution" /></div>
+              ) : series.length === 0 ? (
+                <div className="text-[var(--text-muted)] text-sm text-center py-8">
+                  Les stats s’affichent après tes 10 premières écoutes. Partage ton lien !
+                </div>
+              ) : (
+                <TimeseriesBars series={series as any} compareSeries={compareSeries as any} metric={metric} onHover={setHoverPoint} />
+              )}
               <div className="mt-3 text-xs text-white/70 flex flex-col gap-1">
                 <div>
                   Total période — Écoutes: {formatNumber(totals.period.plays)} • Uniques: {formatNumber(totals.period.uniques)} • Likes: {formatNumber(totals.period.likes)}

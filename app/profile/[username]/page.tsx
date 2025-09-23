@@ -1044,7 +1044,11 @@ export default function ProfileUserPage() {
                   </div>
                 </div>
                 
-                {trackViewMode === 'grid' ? (
+                {userTracks.length === 0 ? (
+                  <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center text-[var(--text-muted)]">
+                    Aucune piste encore — dépose un MP3/WAV/FLAC (≤ 50 MB) pour commencer
+                  </div>
+                ) : trackViewMode === 'grid' ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {userTracks.map((track: any) => (
                       <div key={track.id} className="group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 relative">
