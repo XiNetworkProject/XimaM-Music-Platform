@@ -336,119 +336,132 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-white">
-      <main className="container mx-auto px-4 pt-8 pb-20">
-        {/* Carte principale style fourni */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-4xl mx-auto"
-        >
-          {/* Header de carte */}
-          <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
-            <h1 className="text-2xl max-md:text-base">Paramètres</h1>
-            <div className="flex flex-row gap-2"></div>
-          </div>
+    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
+      <div className="relative z-10 w-full p-0 sm:p-2">
+        <div className="max-w-2xl mx-auto">
+          {/* Header moderne */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8 text-center"
+          >
+            <div className="flex items-center justify-center mb-6">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
+                <Settings className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Paramètres</h1>
+            <p className="text-white/60">Personnalisez votre expérience musicale</p>
+          </motion.div>
 
-          {/* Corps de carte */}
-          <div className="flex flex-col">
-            <div className="flex w-full flex-col items-stretch justify-start gap-3 p-3 sm:p-4">
-              {/* Profil utilisateur */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.05 }}
-                className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl"
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
-                <div className="relative p-6">
-                  <div className="flex items-center space-x-4">
-                    <div className="relative">
-                      <img
-                        src={user?.image || '/default-avatar.png'}
-                        alt={user?.name || 'Avatar'}
-                        className="w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg"
-                      />
-                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 border-2 border-white/20 flex items-center justify-center">
-                        <Crown className="w-3 h-3 text-white" />
-                      </div>
-                    </div>
-                    <div className="flex-1">
-                      <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
-                      <p className="text-white/60">@{user?.username}</p>
-                      <p className="text-sm text-white/40">{user?.email}</p>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-2">
-                      <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
-                        Premium
-                      </div>
-                    </div>
+          {/* Profil utilisateur */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative overflow-hidden panel-suno border border-[var(--border)] rounded-2xl p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
+          >
+            {/* Background gradient */}
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
+            
+            <div className="relative p-6">
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <img
+                    src={user?.image || '/default-avatar.png'}
+                    alt={user?.name || 'Avatar'}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg"
+                  />
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 border-2 border-white/20 flex items-center justify-center">
+                    <Crown className="w-3 h-3 text-white" />
                   </div>
                 </div>
-              </motion.div>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
+                  <p className="text-white/60">@{user?.username}</p>
+                  <p className="text-sm text-white/40">{user?.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
+                    Premium
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
-              {/* Limites d'abonnement */}
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
+          {/* Limites d'abonnement */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mb-6"
+          >
+            <SubscriptionLimits />
+          </motion.div>
+
+          {/* Sections de paramètres */}
+          <div className="space-y-6">
+            {settingSections.map((section, sectionIndex) => (
+              <motion.div
+                key={section.id}
+                initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.1 }}
+                transition={{ duration: 0.4, delay: 0.4 + sectionIndex * 0.1 }}
+                className="relative overflow-hidden panel-suno border border-[var(--border)] rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
               >
-                <SubscriptionLimits />
+                {/* Background gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
+                
+                {/* Header */}
+                <div className="relative p-5 border-b border-[var(--border)]/30">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 shadow-sm">
+                      <section.icon size={18} className="text-purple-400" />
+                    </div>
+                    <h3 className="font-semibold text-white/90 text-lg">{section.title}</h3>
+                  </div>
+                </div>
+                
+                {/* Items */}
+                <div className="relative divide-y divide-[var(--border)]/20">
+                  {section.items.map((item, itemIndex) => (
+                    <motion.div 
+                      key={item.id} 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: 0.5 + sectionIndex * 0.1 + itemIndex * 0.05 }}
+                      className="p-5 hover:bg-white/5 transition-colors duration-200"
+                    >
+                      {renderSettingItem(item)}
+                    </motion.div>
+                  ))}
+                </div>
               </motion.div>
+            ))}
 
-              {/* Sections paramétrables */}
-              <div className="space-y-4">
-                {settingSections.map((section, sectionIndex) => (
-                  <motion.div
-                    key={section.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, delay: 0.12 + sectionIndex * 0.06 }}
-                    className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
-                    <div className="relative p-5 border-b border-[var(--border)]/30 flex items-center gap-3">
-                      <div className="p-2.5 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 shadow-sm">
-                        <section.icon size={18} className="text-purple-400" />
-                      </div>
-                      <h3 className="font-semibold text-white/90 text-lg">{section.title}</h3>
-                    </div>
-
-                    <div className="relative divide-y divide-[var(--border)]/20">
-                      {section.items.map((item, itemIndex) => (
-                        <motion.div 
-                          key={item.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.2, delay: 0.14 + sectionIndex * 0.06 + itemIndex * 0.03 }}
-                          className="p-5 hover:bg-white/5 transition-colors duration-200"
-                        >
-                          {renderSettingItem(item)}
-                        </motion.div>
-                      ))}
-                    </div>
-                  </motion.div>
-                ))}
+            {/* Bouton de déconnexion */}
+            <motion.button
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.8 }}
+              onClick={handleLogout}
+              className="w-full relative overflow-hidden panel-suno rounded-2xl p-5 text-red-400 border border-red-500/30 hover:bg-red-500/10 hover:border-red-400/50 transition-all duration-300 group shadow-lg hover:shadow-red-500/20 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
+            >
+              {/* Background gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 via-transparent to-red-600/5 pointer-events-none" />
+              
+              <div className="relative flex items-center space-x-3">
+                <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/30 shadow-sm group-hover:bg-red-500/30 transition-colors">
+                  <LogOut size={18} className="text-red-400" />
+                </div>
+                <span className="font-medium text-lg">Se déconnecter</span>
               </div>
-            </div>
+            </motion.button>
           </div>
-
-          {/* Footer de carte */}
-          <div className="flex h-fit flex-col justify-end gap-2 p-3 sm:p-4 border-t border-[var(--border)]">
-            <div className="flex flex-row justify-between sm:justify-end gap-2 sm:gap-4">
-              <div className="flex gap-2">
-                <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-[var(--text)] bg-[var(--bg-tertiary)] enabled:hover:before:bg-white/10">
-                  <span className="relative flex flex-row items-center justify-center gap-2">Annuler</span>
-                </button>
-                <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-black bg-white enabled:hover:before:bg-white/90">
-                  <span className="relative flex flex-row items-center justify-center gap-2">Enregistrer</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </main>
+        </div>
+      </div>
 
       {/* Bottom Navigation */}
       <BottomNav />
