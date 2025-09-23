@@ -1,17 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { UserQuota } from '@/lib/aiGenerationService';
+
+export interface UserQuotaUI {
+  id: string;
+  user_id: string;
+  plan_type: 'free' | 'starter' | 'pro' | 'enterprise';
+  monthly_limit: number;
+  used_this_month: number;
+  reset_date: string;
+  remaining: number;
+}
 
 export function useAIQuota() {
   const { data: session } = useSession();
-  const [quota, setQuota] = useState<UserQuota>({
+  const [quota, setQuota] = useState<UserQuotaUI>({
     id: '',
     user_id: '',
     plan_type: 'free',
-    monthly_limit: 5,
+    monthly_limit: 1,
     used_this_month: 0,
     reset_date: new Date().toISOString(),
-    remaining: 5
+    remaining: 1,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,16 +30,11 @@ export function useAIQuota() {
       setLoading(false);
       return;
     }
-
     try {
       setLoading(true);
       setError(null);
-
-      const response = await fetch('/api/ai/quota');
-      if (!response.ok) {
-        throw new Error('Erreur lors de la récupération du quota');
-      }
-
+      const response = await fetch('/api/ai/quota', { headers: { 'Cache-Control': 'no-store' } });
+      if (!response.ok) throw new Error('Erreur lors de la récupération du quota');
       const data = await response.json();
       setQuota(data);
     } catch (err: any) {
@@ -38,33 +42,6 @@ export function useAIQuota() {
       console.error('Erreur quota:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const incrementQuota = async () => {
-    if (!session?.user?.id) return false;
-
-    try {
-      const response = await fetch('/api/ai/quota/increment', {
-        method: 'POST'
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de l\'incrémentation du quota');
-      }
-
-      const success = await response.json();
-      
-      if (success) {
-        // Recharger le quota
-        await fetchQuota();
-      }
-
-      return success;
-    } catch (err: any) {
-      setError(err.message);
-      console.error('Erreur incrément quota:', err);
-      return false;
     }
   };
 
@@ -77,8 +54,7 @@ export function useAIQuota() {
     loading,
     error,
     refetch: fetchQuota,
-    increment: incrementQuota,
     hasQuota: quota.remaining > 0,
-    quotaPercentage: (quota.used_this_month / quota.monthly_limit) * 100
+    quotaPercentage: quota.monthly_limit > 0 ? ((quota.monthly_limit - quota.remaining) / quota.monthly_limit) * 100 : 0,
   };
 }

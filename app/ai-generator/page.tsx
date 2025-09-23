@@ -322,37 +322,39 @@ export default function AIGenerator() {
           <p className="text-[var(--text-muted)] text-base mb-4">
             Créez de la musique unique avec l'intelligence artificielle
           </p>
-          {/* Bandeau Prochainement */}
+          {/* Bandeau Aperçu limité */}
           <div className="max-w-3xl mx-auto">
             <div className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden">
-              <div className="relative">
-                <div className="absolute inset-0 opacity-10" aria-hidden></div>
-                <div className="relative p-6 md:p-8 text-center">
-                  <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> Prochainement
-                  </span>
-                  <h2 className="mt-4 text-2xl md:text-3xl font-bold">
-                    Bientôt disponible
-                  </h2>
-                  <p className="mt-2 text-[var(--text-muted)]">
-                    Le générateur IA arrive très vite. En attendant, explorez les tendances et votre bibliothèque.
-                  </p>
-                  <div className="mt-5 flex items-center justify-center gap-3">
-                    <a href="/discover" className="px-4 py-2 rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium">
-                      Voir Découvrir
-                    </a>
-                    <a href="/ai-library" className="px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] font-medium">
-                      Ma bibliothèque IA
-                    </a>
+              <div className="relative p-6 md:p-8 text-center">
+                <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
+                  <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> Aperçu limité
+                </span>
+                <h2 className="mt-4 text-2xl md:text-3xl font-bold">
+                  V4.5 (aperçu) — générez quelques titres, testez l’IA
+                </h2>
+                <p className="mt-2 text-[var(--text-muted)]">
+                  Votre plan actuel vous donne accès à un petit nombre de générations chaque mois. Passez au plan supérieur pour plus.
+                </p>
+                <div className="mt-5 flex items-center justify-center gap-3 text-sm">
+                  <div className="px-3 py-1 rounded-full bg-white/5 border border-[var(--border)]">
+                    Plan: {quota.plan_type}
                   </div>
+                  <div className="px-3 py-1 rounded-full bg-white/5 border border-[var(--border)]">
+                    Restant: {quota.remaining}/{quota.monthly_limit}
+                  </div>
+                  {!quotaLoading && quota.remaining <= 0 && (
+                    <a href="/subscriptions" className="px-3 py-1 rounded-full bg-[var(--color-primary)] text-white">
+                      Augmenter mon quota
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Quota Display (désactivé pour prochainement) */}
-        <div className="max-w-md mx-auto mb-8 opacity-50 pointer-events-none select-none">
+        {/* Quota Display */}
+        <div className="max-w-md mx-auto mb-8">
           <div className="bg-gray-800 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-300">Quota mensuel</span>
@@ -363,7 +365,7 @@ export default function AIGenerator() {
             <div className="w-full bg-gray-700 rounded-full h-2">
               <div 
                 className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((quota.monthly_limit - quota.remaining) / quota.monthly_limit) * 100}%` }}
+                style={{ width: `${((quota.monthly_limit - quota.remaining) / Math.max(1, quota.monthly_limit)) * 100}%` }}
               />
             </div>
             <p className="text-xs text-gray-400 mt-2">
@@ -372,8 +374,8 @@ export default function AIGenerator() {
           </div>
         </div>
 
-        {/* Mode Toggle (désactivé) */}
-        <div className="max-w-2xl mx-auto mb-8 opacity-50 pointer-events-none select-none">
+        {/* Mode Toggle — lock V4.5 */}
+        <div className="max-w-2xl mx-auto mb-8">
           <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4">
             <div className="flex items-center gap-3">
               <label className="flex items-center gap-2 cursor-pointer">
@@ -399,17 +401,14 @@ export default function AIGenerator() {
                 onChange={(e) => setModelVersion(e.target.value)}
                 className="bg-gray-700 border border-gray-600 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
               >
-                <option value="V3_5">V3.5</option>
-                <option value="V4">V4</option>
                 <option value="V4_5">V4.5</option>
-                <option value="V4_5PLUS">V4.5+</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Input Form (désactivé) */}
-        <div className="max-w-2xl mx-auto space-y-6 opacity-50 pointer-events-none select-none">
+        {/* Formulaire actif, style page Upload */}
+        <div className="max-w-2xl mx-auto space-y-6">
           {/* le formulaire existant reste visible mais inactif */}
           {customMode ? (
             // Mode personnalisé
@@ -496,7 +495,7 @@ export default function AIGenerator() {
             </div>
           )}
 
-          {/* Generate Button */}
+          {/* Generate Button + contrôle quota */}
             <motion.button
             onClick={generateMusic}
             disabled={isGenerating || quotaLoading || quota.remaining <= 0}
@@ -516,6 +515,11 @@ export default function AIGenerator() {
                 </>
               )}
             </motion.button>
+            {!quotaLoading && quota.remaining <= 0 && (
+              <div className="mt-3 text-center text-sm text-white/70">
+                Quota épuisé. <a href="/subscriptions" className="text-purple-400 underline">Améliorer mon plan</a>
+              </div>
+            )}
 
           {/* Status Display */}
           {currentTaskId && (
