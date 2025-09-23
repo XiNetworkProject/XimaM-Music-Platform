@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Settings, 
   User, 
@@ -16,7 +16,15 @@ import {
   ChevronRight,
   Upload,
   Music,
-  Heart
+  Heart,
+  CreditCard,
+  BarChart3,
+  Palette,
+  Smartphone,
+  Wifi,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
@@ -78,45 +86,45 @@ export default function SettingsPage() {
       items: [
         {
           id: 'profile',
-          label: 'Modifier le profil',
-          description: 'Nom, photo, bio',
+          label: 'Profil',
+          description: '@' + user?.username,
           type: 'link',
           action: () => router.push(`/profile/${user?.username}`)
         },
         {
-          id: 'username',
-          label: 'Nom d\'utilisateur',
-          description: '@' + user?.username,
+          id: 'subscriptions',
+          label: 'Abonnement',
+          description: 'Gérer votre plan',
           type: 'link',
-          action: () => {}
-        },
-        {
-          id: 'email',
-          label: 'Email',
-          description: user?.email || 'Non défini',
-          type: 'link',
-          action: () => {}
+          action: () => router.push('/subscriptions')
         }
       ]
     },
     {
-      id: 'requests',
-      title: 'Demandes',
-      icon: Bell,
+      id: 'content',
+      title: 'Contenu',
+      icon: Music,
       items: [
         {
-          id: 'follow-requests',
-          label: 'Demandes de suivi',
-          description: 'Gérer les demandes reçues',
+          id: 'upload',
+          label: 'Upload',
+          description: 'Partager vos créations',
           type: 'link',
-          action: () => router.push('/requests')
+          action: () => router.push('/upload')
         },
         {
-          id: 'message-requests',
-          label: 'Demandes de messagerie',
-          description: 'Conversations en attente',
+          id: 'library',
+          label: 'Bibliothèque',
+          description: 'Playlists et favoris',
           type: 'link',
-          action: () => router.push('/requests?tab=messages')
+          action: () => router.push('/library')
+        },
+        {
+          id: 'stats',
+          label: 'Statistiques',
+          description: 'Analyser vos performances',
+          type: 'link',
+          action: () => router.push('/stats')
         }
       ]
     },
@@ -126,13 +134,6 @@ export default function SettingsPage() {
       icon: Settings,
       items: [
         {
-          id: 'darkMode',
-          label: 'Mode sombre',
-          description: 'Interface sombre',
-          type: 'toggle',
-          value: settings.darkMode
-        },
-        {
           id: 'notifications',
           label: 'Notifications',
           description: 'Nouveaux abonnés, likes',
@@ -141,25 +142,17 @@ export default function SettingsPage() {
         },
         {
           id: 'autoPlay',
-          label: 'Lecture automatique',
-          description: 'Lancer la musique automatiquement',
+          label: 'Lecture auto',
+          description: 'Lancer automatiquement',
           type: 'toggle',
           value: settings.autoPlay
         },
         {
           id: 'highQuality',
           label: 'Haute qualité',
-          description: 'Streaming en haute qualité',
+          description: 'Streaming HD',
           type: 'toggle',
           value: settings.highQuality
-        },
-        {
-          id: 'language',
-          label: 'Langue',
-          description: settings.language,
-          type: 'select',
-          value: settings.language,
-          options: ['Français', 'English', 'Español']
         }
       ]
     },
@@ -171,52 +164,16 @@ export default function SettingsPage() {
         {
           id: 'privacy',
           label: 'Profil public',
-          description: 'Rendre le profil visible',
-          type: 'select',
-          value: settings.privacy,
-          options: ['Public', 'Privé', 'Amis uniquement']
+          description: 'Rendre visible',
+          type: 'toggle',
+          value: settings.privacy === 'Public'
         },
         {
           id: 'activity',
           label: 'Activité visible',
-          description: 'Afficher l\'activité récente',
+          description: 'Afficher l\'activité',
           type: 'toggle',
           value: true
-        }
-      ]
-    },
-    {
-      id: 'content',
-      title: 'Contenu',
-      icon: Music,
-      items: [
-        {
-          id: 'upload',
-          label: 'Upload de musique',
-          description: 'Partager vos créations',
-          type: 'link',
-          action: () => router.push('/upload')
-        },
-        {
-          id: 'library',
-          label: 'Ma bibliothèque',
-          description: 'Playlists et favoris',
-          type: 'link',
-          action: () => router.push('/library')
-        },
-        {
-          id: 'subscriptions',
-          label: 'Abonnements',
-          description: 'Gérer votre plan',
-          type: 'link',
-          action: () => router.push('/subscriptions')
-        },
-        {
-          id: 'downloads',
-          label: 'Téléchargements',
-          description: 'Musique hors ligne',
-          type: 'link',
-          action: () => {}
         }
       ]
     },
@@ -229,13 +186,6 @@ export default function SettingsPage() {
           id: 'help',
           label: 'Centre d\'aide',
           description: 'FAQ et tutoriels',
-          type: 'link',
-          action: () => {}
-        },
-        {
-          id: 'contact',
-          label: 'Nous contacter',
-          description: 'Support technique',
           type: 'link',
           action: () => {}
         },
@@ -266,43 +216,27 @@ export default function SettingsPage() {
     switch (item.type) {
       case 'toggle':
         return (
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <div className="flex-1">
-              <div className="font-medium">{item.label}</div>
+              <div className="font-medium text-white">{item.label}</div>
               {item.description && (
                 <div className="text-sm text-white/60">{item.description}</div>
               )}
             </div>
             <button
               onClick={() => handleToggle(item.id)}
-              className={`w-12 h-6 rounded-full transition-colors ${
+              className={`relative w-11 h-6 rounded-full transition-all duration-200 ${
                 settings[item.id as keyof typeof settings] 
-                  ? 'bg-primary-500' 
+                  ? 'bg-purple-500' 
                   : 'bg-white/20'
               }`}
             >
-              <div className={`w-5 h-5 bg-white rounded-full transition-transform ${
+              <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-200 ${
                 settings[item.id as keyof typeof settings] 
-                  ? 'translate-x-6' 
-                  : 'translate-x-1'
+                  ? 'translate-x-5' 
+                  : 'translate-x-0.5'
               }`} />
             </button>
-          </div>
-        );
-
-      case 'select':
-        return (
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <div className="font-medium">{item.label}</div>
-              {item.description && (
-                <div className="text-sm text-white/60">{item.description}</div>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-white/60">{item.value}</span>
-              <ChevronRight size={16} className="text-white/40" />
-            </div>
           </div>
         );
 
@@ -310,10 +244,10 @@ export default function SettingsPage() {
         return (
           <button
             onClick={item.action}
-            className="flex items-center justify-between w-full"
+            className="flex items-center justify-between w-full py-2 hover:bg-white/5 rounded-lg transition-colors"
           >
             <div className="flex-1 text-left">
-              <div className="font-medium">{item.label}</div>
+              <div className="font-medium text-white">{item.label}</div>
               {item.description && (
                 <div className="text-sm text-white/60">{item.description}</div>
               )}
@@ -328,57 +262,75 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen text-white">
-      <main className="container mx-auto px-4 pt-16 pb-32">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-10">
-            <h1 className="text-3xl md:text-4xl font-bold gradient-text flex items-center gap-3 mb-2">
-              <Settings size={28} className="text-purple-400" />
-              Paramètres
-            </h1>
-            <p className="text-white/60 text-lg">Personnalisez votre expérience musicale.</p>
-        </div>
+    <div className="min-h-screen bg-transparent text-white">
+      <main className="container mx-auto px-4 pt-8 pb-20">
+        <div className="max-w-md mx-auto">
+          {/* Header moderne */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="mb-8 text-center"
+          >
+            <div className="flex items-center justify-center mb-6">
+              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
+                <Settings className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Paramètres</h1>
+            <p className="text-white/60">Personnalisez votre expérience</p>
+          </motion.div>
 
-          {/* Profil utilisateur */}
-          <div className="panel-suno rounded-xl p-6 mb-8 border border-[var(--border)]">
-            <div className="flex items-center space-x-4">
+          {/* Profil utilisateur compact */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="panel-suno border border-[var(--border)] rounded-2xl p-4 mb-6"
+          >
+            <div className="flex items-center space-x-3">
               <img
                 src={user?.image || '/default-avatar.png'}
                 alt={user?.name || 'Avatar'}
-                className="w-16 h-16 rounded-full object-cover"
+                className="w-12 h-12 rounded-full object-cover"
               />
               <div className="flex-1">
-                <h2 className="text-lg font-semibold">{user?.name}</h2>
-                <p className="text-white/60">@{user?.username}</p>
-                <p className="text-sm text-white/40">{user?.email}</p>
+                <h2 className="font-semibold text-white">{user?.name}</h2>
+                <p className="text-sm text-white/60">@{user?.username}</p>
               </div>
             </div>
-          </div>
+          </motion.div>
 
-          {/* Limites d'abonnement */}
-          <div className="mb-8">
+          {/* Limites d'abonnement compact */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+            className="mb-6"
+          >
             <SubscriptionLimits />
-          </div>
+          </motion.div>
 
-          {/* Sections de paramètres */}
-          <div className="space-y-6">
-            {settingSections.map((section) => (
+          {/* Sections de paramètres en blocs */}
+          <div className="space-y-4">
+            {settingSections.map((section, index) => (
               <motion.div
                 key={section.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="panel-suno rounded-xl overflow-hidden border border-[var(--border)]"
+                transition={{ duration: 0.4, delay: 0.4 + index * 0.1 }}
+                className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden"
               >
-                <div className="p-4 border-b border-[var(--border)]">
+                <div className="p-4 border-b border-[var(--border)]/50">
                   <div className="flex items-center space-x-3">
-                    <section.icon size={20} className="text-primary-400" />
-                    <h3 className="font-semibold">{section.title}</h3>
+                    <section.icon size={18} className="text-purple-400" />
+                    <h3 className="font-semibold text-white">{section.title}</h3>
                   </div>
                 </div>
                 
-                <div className="divide-y divide-[var(--border)]/80">
-                  {section.items.map((item) => (
-                    <div key={item.id} className="p-4">
+                <div className="divide-y divide-[var(--border)]/30">
+                  {section.items.map((item, itemIndex) => (
+                    <div key={item.id} className="px-4 py-3">
                       {renderSettingItem(item)}
                     </div>
                   ))}
@@ -390,11 +342,12 @@ export default function SettingsPage() {
             <motion.button
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.8 }}
               onClick={handleLogout}
-              className="w-full panel-suno rounded-xl p-4 text-red-400 border border-[var(--border)] hover:bg-red-500/10 transition-colors"
+              className="w-full panel-suno border border-red-500/30 rounded-2xl p-4 text-red-400 hover:bg-red-500/10 transition-all duration-200"
             >
-              <div className="flex items-center space-x-3">
-                <LogOut size={20} />
+              <div className="flex items-center justify-center space-x-3">
+                <LogOut size={18} />
                 <span className="font-medium">Se déconnecter</span>
               </div>
             </motion.button>
