@@ -575,8 +575,8 @@ export default function UploadPage() {
                   <input {...getCoverInputProps()} />
                   <span className="relative flex flex-row items-center justify-center gap-2">Replace Cover</span>
                 </button>
-              )}
-            </div>
+                  )}
+                </div>
           </div>
 
           {/* Alertes quotas */}
@@ -584,14 +584,14 @@ export default function UploadPage() {
             <div className="mx-2 sm:mx-4 mt-1 rounded-lg p-2 sm:p-3 border border-cyan-400/30 bg-cyan-500/10 text-cyan-200 flex items-center justify-between gap-2">
               <span className="text-xs sm:text-sm">{blockedMsg}. Améliorez votre plan pour continuer.</span>
               <button onClick={() => router.push('/subscriptions')} className="text-xs px-2 py-1 sm:px-3 sm:py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/30 hover:bg-cyan-400/25">Voir les plans</button>
-            </div>
+        </div>
           )}
 
           {/* Contenu principal */}
           <div className="flex flex-col">
             <AnimatePresence mode="wait">
-              {currentStep === 1 && (
-                <motion.div
+            {currentStep === 1 && (
+              <motion.div
                   key="step1"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -599,15 +599,15 @@ export default function UploadPage() {
                   className="flex w-full flex-col items-stretch justify-start gap-3 p-3 sm:p-4"
                 >
                   {!audioFile ? (
-                    <div
-                      {...getAudioRootProps()}
+                  <div
+                    {...getAudioRootProps()}
                       className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-colors cursor-pointer ${
-                        isAudioDragActive
+                      isAudioDragActive
                           ? 'border-purple-400 bg-purple-500/10'
                           : 'border-[var(--border)] hover:border-purple-400/50'
-                      }`}
-                    >
-                      <input {...getAudioInputProps()} />
+                    }`}
+                  >
+                    <input {...getAudioInputProps()} />
                       <div className="space-y-3">
                         <Upload size={40} className="mx-auto text-white/40 sm:w-16 sm:h-16" />
                         <div>
@@ -618,8 +618,8 @@ export default function UploadPage() {
                           Formats supportés: MP3, WAV, FLAC — limites: Free 50 MB · Starter 100 MB · Pro 200 MB
                         </p>
                       </div>
-                    </div>
-                  ) : (
+                      </div>
+                    ) : (
                     <MediaPreview 
                       file={audioFile} 
                       coverFile={coverFile}
@@ -640,16 +640,16 @@ export default function UploadPage() {
                   {/* Contrôles audio compacts */}
                   {audioFile && (
                     <div className="flex flex-row items-center justify-center gap-3 px-2 sm:px-4 py-2">
-                      <button 
-                        type="button"
+                  <button
+                    type="button"
                         onClick={() => setIsPlaying(!isPlaying)}
                         className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                      >
+                  >
                         {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
-                      </button>
+                  </button>
                       <div className="font-mono text-xs sm:text-sm tracking-tight text-white/80 tabular-nums">
                         <span className="text-[var(--text)]">{Math.floor(currentTime / 60)}:{Math.floor(currentTime % 60).toString().padStart(2, '0')}</span> / {Math.floor(duration / 60)}:{Math.floor(duration % 60).toString().padStart(2, '0')}
-                      </div>
+                </div>
                     </div>
                   )}
 
@@ -667,11 +667,11 @@ export default function UploadPage() {
                       }}
                     />
                   )}
-                </motion.div>
-              )}
+              </motion.div>
+            )}
 
-              {currentStep === 2 && (
-                <motion.div
+            {currentStep === 2 && (
+              <motion.div
                   key="step2"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -683,15 +683,15 @@ export default function UploadPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-white/80">Titre *</label>
-                      <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => handleInputChange('title', e.target.value)}
+                  <input
+                    type="text"
+                    value={formData.title}
+                    onChange={(e) => handleInputChange('title', e.target.value)}
                         className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
-                        placeholder="Titre de votre musique"
-                        required
-                      />
-                    </div>
+                    placeholder="Titre de votre musique"
+                    required
+                  />
+                </div>
 
                     <div className="space-y-1.5">
                       <label className="block text-sm font-medium text-white/80">Artiste</label>
@@ -708,34 +708,34 @@ export default function UploadPage() {
 
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Description</label>
-                    <textarea
-                      value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value)}
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
                       rows={2}
                       className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors resize-none text-[var(--text)] text-sm"
-                      placeholder="Décrivez votre musique..."
-                    />
-                  </div>
+                    placeholder="Décrivez votre musique..."
+                  />
+                </div>
 
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Genre</label>
                     <div className="flex flex-wrap gap-1.5">
                       {MUSIC_GENRES.map((genre) => (
-                        <button
-                          key={genre}
-                          type="button"
-                          onClick={() => formData.genre.includes(genre) ? removeGenre(genre) : addGenre(genre)}
+                      <button
+                        key={genre}
+                        type="button"
+                        onClick={() => formData.genre.includes(genre) ? removeGenre(genre) : addGenre(genre)}
                           className={`px-2.5 py-1 rounded-full text-xs sm:text-sm transition-colors ${
-                            formData.genre.includes(genre)
+                          formData.genre.includes(genre)
                               ? 'bg-purple-500 text-white'
                               : 'bg-[var(--bg-tertiary)] text-white/60 hover:bg-white/10'
-                          }`}
-                        >
-                          {genre}
-                        </button>
-                      ))}
-                    </div>
+                        }`}
+                      >
+                        {genre}
+                      </button>
+                    ))}
                   </div>
+                </div>
 
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Image de couverture</label>
@@ -760,24 +760,24 @@ export default function UploadPage() {
                           <div className="text-left">
                             <div className="text-sm font-medium text-green-400">{coverFile.name}</div>
                             <div className="text-xs text-white/60">{(coverFile.size / 1024 / 1024).toFixed(2)} MB</div>
-                          </div>
-                        </div>
+                      </div>
+                  </div>
                       ) : (
                         <div className="flex items-center justify-center gap-3">
                           <Image size={24} className="text-white/40" />
                           <div className="text-left">
                             <p className="text-sm font-medium">Ajouter une image de couverture</p>
                             <p className="text-xs text-white/60">JPG, PNG, WebP (max 5MB)</p>
-                          </div>
+                </div>
                         </div>
                       )}
                     </div>
-                  </div>
-                </motion.div>
-              )}
+                </div>
+              </motion.div>
+            )}
 
-              {currentStep === 3 && (
-                <motion.div
+            {currentStep === 3 && (
+              <motion.div
                   key="step3"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -815,27 +815,27 @@ export default function UploadPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-white/80">Propriétaire</label>
-                        <input
-                          type="text"
-                          value={formData.copyright.owner}
+                      <input
+                        type="text"
+                        value={formData.copyright.owner}
                           disabled
                           className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)]/50 border border-[var(--border)] rounded-lg text-[var(--text)]/70 cursor-not-allowed text-sm"
                           placeholder="Synchronisé avec votre profil"
                         />
                         <p className="text-xs text-white/50">Automatiquement synchronisé avec votre nom de profil</p>
-                      </div>
-                      
+                    </div>
+                    
                       <div className="space-y-1.5">
                         <label className="block text-sm font-medium text-white/80">Année</label>
-                        <input
-                          type="number"
-                          value={formData.copyright.year}
-                          onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
+                      <input
+                        type="number"
+                        value={formData.copyright.year}
+                        onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
                           className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
-                          placeholder="2024"
-                        />
-                      </div>
+                        placeholder="2024"
+                      />
                     </div>
+                  </div>
                   </div>
                 </motion.div>
               )}
@@ -863,10 +863,10 @@ export default function UploadPage() {
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <Music className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
-                          </div>
+                  </div>
                         )}
-                      </div>
-                      
+                </div>
+
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-[var(--text)] truncate text-sm sm:text-base">{formData.title || 'Sans titre'}</h3>
                         <p className="text-xs sm:text-sm text-white/70">{formData.artist}</p>
@@ -968,8 +968,8 @@ export default function UploadPage() {
                               width: `${Math.min(100, ((usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) / usage.storage.limit) * 100)}%` 
                             }}
                           />
-                        </div>
-                      </div>
+                  </div>
+                </div>
                     </div>
                   )}
                 </motion.div>
@@ -1016,17 +1016,17 @@ export default function UploadPage() {
           <div className="flex h-fit flex-col justify-end gap-2 p-3 sm:p-4 border-t border-[var(--border)]">
             <div className="flex flex-row justify-between sm:justify-end gap-2 sm:gap-4">
               {currentStep > 1 && (
-                <button 
-                  type="button"
+                  <button
+                    type="button"
                   onClick={() => setCurrentStep(currentStep - 1)}
                   className="px-4 py-2 text-sm text-white/60 hover:text-white/80 transition-colors"
-                >
+                  >
                   ← Retour
-                </button>
+                  </button>
               )}
               
               <div className="flex gap-2">
-                <button 
+                  <button
                   type="button"
                   onClick={cancelUpload}
                   className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-[var(--text)] bg-[var(--bg-tertiary)] enabled:hover:before:bg-white/10"
@@ -1055,11 +1055,11 @@ export default function UploadPage() {
                     className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 sm:px-6 py-2 text-sm sm:text-base rounded-full text-black bg-white enabled:hover:before:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="relative flex flex-row items-center justify-center gap-2">
-                      {isUploading ? 'Upload en cours...' : 'Publier'}
+                    {isUploading ? 'Upload en cours...' : 'Publier'}
                     </span>
                   </button>
-                )}
-              </div>
+            )}
+        </div>
             </div>
           </div>
         </div>
@@ -1068,4 +1068,4 @@ export default function UploadPage() {
       <BottomNav />
     </div>
   );
-}
+} 
