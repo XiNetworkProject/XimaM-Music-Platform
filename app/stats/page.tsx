@@ -80,6 +80,14 @@ export default function StatsPage() {
   const [compareTrack, setCompareTrack] = useState<string>('');
   const [compareSeries, setCompareSeries] = useState<Array<{ date: string; plays: number; uniques?: number; likes?: number }>>([]);
 
+  // Onboarding: marquer la visite des stats
+  useEffect(() => {
+    try {
+      localStorage.setItem('onboarding.viewedStats', '1');
+      window.dispatchEvent(new Event('onboardingStatsViewed'));
+    } catch {}
+  }, []);
+
   useEffect(() => {
     const run = async () => {
       try {

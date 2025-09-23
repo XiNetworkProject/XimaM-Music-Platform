@@ -19,6 +19,8 @@ import {
   X, MessageCircle
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
+const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
 
 interface Track {
   _id: string;
@@ -1532,6 +1534,8 @@ export default function HomePage() {
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
+        {/* Onboarding simple (3 étapes) */}
+        <OnboardingChecklist />
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-2 md:p-4">
       {/* Banderoles fines et élégantes */}
       <div className="relative z-20">
