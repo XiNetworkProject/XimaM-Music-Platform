@@ -15,6 +15,7 @@ export default function AppSidebar() {
   const { data: session } = useSession();
   const { notifications } = useMessageNotifications();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
 
   const getSafeAvatar = () => {
     const candidate = avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture;
@@ -40,6 +41,15 @@ export default function AppSidebar() {
     };
     load();
   }, [session?.user]);
+
+  // Évite les erreurs d'hydratation: ne rend côté client qu'après le mount
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return null;
+  }
 
   const nav = [
     { icon: Home, label: 'Accueil', desc: 'Nouveautés', href: '/' },
