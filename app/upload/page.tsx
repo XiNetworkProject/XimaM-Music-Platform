@@ -379,6 +379,13 @@ export default function UploadPage() {
         toast.error('Veuillez sélectionner un fichier audio valide');
         return;
       }
+      // Validation taille par plan
+      const planMaxMb = (planKey === 'starter' ? 100 : planKey === 'pro' ? 200 : planKey === 'enterprise' ? 500 : 50);
+      const sizeMb = file.size / 1024 / 1024;
+      if (sizeMb > planMaxMb) {
+        toast.error(`Fichier trop volumineux pour votre plan (${sizeMb.toFixed(1)} MB). Limite: ${planMaxMb} MB.`);
+        return;
+      }
       setAudioFile(file);
     }
   }, []);
@@ -608,7 +615,7 @@ export default function UploadPage() {
                           <p className="text-white/60 text-sm">ou cliquez pour sélectionner</p>
                         </div>
                         <p className="text-xs sm:text-sm text-white/40">
-                          Formats supportés: MP3, WAV, FLAC (max 50MB)
+                          Formats supportés: MP3, WAV, FLAC — limites: Free 50 MB · Starter 100 MB · Pro 200 MB
                         </p>
                       </div>
                     </div>

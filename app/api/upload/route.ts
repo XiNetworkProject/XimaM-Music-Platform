@@ -14,10 +14,11 @@ export async function POST(request: NextRequest) {
 
     const contentType = request.headers.get('content-type') || '';
 
+    let ent: ReturnType<typeof getEntitlements> | null = null;
     try {
       const { data: profile } = await supabaseAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
       const plan = (profile?.plan || 'free') as any;
-      const ent = getEntitlements(plan);
+      ent = getEntitlements(plan);
       if (ent.uploads.maxTracks > -1) {
         const { count } = await supabaseAdmin.from('tracks').select('*', { count: 'exact', head: true }).eq('creator_id', session.user.id);
         if ((count || 0) >= ent.uploads.maxTracks) {
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest) {
       }
 
       const trackDuration = Math.round(parseFloat(duration) || 0);
+      // Validation côté serveur: taille fichier selon plan (si bytes fournis)
+      const audioBytes = jsonData.audioBytes ? Number(jsonData.audioBytes) : 0;
+      if (ent && audioBytes > 0) {
+        const maxBytes = ent.uploads.maxFileMb * 1024 * 1024;
+        if (audioBytes > maxBytes) {
+          return NextResponse.json({ error: `Fichier trop volumineux pour votre plan. Limite: ${ent.uploads.maxFileMb} MB.` }, { status: 413 });
+        }
+      }
       const trackGenre = Array.isArray(trackData.genre) ? trackData.genre : [];
 
       const { data: track, error } = await supabaseAdmin
