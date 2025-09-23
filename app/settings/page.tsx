@@ -127,6 +127,56 @@ export default function SettingsPage() {
       ]
     },
     {
+      id: 'legal',
+      title: 'Légal',
+      icon: Globe,
+      items: [
+        {
+          id: 'legal-center',
+          label: 'Centre légal',
+          description: 'Tous les documents légaux',
+          type: 'link',
+          action: () => router.push('/legal')
+        },
+        {
+          id: 'mentions',
+          label: 'Mentions légales',
+          type: 'link',
+          action: () => router.push('/legal/mentions-legales')
+        },
+        {
+          id: 'confidentialite',
+          label: 'Confidentialité',
+          type: 'link',
+          action: () => router.push('/legal/confidentialite')
+        },
+        {
+          id: 'cgu',
+          label: 'CGU',
+          type: 'link',
+          action: () => router.push('/legal/cgu')
+        },
+        {
+          id: 'cgv',
+          label: 'CGV',
+          type: 'link',
+          action: () => router.push('/legal/cgv')
+        },
+        {
+          id: 'cookies',
+          label: 'Cookies',
+          type: 'link',
+          action: () => router.push('/legal/cookies')
+        },
+        {
+          id: 'rgpd',
+          label: 'RGPD',
+          type: 'link',
+          action: () => router.push('/legal/rgpd')
+        }
+      ]
+    },
+    {
       id: 'preferences',
       title: 'Préférences',
       icon: Settings,
