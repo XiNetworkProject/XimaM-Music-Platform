@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer';
+import 'server-only';
 
 export interface SendEmailOptions {
   to: string;
@@ -6,10 +6,11 @@ export interface SendEmailOptions {
   html: string;
 }
 
-export function getTransport() {
+export async function getTransport() {
   if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
     throw new Error('SMTP non configuré');
   }
+  const nodemailer = (await import('nodemailer')).default;
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: Number(process.env.SMTP_PORT || 587),
@@ -19,7 +20,7 @@ export function getTransport() {
 }
 
 export async function sendEmail(opts: SendEmailOptions) {
-  const transporter = getTransport();
+  const transporter = await getTransport();
   const from = process.env.SMTP_FROM || 'Synaura <no-reply@synaura.fr>';
   await transporter.sendMail({ from, to: opts.to, subject: opts.subject, html: opts.html });
 }
