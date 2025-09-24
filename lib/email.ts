@@ -27,12 +27,12 @@ export async function sendEmail(opts: SendEmailOptions) {
 
 export function resetEmailTemplate({ code, link }: { code: string; link: string }) {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const logo = `${baseUrl}/logo.png`;
+  const logo = `${baseUrl}/synaura_symbol.svg`;
   return `
   <div style="background:#0b0b12;color:#fff;font-family:Inter,Arial,sans-serif;padding:24px">
     <div style="max-width:560px;margin:0 auto;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px">
       <div style="text-align:center;margin-bottom:12px">
-        <img src="${logo}" alt="Synaura" height="28" style="opacity:.9"/>
+        <img src="${logo}" alt="Synaura" width="56" height="56" style="display:inline-block;opacity:.95"/>
       </div>
       <h2 style="margin:0 0 8px;font-size:18px">Réinitialisation de votre mot de passe</h2>
       <p style="margin:0 0 16px;color:#cbd5e1">Utilisez ce code pour réinitialiser votre mot de passe. Il expire dans 10 minutes.</p>
