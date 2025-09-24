@@ -13,6 +13,7 @@ import InteractiveCounter from './InteractiveCounter';
 import CommentDialog from './CommentDialog';
 import CommentButton from './CommentButton';
 import TikTokPlayer from './TikTokPlayer';
+import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
 
 export default function FullScreenPlayer() {
   const { 
@@ -203,6 +204,11 @@ export default function FullScreenPlayer() {
                 <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
                   <span className="line-clamp-1 w-full lg:max-w-[220px] md:max-w-[180px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
                 </a>
+                <div className="hidden md:block ml-2">
+                  <AudioQualityTooltip>
+                    <AudioQualityIndicator size="sm" />
+                  </AudioQualityTooltip>
+                </div>
               </span>
             </div>
 
@@ -354,6 +360,9 @@ export default function FullScreenPlayer() {
                     <MessageCircle size={16} />
                     <span>{currentTrack?.comments?.length || 0}</span>
                   </div>
+                  <AudioQualityTooltip>
+                    <AudioQualityIndicator size="sm" showUpgrade={true} />
+                  </AudioQualityTooltip>
                 </div>
                 
                 {audioState.isPlaying && !audioState.isLoading && (

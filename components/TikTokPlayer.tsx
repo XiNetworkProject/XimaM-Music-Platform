@@ -12,6 +12,7 @@ import FloatingParticles from './FloatingParticles';
 import InteractiveCounter from './InteractiveCounter';
 import CommentDialog from './CommentDialog';
 import CommentButton from './CommentButton';
+import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -696,6 +697,10 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       <span className="text-xs">Partager</span>
                     </button>
                   </div>
+                  
+                  <AudioQualityTooltip>
+                    <AudioQualityIndicator size="sm" showUpgrade={true} />
+                  </AudioQualityTooltip>
                   
                   <button className="text-white/70 hover:text-white transition-colors">
                     <MoreVertical size={16} />

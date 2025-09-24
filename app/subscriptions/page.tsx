@@ -367,7 +367,7 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isFreeActive}
             isActive={isFreeActive}
-            limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps' }}
+            limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps', ai: `${PLAN_ENTITLEMENTS.free.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               'Profil public et bibliothèque',
               'Uploads limités',
@@ -429,7 +429,7 @@ export default function SubscriptionsPage() {
             priceMonthly={59.99}
             period={period}
             disabled
-            limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps' }}
+            limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               'Accès à la messagerie',
               
@@ -470,6 +470,12 @@ export default function SubscriptionsPage() {
           <div>{PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}</div>
           <div>{PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}</div>
           <div>{PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}</div>
+
+          <div className="text-white/60">Qualité audio</div>
+          <div>{PLAN_ENTITLEMENTS.free.audio.maxQualityKbps} kbps</div>
+          <div>{PLAN_ENTITLEMENTS.starter.audio.maxQualityKbps} kbps</div>
+          <div>{PLAN_ENTITLEMENTS.pro.audio.maxQualityKbps} kbps</div>
+          <div>{PLAN_ENTITLEMENTS.enterprise.audio.maxQualityKbps} kbps</div>
 
           <div className="text-white/60">Messagerie</div>
           <div>—</div>

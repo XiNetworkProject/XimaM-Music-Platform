@@ -3,6 +3,7 @@ export type PlanKey = 'free' | 'starter' | 'pro' | 'enterprise';
 export interface Entitlements {
   uploads: { maxTracks: number; maxStorageGb: number; maxPlaylists: number; maxFileMb: number };
   ai: { maxGenerationsPerMonth: number };
+  audio: { maxQualityKbps: number };
   features: {
     messaging: boolean;
     analyticsBasic: boolean;
@@ -17,6 +18,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
   free: {
     uploads: { maxTracks: 5, maxStorageGb: 0.5, maxPlaylists: 3, maxFileMb: 50 },
     ai: { maxGenerationsPerMonth: 1 },
+    audio: { maxQualityKbps: 128 },
     features: {
       messaging: false,
       analyticsBasic: false,
@@ -29,6 +31,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
   starter: {
     uploads: { maxTracks: 20, maxStorageGb: 1, maxPlaylists: 20, maxFileMb: 100 },
     ai: { maxGenerationsPerMonth: 3 },
+    audio: { maxQualityKbps: 256 },
     features: {
       messaging: true,
       analyticsBasic: true,
@@ -41,6 +44,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
   pro: {
     uploads: { maxTracks: 50, maxStorageGb: 5, maxPlaylists: -1, maxFileMb: 200 },
     ai: { maxGenerationsPerMonth: 10 },
+    audio: { maxQualityKbps: 320 },
     features: {
       messaging: true,
       analyticsBasic: true,
@@ -53,6 +57,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
   enterprise: {
     uploads: { maxTracks: -1, maxStorageGb: 1000, maxPlaylists: -1, maxFileMb: 500 },
     ai: { maxGenerationsPerMonth: 100 },
+    audio: { maxQualityKbps: 320 },
     features: {
       messaging: true,
       analyticsBasic: true,

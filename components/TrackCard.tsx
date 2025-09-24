@@ -8,6 +8,7 @@ import Link from 'next/link';
 import SocialStats from './SocialStats';
 import CommentSection from './CommentSection';
 import { useAudioService } from '@/hooks/useAudioService';
+import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
 
 interface Track {
   _id: string;
@@ -187,7 +188,7 @@ export default function TrackCard({
           </div>
           {/* Statistiques sociales */}
           {showStats && (
-            <div className="mt-1.5">
+            <div className="mt-1.5 flex items-center justify-center gap-2">
               <SocialStats
                 trackId={track._id}
                 initialStats={{
@@ -196,6 +197,9 @@ export default function TrackCard({
                 }}
                 size="sm"
               />
+              <AudioQualityTooltip>
+                <AudioQualityIndicator size="sm" />
+              </AudioQualityTooltip>
             </div>
           )}
         </div>
