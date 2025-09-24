@@ -232,7 +232,15 @@ export const generateUploadSignature = (params: any) => {
   console.log('Filtered params (excluded file):', filteredParams);
 
   // Créer la chaîne à signer au format key=value&key=value
-  const signString = Object.entries(filteredParams)
+  // Cloudinary exige un ordre spécifique : timestamp, public_id, folder, resource_type
+  const orderedParams = [
+    ['timestamp', filteredParams.timestamp],
+    ['public_id', filteredParams.publicId],
+    ['folder', filteredParams.folder],
+    ['resource_type', filteredParams.resource_type]
+  ].filter(([key, value]) => value !== undefined);
+
+  const signString = orderedParams
     .map(([key, value]) => `${key}=${value}`)
     .join('&');
 
