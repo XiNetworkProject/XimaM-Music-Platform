@@ -84,6 +84,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.11",
+    "@types/nodemailer": "^7.0.1",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0"
   },
