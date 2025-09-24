@@ -157,6 +157,7 @@ export default function ProfileUserPage() {
       formData.append('timestamp', String(timestamp));
       formData.append('api_key', apiKey);
       formData.append('signature', signature);
+      formData.append('resource_type', 'image');
       
       const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
         method: 'POST',
