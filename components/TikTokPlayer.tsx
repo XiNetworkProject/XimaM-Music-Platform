@@ -13,6 +13,7 @@ import InteractiveCounter from './InteractiveCounter';
 import CommentDialog from './CommentDialog';
 import CommentButton from './CommentButton';
 import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
+import DownloadButton, { DownloadTooltip } from './DownloadButton';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -696,6 +697,17 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       <Share2 size={16} />
                       <span className="text-xs">Partager</span>
                     </button>
+                    
+                    <DownloadTooltip>
+                      <DownloadButton
+                        audioUrl={currentTrack?.audioUrl || ''}
+                        trackTitle={currentTrack?.title || 'Titre inconnu'}
+                        artistName={currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
+                        size="sm"
+                        showUpgrade={true}
+                        className="text-white/70 hover:text-white transition-colors"
+                      />
+                    </DownloadTooltip>
                   </div>
                   
                   <AudioQualityTooltip>

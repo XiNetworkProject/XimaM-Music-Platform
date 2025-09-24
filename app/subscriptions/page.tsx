@@ -371,7 +371,8 @@ export default function SubscriptionsPage() {
             features={[
               'Profil public et bibliothèque',
               'Uploads limités',
-              'Lecture et découverte de base'
+              'Lecture et découverte de base',
+              '1 génération IA/mois'
             ]}
             onChoose={async () => {
               if (isFreeActive) return;
@@ -416,7 +417,8 @@ export default function SubscriptionsPage() {
               `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth} générations IA/mois`,
               PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists ? 'Playlists collaboratives' : '',
-              PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Analyses avancées' : ''
+              PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Analyses avancées' : '',
+              PLAN_ENTITLEMENTS.pro.features.download ? 'Téléchargement de musique' : ''
             ]}
             onChoose={() => choosePlan(priceMap.Pro[period])}
           />
@@ -432,7 +434,10 @@ export default function SubscriptionsPage() {
             limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               'Accès à la messagerie',
-              
+              'Analyses avancées',
+              'Playlists collaboratives',
+              'Téléchargement de musique',
+              'Support prioritaire'
             ]}
           />
         </div>
@@ -476,6 +481,12 @@ export default function SubscriptionsPage() {
           <div>{PLAN_ENTITLEMENTS.starter.audio.maxQualityKbps} kbps</div>
           <div>{PLAN_ENTITLEMENTS.pro.audio.maxQualityKbps} kbps</div>
           <div>{PLAN_ENTITLEMENTS.enterprise.audio.maxQualityKbps} kbps</div>
+
+          <div className="text-white/60">Téléchargement</div>
+          <div>—</div>
+          <div>—</div>
+          <div>{PLAN_ENTITLEMENTS.pro.features.download ? 'Oui' : '—'}</div>
+          <div>Oui</div>
 
           <div className="text-white/60">Messagerie</div>
           <div>—</div>

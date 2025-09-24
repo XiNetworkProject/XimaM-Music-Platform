@@ -11,6 +11,7 @@ export interface Entitlements {
     collaborativePlaylists: boolean;
     adFree: boolean;
     aiGeneration: boolean;
+    download: boolean;
   };
 }
 
@@ -26,6 +27,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
       collaborativePlaylists: false,
       adFree: false,
       aiGeneration: true,
+      download: false,
     },
   },
   starter: {
@@ -39,6 +41,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
       collaborativePlaylists: false,
       adFree: true,
       aiGeneration: true,
+      download: false,
     },
   },
   pro: {
@@ -52,6 +55,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
       collaborativePlaylists: true,
       adFree: true,
       aiGeneration: true,
+      download: true,
     },
   },
   enterprise: {
@@ -65,6 +69,7 @@ export const PLAN_ENTITLEMENTS: Record<PlanKey, Entitlements> = {
       collaborativePlaylists: true,
       adFree: true,
       aiGeneration: true,
+      download: true,
     },
   },
 };
