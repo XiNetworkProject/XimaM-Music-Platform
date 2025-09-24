@@ -53,7 +53,7 @@ export async function POST(
       timestamp,
       publicId,
       folder: `ximam/profiles/${username}`,
-      resourceType: 'image'
+      resource_type: 'image'
     });
 
     return NextResponse.json({

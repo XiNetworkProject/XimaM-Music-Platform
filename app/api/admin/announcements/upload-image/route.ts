@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     const res = await fetch(`${process.env.NEXTAUTH_URL}/api/upload/signature`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ timestamp, publicId, resourceType: 'image' })
+      body: JSON.stringify({ timestamp, publicId, resource_type: 'image' })
     });
     const json = await res.json();
     if (!res.ok) return NextResponse.json(json, { status: res.status });

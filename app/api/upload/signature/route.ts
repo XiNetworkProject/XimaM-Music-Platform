@@ -11,13 +11,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const { timestamp, publicId, resourceType = 'video' } = await request.json();
+    const { timestamp, publicId, resourceType = 'video', resource_type = resourceType } = await request.json();
 
-    // Préparer les paramètres pour la signature (exclure resource_type car Cloudinary ne l'utilise pas)
+    // Préparer les paramètres pour la signature
     const params = {
-      folder: resourceType === 'video' ? 'ximam/audio' : 'ximam/images',
+      folder: (resource_type || resourceType) === 'video' ? 'ximam/audio' : 'ximam/images',
       public_id: publicId,
       timestamp: timestamp,
+      resource_type: resource_type || resourceType,
     };
 
     console.log('=== DEBUG SIGNATURE ===');
