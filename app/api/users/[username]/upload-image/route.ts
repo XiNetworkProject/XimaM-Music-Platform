@@ -51,7 +51,7 @@ export async function POST(
     // Générer la signature Cloudinary
     const signature = generateUploadSignature({
       timestamp,
-      publicId,
+      public_id: publicId,
       folder: `ximam/profiles/${username}`,
       resource_type: 'image'
     });
