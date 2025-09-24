@@ -220,7 +220,7 @@ export const generateUploadSignature = (params: any) => {
   console.log('Input params:', params);
   
   // Filtrer les paramètres à exclure de la signature
-  const excludedParams = ['file'];
+  const excludedParams = ['file', 'resource_type'];
   const filteredParams = Object.keys(params)
     .filter(key => !excludedParams.includes(key))
     .sort()
@@ -229,7 +229,7 @@ export const generateUploadSignature = (params: any) => {
       return result;
     }, {});
 
-  console.log('Filtered params (excluded file):', filteredParams);
+  console.log('Filtered params (excluded file, resource_type):', filteredParams);
   console.log('Resource type value:', filteredParams.resource_type);
   console.log('All filtered param keys:', Object.keys(filteredParams));
 
