@@ -9,6 +9,8 @@ const publicPages = [
   '/auth/signin',
   '/auth/signup',
   '/auth/forgot-password',
+  '/auth/reset-password',
+  '/reset-password',
   '/api/auth/count-users'
 ];
 
