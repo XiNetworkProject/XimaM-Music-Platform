@@ -22,6 +22,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamicImport from 'next/dynamic';
 const OnboardingChecklist = dynamicImport(() => import('@/components/OnboardingChecklist'), { ssr: false });
+import AnnouncementCarousel from '@/components/AnnouncementCarousel';
 
 export const dynamic = 'force-dynamic';
 
@@ -1600,6 +1601,11 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Carrousel d'annonces */}
+      <div className="mb-6">
+        <AnnouncementCarousel />
       </div>
 
       {/* Zone transparente pour le carrousel */}

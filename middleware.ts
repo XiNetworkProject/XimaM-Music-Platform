@@ -21,6 +21,7 @@ const protectedPages = [
   '/stats',
   '/subscriptions',
   '/ai-generator',
+  '/admin',
   '/settings'
 ];
 
@@ -54,6 +55,14 @@ export async function middleware(request: NextRequest) {
       const signInUrl = new URL('/auth/signin', request.url);
       signInUrl.searchParams.set('callbackUrl', request.url);
       return NextResponse.redirect(signInUrl);
+    }
+
+    // Vérification spéciale pour les pages admin
+    if (pathname.startsWith('/admin')) {
+      if (token.email !== 'vermeulenmaxime59@gmail.com') {
+        // Rediriger vers la page d'accueil si pas admin
+        return NextResponse.redirect(new URL('/', request.url));
+      }
     }
   }
   
