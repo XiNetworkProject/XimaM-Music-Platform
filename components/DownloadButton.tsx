@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Lock, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDownloadPermission, downloadAudioFile, generateFilename } from '@/hooks/useDownloadPermission';
+import DownloadDialog from './DownloadDialog';
 import toast from 'react-hot-toast';
 
 interface DownloadButtonProps {
@@ -27,6 +28,7 @@ export default function DownloadButton({
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadStatus, setDownloadStatus] = useState<'idle' | 'downloading' | 'success' | 'error'>('idle');
+  const [showDialog, setShowDialog] = useState(false);
 
   const getSizeClasses = () => {
     switch (size) {
@@ -52,7 +54,7 @@ export default function DownloadButton({
     }
   };
 
-  const handleDownload = async () => {
+  const handleDownloadClick = () => {
     if (!canDownload) {
       toast.error(upgradeMessage || 'Téléchargement non disponible');
       return;
@@ -63,6 +65,10 @@ export default function DownloadButton({
       return;
     }
 
+    setShowDialog(true);
+  };
+
+  const handleDownloadConfirm = async () => {
     try {
       setIsDownloading(true);
       setDownloadStatus('downloading');
@@ -77,8 +83,9 @@ export default function DownloadButton({
       setDownloadStatus('success');
       toast.success(`Téléchargement réussi: ${filename}`);
       
-      // Reset après 2 secondes
+      // Fermer le dialog après succès
       setTimeout(() => {
+        setShowDialog(false);
         setDownloadStatus('idle');
         setDownloadProgress(0);
       }, 2000);
@@ -94,6 +101,12 @@ export default function DownloadButton({
       }, 3000);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleDialogClose = () => {
+    if (!isDownloading) {
+      setShowDialog(false);
     }
   };
 
@@ -165,14 +178,15 @@ export default function DownloadButton({
   };
 
   return (
-    <motion.button
-      onClick={handleDownload}
-      disabled={isDownloading}
-      className={getButtonStyle()}
-      whileHover={canDownload && downloadStatus === 'idle' ? { scale: 1.05 } : {}}
-      whileTap={canDownload && downloadStatus === 'idle' ? { scale: 0.95 } : {}}
-      title={!canDownload ? upgradeMessage : 'Télécharger la musique'}
-    >
+    <>
+      <motion.button
+        onClick={handleDownloadClick}
+        disabled={isDownloading}
+        className={getButtonStyle()}
+        whileHover={canDownload && downloadStatus === 'idle' ? { scale: 1.05 } : {}}
+        whileTap={canDownload && downloadStatus === 'idle' ? { scale: 0.95 } : {}}
+        title={!canDownload ? upgradeMessage : 'Télécharger la musique'}
+      >
       {getButtonContent()}
       
       {/* Barre de progression */}
@@ -193,7 +207,17 @@ export default function DownloadButton({
           </motion.div>
         )}
       </AnimatePresence>
-    </motion.button>
+      </motion.button>
+
+      <DownloadDialog
+        isOpen={showDialog}
+        onClose={handleDialogClose}
+        onConfirm={handleDownloadConfirm}
+        trackTitle={trackTitle}
+        artistName={artistName}
+        isDownloading={isDownloading}
+      />
+    </>
   );
 }
 

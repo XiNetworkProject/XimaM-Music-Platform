@@ -72,11 +72,40 @@ export async function downloadAudioFile(
   onProgress?: (progress: number) => void
 ): Promise<void> {
   try {
+    // Simuler le progrès initial
+    if (onProgress) {
+      onProgress(10);
+    }
+
+    // Fetch le fichier audio
+    const response = await fetch(audioUrl);
+    if (!response.ok) {
+      throw new Error(`Erreur HTTP: ${response.status}`);
+    }
+
+    if (onProgress) {
+      onProgress(30);
+    }
+
+    // Convertir en blob
+    const blob = await response.blob();
+    
+    if (onProgress) {
+      onProgress(70);
+    }
+
+    // Créer l'URL du blob
+    const blobUrl = URL.createObjectURL(blob);
+    
+    if (onProgress) {
+      onProgress(90);
+    }
+
     // Créer un élément <a> temporaire pour le téléchargement
     const link = document.createElement('a');
-    link.href = audioUrl;
+    link.href = blobUrl;
     link.download = filename;
-    link.target = '_blank';
+    link.style.display = 'none';
     
     // Ajouter au DOM temporairement
     document.body.appendChild(link);
@@ -85,11 +114,13 @@ export async function downloadAudioFile(
     // Nettoyer
     document.body.removeChild(link);
     
-    // Simuler le progrès (car le téléchargement natif ne donne pas de callback)
+    // Libérer l'URL du blob après un délai
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+    
     if (onProgress) {
-      onProgress(0);
-      setTimeout(() => onProgress(50), 100);
-      setTimeout(() => onProgress(100), 200);
+      onProgress(100);
     }
     
   } catch (error) {
