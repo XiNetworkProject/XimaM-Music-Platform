@@ -132,23 +132,58 @@ export default function ProfileUserPage() {
     setUploading(true);
     setError('');
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
+      // Étape 1: Obtenir la signature Cloudinary
+      const timestamp = Math.round(Date.now() / 1000);
+      const publicId = `${username}_${type}_${timestamp}`;
       
-      const res = await fetch(`/api/users/${username}/upload`, {
+      const sigRes = await fetch(`/api/users/${username}/upload-image`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp, publicId, type })
       });
       
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: 'Erreur inconnue' }));
-        throw new Error(errorData.error || `Erreur ${res.status}: ${res.statusText}`);
+      if (!sigRes.ok) {
+        const errorData = await sigRes.json().catch(() => ({ error: 'Erreur signature' }));
+        throw new Error(errorData.error || 'Erreur signature');
       }
       
-      const data = await res.json();
-      setProfile((prev: any) => ({ ...prev, [type]: data.imageUrl }));
-      setEditData((prev: any) => ({ ...prev, [type]: data.imageUrl }));
+      const { signature, apiKey, cloudName } = await sigRes.json();
+      
+      // Étape 2: Upload vers Cloudinary
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', `ximam/profiles/${username}`);
+      formData.append('public_id', publicId);
+      formData.append('timestamp', String(timestamp));
+      formData.append('api_key', apiKey);
+      formData.append('signature', signature);
+      
+      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!uploadRes.ok) {
+        throw new Error('Erreur upload Cloudinary');
+      }
+      
+      const uploadData = await uploadRes.json();
+      
+      // Étape 3: Sauvegarder l'URL dans la base de données
+      const saveRes = await fetch(`/api/users/${username}/save-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: uploadData.secure_url, type })
+      });
+      
+      if (!saveRes.ok) {
+        const errorData = await saveRes.json().catch(() => ({ error: 'Erreur sauvegarde' }));
+        throw new Error(errorData.error || 'Erreur sauvegarde');
+      }
+      
+      const saveData = await saveRes.json();
+      setProfile((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
+      setEditData((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
     } catch (e: any) {
       setError(e.message || 'Erreur upload image');
     } finally {

@@ -55,6 +55,14 @@ interface CategoryData {
   error: string | null;
 }
 
+// Annonce pour le carrousel
+interface Announcement {
+  id: string;
+  title: string;
+  body?: string | null;
+  image_url?: string | null;
+}
+
 // Cache simple pour les données (sans les écoutes pour éviter les désynchronisations)
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
 const CACHE_DURATION = 5 * 1000; // 5 secondes (réduit encore plus pour éviter les données obsolètes)
@@ -93,6 +101,21 @@ export default function HomePage() {
   const [isCarouselInView, setIsCarouselInView] = useState(true);
   const rafRef = useRef<number | null>(null);
   const newSongsRef = useRef<HTMLDivElement>(null);
+
+  // Annonces du carrousel (admin)
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  useEffect(() => {
+    const loadAnnouncements = async () => {
+      try {
+        const res = await fetch('/api/announcements', { headers: { 'Cache-Control': 'no-store' } });
+        if (res.ok) {
+          const json = await res.json();
+          setAnnouncements(json.items || []);
+        }
+      } catch {}
+    };
+    loadAnnouncements();
+  }, []);
 
   const scrollNewSongs = useCallback((direction: 'left' | 'right') => {
     const el = newSongsRef.current;
@@ -218,6 +241,7 @@ export default function HomePage() {
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
+  const slidesCount = useMemo(() => Math.max(0, announcements.length + heroTracks.length), [announcements.length, heroTracks.length]);
 
   // Synchronisation temps réel pour les listes d'accueil
   useEffect(() => {
@@ -815,7 +839,7 @@ export default function HomePage() {
 
   // Auto-play avec barre de progression fluide + pause on hover/blur
   useEffect(() => {
-    if (!isAutoPlaying || !isCarouselInView || heroTracks.length === 0) {
+    if (!isAutoPlaying || !isCarouselInView || slidesCount === 0) {
       // Arrêter l'animation si les conditions ne sont pas remplies
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -834,7 +858,7 @@ export default function HomePage() {
       const progress = Math.min(100, (elapsed / durationMs) * 100);
       setAutoProgress(progress);
       if (elapsed >= durationMs) {
-        setCurrentSlide((prev) => (prev + 1) % Math.min(heroTracks.length, 5));
+        setCurrentSlide((prev) => (prev + 1) % Math.max(1, slidesCount));
         start = ts;
       }
       rafRef.current = requestAnimationFrame(step);
@@ -849,7 +873,7 @@ export default function HomePage() {
       }
       setAutoProgress(0);
     };
-  }, [isAutoPlaying, isCarouselInView, heroTracks.length]);
+  }, [isAutoPlaying, isCarouselInView, slidesCount]);
 
   useEffect(() => {
     if (isNative) {
@@ -862,7 +886,7 @@ export default function HomePage() {
   }, [isNative, checkForUpdates]);
 
   const nextSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev + 1) % Math.min(heroTracks.length, 5));
+    setCurrentSlide((prev) => (prev + 1) % Math.max(1, slidesCount));
     setIsAutoPlaying(false);
     setAutoProgress(0);
     // Arrêter l'animation
@@ -870,13 +894,14 @@ export default function HomePage() {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-  }, [heroTracks.length]);
+  }, [slidesCount]);
 
   const prevSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev - 1 + Math.min(heroTracks.length, 5)) % Math.min(heroTracks.length, 5));
+    const n = Math.max(1, slidesCount);
+    setCurrentSlide((prev) => (prev - 1 + n) % n);
     setIsAutoPlaying(false);
     setAutoProgress(0);
-  }, [heroTracks.length]);
+  }, [slidesCount]);
 
   const goToSlide = useCallback((index: number) => {
     setCurrentSlide(index);

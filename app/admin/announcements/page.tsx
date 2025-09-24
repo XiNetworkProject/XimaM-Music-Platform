@@ -35,19 +35,59 @@ export default function AdminAnnouncementsPage() {
     load();
   }, []);
 
+  const uploadImage = async (): Promise<{ url: string; publicId: string } | null> => {
+    if (!form.image_url || form.image_url.startsWith('http')) return null; // champ déjà URL, pas d'upload
+    const input = document.getElementById('admin-annc-image') as HTMLInputElement | null;
+    if (!input || !input.files || input.files.length === 0) return null;
+    const file = input.files[0];
+
+    const timestamp = Math.round(Date.now() / 1000);
+    const publicId = `announcement_${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
+    const sigRes = await fetch('/api/admin/announcements/upload-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ timestamp, publicId })
+    });
+    if (!sigRes.ok) return null;
+    const { signature, apiKey, cloudName } = await sigRes.json();
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'ximam/images');
+    fd.append('public_id', publicId);
+    fd.append('timestamp', String(timestamp));
+    fd.append('api_key', apiKey);
+    fd.append('signature', signature);
+
+    const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
+    if (!upRes.ok) return null;
+    const upJson = await upRes.json();
+    return { url: upJson.secure_url, publicId: upJson.public_id };
+  };
+
   const submit = async () => {
     if (!form.title) return;
     setLoading(true);
+    let imageUrl = form.image_url;
+    let imagePublicId: string | undefined = undefined;
+    // si l'admin a sélectionné un fichier, on l'upload
+    const uploaded = await uploadImage();
+    if (uploaded) {
+      imageUrl = uploaded.url;
+      imagePublicId = uploaded.publicId;
+    }
     const res = await fetch('/api/admin/announcements', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, image_url: imageUrl, image_public_id: imagePublicId }),
     });
     setLoading(false);
     if (res.ok) {
       const json = await res.json();
       setItems((p) => [json.item, ...p]);
       setForm({ title: '', body: '', image_url: '', priority: 0, published: true });
+      const input = document.getElementById('admin-annc-image') as HTMLInputElement | null;
+      if (input) input.value = '';
     }
   };
 
@@ -83,8 +123,10 @@ export default function AdminAnnouncementsPage() {
             <input className="w-full mt-1 bg-white/10 border border-white/20 rounded-xl p-2 text-white" value={form.title} onChange={(e)=>setForm({...form, title: e.target.value})} />
           </div>
           <div>
-            <label className="text-sm text-white/70">Image (URL)</label>
-            <input className="w-full mt-1 bg-white/10 border border-white/20 rounded-xl p-2 text-white" value={form.image_url || ''} onChange={(e)=>setForm({...form, image_url: e.target.value})} />
+            <label className="text-sm text-white/70">Image</label>
+            <input id="admin-annc-image" type="file" accept="image/*" className="w-full mt-1 bg-white/10 border border-white/20 rounded-xl p-2 text-white" />
+            <p className="text-xs text-white/50 mt-1">Ou collez une URL d'image ci-dessous</p>
+            <input placeholder="https://..." className="w-full mt-1 bg-white/10 border border-white/20 rounded-xl p-2 text-white" value={form.image_url || ''} onChange={(e)=>setForm({...form, image_url: e.target.value})} />
           </div>
           <div className="sm:col-span-2">
             <label className="text-sm text-white/70">Texte</label>
