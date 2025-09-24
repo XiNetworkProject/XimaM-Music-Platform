@@ -177,7 +177,7 @@ export default function ProfileUserPage() {
       const saveRes = await fetch(`/api/users/${username}/save-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: uploadData.secure_url, type })
+        body: JSON.stringify({ imageUrl: uploadData.secure_url, type, publicId })
       });
       
       if (!saveRes.ok) {
@@ -188,6 +188,11 @@ export default function ProfileUserPage() {
       const saveData = await saveRes.json();
       setProfile((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
       setEditData((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
+      
+      // Message de confirmation
+      if (saveData.oldImageDeleted) {
+        console.log(`✅ Ancienne image ${type} supprimée automatiquement`);
+      }
     } catch (e: any) {
       setError(e.message || 'Erreur upload image');
     } finally {
