@@ -1,8 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 
-export default function ResetPasswordPage() {
+export const dynamic = 'force-dynamic';
+
+function ResetPasswordInner() {
   const params = useSearchParams();
   const token = params.get('token') || '';
   const [email, setEmail] = useState('');
@@ -54,6 +56,14 @@ export default function ResetPasswordPage() {
         <button disabled={loading} className="btn-suno w-full">{loading? 'En cours...' : 'Valider'}</button>
       </form>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-white/70">Chargement…</div>}>
+      <ResetPasswordInner />
+    </Suspense>
   );
 }
 
