@@ -22,7 +22,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamicImport from 'next/dynamic';
 const OnboardingChecklist = dynamicImport(() => import('@/components/OnboardingChecklist'), { ssr: false });
-import AnnouncementCarousel from '@/components/AnnouncementCarousel';
+const AnnouncementsCarousel = dynamicImport(() => import('@/components/AnnouncementsCarousel'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -1538,6 +1538,9 @@ export default function HomePage() {
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
+        <div className="mb-6">
+          <AnnouncementsCarousel />
+        </div>
         {/* Onboarding simple (3 étapes) - seulement si connecté */}
         {session && <OnboardingChecklist />}
         
@@ -1601,11 +1604,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Carrousel d'annonces */}
-      <div className="mb-6">
-        <AnnouncementCarousel />
       </div>
 
       {/* Zone transparente pour le carrousel */}
