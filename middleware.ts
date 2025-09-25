@@ -52,6 +52,14 @@ export async function middleware(request: NextRequest) {
     });
     
     if (!token) {
+      // Si un cookie de session NextAuth est présent, laisser passer pour éviter les boucles
+      const hasSessionCookie = Boolean(
+        request.cookies.get('next-auth.session-token') ||
+        request.cookies.get('__Secure-next-auth.session-token')
+      );
+      if (hasSessionCookie) {
+        return NextResponse.next();
+      }
       // Rediriger vers la page de connexion
       const signInUrl = new URL('/auth/signin', request.url);
       signInUrl.searchParams.set('callbackUrl', request.url);

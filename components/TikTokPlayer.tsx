@@ -5,7 +5,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown, Download, Lock } from 'lucide-react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
@@ -14,6 +14,8 @@ import CommentDialog from './CommentDialog';
 import CommentButton from './CommentButton';
 import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
 import DownloadButton, { DownloadTooltip } from './DownloadButton';
+import DownloadDialog from './DownloadDialog';
+import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -61,6 +63,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const wheelTimerRef = useRef<any>(null);
   const [swipeDirection, setSwipeDirection] = useState<1 | -1>(1);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  const [showLyricsMobile, setShowLyricsMobile] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
+  const [showDownloadDialog, setShowDownloadDialog] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const { canDownload, upgradeMessage } = useDownloadPermission();
   const [lastTapTs, setLastTapTs] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
 
@@ -321,22 +330,33 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     setVolume(volume);
   }, [setVolume]);
 
-  // Fermer le slider de volume quand on clique ailleurs
+  // Fermer les menus/slider quand on clique ailleurs + gestion ESC
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (volumeSliderRef.current && !volumeSliderRef.current.contains(event.target as Node)) {
         setShowVolumeSlider(false);
       }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowVolumeSlider(false);
+        setShowMoreMenu(false);
+      }
     };
 
-    if (showVolumeSlider) {
+    if (showVolumeSlider || showMoreMenu) {
       document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showVolumeSlider]);
+  }, [showVolumeSlider, showMoreMenu]);
 
   // Plus de synchronisation locale: on s'appuie uniquement sur l'index global
 
@@ -839,7 +859,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
                 {/* Actions */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
+                <div className="flex items-center gap-4">
                     <LikeButton
                       trackId={currentTrack?._id || ''}
                       initialLikesCount={currentTrack?.likes?.length || 0}
@@ -857,31 +877,86 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       <MessageCircle size={16} />
                       <span className="text-xs">Commentaires</span>
                     </button>
-                    
-                    <button className="flex items-center gap-1 text-white/70 hover:text-white transition-colors">
-                      <Share2 size={16} />
-                      <span className="text-xs">Partager</span>
+
+                  {(hasTimed ? timedLyrics.length > 0 : plainLyrics.length > 0) && (
+                    <button
+                      onClick={() => setShowLyricsMobile(true)}
+                      className="flex items-center gap-1 text-white/70 hover:text-white transition-colors md:hidden"
+                      aria-label="Afficher les paroles"
+                    >
+                      <span className="text-xs">Paroles</span>
                     </button>
-                    
-                    <DownloadTooltip>
-                      <DownloadButton
-                        audioUrl={currentTrack?.audioUrl || ''}
-                        trackTitle={currentTrack?.title || 'Titre inconnu'}
-                        artistName={currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
-                        size="sm"
-                        showUpgrade={true}
-                        className="text-white/70 hover:text-white transition-colors"
-                      />
-                    </DownloadTooltip>
+                  )}
                   </div>
                   
                   <AudioQualityTooltip>
                     <AudioQualityIndicator size="sm" showUpgrade={true} />
                   </AudioQualityTooltip>
                   
-                  <button className="text-white/70 hover:text-white transition-colors">
-                    <MoreVertical size={16} />
-                  </button>
+                  <div className="relative" ref={moreMenuRef}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShowMoreMenu(v => !v); }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      className="text-white/70 hover:text-white transition-colors"
+                      aria-haspopup="menu"
+                      aria-expanded={showMoreMenu}
+                      aria-label="Plus d'options"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    <AnimatePresence>
+                      {showMoreMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          transition={{ duration: 0.15 }}
+                          className="fixed right-4 bottom-28 w-56 max-h-[50vh] overflow-auto bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1 z-[200] pointer-events-auto"
+                          role="menu"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            onClick={async () => {
+                              try {
+                                const shareData = {
+                                  title: currentTrack?.title || 'Musique',
+                                  text: `Écoutez ${currentTrack?.title || 'ma musique'}`,
+                                  url: typeof window !== 'undefined' ? window.location.href : ''
+                                } as any;
+                                if ((navigator as any).share) {
+                                  await (navigator as any).share(shareData);
+                                } else if (navigator.clipboard) {
+                                  await navigator.clipboard.writeText(shareData.url);
+                                  toast.success('Lien copié');
+                                }
+                              } catch {}
+                              setShowMoreMenu(false);
+                            }}
+                            className="w-full text-left text-white/90 hover:text-white hover:bg-white/10 rounded-lg px-3 py-2 text-sm flex items-center gap-2"
+                            role="menuitem"
+                          >
+                            <Share2 size={16} /> Partager
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setShowMoreMenu(false);
+                              if (!canDownload) {
+                                toast.error(upgradeMessage || 'Fonction non disponible pour votre offre');
+                                return;
+                              }
+                              setShowDownloadDialog(true);
+                            }}
+                            className={`w-full text-left rounded-lg px-3 py-2 text-sm flex items-center gap-2 ${canDownload ? 'text-white/90 hover:text-white hover:bg-white/10' : 'text-white/40 hover:text-white/50 hover:bg-white/5 cursor-not-allowed'}`}
+                            role="menuitem"
+                          >
+                            {canDownload ? <Download size={16} /> : <Lock size={16} />}
+                            Télécharger
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                 </div>
               </div>
               {/* Bottom sheet commentaires */}
@@ -911,6 +986,81 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       </div>
                     </div>
                   </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Bottom sheet paroles (mobile) */}
+              <AnimatePresence>
+                {showLyricsMobile && (
+                  <motion.div
+                    className="fixed inset-x-0 bottom-0 z-[120] bg-black/85 backdrop-blur-xl border-t border-white/10 rounded-t-2xl md:hidden"
+                    initial={{ y: 300, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={{ y: 300, opacity: 0 }}
+                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    role="dialog"
+                    aria-label="Paroles"
+                  >
+                    <div className="p-4 flex items-center justify-between">
+                      <span className="text-white/80 text-sm">Paroles</span>
+                      <button onClick={() => setShowLyricsMobile(false)} className="text-white/60 hover:text-white">
+                        <X size={18} />
+                      </button>
+                    </div>
+                    <div className="px-4 pb-24 max-h-[50vh] overflow-y-auto custom-scroll">
+                      <div className="space-y-1.5">
+                        {(hasTimed ? timedLyrics.length > 0 : plainLyrics.length > 0) ? (
+                          hasTimed ? (
+                            timedLyrics.map((item, i) => (
+                              <div
+                                key={`${i}-${item.t}`}
+                                className={`text-sm ${i === activeLineIndex ? 'text-white font-semibold' : 'text-white/70'}`}
+                              >
+                                {item.text}
+                              </div>
+                            ))
+                          ) : (
+                            plainLyrics.map((line, i) => (
+                              <div
+                                key={i}
+                                className={`text-sm ${i === activeLineIndex ? 'text-white font-semibold' : 'text-white/70'}`}
+                              >
+                                {line}
+                              </div>
+                            ))
+                          )
+                        ) : (
+                          <div className="text-white/60 text-sm">Aucune parole disponible.</div>
+                        )}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Download Dialog (global, en dehors du menu) */}
+              <AnimatePresence>
+                {showDownloadDialog && (
+                  <DownloadDialog
+                    isOpen={showDownloadDialog}
+                    onClose={() => setShowDownloadDialog(false)}
+                    onConfirm={async () => {
+                      try {
+                        setIsDownloading(true);
+                        setDownloadProgress(0);
+                        const filename = `${(currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste')}-${(currentTrack?.title || 'Titre')}.wav`.replace(/\s+/g, '_');
+                        await downloadAudioFile(currentTrack?.audioUrl || '', filename, (p) => setDownloadProgress(p));
+                        toast.success('Téléchargement terminé !');
+                      } catch {
+                        toast.error('Échec du téléchargement');
+                      } finally {
+                        setIsDownloading(false);
+                        setShowDownloadDialog(false);
+                      }
+                    }}
+                    trackTitle={currentTrack?.title || 'Titre inconnu'}
+                    artistName={currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
+                  />
                 )}
               </AnimatePresence>
             </div>

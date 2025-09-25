@@ -17,27 +17,22 @@ export async function GET(req: NextRequest) {
     const offset = parseInt(searchParams.get('offset') || '0');
     const search = (searchParams.get('search') || '').trim();
 
-    // Sélection de toutes les pistes IA de l'utilisateur (via la génération parente)
-    let query = supabaseAdmin
+    // Sélection des pistes IA liées à l'utilisateur via un INNER JOIN sur la génération
+    const { data, error } = await supabaseAdmin
       .from('ai_tracks')
-      .select(`
-        *,
-        generation:ai_generations!ai_tracks_generation_id_fkey(id, user_id, model, created_at, prompt, status)
-      `)
+      .select(
+        `
+          *,
+          generation:ai_generations!inner(id, user_id, model, created_at, prompt, status)
+        `
+      )
+      .eq('generation.user_id', session.user.id)
+      .ilike('title', search ? `%${search}%` : '%')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (search) {
-      query = query.ilike('title', `%${search}%`);
-    }
-
-    const { data, error } = await query;
     if (error) throw error;
 
-    // Filtrer côté serveur: ne garder que les pistes dont la génération appartient à l'utilisateur courant
-    const tracks = (data || []).filter((t: any) => t.generation?.user_id === session.user.id);
-
-    return NextResponse.json({ tracks, pagination: { limit, offset, total: tracks.length } });
+    return NextResponse.json({ tracks: data || [], pagination: { limit, offset, total: (data || []).length } });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });
   }
