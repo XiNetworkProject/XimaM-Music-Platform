@@ -45,7 +45,7 @@ export default function AnnouncementsCarousel() {
       {/* Image de fond */}
       {current.image_url && (
         <div className="absolute inset-0">
-          <img src={current.image_url} alt={current.title} className="w-full h-full object-cover opacity-60" />
+          <img src={current.image_url.replace('/upload/','/upload/f_auto,q_auto/')} alt={current.title} className="w-full h-full object-cover opacity-60" loading="lazy" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/30 to-black/20" />
         </div>
       )}

@@ -721,11 +721,40 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                     transition={{ duration: 0.22, ease: 'easeOut' }}
                   >
                   <div className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl">
-                    <img
-                      src={currentTrack?.coverUrl || '/default-cover.jpg'}
-                      alt={currentTrack?.title || 'Track'}
-                      className="w-full h-full object-cover"
-                    />
+                    {currentTrack?.coverUrl?.includes('res.cloudinary.com') ? (
+                      <img
+                        src={currentTrack.coverUrl.replace('/upload/', '/upload/f_auto,q_auto/')} 
+                        alt={currentTrack?.title || 'Track'}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <img
+                        src={currentTrack?.coverUrl || '/default-cover.jpg'}
+                        alt={currentTrack?.title || 'Track'}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
+                    {currentTrack?.coverUrl?.includes('res.cloudinary.com') ? (
+                      <img
+                        src={currentTrack.coverUrl.replace('/upload/', '/upload/f_auto,q_auto/')} 
+                        alt={currentTrack?.title || 'Track'}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    ) : (
+                      <img
+                        src={currentTrack?.coverUrl || '/default-cover.jpg'}
+                        alt={currentTrack?.title || 'Track'}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    )}
                     {/* Like burst */}
                     {showLikeBurst && (
                       <div className="pointer-events-none absolute inset-0 flex items-center justify-center animate-[tiktok-pulse_450ms_ease-out]">

@@ -2141,7 +2141,7 @@ Paramètres Linux à vérifier :
                           animate={{ scale: 1, opacity: 1 }}
                           transition={{ delay: 0.2 }}
                         >
-                        <img src={message.content} alt="Image envoyée" className="w-64 h-64 object-cover" />
+                        <img src={(message.content || '').replace('/upload/','/upload/f_auto,q_auto/')} alt="Image envoyée" className="w-64 h-64 object-cover" loading="lazy" decoding="async" />
                         </motion.div>
                     )}
                     {message.type === 'video' && (

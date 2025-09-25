@@ -421,7 +421,7 @@ export default function StatsPage() {
                       <div className="w-6 text-white/70">{i + 1}</div>
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 ring-1 ring-[var(--border)]">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={t.cover_url || t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full h-full object-cover" />
+                        <img src={(t.cover_url || t.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} alt={t.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="truncate font-medium">{t.title}</div>

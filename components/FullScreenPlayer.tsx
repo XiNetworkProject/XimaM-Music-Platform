@@ -184,7 +184,7 @@ export default function FullScreenPlayer() {
             {/* Left: cover */}
             <div className="md:w-8 relative flex items-center">
               <a className="mr-2 h-16 w-10 shrink-0 overflow-clip rounded-md md:h-14" onClick={(e) => { e.stopPropagation(); }} href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>
-                <img src={currentTrack?.coverUrl || '/default-cover.jpg'} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" />
+            <img src={(currentTrack?.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
               </a>
             </div>
 

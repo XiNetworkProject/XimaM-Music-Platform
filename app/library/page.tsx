@@ -700,9 +700,11 @@ export default function LibraryPage() {
                         className="w-full flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-50"
                       >
                         <img
-                          src={playlist.coverUrl || '/default-cover.jpg'}
+                          src={(playlist.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
                           alt={playlist.name}
                           className="w-12 h-12 rounded object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <div className="flex-1 text-left">
                           <h4 className="font-medium">{playlist.name}</h4>
@@ -853,9 +855,11 @@ export default function LibraryPage() {
                               {viewMode === 'grid' ? (
                                 <>
                             <img
-                              src={playlist.coverUrl || '/default-cover.jpg'}
+                              src={(playlist.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
                               alt={playlist.name}
                               className="w-full h-32 object-cover rounded-lg mb-3"
+                              loading="lazy"
+                              decoding="async"
                             />
                             <h3 className="font-semibold mb-1">{playlist.name}</h3>
                             <p className="text-sm text-white/60 mb-2">{playlist.description}</p>
@@ -867,9 +871,11 @@ export default function LibraryPage() {
                               ) : (
                                 <>
                                   <img
-                                    src={playlist.coverUrl || '/default-cover.jpg'}
+                                    src={(playlist.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
                                     alt={playlist.name}
                                     className="w-16 h-16 rounded object-cover"
+                                    loading="lazy"
+                                    decoding="async"
                                   />
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-semibold">{playlist.name}</h3>
@@ -922,9 +928,11 @@ export default function LibraryPage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.jpg'}
+                          src={(track.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{track.title}</h4>
@@ -1001,9 +1009,11 @@ export default function LibraryPage() {
                         className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                       >
                         <img
-                          src={track.coverUrl || '/default-cover.jpg'}
+                          src={(track.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
                           alt={track.title}
                           className="w-12 h-12 rounded object-cover"
+                          loading="lazy"
+                          decoding="async"
                         />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{track.title}</h4>
@@ -1077,9 +1087,11 @@ export default function LibraryPage() {
                           className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg hover:bg-white/10 transition-colors"
                         >
                           <img
-                            src={track.coverUrl || '/default-cover.jpg'}
+                            src={(track.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
                             alt={track.title}
                             className="w-12 h-12 rounded object-cover"
+                            loading="lazy"
+                            decoding="async"
                           />
                           <div className="flex-1 min-w-0">
                             <h4 className="font-medium truncate">{track.title}</h4>

@@ -848,7 +848,7 @@ export default function DiscoverPage() {
                     <div key={artist._id} className="bg-white/10 rounded-xl p-4 border border-gray-700 text-center">
                       <div className="w-16 h-16 rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20 mx-auto">
                         {artist.avatar && artist.avatar.trim() !== '' ? (
-                          <img src={artist.avatar} alt={artist.name} className="w-full h-full object-cover" />
+                          <img src={(artist.avatar || '').replace('/upload/','/upload/f_auto,q_auto/')} alt={artist.name} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
                             {artist.name.charAt(0).toUpperCase()}
@@ -891,7 +891,7 @@ export default function DiscoverPage() {
                     <div key={track._id} className="bg-white/10 rounded-xl p-4 border border-gray-700">
                       <div className="w-16 h-16 rounded-lg overflow-hidden mb-3 bg-gradient-to-br from-purple-500/20 to-pink-500/20">
                         {track.coverUrl ? (
-                          <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover" />
+                          <img src={(track.coverUrl || '').replace('/upload/','/upload/f_auto,q_auto/')} alt={track.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                         ) : (
                           <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
                             {track.title.charAt(0).toUpperCase()}

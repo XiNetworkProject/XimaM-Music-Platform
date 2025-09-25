@@ -367,7 +367,7 @@ export default function AILibrary() {
                     <div key={track.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
                       <div className="w-12 h-12 rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
                         {track.image_url ? (
-                          <img src={track.image_url} alt={track.title} className="w-full h-full object-cover" />
+                          <img src={track.image_url.replace('/upload/','/upload/f_auto,q_auto/')} alt={track.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                         ) : (
                           <Music className="w-6 h-6 text-[var(--text)]" />
                         )}
@@ -439,7 +439,7 @@ export default function AILibrary() {
                 <div key={track.id} className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
                   <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-600 bg-[var(--surface-2)] flex items-center justify-center">
                     {track.image_url ? (
-                      <img src={track.image_url} alt={track.title} className="w-full h-full object-cover" />
+                      <img src={track.image_url.replace('/upload/','/upload/f_auto,q_auto/')} alt={track.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <Music className="w-6 h-6 text-white" />
                     )}

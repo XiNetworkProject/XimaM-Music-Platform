@@ -1206,6 +1206,13 @@ export default function HomePage() {
     
     // Si c'est une URL Cloudinary, la valider
     if (url.includes('cloudinary.com')) {
+      // injecter f_auto,q_auto si manquant
+      try {
+        const u = new URL(url);
+        if (/\/upload\//.test(u.pathname) && !/f_auto|q_auto/.test(u.pathname)) {
+          return url.replace('/upload/', '/upload/f_auto,q_auto/');
+        }
+      } catch {}
       return url;
     }
     
@@ -1962,7 +1969,7 @@ export default function HomePage() {
                           <div key={user._id || user.id} className="group flex w-full flex-row items-center rounded-lg p-2 transition-colors duration-150 hover:bg-[var(--surface-2)]">
                             <div className="flex min-w-0 flex-1 flex-row gap-3 items-center">
                               <button onClick={() => router.push(`/profile/${user.username}`, { scroll: false })} className="shrink-0">
-                                <img alt={user.name || user.username} src={user.avatar || '/default-avatar.png'} className="h-16 w-12 rounded-lg object-cover border border-[var(--border)]" />
+                                <img alt={user.name || user.username} src={(user.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} className="h-16 w-12 rounded-lg object-cover border border-[var(--border)]" loading="lazy" decoding="async" />
                               </button>
                               <div className="flex min-w-0 flex-col justify-center gap-1">
                                 <button onClick={() => router.push(`/profile/${user.username}`, { scroll: false })} className="flex flex-row items-center gap-2">
@@ -2091,7 +2098,7 @@ export default function HomePage() {
                     <div key={track._id} className="relative flex w-[140px] sm:w-[172px] shrink-0 cursor-pointer flex-col" onClick={() => handlePlayTrack(track)}>
                       <div className="relative mb-4 cursor-pointer">
                         <div className="relative h-[200px] sm:h-[256px] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-                          <img alt={track.title} src={track.coverUrl || '/default-cover.jpg'} className="absolute inset-0 h-full w-full rounded-xl object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                          <img alt={track.title} src={(track.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} className="absolute inset-0 h-full w-full rounded-xl object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} loading="lazy" decoding="async" />
                           <div className="absolute inset-0 z-20">
                             <button className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-[var(--surface-2)]/60 backdrop-blur-xl border border-[var(--border)] outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300">
                               <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-[var(--text)]"><path d="M6 18.705V5.294q0-.55.415-.923Q6.829 4 7.383 4q.173 0 .363.049.189.048.363.145L19.378 10.9a1.285 1.285 0 0 1 0 2.202l-11.27 6.705a1.5 1.5 0 0 1-.725.194q-.554 0-.968-.372A1.19 1.19 0 0 1 6 18.704"/></svg>
@@ -2125,7 +2132,7 @@ export default function HomePage() {
                         <div className="mt-1 flex w-full items-center justify-between">
                           <div className="flex w-fit flex-row items-center gap-2 font-sans text-sm font-medium text-[var(--text)]">
                             <div className="relative h-8 shrink-0 aspect-square">
-                              <img alt="Profile avatar" src={track.artist?.avatar || '/default-avatar.png'} className="rounded-full h-full w-full object-cover p-1" />
+                              <img alt="Profile avatar" src={(track.artist?.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} className="rounded-full h-full w-full object-cover p-1" loading="lazy" decoding="async" />
                             </div>
                             <span className="line-clamp-1 max-w-fit break-all" title={track.artist?.name || track.artist?.username || 'Artiste inconnu'}>
                               {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
