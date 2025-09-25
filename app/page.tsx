@@ -1773,7 +1773,7 @@ export default function HomePage() {
                       className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
                       aria-label="Aimer la piste"
                     >
-                      <Heart size={16} className={heroTracks[currentSlide].isLiked ? 'text-red-500 fill-red-500' : 'text-white'} />
+                      <Heart size={16} className={(currentSlide>0 && heroTracks[currentSlide-1]?.isLiked) ? 'text-red-500 fill-red-500' : 'text-white'} />
                       <span>J'aime</span>
                     </button>)}
 
