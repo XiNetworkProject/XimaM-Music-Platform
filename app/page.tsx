@@ -241,6 +241,12 @@ export default function HomePage() {
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
+  // Listes For You et Trending uniques (sans doublons)
+  const forYouList = useMemo(() => (dailyDiscoveries && dailyDiscoveries.length > 0 ? dailyDiscoveries : featuredTracks), [dailyDiscoveries, featuredTracks]);
+  const trendingUnique = useMemo(() => {
+    const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
+    return (categories.trending.tracks || []).filter((t: any) => !forYouIds.has(t._id));
+  }, [categories.trending.tracks, forYouList]);
   // Ajouter 1 slide promo abonnement au début
   const totalSlides = useMemo(() => Math.max(1, heroTracks.length + 1), [heroTracks.length]);
 
@@ -1886,10 +1892,7 @@ export default function HomePage() {
                       </div>
 
                       <div className="flex flex-col gap-1">
-                        {((dailyDiscoveries && dailyDiscoveries.length > 0)
-                          ? dailyDiscoveries
-                          : featuredTracks
-                        )
+                        {forYouList
                           ?.slice(0, 6)
                           .map((track) => (
                             <div
@@ -1997,11 +2000,8 @@ export default function HomePage() {
                         </button>
                       </div>
                       <div className="flex flex-col gap-1">
-                        {((dailyDiscoveries && dailyDiscoveries.length > 0)
-                          ? dailyDiscoveries
-                          : featuredTracks
-                        )
-                          ?.slice(0, 6)
+                        {trendingUnique
+                          ?.slice(0, 4)
                           .map((track) => (
                             <div
                               key={track._id}
