@@ -19,15 +19,25 @@ export async function getTransport() {
   });
 }
 
+function getLogoAttachment() {
+  try {
+    const path = `${process.cwd()}/public/synaura_symbol.svg`;
+    return [{ filename: 'synaura_symbol.svg', path, cid: 'synaura-logo', contentType: 'image/svg+xml' }];
+  } catch {
+    return [] as any[];
+  }
+}
+
 export async function sendEmail(opts: SendEmailOptions) {
   const transporter = await getTransport();
   const from = process.env.SMTP_FROM || 'Synaura <no-reply@synaura.fr>';
-  await transporter.sendMail({ from, to: opts.to, subject: opts.subject, html: opts.html });
+  const attachments = getLogoAttachment();
+  await transporter.sendMail({ from, to: opts.to, subject: opts.subject, html: opts.html, attachments });
 }
 
 export function resetEmailTemplate({ code, link }: { code: string; link: string }) {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  const logo = `${baseUrl}/synaura_symbol.svg`;
+  const logo = 'cid:synaura-logo';
   return `
   <div style="background:#0b0b12;color:#fff;font-family:Inter,Arial,sans-serif;padding:24px">
     <div style="max-width:560px;margin:0 auto;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px">
