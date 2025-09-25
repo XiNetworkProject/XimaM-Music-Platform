@@ -57,7 +57,7 @@ export default function AIGenerator() {
   // Utiliser le nouveau hook Suno
   const { state: sunoState, tracks: sunoTracks, error: sunoError } = useSunoWaiter(currentTaskId || undefined);
   const [customMode, setCustomMode] = useState(false);
-  const [modelVersion, setModelVersion] = useState('V3_5');
+  const [modelVersion, setModelVersion] = useState('V4_5');
   const [title, setTitle] = useState('');
   const [style, setStyle] = useState('');
   const [lyrics, setLyrics] = useState('');

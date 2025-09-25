@@ -7,6 +7,9 @@ import { getEntitlements } from '@/lib/entitlements';
 
 const BASE = "https://api.sunoapi.org";
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 type Body = {
   title: string;
   style: string;
@@ -155,9 +158,15 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("✅ Génération Suno réussie:", json);
-    // Retourner le taskId pour le suivi
+    // Retourner un schéma compatible frontend: taskId à la racine
+    const rootTaskId = json?.data?.taskId || json?.taskId || taskId;
     return NextResponse.json({
-      ...json,
+      taskId: rootTaskId,
+      code: json?.code,
+      msg: json?.msg,
+      data: json?.data,
+      prompt: finalPrompt,
+      model: payload.model,
       quota: {
         limit: entitlements.ai.maxGenerationsPerMonth,
         used: (usedThisMonth || 0) + 1,

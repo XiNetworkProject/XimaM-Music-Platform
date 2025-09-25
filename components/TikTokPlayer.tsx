@@ -439,6 +439,142 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
 
+  // Paroles: parsing LRC + fallback simple
+  type TimedLine = { t: number; text: string };
+  const parseLRC = useCallback((text: string): TimedLine[] => {
+    const lines = text.split(/\r?\n/);
+    const result: TimedLine[] = [];
+    for (const line of lines) {
+      const matches = line.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g) || [];
+      if (!matches.length) continue;
+      const content = line.replace(/\[[^\]]+\]/g, '').trim();
+      if (!content) continue;
+      for (const tag of matches) {
+        const m = tag.match(/\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/);
+        if (!m) continue;
+        const min = parseInt(m[1] || '0', 10);
+        const sec = parseInt(m[2] || '0', 10);
+        const ms = m[3] ? parseInt((m[3] + '00').slice(0, 3), 10) : 0;
+        const t = min * 60 + sec + ms / 1000;
+        result.push({ t, text: content });
+      }
+    }
+    return result.sort((a, b) => a.t - b.t);
+  }, []);
+
+  const rawLyrics = (currentTrack as any)?.lyrics as string | undefined;
+  const timedLyrics = useMemo(() => (rawLyrics ? parseLRC(rawLyrics) : []), [rawLyrics, parseLRC]);
+  const plainLyrics = useMemo(() => {
+    if (!rawLyrics) return [] as string[];
+    return rawLyrics.split(/\r?\n+/).map(l => l.trim()).filter(Boolean);
+  }, [rawLyrics]);
+
+  const hasTimed = timedLyrics.length > 0;
+
+  const [autoTimes, setAutoTimes] = useState<number[] | null>(null);
+
+  const activeLineIndex = useMemo(() => {
+    if (hasTimed) {
+      const ct = audioState.currentTime || 0;
+      if (timedLyrics.length === 0) return -1;
+      // Trouver la dernière ligne dont t <= currentTime (recherche binaire simple)
+      let lo = 0, hi = timedLyrics.length - 1, ans = 0;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (timedLyrics[mid].t <= ct) { ans = mid; lo = mid + 1; } else { hi = mid - 1; }
+      }
+      return ans;
+    } else {
+      if (!plainLyrics.length || !audioState.duration) return -1;
+      // Si autoTimes dispo, mapper chaque pic à une ligne
+      if (autoTimes && autoTimes.length >= Math.min(plainLyrics.length, 4)) {
+        const t = audioState.currentTime || 0;
+        let idx = 0;
+        while (idx + 1 < autoTimes.length && autoTimes[idx + 1] <= t) idx++;
+        // Ajuster à l'échelle du nombre de lignes
+        const ratio = idx / Math.max(1, autoTimes.length - 1);
+        const mapped = Math.round(ratio * (plainLyrics.length - 1));
+        return Math.min(plainLyrics.length - 1, Math.max(0, mapped));
+      }
+      const secondsPerLine = Math.max(1, audioState.duration / plainLyrics.length);
+      const idx = Math.floor((audioState.currentTime || 0) / secondsPerLine);
+      return Math.min(plainLyrics.length - 1, Math.max(0, idx));
+    }
+  }, [hasTimed, timedLyrics, plainLyrics, autoTimes, audioState.currentTime, audioState.duration]);
+
+  const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  useEffect(() => {
+    if (activeLineIndex < 0) return;
+    const el = lineRefs.current[activeLineIndex];
+    const container = lyricsContainerRef.current;
+    if (!el || !container) return;
+    try {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch {}
+  }, [activeLineIndex]);
+
+  // Auto-sync (beta) sans timestamps: détecter les pics d'énergie et mapper aux lignes
+  useEffect(() => {
+    let cancelled = false;
+    async function analyze() {
+      try {
+        setAutoTimes(null);
+        if (hasTimed) return; // inutil
+        const url = currentTrack?.audioUrl;
+        if (!url || !plainLyrics.length) return;
+        const res = await fetch(url, { cache: 'force-cache' }).catch(() => null);
+        if (!res || !res.ok) return;
+        const arrayBuf = await res.arrayBuffer();
+        const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const audioBuf = await ctx.decodeAudioData(arrayBuf.slice(0));
+        // Extraire mono mixdown
+        const ch = audioBuf.numberOfChannels > 0 ? audioBuf.getChannelData(0) : new Float32Array();
+        if (ch.length === 0) { ctx.close(); return; }
+        const sampleRate = audioBuf.sampleRate;
+        // Calculer une enveloppe RMS avec un hop raisonnable
+        const hop = Math.floor(sampleRate * 0.05); // 50ms
+        const win = Math.floor(sampleRate * 0.2); // 200ms
+        const env: number[] = [];
+        for (let i = 0; i < ch.length; i += hop) {
+          let sum = 0;
+          const start = i;
+          const end = Math.min(ch.length, i + win);
+          for (let j = start; j < end; j++) {
+            const s = ch[j];
+            sum += s * s;
+          }
+          const rms = Math.sqrt(sum / Math.max(1, end - start));
+          env.push(rms);
+        }
+        // Lissage simple
+        for (let i = 1; i < env.length; i++) env[i] = env[i - 1] * 0.6 + env[i] * 0.4;
+        // Détection de pics (seuil relatif et distance mini)
+        const maxEnv = env.reduce((m, v) => Math.max(m, v), 0) || 1;
+        const threshold = maxEnv * 0.35;
+        const minDist = Math.floor((1.5 /*s*/ / 0.05));
+        const peaks: number[] = [];
+        for (let i = 1; i < env.length - 1; i++) {
+          if (env[i] > threshold && env[i] >= env[i - 1] && env[i] >= env[i + 1]) {
+            if (peaks.length === 0 || i - peaks[peaks.length - 1] > minDist) {
+              peaks.push(i);
+            } else if (env[i] > env[peaks[peaks.length - 1]]) {
+              peaks[peaks.length - 1] = i; // garder le plus haut
+            }
+          }
+        }
+        // Convertir en secondes
+        const times = peaks.map(p => p * hop / sampleRate).filter(t => t < audioBuf.duration - 0.2);
+        ctx.close();
+        if (cancelled) return;
+        if (times.length) setAutoTimes(times);
+      } catch {}
+    }
+    analyze();
+    return () => { cancelled = true; };
+  }, [hasTimed, plainLyrics.length, currentTrack?.audioUrl]);
+
   if (!isOpen || !currentTrack || !currentTrack.title) {
     return null;
   }
@@ -552,11 +688,11 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
 
                 {/* Instructions supprimées à la demande */}
 
-                {/* Cover principale avec animation type page */}
+            {/* Cover principale + Panneau paroles */}
                 <AnimatePresence mode="wait" custom={swipeDirection}>
                   <motion.div
                     key={audioState.currentTrackIndex}
-                    className="relative"
+                className="relative"
                     variants={pageVariants}
                     initial="initial"
                     animate="animate"
@@ -605,6 +741,35 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                   </div>
                   </motion.div>
                 </AnimatePresence>
+
+            {/* Paroles synchronisées si disponibles */}
+            {(hasTimed ? timedLyrics.length > 0 : plainLyrics.length > 0) && (
+              <div className="absolute inset-y-20 right-4 w-[44%] hidden md:block">
+                <div className="h-full rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10 p-4 overflow-hidden">
+                  <div ref={lyricsContainerRef} className="h-full overflow-y-auto custom-scroll pr-2">
+                    {hasTimed
+                      ? timedLyrics.map((item, i) => (
+                          <div
+                            key={`${i}-${item.t}`}
+                        ref={(el) => { lineRefs.current[i] = el; }}
+                            className={`py-1.5 text-sm transition-colors ${i === activeLineIndex ? 'text-white font-semibold' : 'text-white/60'}`}
+                          >
+                            {item.text}
+                          </div>
+                        ))
+                      : plainLyrics.map((line, i) => (
+                          <div
+                            key={i}
+                            ref={(el) => { lineRefs.current[i] = el; }}
+                            className={`py-1.5 text-sm transition-colors ${i === activeLineIndex ? 'text-white font-semibold' : 'text-white/60'}`}
+                          >
+                            {line}
+                          </div>
+                        ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
                 {/* Indicateurs de swipe à droite */}
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">

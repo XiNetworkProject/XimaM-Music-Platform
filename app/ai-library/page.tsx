@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Heart, Play, Download, Share2, Search, Filter, Star, Clock, User, Sparkles } from 'lucide-react';
+import { Music, Heart, Play, Download, Share2, Search, Filter, Star, Clock, User, Sparkles, RefreshCw, Link as LinkIcon } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
@@ -31,14 +31,17 @@ export default function AILibrary() {
   const { playTrack } = useAudioPlayer();
   
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
+  const [allTracks, setAllTracks] = useState<AITrack[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'recent'>('all');
+  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V3_5'>('all');
   const [stats, setStats] = useState({
     total: 0,
     favorites: 0,
     totalDuration: 0
   });
+  const [error, setError] = useState<string | null>(null);
 
   // Charger la bibliothèque
   const loadLibrary = async () => {
@@ -46,22 +49,32 @@ export default function AILibrary() {
 
     try {
       setLoading(true);
-      const response = await fetch('/api/ai/library');
+      setError(null);
+      const response = await fetch('/api/ai/library', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
       if (response.ok) {
         const data = await response.json();
         setGenerations(data.generations || []);
+
+        // Charger toutes les pistes de l'utilisateur
+        const trRes = await fetch('/api/ai/library/tracks', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+        if (trRes.ok) {
+          const trJson = await trRes.json();
+          setAllTracks(trJson.tracks || []);
+        }
         
         // Calculer les statistiques
         const total = data.generations?.length || 0;
         const favorites = data.generations?.filter((g: AIGeneration) => g.is_favorite).length || 0;
-        const totalDuration = data.generations?.reduce((acc: number, g: AIGeneration) => {
-          return acc + (g.tracks?.reduce((trackAcc: number, t: AITrack) => trackAcc + (t.duration || 0), 0) || 0);
-        }, 0) || 0;
+        const totalDuration = (allTracks?.reduce((acc: number, t: AITrack) => acc + (t.duration || 0), 0)) || 0;
         
         setStats({ total, favorites, totalDuration });
+      } else {
+        const txt = await response.text();
+        setError(`Erreur chargement: ${txt}`);
       }
     } catch (error) {
       console.error('Erreur chargement bibliothèque:', error);
+      setError('Impossible de charger la bibliothèque');
     } finally {
       setLoading(false);
     }
@@ -78,8 +91,9 @@ export default function AILibrary() {
     const matchesFilter = filter === 'all' || 
       (filter === 'favorites' && generation.is_favorite) ||
       (filter === 'recent' && new Date(generation.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const matchesModel = modelFilter === 'all' || (generation.model === modelFilter);
     
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesFilter && matchesModel;
   });
 
   // Jouer une track IA
@@ -98,7 +112,10 @@ export default function AILibrary() {
       genre: ['IA', 'Généré'],
       plays: track.play_count,
       likes: [],
-      comments: []
+      comments: [],
+      // Propager les paroles (stockées dans prompt)
+      // @ts-ignore - player Track accepte lyrics via providers
+      lyrics: (track.prompt || generation.prompt || '').trim()
     };
 
     playTrack(aiTrack as any);
@@ -140,6 +157,29 @@ export default function AILibrary() {
     }
   };
 
+  // Re-synchroniser une génération (re-poll Suno puis sauvegarder)
+  const resyncGeneration = async (generation: AIGeneration) => {
+    try {
+      if (!generation.task_id) return;
+      const statusRes = await fetch(`/api/suno/status?taskId=${encodeURIComponent(generation.task_id)}`, { cache: 'no-store' });
+      const statusJson = await statusRes.json();
+      if (!statusRes.ok) throw new Error(statusJson?.error || 'Erreur polling');
+      const tracks = statusJson.tracks || [];
+      if (tracks.length > 0) {
+        const save = await fetch('/api/suno/save-tracks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId: generation.task_id, tracks, status: 'completed' })
+        });
+        if (save.ok) {
+          window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+        }
+      }
+    } catch (e) {
+      console.error('Erreur resync:', e);
+    }
+  };
+
   // Partager une génération
   const shareGeneration = async (generation: AIGeneration) => {
     try {
@@ -162,6 +202,9 @@ export default function AILibrary() {
 
   useEffect(() => {
     loadLibrary();
+    const onUpdated = () => loadLibrary();
+    window.addEventListener('aiLibraryUpdated', onUpdated as EventListener);
+    return () => window.removeEventListener('aiLibraryUpdated', onUpdated as EventListener);
   }, [session?.user?.id]);
 
   if (!session) {
@@ -256,7 +299,17 @@ export default function AILibrary() {
             />
           </div>
           
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <select
+              value={modelFilter}
+              onChange={(e) => setModelFilter(e.target.value as any)}
+              className="bg-gray-800 border border-gray-600 rounded-lg px-3 py-3 text-white"
+              aria-label="Filtrer par modèle"
+            >
+              <option value="all">Tous modèles</option>
+              <option value="V4_5">V4.5</option>
+              <option value="V3_5">V3.5</option>
+            </select>
             <button
               onClick={() => setFilter('all')}
               className={`px-4 py-3 rounded-lg font-medium transition-colors ${
@@ -289,8 +342,20 @@ export default function AILibrary() {
               <Clock className="w-4 h-4 inline mr-2" />
               Récent
             </button>
+            <button
+              onClick={loadLibrary}
+              className="px-4 py-3 rounded-lg font-medium transition-colors bg-gray-800 text-gray-300 hover:bg-gray-700 flex items-center gap-2"
+              title="Rafraîchir"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Rafraîchir
+            </button>
           </div>
         </div>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-sm">{error}</div>
+        )}
 
         {/* Liste des générations */}
         {loading ? (
@@ -342,8 +407,12 @@ export default function AILibrary() {
                 <div className="space-y-3 mb-4">
                   {generation.tracks?.map((track) => (
                     <div key={track.id} className="flex items-center gap-3 p-3 bg-gray-700 rounded-lg">
-                      <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-                        <Music className="w-6 h-6 text-white" />
+                      <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-600 bg-[var(--surface-2)] flex items-center justify-center">
+                        {track.image_url ? (
+                          <img src={track.image_url} alt={track.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <Music className="w-6 h-6 text-white" />
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium truncate">{track.title}</h4>
@@ -367,6 +436,16 @@ export default function AILibrary() {
                       </div>
                     </div>
                   ))}
+                  {(!generation.tracks || generation.tracks.length === 0) && (
+                    <div className="p-3 bg-gray-700/60 rounded-lg flex items-center justify-between">
+                      <span className="text-gray-300 text-sm">Aucune piste encore enregistrée pour cette génération.</span>
+                      {generation.task_id && (
+                        <button onClick={() => resyncGeneration(generation)} className="px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4" /> Re-synchroniser
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Footer */}
@@ -382,8 +461,47 @@ export default function AILibrary() {
                     <Share2 className="w-4 h-4" />
                   </button>
                 </div>
+                <div className="mt-3 flex items-center justify-end">
+                  <a href="/ai-generator" className="text-green-400 hover:text-green-300 text-sm inline-flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" /> Ouvrir dans AI Generator
+                  </a>
+                </div>
               </motion.div>
             ))}
+          </div>
+        )}
+
+        {/* Liste globale des pistes IA (vue alternatives) */}
+        {allTracks.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold mb-4">Toutes mes pistes IA</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {allTracks.map((track) => (
+                <div key={track.id} className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
+                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-600 bg-[var(--surface-2)] flex items-center justify-center">
+                    {track.image_url ? (
+                      <img src={track.image_url} alt={track.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-6 h-6 text-white" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{track.title}</h4>
+                    <p className="text-gray-400 text-sm">
+                      {Math.round(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => playAITrack(track as any, { id: 'gen', user_id: '', task_id: '', prompt: '', model: track.model_name || '', status: 'completed', created_at: new Date().toISOString(), is_favorite: false, is_public: false, play_count: 0, like_count: 0, share_count: 0, metadata: { title: track.title, style: track.style }, tracks: [] } as any)} className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                      <Play className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => downloadTrack(track)} className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

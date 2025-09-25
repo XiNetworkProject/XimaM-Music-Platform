@@ -62,6 +62,25 @@ export function useSunoWaiter(taskId?: string) {
         if (status === "FIRST_SUCCESS" || status === "first") {
           setState("first");
           console.log("🎵 Première piste terminée !");
+          // Sauvegarder immédiatement les pistes disponibles (au moins 1)
+          if (tracks && tracks.length > 0) {
+            try {
+              const response = await fetch('/api/suno/save-tracks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ taskId, tracks, status: 'partial' })
+              });
+              if (response.ok) {
+                console.log('✅ Première piste sauvegardée');
+                // Notifier l'UI pour rafraîchir la bibliothèque
+                window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+              } else {
+                console.error('❌ Erreur sauvegarde FIRST_SUCCESS:', await response.text());
+              }
+            } catch (e) {
+              console.error('❌ Exception sauvegarde FIRST_SUCCESS:', e);
+            }
+          }
           // Continuer le polling pour la deuxième piste
           timer.current = setTimeout(poll, 5000);
           return;
@@ -90,6 +109,8 @@ export function useSunoWaiter(taskId?: string) {
               
               if (response.ok) {
                 console.log("✅ Tracks sauvegardées en base de données");
+                // Notifier l'UI pour rafraîchir la bibliothèque
+                window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
               } else {
                 console.error("❌ Erreur sauvegarde tracks:", await response.text());
               }

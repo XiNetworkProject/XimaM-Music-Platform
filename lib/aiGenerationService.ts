@@ -37,6 +37,10 @@ export interface AITrack {
   prompt?: string;
   model_name?: string;
   tags?: string[];
+  // Champs étendus (si présents en base)
+  style?: string | null;
+  lyrics?: string | null;
+  source_links?: string | null;
   created_at: string;
   is_favorite: boolean;
   play_count: number;
@@ -154,9 +158,13 @@ class AIGenerationService {
       stream_audio_url: track.stream || '',
       image_url: track.image || '',
       duration: Math.round(track.duration || 120), // Convertir en entier
-      prompt: '',
-      model_name: '',
-      tags: []
+      prompt: track.raw?.prompt || track.raw?.description || '',
+      model_name: track.raw?.model || track.raw?.version || '',
+      tags: Array.isArray(track.raw?.tags) ? track.raw.tags : [],
+      // champs additionnels si ta table ai_tracks les a (sinon Supabase ignore)
+      lyrics: track.raw?.lyrics || null,
+      style: track.raw?.style || null,
+      source_links: track.raw?.links ? JSON.stringify(track.raw.links) : null
     }));
 
     console.log("📊 Données tracks formatées:", tracksData);

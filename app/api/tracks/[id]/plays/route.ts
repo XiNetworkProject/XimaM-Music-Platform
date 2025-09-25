@@ -10,6 +10,36 @@ export async function GET(
   try {
     const trackId = params.id;
 
+    // Gestion spéciale pour les pistes IA (id préfixé par "ai-")
+    if (trackId.startsWith('ai-')) {
+      const aiTrackId = trackId.slice(3);
+
+      const { data: aiTrack, error: aiError } = await supabaseAdmin
+        .from('ai_tracks')
+        .select('play_count')
+        .eq('id', aiTrackId)
+        .single();
+
+      if (aiError) {
+        console.error('❌ Erreur Supabase AI plays GET:', aiError);
+        return NextResponse.json(
+          { error: 'Erreur lors de la récupération des lectures (AI)' },
+          { status: 500 }
+        );
+      }
+
+      if (!aiTrack) {
+        return NextResponse.json(
+          { error: 'Piste IA non trouvée' },
+          { status: 404 }
+        );
+      }
+
+      const plays = aiTrack.play_count || 0;
+      console.log(`✅ Lectures récupérées pour la piste IA ${aiTrackId}: ${plays}`);
+      return NextResponse.json({ plays });
+    }
+
     // Gestion spéciale pour la radio
     if (trackId === 'radio-mixx-party') {
       return NextResponse.json({ 
@@ -60,6 +90,50 @@ export async function POST(
     const trackId = params.id;
     const session = await getServerSession(authOptions);
     const userId = session?.user?.id || null;
+
+    // Gestion spéciale pour les pistes IA (id préfixé par "ai-")
+    if (trackId.startsWith('ai-')) {
+      const aiTrackId = trackId.slice(3);
+
+      const { data: aiTrack, error: aiFetchError } = await supabaseAdmin
+        .from('ai_tracks')
+        .select('play_count')
+        .eq('id', aiTrackId)
+        .single();
+
+      if (aiFetchError) {
+        console.error('❌ Erreur Supabase AI plays POST (fetch):', aiFetchError);
+        return NextResponse.json(
+          { error: 'Erreur lors de la récupération de la piste IA' },
+          { status: 500 }
+        );
+      }
+
+      if (!aiTrack) {
+        return NextResponse.json(
+          { error: 'Piste IA non trouvée' },
+          { status: 404 }
+        );
+      }
+
+      const newPlays = (aiTrack.play_count || 0) + 1;
+
+      const { error: aiUpdateError } = await supabaseAdmin
+        .from('ai_tracks')
+        .update({ play_count: newPlays })
+        .eq('id', aiTrackId);
+
+      if (aiUpdateError) {
+        console.error('❌ Erreur Supabase AI plays update:', aiUpdateError);
+        return NextResponse.json(
+          { error: 'Erreur lors de la mise à jour des lectures (IA)' },
+          { status: 500 }
+        );
+      }
+
+      console.log(`✅ Lectures incrémentées pour la piste IA ${aiTrackId}: ${newPlays}`);
+      return NextResponse.json({ plays: newPlays });
+    }
 
     // Gestion spéciale pour la radio
     if (trackId === 'radio-mixx-party') {

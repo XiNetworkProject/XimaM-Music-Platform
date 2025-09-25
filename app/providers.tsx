@@ -36,6 +36,7 @@ interface Track {
   plays: number;
   isLiked?: boolean;
   genre?: string[];
+  lyrics?: string;
 }
 
 interface AudioPlayerState {
