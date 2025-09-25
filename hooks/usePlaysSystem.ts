@@ -67,7 +67,7 @@ export function usePlaysSystem({
     if (!trackId || !isMounted.current) return;
 
     try {
-      const response = await fetch(`/api/tracks/${trackId}/plays`);
+      const response = await fetch(`/api/tracks/${trackId}/plays`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
       if (response.ok) {
         const data: PlaysResponse = await response.json();
         const newState = {
@@ -135,6 +135,7 @@ export function usePlaysSystem({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
         },
       });
 
@@ -242,6 +243,7 @@ export function useBatchPlaysSystem() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
         },
       });
 

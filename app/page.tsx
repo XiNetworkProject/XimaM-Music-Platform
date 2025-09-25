@@ -285,7 +285,7 @@ export default function HomePage() {
         try {
           // Utiliser un debounce pour éviter les appels multiples
           const timeoutId = setTimeout(async () => {
-            const response = await fetch(`/api/tracks/${currentTrack._id}/plays`);
+      const response = await fetch(`/api/tracks/${currentTrack._id}/plays`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
             if (response.ok) {
               const data = await response.json();
               
@@ -401,7 +401,7 @@ export default function HomePage() {
     
     const playsPromises = uniqueTrackIds?.map(async (trackId) => {
       try {
-        const response = await fetch(`/api/tracks/${trackId}/plays`);
+      const response = await fetch(`/api/tracks/${trackId}/plays`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
         if (response.ok) {
           const data = await response.json();
           return { trackId, plays: data.plays };
