@@ -241,7 +241,8 @@ export default function HomePage() {
   const featuredTracks = useMemo(() => categories.featured.tracks.slice(0, 5), [categories.featured.tracks]);
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
-  const slidesCount = useMemo(() => Math.max(0, announcements.length + heroTracks.length), [announcements.length, heroTracks.length]);
+  // Ajouter 1 slide promo abonnement au début
+  const totalSlides = useMemo(() => Math.max(1, heroTracks.length + 1), [heroTracks.length]);
 
   // Synchronisation temps réel pour les listes d'accueil
   useEffect(() => {
@@ -839,7 +840,7 @@ export default function HomePage() {
 
   // Auto-play avec barre de progression fluide + pause on hover/blur
   useEffect(() => {
-    if (!isAutoPlaying || !isCarouselInView || slidesCount === 0) {
+    if (!isAutoPlaying || !isCarouselInView || totalSlides === 0) {
       // Arrêter l'animation si les conditions ne sont pas remplies
       if (rafRef.current) {
         cancelAnimationFrame(rafRef.current);
@@ -850,7 +851,9 @@ export default function HomePage() {
     }
     
     let start: number | null = null;
-    const durationMs = 8000;
+    // Allonger la visibilité de la première diapo (promo abonnements)
+    const isPromo = currentSlide === 0;
+    const durationMs = isPromo ? 14000 : 8000;
 
     const step = (ts: number) => {
       if (start === null) start = ts;
@@ -858,7 +861,7 @@ export default function HomePage() {
       const progress = Math.min(100, (elapsed / durationMs) * 100);
       setAutoProgress(progress);
       if (elapsed >= durationMs) {
-        setCurrentSlide((prev) => (prev + 1) % Math.max(1, slidesCount));
+        setCurrentSlide((prev) => (prev + 1) % Math.max(1, totalSlides));
         start = ts;
       }
       rafRef.current = requestAnimationFrame(step);
@@ -873,7 +876,7 @@ export default function HomePage() {
       }
       setAutoProgress(0);
     };
-  }, [isAutoPlaying, isCarouselInView, slidesCount]);
+  }, [isAutoPlaying, isCarouselInView, totalSlides]);
 
   useEffect(() => {
     if (isNative) {
@@ -886,7 +889,7 @@ export default function HomePage() {
   }, [isNative, checkForUpdates]);
 
   const nextSlide = useCallback(() => {
-    setCurrentSlide((prev) => (prev + 1) % Math.max(1, slidesCount));
+    setCurrentSlide((prev) => (prev + 1) % Math.max(1, totalSlides));
     setIsAutoPlaying(false);
     setAutoProgress(0);
     // Arrêter l'animation
@@ -894,14 +897,14 @@ export default function HomePage() {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-  }, [slidesCount]);
+  }, [totalSlides]);
 
   const prevSlide = useCallback(() => {
-    const n = Math.max(1, slidesCount);
+    const n = Math.max(1, totalSlides);
     setCurrentSlide((prev) => (prev - 1 + n) % n);
     setIsAutoPlaying(false);
     setAutoProgress(0);
-  }, [slidesCount]);
+  }, [totalSlides]);
 
   const goToSlide = useCallback((index: number) => {
     setCurrentSlide(index);
@@ -1612,29 +1615,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Banderole Abonnements */}
-        <div className="w-full panel-suno border-y border-[var(--border)]/60 animate-fade-in-delayed">
-          <div className="flex items-center justify-center py-3 px-4">
-            <div className="flex items-center space-x-3 text-center">
-              <Crown size={16} className="text-green-400 animate-pulse" />
-              <span className="text-sm font-medium text-green-200">
-                👑 <span className="text-white font-semibold">Abonnements Premium</span> - Débloquez tout le potentiel
-              </span>
-              <button
-                onClick={() => router.push('/subscriptions', { scroll: false })}
-                className="ml-3 px-3 py-1 text-green-200 text-xs rounded-full border border-[var(--border)]/60 transition-all duration-200 hover:scale-105 active:scale-95 bg-[var(--surface-2)] hover:bg-[var(--surface-3)]"
-              >
-                Voir les offres
-              </button>
-            </div>
-          </div>
-        </div>
+        
       </div>
 
       {/* Zone transparente pour le carrousel */}
       <div className="relative bg-transparent" style={{ background: 'transparent !important' }}>
         {/* Carrousel Hero - Design futuriste complet */}
-        {heroTracks.length > 0 && (
+        {totalSlides > 0 && (
           <div className="relative w-full h-[40vh] sm:h-[48vh] min-h-[240px] sm:min-h-[260px] max-h-[320px] sm:max-h-[420px] overflow-hidden panel-suno border border-[var(--border)] rounded-xl sm:rounded-2xl">
             {/* Fond dynamique avec particules */}
             <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-purple-900/20 to-pink-900/20">
@@ -1651,19 +1638,23 @@ export default function HomePage() {
             >
                 {/* Image de fond avec effet parallax et overlay */}
                 <div className="absolute inset-0 overflow-hidden">
+                  {currentSlide === 0 ? (
                   <img
-                      src={getValidImageUrl(heroTracks[currentSlide].coverUrl, '/default-cover.jpg')}
-                      alt={heroTracks[currentSlide].title}
+                      src={'/fe904850-2547-4e2e-8cc3-085a7704488b.webp'}
+                      alt={'Abonnements Synaura'}
                       className="w-full h-full object-cover"
                       loading="eager"
-                      onError={(e) => {
-                        console.log('Erreur image cover:', heroTracks[currentSlide].coverUrl);
-                        e.currentTarget.src = '/default-cover.jpg';
-                      }}
-                      onLoad={() => {
-                        console.log('Image chargée avec succès:', heroTracks[currentSlide].coverUrl);
-                      }}
+                      onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
                     />
+                  ) : (
+                    <img
+                      src={getValidImageUrl(heroTracks[currentSlide-1].coverUrl, '/default-cover.jpg')}
+                      alt={heroTracks[currentSlide-1].title}
+                      className="w-full h-full object-cover"
+                      loading="eager"
+                      onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
+                    />
+                  )}
                   
                   {/* Overlay gradient complexe */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/40 to-transparent"></div>
@@ -1678,27 +1669,33 @@ export default function HomePage() {
                     className="inline-flex items-center gap-2 px-4 py-2 mb-6 bg-gradient-to-r from-purple-500/20 to-pink-500/20 backdrop-blur-md border border-[var(--border)] rounded-full animate-slide-up text-[var(--text)]"
                   >
                     <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
-                    <span className="text-[var(--text)] text-sm font-medium">En vedette</span>
+                    {currentSlide === 0 ? (
+                      <span className="text-[var(--text)] text-sm font-medium">Offre Premium</span>
+                    ) : (
+                      <>
+                        <span className="text-[var(--text)] text-sm font-medium">En vedette</span>
                     <TrendingUp size={14} className="text-purple-400" />
+                      </>
+                    )}
                   </div>
 
                   {/* Badges secondaires */}
-                        <div
-                    className="flex items-center justify-center gap-3 mb-6 animate-slide-up"
-                  >
-                    {Array.isArray(heroTracks[currentSlide]?.genre) && (heroTracks[currentSlide]?.genre?.length || 0) > 0 && (
+                  <div className="flex items-center justify-center gap-3 mb-6 animate-slide-up">
+                    {currentSlide > 0 && Array.isArray(heroTracks[currentSlide-1]?.genre) && ((heroTracks[currentSlide-1]?.genre?.length || 0) > 0) && (
                       <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                        {heroTracks[currentSlide]?.genre?.[0]}
+                        {heroTracks[currentSlide-1]?.genre?.[0]}
                       </span>
                     )}
-                    {heroTracks[currentSlide].createdAt && (
+                    {currentSlide > 0 && heroTracks[currentSlide-1].createdAt && (
                       <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                        {formatDate(heroTracks[currentSlide].createdAt)}
+                        {formatDate(heroTracks[currentSlide-1].createdAt)}
                       </span>
                     )}
-                    <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                      {formatDuration(heroTracks[currentSlide].duration)}
+                    {currentSlide > 0 && (
+                      <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                        {formatDuration(heroTracks[currentSlide-1].duration)}
                     </span>
+                    )}
                         </div>
 
                   {/* Titre principal */}
@@ -1708,103 +1705,109 @@ export default function HomePage() {
                       textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(236, 72, 153, 0.3)'
                     }}
                         >
-                          {heroTracks[currentSlide].title}
+                          {currentSlide === 0 ? 'Débloquez tout Synaura' : heroTracks[currentSlide-1].title}
                         </h1>
 
                   {/* Artiste avec avatar */}
-                        <div
-                    className="flex items-center justify-center gap-3 mb-4 animate-slide-up"
-                  >
-                     <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
-                      <img
-                        src={heroTracks[currentSlide].artist?.avatar || '/default-avatar.png'}
-                        alt={heroTracks[currentSlide].artist?.name}
+                  {currentSlide > 0 && (
+                    <div className="flex items-center justify-center gap-3 mb-4 animate-slide-up">
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
+                        <img
+                          src={heroTracks[currentSlide-1].artist?.avatar || '/default-avatar.png'}
+                          alt={heroTracks[currentSlide-1].artist?.name}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src = '/default-avatar.png';
-                        }}
+                          onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
                               />
                             </div>
                     <div className="text-left">
-                      <p className="text-[var(--text-muted)] text-lg font-medium">par</p>
-                      <h3 className="text-2xl font-bold text-[var(--text)] hover:text-purple-300 transition-colors cursor-pointer">
-                        {heroTracks[currentSlide].artist?.name || heroTracks[currentSlide].artist?.username || 'Artiste inconnu'}
+                        <p className="text-[var(--text-muted)] text-lg font-medium">par</p>
+                        <h3 className="text-2xl font-bold text-[var(--text)] hover:text-purple-300 transition-colors cursor-pointer">
+                          {heroTracks[currentSlide-1].artist?.name || heroTracks[currentSlide-1].artist?.username || 'Artiste inconnu'}
                       </h3>
                           </div>
                         </div>
+                  )}
 
                   {/* Boutons d'action principaux */}
-                        <div
-                    className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 animate-slide-up"
-                        >
+                  <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 animate-slide-up">
                     {/* Bouton Play principal */}
+                          {currentSlide === 0 ? (
                           <button
-                            onClick={() => handlePlayTrack(heroTracks[currentSlide])}
+                              onClick={() => router.push('/subscriptions', { scroll: false })}
+                              className="group relative flex items-center space-x-2 bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 shadow-xl hover:scale-105 active:scale-95"
+                              aria-label="Voir les abonnements"
+                            >
+                              <Crown size={18} />
+                              <span>Débloquer toutes les fonctionnalités</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handlePlayTrack(heroTracks[currentSlide-1])}
                       className="group relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-sm hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-xl hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
-                      aria-label={currentTrack?._id === heroTracks[currentSlide]._id && audioState.isPlaying ? 'Mettre en pause' : 'Lire la piste'}
+                      aria-label={currentTrack?._id === heroTracks[currentSlide-1]._id && audioState.isPlaying ? 'Mettre en pause' : 'Lire la piste'}
                           >
                       {/* Effet de lueur */}
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
                       
                       <div className="relative flex items-center space-x-3">
-                            {currentTrack?._id === heroTracks[currentSlide]._id && audioState.isPlaying ? (
+                            {currentTrack?._id === heroTracks[currentSlide-1]._id && audioState.isPlaying ? (
                           <Pause size={18} />
                             ) : (
                           <Play size={18} className="ml-0.5" />
                             )}
                             <span>
-                              {currentTrack?._id === heroTracks[currentSlide]._id && audioState.isPlaying ? 'Pause' : 'Écouter'}
+                              {currentTrack?._id === heroTracks[currentSlide-1]._id && audioState.isPlaying ? 'Pause' : 'Écouter'}
                             </span>
                       </div>
-                          </button>
+                          </button>) }
 
                     {/* Bouton Like */}
-                    <button
-                      onClick={() => handleLikeTrack(heroTracks[currentSlide]._id, 'trending', 0)}
+                    {currentSlide > 0 && (<button
+                      onClick={() => handleLikeTrack(heroTracks[currentSlide-1]._id, 'trending', 0)}
                       className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
                       aria-label="Aimer la piste"
                     >
                       <Heart size={16} className={heroTracks[currentSlide].isLiked ? 'text-red-500 fill-red-500' : 'text-white'} />
                       <span>J'aime</span>
-                    </button>
+                    </button>)}
 
                           {/* Bouton Partager */}
-                          <button
-                            onClick={() => handleShare(heroTracks[currentSlide])}
+                          {currentSlide > 0 && (<button
+                            onClick={() => handleShare(heroTracks[currentSlide-1])}
                       className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
                       aria-label="Partager la piste"
                           >
                        <Share2 size={16} />
                             <span>Partager</span>
-                          </button>
+                          </button>)}
 
                     {/* Bouton Artiste */}
-                    <button
-                                                      onClick={() => router.push(`/profile/${heroTracks[currentSlide].artist?.username || ''}`, { scroll: false })}
+                    {currentSlide > 0 && (<button
+                                                      onClick={() => router.push(`/profile/${heroTracks[currentSlide-1].artist?.username || ''}`, { scroll: false })}
                       className="px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
                       aria-label="Voir l'artiste"
                     >
                       Artiste
-                    </button>
+                    </button>)}
                         </div>
 
                   {/* Stats de la piste */}
-                  <div
+                  {currentSlide > 0 && (<div
                     className="flex items-center justify-center gap-6 text-[var(--text-muted)] animate-slide-up text-sm"
                   >
                     <div className="flex items-center gap-2">
                       <Headphones size={18} className="text-purple-400" />
-                      <span className="font-medium">{formatNumber(heroTracks[currentSlide].plays)} écoutes</span>
+                      <span className="font-medium">{formatNumber(heroTracks[currentSlide-1].plays)} écoutes</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Heart size={16} className="text-pink-400" />
-                      <span className="font-medium">{formatNumber(heroTracks[currentSlide].likes || 0)} likes</span>
+                      <span className="font-medium">{formatNumber(heroTracks[currentSlide-1].likes || 0)} likes</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <MessageCircle size={16} className="text-blue-400" />
-                      <span className="text-white/80 font-medium">{heroTracks[currentSlide].comments?.length || 0} commentaires</span>
+                      <span className="text-white/80 font-medium">{heroTracks[currentSlide-1].comments?.length || 0} commentaires</span>
                   </div>
-                </div>
+                </div>)}
                 </div>
               </div>
 
@@ -1819,7 +1822,7 @@ export default function HomePage() {
             {/* Indicateurs centraux simplifiés */}
             <div className="absolute bottom-3 left-1/2 transform -translate-x-1/2 z-20">
               <div className="flex items-center space-x-1.5">
-                  {heroTracks.map((_, index) => (
+                  {Array.from({ length: totalSlides }).map((_, index) => (
                     <button
                       key={index}
                       onClick={() => goToSlide(index)}
