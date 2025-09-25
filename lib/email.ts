@@ -21,10 +21,16 @@ export async function getTransport() {
 
 function getLogoAttachment() {
   try {
-    const path = `${process.cwd()}/public/synaura_symbol.svg`;
-    return [{ filename: 'synaura_symbol.svg', path, cid: 'synaura-logo', contentType: 'image/svg+xml' }];
+    // Priorité: public/synaura_logotype.png
+    const mainPath = `${process.cwd()}/public/synaura_logotype.png`;
+    return [{ filename: 'synaura_logotype.png', path: mainPath, cid: 'synaura-logo', contentType: 'image/png' }];
   } catch {
-    return [] as any[];
+    try {
+      const fallback = `${process.cwd()}/public/email_logo.png`;
+      return [{ filename: 'email_logo.png', path: fallback, cid: 'synaura-logo', contentType: 'image/png' }];
+    } catch {
+      return [] as any[];
+    }
   }
 }
 
@@ -37,8 +43,8 @@ export async function sendEmail(opts: SendEmailOptions) {
 
 export function resetEmailTemplate({ code, link }: { code: string; link: string }) {
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXTAUTH_URL || 'http://localhost:3000';
-  // Utiliser le logotype statique (sans animation) pour compatibilité email
-  const logo = `${baseUrl}/synaura_logotype.svg`;
+  // Utiliser URL PNG externe si fournie, sinon CID de la pièce jointe
+  const logo = process.env.EMAIL_LOGO_URL || 'cid:synaura-logo';
   return `
   <div style="background:#0b0b12;color:#fff;font-family:Inter,Arial,sans-serif;padding:24px">
     <div style="max-width:560px;margin:0 auto;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px">
