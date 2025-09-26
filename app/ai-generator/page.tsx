@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX } from 'lucide-react';
 import { useAIQuota } from '@/hooks/useAIQuota';
 import { useAudioPlayer } from '@/app/providers';
@@ -519,8 +519,15 @@ export default function AIGenerator() {
                 </svg>
               </button>
               
-              {showModelDropdown && (
-                <div className="absolute bottom-full right-0 mb-2 w-48 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden">
+              <AnimatePresence>
+                {showModelDropdown && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className="absolute top-full right-0 mt-2 w-48 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden"
+                  >
                   <div className="py-1">
                     <button
                       type="button"
@@ -579,8 +586,9 @@ export default function AIGenerator() {
                       </div>
                     </button>
                   </div>
-                </div>
-              )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
