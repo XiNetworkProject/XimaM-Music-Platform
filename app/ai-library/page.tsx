@@ -102,9 +102,10 @@ export default function AILibrary() {
       _id: `ai-${track.id}`,
       title: track.title,
       artist: {
-        _id: 'ai-generator',
-        name: 'Synaura IA',
-        username: 'synaura-ai'
+        _id: (session?.user?.id as string) || 'ai-generator',
+        name: (session?.user as any)?.name || (session?.user as any)?.username || 'Artiste',
+        username: (session?.user as any)?.username || (session?.user as any)?.name || 'artiste',
+        avatar: (session?.user as any)?.avatar || (session?.user as any)?.image
       },
       duration: track.duration,
       audioUrl: track.audio_url,
@@ -320,7 +321,7 @@ export default function AILibrary() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-400 mx-auto"></div>
             <p className="text-[var(--text-muted)] mt-4">Chargement de votre bibliothèque...</p>
           </div>
-          ) : filteredGenerations.length === 0 ? (
+          ) : (filteredGenerations.length === 0 && allTracks.length === 0) ? (
             <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center">
               <Music className="w-16 h-16 mx-auto mb-4 text-white/40" />
               <h3 className="text-xl font-semibold mb-2">Aucune musique trouvée</h3>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useTrackPlays } from '@/contexts/PlaysContext';
@@ -23,6 +24,8 @@ interface TikTokPlayerProps {
 }
 
 export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
+  const { data: session } = useSession();
+  const [computedAvatar, setComputedAvatar] = useState<string | null>(null);
   const { 
     audioState, 
     setIsPlaying, 
@@ -44,6 +47,31 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     cycleRepeat,
     requestNotificationPermission
   } = useAudioPlayer();
+  // Résoudre avatar si manquant côté piste
+  useEffect(() => {
+    let cancelled = false;
+    async function resolveAvatar() {
+      try {
+        if (audioState.tracks[audioState.currentTrackIndex]?.artist?.avatar) return;
+        const sessImg = ((session?.user as any)?.avatar as string) || (session?.user?.image as string);
+        if (sessImg) {
+          if (!cancelled) setComputedAvatar(sessImg);
+          return;
+        }
+        const username = (session?.user as any)?.username;
+        if (username) {
+          const res = await fetch(`/api/users/${encodeURIComponent(username)}`);
+          if (res.ok) {
+            const json = await res.json();
+            const avatar = json?.avatar as string | undefined;
+            if (avatar && !cancelled) setComputedAvatar(avatar);
+          }
+        }
+      } catch {}
+    }
+    resolveAvatar();
+    return () => { cancelled = true; };
+  }, [session?.user, audioState.currentTrackIndex, audioState.tracks]);
   
   const currentIndex = audioState.currentTrackIndex ?? 0;
   const [isDragging, setIsDragging] = useState(false);
@@ -868,7 +896,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-8 h-8 rounded-full overflow-hidden">
                     <img
-                      src={currentTrack?.artist?.avatar || '/default-avatar.jpg'}
+                      src={
+                        currentTrack?.artist?.avatar ||
+                        computedAvatar ||
+                        ((session?.user as any)?.avatar as string) ||
+                        (session?.user?.image as string) ||
+                        '/default-avatar.jpg'
+                      }
                       alt={currentTrack?.artist?.name || 'Artist'}
                       className="w-full h-full object-cover"
                     />
