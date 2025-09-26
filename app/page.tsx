@@ -1582,7 +1582,7 @@ export default function HomePage() {
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
         <div className="mb-6">
           <AnnouncementsCarousel />
-        </div>
+            </div>
         {/* Onboarding simple (3 étapes) - seulement si connecté */}
         {session && <OnboardingChecklist />}
         
@@ -1593,11 +1593,11 @@ export default function HomePage() {
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
                   <LogIn className="w-5 h-5 text-blue-400" />
-                </div>
+          </div>
                 <div>
                   <h3 className="font-semibold text-white">Accès limité</h3>
                   <p className="text-sm text-white/70">Connectez-vous pour accéder à toutes les fonctionnalités</p>
-                </div>
+        </div>
               </div>
               <Link 
                 href="/auth/signin"
@@ -1611,23 +1611,6 @@ export default function HomePage() {
         <div className="panel-suno border border-[var(--border)] rounded-2xl p-2 md:p-4">
       {/* Banderoles fines et élégantes */}
       <div className="relative z-20">
-        {/* Banderole IA - Générateur de musique */}
-        <div className="w-full panel-suno border-y border-[var(--border)]/60 animate-fade-in">
-          <div className="flex items-center justify-center py-3 px-4">
-            <div className="flex items-center space-x-3 text-center">
-              <Sparkles size={16} className="text-blue-400 animate-pulse" />
-              <span className="text-sm font-medium text-blue-200">
-                🎵 <span className="text-white font-semibold">Générateur de Musique IA</span> - Bientôt disponible
-              </span>
-              <button
-                onClick={() => router.push('/ai-generator', { scroll: false })}
-                className="ml-3 px-3 py-1 text-blue-200 text-xs rounded-full border border-[var(--border)]/60 transition-all duration-200 hover:scale-105 active:scale-95 bg-white/5 hover:bg-white/10"
-              >
-                En savoir plus
-              </button>
-            </div>
-          </div>
-        </div>
 
         
       </div>
@@ -1930,7 +1913,7 @@ export default function HomePage() {
                                     ) : (
                                       <Play size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     )}
-                                  </div>
+                </div>
                                 </button>
 
                                 <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -1939,7 +1922,7 @@ export default function HomePage() {
                                       <div className="flex flex-row items-center justify-start gap-2">
                                         <div title={track.title} className="font-sans font-medium text-[16px] leading-[16px] cursor-pointer text-[var(--text)] hover:underline min-w-0 overflow-x-clip text-ellipsis whitespace-nowrap">
                                           {track.title || 'Titre inconnu'}
-                                        </div>
+              </div>
                                       </div>
                                       <div className="flex flex-row justify-between gap-1 flex-col items-start">
                                         <div className="gap-2 break-all font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">
@@ -1996,16 +1979,16 @@ export default function HomePage() {
                   <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
                       <div className="flex flex-row justify-between items-center">
-                        <button
+              <button
                           onClick={() => router.push('/trending', { scroll: false })}
                           className="flex cursor-pointer flex-row items-center hover:underline"
-                        >
+              >
                           <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Trending</div>
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 pt-0.5 text-[var(--text-muted)]">
                             <path d="m13.902 11.702-3.9-3.9a.99.99 0 1 1 1.4-1.4l4.593 4.593a1 1 0 0 1 0 1.414l-4.593 4.593a.99.99 0 1 1-1.4-1.4z" />
                           </svg>
-                        </button>
-                      </div>
+              </button>
+            </div>
                       <div className="flex flex-col gap-1">
                         {trendingUnique
                           ?.slice(0, 4)
