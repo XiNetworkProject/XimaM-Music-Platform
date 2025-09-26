@@ -526,7 +526,7 @@ export default function AIGenerator() {
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute top-full right-0 mt-2 w-48 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden"
+                    className="absolute top-full right-0 mt-2 w-48 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-lg z-[9999] overflow-hidden"
                   >
                   <div className="py-1">
                     <button
