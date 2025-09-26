@@ -478,8 +478,8 @@ export default function AIGenerator() {
         {/* Model Display (pill) */}
         <div className="max-w-2xl mx-auto mb-6">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <span className={`relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${modelVersion === 'V5' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' : ''}`}>
-              Modèle: {modelVersion.replace('_', '.')}{modelVersion === 'V5' && ' (Beta)'}
+            <span className={`relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${modelVersion === 'V5' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' : modelVersion === 'V4_5PLUS' ? 'text-purple-400 border-purple-400/30 bg-purple-400/10' : ''}`}>
+              Modèle: {modelVersion === 'V5' ? 'V5 (Beta)' : modelVersion === 'V4_5PLUS' ? 'V4.5+' : modelVersion.replace('_', '.')}
             </span>
           </div>
         </div>
@@ -511,8 +511,8 @@ export default function AIGenerator() {
                 onClick={() => setShowModelDropdown(!showModelDropdown)}
                 className="h-10 bg-[var(--surface-2)] border border-[var(--border)] rounded-full px-3 text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/50 transition-all duration-200 flex items-center gap-2 min-w-[120px] justify-between"
               >
-                <span className={modelVersion === 'V5' ? 'text-blue-400 font-semibold' : 'text-[var(--text)]'}>
-                  {modelVersion === 'V5' ? 'V5 (Beta)' : modelVersion.replace('_', '.')}
+                <span className={modelVersion === 'V5' ? 'text-blue-400 font-semibold' : modelVersion === 'V4_5PLUS' ? 'text-purple-400 font-semibold' : 'text-[var(--text)]'}>
+                  {modelVersion === 'V5' ? 'V5 (Beta)' : modelVersion === 'V4_5PLUS' ? 'V4.5+' : modelVersion.replace('_', '.')}
                 </span>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${showModelDropdown ? 'rotate-180' : ''}`}>
                   <path d="m6 9 6 6 6-6"/>
@@ -544,6 +544,25 @@ export default function AIGenerator() {
                     <button
                       type="button"
                       onClick={() => {
+                        setModelVersion('V4_5PLUS');
+                        setShowModelDropdown(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left hover:bg-[var(--surface-3)] transition-colors text-sm ${modelVersion === 'V4_5PLUS' ? 'bg-blue-400/10 text-blue-400' : 'text-[var(--text)]'}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">V4.5+</span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-purple-400/20 text-purple-400 border border-purple-400/30">Pro</span>
+                        {modelVersion === 'V4_5PLUS' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
+                            <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
                         setModelVersion('V4_5');
                         setShowModelDropdown(false);
                       }}
@@ -551,7 +570,7 @@ export default function AIGenerator() {
                     >
                       <div className="flex items-center gap-2">
                         <span className="font-medium">V4.5</span>
-                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-green-400/20 text-green-400 border border-green-400/30">Free</span>
                         {modelVersion === 'V4_5' && (
                           <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
                             <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>

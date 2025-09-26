@@ -35,7 +35,7 @@ export default function AILibrary() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'recent'>('all');
-  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V3_5' | 'V5'>('all');
+  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V4_5PLUS' | 'V3_5' | 'V5'>('all');
   const [stats, setStats] = useState({
     total: 0,
     favorites: 0,
@@ -289,9 +289,10 @@ export default function AILibrary() {
                   }}
                 >
                   <option value="all" className="bg-[var(--surface-2)] text-[var(--text)] py-2">Tous modèles</option>
+                  <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
+                  <option value="V4_5PLUS" className="bg-[var(--surface-2)] text-purple-400 font-semibold py-2">V4.5+</option>
                   <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5</option>
                   <option value="V3_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V3.5</option>
-                  <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
                 </select>
                 <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button
