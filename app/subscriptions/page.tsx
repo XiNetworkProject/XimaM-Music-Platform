@@ -372,7 +372,8 @@ export default function SubscriptionsPage() {
               'Profil public et bibliothèque',
               'Uploads limités',
               'Lecture et découverte de base',
-              '1 génération IA/mois'
+              '1 génération IA/mois',
+              'Modèle V4.5 uniquement'
             ]}
             onChoose={async () => {
               if (isFreeActive) return;
@@ -395,6 +396,7 @@ export default function SubscriptionsPage() {
             limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', ai: `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth} générations IA/mois`,
+              'Modèles V4.5 et V4.5+',
               PLAN_ENTITLEMENTS.starter.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.starter.features.adFree ? 'Sans publicité' : '',
               PLAN_ENTITLEMENTS.starter.features.analyticsBasic ? 'Statistiques de base' : '',
@@ -415,6 +417,7 @@ export default function SubscriptionsPage() {
             limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth} générations IA/mois`,
+              'Tous les modèles IA (V4.5, V4.5+, V5)',
               PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists ? 'Playlists collaboratives' : '',
               PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Analyses avancées' : '',
@@ -433,6 +436,8 @@ export default function SubscriptionsPage() {
             disabled
             limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}/mois` }}
             features={[
+              `${PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth} générations IA/mois`,
+              'Tous les modèles IA (V4.5, V4.5+, V5)',
               'Accès à la messagerie',
               'Analyses avancées',
               'Playlists collaboratives',
