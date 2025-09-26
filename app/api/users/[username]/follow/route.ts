@@ -42,7 +42,7 @@ export async function POST(
       .select('id')
       .eq('follower_id', followerId)
       .eq('following_id', followingId)
-      .single();
+      .maybeSingle();
 
     let action: 'followed' | 'unfollowed';
 
@@ -77,13 +77,17 @@ export async function POST(
       action = 'followed';
     }
 
-    // Mettre à jour les compteurs
-    const { error: updateError } = await supabaseAdmin.rpc('update_follow_counts', {
-      user_id: followingId
-    });
+    // Mettre à jour les compteurs (optionnel, peut ne pas exister)
+    try {
+      const { error: updateError } = await supabaseAdmin.rpc('update_follow_counts', {
+        user_id: followingId
+      });
 
-    if (updateError) {
-      console.error('Erreur mise à jour compteurs:', updateError);
+      if (updateError) {
+        console.error('Erreur mise à jour compteurs:', updateError);
+      }
+    } catch (error) {
+      console.log('Fonction update_follow_counts non disponible, ignorée');
     }
 
     return NextResponse.json({ 
@@ -130,9 +134,9 @@ export async function GET(
       .select('id')
       .eq('follower_id', followerId)
       .eq('following_id', followingId)
-      .single();
+      .maybeSingle();
 
-    if (followError && followError.code !== 'PGRST116') {
+    if (followError) {
       console.error('Erreur vérification follow:', followError);
       return NextResponse.json({ error: 'Erreur lors de la vérification' }, { status: 500 });
     }
