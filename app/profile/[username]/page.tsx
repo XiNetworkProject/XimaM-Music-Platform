@@ -114,8 +114,22 @@ export default function ProfileUserPage() {
           }
         }
         
-        setProfile(data);
-        setEditData({ ...data });
+        // Vérifier l'état de suivi si l'utilisateur est connecté
+        let isFollowing = false;
+        if (session?.user?.id && data.id !== session.user.id) {
+          try {
+            const followRes = await fetch(`/api/users/${username}/follow`);
+            if (followRes.ok) {
+              const followData = await followRes.json();
+              isFollowing = followData.isFollowing;
+            }
+          } catch (e) {
+            console.error('Erreur vérification follow:', e);
+          }
+        }
+        
+        setProfile({ ...data, isFollowing });
+        setEditData({ ...data, isFollowing });
         // Mettre à jour les tracks avec synchronisation temps réel
         setUserTracks(data.tracks || []);
       } catch (e: any) {

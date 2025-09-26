@@ -24,6 +24,8 @@ export async function GET(request: NextRequest) {
         genre,
         total_plays,
         total_likes,
+        follower_count,
+        following_count,
         is_verified,
         created_at,
         last_seen
@@ -54,6 +56,8 @@ export async function GET(request: NextRequest) {
       genre: user.genre || [],
       totalPlays: user.total_plays || 0,
       totalLikes: user.total_likes || 0,
+      followerCount: user.follower_count || 0,
+      followingCount: user.following_count || 0,
       isVerified: user.is_verified || false,
       createdAt: user.created_at,
       lastSeen: user.last_seen

@@ -1976,7 +1976,7 @@ export default function HomePage() {
                                 <button onClick={() => router.push(`/profile/${user.username}`, { scroll: false })} className="flex flex-row items-center gap-2">
                                   <div className="font-sans font-medium text-[16px] leading-[16px] line-clamp-1 cursor-pointer text-[var(--text)] hover:underline">{user.name || user.username}</div>
                                 </button>
-                                <div className="font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">{(user.followers?.length || 0).toLocaleString()} abonnés</div>
+                                <div className="font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">{(user.followerCount || 0).toLocaleString()} abonnés</div>
                                 <div className="font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">@{user.username} · Suggested</div>
                 </div>
               </div>
