@@ -293,10 +293,7 @@ export default function AIGenerator() {
   }, [sunoState, sunoTracks, sunoError, currentTaskId, description, style, lyrics, isInstrumental, customMode, title]);
 
   const generateMusic = async () => {
-    if (quotaLoading || quota.remaining <= 0) {
-      alert('Quota épuisé. Améliorez votre plan pour continuer.');
-      return;
-    }
+    // Plus de limitation de quota - accès libre
 
     setIsGenerating(true);
     setGenerationStatus('pending');
@@ -478,16 +475,9 @@ export default function AIGenerator() {
       {/* Header */}
       <div className="container mx-auto px-4 py-8 pb-24">
 
-        {/* Quota Display (pills) */}
+        {/* Model Display (pill) */}
         <div className="max-w-2xl mx-auto mb-6">
           <div className="flex flex-wrap items-center justify-center gap-2">
-            <span className="relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-              <Sparkles className="w-4 h-4 text-yellow-400" />
-              <span className="font-medium tracking-wide">{quota.remaining} / {quota.monthly_limit} restants</span>
-            </span>
-            <span className="relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-              <span className="w-2 h-2 rounded-full bg-emerald-400" /> Plan: {quota.plan_type}
-            </span>
             <span className={`relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${modelVersion === 'V5' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' : ''}`}>
               Modèle: {modelVersion.replace('_', '.')}{modelVersion === 'V5' && ' (Beta)'}
             </span>
@@ -734,7 +724,7 @@ export default function AIGenerator() {
           {/* Generate Button + contrôle quota */}
             <motion.button
             onClick={generateMusic}
-            disabled={isGenerating || quotaLoading || quota.remaining <= 0}
+            disabled={isGenerating}
             className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 flex items-center justify-center gap-2"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -751,11 +741,6 @@ export default function AIGenerator() {
                 </>
               )}
             </motion.button>
-            {!quotaLoading && quota.remaining <= 0 && (
-              <div className="mt-3 text-center text-sm text-white/70">
-                Quota épuisé. <a href="/subscriptions" className="text-purple-400 underline">Améliorer mon plan</a>
-              </div>
-            )}
 
           {/* Status Display */}
           {currentTaskId && (
