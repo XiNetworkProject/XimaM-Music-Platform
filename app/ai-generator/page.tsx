@@ -477,50 +477,6 @@ export default function AIGenerator() {
     <div className="min-h-screen bg-transparent text-[var(--text)]">
       {/* Header */}
       <div className="container mx-auto px-4 py-8 pb-24">
-        <div className="text-center mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-center gap-3 mb-4"
-          >
-            <Sparkles className="w-7 h-7 text-yellow-400" />
-            <h1 className="text-3xl md:text-4xl font-extrabold title-suno">
-              Générateur IA
-            </h1>
-          </motion.div>
-          <p className="text-[var(--text-muted)] text-base mb-4">
-            Créez de la musique unique avec l'intelligence artificielle
-          </p>
-          {/* Bandeau Aperçu limité */}
-          <div className="max-w-3xl mx-auto">
-            <div className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden">
-              <div className="relative p-6 md:p-8 text-center">
-                <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> Aperçu limité
-                </span>
-                <h2 className="mt-4 text-2xl md:text-3xl font-bold">
-                  V4.5 (aperçu) — générez quelques titres, testez l’IA
-                </h2>
-                <p className="mt-2 text-[var(--text-muted)]">
-                  Votre plan actuel vous donne accès à un petit nombre de générations chaque mois. Passez au plan supérieur pour plus.
-                </p>
-                <div className="mt-5 flex items-center justify-center gap-3 text-sm">
-                  <div className="px-3 py-1 rounded-full bg-white/5 border border-[var(--border)]">
-                    Plan: {quota.plan_type}
-                  </div>
-                  <div className="px-3 py-1 rounded-full bg-white/5 border border-[var(--border)]">
-                    Restant: {quota.remaining}/{quota.monthly_limit}
-                  </div>
-                  {!quotaLoading && quota.remaining <= 0 && (
-                    <a href="/subscriptions" className="px-3 py-1 rounded-full bg-[var(--color-primary)] text-white">
-                      Augmenter mon quota
-                    </a>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Quota Display (pills) */}
         <div className="max-w-2xl mx-auto mb-6">
