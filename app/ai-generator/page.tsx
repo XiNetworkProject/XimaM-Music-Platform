@@ -574,27 +574,24 @@ export default function AIGenerator() {
               </button>
               
               {showModelDropdown && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden">
-                  <div className="max-h-[400px] overflow-y-auto">
+                <div className="absolute bottom-full right-0 mb-2 w-48 bg-[var(--surface-2)] border border-[var(--border)] rounded-lg shadow-lg z-50 overflow-hidden">
+                  <div className="py-1">
                     <button
                       type="button"
                       onClick={() => {
                         setModelVersion('V5');
                         setShowModelDropdown(false);
                       }}
-                      className={`w-full px-4 py-3 text-left hover:bg-[var(--surface-3)] transition-colors ${modelVersion === 'V5' ? 'bg-blue-400/10 border-l-2 border-blue-400' : ''}`}
+                      className={`w-full px-3 py-2 text-left hover:bg-[var(--surface-3)] transition-colors text-sm ${modelVersion === 'V5' ? 'bg-blue-400/10 text-blue-400' : 'text-[var(--text)]'}`}
                     >
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-[15px] text-blue-400">V5</span>
-                          <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-blue-400/20 text-blue-400 border border-blue-400/30">Beta</span>
-                          {modelVersion === 'V5' && (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
-                            </svg>
-                          )}
-                        </div>
-                        <span className="text-xs text-[var(--text-muted)] leading-[1.4]">Authentic vocals, superior audio quality</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">V5</span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-400/20 text-blue-400 border border-blue-400/30">Beta</span>
+                        {modelVersion === 'V5' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
+                            <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                          </svg>
+                        )}
                       </div>
                     </button>
                     
@@ -604,19 +601,16 @@ export default function AIGenerator() {
                         setModelVersion('V4_5');
                         setShowModelDropdown(false);
                       }}
-                      className={`w-full px-4 py-3 text-left hover:bg-[var(--surface-3)] transition-colors ${modelVersion === 'V4_5' ? 'bg-blue-400/10 border-l-2 border-blue-400' : ''}`}
+                      className={`w-full px-3 py-2 text-left hover:bg-[var(--surface-3)] transition-colors text-sm ${modelVersion === 'V4_5' ? 'bg-blue-400/10 text-blue-400' : 'text-[var(--text)]'}`}
                     >
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-[15px]">V4.5</span>
-                          <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
-                          {modelVersion === 'V4_5' && (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
-                            </svg>
-                          )}
-                        </div>
-                        <span className="text-xs text-[var(--text-muted)] leading-[1.4]">Intelligent prompts</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">V4.5</span>
+                        <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
+                        {modelVersion === 'V4_5' && (
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
+                            <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                          </svg>
+                        )}
                       </div>
                     </button>
                   </div>
