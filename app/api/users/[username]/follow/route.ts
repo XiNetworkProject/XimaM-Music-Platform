@@ -90,14 +90,23 @@ export async function POST(
       action = 'followed';
     }
 
-    // Mettre à jour les compteurs (optionnel, peut ne pas exister)
+    // Mettre à jour les compteurs pour les deux utilisateurs
     try {
-      const { error: updateError } = await supabaseAdmin.rpc('update_follow_counts', {
+      // Mettre à jour les compteurs pour l'utilisateur suivi (follower_count)
+      const { error: updateFollowingError } = await supabaseAdmin.rpc('update_follow_counts', {
         user_id: followingId
       });
 
-      if (updateError) {
-        console.error('Erreur mise à jour compteurs:', updateError);
+      // Mettre à jour les compteurs pour l'utilisateur qui suit (following_count)
+      const { error: updateFollowerError } = await supabaseAdmin.rpc('update_follow_counts', {
+        user_id: followerId
+      });
+
+      if (updateFollowingError) {
+        console.error('Erreur mise à jour compteurs following:', updateFollowingError);
+      }
+      if (updateFollowerError) {
+        console.error('Erreur mise à jour compteurs follower:', updateFollowerError);
       }
     } catch (error) {
       console.log('Fonction update_follow_counts non disponible, ignorée');

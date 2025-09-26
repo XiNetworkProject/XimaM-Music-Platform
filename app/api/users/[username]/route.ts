@@ -74,6 +74,8 @@ export async function GET(
       totalLikes,
       tracksCount,
       playlistsCount,
+      followerCount: profile.follower_count || 0,
+      followingCount: profile.following_count || 0,
       tracks: tracks || [],
       playlists: playlists || [],
       lastSeen: profile.last_seen,
