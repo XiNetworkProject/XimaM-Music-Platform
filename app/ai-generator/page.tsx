@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX } from 'lucide-react';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -58,6 +58,20 @@ export default function AIGenerator() {
   const { state: sunoState, tracks: sunoTracks, error: sunoError } = useSunoWaiter(currentTaskId || undefined);
   const [customMode, setCustomMode] = useState(false);
   const [modelVersion, setModelVersion] = useState('V4_5');
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
+
+  // Fermer le dropdown quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showModelDropdown && !target.closest('.model-dropdown-container')) {
+        setShowModelDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showModelDropdown]);
   const [title, setTitle] = useState('');
   const [style, setStyle] = useState('');
   const [lyrics, setLyrics] = useState('');
@@ -545,38 +559,69 @@ export default function AIGenerator() {
                 Custom
               </button>
             </div>
-            <div className="flex items-center gap-2 pr-2">
-              <select
-                value={modelVersion}
-                onChange={(e) => setModelVersion(e.target.value)}
-                className="h-10 bg-[var(--surface-2)] border border-[var(--border)] rounded-full px-3 text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/50 transition-all duration-200 appearance-none cursor-pointer"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
-                  backgroundPosition: 'right 8px center',
-                  backgroundRepeat: 'no-repeat',
-                  backgroundSize: '16px',
-                  paddingRight: '32px'
-                }}
+            <div className="flex items-center gap-2 pr-2 relative model-dropdown-container">
+              <button
+                type="button"
+                onClick={() => setShowModelDropdown(!showModelDropdown)}
+                className="h-10 bg-[var(--surface-2)] border border-[var(--border)] rounded-full px-3 text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/50 transition-all duration-200 flex items-center gap-2 min-w-[120px] justify-between"
               >
-                <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-3 px-4 hover:bg-[var(--surface-3)] transition-colors">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[15px]">V4.5</span>
-                      <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
-                    </div>
-                    <span className="text-xs text-[var(--text-muted)] leading-[1.4] max-w-[180px]">Intelligent prompts</span>
+                <span className={modelVersion === 'V5' ? 'text-blue-400 font-semibold' : 'text-[var(--text)]'}>
+                  {modelVersion === 'V5' ? 'V5 (Beta)' : modelVersion.replace('_', '.')}
+                </span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-200 ${showModelDropdown ? 'rotate-180' : ''}`}>
+                  <path d="m6 9 6 6 6-6"/>
+                </svg>
+              </button>
+              
+              {showModelDropdown && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl shadow-xl z-50 overflow-hidden">
+                  <div className="max-h-[400px] overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModelVersion('V5');
+                        setShowModelDropdown(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-[var(--surface-3)] transition-colors ${modelVersion === 'V5' ? 'bg-blue-400/10 border-l-2 border-blue-400' : ''}`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-[15px] text-blue-400">V5</span>
+                          <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-blue-400/20 text-blue-400 border border-blue-400/30">Beta</span>
+                          {modelVersion === 'V5' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
+                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-xs text-[var(--text-muted)] leading-[1.4]">Authentic vocals, superior audio quality</span>
+                      </div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setModelVersion('V4_5');
+                        setShowModelDropdown(false);
+                      }}
+                      className={`w-full px-4 py-3 text-left hover:bg-[var(--surface-3)] transition-colors ${modelVersion === 'V4_5' ? 'bg-blue-400/10 border-l-2 border-blue-400' : ''}`}
+                    >
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-[15px]">V4.5</span>
+                          <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
+                          {modelVersion === 'V4_5' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-blue-400">
+                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span className="text-xs text-[var(--text-muted)] leading-[1.4]">Intelligent prompts</span>
+                      </div>
+                    </button>
                   </div>
-                </option>
-                <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-3 px-4 hover:bg-blue-400/10 transition-colors">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-[15px] text-blue-400">V5</span>
-                      <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-blue-400/20 text-blue-400 border border-blue-400/30">Beta</span>
-                    </div>
-                    <span className="text-xs text-[var(--text-muted)] leading-[1.4] max-w-[180px]">Authentic vocals, superior audio quality</span>
-                  </div>
-                </option>
-              </select>
+                </div>
+              )}
             </div>
           </div>
         </div>

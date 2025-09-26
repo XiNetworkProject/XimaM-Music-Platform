@@ -288,36 +288,10 @@ export default function AILibrary() {
                     paddingRight: '36px'
                   }}
                 >
-                  <option value="all" className="bg-[var(--surface-2)] text-[var(--text)] py-3 px-4 hover:bg-[var(--surface-3)] transition-colors">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-[15px]">Tous modèles</span>
-                      <span className="text-xs text-[var(--text-muted)] leading-[1.4] max-w-[180px]">Afficher toutes les générations</span>
-                    </div>
-                  </option>
-                  <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-3 px-4 hover:bg-[var(--surface-3)] transition-colors">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-[15px]">V4.5</span>
-                        <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
-                      </div>
-                      <span className="text-xs text-[var(--text-muted)] leading-[1.4] max-w-[180px]">Intelligent prompts</span>
-                    </div>
-                  </option>
-                  <option value="V3_5" className="bg-[var(--surface-2)] text-[var(--text)] py-3 px-4 hover:bg-[var(--surface-3)] transition-colors">
-                    <div className="flex flex-col gap-1">
-                      <span className="font-medium text-[15px]">V3.5</span>
-                      <span className="text-xs text-[var(--text-muted)] leading-[1.4] max-w-[180px]">Basic song structure</span>
-                    </div>
-                  </option>
-                  <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-3 px-4 hover:bg-blue-400/10 transition-colors">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-[15px] text-blue-400">V5</span>
-                        <span className="px-1.5 py-0.5 rounded-[6px] text-xs font-medium bg-blue-400/20 text-blue-400 border border-blue-400/30">Beta</span>
-                      </div>
-                      <span className="text-xs text-[var(--text-muted)] leading-[1.4] max-w-[180px]">Authentic vocals, superior audio quality</span>
-                    </div>
-                  </option>
+                  <option value="all" className="bg-[var(--surface-2)] text-[var(--text)] py-2">Tous modèles</option>
+                  <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5</option>
+                  <option value="V3_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V3.5</option>
+                  <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
                 </select>
                 <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button
