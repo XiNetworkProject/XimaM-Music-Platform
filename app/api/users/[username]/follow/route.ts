@@ -10,29 +10,42 @@ export async function POST(
   { params }: { params: { username: string } }
 ) {
   try {
+    console.log('🔍 POST /api/users/[username]/follow - Début');
+    
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
+      console.log('❌ Non authentifié');
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
     const { username } = params;
     const followerId = session.user.id;
+    
+    console.log('👤 Follower ID:', followerId, 'Username cible:', username);
 
     // Récupérer l'ID de l'utilisateur à suivre
     const { data: targetUser, error: userError } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
-    if (userError || !targetUser) {
+    if (userError) {
+      console.error('❌ Erreur récupération utilisateur:', userError);
+      return NextResponse.json({ error: 'Erreur base de données' }, { status: 500 });
+    }
+
+    if (!targetUser) {
+      console.log('❌ Utilisateur introuvable:', username);
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     }
 
     const followingId = targetUser.id;
+    console.log('✅ Utilisateur trouvé - ID:', followingId);
 
     // Vérifier si l'utilisateur se suit lui-même
     if (followerId === followingId) {
+      console.log('❌ Tentative de se suivre soi-même');
       return NextResponse.json({ error: 'Impossible de se suivre soi-même' }, { status: 400 });
     }
 
@@ -90,6 +103,8 @@ export async function POST(
       console.log('Fonction update_follow_counts non disponible, ignorée');
     }
 
+    console.log('✅ Action terminée:', action);
+    
     return NextResponse.json({ 
       success: true, 
       action,
@@ -120,9 +135,14 @@ export async function GET(
       .from('profiles')
       .select('id')
       .eq('username', username)
-      .single();
+      .maybeSingle();
 
-    if (userError || !targetUser) {
+    if (userError) {
+      console.error('Erreur récupération utilisateur:', userError);
+      return NextResponse.json({ error: 'Erreur base de données' }, { status: 500 });
+    }
+
+    if (!targetUser) {
       return NextResponse.json({ error: 'Utilisateur introuvable' }, { status: 404 });
     }
 
