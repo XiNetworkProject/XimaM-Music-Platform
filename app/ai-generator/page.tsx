@@ -558,8 +558,8 @@ export default function AIGenerator() {
                   paddingRight: '32px'
                 }}
               >
-                <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)]">V4.5</option>
-                <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold">V5 (Beta)</option>
+                <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5</option>
+                <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
               </select>
             </div>
           </div>
