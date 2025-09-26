@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { useMediaSession, type MediaTrack as MSMediaTrack } from '@/hooks/useMediaSession';
+import { toArtworkList } from '@/lib/mediaArtwork';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
 import { LikeProvider } from '@/contexts/LikeContext';
@@ -125,6 +127,41 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       repeat: audioService.repeat,
     }));
   }, [audioService.state, audioService.shuffle, audioService.repeat]);
+  // Media Session: mapping piste courante -> métadonnées Media Session
+  const mediaSessionTrack: MSMediaTrack | null = useMemo(() => {
+    const t = audioService.state.currentTrack as any;
+    if (!t) return null;
+    return {
+      id: String(t._id),
+      title: t.title,
+      artist: t.artist?.name || t.artist?.username || 'Unknown',
+      album: 'Synaura',
+      artwork: toArtworkList(t.coverUrl),
+      duration: typeof audioService.state.duration === 'number' ? audioService.state.duration : undefined,
+      url: t.audioUrl,
+    };
+  }, [audioService.state.currentTrack, audioService.state.duration]);
+
+  useMediaSession({
+    audioEl: (audioService as any).audioElement ?? null,
+    track: mediaSessionTrack,
+    controls: {
+      play: () => audioService.actions.play(),
+      pause: () => audioService.actions.pause(),
+      next: () => audioService.actions.nextTrack(),
+      prev: () => audioService.actions.previousTrack(),
+      seekTo: (s: number) => audioService.actions.seek(s),
+      seekBy: (offset: number) => {
+        const a = (audioService as any).audioElement as HTMLAudioElement | null;
+        if (!a) return;
+        const duration = Number.isFinite(a.duration) ? a.duration : a.currentTime + offset;
+        const target = Math.max(0, Math.min(duration, a.currentTime + offset));
+        audioService.actions.seek(target);
+      },
+      stop: () => audioService.actions.stop(),
+    },
+    isPlaying: !!audioService.state.isPlaying,
+  });
 
   // Synchronisation de la piste courante optimisée
   useEffect(() => {

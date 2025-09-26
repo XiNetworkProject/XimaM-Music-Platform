@@ -945,6 +945,8 @@ export const useAudioService = () => {
     autoPlayEnabled,
     notificationPermission,
     isFirstPlay,
+    // expose audio element for integrations like Media Session (read-only)
+    get audioElement() { return audioRef.current; },
     actions: {
       play,
       pause,
