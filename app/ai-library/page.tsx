@@ -35,7 +35,7 @@ export default function AILibrary() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'recent'>('all');
-  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V3_5'>('all');
+  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V3_5' | 'V5'>('all');
   const [stats, setStats] = useState({
     total: 0,
     favorites: 0,
@@ -284,6 +284,7 @@ export default function AILibrary() {
                   <option value="all">Tous modèles</option>
                   <option value="V4_5">V4.5</option>
                   <option value="V3_5">V3.5</option>
+                  <option value="V5">V5</option>
                 </select>
                 <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button
