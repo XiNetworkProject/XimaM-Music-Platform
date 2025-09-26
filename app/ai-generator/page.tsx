@@ -558,8 +558,24 @@ export default function AIGenerator() {
                   paddingRight: '32px'
                 }}
               >
-                <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5</option>
-                <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
+                <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2 px-3">
+                  <div className="flex flex-col gap-0 pb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">V4.5</span>
+                      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-[var(--surface-3)] text-[var(--text-muted)] border border-[var(--border)]">Pro</span>
+                    </div>
+                    <span className="text-xs text-[var(--text-muted)]">Intelligent prompts</span>
+                  </div>
+                </option>
+                <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2 px-3">
+                  <div className="flex flex-col gap-0 pb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-blue-400">V5</span>
+                      <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-blue-400/20 text-blue-400 border border-blue-400/30">Beta</span>
+                    </div>
+                    <span className="text-xs text-[var(--text-muted)]">Authentic vocals, superior audio quality</span>
+                  </div>
+                </option>
               </select>
             </div>
           </div>
