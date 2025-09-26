@@ -1643,6 +1643,14 @@ export default function HomePage() {
                       loading="eager"
                       onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
                     />
+                  ) : currentSlide === 1 ? (
+                    <img
+                      src={'/DALL·E 2025-09-26 23.14.53 - A minimalist, abstract landscape-format illustration symbolizing AI-generated music. The image features a stylized humanoid head made of flowing digit.webp'}
+                      alt={'Générateur de Musique IA'}
+                      className="w-full h-full object-cover"
+                      loading="eager"
+                      onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
+                    />
                   ) : (
                     <img
                       src={getValidImageUrl(heroTracks[currentSlide-1].coverUrl, '/default-cover.jpg')}
@@ -1668,6 +1676,8 @@ export default function HomePage() {
                     <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
                     {currentSlide === 0 ? (
                       <span className="text-[var(--text)] text-sm font-medium">Offre Premium</span>
+                    ) : currentSlide === 1 ? (
+                      <span className="text-[var(--text)] text-sm font-medium">IA Musicale</span>
                     ) : (
                       <>
                         <span className="text-[var(--text)] text-sm font-medium">En vedette</span>
@@ -1678,21 +1688,33 @@ export default function HomePage() {
 
                   {/* Badges secondaires */}
                   <div className="flex items-center justify-center gap-3 mb-6 animate-slide-up">
-                    {currentSlide > 0 && Array.isArray(heroTracks[currentSlide-1]?.genre) && ((heroTracks[currentSlide-1]?.genre?.length || 0) > 0) && (
-                      <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                        {heroTracks[currentSlide-1]?.genre?.[0]}
-                      </span>
-                    )}
-                    {currentSlide > 0 && heroTracks[currentSlide-1].createdAt && (
-                      <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                        {formatDate(heroTracks[currentSlide-1].createdAt)}
-                      </span>
-                    )}
-                    {currentSlide > 0 && (
-                      <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                        {formatDuration(heroTracks[currentSlide-1].duration)}
-                    </span>
-                    )}
+                    {currentSlide === 1 ? (
+                      <>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                          Génération IA
+                        </span>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                          Modèles V4.5, V4.5+, V5
+                        </span>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                          Gratuit
+                        </span>
+                      </>
+                    ) : currentSlide > 1 && Array.isArray(heroTracks[currentSlide-1]?.genre) && ((heroTracks[currentSlide-1]?.genre?.length || 0) > 0) ? (
+                      <>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                          {heroTracks[currentSlide-1]?.genre?.[0]}
+                        </span>
+                        {heroTracks[currentSlide-1].createdAt && (
+                          <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                            {formatDate(heroTracks[currentSlide-1].createdAt)}
+                          </span>
+                        )}
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
+                          {formatDuration(heroTracks[currentSlide-1].duration)}
+                        </span>
+                      </>
+                    ) : null}
                         </div>
 
                   {/* Titre principal */}
@@ -1702,11 +1724,11 @@ export default function HomePage() {
                       textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(236, 72, 153, 0.3)'
                     }}
                         >
-                          {currentSlide === 0 ? 'Débloquez tout Synaura' : heroTracks[currentSlide-1].title}
+                          {currentSlide === 0 ? 'Débloquez tout Synaura' : currentSlide === 1 ? 'Générateur de Musique IA' : heroTracks[currentSlide-1].title}
                         </h1>
 
                   {/* Artiste avec avatar */}
-                  {currentSlide > 0 && (
+                  {currentSlide > 1 && (
                     <div className="flex items-center justify-center gap-3 mb-4 animate-slide-up">
                       <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
                         <img
@@ -1724,6 +1746,15 @@ export default function HomePage() {
                           </div>
                         </div>
                   )}
+                  
+                  {/* Description pour IA */}
+                  {currentSlide === 1 && (
+                    <div className="text-center mb-4 animate-slide-up">
+                      <p className="text-[var(--text-muted)] text-lg font-medium">
+                        Créez de la musique unique avec l'intelligence artificielle
+                      </p>
+                    </div>
+                  )}
 
                   {/* Boutons d'action principaux */}
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 animate-slide-up">
@@ -1736,6 +1767,15 @@ export default function HomePage() {
                             >
                               <Crown size={18} />
                               <span>Débloquer toutes les fonctionnalités</span>
+                            </button>
+                          ) : currentSlide === 1 ? (
+                            <button
+                              onClick={() => router.push('/ai-generator', { scroll: false })}
+                              className="group relative flex items-center space-x-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 shadow-xl hover:scale-105 active:scale-95"
+                              aria-label="Générer de la musique IA"
+                            >
+                              <Sparkles size={18} />
+                              <span>Générer de la musique IA</span>
                             </button>
                           ) : (
                             <button
