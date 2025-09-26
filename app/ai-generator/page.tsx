@@ -485,7 +485,7 @@ export default function AIGenerator() {
         </div>
 
         {/* Segmented control Simple / Custom + Select modèle */}
-        <div className="max-w-2xl mx-auto mb-8">
+        <div className="max-w-2xl mx-auto mb-8" style={{ position: 'relative', zIndex: 1 }}>
           <div className="flex items-center justify-between panel-suno border border-[var(--border)] rounded-full p-1">
             <div className="relative inline-flex items-center gap-0 h-10 p-1">
               <button
@@ -595,7 +595,7 @@ export default function AIGenerator() {
         </div>
 
         {/* Formulaire actif, style page Upload */}
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-2xl mx-auto space-y-6" style={{ position: 'relative', zIndex: 0 }}>
           {/* le formulaire existant reste visible mais inactif */}
           {customMode ? (
             // Mode personnalisé
