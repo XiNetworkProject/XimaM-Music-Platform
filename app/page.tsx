@@ -2183,7 +2183,7 @@ export default function HomePage() {
                         <div className="flex h-fit w-full flex-col">
                           <h3 className="overflow-hidden font-sans text-lg font-semibold text-ellipsis whitespace-nowrap text-[var(--text)]">{user.name || user.username}</h3>
                           <span className="line-clamp-1 font-sans text-sm font-normal text-[var(--text-muted)]">@{user.username}</span>
-                          <span className="font-mono text-sm text-[var(--text-muted)]">{formatNumber((user.followers?.length || 0))} abonnés</span>
+                          <span className="font-mono text-sm text-[var(--text-muted)]">{formatNumber((user.followerCount || 0))} abonnés</span>
                     </div>
                   </div>
                 ))}
