@@ -554,7 +554,13 @@ export default function CommunityPage() {
                             onFollowChange={(isFollowing) => {
                               setUsers(prev => prev.map(u => 
                                 u._id === user._id 
-                                  ? { ...u, isFollowing, followers: isFollowing ? [...u.followers, session?.user?.id] : u.followers.filter(id => id !== session?.user?.id) }
+                                  ? { 
+                                      ...u, 
+                                      isFollowing, 
+                                      followers: isFollowing 
+                                        ? [...(u.followers || []), session?.user?.id].filter(Boolean) as string[]
+                                        : (u.followers || []).filter(id => id !== session?.user?.id)
+                                    }
                                   : u
                               ));
                             }}
