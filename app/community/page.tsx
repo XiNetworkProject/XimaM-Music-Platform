@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import FollowButton from '@/components/FollowButton';
 import {
   Users,
   TrendingUp,
@@ -545,15 +546,19 @@ export default function CommunityPage() {
                             <span><UserPlus size={12} className="inline mr-1" />{formatNumber(user.followers.length)} abonnés</span>
                           </div>
                         </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleFollow(user._id);
+                          <FollowButton 
+                            artistId={user._id}
+                            artistUsername={user.username}
+                            size="md"
+                            className={`${user.isFollowing ? 'bg-pink-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
+                            onFollowChange={(isFollowing) => {
+                              setUsers(prev => prev.map(u => 
+                                u._id === user._id 
+                                  ? { ...u, isFollowing, followers: isFollowing ? [...u.followers, session?.user?.id] : u.followers.filter(id => id !== session?.user?.id) }
+                                  : u
+                              ));
                             }}
-                          className={`px-4 py-2 rounded-full font-medium transition-all ${user.isFollowing ? 'bg-pink-600 text-white' : 'bg-white/10 text-white/80 hover:bg-white/20'}`}
-                          >
-                          {user.isFollowing ? 'Abonné' : 'Suivre'}
-                          </button>
+                          />
                     </motion.div>
                   ))
                 )}

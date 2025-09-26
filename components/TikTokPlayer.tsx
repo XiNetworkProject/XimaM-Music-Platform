@@ -17,6 +17,7 @@ import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndica
 import DownloadButton, { DownloadTooltip } from './DownloadButton';
 import DownloadDialog from './DownloadDialog';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
+import FollowButton from './FollowButton';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -915,9 +916,11 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       {currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
                     </p>
                   </div>
-                  <button className="px-3 py-1 text-xs font-medium text-white bg-white/10 backdrop-blur-lg rounded-full hover:bg-white/20 transition-colors">
-                    Suivre
-                  </button>
+                  <FollowButton 
+                    artistId={currentTrack?.artist?._id}
+                    artistUsername={currentTrack?.artist?.username}
+                    size="sm"
+                  />
                 </div>
 
                 {/* Actions */}

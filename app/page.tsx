@@ -12,6 +12,7 @@ import CommentButton from '@/components/CommentButton';
 import { AnimatedPlaysCounter, AnimatedLikeCounter } from '@/components/AnimatedCounter';
 
 import SocialStats from '@/components/SocialStats';
+import FollowButton from '@/components/FollowButton';
 import { 
   Play, Heart, Pause, Headphones, 
   Users, TrendingUp, Music, Flame, Calendar, UserPlus,
@@ -1979,13 +1980,12 @@ export default function HomePage() {
                                 <div className="font-sans font-normal text-[14px] leading-[16px] line-clamp-1 text-[var(--text-muted)]">@{user.username} · Suggested</div>
                 </div>
               </div>
-              <button
-                              type="button"
-                              className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)]"
-                              onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
-              >
-                              Suivre
-              </button>
+              <FollowButton 
+                artistId={user._id || user.id}
+                artistUsername={user.username}
+                size="sm"
+                className="border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)]"
+              />
                           </div>
                         ))}
                       </div>
