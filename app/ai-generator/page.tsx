@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Plus, ChevronDown, Edit3, Type, Headphones, Zap, Star, X } from 'lucide-react';
 import { useAIQuota } from '@/hooks/useAIQuota';
 import { useAudioPlayer } from '@/app/providers';
 import { useSunoWaiter } from '@/hooks/useSunoWaiter';
@@ -306,243 +306,348 @@ export default function AIGenerator() {
 
   return (
     <div className="min-h-screen bg-transparent text-[var(--text)]">
-      {/* Header */}
-      <div className="container mx-auto px-4 py-8 pb-24">
-        <div className="text-center mb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-center gap-3 mb-4"
-          >
-            <Sparkles className="w-7 h-7 text-yellow-400" />
-            <h1 className="text-3xl md:text-4xl font-extrabold title-suno">
-              Générateur IA
-            </h1>
-          </motion.div>
-          <p className="text-[var(--text-muted)] text-base mb-4">
-            Créez de la musique unique avec l'intelligence artificielle
-          </p>
-          {/* Bandeau Aperçu limité */}
-          <div className="max-w-3xl mx-auto">
-            <div className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden">
-              <div className="relative p-6 md:p-8 text-center">
-                <span className="inline-flex items-center gap-2 text-xs uppercase tracking-wide px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-                  <Sparkles className="w-3.5 h-3.5 text-yellow-400" /> Aperçu limité
-                </span>
-                <h2 className="mt-4 text-2xl md:text-3xl font-bold">
-                  V4.5 (aperçu) — générez quelques titres, testez l’IA
-                </h2>
-                <p className="mt-2 text-[var(--text-muted)]">
-                  Votre plan actuel vous donne accès à un petit nombre de générations chaque mois. Passez au plan supérieur pour plus.
-                </p>
-                <div className="mt-5 flex items-center justify-center gap-3 text-sm">
-                  <div className="px-3 py-1 rounded-full bg-white/5 border border-[var(--border)]">
-                    Plan: {quota.plan_type}
-                  </div>
-                  <div className="px-3 py-1 rounded-full bg-white/5 border border-[var(--border)]">
-                    Restant: {quota.remaining}/{quota.monthly_limit}
-                  </div>
-                  {!quotaLoading && quota.remaining <= 0 && (
-                    <a href="/subscriptions" className="px-3 py-1 rounded-full bg-[var(--color-primary)] text-white">
-                      Augmenter mon quota
-                    </a>
-                  )}
-                </div>
+      {/* Header moderne style Suno */}
+      <div className="container mx-auto px-4 py-6 pb-24">
+        <div className="max-w-4xl mx-auto">
+          {/* Top bar avec crédits et mode */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <button className="relative inline-flex items-center justify-center gap-2 px-3 py-2 rounded-full bg-transparent border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-2)] transition-all">
+                <Sparkles className="w-4 h-4" />
+                <span className="text-sm font-medium">{quota.remaining}</span>
+              </button>
+              
+              <div className="relative inline-flex items-center bg-transparent border border-[var(--border)] rounded-full h-10 p-1">
+                <button
+                  onClick={() => setCustomMode(false)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    !customMode 
+                      ? 'bg-[var(--surface-2)] text-[var(--text)]' 
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  Simple
+                </button>
+                <button
+                  onClick={() => setCustomMode(true)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                    customMode 
+                      ? 'bg-[var(--surface-2)] text-[var(--text)]' 
+                      : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  Custom
+                </button>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Quota Display */}
-        <div className="max-w-md mx-auto mb-8">
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-300">Quota mensuel</span>
-              <span className="text-sm text-green-400">
-                {quota.remaining} / {quota.monthly_limit} restants
-            </span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
-                className="bg-gradient-to-r from-green-400 to-blue-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((quota.monthly_limit - quota.remaining) / Math.max(1, quota.monthly_limit)) * 100}%` }}
-              />
-            </div>
-            <p className="text-xs text-gray-400 mt-2">
-              Plan: {quota.plan_type}
-            </p>
-          </div>
-        </div>
-
-        {/* Mode Toggle — lock V4.5 */}
-        <div className="max-w-2xl mx-auto mb-8">
-          <div className="flex items-center justify-between bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={customMode}
-                  onChange={(e) => setCustomMode(e.target.checked)}
-                  className="sr-only"
-                />
-                <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  customMode ? 'bg-purple-600' : 'bg-gray-600'
-                }`}>
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    customMode ? 'translate-x-6' : 'translate-x-1'
-                  }`} />
-                </div>
-                <span className="text-sm font-medium">Mode personnalisé</span>
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <select
-                value={modelVersion}
-                onChange={(e) => setModelVersion(e.target.value)}
-                className="bg-gray-700 border border-gray-600 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-              >
-                <option value="V4_5">V4.5</option>
-              </select>
+            <div className="relative">
+              <button className="relative inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full bg-transparent border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-2)] transition-all">
+                v5
+                <ChevronDown className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        </div>
 
-        {/* Formulaire actif, style page Upload */}
-        <div className="max-w-2xl mx-auto space-y-6">
-          {/* le formulaire existant reste visible mais inactif */}
-          {customMode ? (
-            // Mode personnalisé
-            <>
+          {/* Interface principale style Suno */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Panneau gauche - Formulaire */}
+            <div className="space-y-4">
               {/* Titre */}
-              <div className="bg-gray-800 rounded-lg p-6">
-                <label className="block text-sm font-medium mb-2">Titre</label>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Entrez un titre"
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-
-              {/* Style de musique */}
-              <div className="bg-gray-800 rounded-lg p-6">
-                <label className="block text-sm font-medium mb-2">Style de musique</label>
-                <textarea
-                  value={style}
-                  onChange={(e) => setStyle(e.target.value)}
-                  placeholder="Entrez le style de musique"
-                  rows={3}
-                  maxLength={1000}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                />
-                <div className="text-xs text-gray-400 mt-2 text-right">
-                  {style.length}/1000
-                </div>
-              </div>
-
-              {/* Instrumental Toggle */}
-              <div className="bg-gray-800 rounded-lg p-6">
-                <label className="flex items-center gap-3 cursor-pointer">
+              <div className="bg-[var(--surface-2)] rounded-xl border border-[var(--border)] p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Edit3 className="w-4 h-4 text-[var(--text-muted)]" />
                   <input
-                    type="checkbox"
-                    checked={isInstrumental}
-                    onChange={(e) => setIsInstrumental(e.target.checked)}
-                    className="sr-only"
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Add a song title"
+                    className="flex-1 bg-transparent outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
                   />
-                  <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    isInstrumental ? 'bg-purple-600' : 'bg-gray-600'
-                  }`}>
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      isInstrumental ? 'translate-x-6' : 'translate-x-1'
-                    }`} />
-                  </div>
-                  <span className="text-sm font-medium">Instrumental</span>
-                </label>
-              </div>
-
-              {/* Paroles */}
-              <div className="bg-gray-800 rounded-lg p-6">
-                <label className="block text-sm font-medium mb-2">Paroles</label>
-                <textarea
-                  value={lyrics}
-                  onChange={(e) => setLyrics(e.target.value)}
-                  placeholder="Écrivez vos propres paroles, deux couplets (8 lignes) pour un meilleur résultat."
-                  rows={6}
-                  maxLength={5000}
-                  className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                />
-                <div className="text-xs text-gray-400 mt-2 text-right">
-                  {lyrics.length}/5000
+                </div>
+                <div className="flex items-center gap-2">
+                  <Headphones className="w-4 h-4 text-[var(--text-muted)]" />
+                  <span className="text-sm text-[var(--text-muted)]">Workspace</span>
+                  <button className="ml-auto flex items-center gap-1 text-sm text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+                    My Workspace
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
                 </div>
               </div>
-            </>
-          ) : (
-            // Mode description
-            <div className="bg-gray-800 rounded-lg p-6">
-              <label className="block text-sm font-medium mb-2">Description de la chanson</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Décrivez le style de musique et le sujet que vous souhaitez, l'IA générera les paroles pour vous."
-                rows={4}
-                maxLength={199}
-                className="w-full bg-gray-700 border border-gray-600 rounded-md px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-              />
-              <div className="text-xs text-gray-400 mt-2 text-right">
-                {description.length}/199
+
+              {/* Boutons d'ajout */}
+              <div className="flex gap-2">
+                <button className="flex-1 bg-[var(--surface-2)] border border-[var(--border)] rounded-l-2xl p-3 text-sm text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Audio
+                </button>
+                <button className="bg-[var(--surface-2)] border border-[var(--border)] p-3 text-sm text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Persona
+                </button>
+                <button className="bg-[var(--surface-2)] border border-[var(--border)] rounded-r-2xl p-3 text-sm text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors flex items-center justify-center gap-2">
+                  <Plus className="w-4 h-4" />
+                  Inspo
+                </button>
+              </div>
+
+              {/* Section Lyrics */}
+              <div className="bg-[var(--surface-2)] rounded-xl border border-[var(--border)]">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                    <span className="text-sm font-medium text-[var(--text)]">Lyrics</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <Zap className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <Headphones className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <X className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <textarea
+                    value={lyrics}
+                    onChange={(e) => setLyrics(e.target.value)}
+                    placeholder="Write some lyrics (leave empty for instrumental)"
+                    className="w-full resize-none border-none bg-transparent text-base outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
+                    style={{ height: '100px' }}
+                  />
+                  <div className="flex items-center justify-between mt-3">
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <Zap className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="Enhance lyrics (e.g. &quot;make it sound happier&quot;)"
+                        className="bg-transparent border-none outline-none text-sm text-[var(--text-muted)] placeholder-[var(--text-muted)]"
+                      />
+                      <button className="w-8 h-8 rounded-full bg-[var(--text)] text-[var(--surface-1)] flex items-center justify-center hover:opacity-80 transition-opacity">
+                        <Zap className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section Styles */}
+              <div className="bg-[var(--surface-2)] rounded-xl border border-[var(--border)]">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                    <span className="text-sm font-medium text-[var(--text)]">Styles</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <Zap className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <Headphones className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <X className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                    <button className="w-8 h-8 rounded-full bg-black text-white flex items-center justify-center hover:opacity-80 transition-opacity">
+                      <Star className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <textarea
+                    value={style}
+                    onChange={(e) => setStyle(e.target.value)}
+                    placeholder="Hip-hop, R&B, upbeat"
+                    className="w-full resize-none border-none bg-transparent text-base outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
+                    style={{ height: '100px' }}
+                    maxLength={1000}
+                  />
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {['reggae', 'house', 'dramatic builds', 'malevocals', 'electronic', 'catchy beats', 'j-pop indie', 'afrobeat', 'pop', 'soviet post-punk', '1940s big band', 'deep focus', 'honor', 'female chorus', 'emotional crescendos', 'emotive groove', 'thunderous drums', 'drill bass', '75 bpm', 'breezy', 'yacht rock', 'war', 'fast guitar', 'trans'].map((styleTag) => (
+                      <button
+                        key={styleTag}
+                        className="px-3 py-1 rounded-full text-xs bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-4)] transition-colors flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        {styleTag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Generate Button + contrôle quota */}
+            {/* Panneau droit - Options avancées et génération */}
+            <div className="space-y-4">
+              {/* Options avancées */}
+              <div className="bg-[var(--surface-2)] rounded-xl border border-[var(--border)]">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />
+                    <span className="text-sm font-medium text-[var(--text)]">Advanced Options</span>
+                  </div>
+                </div>
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <X className="w-4 h-4 text-[var(--text-muted)]" />
+                    <input
+                      type="text"
+                      placeholder="Exclude styles"
+                      className="flex-1 bg-transparent outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
+                      maxLength={1000}
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-muted)]">Vocal Gender</span>
+                      <Settings className="w-4 h-4 text-[var(--text-muted)] opacity-50" />
+                    </div>
+                    <div className="flex gap-1">
+                      <button className="px-2 py-1 rounded-md text-sm bg-transparent text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+                        Male
+                      </button>
+                      <button className="px-2 py-1 rounded-md text-sm bg-transparent text-[var(--text-muted)] hover:text-[var(--text)] transition-colors">
+                        Female
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-muted)]">Weirdness</span>
+                      <Settings className="w-4 h-4 text-[var(--text-muted)] opacity-50" />
+                    </div>
+                    <div className="relative">
+                      <div className="h-2 bg-[var(--surface-3)] rounded-full">
+                        <div className="h-2 bg-[var(--text)] rounded-full w-1/2"></div>
+                      </div>
+                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1">
+                        <div className="w-4 h-4 bg-[var(--text)] rounded-full"></div>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm text-[var(--text-muted)]">50%</div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-[var(--text-muted)]">Style Influence</span>
+                      <Settings className="w-4 h-4 text-[var(--text-muted)] opacity-50" />
+                    </div>
+                    <div className="relative">
+                      <div className="h-2 bg-[var(--surface-3)] rounded-full">
+                        <div className="h-2 bg-[var(--text)] rounded-full w-1/2"></div>
+                      </div>
+                      <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1">
+                        <div className="w-4 h-4 bg-[var(--text)] rounded-full"></div>
+                      </div>
+                    </div>
+                    <div className="text-right text-sm text-[var(--text-muted)]">50%</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description de la chanson */}
+              <div className="bg-[var(--surface-2)] rounded-xl border border-[var(--border)]">
+                <div className="flex items-center justify-between p-4 border-b border-[var(--border)]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1"></div>
+                    <span className="text-sm font-medium text-[var(--text)]">Song Description</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button className="w-8 h-8 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors">
+                      <Zap className="w-4 h-4 text-[var(--text-muted)]" />
+                    </button>
+                  </div>
+                </div>
+                <div className="p-4">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Hip-hop, R&B, upbeat"
+                    className="w-full resize-none border-none bg-transparent text-base outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
+                    style={{ height: '100px' }}
+                  />
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex gap-2">
+                      <button className="px-3 py-1 rounded-full text-xs bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-4)] transition-colors flex items-center gap-1">
+                        <Plus className="w-3 h-3" />
+                        rock
+                      </button>
+                      <button className="px-3 py-1 rounded-full text-xs bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-4)] transition-colors flex items-center gap-1">
+                        <Plus className="w-3 h-3" />
+                        hip hop
+                      </button>
+                      <button className="px-3 py-1 rounded-full text-xs bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-4)] transition-colors flex items-center gap-1">
+                        <Plus className="w-3 h-3" />
+                        intentional wrong notes
+                      </button>
+                    </div>
+                    <button className="px-3 py-1 rounded-full text-xs bg-transparent border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] transition-colors flex items-center gap-1">
+                      <Plus className="w-3 h-3" />
+                      Instrumental
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bouton de génération */}
+          <div className="flex items-center justify-center gap-4 bg-[var(--surface-1)] p-4 mt-6">
+            <button className="w-12 h-12 rounded-full bg-[var(--surface-3)] flex items-center justify-center hover:bg-[var(--surface-4)] transition-colors opacity-0 -ml-16" disabled>
+              <X className="w-4 h-4 text-[var(--text-muted)]" />
+            </button>
             <motion.button
-            onClick={generateMusic}
-            disabled={isGenerating || quotaLoading || quota.remaining <= 0}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-lg transition-all duration-300 flex items-center justify-center gap-2"
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+              onClick={generateMusic}
+              disabled={isGenerating || quotaLoading || quota.remaining <= 0}
+              className="flex-grow bg-[var(--surface-3)] text-[var(--text)] p-3 rounded-full transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
             >
               {isGenerating ? (
                 <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                {generationStatus === 'pending' ? 'Génération en cours...' : 'Génération en cours...'}
+                  <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--text)] rounded-full animate-spin"></div>
+                  <span className="text-sm font-medium">Create</span>
                 </>
               ) : (
                 <>
-                <Music className="w-5 h-5" />
-                Générer de la musique
+                  <Music className="w-5 h-5" />
+                  <span className="text-sm font-medium">Create</span>
                 </>
               )}
             </motion.button>
-            {!quotaLoading && quota.remaining <= 0 && (
-              <div className="mt-3 text-center text-sm text-white/70">
-                Quota épuisé. <a href="/subscriptions" className="text-purple-400 underline">Améliorer mon plan</a>
-              </div>
-            )}
+          </div>
 
           {/* Status Display */}
           {currentTaskId && (
-            <div className="bg-blue-900/20 border border-blue-500/30 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-                <span className="text-blue-400 font-medium">
-                  {sunoState === 'pending' && 'Génération Suno en cours...'}
-                  {sunoState === 'first' && 'Première piste terminée !'}
-                  {sunoState === 'success' && 'Génération terminée !'}
-                  {sunoState === 'error' && 'Erreur de génération'}
-                </span>
-              </div>
-              <p className="text-sm text-gray-400">
-                Task ID: {currentTaskId.substring(0, 8)}... | Statut: {sunoState}
-              </p>
-              {sunoError && (
-                <p className="text-sm text-red-400 mt-2">Erreur: {sunoError}</p>
-              )}
-              <div className="mt-2 text-xs text-gray-500">
-                <p>Génération de 2 musiques en parallèle</p>
-                <p>Streaming disponible en 30-40 secondes</p>
-                <p>Téléchargement en 2-3 minutes</p>
+            <div className="max-w-4xl mx-auto mt-6">
+              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <div className="w-4 h-4 border-2 border-[var(--text-muted)] border-t-[var(--text)] rounded-full animate-spin"></div>
+                  <span className="text-[var(--text)] font-medium">
+                    {sunoState === 'pending' && 'Génération Suno en cours...'}
+                    {sunoState === 'first' && 'Première piste terminée !'}
+                    {sunoState === 'success' && 'Génération terminée !'}
+                    {sunoState === 'error' && 'Erreur de génération'}
+                  </span>
+                </div>
+                <p className="text-sm text-[var(--text-muted)]">
+                  Task ID: {currentTaskId.substring(0, 8)}... | Statut: {sunoState}
+                </p>
+                {sunoError && (
+                  <p className="text-sm text-red-400 mt-2">Erreur: {sunoError}</p>
+                )}
+                <div className="mt-2 text-xs text-[var(--text-muted)]">
+                  <p>Génération de 2 musiques en parallèle</p>
+                  <p>Streaming disponible en 30-40 secondes</p>
+                  <p>Téléchargement en 2-3 minutes</p>
+                </div>
               </div>
             </div>
           )}
@@ -553,13 +658,13 @@ export default function AIGenerator() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mb-8"
+            className="max-w-4xl mx-auto mt-8"
           >
             <div className="text-center mb-6">
-              <h3 className="text-xl font-semibold text-blue-400 mb-2">
+              <h3 className="text-xl font-semibold text-[var(--text)] mb-2">
                 🎵 Générations récentes
               </h3>
-              <p className="text-gray-400">
+              <p className="text-[var(--text-muted)]">
                 Retrouvez vos dernières créations
               </p>
             </div>
@@ -570,13 +675,13 @@ export default function AIGenerator() {
                   key={gen.id}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
+                  className="bg-[var(--surface-2)] rounded-xl p-4 border border-[var(--border)] hover:border-[var(--border)]/60 transition-colors"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <h4 className="text-lg font-semibold">{gen.title}</h4>
-                      <p className="text-gray-400 text-sm">{gen.style}</p>
-                      <p className="text-xs text-gray-500">
+                      <h4 className="text-lg font-semibold text-[var(--text)]">{gen.title}</h4>
+                      <p className="text-[var(--text-muted)] text-sm">{gen.style}</p>
+                      <p className="text-xs text-[var(--text-muted)]">
                         {new Date(gen.createdAt).toLocaleDateString('fr-FR')} - 
                         {gen.tracks.length} track{gen.tracks.length > 1 ? 's' : ''}
                       </p>
@@ -598,14 +703,14 @@ export default function AIGenerator() {
                           setGeneratedTracks(convertedTracks);
                           setGeneratedTrack(convertedTracks[0]);
                         }}
-                        className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                        className="bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                       >
                         <Play className="w-4 h-4" />
                         Écouter
                       </button>
                       <a
                         href="/ai-library"
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                        className="bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                       >
                         <Music className="w-4 h-4" />
                         Voir tout
@@ -629,13 +734,13 @@ export default function AIGenerator() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mt-8"
+            className="max-w-4xl mx-auto mt-8"
           >
             <div className="text-center mb-6">
-              <h3 className="text-xl font-semibold text-green-400 mb-2">
+              <h3 className="text-xl font-semibold text-[var(--text)] mb-2">
                 🎵 Génération terminée !
               </h3>
-              <p className="text-gray-400">
+              <p className="text-[var(--text-muted)]">
                 Suno a généré {generatedTracks.length} version{generatedTracks.length > 1 ? 's' : ''} de votre musique
               </p>
             </div>
@@ -647,15 +752,15 @@ export default function AIGenerator() {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-gray-800 rounded-lg p-6 border border-gray-700 hover:border-gray-600 transition-colors"
+                  className="bg-[var(--surface-2)] rounded-xl p-6 border border-[var(--border)] hover:border-[var(--border)]/60 transition-colors"
                 >
                   <div className="flex items-center gap-4 mb-4">
                     <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
                       <Music className="w-8 h-8 text-white" />
                 </div>
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold">{track.title}</h3>
-                      <p className="text-gray-400 text-sm">{track.style}</p>
+                      <h3 className="text-lg font-semibold text-[var(--text)]">{track.title}</h3>
+                      <p className="text-[var(--text-muted)] text-sm">{track.style}</p>
                       {track.isInstrumental && (
                         <span className="inline-block bg-purple-600 text-white text-xs px-2 py-1 rounded-full mt-1">
                           Instrumental
@@ -665,29 +770,29 @@ export default function AIGenerator() {
                 </div>
 
                   {track.lyrics && (
-                    <div className="mb-4 p-4 bg-gray-700 rounded-lg">
-                      <h4 className="text-sm font-medium mb-2">Paroles générées :</h4>
-                      <p className="text-sm text-gray-300 whitespace-pre-line">{track.lyrics}</p>
+                    <div className="mb-4 p-4 bg-[var(--surface-3)] rounded-lg">
+                      <h4 className="text-sm font-medium mb-2 text-[var(--text)]">Paroles générées :</h4>
+                      <p className="text-sm text-[var(--text-muted)] whitespace-pre-line">{track.lyrics}</p>
                   </div>
                 )}
 
                   <div className="flex gap-2">
                     <button
                       onClick={() => playAITrack(track)}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      className="flex-1 bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                     >
                       <Play className="w-4 h-4" />
                       Écouter
                     </button>
                     <button
                       onClick={() => downloadTrack(track)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                      className="bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => shareTrack(track)}
-                      className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                      className="bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                     >
                       <Share2 className="w-4 h-4" />
                     </button>
@@ -703,16 +808,16 @@ export default function AIGenerator() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mt-8"
+            className="max-w-4xl mx-auto mt-8"
           >
-            <div className="bg-gray-800 rounded-lg p-6">
+            <div className="bg-[var(--surface-2)] rounded-xl p-6 border border-[var(--border)]">
               <div className="flex items-center gap-4 mb-4">
                 <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
                   <Music className="w-8 h-8 text-white" />
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{generatedTrack.title}</h3>
-                  <p className="text-gray-400 text-sm">{generatedTrack.style}</p>
+                  <h3 className="text-lg font-semibold text-[var(--text)]">{generatedTrack.title}</h3>
+                  <p className="text-[var(--text-muted)] text-sm">{generatedTrack.style}</p>
                   {generatedTrack.isInstrumental && (
                     <span className="inline-block bg-purple-600 text-white text-xs px-2 py-1 rounded-full mt-1">
                       Instrumental
@@ -722,29 +827,29 @@ export default function AIGenerator() {
               </div>
 
               {generatedTrack.lyrics && (
-                <div className="mb-4 p-4 bg-gray-700 rounded-lg">
-                  <h4 className="text-sm font-medium mb-2">Paroles générées :</h4>
-                  <p className="text-sm text-gray-300 whitespace-pre-line">{generatedTrack.lyrics}</p>
+                <div className="mb-4 p-4 bg-[var(--surface-3)] rounded-lg">
+                  <h4 className="text-sm font-medium mb-2 text-[var(--text)]">Paroles générées :</h4>
+                  <p className="text-sm text-[var(--text-muted)] whitespace-pre-line">{generatedTrack.lyrics}</p>
                 </div>
               )}
 
               <div className="flex gap-2">
                     <button
                   onClick={() => playAITrack(generatedTrack)}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
                 >
                   <Play className="w-4 h-4" />
                   Écouter
                     </button>
                     <button
                   onClick={() => downloadTrack(generatedTrack)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                  className="bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Download className="w-4 h-4" />
                     </button>
                 <button
                   onClick={() => shareTrack(generatedTrack)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                  className="bg-[var(--surface-3)] hover:bg-[var(--surface-4)] text-[var(--text)] font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
@@ -752,7 +857,7 @@ export default function AIGenerator() {
             </div>
           </motion.div>
         )}
-          </div>
+      </div>
     </div>
   );
 }
