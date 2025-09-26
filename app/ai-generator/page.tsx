@@ -549,10 +549,17 @@ export default function AIGenerator() {
               <select
                 value={modelVersion}
                 onChange={(e) => setModelVersion(e.target.value)}
-                className="h-10 bg-transparent border border-[var(--border)] rounded-full px-3 text-[12px] focus:outline-none"
+                className="h-10 bg-[var(--surface-2)] border border-[var(--border)] rounded-full px-3 text-[12px] focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/50 transition-all duration-200 appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                  backgroundPosition: 'right 8px center',
+                  backgroundRepeat: 'no-repeat',
+                  backgroundSize: '16px',
+                  paddingRight: '32px'
+                }}
               >
-                <option value="V4_5">V4.5</option>
-                <option value="V5" className="text-blue-400 font-semibold">V5 (Beta)</option>
+                <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)]">V4.5</option>
+                <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold">V5 (Beta)</option>
               </select>
             </div>
           </div>

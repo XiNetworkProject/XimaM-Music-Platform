@@ -278,13 +278,20 @@ export default function AILibrary() {
                 <select
                   value={modelFilter}
                   onChange={(e) => setModelFilter(e.target.value as any)}
-                  className="px-3 py-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)] text-[var(--text)]"
+                  className="px-3 py-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/50 transition-all duration-200 appearance-none cursor-pointer"
                   aria-label="Filtrer par modèle"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                    backgroundPosition: 'right 12px center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: '16px',
+                    paddingRight: '36px'
+                  }}
                 >
-                  <option value="all">Tous modèles</option>
-                  <option value="V4_5">V4.5</option>
-                  <option value="V3_5">V3.5</option>
-                  <option value="V5" className="text-blue-400 font-semibold">V5 (Beta)</option>
+                  <option value="all" className="bg-[var(--surface-2)] text-[var(--text)]">Tous modèles</option>
+                  <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)]">V4.5</option>
+                  <option value="V3_5" className="bg-[var(--surface-2)] text-[var(--text)]">V3.5</option>
+                  <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold">V5 (Beta)</option>
                 </select>
                 <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button
