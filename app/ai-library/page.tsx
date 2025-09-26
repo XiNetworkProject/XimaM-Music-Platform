@@ -284,7 +284,7 @@ export default function AILibrary() {
                   <option value="all">Tous modèles</option>
                   <option value="V4_5">V4.5</option>
                   <option value="V3_5">V3.5</option>
-                  <option value="V5">V5</option>
+                  <option value="V5" className="text-blue-400 font-semibold">V5 (Beta)</option>
                 </select>
                 <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button

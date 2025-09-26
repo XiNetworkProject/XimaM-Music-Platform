@@ -518,8 +518,8 @@ export default function AIGenerator() {
             <span className="relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
               <span className="w-2 h-2 rounded-full bg-emerald-400" /> Plan: {quota.plan_type}
             </span>
-            <span className="relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)]">
-              Modèle: {modelVersion.replace('_', '.')}
+            <span className={`relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${modelVersion === 'V5' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' : ''}`}>
+              Modèle: {modelVersion.replace('_', '.')}{modelVersion === 'V5' && ' (Beta)'}
             </span>
           </div>
         </div>
@@ -552,7 +552,7 @@ export default function AIGenerator() {
                 className="h-10 bg-transparent border border-[var(--border)] rounded-full px-3 text-[12px] focus:outline-none"
               >
                 <option value="V4_5">V4.5</option>
-                <option value="V5">V5</option>
+                <option value="V5" className="text-blue-400 font-semibold">V5 (Beta)</option>
               </select>
             </div>
           </div>
