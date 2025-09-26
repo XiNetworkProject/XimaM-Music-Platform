@@ -1798,53 +1798,8 @@ export default function HomePage() {
                       </div>
                           </button>) }
 
-                    {/* Bouton Like */}
-                    {currentSlide > 0 && (<button
-                      onClick={() => handleLikeTrack(heroTracks[currentSlide-1]._id, 'trending', 0)}
-                      className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
-                      aria-label="Aimer la piste"
-                    >
-                      <Heart size={16} className={(currentSlide>0 && heroTracks[currentSlide-1]?.isLiked) ? 'text-red-500 fill-red-500' : 'text-white'} />
-                      <span>J'aime</span>
-                    </button>)}
-
-                          {/* Bouton Partager */}
-                          {currentSlide > 0 && (<button
-                            onClick={() => handleShare(heroTracks[currentSlide-1])}
-                      className="flex items-center space-x-2 px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
-                      aria-label="Partager la piste"
-                          >
-                       <Share2 size={16} />
-                            <span>Partager</span>
-                          </button>)}
-
-                    {/* Bouton Artiste */}
-                    {currentSlide > 0 && (<button
-                                                      onClick={() => router.push(`/profile/${heroTracks[currentSlide-1].artist?.username || ''}`, { scroll: false })}
-                      className="px-4 py-2.5 rounded-xl font-semibold text-[var(--text)] bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-all duration-300 backdrop-blur-md shadow-lg hover:scale-105 active:scale-95 text-sm"
-                      aria-label="Voir l'artiste"
-                    >
-                      Artiste
-                    </button>)}
                         </div>
 
-                  {/* Stats de la piste */}
-                  {currentSlide > 0 && (<div
-                    className="flex items-center justify-center gap-6 text-[var(--text-muted)] animate-slide-up text-sm"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Headphones size={18} className="text-purple-400" />
-                      <span className="font-medium">{formatNumber(heroTracks[currentSlide-1].plays)} écoutes</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Heart size={16} className="text-pink-400" />
-                      <span className="font-medium">{formatNumber(heroTracks[currentSlide-1].likes || 0)} likes</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <MessageCircle size={16} className="text-blue-400" />
-                      <span className="text-white/80 font-medium">{heroTracks[currentSlide-1].comments?.length || 0} commentaires</span>
-                  </div>
-                </div>)}
                 </div>
               </div>
 
