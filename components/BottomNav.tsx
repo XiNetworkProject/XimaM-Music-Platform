@@ -18,7 +18,8 @@ import {
   TrendingUp,
   Compass,
   BookOpen,
-  UserPlus
+  UserPlus,
+  Users
 } from 'lucide-react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useAudioPlayer } from '@/app/providers';
@@ -59,6 +60,15 @@ export default function BottomNav() {
       color: 'from-blue-500 to-cyan-500',
       description: 'Vos favoris',
       public: false
+    },
+    {
+      icon: Users,
+      label: 'Communauté',
+      path: '/community',
+      active: pathname.startsWith('/community'),
+      color: 'from-purple-500 to-pink-500',
+      description: 'Forum & FAQ',
+      public: true
     },
     {
       icon: TrendingUp,
