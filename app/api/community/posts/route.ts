@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .order('created_at', { ascending: false })
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .single();

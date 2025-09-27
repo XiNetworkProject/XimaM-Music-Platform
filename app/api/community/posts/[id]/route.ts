@@ -23,7 +23,7 @@ export async function GET(
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .eq('id', id)
@@ -48,7 +48,7 @@ export async function GET(
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .eq('post_id', id)
@@ -127,7 +127,7 @@ export async function PUT(
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .single();

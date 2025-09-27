@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .eq('post_id', post_id)
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           id,
           name,
           username,
-          avatar_url
+          avatar
         )
       `)
       .single();
