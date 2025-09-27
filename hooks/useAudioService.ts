@@ -500,22 +500,32 @@ export const useAudioService = () => {
       }
       
       if (audioRef.current) {
-        // Gestion spécifique pour mobile
-        const playPromise = audioRef.current.play();
-        
-        if (playPromise !== undefined) {
-          await playPromise;
+        // Gestion spécifique autoplay: tenter play normal, sinon play à volume min puis rétablir
+        try {
+          const playPromise = audioRef.current.play();
+          if (playPromise !== undefined) {
+            await playPromise;
+          }
           setState(prev => ({ ...prev, isPlaying: true, error: null }));
-          // Marquer que la première lecture a réussi
-          if (isFirstPlay) {
-            setIsFirstPlay(false);
+        } catch (err) {
+          try {
+            const previousVolume = audioRef.current.volume;
+            audioRef.current.volume = 0.0001;
+            const p = audioRef.current.play();
+            if (p !== undefined) {
+              await p;
+            }
+            setTimeout(() => {
+              try { if (audioRef.current) audioRef.current.volume = previousVolume; } catch {}
+            }, 80);
+            setState(prev => ({ ...prev, isPlaying: true, error: null }));
+          } catch {
+            // Laisser l'UI gérer l'action manuelle
           }
-        } else {
-          // Fallback pour les navigateurs qui ne retournent pas de promise
-        setState(prev => ({ ...prev, isPlaying: true, error: null }));
-          if (isFirstPlay) {
-            setIsFirstPlay(false);
-          }
+        }
+        // Marquer que la première lecture a réussi
+        if (isFirstPlay) {
+          setIsFirstPlay(false);
         }
       }
     } catch (error) {

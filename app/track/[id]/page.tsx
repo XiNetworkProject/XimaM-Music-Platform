@@ -10,7 +10,7 @@ export default function TrackDeepLinkPage() {
   const { id } = useParams<{ id: string }>();
   const search = useSearchParams();
   const router = useRouter();
-  const { playTrack } = useAudioPlayer();
+  const { playTrack, setShowPlayer, setIsMinimized } = useAudioPlayer();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,8 +29,33 @@ export default function TrackDeepLinkPage() {
         const t = await res.json();
         if (cancelled) return;
         if (autoplay) {
-          // playTrack accepte un objet de type Track avec _id
-          await playTrack(t._id ? t : { ...t, _id: t.id || cleanId });
+          // Normaliser la piste au format du player
+          const normalized = (() => {
+            if (t && t._id && t.audioUrl) return t; // déjà au bon format (IA)
+            return {
+              _id: t.id || cleanId,
+              title: t.title,
+              artist: {
+                _id: t.artist_id || 'unknown',
+                name: t.artist || t.artist_name || 'Artiste inconnu',
+                username: t.artist || t.artist_name || 'unknown',
+                avatar: t.coverUrl || null,
+              },
+              audioUrl: t.audioUrl,
+              coverUrl: t.coverUrl || null,
+              duration: t.duration || 0,
+              likes: [],
+              comments: [],
+              plays: t.plays || 0,
+              genre: t.genre || [],
+              isLiked: false,
+            } as any;
+          })();
+          await playTrack(normalized);
+          try {
+            setShowPlayer(true);
+            setIsMinimized(false);
+          } catch {}
         }
         // Rediriger vers l'accueil après injection au player
         router.replace('/');
