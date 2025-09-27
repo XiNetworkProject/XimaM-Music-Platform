@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { MessageSquare, Plus, Search, Filter, ThumbsUp, Reply, Clock, User, Tag, AlertCircle, Lightbulb, HelpCircle, Bug } from 'lucide-react';
+import { MessageSquare, Plus, Search, Filter, ThumbsUp, Reply, Clock, User, Tag, AlertCircle, Lightbulb, HelpCircle, Bug, Wand2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import { categorizePost, suggestTags } from '@/lib/postCategorization';
 
 interface Post {
   id: string;
@@ -47,6 +48,27 @@ export default function CommunityForumPage() {
     category: 'question' as const,
     tags: [] as string[],
   });
+  const [autoCategorizeEnabled, setAutoCategorizeEnabled] = useState(true);
+
+  // Catégorisation automatique en temps réel
+  useEffect(() => {
+    if (!autoCategorizeEnabled) return;
+    
+    const timeoutId = setTimeout(() => {
+      if (newPost.title.trim() || newPost.content.trim()) {
+        const suggestedCategory = categorizePost(newPost.title, newPost.content);
+        const suggestedTags = suggestTags(newPost.title, newPost.content);
+        
+        setNewPost(prev => ({
+          ...prev,
+          category: suggestedCategory,
+          tags: suggestedTags
+        }));
+      }
+    }, 1000); // Délai de 1 seconde après la dernière frappe
+
+    return () => clearTimeout(timeoutId);
+  }, [newPost.title, newPost.content, autoCategorizeEnabled]);
 
   // Charger les posts depuis l'API
   useEffect(() => {
@@ -318,16 +340,22 @@ export default function CommunityForumPage() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const handleAutoCategorize = () => {
+    if (!newPost.title.trim() && !newPost.content.trim()) {
+      toast.error('Veuillez saisir un titre ou un contenu pour la catégorisation automatique');
+      return;
+    }
+
+    const suggestedCategory = categorizePost(newPost.title, newPost.content);
+    const suggestedTags = suggestTags(newPost.title, newPost.content);
     
-    if (days === 0) return 'Aujourd\'hui';
-    if (days === 1) return 'Hier';
-    if (days < 7) return `Il y a ${days} jours`;
-    return date.toLocaleDateString('fr-FR');
+    setNewPost(prev => ({
+      ...prev,
+      category: suggestedCategory,
+      tags: suggestedTags
+    }));
+    
+    toast.success(`Catégorie suggérée: ${categories.find(c => c.id === suggestedCategory)?.label}`);
   };
 
   return (
@@ -609,6 +637,23 @@ export default function CommunityForumPage() {
                   </select>
                 </div>
                 
+                {/* Tags suggérés */}
+                {newPost.tags.length > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Tags suggérés</label>
+                    <div className="flex flex-wrap gap-2">
+                      {newPost.tags.map((tag, index) => (
+                        <span
+                          key={index}
+                          className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-lg border border-blue-500/30"
+                        >
+                          #{tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
                 <div>
                   <label className="block text-sm font-medium mb-2">Contenu</label>
                   <textarea
@@ -618,6 +663,27 @@ export default function CommunityForumPage() {
                     rows={6}
                     className="w-full px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
                   />
+                </div>
+                
+                {/* Bouton de catégorisation automatique */}
+                <div className="flex justify-center items-center gap-4">
+                  <button
+                    onClick={handleAutoCategorize}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
+                  >
+                    <Wand2 size={16} />
+                    Catégoriser automatiquement
+                  </button>
+                  
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={autoCategorizeEnabled}
+                      onChange={(e) => setAutoCategorizeEnabled(e.target.checked)}
+                      className="rounded"
+                    />
+                    Auto-catégorisation
+                  </label>
                 </div>
               </div>
               
