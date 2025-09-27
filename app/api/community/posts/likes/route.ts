@@ -42,16 +42,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🔍 POST /api/community/posts/likes - Début');
+    
     const session = await getServerSession(authOptions);
+    console.log('🔍 Session:', session?.user?.id ? 'Authentifié' : 'Non authentifié');
 
     if (!session?.user?.id) {
+      console.log('❌ Non authentifié');
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
     const body = await request.json();
+    console.log('🔍 Body reçu:', body);
     const { post_id } = body;
 
     if (!post_id) {
+      console.log('❌ post_id manquant');
       return NextResponse.json({ error: 'ID du post requis' }, { status: 400 });
     }
 

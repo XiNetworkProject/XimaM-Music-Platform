@@ -165,13 +165,19 @@ export default function CommunityForumPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ post_id: postId })
         });
-        if (response.ok) {
-          setPosts(prev => prev.map(p => 
-            p.id === postId 
-              ? { ...p, isLiked: true, likes: p.likes + 1 }
-              : p
-          ));
+        
+        console.log('Like response status:', response.status);
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Like error:', errorData);
+          throw new Error(errorData.error || 'Erreur lors du like');
         }
+        
+        setPosts(prev => prev.map(p => 
+          p.id === postId 
+            ? { ...p, isLiked: true, likes: p.likes + 1 }
+            : p
+        ));
       }
     } catch (error) {
       console.error('Erreur lors du like:', error);
