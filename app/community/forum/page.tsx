@@ -38,6 +38,9 @@ export default function CommunityForumPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewPost, setShowNewPost] = useState(false);
+  const [showComments, setShowComments] = useState<string | null>(null);
+  const [comments, setComments] = useState<{[postId: string]: any[]}>({});
+  const [newComment, setNewComment] = useState('');
   const [newPost, setNewPost] = useState({
     title: '',
     content: '',
@@ -67,9 +70,25 @@ export default function CommunityForumPage() {
               const userResponse = await fetch(`/api/users/by-id/${post.user_id}`);
               if (userResponse.ok) {
                 const userData = await userResponse.json();
+                
+                // Vérifier si l'utilisateur a liké ce post
+                let isLiked = false;
+                if (session?.user?.id) {
+                  try {
+                    const likesResponse = await fetch(`/api/community/posts/likes?post_id=${post.id}`);
+                    if (likesResponse.ok) {
+                      const likes = await likesResponse.json();
+                      isLiked = likes.some((like: any) => like.user_id === session.user.id);
+                    }
+                  } catch (error) {
+                    console.error('Erreur lors de la vérification du like:', error);
+                  }
+                }
+
                 return {
                   ...post,
                   createdAt: post.created_at,
+                  isLiked,
                   author: {
                     id: userData.id,
                     name: userData.name,
@@ -157,6 +176,71 @@ export default function CommunityForumPage() {
     } catch (error) {
       console.error('Erreur lors du like:', error);
       toast.error('Erreur lors du like');
+    }
+  };
+
+  const handleToggleComments = async (postId: string) => {
+    if (showComments === postId) {
+      setShowComments(null);
+    } else {
+      setShowComments(postId);
+      // Charger les commentaires si pas encore chargés
+      if (!comments[postId]) {
+        try {
+          const response = await fetch(`/api/community/posts/replies?post_id=${postId}`);
+          if (response.ok) {
+            const replies = await response.json();
+            setComments(prev => ({ ...prev, [postId]: replies }));
+          }
+        } catch (error) {
+          console.error('Erreur lors du chargement des commentaires:', error);
+        }
+      }
+    }
+  };
+
+  const handleSubmitComment = async (postId: string) => {
+    if (!session?.user) {
+      toast.error('Vous devez être connecté pour commenter');
+      return;
+    }
+
+    if (!newComment.trim()) {
+      toast.error('Commentaire requis');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/community/posts/replies', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ post_id: postId, content: newComment.trim() })
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors de la création du commentaire');
+      }
+
+      const reply = await response.json();
+      
+      // Ajouter le commentaire à la liste
+      setComments(prev => ({
+        ...prev,
+        [postId]: [...(prev[postId] || []), reply]
+      }));
+
+      // Mettre à jour le compteur de réponses
+      setPosts(prev => prev.map(p => 
+        p.id === postId 
+          ? { ...p, replies: p.replies + 1 }
+          : p
+      ));
+
+      setNewComment('');
+      toast.success('Commentaire ajouté !');
+    } catch (error) {
+      console.error('Erreur:', error);
+      toast.error('Erreur lors de l\'ajout du commentaire');
     }
   };
 
@@ -367,12 +451,83 @@ export default function CommunityForumPage() {
                             <ThumbsUp size={14} />
                             <span className="text-sm">{post.likes}</span>
                           </button>
-                          <button className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200">
+                          <button 
+                            onClick={() => handleToggleComments(post.id)}
+                            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200"
+                          >
                             <Reply size={14} />
                             <span className="text-sm">{post.replies}</span>
                           </button>
                         </div>
                       </div>
+                      
+                      {/* Section commentaires */}
+                      {showComments === post.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-4 border-t border-[var(--border)] pt-4"
+                        >
+                          {/* Formulaire nouveau commentaire */}
+                          {session?.user && (
+                            <div className="mb-4">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={newComment}
+                                  onChange={(e) => setNewComment(e.target.value)}
+                                  placeholder="Ajouter un commentaire..."
+                                  className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                                  onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                      handleSubmitComment(post.id);
+                                    }
+                                  }}
+                                />
+                                <button
+                                  onClick={() => handleSubmitComment(post.id)}
+                                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200"
+                                >
+                                  Envoyer
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Liste des commentaires */}
+                          <div className="space-y-3">
+                            {comments[post.id]?.map((comment: any) => (
+                              <div key={comment.id} className="flex gap-3 p-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)]">
+                                <img 
+                                  src={(comment.profiles?.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} 
+                                  alt={comment.profiles?.name || 'Utilisateur'}
+                                  className="w-8 h-8 rounded-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-medium text-[var(--text)]">
+                                      {comment.profiles?.name || 'Utilisateur inconnu'}
+                                    </span>
+                                    <span className="text-xs text-[var(--text-muted)]">
+                                      {formatDate(comment.created_at)}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-[var(--text-muted)]">
+                                    {comment.content}
+                                  </p>
+                                </div>
+                              </div>
+                            )) || (
+                              <p className="text-center text-[var(--text-muted)] py-4">
+                                Aucun commentaire pour le moment
+                              </p>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
                     </motion.div>
                   );
                 })}
