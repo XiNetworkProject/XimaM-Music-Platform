@@ -8,6 +8,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const search = searchParams.get('search');
+    const sort = searchParams.get('sort') || 'order';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
@@ -15,10 +16,23 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('faq_items')
       .select('*')
-      .eq('is_published', true)
-      .order('order_index', { ascending: true })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .eq('is_published', true);
+
+    // Appliquer le tri selon le paramètre sort
+    switch (sort) {
+      case 'popular':
+        query = query.order('helpful_count', { ascending: false });
+        break;
+      case 'recent':
+        query = query.order('created_at', { ascending: false });
+        break;
+      case 'order':
+      default:
+        query = query.order('order_index', { ascending: true });
+        break;
+    }
+
+    query = query.range(offset, offset + limit - 1);
 
     // Filtrer par catégorie
     if (category && category !== 'all') {
