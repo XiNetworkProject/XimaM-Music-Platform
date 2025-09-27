@@ -1,45 +1,26 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Heart, 
-  Clock, 
-  Plus, 
-  Play, 
-  Pause,
-  MoreVertical, 
-  Music, 
-  Users,
-  User,
-  Calendar,
-  Shuffle,
-  Repeat,
-  Edit3,
-  Trash2,
-  Share2,
+import {
+  Music,
+  Heart,
+  Clock,
   Download,
-  Search,
-  Filter,
   Grid,
   List,
-  X,
-  Check,
-  FolderPlus,
-  Star,
-  Eye,
-  EyeOff,
-  Copy,
-  Settings,
+  Play,
+  Pause,
+  Plus,
+  Search,
   Sparkles,
-  Disc3,
-  Mic2,
-  Headphones
 } from 'lucide-react';
-import { useSession } from 'next-auth/react';
-import { useAudioService } from '@/hooks/useAudioService';
+import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
+
+type TabKey = 'overview' | 'playlists' | 'favorites' | 'recent' | 'downloads';
 
 interface Track {
   _id: string;
@@ -50,565 +31,556 @@ interface Track {
     username: string;
     avatar?: string;
   };
-  genre: string[];
+  audioUrl: string;
+  coverUrl?: string;
   duration: number;
-  plays: number;
+  genre: string[];
+  tags: string[];
   likes: string[];
   comments: string[];
-  createdAt: string;
-  coverUrl?: string;
-  audioUrl: string;
+  plays: number;
   isLiked?: boolean;
-  isPlaying?: boolean;
+  createdAt: string;
 }
 
 interface Playlist {
   _id: string;
   name: string;
-  description?: string;
-  tracks: Track[];
-  createdAt: string;
-  coverUrl?: string;
+  description: string;
+  coverUrl?: string | null;
+  trackCount: number;
+  duration: number;
   isPublic: boolean;
-}
-
-interface Album {
-  _id: string;
-  name: string;
-  artist: {
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  };
   tracks: Track[];
-  releaseDate: string;
-  coverUrl?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  likes: string[];
+  followers: string[];
 }
 
-interface Artist {
-  _id: string;
-  name: string;
-  username: string;
-  avatar?: string;
-  bio?: string;
-  tracks: Track[];
-  followers: number;
+function optimizeImage(url?: string | null) {
+  if (!url) return '/default-cover.jpg';
+  return url.includes('/upload/') ? url.replace('/upload/', '/upload/f_auto,q_auto/') : url;
 }
 
-type ViewMode = 'grid' | 'list';
-type SortOption = 'recent' | 'popular' | 'alphabetical' | 'duration';
-type FilterOption = 'all' | 'liked' | 'recent' | 'popular';
-
-const LibraryPage = () => {
+export default function LibraryPage() {
   const { data: session } = useSession();
-  const audioService = useAudioService();
-  const { currentTrack, isPlaying } = audioService.state;
-  const { play: playTrack, pause: pauseTrack } = audioService.actions;
-  const { toggleLikeBatch, isBatchLoading: isLiking } = useBatchLikeSystem();
-  const { incrementPlaysBatch, isBatchLoading: isPlayingTrack } = useBatchPlaysSystem();
+  const { audioState, playTrack, setQueueAndPlay } = useAudioPlayer();
+  const { toggleLikeBatch } = useBatchLikeSystem();
+  const { incrementPlaysBatch } = useBatchPlaysSystem();
 
-  // États principaux
-  const [activeTab, setActiveTab] = useState<'songs' | 'albums' | 'artists' | 'playlists'>('songs');
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
-  const [sortBy, setSortBy] = useState<SortOption>('recent');
-  const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
-
-  // Données
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [albums, setAlbums] = useState<Album[]>([]);
-  const [artists, setArtists] = useState<Artist[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Chargement des données
-  const fetchTracks = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/tracks/simple');
-      if (!response.ok) throw new Error('Erreur lors du chargement des tracks');
-      const data = await response.json();
-      setTracks(data.tracks || []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur inconnue');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [recentTracks, setRecentTracks] = useState<Track[]>([]);
+  const [favoriteTracks, setFavoriteTracks] = useState<Track[]>([]);
+  const [allTracks, setAllTracks] = useState<Track[]>([]);
+  const [downloadedTracks, setDownloadedTracks] = useState<Track[]>([]);
 
-  const fetchPlaylists = useCallback(async () => {
-    try {
-      const response = await fetch('/api/playlists/simple');
-      if (!response.ok) throw new Error('Erreur lors du chargement des playlists');
-      const data = await response.json();
-      setPlaylists(data.playlists || []);
-    } catch (err) {
-      console.error('Erreur playlists:', err);
-    }
-  }, []);
-
-  const fetchAlbums = useCallback(async () => {
-    try {
-      // Pour l'instant, on groupe les tracks par artiste comme albums
-      const groupedAlbums = tracks.reduce((acc: Album[], track) => {
-        const existingAlbum = acc.find(album => album.artist._id === track.artist._id);
-        if (existingAlbum) {
-          existingAlbum.tracks.push(track);
-        } else {
-          acc.push({
-            _id: `album-${track.artist._id}`,
-            name: `${track.artist.name} - Singles`,
-            artist: track.artist,
-            tracks: [track],
-            releaseDate: track.createdAt,
-            coverUrl: track.coverUrl
-          });
-        }
-        return acc;
-      }, []);
-      setAlbums(groupedAlbums);
-    } catch (err) {
-      console.error('Erreur albums:', err);
-    }
-  }, [tracks]);
-
-  const fetchArtists = useCallback(async () => {
-    try {
-      const uniqueArtists = tracks.reduce((acc: Artist[], track) => {
-        const existingArtist = acc.find(artist => artist._id === track.artist._id);
-        if (existingArtist) {
-          existingArtist.tracks.push(track);
-        } else {
-          acc.push({
-            _id: track.artist._id,
-            name: track.artist.name,
-            username: track.artist.username,
-            avatar: track.artist.avatar,
-            tracks: [track],
-            followers: Math.floor(Math.random() * 1000) // Placeholder
-          });
-        }
-        return acc;
-      }, []);
-      setArtists(uniqueArtists);
-    } catch (err) {
-      console.error('Erreur artists:', err);
-    }
-  }, [tracks]);
-
-  useEffect(() => {
-    fetchTracks();
-  }, [fetchTracks]);
-
-  useEffect(() => {
-    if (tracks.length > 0) {
-      fetchAlbums();
-      fetchArtists();
-    }
-  }, [tracks, fetchAlbums, fetchArtists]);
-
-  useEffect(() => {
-    fetchPlaylists();
-  }, [fetchPlaylists]);
-
-  // Filtrage et tri
-  const getFilteredAndSortedData = () => {
-    let data: any[] = [];
-    
-    switch (activeTab) {
-      case 'songs':
-        data = [...tracks];
-        break;
-      case 'albums':
-        data = [...albums];
-        break;
-      case 'artists':
-        data = [...artists];
-        break;
-      case 'playlists':
-        data = [...playlists];
-        break;
-    }
-
-    // Filtrage par recherche
-    if (searchQuery) {
-      data = data.filter(item => 
-        item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.artist?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
-
-    // Filtrage par type
-    if (activeTab === 'songs') {
-      switch (filterBy) {
-        case 'liked':
-          data = data.filter((track: Track) => track.isLiked);
-          break;
-        case 'recent':
-          data = data.filter((track: Track) => {
-            const trackDate = new Date(track.createdAt);
-            const weekAgo = new Date();
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            return trackDate > weekAgo;
-          });
-          break;
-        case 'popular':
-          data = data.filter((track: Track) => track.plays > 100);
-          break;
-      }
-    }
-
-    // Tri
-    switch (sortBy) {
-      case 'recent':
-        data.sort((a, b) => new Date(b.createdAt || b.releaseDate).getTime() - new Date(a.createdAt || a.releaseDate).getTime());
-        break;
-      case 'popular':
-        data.sort((a, b) => (b.plays || b.followers || 0) - (a.plays || a.followers || 0));
-        break;
-      case 'alphabetical':
-        data.sort((a, b) => (a.title || a.name).localeCompare(b.title || b.name));
-        break;
-      case 'duration':
-        if (activeTab === 'songs') {
-          data.sort((a, b) => b.duration - a.duration);
-        }
-        break;
-    }
-
-    return data;
-  };
-
-  const filteredData = getFilteredAndSortedData();
-
-  // Gestion des interactions
-  const handlePlayTrack = async (track: Track) => {
-    if (currentTrack?._id === track._id) {
-      if (isPlaying) {
-        pauseTrack();
-      } else {
-        await playTrack(track);
-      }
-    } else {
-      await incrementPlaysBatch(track._id, track.plays);
-      await playTrack(track);
-    }
-  };
-
-  const handleLikeTrack = async (track: Track) => {
-    await toggleLikeBatch(track._id, { isLiked: track.isLiked || false, likesCount: track.likes.length });
-    setTracks(prev => prev.map(t => 
-      t._id === track._id 
-        ? { ...t, isLiked: !t.isLiked, likes: t.isLiked ? t.likes.filter(id => id !== session?.user?.id) : [...t.likes, session?.user?.id || ''] }
-        : t
-    ));
-  };
+  const isPlayingTrack = useCallback(
+    (trackId: string) => audioState.tracks[audioState.currentTrackIndex]?._id === trackId && audioState.isPlaying,
+    [audioState]
+  );
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+    const secs = Math.floor(seconds % 60);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('fr-FR', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
   };
 
-  // Composant de tab
-  const TabButton = ({ tab, label, icon: Icon }: { tab: string, label: string, icon: any }) => (
-    <button
-      onClick={() => setActiveTab(tab as any)}
-      className={`flex items-center gap-2 px-4 py-2 font-medium transition-colors whitespace-nowrap ${
-        activeTab === tab
-          ? 'text-primary border-b-2 border-primary'
-          : 'text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-muted-foreground'
-      }`}
-    >
-      <Icon size={16} />
-      {label}
-    </button>
-  );
+  const fetchData = useCallback(async () => {
+    if (!session?.user?.id) {
+      setLoading(false);
+      return;
+    }
 
-  // Composant de track en grille
-  const TrackGridItem = ({ track }: { track: Track }) => (
+    try {
+      setLoading(true);
+
+      const [plRes, recentRes, favRes, allRes] = await Promise.all([
+        fetch('/api/playlists/simple?user=' + session.user.id),
+        fetch('/api/tracks?recent=true&limit=20', {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+          },
+        }),
+        fetch('/api/tracks?liked=true&limit=50', {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+          },
+        }),
+        fetch('/api/tracks?limit=100', {
+          headers: {
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache',
+          },
+        }),
+      ]);
+
+      const sanitizeTrack = (t: any): Track => ({
+        ...t,
+        coverUrl: t?.coverUrl || undefined,
+        artist: {
+          ...(t?.artist || {}),
+          avatar: t?.artist?.avatar || undefined,
+        },
+      });
+
+      if (plRes.ok) {
+        const json = await plRes.json();
+        const pls: Playlist[] = (json.playlists || []).map((p: any) => ({
+          ...p,
+          coverUrl: p?.coverUrl || undefined,
+          tracks: Array.isArray(p?.tracks) ? p.tracks.map(sanitizeTrack) : [],
+        }));
+        setPlaylists(pls);
+      }
+      if (recentRes.ok) {
+        const json = await recentRes.json();
+        setRecentTracks(Array.isArray(json.tracks) ? json.tracks.map(sanitizeTrack) : []);
+      }
+      if (favRes.ok) {
+        const json = await favRes.json();
+        setFavoriteTracks(Array.isArray(json.tracks) ? json.tracks.map(sanitizeTrack) : []);
+      }
+      if (allRes.ok) {
+        const json = await allRes.json();
+        setAllTracks(Array.isArray(json.tracks) ? json.tracks.map(sanitizeTrack) : []);
+      }
+
+      setDownloadedTracks([]);
+      setError(null);
+    } catch (e) {
+      setError('Erreur lors du chargement de la bibliothèque');
+    } finally {
+      setLoading(false);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (loading) setLoading(false);
+    }, 10000);
+    fetchData();
+    return () => clearTimeout(timeoutId);
+  }, [fetchData]);
+
+  const filteredPlaylists = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return playlists.filter((p) =>
+      p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
+    );
+  }, [playlists, searchQuery]);
+
+  const filteredRecent = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return recentTracks.filter(
+      (t) => t.title.toLowerCase().includes(q) || t.artist.name.toLowerCase().includes(q)
+    );
+  }, [recentTracks, searchQuery]);
+
+  const filteredFavorites = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return favoriteTracks.filter(
+      (t) => t.title.toLowerCase().includes(q) || t.artist.name.toLowerCase().includes(q)
+    );
+  }, [favoriteTracks, searchQuery]);
+
+  const DiscCard = ({ track, index }: { track: Track; index: number }) => (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      className="group relative bg-card rounded-lg p-4 hover:bg-accent transition-colors cursor-pointer"
-      onClick={() => handlePlayTrack(track)}
+      transition={{ delay: index * 0.03 }}
+      className="group flex flex-col items-center text-center"
     >
-      <div className="relative mb-3">
-        <div className="aspect-square bg-muted rounded-lg overflow-hidden">
-          {track.coverUrl ? (
-            <img 
-              src={track.coverUrl} 
-              alt={track.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Music size={32} className="text-muted-foreground" />
-            </div>
-          )}
-        </div>
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handlePlayTrack(track);
-            }}
-            className="bg-primary text-primary-foreground rounded-full p-2 hover:bg-primary/90 transition-colors"
-          >
-            {currentTrack?._id === track._id && isPlaying ? (
-              <Pause size={16} />
-            ) : (
-              <Play size={16} />
-            )}
-          </button>
-        </div>
-      </div>
-      
-      <div className="space-y-1">
-        <h3 className="font-medium text-sm truncate">{track.title}</h3>
-        <p className="text-xs text-muted-foreground truncate">{track.artist.name}</p>
-        <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span>{formatDuration(track.duration)}</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleLikeTrack(track);
-              }}
-              className={`hover:text-primary transition-colors ${
-                track.isLiked ? 'text-red-500' : 'text-muted-foreground'
-              }`}
-            >
-              <Heart size={12} fill={track.isLiked ? 'currentColor' : 'none'} />
-            </button>
-            <span>{track.likes.length}</span>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  // Composant de track en liste
-  const TrackListItem = ({ track, index }: { track: Track, index: number }) => (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
-      className="group flex items-center gap-4 p-3 rounded-lg hover:bg-accent transition-colors cursor-pointer"
-      onClick={() => handlePlayTrack(track)}
-    >
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <div className="w-10 h-10 bg-muted rounded-lg overflow-hidden flex-shrink-0">
-          {track.coverUrl ? (
-            <img 
-              src={track.coverUrl} 
-              alt={track.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Music size={16} className="text-muted-foreground" />
-            </div>
-          )}
-        </div>
-        
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium text-sm truncate">{track.title}</h3>
-          <p className="text-xs text-muted-foreground truncate">{track.artist.name}</p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-        <span>{formatDuration(track.duration)}</span>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              handleLikeTrack(track);
-            }}
-            className={`hover:text-primary transition-colors ${
-              track.isLiked ? 'text-red-500' : 'text-muted-foreground'
-            }`}
-          >
-            <Heart size={14} fill={track.isLiked ? 'currentColor' : 'none'} />
-          </button>
-          <span>{track.likes}</span>
-        </div>
+      <div className="relative">
+        <img
+          src={optimizeImage(track.coverUrl)}
+          alt={track.title}
+          className="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover border border-[var(--border)] shadow-md"
+          loading="lazy"
+          decoding="async"
+        />
         <button
-          onClick={(e) => {
-            e.stopPropagation();
-            // Menu contextuel
-          }}
-          className="opacity-0 group-hover:opacity-100 transition-opacity"
+          onClick={() => playTrack(track)}
+          className="absolute inset-0 flex items-center justify-center rounded-full bg-black/0 group-hover:bg-black/40 transition-colors"
         >
-          <MoreVertical size={16} />
+          {isPlayingTrack(track._id) ? (
+            <Pause className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={22} />
+          ) : (
+            <Play className="text-white opacity-0 group-hover:opacity-100 transition-opacity" size={22} />
+          )}
         </button>
       </div>
+      <div className="mt-2 w-28 sm:w-32">
+        <div className="truncate text-sm font-medium">{track.title}</div>
+        <div className="truncate text-xs text-[var(--text-muted)]">{track.artist?.name || track.artist?.username}</div>
+      </div>
     </motion.div>
+  );
+
+  const PlaylistCard = ({ playlist, index }: { playlist: Playlist; index: number }) => (
+    <motion.button
+      onClick={() => {
+        if (playlist.tracks?.length) setQueueAndPlay(playlist.tracks, 0);
+      }}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.03 }}
+      className="text-left bg-white/5 hover:bg-white/10 transition-colors rounded-xl p-3 border border-[var(--border)]"
+    >
+      <img
+        src={optimizeImage(playlist.coverUrl)}
+        alt={playlist.name}
+        className="w-full h-36 object-cover rounded-lg"
+        loading="lazy"
+        decoding="async"
+      />
+      <div className="mt-2">
+        <div className="font-semibold truncate">{playlist.name}</div>
+        <div className="text-xs text-white/60 truncate">
+          {playlist.trackCount} piste{playlist.trackCount !== 1 ? 's' : ''} • {formatDuration(playlist.duration)}
+        </div>
+      </div>
+    </motion.button>
   );
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
+          <p>Chargement de votre bibliothèque...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive mb-2">Erreur de chargement</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <span className="text-red-400">!</span>
+          </div>
+          <h2 className="text-xl font-bold mb-2">Erreur de chargement</h2>
+          <p className="text-[var(--text-muted)] mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchData();
+            }}
+            className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-4 py-2 rounded-lg transition-all"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!session?.user?.id) {
+    return (
+      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-[var(--color-primary)]/20 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Music size={24} className="text-[var(--color-primary)]" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Connexion requise</h2>
+          <p className="text-[var(--text-muted)] mb-4">Connectez-vous pour accéder à votre bibliothèque</p>
+          <a
+            href="/auth/signin"
+            className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-6 py-3 rounded-lg font-medium transition-all"
+          >
+            Se connecter
+          </a>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header avec tabs */}
-      <div className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-bold">Ma Bibliothèque</h1>
-            <div className="flex items-center gap-1">
-              <TabButton tab="songs" label="Musiques" icon={Music} />
-              <TabButton tab="albums" label="Albums" icon={Disc3} />
-              <TabButton tab="artists" label="Artistes" icon={Mic2} />
-              <TabButton tab="playlists" label="Playlists" icon={Headphones} />
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Rechercher..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-muted rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className={`p-2 rounded-lg transition-colors ${
-                showFilters ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-accent'
-              }`}
-            >
-              <Filter size={16} />
-            </button>
-            
-            <div className="flex items-center bg-muted rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`p-1 rounded transition-colors ${
-                  viewMode === 'grid' ? 'bg-background text-foreground' : 'text-muted-foreground'
-                }`}
+    <div className="min-h-screen text-[var(--text)] overflow-x-hidden w-full">
+      <main className="container mx-auto px-2 sm:px-4 pt-16 pb-32">
+        <div className="w-full max-w-none sm:max-w-6xl sm:mx-auto overflow-hidden">
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] flex items-center gap-3">
+                <Music size={28} className="text-[var(--color-primary)]" />
+                Ma Bibliothèque
+              </h1>
+              <a
+                href="/ai-library"
+                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2 rounded-full font-medium transition-all shadow-lg"
               >
-                <Grid size={16} />
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`p-1 rounded transition-colors ${
-                  viewMode === 'list' ? 'bg-background text-foreground' : 'text-muted-foreground'
-                }`}
-              >
-                <List size={16} />
-              </button>
+                <Sparkles size={16} />
+                <span>Bibliothèque IA</span>
+              </a>
             </div>
+            <p className="text-[var(--text-muted)]">Vos playlists, écoutes récentes et favoris.</p>
           </div>
-        </div>
 
-        {/* Filtres */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="px-4 py-2 border-t bg-muted/50"
-            >
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">Trier par:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as SortOption)}
-                    className="px-3 py-1 bg-background border rounded text-sm"
+          <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6 mb-6">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="relative flex-1 max-w-xs sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" size={20} />
+                <input
+                  type="text"
+                  placeholder="Rechercher dans votre bibliothèque..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-[var(--bg)] rounded-xl border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`p-2 rounded-md transition-colors ${
+                    viewMode === 'grid' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  <Grid size={16} />
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`p-2 rounded-md transition-colors ${
+                    viewMode === 'list' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                  }`}
+                >
+                  <List size={16} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6 mb-6">
+            <div className="flex gap-1 bg-[var(--surface-2)] rounded-xl p-1">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'overview' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Aperçu
+              </button>
+              <button
+                onClick={() => setActiveTab('playlists')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'playlists' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Playlists
+              </button>
+              <button
+                onClick={() => setActiveTab('recent')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'recent' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Récent
+              </button>
+              <button
+                onClick={() => setActiveTab('favorites')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'favorites' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Favoris
+              </button>
+              <button
+                onClick={() => setActiveTab('downloads')}
+                className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
+                  activeTab === 'downloads' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'
+                }`}
+              >
+                Téléchargements
+              </button>
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            {activeTab === 'overview' && (
+              <motion.div
+                key="overview"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-8"
+              >
+                {/* Favoris */}
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <Heart size={18} className="text-red-400" />
+                      Favoris
+                    </h2>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('favorites'); }} className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Tout voir</a>
+                  </div>
+                  {filteredFavorites.length === 0 ? (
+                    <div className="text-white/60 text-sm">Aucun favori pour le moment.</div>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                      {filteredFavorites.slice(0, 12).map((t, i) => (
+                        <DiscCard key={t._id} track={t} index={i} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Récents */}
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <Clock size={18} className="text-blue-400" />
+                      Récemment écoutés
+                    </h2>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('recent'); }} className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Tout voir</a>
+                  </div>
+                  {filteredRecent.length === 0 ? (
+                    <div className="text-white/60 text-sm">Aucune écoute récente.</div>
+                  ) : (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                      {filteredRecent.slice(0, 12).map((t, i) => (
+                        <DiscCard key={t._id} track={t} index={i} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                {/* Playlists */}
+                <section>
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                      <Music size={18} className="text-[var(--color-primary)]" />
+                      Mes playlists
+                    </h2>
+                    <a href="#" onClick={(e) => { e.preventDefault(); setActiveTab('playlists'); }} className="text-sm text-[var(--text-muted)] hover:text-[var(--text)]">Tout voir</a>
+                  </div>
+                  {filteredPlaylists.length === 0 ? (
+                    <div className="text-white/60 text-sm">Aucune playlist créée.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                      {filteredPlaylists.slice(0, 8).map((p, i) => (
+                        <PlaylistCard key={p._id} playlist={p} index={i} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </motion.div>
+            )}
+
+            {activeTab === 'playlists' && (
+              <motion.div
+                key="playlists"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Mes Playlists</h2>
+                  <a
+                    href="#"
+                    onClick={(e) => e.preventDefault()}
+                    className="flex items-center gap-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-4 py-2 rounded-full font-medium transition-all"
                   >
-                    <option value="recent">Récent</option>
-                    <option value="popular">Populaire</option>
-                    <option value="alphabetical">Alphabétique</option>
-                    {activeTab === 'songs' && <option value="duration">Durée</option>}
-                  </select>
+                    <Plus size={16} />
+                    Nouvelle playlist
+                  </a>
                 </div>
-                
-                {activeTab === 'songs' && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Filtrer:</span>
-                    <select
-                      value={filterBy}
-                      onChange={(e) => setFilterBy(e.target.value as FilterOption)}
-                      className="px-3 py-1 bg-background border rounded text-sm"
-                    >
-                      <option value="all">Tout</option>
-                      <option value="liked">Aimées</option>
-                      <option value="recent">Récentes</option>
-                      <option value="popular">Populaires</option>
-                    </select>
+                {filteredPlaylists.length === 0 ? (
+                  <div className="text-center py-12 text-white/60">Aucune playlist créée</div>
+                ) : (
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-3'}>
+                    {filteredPlaylists.map((p, i) => (
+                      <PlaylistCard key={p._id} playlist={p} index={i} />
+                    ))}
                   </div>
                 )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* Contenu principal */}
-      <div className="flex-1 overflow-auto p-4">
-        {filteredData.length === 0 ? (
-          <div className="flex items-center justify-center h-64">
-            <div className="text-center">
-              <Music size={48} className="text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Aucun élément trouvé</p>
-            </div>
-          </div>
-        ) : (
-          <>
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {filteredData.map((item, index) => (
-                  <TrackGridItem key={item._id} track={item as Track} />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {filteredData.map((item, index) => (
-                  <TrackListItem key={item._id} track={item as Track} index={index} />
-                ))}
-              </div>
+              </motion.div>
             )}
-          </>
-        )}
-      </div>
+
+            {activeTab === 'recent' && (
+              <motion.div
+                key="recent"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h2 className="text-xl font-bold mb-4">Écouté récemment</h2>
+                {filteredRecent.length === 0 ? (
+                  <div className="text-center py-12 text-white/60">Aucune écoute récente</div>
+                ) : (
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4' : 'space-y-3'}>
+                    {filteredRecent.map((t, i) => (
+                      <DiscCard key={t._id} track={t} index={i} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'favorites' && (
+              <motion.div
+                key="favorites"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h2 className="text-xl font-bold mb-4">Mes favoris</h2>
+                {filteredFavorites.length === 0 ? (
+                  <div className="text-center py-12 text-white/60">Aucun favori pour le moment</div>
+                ) : (
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4' : 'space-y-3'}>
+                    {filteredFavorites.map((t, i) => (
+                      <DiscCard key={t._id} track={t} index={i} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'downloads' && (
+              <motion.div
+                key="downloads"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+              >
+                <h2 className="text-xl font-bold mb-4">Téléchargements</h2>
+                {downloadedTracks.length === 0 ? (
+                  <div className="text-center py-12 text-white/60">Aucun téléchargement pour le moment</div>
+                ) : (
+                  <div className={viewMode === 'grid' ? 'grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4' : 'space-y-3'}>
+                    {downloadedTracks.map((t, i) => (
+                      <DiscCard key={t._id} track={t} index={i} />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </main>
     </div>
   );
-};
+}
 
-export default LibraryPage;
+
