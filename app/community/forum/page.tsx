@@ -90,8 +90,8 @@ export default function CommunityForumPage() {
                   ...post,
                   createdAt: post.created_at,
                   isLiked,
-                  likes: Number(post.likes) || 0,
-                  replies: Number(post.replies) || 0,
+                  likes: Number(post.likes_count) || 0,
+                  replies: Number(post.replies_count) || 0,
                   author: {
                     id: userData.id,
                     name: userData.name,
@@ -108,8 +108,8 @@ export default function CommunityForumPage() {
             return {
               ...post,
               createdAt: post.created_at,
-              likes: Number(post.likes) || 0,
-              replies: Number(post.replies) || 0,
+              likes: Number(post.likes_count) || 0,
+              replies: Number(post.replies_count) || 0,
               author: {
                 id: post.user_id,
                 name: 'Utilisateur inconnu',
@@ -298,8 +298,8 @@ export default function CommunityForumPage() {
       const postWithAuthor = {
         ...post,
         createdAt: post.created_at,
-        likes: Number(post.likes) || 0,
-        replies: Number(post.replies) || 0,
+        likes: Number(post.likes_count) || 0,
+        replies: Number(post.replies_count) || 0,
         author: {
           id: session.user.id,
           name: (session.user as any).name || 'Utilisateur',

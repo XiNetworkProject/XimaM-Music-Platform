@@ -15,15 +15,7 @@ export async function GET(request: NextRequest) {
     // Récupérer les likes du post
     const { data: likes, error } = await supabase
       .from('forum_post_likes')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
+      .select('*')
       .eq('post_id', post_id)
       .order('created_at', { ascending: false });
 
