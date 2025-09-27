@@ -5,7 +5,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
@@ -234,8 +234,16 @@ export default function FullScreenPlayer() {
               <button onClick={cycleRepeat} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Repeat"><Repeat size={16} /></button>
           </div>
 
-            {/* Right: volume + duration (md), minimal on mobile */}
+            {/* Right: volume + duration + hide button (md), minimal on mobile */}
             <div className="items-left justify-right flex w-fit flex-row-reverse gap-2 md:flex-1" onClick={(e)=>e.stopPropagation()}>
+              {/* Hide button */}
+              <button 
+                onClick={() => setShowPlayer(false)} 
+                className="p-2 text-white/70 hover:bg-white/10 rounded-full" 
+                aria-label="Masquer le player"
+              >
+                <ChevronDown size={18} />
+              </button>
               {/* Duration */}
               <span className="flex md:flex items-center whitespace-nowrap text-white/70 text-[11px] md:text-[12px]">
                 <span className="w-12 text-right">{formatTime(audioState.currentTime)}</span>
