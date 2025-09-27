@@ -45,64 +45,30 @@ export default function CommunityForumPage() {
     tags: [] as string[],
   });
 
-  // Données de démonstration
+  // Charger les posts depuis l'API
   useEffect(() => {
-    const mockPosts: Post[] = [
-      {
-        id: '1',
-        title: 'Comment télécharger mes musiques ?',
-        content: 'Je ne trouve pas l\'option de téléchargement dans le player. Est-ce que c\'est disponible pour tous les plans ?',
-        author: { name: 'Marie Dubois', username: 'mariedb', avatar: '/default-avatar.png' },
-        category: 'question',
-        tags: ['téléchargement', 'player', 'abonnement'],
-        likes: 12,
-        replies: 5,
-        createdAt: '2024-01-15T10:30:00Z',
-        isLiked: false,
-      },
-      {
-        id: '2',
-        title: 'Suggestion : Mode sombre pour le player',
-        content: 'Ce serait génial d\'avoir un mode sombre optionnel pour le player audio. Ça serait plus agréable pour les yeux la nuit.',
-        author: { name: 'Alex Martin', username: 'alexm', avatar: '/default-avatar.png' },
-        category: 'suggestion',
-        tags: ['ui', 'player', 'accessibilité'],
-        likes: 28,
-        replies: 8,
-        createdAt: '2024-01-14T16:45:00Z',
-        isLiked: true,
-      },
-      {
-        id: '3',
-        title: 'Bug : Player qui se ferme sur mobile',
-        content: 'Le player se ferme automatiquement quand je change d\'application sur mon iPhone. Ça arrive depuis la dernière mise à jour.',
-        author: { name: 'Sophie Chen', username: 'sophiec', avatar: '/default-avatar.png' },
-        category: 'bug',
-        tags: ['mobile', 'ios', 'player'],
-        likes: 15,
-        replies: 3,
-        createdAt: '2024-01-13T09:20:00Z',
-        isLiked: false,
-      },
-      {
-        id: '4',
-        title: 'Nouvelles fonctionnalités IA',
-        content: 'Quelles sont les prochaines fonctionnalités prévues pour la génération de musique IA ? J\'aimerais savoir ce qui arrive bientôt !',
-        author: { name: 'Thomas Leroy', username: 'thomasl', avatar: '/default-avatar.png' },
-        category: 'general',
-        tags: ['ia', 'génération', 'roadmap'],
-        likes: 22,
-        replies: 12,
-        createdAt: '2024-01-12T14:15:00Z',
-        isLiked: false,
-      },
-    ];
-    
-    setTimeout(() => {
-      setPosts(mockPosts);
-      setLoading(false);
-    }, 1000);
-  }, []);
+    const fetchPosts = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (selectedCategory !== 'all') params.append('category', selectedCategory);
+        if (searchQuery) params.append('search', searchQuery);
+        
+        const response = await fetch(`/api/community/posts?${params.toString()}`);
+        if (!response.ok) throw new Error('Erreur lors du chargement des posts');
+        
+        const data = await response.json();
+        setPosts(data.posts || []);
+      } catch (error) {
+        console.error('Erreur:', error);
+        toast.error('Erreur lors du chargement des posts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPosts();
+  }, [selectedCategory, searchQuery]);
 
   const filteredPosts = posts.filter(post => {
     const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
@@ -113,12 +79,47 @@ export default function CommunityForumPage() {
     return matchesCategory && matchesSearch;
   });
 
-  const handleLike = (postId: string) => {
-    setPosts(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, isLiked: !post.isLiked, likes: post.isLiked ? post.likes - 1 : post.likes + 1 }
-        : post
-    ));
+  const handleLike = async (postId: string) => {
+    if (!session?.user) {
+      toast.error('Vous devez être connecté pour liker');
+      return;
+    }
+
+    try {
+      const post = posts.find(p => p.id === postId);
+      if (!post) return;
+
+      if (post.isLiked) {
+        // Supprimer le like
+        const response = await fetch(`/api/community/posts/likes?post_id=${postId}`, {
+          method: 'DELETE'
+        });
+        if (response.ok) {
+          setPosts(prev => prev.map(p => 
+            p.id === postId 
+              ? { ...p, isLiked: false, likes: p.likes - 1 }
+              : p
+          ));
+        }
+      } else {
+        // Ajouter le like
+        const response = await fetch('/api/community/posts/likes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ post_id: postId })
+        });
+        if (response.ok) {
+          setPosts(prev => prev.map(p => 
+            p.id === postId 
+              ? { ...p, isLiked: true, likes: p.likes + 1 }
+              : p
+          ));
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors du like:', error);
+      toast.error('Erreur lors du like');
+    }
   };
 
   const handleSubmitPost = async () => {
@@ -132,27 +133,27 @@ export default function CommunityForumPage() {
       return;
     }
 
-    const post: Post = {
-      id: Date.now().toString(),
-      title: newPost.title,
-      content: newPost.content,
-      author: {
-        name: session.user.name || 'Utilisateur',
-        username: session.user.username || 'user',
-        avatar: (session.user as any).avatar || '/default-avatar.png',
-      },
-      category: newPost.category,
-      tags: newPost.tags,
-      likes: 0,
-      replies: 0,
-      createdAt: new Date().toISOString(),
-      isLiked: false,
-    };
+    try {
+      const response = await fetch('/api/community/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newPost)
+      });
 
-    setPosts(prev => [post, ...prev]);
-    setNewPost({ title: '', content: '', category: 'question', tags: [] });
-    setShowNewPost(false);
-    toast.success('Post publié avec succès !');
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors de la création du post');
+      }
+
+      const post = await response.json();
+      setPosts(prev => [post, ...prev]);
+      setNewPost({ title: '', content: '', category: 'question', tags: [] });
+      setShowNewPost(false);
+      toast.success('Post publié avec succès !');
+    } catch (error: any) {
+      console.error('Erreur:', error);
+      toast.error(error.message || 'Erreur lors de la publication');
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -261,7 +262,7 @@ export default function CommunityForumPage() {
                             <CategoryIcon size={16} className="text-blue-400" />
                           </div>
                           <div className="flex-1">
-                            <h3 className="text-lg font-semibold mb-1 hover:text-blue-400 cursor-pointer transition-colors">
+                            <h3 className="text-lg font-semibold mb-1 hover:text-blue-400 cursor-pointer">
                               {post.title}
                             </h3>
                             <p className="text-[var(--text-muted)] text-sm mb-2 line-clamp-2">
