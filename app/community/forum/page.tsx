@@ -139,7 +139,7 @@ export default function CommunityForumPage() {
       author: {
         name: session.user.name || 'Utilisateur',
         username: session.user.username || 'user',
-        avatar: session.user.avatar,
+        avatar: (session.user as any).avatar || '/default-avatar.png',
       },
       category: newPost.category,
       tags: newPost.tags,
