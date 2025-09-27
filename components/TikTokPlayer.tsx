@@ -984,10 +984,12 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           <button
                             onClick={async () => {
                               try {
+                                const id = currentTrack?._id || '';
+                                const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${id}?autoplay=1` : '';
                                 const shareData = {
                                   title: currentTrack?.title || 'Musique',
                                   text: `Écoutez ${currentTrack?.title || 'ma musique'}`,
-                                  url: typeof window !== 'undefined' ? window.location.href : ''
+                                  url: shareUrl
                                 } as any;
                                 if ((navigator as any).share) {
                                   await (navigator as any).share(shareData);
