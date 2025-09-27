@@ -463,6 +463,41 @@ export default function UploadPage() {
       setUploadProgress(prev => ({ ...prev, audio: 75 }));
       toast.dismiss(audioLoadingToast);
 
+      // Vérification droits d'auteur (AudD) — no-op si token manquant
+      try {
+        const checkResp = await fetch('/api/upload/copyright-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audioUrl: audioResult.secure_url,
+            title: formData.title,
+            artist: formData.artist,
+          })
+        });
+        if (checkResp.ok) {
+          const check = await checkResp.json();
+          if (check?.matched && check?.details) {
+            // Logique minimale: si le titre/artiste détectés ne correspondent pas à l'utilisateur → bloquer
+            const detectedTitle = (check.details.title || '').toLowerCase();
+            const detectedArtist = (check.details.artist || '').toLowerCase();
+            const inputTitle = (formData.title || '').toLowerCase();
+            const inputArtist = (formData.artist || '').toLowerCase();
+            const likelyDifferentWork = detectedTitle && detectedArtist && (
+              !inputTitle || detectedTitle !== inputTitle || (inputArtist && detectedArtist !== inputArtist)
+            );
+            if (likelyDifferentWork) {
+              throw new Error("Conflit potentiel de droits d'auteur détecté. Veuillez vérifier vos droits ou modifier votre contenu.");
+            }
+          }
+        }
+      } catch (e: any) {
+        // En cas de conflit, rollback l'upload audio temporaire
+        if (tempPublicIds.audio || audioResult.public_id) {
+          try { await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: audioResult.public_id }) }); } catch {}
+        }
+        throw e;
+      }
+
       let coverResult: { public_id?: string; secure_url?: string } | null = null;
       if (coverFile) {
         const coverLoadingToast = toast.loading('Upload image de couverture...');

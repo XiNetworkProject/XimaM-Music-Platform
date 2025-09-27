@@ -1692,7 +1692,7 @@ export default function HomePage() {
                       <>
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
                           Génération IA
-                        </span>
+                      </span>
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
                           Modèles V4.5, V4.5+, V5
                         </span>
@@ -1708,11 +1708,11 @@ export default function HomePage() {
                         {heroTracks[currentSlide-1].createdAt && (
                           <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
                             {formatDate(heroTracks[currentSlide-1].createdAt)}
-                          </span>
-                        )}
+                      </span>
+                    )}
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
                           {formatDuration(heroTracks[currentSlide-1].duration)}
-                        </span>
+                    </span>
                       </>
                     ) : null}
                         </div>
