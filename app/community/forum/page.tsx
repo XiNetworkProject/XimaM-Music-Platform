@@ -79,6 +79,7 @@ export default function CommunityForumPage() {
                     if (likesResponse.ok) {
                       const likes = await likesResponse.json();
                       isLiked = likes.some((like: any) => like.user_id === session.user.id);
+                      console.log(`Post ${post.id} - isLiked: ${isLiked}`);
                     }
                   } catch (error) {
                     console.error('Erreur lors de la vérification du like:', error);
@@ -146,6 +147,8 @@ export default function CommunityForumPage() {
       const post = posts.find(p => p.id === postId);
       if (!post) return;
 
+      console.log(`Tentative de like pour le post ${postId}, statut actuel: ${post.isLiked}`);
+
       if (post.isLiked) {
         // Supprimer le like
         const response = await fetch(`/api/community/posts/likes?post_id=${postId}`, {
@@ -170,6 +173,18 @@ export default function CommunityForumPage() {
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Like error:', errorData);
+          
+          // Ne pas afficher d'erreur si le post est déjà liké
+          if (errorData.error === 'Post déjà liké') {
+            console.log('Post déjà liké - mise à jour du statut');
+            setPosts(prev => prev.map(p => 
+              p.id === postId 
+                ? { ...p, isLiked: true, likes: p.likes + 1 }
+                : p
+            ));
+            return;
+          }
+          
           throw new Error(errorData.error || 'Erreur lors du like');
         }
         
