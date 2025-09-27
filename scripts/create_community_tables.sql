@@ -197,7 +197,7 @@ CREATE POLICY "FAQ items are manageable by admins" ON faq_items
     EXISTS (
       SELECT 1 FROM profiles 
       WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
+      AND profiles.is_admin = true
     )
   );
 

@@ -80,11 +80,11 @@ export async function POST(request: NextRequest) {
     // Vérifier que l'utilisateur est admin
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('role')
+      .select('is_admin')
       .eq('id', session.user.id)
       .single();
 
-    if (profileError || !profile || profile.role !== 'admin') {
+    if (profileError || !profile || !profile.is_admin) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
