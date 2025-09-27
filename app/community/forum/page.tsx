@@ -58,7 +58,43 @@ export default function CommunityForumPage() {
         if (!response.ok) throw new Error('Erreur lors du chargement des posts');
         
         const data = await response.json();
-        setPosts(data.posts || []);
+        const postsData = data.posts || [];
+        
+        // Récupérer les informations utilisateur pour chaque post
+        const postsWithAuthors = await Promise.all(
+          postsData.map(async (post) => {
+            try {
+              const userResponse = await fetch(`/api/users/${post.user_id}`);
+              if (userResponse.ok) {
+                const userData = await userResponse.json();
+                return {
+                  ...post,
+                  author: {
+                    id: userData.id,
+                    name: userData.name,
+                    username: userData.username,
+                    avatar: userData.avatar
+                  }
+                };
+              }
+            } catch (error) {
+              console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+            }
+            
+            // Fallback si l'utilisateur n'est pas trouvé
+            return {
+              ...post,
+              author: {
+                id: post.user_id,
+                name: 'Utilisateur inconnu',
+                username: 'unknown',
+                avatar: '/default-avatar.png'
+              }
+            };
+          })
+        );
+        
+        setPosts(postsWithAuthors);
       } catch (error) {
         console.error('Erreur:', error);
         toast.error('Erreur lors du chargement des posts');
@@ -146,7 +182,19 @@ export default function CommunityForumPage() {
       }
 
       const post = await response.json();
-      setPosts(prev => [post, ...prev]);
+      
+      // Ajouter les informations utilisateur au nouveau post
+      const postWithAuthor = {
+        ...post,
+        author: {
+          id: session.user.id,
+          name: (session.user as any).name || 'Utilisateur',
+          username: (session.user as any).username || 'user',
+          avatar: (session.user as any).avatar || '/default-avatar.png'
+        }
+      };
+      
+      setPosts(prev => [postWithAuthor, ...prev]);
       setNewPost({ title: '', content: '', category: 'question', tags: [] });
       setShowNewPost(false);
       toast.success('Post publié avec succès !');
