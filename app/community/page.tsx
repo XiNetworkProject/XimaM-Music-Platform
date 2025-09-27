@@ -73,7 +73,7 @@ export default function CommunityPage() {
         }
 
         // Charger les FAQ populaires
-        const faqResponse = await fetch('/api/community/faq?limit=4&sort=popular');
+        const faqResponse = await fetch('/api/community/faq?limit=8&sort=popular');
         if (faqResponse.ok) {
           const faqData = await faqResponse.json();
           setPopularFaqs(faqData.faqs || []);

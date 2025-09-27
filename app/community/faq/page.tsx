@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, Search, MessageSquare, Lightbulb, Bug, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 
 interface FAQItem {
   id: string;
@@ -10,6 +11,8 @@ interface FAQItem {
   answer: string;
   category: 'general' | 'player' | 'upload' | 'abonnement' | 'ia' | 'technique';
   tags: string[];
+  helpful_count: number;
+  created_at: string;
 }
 
 const categories = [
@@ -22,71 +25,37 @@ const categories = [
   { id: 'technique', label: 'Technique', icon: Bug },
 ] as const;
 
-const faqData: FAQItem[] = [
-  {
-    id: '1',
-    question: 'Comment télécharger mes musiques ?',
-    answer: 'Le téléchargement est disponible pour les abonnements Pro et Enterprise. Dans le player, cliquez sur les trois points (⋯) puis sur "Télécharger". Vous devrez accepter les conditions d\'utilisation avant le téléchargement.',
-    category: 'player',
-    tags: ['téléchargement', 'pro', 'enterprise']
-  },
-  {
-    id: '2',
-    question: 'Quels formats audio sont supportés ?',
-    answer: 'Synaura supporte les formats MP3, WAV, FLAC et M4A. La taille maximale varie selon votre plan : Gratuit (50 MB), Starter (100 MB), Pro (200 MB), Enterprise (500 MB).',
-    category: 'upload',
-    tags: ['formats', 'taille', 'limites']
-  },
-  {
-    id: '3',
-    question: 'Comment fonctionne la génération de musique IA ?',
-    answer: 'Notre IA utilise les modèles Suno V4.5, V4.5+ et V5. Vous pouvez générer de la musique en mode Simple (prompt basique) ou Custom (paramètres avancés). Les générations sont gratuites et illimitées pour tous les utilisateurs.',
-    category: 'ia',
-    tags: ['suno', 'génération', 'gratuit']
-  },
-  {
-    id: '4',
-    question: 'Puis-je changer de plan d\'abonnement ?',
-    answer: 'Oui, vous pouvez upgrader ou downgrader votre plan à tout moment depuis la page Abonnements. Les changements prennent effet immédiatement. En cas de downgrade, vos limites seront ajustées au prochain cycle de facturation.',
-    category: 'abonnement',
-    tags: ['changement', 'upgrade', 'downgrade']
-  },
-  {
-    id: '5',
-    question: 'Le player se ferme sur mobile, que faire ?',
-    answer: 'Ce problème peut survenir sur iOS. Assurez-vous que l\'application est autorisée à jouer en arrière-plan dans les paramètres système. Redémarrez l\'application et vérifiez que vous utilisez la dernière version.',
-    category: 'technique',
-    tags: ['mobile', 'ios', 'arrière-plan']
-  },
-  {
-    id: '6',
-    question: 'Comment partager mes musiques ?',
-    answer: 'Utilisez le bouton "Partager" dans le player (trois points ⋯). Cela génère un lien direct vers votre musique qui lancera automatiquement la lecture quand quelqu\'un l\'ouvre.',
-    category: 'player',
-    tags: ['partage', 'lien', 'lecture']
-  },
-  {
-    id: '7',
-    question: 'Mes musiques sont-elles protégées par des droits d\'auteur ?',
-    answer: 'Oui, toutes les musiques uploadées passent par une vérification automatique des droits d\'auteur via AudD. Si un conflit est détecté, l\'upload sera bloqué pour protéger les créateurs.',
-    category: 'upload',
-    tags: ['droits', 'protection', 'audd']
-  },
-  {
-    id: '8',
-    question: 'Comment supprimer mon compte ?',
-    answer: 'Contactez notre support à support@synaura.fr avec votre demande de suppression. Nous traiterons votre demande dans les 48h et supprimerons toutes vos données conformément au RGPD.',
-    category: 'general',
-    tags: ['compte', 'suppression', 'rgpd']
-  }
-];
-
 export default function FAQPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [faqs, setFaqs] = useState<FAQItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredFAQs = faqData.filter(faq => {
+  // Charger les FAQ depuis l'API
+  useEffect(() => {
+    const fetchFAQs = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/api/community/faq?limit=100');
+        if (response.ok) {
+          const data = await response.json();
+          setFaqs(data.faqs || []);
+        } else {
+          toast.error('Erreur lors du chargement des FAQ');
+        }
+      } catch (error) {
+        console.error('Erreur:', error);
+        toast.error('Erreur lors du chargement des FAQ');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFAQs();
+  }, []);
+
+  const filteredFAQs = faqs.filter(faq => {
     const matchesCategory = selectedCategory === 'all' || faq.category === selectedCategory;
     const matchesSearch = searchQuery === '' || 
       faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -164,7 +133,11 @@ export default function FAQPage() {
 
           {/* Liste des FAQ */}
           <div className="p-4">
-            {filteredFAQs.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              </div>
+            ) : filteredFAQs.length === 0 ? (
               <div className="text-center py-12">
                 <HelpCircle size={48} className="mx-auto text-[var(--text-muted)] mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Aucune question trouvée</h3>
@@ -196,7 +169,7 @@ export default function FAQPage() {
                               <h3 className="text-base font-semibold mb-1 pr-4">
                                 {faq.question}
                               </h3>
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex flex-wrap gap-1 items-center">
                                 {faq.tags.map((tag) => (
                                   <span
                                     key={tag}
@@ -205,6 +178,11 @@ export default function FAQPage() {
                                     #{tag}
                                   </span>
                                 ))}
+                                {faq.helpful_count > 0 && (
+                                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-md">
+                                    {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>
