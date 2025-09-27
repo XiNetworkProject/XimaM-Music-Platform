@@ -90,6 +90,8 @@ export default function CommunityForumPage() {
                   ...post,
                   createdAt: post.created_at,
                   isLiked,
+                  likes: Number(post.likes) || 0,
+                  replies: Number(post.replies) || 0,
                   author: {
                     id: userData.id,
                     name: userData.name,
@@ -106,6 +108,8 @@ export default function CommunityForumPage() {
             return {
               ...post,
               createdAt: post.created_at,
+              likes: Number(post.likes) || 0,
+              replies: Number(post.replies) || 0,
               author: {
                 id: post.user_id,
                 name: 'Utilisateur inconnu',
@@ -294,6 +298,8 @@ export default function CommunityForumPage() {
       const postWithAuthor = {
         ...post,
         createdAt: post.created_at,
+        likes: Number(post.likes) || 0,
+        replies: Number(post.replies) || 0,
         author: {
           id: session.user.id,
           name: (session.user as any).name || 'Utilisateur',
@@ -470,14 +476,14 @@ export default function CommunityForumPage() {
                             }`}
                           >
                             <ThumbsUp size={14} />
-                            <span className="text-sm">{post.likes}</span>
+                            <span className="text-sm">{post.likes || 0}</span>
                           </button>
                           <button 
                             onClick={() => handleToggleComments(post.id)}
                             className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200"
                           >
                             <Reply size={14} />
-                            <span className="text-sm">{post.replies}</span>
+                            <span className="text-sm">{post.replies || 0}</span>
                           </button>
                         </div>
                       </div>
