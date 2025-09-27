@@ -32,15 +32,15 @@ export default function BottomNav() {
   const { notifications } = useMessageNotifications();
   const { audioState, setShowPlayer } = useAudioPlayer();
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
 
-  const navItems = [
+  // Navigation principale - 4 éléments essentiels
+  const mainNavItems = [
     {
       icon: Home,
       label: 'Accueil',
       path: '/',
       active: pathname === '/',
-      color: 'from-purple-500 to-pink-500',
-      description: 'Découvrez les nouveautés',
       public: true
     },
     {
@@ -48,8 +48,6 @@ export default function BottomNav() {
       label: 'Découvrir',
       path: '/discover',
       active: pathname === '/discover',
-      color: 'from-green-500 to-emerald-500',
-      description: 'Explorez la musique',
       public: true
     },
     {
@@ -57,8 +55,6 @@ export default function BottomNav() {
       label: 'Bibliothèque',
       path: '/library',
       active: pathname === '/library',
-      color: 'from-blue-500 to-cyan-500',
-      description: 'Vos favoris',
       public: false
     },
     {
@@ -66,17 +62,17 @@ export default function BottomNav() {
       label: 'Communauté',
       path: '/community',
       active: pathname.startsWith('/community'),
-      color: 'from-purple-500 to-pink-500',
-      description: 'Forum & FAQ',
       public: true
-    },
+    }
+  ];
+
+  // Navigation secondaire - dans le menu plus
+  const secondaryNavItems = [
     {
       icon: TrendingUp,
       label: 'Stats',
       path: '/stats',
       active: pathname === '/stats',
-      color: 'from-cyan-500 to-purple-500',
-      description: 'Vos statistiques',
       public: false
     },
     {
@@ -84,8 +80,14 @@ export default function BottomNav() {
       label: 'Messages',
       path: '/messages',
       active: pathname.startsWith('/messages'),
-      color: 'from-orange-500 to-red-500',
-      description: 'Communiquez',
+      public: false,
+      badge: notifications.length
+    },
+    {
+      icon: Settings,
+      label: 'Paramètres',
+      path: '/settings',
+      active: pathname === '/settings',
       public: false
     }
   ];
@@ -129,82 +131,131 @@ export default function BottomNav() {
     <>
       {/* Bottom Navigation - Mobile optimisé */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-        <div className="panel-suno bg-[var(--surface)]/90 backdrop-blur-xl border-t border-[var(--border)]">
-          <div className="px-2 py-2">
+        <div className="panel-suno bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--border)]">
+          <div className="px-3 py-2">
             <div className="flex items-center justify-between">
-              {/* Navigation principale - 4 icônes compactes */}
-              <div className="flex items-center justify-center flex-1 gap-1">
-                {navItems.map((item) => (
+              {/* Navigation principale - 4 éléments essentiels */}
+              <div className="flex items-center justify-center flex-1 gap-2">
+                {mainNavItems.map((item) => (
                   <button
                     key={item.path}
                     onClick={() => handleNavClick(item.path, item.public)}
-                    className={`flex flex-col items-center justify-center w-14 h-12 rounded-lg transition-all ${
+                    className={`flex flex-col items-center justify-center w-16 h-12 rounded-xl transition-all duration-200 ${
                       item.active 
                         ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40' 
                         : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
                     } ${!item.public && !session ? 'opacity-50' : ''}`}
                     disabled={!item.public && !session}
                   >
-                    <item.icon size={18} />
-                    <span className="text-[10px] mt-0.5 font-medium">{item.label}</span>
+                    <item.icon size={20} />
+                    <span className="text-[10px] mt-1 font-medium leading-tight">{item.label}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Actions rapides - Lecteur, Upload, Profil */}
-              <div className="flex items-center gap-1 ml-2">
-                {session ? (
-                  <>
-                    {/* Bouton lecteur mini */}
-                    {!audioState.showPlayer && (
-                      <button
-                        onClick={() => setShowPlayer(true)}
-                        className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 rounded-lg flex items-center justify-center text-white"
-                        aria-label="Lecteur"
-                      >
-                        <Music size={16} />
-                      </button>
-                    )}
-                    
-                    <button
-                      onClick={() => router.push('/upload', { scroll: false })}
-                      className="w-10 h-10 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg flex items-center justify-center text-white"
-                      aria-label="Upload"
-                    >
-                      <Plus size={16} />
-                    </button>
-                    
-                    <button
-                      onClick={handleProfileClick}
-                      className={`w-10 h-10 rounded-lg flex items-center justify-center border ${
-                        pathname.startsWith('/profile') 
-                          ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40' 
-                          : 'border-[var(--border)] hover:bg-[var(--surface-2)]'
-                      }`}
-                      aria-label="Profil"
-                    >
-                      <img
-                        src={avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture || '/default-avatar.png'}
-                        alt="Profile"
-                        className="w-6 h-6 rounded-full object-cover"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
-                      />
-                    </button>
-                  </>
-                ) : (
+              {/* Actions rapides - Plus, Upload, Profil */}
+              <div className="flex items-center gap-2 ml-3">
+                {/* Menu Plus */}
+                <div className="relative">
                   <button
-                    onClick={() => router.push('/auth/signin', { scroll: false })}
-                    className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-lg flex items-center justify-center text-white"
-                    aria-label="Se connecter"
+                    onClick={() => setShowMoreMenu(!showMoreMenu)}
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                      showMoreMenu
+                        ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/40'
+                        : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
+                    }`}
+                    aria-label="Plus d'options"
                   >
-                    <UserPlus size={16} />
+                    <Plus size={20} className={showMoreMenu ? 'rotate-45' : ''} />
+                  </button>
+
+                  {/* Menu déroulant Plus */}
+                  <AnimatePresence>
+                    {showMoreMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        className="absolute bottom-14 right-0 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-xl p-2 min-w-[160px]"
+                      >
+                        {secondaryNavItems.map((item) => (
+                          <button
+                            key={item.path}
+                            onClick={() => {
+                              handleNavClick(item.path, item.public);
+                              setShowMoreMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                              item.active
+                                ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300'
+                                : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
+                            } ${!item.public && !session ? 'opacity-50' : ''}`}
+                            disabled={!item.public && !session}
+                          >
+                            <item.icon size={16} />
+                            <span className="text-sm font-medium">{item.label}</span>
+                            {item.badge && item.badge > 0 && (
+                              <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                                {item.badge}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Upload */}
+                {session && (
+                  <button
+                    onClick={() => router.push('/upload', { scroll: false })}
+                    className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-xl flex items-center justify-center text-white transition-all duration-200"
+                    aria-label="Upload"
+                  >
+                    <Plus size={20} />
                   </button>
                 )}
+
+                {/* Profil */}
+                <button
+                  onClick={handleProfileClick}
+                  className={`w-12 h-12 rounded-xl flex items-center justify-center border transition-all duration-200 ${
+                    pathname.startsWith('/profile') 
+                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40' 
+                      : 'border-[var(--border)] hover:bg-[var(--surface-2)]'
+                  }`}
+                  aria-label="Profil"
+                >
+                  {session ? (
+                    <img
+                      src={avatarUrl || (session?.user as any)?.avatar || (session?.user as any)?.image || (session?.user as any)?.picture || '/default-avatar.png'}
+                      alt="Profile"
+                      className="w-7 h-7 rounded-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                    />
+                  ) : (
+                    <UserPlus size={20} className="text-[var(--text-muted)]" />
+                  )}
+                </button>
               </div>
             </div>
           </div>
         </div>
       </nav>
+
+      {/* Overlay pour fermer le menu */}
+      <AnimatePresence>
+        {showMoreMenu && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-30 lg:hidden"
+            onClick={() => setShowMoreMenu(false)}
+          />
+        )}
+      </AnimatePresence>
     </>
   );
 } 
