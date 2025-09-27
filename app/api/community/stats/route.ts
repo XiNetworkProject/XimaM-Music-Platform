@@ -3,67 +3,63 @@ import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
-    // Récupérer les statistiques de la communauté
+    // Calculer les statistiques de la communauté
     const [
-      { data: postsCount, error: postsError },
-      { data: repliesCount, error: repliesError },
-      { data: faqCount, error: faqError },
-      { data: usersCount, error: usersError }
+      resolvedQuestionsResult,
+      forumPostsResult,
+      implementedSuggestionsResult
     ] = await Promise.all([
-      supabase.from('forum_posts').select('*', { count: 'exact', head: true }),
-      supabase.from('forum_replies').select('*', { count: 'exact', head: true }),
-      supabase.from('faq_items').select('*', { count: 'exact', head: true }).eq('is_published', true),
-      supabase.from('profiles').select('*', { count: 'exact', head: true })
+      // Questions résolues : posts de catégorie "question" avec replies_count > 0
+      supabase
+        .from('forum_posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('category', 'question')
+        .gt('replies_count', 0),
+      
+      // Total des posts du forum
+      supabase
+        .from('forum_posts')
+        .select('id', { count: 'exact', head: true }),
+      
+      // Suggestions implémentées : posts de catégorie "suggestion" avec likes_count >= 5
+      supabase
+        .from('forum_posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('category', 'suggestion')
+        .gte('likes_count', 5)
     ]);
 
-    if (postsError || repliesError || faqError || usersError) {
-      console.error('Erreur lors de la récupération des statistiques:', { postsError, repliesError, faqError, usersError });
+    // Vérifier les erreurs
+    if (resolvedQuestionsResult.error || forumPostsResult.error || implementedSuggestionsResult.error) {
+      console.error('Erreur lors de la récupération des statistiques:', { 
+        resolvedQuestionsError: resolvedQuestionsResult.error, 
+        forumPostsError: forumPostsResult.error, 
+        implementedSuggestionsError: implementedSuggestionsResult.error 
+      });
       return NextResponse.json({ error: 'Erreur lors de la récupération des statistiques' }, { status: 500 });
     }
 
-    // Récupérer les posts récents
-    const { data: recentPosts, error: recentPostsError } = await supabase
+    // Calculer les membres actifs : utilisateurs ayant posté dans les 30 derniers jours
+    let activeMembersCount = 0;
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const { data: recentUsers, error: recentUsersError } = await supabase
       .from('forum_posts')
-      .select(`
-        id,
-        title,
-        category,
-        likes_count,
-        replies_count,
-        created_at,
-        profiles:user_id (
-          name,
-          username
-        )
-      `)
-      .order('created_at', { ascending: false })
-      .limit(3);
-
-    if (recentPostsError) {
-      console.error('Erreur lors de la récupération des posts récents:', recentPostsError);
-    }
-
-    // Récupérer les FAQ populaires
-    const { data: popularFAQs, error: popularFAQsError } = await supabase
-      .from('faq_items')
-      .select('id, question, category, views_count')
-      .eq('is_published', true)
-      .order('views_count', { ascending: false })
-      .limit(4);
-
-    if (popularFAQsError) {
-      console.error('Erreur lors de la récupération des FAQ populaires:', popularFAQsError);
+      .select('user_id')
+      .gte('created_at', thirtyDaysAgo.toISOString())
+      .not('user_id', 'is', null);
+    
+    if (!recentUsersError && recentUsers) {
+      const uniqueUsers = new Set(recentUsers.map(post => post.user_id));
+      activeMembersCount = uniqueUsers.size;
     }
 
     return NextResponse.json({
-      stats: {
-        postsCount: postsCount || 0,
-        repliesCount: repliesCount || 0,
-        faqCount: faqCount || 0,
-        usersCount: usersCount || 0
-      },
-      recentPosts: recentPosts || [],
-      popularFAQs: popularFAQs || []
+      resolvedQuestions: resolvedQuestionsResult.count || 0,
+      forumPosts: forumPostsResult.count || 0,
+      activeMembers: activeMembersCount,
+      implementedSuggestions: implementedSuggestionsResult.count || 0
     });
 
   } catch (error) {
