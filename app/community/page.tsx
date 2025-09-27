@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import FollowButton from '@/components/FollowButton';
+import Link from 'next/link';
 import {
   Users,
   TrendingUp,
@@ -18,6 +19,8 @@ import {
   Plus,
   X,
   Check,
+  HelpCircle,
+  MessageSquare,
   Calendar,
   ArrowUpRight,
   User,
@@ -274,6 +277,26 @@ export default function CommunityPage() {
               Communauté
             </h1>
             <p className="text-white/60 text-lg">Partagez, découvrez et interagissez avec la communauté musicale.</p>
+          </div>
+
+          {/* Navigation communauté */}
+          <div className="mb-8">
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/community/forum"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30 rounded-xl hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-200"
+              >
+                <MessageSquare size={16} className="text-blue-400" />
+                <span>Forum</span>
+              </Link>
+              <Link
+                href="/community/faq"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 rounded-xl hover:from-green-500/30 hover:to-blue-500/30 transition-all duration-200"
+              >
+                <HelpCircle size={16} className="text-green-400" />
+                <span>FAQ</span>
+              </Link>
+            </div>
           </div>
 
           {/* Barre de recherche et création de post */}
