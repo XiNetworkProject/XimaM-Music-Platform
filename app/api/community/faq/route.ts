@@ -77,16 +77,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    // Vérifier que l'utilisateur est admin
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', session.user.id)
-      .single();
-
-    if (profileError || !profile || !profile.is_admin) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-    }
+    // Pour l'instant, tous les utilisateurs connectés peuvent créer des FAQ
+    // TODO: Ajouter une vérification admin quand la colonne sera disponible
 
     const body = await request.json();
     const { question, answer, category, tags, order_index } = body;

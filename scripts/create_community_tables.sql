@@ -192,14 +192,8 @@ CREATE POLICY "Users can manage their own reply likes" ON forum_reply_likes
 CREATE POLICY "FAQ items are viewable by everyone" ON faq_items
   FOR SELECT USING (is_published = true);
 
-CREATE POLICY "FAQ items are manageable by admins" ON faq_items
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.is_admin = true
-    )
-  );
+CREATE POLICY "FAQ items are manageable by authenticated users" ON faq_items
+  FOR ALL USING (auth.uid() IS NOT NULL);
 
 -- Politiques RLS pour faq_votes
 CREATE POLICY "FAQ votes are viewable by everyone" ON faq_votes
