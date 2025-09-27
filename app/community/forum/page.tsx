@@ -62,13 +62,14 @@ export default function CommunityForumPage() {
         
         // Récupérer les informations utilisateur pour chaque post
         const postsWithAuthors = await Promise.all(
-          postsData.map(async (post) => {
+          postsData.map(async (post: any) => {
             try {
-              const userResponse = await fetch(`/api/users/${post.user_id}`);
+              const userResponse = await fetch(`/api/users/by-id/${post.user_id}`);
               if (userResponse.ok) {
                 const userData = await userResponse.json();
                 return {
                   ...post,
+                  createdAt: post.created_at,
                   author: {
                     id: userData.id,
                     name: userData.name,
@@ -84,6 +85,7 @@ export default function CommunityForumPage() {
             // Fallback si l'utilisateur n'est pas trouvé
             return {
               ...post,
+              createdAt: post.created_at,
               author: {
                 id: post.user_id,
                 name: 'Utilisateur inconnu',
@@ -186,6 +188,7 @@ export default function CommunityForumPage() {
       // Ajouter les informations utilisateur au nouveau post
       const postWithAuthor = {
         ...post,
+        createdAt: post.created_at,
         author: {
           id: session.user.id,
           name: (session.user as any).name || 'Utilisateur',
@@ -317,8 +320,14 @@ export default function CommunityForumPage() {
                               {post.content}
                             </p>
                             <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                              <div className="flex items-center gap-1">
-                                <User size={12} />
+                              <div className="flex items-center gap-2">
+                                <img 
+                                  src={(post.author.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} 
+                                  alt={post.author.name}
+                                  className="w-5 h-5 rounded-full object-cover"
+                                  loading="lazy"
+                                  decoding="async"
+                                />
                                 <span>{post.author.name}</span>
                               </div>
                               <div className="flex items-center gap-1">
