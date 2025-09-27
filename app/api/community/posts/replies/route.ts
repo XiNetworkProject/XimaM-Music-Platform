@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Récupérer les profils des utilisateurs
-    const userIds = [...new Set(replies?.map(reply => reply.user_id) || [])];
+    const userIds = Array.from(new Set(replies?.map(reply => reply.user_id) || []));
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, name, username, avatar')
