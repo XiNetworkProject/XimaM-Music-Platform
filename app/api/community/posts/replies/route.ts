@@ -15,15 +15,7 @@ export async function GET(request: NextRequest) {
     // Récupérer les réponses du post
     const { data: replies, error } = await supabase
       .from('forum_replies')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
+      .select('*')
       .eq('post_id', post_id)
       .order('created_at', { ascending: true });
 
@@ -32,7 +24,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la récupération des réponses' }, { status: 500 });
     }
 
-    return NextResponse.json(replies || []);
+    // Récupérer les profils des utilisateurs
+    const userIds = [...new Set(replies?.map(reply => reply.user_id) || [])];
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, name, username, avatar')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Erreur lors de la récupération des profils:', profilesError);
+      return NextResponse.json({ error: 'Erreur lors de la récupération des profils' }, { status: 500 });
+    }
+
+    // Combiner les réponses avec les profils
+    const repliesWithProfiles = replies?.map(reply => {
+      const profile = profiles?.find(p => p.id === reply.user_id);
+      return {
+        ...reply,
+        profiles: profile || { id: reply.user_id, name: 'Utilisateur inconnu', username: 'unknown', avatar: null }
+      };
+    }) || [];
+
+    return NextResponse.json(repliesWithProfiles);
 
   } catch (error) {
     console.error('Erreur serveur:', error);
@@ -74,15 +87,7 @@ export async function POST(request: NextRequest) {
         user_id: session.user.id,
         content: content.trim()
       })
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) {
@@ -90,7 +95,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la création de la réponse' }, { status: 500 });
     }
 
-    return NextResponse.json(reply, { status: 201 });
+    // Récupérer le profil de l'utilisateur
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, name, username, avatar')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Erreur lors de la récupération du profil:', profileError);
+      return NextResponse.json({ error: 'Erreur lors de la récupération du profil' }, { status: 500 });
+    }
+
+    // Combiner la réponse avec le profil
+    const replyWithProfile = {
+      ...reply,
+      profiles: profile || { id: session.user.id, name: 'Utilisateur', username: 'user', avatar: null }
+    };
+
+    return NextResponse.json(replyWithProfile, { status: 201 });
 
   } catch (error) {
     console.error('Erreur serveur:', error);
