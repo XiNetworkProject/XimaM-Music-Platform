@@ -14,15 +14,7 @@ export async function GET(request: NextRequest) {
 
     let query = supabase
       .from('forum_posts')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
+      .select('*')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -103,15 +95,7 @@ export async function POST(request: NextRequest) {
         category,
         tags: tags || []
       })
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
+      .select('*')
       .single();
 
     if (error) {
