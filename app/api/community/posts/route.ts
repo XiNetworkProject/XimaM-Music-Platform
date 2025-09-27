@@ -8,15 +8,31 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const search = searchParams.get('search');
+    const sort = searchParams.get('sort') || 'recent';
     const page = parseInt(searchParams.get('page') || '1');
     const limit = parseInt(searchParams.get('limit') || '10');
     const offset = (page - 1) * limit;
 
     let query = supabase
       .from('forum_posts')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .select('*');
+
+    // Appliquer le tri selon le paramètre sort
+    switch (sort) {
+      case 'recent':
+        query = query.order('created_at', { ascending: false });
+        break;
+      case 'popular':
+        query = query.order('likes_count', { ascending: false });
+        break;
+      case 'most_replied':
+        query = query.order('replies_count', { ascending: false });
+        break;
+      default:
+        query = query.order('created_at', { ascending: false });
+    }
+
+    query = query.range(offset, offset + limit - 1);
 
     // Filtrer par catégorie
     if (category && category !== 'all') {

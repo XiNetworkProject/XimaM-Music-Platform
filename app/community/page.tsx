@@ -1,73 +1,124 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { MessageSquare, HelpCircle, Users, TrendingUp, Star, Clock, ArrowRight, ChevronRight } from 'lucide-react';
+import { MessageSquare, HelpCircle, Users, TrendingUp, Star, Clock, ArrowRight, ChevronRight, ThumbsUp, Reply } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import toast from 'react-hot-toast';
 
 export default function CommunityPage() {
   const { data: session } = useSession();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    resolvedQuestions: 0,
+    forumPosts: 0,
+    activeMembers: 0,
+    implementedSuggestions: 0,
+  });
+  const [recentPosts, setRecentPosts] = useState<any[]>([]);
+  const [popularFaqs, setPopularFaqs] = useState<any[]>([]);
 
-  const stats = [
-    { label: 'Questions résolues', value: '1,234', icon: HelpCircle, color: 'text-green-400' },
-    { label: 'Posts du forum', value: '567', icon: MessageSquare, color: 'text-blue-400' },
-    { label: 'Membres actifs', value: '2,890', icon: Users, color: 'text-purple-400' },
-    { label: 'Suggestions implémentées', value: '89', icon: TrendingUp, color: 'text-orange-400' },
-  ];
+  // Charger les données de la communauté
+  useEffect(() => {
+    const fetchCommunityData = async () => {
+      try {
+        setLoading(true);
+        
+        // Charger les statistiques
+        const statsResponse = await fetch('/api/community/stats');
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setStats(statsData);
+        }
 
-  const recentPosts = [
-    {
-      id: '1',
-      title: 'Comment télécharger mes musiques ?',
-      category: 'question',
-      author: 'Marie Dubois',
-      replies: 5,
-      likes: 12,
-      time: '2h',
-    },
-    {
-      id: '2',
-      title: 'Suggestion : Mode sombre pour le player',
-      category: 'suggestion',
-      author: 'Alex Martin',
-      replies: 8,
-      likes: 28,
-      time: '4h',
-    },
-    {
-      id: '3',
-      title: 'Bug : Player qui se ferme sur mobile',
-      category: 'bug',
-      author: 'Sophie Chen',
-      replies: 3,
-      likes: 15,
-      time: '6h',
-    },
-  ];
+        // Charger les posts récents
+        const postsResponse = await fetch('/api/community/posts?limit=3&sort=recent');
+        if (postsResponse.ok) {
+          const postsData = await postsResponse.json();
+          const posts = postsData.posts || [];
+          
+          // Récupérer les informations utilisateur pour chaque post
+          const postsWithAuthors = await Promise.all(
+            posts.map(async (post: any) => {
+              try {
+                const userResponse = await fetch(`/api/users/by-id/${post.user_id}`);
+                if (userResponse.ok) {
+                  const userData = await userResponse.json();
+                  return {
+                    ...post,
+                    createdAt: post.created_at,
+                    author: {
+                      name: userData.name,
+                      username: userData.username,
+                    }
+                  };
+                }
+              } catch (error) {
+                console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+              }
+              
+              return {
+                ...post,
+                createdAt: post.created_at,
+                author: {
+                  name: 'Utilisateur inconnu',
+                  username: 'unknown',
+                }
+              };
+            })
+          );
+          
+          setRecentPosts(postsWithAuthors);
+        }
 
-  const popularFAQs = [
-    {
-      id: '1',
-      question: 'Comment télécharger mes musiques ?',
-      category: 'player',
-    },
-    {
-      id: '2',
-      question: 'Quels formats audio sont supportés ?',
-      category: 'upload',
-    },
-    {
-      id: '3',
-      question: 'Comment fonctionne la génération de musique IA ?',
-      category: 'ia',
-    },
-    {
-      id: '4',
-      question: 'Puis-je changer de plan d\'abonnement ?',
-      category: 'abonnement',
-    },
-  ];
+        // Charger les FAQ populaires
+        const faqResponse = await fetch('/api/community/faq?limit=4&sort=popular');
+        if (faqResponse.ok) {
+          const faqData = await faqResponse.json();
+          setPopularFaqs(faqData);
+        }
+
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+        toast.error('Erreur lors du chargement des données de la communauté');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCommunityData();
+  }, []);
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (hours < 1) return 'À l\'instant';
+    if (hours < 24) return `Il y a ${hours}h`;
+    if (days < 7) return `Il y a ${days}j`;
+    return date.toLocaleDateString('fr-FR');
+  };
+
+  const getCategoryIcon = (category: string) => {
+    switch (category) {
+      case 'question': return <HelpCircle size={16} className="text-blue-400" />;
+      case 'suggestion': return <TrendingUp size={16} className="text-yellow-400" />;
+      case 'bug': return <MessageSquare size={16} className="text-red-400" />;
+      default: return <MessageSquare size={16} className="text-purple-400" />;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full text-[var(--text)] pb-20">
@@ -91,22 +142,49 @@ export default function CommunityPage() {
           <div className="p-4">
             <h2 className="text-lg font-semibold mb-4">Communauté en chiffres</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {stats.map((stat, index) => {
-                const Icon = stat.icon;
-                return (
-                  <motion.div
-                    key={stat.label}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
-                  >
-                    <Icon size={24} className={`mx-auto mb-2 ${stat.color}`} />
-                    <div className="text-2xl font-bold text-[var(--text)]">{stat.value}</div>
-                    <div className="text-sm text-[var(--text-muted)]">{stat.label}</div>
-                  </motion.div>
-                );
-              })}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
+              >
+                <HelpCircle size={24} className="mx-auto mb-2 text-green-400" />
+                <div className="text-2xl font-bold text-[var(--text)]">{stats.resolvedQuestions}</div>
+                <div className="text-sm text-[var(--text-muted)]">Questions résolues</div>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
+              >
+                <MessageSquare size={24} className="mx-auto mb-2 text-blue-400" />
+                <div className="text-2xl font-bold text-[var(--text)]">{stats.forumPosts}</div>
+                <div className="text-sm text-[var(--text-muted)]">Posts du forum</div>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
+              >
+                <Users size={24} className="mx-auto mb-2 text-purple-400" />
+                <div className="text-2xl font-bold text-[var(--text)]">{stats.activeMembers}</div>
+                <div className="text-sm text-[var(--text-muted)]">Membres actifs</div>
+              </motion.div>
+              
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
+              >
+                <TrendingUp size={24} className="mx-auto mb-2 text-orange-400" />
+                <div className="text-2xl font-bold text-[var(--text)]">{stats.implementedSuggestions}</div>
+                <div className="text-sm text-[var(--text-muted)]">Suggestions implémentées</div>
+              </motion.div>
             </div>
           </div>
 
@@ -173,41 +251,51 @@ export default function CommunityPage() {
               </Link>
             </div>
             <div className="space-y-3">
-              {recentPosts.map((post, index) => (
-                <motion.div
-                  key={post.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-semibold mb-1 hover:text-blue-400 cursor-pointer">
-                        {post.title}
-                      </h3>
-                      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                        <span className="capitalize">{post.category}</span>
-                        <span>par {post.author}</span>
+              {recentPosts.length > 0 ? (
+                recentPosts.map((post, index) => (
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="font-semibold mb-1 hover:text-blue-400 cursor-pointer">
+                          {post.title}
+                        </h3>
+                        <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+                          <div className="flex items-center gap-1">
+                            {getCategoryIcon(post.category)}
+                            <span className="capitalize">{post.category}</span>
+                          </div>
+                          <span>par {post.author.name}</span>
+                          <div className="flex items-center gap-1">
+                            <Clock size={12} />
+                            <span>{formatDate(post.createdAt)}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
                         <div className="flex items-center gap-1">
-                          <Clock size={12} />
-                          <span>il y a {post.time}</span>
+                          <ThumbsUp size={14} />
+                          <span>{post.likes_count || 0}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Reply size={14} />
+                          <span>{post.replies_count || 0}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
-                      <div className="flex items-center gap-1">
-                        <Star size={14} />
-                        <span>{post.likes}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <MessageSquare size={14} />
-                        <span>{post.replies}</span>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-[var(--text-muted)]">
+                  <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
+                  <p>Aucune discussion récente pour le moment.</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -224,24 +312,36 @@ export default function CommunityPage() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {popularFAQs.map((faq, index) => (
-                <motion.div
-                  key={faq.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-colors cursor-pointer"
-                >
-                  <h3 className="font-medium mb-2 hover:text-green-400">
-                    {faq.question}
-                  </h3>
-                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                    <span className="px-2 py-1 bg-[var(--surface-3)] rounded-lg capitalize">
-                      {faq.category}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+              {popularFaqs.length > 0 ? (
+                popularFaqs.map((faq, index) => (
+                  <motion.div
+                    key={faq.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-colors cursor-pointer"
+                  >
+                    <h3 className="font-medium mb-2 hover:text-green-400">
+                      {faq.question}
+                    </h3>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                      <span className="px-2 py-1 bg-[var(--surface-3)] rounded-lg capitalize">
+                        {faq.category}
+                      </span>
+                      {faq.helpful_count > 0 && (
+                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg">
+                          {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                  </motion.div>
+                ))
+              ) : (
+                <div className="col-span-2 text-center py-8 text-[var(--text-muted)]">
+                  <HelpCircle size={48} className="mx-auto mb-4 opacity-50" />
+                  <p>Aucune FAQ populaire pour le moment.</p>
+                </div>
+              )}
             </div>
           </div>
 
