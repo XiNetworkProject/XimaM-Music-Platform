@@ -45,7 +45,7 @@ export default function CommunityForumPage() {
   const [newPost, setNewPost] = useState({
     title: '',
     content: '',
-    category: 'question' as const,
+    category: 'question' as 'question' | 'suggestion' | 'bug' | 'general',
     tags: [] as string[],
   });
   const [autoCategorizeEnabled, setAutoCategorizeEnabled] = useState(true);
@@ -356,6 +356,18 @@ export default function CommunityForumPage() {
     }));
     
     toast.success(`Catégorie suggérée: ${categories.find(c => c.id === suggestedCategory)?.label}`);
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return 'Aujourd\'hui';
+    if (days === 1) return 'Hier';
+    if (days < 7) return `Il y a ${days} jours`;
+    return date.toLocaleDateString('fr-FR');
   };
 
   return (
