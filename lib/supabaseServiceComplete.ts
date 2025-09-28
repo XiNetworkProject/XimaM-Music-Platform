@@ -33,6 +33,7 @@ export interface SupabaseTrack {
   genre: string[];
   tags: string[];
   description?: string;
+  lyrics?: string;
   plays: number;
   likes: number;
   is_explicit: boolean;

@@ -29,6 +29,7 @@ export interface SupabaseTrack {
   id: string;
   title: string;
   description?: string;
+  lyrics?: string;
   audio_url: string;
   cover_url?: string;
   duration: number;

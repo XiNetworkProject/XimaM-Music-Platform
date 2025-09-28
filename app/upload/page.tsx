@@ -753,6 +753,18 @@ export default function UploadPage() {
                 </div>
 
                   <div className="space-y-1.5">
+                    <label className="block text-sm font-medium text-white/80">Paroles (optionnel)</label>
+                    <textarea
+                      value={formData.lyrics || ''}
+                      onChange={(e) => handleInputChange('lyrics', e.target.value)}
+                      rows={6}
+                      className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors resize-none text-[var(--text)] text-sm"
+                      placeholder="Ajoutez les paroles de votre musique..."
+                    />
+                    <p className="text-xs text-white/50">Les paroles sont optionnelles et peuvent être ajoutées plus tard</p>
+                  </div>
+
+                  <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Genre</label>
                     <div className="flex flex-wrap gap-1.5">
                       {MUSIC_GENRES.map((genre) => (
@@ -962,6 +974,19 @@ export default function UploadPage() {
                       <span>{formData.isExplicit ? 'Explicite' : 'Tout public'}</span>
                     </div>
                   </div>
+
+                  {/* Prévisualisation des paroles */}
+                  {formData.lyrics && (
+                    <div className="bg-white/[0.02] border border-[var(--border)] rounded-lg p-3">
+                      <h4 className="text-sm font-medium text-white/80 mb-2 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Paroles
+                      </h4>
+                      <div className="text-xs text-white/70 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {formData.lyrics}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Prévisualisation impact stockage */}
                   {usage && (

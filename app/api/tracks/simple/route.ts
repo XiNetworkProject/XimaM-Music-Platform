@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
         likes,
         is_featured,
         genre,
+        lyrics,
         created_at
       `)
       .limit(20);
@@ -99,6 +100,7 @@ export async function GET(request: NextRequest) {
         coverUrl: track.cover_url,
         audioUrl: track.audio_url,
         duration: track.duration || 0,
+        lyrics: track.lyrics || null,
         isFeatured: isFeatured,
         isNew: isNew,
         trendingScore: trendingScore

@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
           id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           title: trackData.title,
           description: trackData.description || '',
+          lyrics: trackData.lyrics || null,
           genre: trackGenre,
           audio_url: audioUrl,
           cover_url: coverUrl || null,

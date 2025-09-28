@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabaseAdmin
         .from('tracks')
         .select(`
-          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre,
+          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
         .in('id', normalIds);
@@ -188,6 +188,7 @@ export async function GET(request: NextRequest) {
         coverUrl: t.cover_url,
         audioUrl: t.audio_url,
         genre: t.genre || [],
+        lyrics: t.lyrics || null,
         likes: [],
         plays: 0,
         createdAt: t.created_at,
