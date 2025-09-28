@@ -125,7 +125,7 @@ export default function CommunityPage() {
       <div className="w-full p-2 sm:p-3">
         <div className="flex flex-col gap-6 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-6xl mx-auto">
           
-          {/* Header */}
+      {/* Header */}
           <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border border-purple-500/20">
@@ -134,7 +134,7 @@ export default function CommunityPage() {
               <div>
                 <h1 className="text-2xl max-md:text-lg font-bold">Communauté Synaura</h1>
                 <p className="text-[var(--text-muted)] text-sm">Entraide, questions et suggestions</p>
-              </div>
+          </div>
             </div>
           </div>
 
@@ -153,7 +153,7 @@ export default function CommunityPage() {
                 <div className="text-sm text-[var(--text-muted)]">Questions résolues</div>
               </motion.div>
               
-              <motion.div
+                <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
@@ -186,7 +186,7 @@ export default function CommunityPage() {
                 <div className="text-sm text-[var(--text-muted)]">Suggestions implémentées</div>
               </motion.div>
             </div>
-          </div>
+        </div>
 
           {/* Navigation rapide */}
           <div className="p-4 border-t border-[var(--border)]">
@@ -210,8 +210,8 @@ export default function CommunityPage() {
                       <span>Accéder au forum</span>
                       <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
                     </div>
-                  </div>
-                </div>
+                            </div>
+                          </div>
               </Link>
 
               {/* FAQ */}
@@ -222,7 +222,7 @@ export default function CommunityPage() {
                 <div className="flex items-center gap-4">
                   <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-blue-500">
                     <HelpCircle size={24} className="text-white" />
-                  </div>
+                        </div>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold mb-1">FAQ</h3>
                     <p className="text-[var(--text-muted)] text-sm mb-3">
@@ -231,12 +231,12 @@ export default function CommunityPage() {
                     <div className="flex items-center text-green-400 text-sm font-medium group-hover:text-green-300">
                       <span>Consulter la FAQ</span>
                       <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </div>
+                            </div>
+                          </div>
+                            </div>
               </Link>
-            </div>
-          </div>
+                          </div>
+                        </div>
 
           {/* Posts récents */}
           <div className="p-4 border-t border-[var(--border)]">
@@ -249,11 +249,11 @@ export default function CommunityPage() {
                 <span>Voir tout</span>
                 <ArrowRight size={14} />
               </Link>
-            </div>
+                  </div>
             <div className="space-y-3">
               {recentPosts.length > 0 ? (
                 recentPosts.map((post, index) => (
-                  <motion.div
+                    <motion.div
                     key={post.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -281,23 +281,23 @@ export default function CommunityPage() {
                         <div className="flex items-center gap-1">
                           <ThumbsUp size={14} />
                           <span>{post.likes_count || 0}</span>
-                        </div>
+                  </div>
                         <div className="flex items-center gap-1">
                           <Reply size={14} />
                           <span>{post.replies_count || 0}</span>
                         </div>
                       </div>
                     </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  ))
               ) : (
                 <div className="text-center py-8 text-[var(--text-muted)]">
                   <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
                   <p>Aucune discussion récente pour le moment.</p>
-                </div>
-              )}
-            </div>
-          </div>
+                          </div>
+                      )}
+                    </div>
+                  </div>
 
           {/* FAQ populaire */}
           <div className="p-4 border-t border-[var(--border)]">
@@ -310,7 +310,7 @@ export default function CommunityPage() {
                 <span>Voir toutes les FAQ</span>
                 <ArrowRight size={14} />
               </Link>
-            </div>
+                            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {popularFaqs.length > 0 ? (
                 popularFaqs.map((faq, index) => (
@@ -340,7 +340,7 @@ export default function CommunityPage() {
                 <div className="col-span-2 text-center py-8 text-[var(--text-muted)]">
                   <HelpCircle size={48} className="mx-auto mb-4 opacity-50" />
                   <p>Aucune FAQ populaire pour le moment.</p>
-                </div>
+                  </div>
               )}
             </div>
           </div>
@@ -372,4 +372,4 @@ export default function CommunityPage() {
       </div>
     </div>
   );
-}
+} 

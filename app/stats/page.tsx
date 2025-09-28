@@ -1,4 +1,164 @@
-"use client";
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+
+type Daily = {
+  day: string;
+  views: number;
+  plays: number;
+  completes: number;
+  likes: number;
+  shares: number;
+  favorites: number;
+  total_listen_ms: number;
+  unique_listeners: number;
+  retention_complete_rate: number;
+};
+
+// Debug section — garder pour requêtes ponctuelles track_id
+function StatsTrackDebug() {
+  const [trackId, setTrackId] = useState<string>('');
+  const [data, setData] = useState<{ daily: Daily[]; rolling: any; sources: any[]; funnel?: { starts: number; p25Rate: number; p50Rate: number; p75Rate: number; completeRate: number } } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchStats = async () => {
+    if (!trackId) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(trackId)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erreur chargement stats');
+      setData(json);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // no auto fetch; user saisit un track_id
+  }, []);
+
+  return (
+    <div className="min-h-screen w-full text-[var(--text)] p-4">
+      <div className="max-w-5xl mx-auto space-y-4">
+        <h1 className="text-2xl font-bold">Statistiques des musiques</h1>
+        <div className="flex gap-2">
+          <input
+            value={trackId}
+            onChange={(e) => setTrackId(e.target.value)}
+            placeholder="Entrer l'ID de la musique (ex: ai-xxxxx ou id track)"
+            className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl"
+          />
+          <button
+            onClick={fetchStats}
+            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl"
+          >
+            Charger
+          </button>
+        </div>
+
+        {loading && <div>Chargement…</div>}
+        {error && <div className="text-red-400">{error}</div>}
+
+        {data && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Card label="Vues 30j" value={sum(data.daily, 'views')} />
+              <Card label="Lectures 30j" value={sum(data.daily, 'plays')} />
+              <Card label="Fin de lectures 30j" value={sum(data.daily, 'completes')} />
+              <Card label="Likes 30j" value={sum(data.daily, 'likes')} />
+              <Card label="Partages 30j" value={sum(data.daily, 'shares')} />
+              <Card label="Favoris 30j" value={sum(data.daily, 'favorites')} />
+              <Card label="Écoute totale (min)" value={Math.round(sum(data.daily, 'total_listen_ms') / 60000)} />
+              <Card label="Rétention moyenne (%)" value={avg(data.daily, 'retention_complete_rate').toFixed(1)} />
+            </div>
+
+            <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4">
+              <h3 className="font-semibold mb-2">Tendance 7 derniers jours</h3>
+              <div className="grid grid-cols-7 gap-2 text-sm text-[var(--text-muted)]">
+                {data.daily.slice(-7).map((d) => (
+                  <div key={d.day} className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">{new Date(d.day).toLocaleDateString('fr-FR')}</div>
+                    <div>Plays: {d.plays}</div>
+                    <div>Fin: {d.completes}</div>
+                    <div>Ret: {Math.round(d.retention_complete_rate)}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Funnel rétention 30j */}
+            {data.funnel && (
+              <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4">
+                <h3 className="font-semibold mb-2">Funnel de rétention (30 jours)</h3>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-sm text-[var(--text-muted)]">
+                  <div className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">Starts</div>
+                    <div className="text-[var(--text)] font-semibold">{data.funnel.starts}</div>
+                  </div>
+                  <div className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">25%</div>
+                    <div className="text-[var(--text)] font-semibold">{data.funnel.p25Rate}%</div>
+                  </div>
+                  <div className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">50%</div>
+                    <div className="text-[var(--text)] font-semibold">{data.funnel.p50Rate}%</div>
+                  </div>
+                  <div className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">75%</div>
+                    <div className="text-[var(--text)] font-semibold">{data.funnel.p75Rate}%</div>
+                  </div>
+                  <div className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">Complet</div>
+                    <div className="text-[var(--text)] font-semibold">{data.funnel.completeRate}%</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4">
+              <h3 className="font-semibold mb-2">Sources de trafic (30j)</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm text-[var(--text-muted)]">
+                {data.sources.map((s) => (
+                  <div key={s.source} className="p-2 bg-[var(--surface-3)] rounded-lg">
+                    <div className="text-xs">{s.source || 'inconnu'}</div>
+                    <div>Vues: {s.views}</div>
+                    <div>Plays: {s.plays}</div>
+                    <div>Fin: {s.completes}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function sum(arr: any[], key: string): number {
+  return (arr || []).reduce((acc, x) => acc + (Number(x?.[key]) || 0), 0);
+}
+
+function avg(arr: any[], key: string): number {
+  if (!arr || !arr.length) return 0;
+  return sum(arr, key) / arr.length;
+}
+
+function Card({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-3">
+      <div className="text-xs text-[var(--text-muted)]">{label}</div>
+      <div className="text-lg font-semibold">{value}</div>
+    </div>
+  );
+}
 
 function DonutWithLegend({ data, topN = 6 }: { data: Record<string, number>; topN?: number }) {
   const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
@@ -44,7 +204,7 @@ function DonutWithLegend({ data, topN = 6 }: { data: Record<string, number>; top
 }
 
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { Headphones, Heart, Music, TrendingUp, Users, ArrowRight, ChevronDown } from 'lucide-react';
@@ -63,6 +223,7 @@ type Track = {
 
 export default function StatsPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -79,6 +240,8 @@ export default function StatsPage() {
   const [hoverPoint, setHoverPoint] = useState<{ date: string; plays: number; uniques?: number; likes?: number } | null>(null);
   const [compareTrack, setCompareTrack] = useState<string>('');
   const [compareSeries, setCompareSeries] = useState<Array<{ date: string; plays: number; uniques?: number; likes?: number }>>([]);
+  const [trackDaily, setTrackDaily] = useState<Daily[] | null>(null);
+  const [loadingTrackDetail, setLoadingTrackDetail] = useState(false);
 
   // Onboarding: marquer la visite des stats
   useEffect(() => {
@@ -87,6 +250,13 @@ export default function StatsPage() {
       window.dispatchEvent(new Event('onboardingStatsViewed'));
     } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      const trackId = searchParams?.get('track_id');
+      if (trackId) setSelectedTrack(trackId);
+    } catch {}
+  }, [searchParams]);
 
   useEffect(() => {
     const run = async () => {
@@ -171,6 +341,26 @@ export default function StatsPage() {
               setHeatmap([]);
             } finally {
               setLoadingHeatmap(false);
+            }
+          })(),
+          (async () => {
+            try {
+              if (selectedTrack && selectedTrack !== 'all') {
+                setLoadingTrackDetail(true);
+                const t = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(selectedTrack)}`, { headers: { 'Cache-Control': 'no-store' } });
+                if (t.ok) {
+                  const json = await t.json();
+                  setTrackDaily(json.daily || []);
+                } else {
+                  setTrackDaily([]);
+                }
+              } else {
+                setTrackDaily(null);
+              }
+            } catch {
+              setTrackDaily([]);
+            } finally {
+              setLoadingTrackDetail(false);
             }
           })(),
         ]);
@@ -272,6 +462,28 @@ export default function StatsPage() {
             </div>
           </div>
         </div>
+
+        {/* KPIs par piste (total) */}
+        {selectedTrack !== 'all' && (
+          <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-xl font-semibold">Stats de la piste (total)</h2>
+              {loadingTrackDetail && <SynauraSpinner label="Chargement" />}
+            </div>
+            {!loadingTrackDetail && Array.isArray(trackDaily) && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+                <Card label="Vues (total)" value={sum(trackDaily, 'views')} />
+                <Card label="Lectures (total)" value={sum(trackDaily, 'plays')} />
+                <Card label="Fins (total)" value={sum(trackDaily, 'completes')} />
+                <Card label="Likes (total)" value={sum(trackDaily, 'likes')} />
+                <Card label="Partages (total)" value={sum(trackDaily, 'shares')} />
+                <Card label="Favoris (total)" value={sum(trackDaily, 'favorites')} />
+                <Card label="Heures d’écoute (total)" value={(sum(trackDaily, 'total_listen_ms')/3600000).toFixed(1)} />
+                <Card label="Rétention moyenne (%)" value={avg(trackDaily, 'retention_complete_rate').toFixed(1)} />
+              </div>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div className="h-40 flex items-center justify-center"><SynauraSpinner label="Chargement" /></div>

@@ -146,11 +146,25 @@ export function useLikeSystem({
       // Mettre à jour le contexte global avec les vraies données
       syncLikeState(trackId, newState.isLiked, newState.likesCount);
 
-      // Notification de succès
+      // Notification de succès + analytics (favorite/unfavorite)
       if (data.isLiked) {
         toast.success('Titre ajouté aux favoris');
+        try {
+          await fetch(`/api/tracks/${trackId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_type: 'favorite' })
+          });
+        } catch {}
       } else {
         toast.success('Titre retiré des favoris');
+        try {
+          await fetch(`/api/tracks/${trackId}/events`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_type: 'unfavorite' })
+          });
+        } catch {}
       }
 
     } catch (error) {

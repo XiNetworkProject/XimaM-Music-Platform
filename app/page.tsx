@@ -243,7 +243,11 @@ export default function HomePage() {
   // Pistes utilisées pour le carrousel héros: toujours les tendances
   const heroTracks = useMemo(() => categories.trending.tracks.slice(0, 5), [categories.trending.tracks]);
   // Listes For You et Trending uniques (sans doublons)
-  const forYouList = useMemo(() => (dailyDiscoveries && dailyDiscoveries.length > 0 ? dailyDiscoveries : featuredTracks), [dailyDiscoveries, featuredTracks]);
+  const forYouList = useMemo(() => {
+    const algo = (categories as any)?.forYou?.tracks || [];
+    if (Array.isArray(algo) && algo.length > 0) return algo;
+    return (dailyDiscoveries && dailyDiscoveries.length > 0 ? dailyDiscoveries : featuredTracks);
+  }, [categories?.forYou?.tracks, dailyDiscoveries, featuredTracks]);
   const trendingUnique = useMemo(() => {
     const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
     return (categories.trending.tracks || []).filter((t: any) => !forYouIds.has(t._id));
@@ -754,7 +758,8 @@ export default function HomePage() {
     setLoading(true);
     
     const categoryApis = [
-      { key: 'trending', url: '/api/tracks/trending?limit=50' },
+      { key: 'forYou', url: '/api/ranking/feed?limit=50&ai=1' },
+      { key: 'trending', url: '/api/ranking/feed?limit=50' },
       { key: 'popular', url: '/api/tracks/popular?limit=50' },
       { key: 'recent', url: '/api/tracks/recent?limit=50' },
       { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
@@ -823,7 +828,8 @@ export default function HomePage() {
     dataCache.clear();
     
     const categoryApis = [
-      { key: 'trending', url: '/api/tracks/trending?limit=50' },
+      { key: 'forYou', url: '/api/ranking/feed?limit=50&ai=1' },
+      { key: 'trending', url: '/api/ranking/feed?limit=50' },
       { key: 'popular', url: '/api/tracks/popular?limit=50' },
       { key: 'recent', url: '/api/tracks/recent?limit=50' },
       { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
@@ -1893,14 +1899,21 @@ export default function HomePage() {
                                   onClick={() => handlePlayTrack(track)}
                                 >
                                   <div className="h-16 w-12 rounded-lg overflow-hidden bg-[var(--surface-2)] border border-[var(--border)]">
-                                    <img
-                                      alt={track.title || 'Cover'}
-                                      src={track.coverUrl || '/default-cover.jpg'}
-                                      className="h-full w-full object-cover"
-                                      onError={(e) => {
-                                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                                      }}
-                                    />
+                                    <div className="relative h-full w-full">
+                                      <img
+                                        alt={track.title || 'Cover'}
+                                        src={track.coverUrl || '/default-cover.jpg'}
+                                        className="absolute inset-0 h-full w-full object-cover"
+                                        onError={(e) => {
+                                          (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                                        }}
+                                      />
+                                      {String(track._id || '').startsWith('ai-') && (
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-600/90 text-white border border-white/10">
+                                          IA
+                                        </span>
+                                      )}
+                                    </div>
                 </div>
                                   <div className="absolute inset-0 flex items-center justify-center rounded-lg transition-colors duration-150 text-[var(--text)] bg-transparent">
                                     {currentTrack?._id === track._id && audioState.isPlaying ? (
@@ -1986,7 +1999,7 @@ export default function HomePage() {
             </div>
                       <div className="flex flex-col gap-1">
                         {trendingUnique
-                          ?.slice(0, 4)
+                          ?.slice(0, 6)
                           .map((track) => (
                             <div
                               key={track._id}
@@ -1999,14 +2012,21 @@ export default function HomePage() {
                                   onClick={() => handlePlayTrack(track)}
                                 >
                                   <div className="h-16 w-12 rounded-lg overflow-hidden bg-[var(--surface-2)] border border-[var(--border)]">
-                                    <img
-                                      alt={track.title || 'Cover'}
-                                      src={track.coverUrl || '/default-cover.jpg'}
-                                      className="h-full w-full object-cover"
-                                      onError={(e) => {
-                                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                                      }}
-                                    />
+                                    <div className="relative h-full w-full">
+                                      <img
+                                        alt={track.title || 'Cover'}
+                                        src={track.coverUrl || '/default-cover.jpg'}
+                                        className="absolute inset-0 h-full w-full object-cover"
+                                        onError={(e) => {
+                                          (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                                        }}
+                                      />
+                                      {String(track._id || '').startsWith('ai-') && (
+                                        <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-600/90 text-white border border-white/10">
+                                          IA
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
                                   <div className="absolute inset-0 flex items-center justify-center rounded-lg transition-colors duration-150 text-[var(--text)] bg-transparent">
                                     {currentTrack?._id === track._id && audioState.isPlaying ? (
@@ -2077,6 +2097,9 @@ export default function HomePage() {
                       <div className="relative mb-4 cursor-pointer">
                         <div className="relative h-[200px] sm:h-[256px] w-full overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
                           <img alt={track.title} src={(track.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} className="absolute inset-0 h-full w-full rounded-xl object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} loading="lazy" decoding="async" />
+                          {String(track._id || '').startsWith('ai-') && (
+                            <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-purple-600/90 text-white border border-white/10">IA</span>
+                          )}
                           <div className="absolute inset-0 z-20">
                             <button className="flex items-center justify-center h-14 w-14 rounded-full p-4 bg-[var(--surface-2)]/60 backdrop-blur-xl border border-[var(--border)] outline-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform duration-300">
                               <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-[var(--text)]"><path d="M6 18.705V5.294q0-.55.415-.923Q6.829 4 7.383 4q.173 0 .363.049.189.048.363.145L19.378 10.9a1.285 1.285 0 0 1 0 2.202l-11.27 6.705a1.5 1.5 0 0 1-.725.194q-.554 0-.968-.372A1.19 1.19 0 0 1 6 18.704"/></svg>
@@ -2146,7 +2169,7 @@ export default function HomePage() {
               <div className="relative w-full overflow-hidden" style={{ height: '20.5rem' }}>
                 <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_85%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
                   <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 px-1">
-                {popularUsers?.map((user, index) => (
+                {popularUsers?.slice(0, 6).map((user, index) => (
                       <div key={user._id || user.id || index} className="relative flex h-fit w-48 shrink-0 cursor-pointer flex-col gap-4 rounded-lg p-4 transition ease-in-out hover:bg-[var(--surface-2)]/60 border border-transparent hover:border-[var(--border)]"
                         title={user.name || user.username}
                     onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}

@@ -53,7 +53,7 @@ export async function GET(
       .from('tracks')
       .select('plays')
       .eq('id', trackId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ Erreur Supabase plays GET:', error);
@@ -64,10 +64,8 @@ export async function GET(
     }
 
     if (!track) {
-      return NextResponse.json(
-        { error: 'Piste non trouvée' },
-        { status: 404 }
-      );
+      // Si la piste n'existe pas côté DB, renvoyer 0 pour ne pas casser le client
+      return NextResponse.json({ plays: 0 });
     }
 
     console.log(`✅ Lectures récupérées pour la piste ${trackId}: ${track.plays || 0}`);
@@ -148,7 +146,7 @@ export async function POST(
       .from('tracks')
       .select('plays')
       .eq('id', trackId)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('❌ Erreur Supabase plays POST:', error);
@@ -159,10 +157,8 @@ export async function POST(
     }
 
     if (!track) {
-      return NextResponse.json(
-        { error: 'Piste non trouvée' },
-        { status: 404 }
-      );
+      // Si la piste n'existe pas côté DB, ne pas échouer — retourner 0
+      return NextResponse.json({ plays: 0 });
     }
 
     const newPlays = (track.plays || 0) + 1;

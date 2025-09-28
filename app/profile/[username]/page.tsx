@@ -1190,6 +1190,17 @@ export default function ProfileUserPage() {
                                 disabled={likeLoading === track.id}
                                 className="hover:text-pink-400 transition-colors"
                               />
+                              <button
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
+                                title="Voir les stats"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  router.push(`/stats?track_id=${encodeURIComponent(track.id)}`);
+                                }}
+                              >
+                                <TrendingUp size={12} className="text-green-400" />
+                                <span className="hidden sm:inline text-xs">Stats</span>
+                              </button>
                           </div>
                           
                           {/* Menu d'options pour le propriétaire */}
@@ -1277,6 +1288,17 @@ export default function ProfileUserPage() {
                                 className="text-gray-500"
                               />
                               <span>{formatDuration(track.duration)}</span>
+                            <button
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
+                              title="Voir les stats"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/stats?track_id=${encodeURIComponent(track.id)}`);
+                              }}
+                            >
+                              <TrendingUp size={12} className="text-green-400" />
+                              <span className="hidden sm:inline text-xs">Stats</span>
+                            </button>
                             </div>
                           </div>
                           
@@ -1338,6 +1360,16 @@ export default function ProfileUserPage() {
                         </div>
                       </div>
                       <div className="p-2 space-y-1">
+                        <button
+                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
+                          onClick={() => {
+                            const track = userTracks.find(t => t.id === showTrackOptions);
+                            if (track) router.push(`/stats?track_id=${encodeURIComponent(track.id)}`);
+                          }}
+                        >
+                          <TrendingUp className="w-4 h-4 text-green-400" />
+                          <span>Voir les stats</span>
+                        </button>
                                   <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
                           onClick={() => {

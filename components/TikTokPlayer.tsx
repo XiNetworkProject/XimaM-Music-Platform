@@ -18,6 +18,7 @@ import DownloadButton, { DownloadTooltip } from './DownloadButton';
 import DownloadDialog from './DownloadDialog';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
 import FollowButton from './FollowButton';
+import { sendTrackEvents } from '@/lib/analyticsClient';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -196,11 +197,21 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
         pause();
       } else {
         await play();
+        // Événement play_start
+        if (currentTrack?._id) {
+          sendTrackEvents(currentTrack._id, {
+            event_type: 'play_start',
+            position_ms: Math.round((audioState.currentTime || 0) * 1000),
+            duration_ms: Math.round((audioState.duration || 0) * 1000),
+            is_ai_track: String(currentTrack._id || '').startsWith('ai-'),
+            source: 'tiktok-player',
+          });
+        }
       }
     } catch (error) {
       // Erreur silencieuse
     }
-  }, [audioState.isPlaying, audioState.isLoading, play, pause]);
+  }, [audioState.isPlaying, audioState.isLoading, play, pause, currentTrack?._id, audioState.currentTime, audioState.duration]);
 
   // Gestion du changement de piste avec préchargement
   const handleNextTrack = useCallback(async () => {
@@ -216,6 +227,11 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       // Utiliser le moteur audio pour changer de piste
       const targetTrack = audioState.tracks[newIndex];
       if (targetTrack?._id) {
+        // Skip + Next events
+        if (currentTrack?._id) {
+          sendTrackEvents(currentTrack._id, { event_type: 'skip', source: 'tiktok-player' });
+          sendTrackEvents(currentTrack._id, { event_type: 'next', source: 'tiktok-player' });
+        }
         await playTrack(targetTrack._id);
       } else {
         nextTrack();
@@ -230,7 +246,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     } catch (error) {
       setIsChangingTrack(false);
     }
-  }, [audioState.isLoading, currentIndex, totalTracks, isChangingTrack, preloadTracks, play, nextTrack, playTrack, audioState.tracks]);
+  }, [audioState.isLoading, currentIndex, totalTracks, isChangingTrack, preloadTracks, play, nextTrack, playTrack, audioState.tracks, currentTrack?._id]);
 
   const handlePreviousTrack = useCallback(async () => {
     try {
@@ -243,6 +259,10 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       const targetIndex = typeof fromHistory === 'number' ? fromHistory : Math.max(0, currentIndex - 1);
       const targetTrack = audioState.tracks[targetIndex];
       if (targetTrack?._id) {
+        // Prev event
+        if (currentTrack?._id) {
+          sendTrackEvents(currentTrack._id, { event_type: 'prev', source: 'tiktok-player' });
+        }
         await playTrack(targetTrack._id);
       } else {
         setCurrentTrackIndex(targetIndex);
@@ -257,7 +277,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     } catch (error) {
       setIsChangingTrack(false);
     }
-  }, [audioState.isLoading, currentIndex, totalTracks, isChangingTrack, preloadTracks, play, setCurrentTrackIndex, playTrack, audioState.tracks]);
+  }, [audioState.isLoading, currentIndex, totalTracks, isChangingTrack, preloadTracks, play, setCurrentTrackIndex, playTrack, audioState.tracks, currentTrack?._id]);
 
   // Gestion du swipe vertical et de la molette
   const handleDragStart = useCallback(() => {
@@ -487,6 +507,56 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     if (!audioState.duration || audioState.duration <= 0 || currentTrack?._id === 'radio-mixx-party') return 0;
     return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
   }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
+
+  // Émettre des milestones de progression (25/50/75) et complete
+  const lastMilestoneRef = useRef<number>(0);
+  useEffect(() => {
+    if (!currentTrack?._id || !audioState.duration || audioState.duration <= 0) return;
+    const pct = progressPercentage;
+    const id = currentTrack._id;
+    const milestones = [25, 50, 75];
+    for (const m of milestones) {
+      if (pct >= m && lastMilestoneRef.current < m) {
+        lastMilestoneRef.current = m;
+      sendTrackEvents(id, {
+          event_type: 'play_progress',
+          progress_pct: m,
+          position_ms: Math.round((audioState.currentTime || 0) * 1000),
+          duration_ms: Math.round((audioState.duration || 0) * 1000),
+        is_ai_track: String(id).startsWith('ai-'),
+        source: 'tiktok-player',
+        });
+      }
+    }
+    if (pct >= 98 && lastMilestoneRef.current < 100) {
+      lastMilestoneRef.current = 100;
+      sendTrackEvents(id, {
+        event_type: 'play_complete',
+        position_ms: Math.round((audioState.currentTime || 0) * 1000),
+        duration_ms: Math.round((audioState.duration || 0) * 1000),
+        is_ai_track: String(id).startsWith('ai-'),
+        source: 'tiktok-player',
+      });
+    }
+  }, [progressPercentage, currentTrack?._id, audioState.currentTime, audioState.duration]);
+
+  // Réinitialiser les jalons quand la piste change
+  useEffect(() => {
+    lastMilestoneRef.current = 0;
+  }, [currentTrack?._id]);
+
+  // Événement de vue (impression) lors du changement de piste ou ouverture
+  const lastViewedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isOpen || !currentTrack?._id) return;
+    if (lastViewedRef.current === currentTrack._id) return;
+    lastViewedRef.current = currentTrack._id;
+    sendTrackEvents(currentTrack._id, {
+      event_type: 'view',
+      source: 'tiktok-player',
+      is_ai_track: String(currentTrack._id).startsWith('ai-')
+    });
+  }, [isOpen, currentTrack?._id]);
 
   // Paroles: parsing LRC + fallback simple
   type TimedLine = { t: number; text: string };
@@ -996,6 +1066,9 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                                 } else if (navigator.clipboard) {
                                   await navigator.clipboard.writeText(shareData.url);
                                   toast.success('Lien copié');
+                                }
+                                if (id) {
+                                  sendTrackEvents(id, { event_type: 'share', source: 'tiktok-player' });
                                 }
                               } catch {}
                               setShowMoreMenu(false);

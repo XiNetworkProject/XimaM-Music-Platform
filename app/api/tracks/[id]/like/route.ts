@@ -121,6 +121,19 @@ export async function POST(
         console.error('likes POST: erreur suppression like', delErr);
         return NextResponse.json({ error: 'Erreur suppression like' }, { status: 500 });
       }
+    // Log event unlike
+    {
+      const { error: evErr } = await supabaseAdmin.from('track_events').insert({
+        track_id: trackId,
+        user_id: userId,
+        event_type: 'unlike',
+        platform: 'web',
+        is_ai_track: trackId?.startsWith('ai-') || false,
+      });
+      if (evErr) {
+        console.warn('like unlike: log event error', evErr);
+      }
+    }
     } else {
       const { error: insErr } = await supabaseAdmin
         .from('track_likes')
@@ -132,6 +145,19 @@ export async function POST(
           return NextResponse.json({ error: 'Erreur ajout like' }, { status: 500 });
         }
       }
+    // Log event like
+    {
+      const { error: evErr } = await supabaseAdmin.from('track_events').insert({
+        track_id: trackId,
+        user_id: userId,
+        event_type: 'like',
+        platform: 'web',
+        is_ai_track: trackId?.startsWith('ai-') || false,
+      });
+      if (evErr) {
+        console.warn('like insert: log event error', evErr);
+      }
+    }
     }
 
     // Lire état final

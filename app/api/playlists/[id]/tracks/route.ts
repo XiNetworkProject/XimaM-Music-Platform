@@ -69,9 +69,18 @@ export async function POST(
       return NextResponse.json({ error: 'Erreur lors de l\'ajout de la track' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
+    // Log event add_to_playlist (analytics)
+    try {
+      await fetch(`${new URL(request.url).origin}/api/tracks/${encodeURIComponent(trackId)}/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_type: 'add_to_playlist', extra: { playlist_id: id } })
+      });
+    } catch {}
+
+    return NextResponse.json({
       message: 'Track ajoutée à la playlist',
-      playlistTrack 
+      playlistTrack
     }, { status: 201 });
 
   } catch (error) {
