@@ -76,6 +76,13 @@ export default function BottomNav() {
       public: false
     },
     {
+      icon: Sparkles,
+      label: 'Boosters',
+      path: '/boosters',
+      active: pathname === '/boosters',
+      public: false
+    },
+    {
       icon: MessageCircle,
       label: 'Messages',
       path: '/messages',

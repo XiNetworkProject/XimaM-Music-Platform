@@ -83,6 +83,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
   const [wheelDelta, setWheelDelta] = useState(0);
   const [isChangingTrack, setIsChangingTrack] = useState(false);
+  const [boostMultiplier, setBoostMultiplier] = useState<number | null>(null);
   const [preloadedTracks, setPreloadedTracks] = useState<Set<number>>(new Set());
   const [isPreloading, setIsPreloading] = useState(false);
   const navigationHistoryRef = useRef<number[]>([]);
@@ -278,6 +279,37 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       setIsChangingTrack(false);
     }
   }, [audioState.isLoading, currentIndex, totalTracks, isChangingTrack, preloadTracks, play, setCurrentTrackIndex, playTrack, audioState.tracks, currentTrack?._id]);
+
+  // Charger le boost actif pour la piste courante
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchBoost() {
+      try {
+        if (!currentTrack?._id) {
+          setBoostMultiplier(null);
+          return;
+        }
+        // Seules les pistes normales sont boostées pour l'instant
+        const id = String(currentTrack._id);
+        if (id.startsWith('ai-')) {
+          setBoostMultiplier(null);
+          return;
+        }
+        const res = await fetch(`/api/boosters/active?trackIds=${encodeURIComponent(id)}`, { cache: 'no-store' }).catch(() => null);
+        if (!res || !res.ok) {
+          setBoostMultiplier(null);
+          return;
+        }
+        const json = await res.json();
+        const found = Array.isArray(json?.boosts) ? json.boosts.find((b: any) => b.track_id === id) : null;
+        if (!cancelled) setBoostMultiplier(found ? Number(found.multiplier) || 1 : null);
+      } catch {
+        if (!cancelled) setBoostMultiplier(null);
+      }
+    }
+    fetchBoost();
+    return () => { cancelled = true; };
+  }, [currentTrack?._id]);
 
   // Gestion du swipe vertical et de la molette
   const handleDragStart = useCallback(() => {
@@ -883,6 +915,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <div className="text-white text-sm font-medium">
                           Changement...
+                        </div>
+                      </div>
+                    )}
+                    {boostMultiplier && boostMultiplier > 1 && (
+                      <div className="absolute -top-2 -right-2 z-10">
+                        <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-[10px] px-2 py-1 rounded-full font-bold shadow">
+                          Boost x{boostMultiplier.toFixed(2)}
                         </div>
                       </div>
                     )}

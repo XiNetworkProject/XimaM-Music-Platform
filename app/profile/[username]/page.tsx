@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import BoosterOpenModal from '@/components/BoosterOpenModal';
+import { useBoosters } from '@/hooks/useBoosters';
 import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp } from 'lucide-react';
 import dynamic from 'next/dynamic';
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
@@ -89,11 +91,28 @@ export default function ProfileUserPage() {
   const [likeLoading, setLikeLoading] = useState<string | null>(null);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
+  // Boosters
+  const { inventory, remainingMs, canOpen, openDaily, useOnTrack, lastOpened, loading: boostersLoading } = useBoosters();
+  const [showBoosterModal, setShowBoosterModal] = useState(false);
+  useEffect(() => {
+    if (lastOpened) setShowBoosterModal(true);
+  }, [lastOpened]);
+
+  const formatRemaining = (ms: number) => {
+    if (!ms || ms <= 0) return 'Disponible';
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.floor((ms % 3_600_000) / 60_000);
+    const s = Math.floor((ms % 60_000) / 1000);
+    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m`;
+    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  };
+
   // État pour l'affichage des tracks
   const [trackViewMode, setTrackViewMode] = useState<'grid' | 'list'>('grid');
   
   // État pour les tracks de l'utilisateur avec synchronisation temps réel
   const [userTracks, setUserTracks] = useState<any[]>([]);
+  const [activeBoosts, setActiveBoosts] = useState<Record<string, { multiplier: number; expires_at: string }>>({});
 
   // Charger le profil utilisateur
   useEffect(() => {
@@ -131,7 +150,24 @@ export default function ProfileUserPage() {
         setProfile({ ...data, isFollowing });
         setEditData({ ...data, isFollowing });
         // Mettre à jour les tracks avec synchronisation temps réel
-        setUserTracks(data.tracks || []);
+        const tracks = data.tracks || [];
+        setUserTracks(tracks);
+        // Charger boosts actifs
+        try {
+          const ids = tracks.map((t: any) => t.id).filter(Boolean);
+          if (ids.length) {
+            const res = await fetch(`/api/boosters/active?trackIds=${encodeURIComponent(ids.join(','))}`);
+            if (res.ok) {
+              const j = await res.json();
+              const map: Record<string, { multiplier: number; expires_at: string }> = {};
+              (j.boosts || []).forEach((b: any) => {
+                if (!map[b.track_id]) map[b.track_id] = { multiplier: Number(b.multiplier) || 1, expires_at: b.expires_at };
+                else map[b.track_id].multiplier = Math.max(map[b.track_id].multiplier, Number(b.multiplier) || 1);
+              });
+              setActiveBoosts(map);
+            }
+          }
+        } catch {}
       } catch (e: any) {
         setError(e.message || 'Erreur lors du chargement du profil');
       } finally {
@@ -973,6 +1009,15 @@ export default function ProfileUserPage() {
                   >
                     <TrendingUp size={18} /> Statistiques
                   </button>
+                  <button
+                    className={`flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-violet-500/25 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed`}
+                    onClick={() => setShowBoosterModal(true)}
+                    disabled={!canOpen || boostersLoading}
+                    title={canOpen ? 'Ouvrir un booster quotidien' : `Disponible dans ${formatRemaining(remainingMs)}`}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m4-4H8"/></svg>
+                    {canOpen ? 'Ouvrir un booster' : `Boost dans ${formatRemaining(remainingMs)}`}
+                  </button>
                 </>
               ) : (
                 <>
@@ -1149,9 +1194,16 @@ export default function ProfileUserPage() {
                               )}
                             </button>
                             </div>
-                            {/* Badge durée */}
-                            <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-full font-medium">
-                              {formatDuration(track.duration)}
+                            {/* Badges */}
+                            <div className="absolute top-2 right-2 flex gap-1">
+                              {activeBoosts[track.id] && (
+                                <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-[10px] px-2 py-1 rounded-full font-semibold shadow">
+                                  Boost x{(activeBoosts[track.id].multiplier || 1).toFixed(2)}
+                                </div>
+                              )}
+                              <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                {formatDuration(track.duration)}
+                              </div>
                             </div>
                           </div>
                           
@@ -1370,6 +1422,22 @@ export default function ProfileUserPage() {
                           <TrendingUp className="w-4 h-4 text-green-400" />
                           <span>Voir les stats</span>
                         </button>
+                        {isOwnProfile && inventory.some(it => it.status==='owned' && it.booster.type==='track') && (
+                          <button
+                            className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
+                            onClick={async () => {
+                              const owned = inventory.find(it => it.status==='owned' && it.booster.type==='track');
+                              if (owned && showTrackOptions) {
+                                await useOnTrack(owned.id, showTrackOptions);
+                                toast.success('Booster activé sur la piste');
+                                setShowTrackOptions(null);
+                              }
+                            }}
+                          >
+                            <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                            <span>Activer un booster</span>
+                          </button>
+                        )}
                                   <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
                           onClick={() => {
@@ -1603,6 +1671,32 @@ export default function ProfileUserPage() {
                   />
                 </div>
               </div>
+
+              {isOwnProfile && (
+                <div className="panel-suno border border-[var(--border)] rounded-xl p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-[var(--text)]">Inventaire boosters</h3>
+                    <span className="text-xs text-[var(--text-muted)]">{inventory.filter(i=>i.status==='owned').length} disponible(s)</span>
+                  </div>
+                  {inventory.length === 0 ? (
+                    <div className="text-xs text-[var(--text-muted)]">Aucun booster pour le moment. Ouvre un booster quotidien.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {inventory.map((it) => (
+                        <div key={it.id} className="border border-[var(--border)] rounded-lg p-3 bg-white/5">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="text-[var(--text)] text-sm font-medium line-clamp-1">{it.booster.name}</div>
+                              <div className="text-[var(--text-muted)] text-xs">x{it.booster.multiplier.toFixed(2)} • {it.booster.duration_hours}h</div>
+                            </div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${it.status==='owned' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-500/20 text-zinc-300'}`}>{it.status}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex gap-3 mt-6">
                 <button
@@ -1911,6 +2005,20 @@ export default function ProfileUserPage() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal ouverture booster (3D) */}
+      <AnimatePresence>
+        {showBoosterModal && (
+          <BoosterOpenModal
+            isOpen={showBoosterModal}
+            onClose={() => setShowBoosterModal(false)}
+            onOpenBooster={openDaily}
+            isOpening={boostersLoading}
+            openedBooster={lastOpened ? { id: lastOpened.inventoryId, status: 'owned', obtained_at: new Date().toISOString(), booster: lastOpened.booster } : null}
+            item={lastOpened || null}
+          />
         )}
       </AnimatePresence>
     </div>

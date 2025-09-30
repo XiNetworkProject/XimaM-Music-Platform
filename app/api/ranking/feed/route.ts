@@ -158,12 +158,34 @@ export async function GET(request: NextRequest) {
 
     const statsMap = new Map<string, any>(filteredStats.map((r) => [r.track_id, r]));
 
+    // Charger les boosts actifs pour les pistes normales
+    const activeBoostsMap = new Map<string, number>();
+    try {
+      const trackIdsForBoost = normalTracks.map((t: any) => t.id);
+      if (trackIdsForBoost.length > 0) {
+        const { data: activeBoosts, error: boostErr } = await supabaseAdmin
+          .from('active_track_boosts')
+          .select('track_id, multiplier, expires_at')
+          .in('track_id', trackIdsForBoost)
+          .gt('expires_at', new Date().toISOString());
+        if (!boostErr && Array.isArray(activeBoosts)) {
+          for (const b of activeBoosts) {
+            const current = activeBoostsMap.get(b.track_id) || 1;
+            const next = Math.max(current, Number(b.multiplier) || 1);
+            activeBoostsMap.set(b.track_id, next);
+          }
+        }
+      }
+    } catch (e) {
+      // Ne pas bloquer le feed si l'appel échoue
+    }
+
     // Scoring + formatage pour pistes normales
     const scoredNormal = normalTracks.map((t) => {
       const r = statsMap.get(t.id);
       const created = t?.created_at ? new Date(t.created_at).getTime() : now;
       const ageHours = (now - created) / 3_600_000;
-      const score = computeRankingScore({
+      let score = computeRankingScore({
         plays_30d: r?.plays_30d || 0,
         completes_30d: r?.completes_30d || 0,
         likes_30d: r?.likes_30d || 0,
@@ -173,6 +195,10 @@ export async function GET(request: NextRequest) {
         unique_listeners_30d: r?.unique_listeners_30d || 0,
         retention_complete_rate_30d: r?.retention_complete_rate_30d || 0,
       }, ageHours, 0);
+      // Appliquer boost actif (plafonné à x1.3)
+      const boost = activeBoostsMap.get(t.id) || 1;
+      const capped = Math.min(boost, 1.3);
+      score = score * capped;
       return {
         _id: t.id,
         title: t.title,
