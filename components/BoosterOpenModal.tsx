@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Sparkles, X, Zap, Star, Crown, Gem } from 'lucide-react';
+import Image from 'next/image';
 import { InventoryItem } from '@/hooks/useBoosters';
 
 interface BoosterOpenModalProps {
@@ -95,6 +96,9 @@ export default function BoosterOpenModal({
   }, [openedBooster?.booster?.rarity, item?.booster?.rarity]);
 
   const RarityIcon = rarityConfig.icon;
+  const rarityKey = (openedBooster?.booster?.rarity || item?.booster?.rarity || 'common') as string;
+  const isFoil = rarityKey !== 'common';
+  const isLegendary = rarityKey === 'legendary';
 
   return (
     <AnimatePresence>
@@ -149,7 +153,7 @@ export default function BoosterOpenModal({
 
             {/* Carte 3D avec effets avancés */}
             <motion.div
-              className={`relative aspect-[3/4] rounded-3xl p-2 bg-gradient-to-br ${rarityConfig.gradient} ${rarityConfig.glow} shadow-2xl`}
+              className={`relative aspect-[3/4] rounded-3xl p-2 bg-gradient-to-br ${rarityConfig.gradient} ${rarityConfig.glow} shadow-2xl shadow-[0_25px_60px_rgba(0,0,0,0.55)]`}
               animate={
                 phase === 'shaking'
                   ? { 
@@ -181,10 +185,10 @@ export default function BoosterOpenModal({
                       rotateX: -5
                     }
                   : { 
-                      rotateY: 0,
+                      rotateY: isHovered ? -6 : 0,
                       scale: isHovered ? 1.08 : 1,
                       y: 0,
-                      rotateX: 0,
+                      rotateX: isHovered ? -3 : 0,
                       rotateZ: 0
                     }
               }
@@ -203,7 +207,7 @@ export default function BoosterOpenModal({
             >
               {/* Face avant - Booster fermé */}
               <motion.div 
-                className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 flex flex-col items-center justify-center overflow-hidden"
+                className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 flex flex-col items-center justify-center overflow-hidden shadow-[inset_0_24px_60px_rgba(255,255,255,0.06),inset_0_-24px_60px_rgba(0,0,0,0.45)]"
                 style={{ backfaceVisibility: 'hidden' }}
                 animate={{
                   background: phase === 'shaking' 
@@ -214,6 +218,33 @@ export default function BoosterOpenModal({
                 }}
                 transition={{ duration: 0.3, repeat: phase === 'shaking' || phase === 'tearing' ? Infinity : 0 }}
               >
+                {/* Bandeau Synaura */}
+                <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-r from-purple-600/70 via-pink-600/70 to-fuchsia-600/70 backdrop-blur-md border-b border-white/10 flex items-center justify-center">
+                  <div className="text-white/90 text-sm font-semibold tracking-wider">Synaura Booster</div>
+                </div>
+
+                {/* Texturing overlay */}
+                <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
+
+                {/* Sheen spécial légendaire (face avant) */}
+                {isLegendary && (
+                  <motion.div
+                    className="pointer-events-none absolute -inset-1 rotate-12"
+                    initial={{ x: '-150%', opacity: 0.0 }}
+                    animate={{ x: phase === 'revealed' ? '150%' : '150%', opacity: 0.18 }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.0) 30%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.0) 70%, transparent 100%)'
+                    }}
+                  />
+                )}
+                {/* Bandeau Synaura */}
+                <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-r from-purple-600/70 via-pink-600/70 to-fuchsia-600/70 backdrop-blur-md border-b border-white/10 flex items-center justify-center">
+                  <div className="text-white/90 text-sm font-semibold tracking-wider">Synaura Booster</div>
+                </div>
+
+                {/* Texturing overlay */}
+                <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
                 {/* Effet de déchirement */}
                 {phase === 'tearing' && (
                   <motion.div
@@ -232,6 +263,7 @@ export default function BoosterOpenModal({
                   transition={{ duration: 0.3, repeat: phase === 'shaking' || phase === 'tearing' ? Infinity : 0, type: 'tween' }}
                   className="flex flex-col items-center gap-4"
                 >
+                  <div style={{ transform: 'translateZ(18px)' }}>
                   <motion.div
                     animate={{ 
                       rotate: phase === 'shaking' ? [0, 360] : phase === 'tearing' ? [0, 720] : 0,
@@ -242,8 +274,9 @@ export default function BoosterOpenModal({
                   >
                     <Zap className="w-16 h-16 text-white drop-shadow-lg" />
                   </motion.div>
+                  </div>
                   
-                  <div className="text-center">
+                  <div className="text-center mt-8">
                     <motion.div 
                       className="text-white text-xl font-bold mb-2"
                     animate={{
@@ -267,16 +300,54 @@ export default function BoosterOpenModal({
                       </motion.button>
                     )}
                   </div>
+
+                {/* Logo Synaura en bas (face avant) */}
+                <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center" style={{ transform: 'rotateY(0deg)' }}>
+                  <div className="px-2 py-1 rounded-md bg-white/10 border border-white/20 backdrop-blur-sm flex items-center gap-2">
+                    <Image src="/synaura_symbol.svg" alt="Synaura" width={18} height={18} />
+                  </div>
+                </div>
                 </motion.div>
               </motion.div>
 
               {/* Face arrière - Récompense révélée */}
               <motion.div 
-                className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-black/90 via-black/80 to-black/90 border border-white/30 p-6 overflow-hidden"
+                className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-black/90 via-black/80 to-black/90 border border-white/30 p-6 overflow-hidden shadow-[inset_0_24px_60px_rgba(255,255,255,0.05),inset_0_-24px_60px_rgba(0,0,0,0.45)]"
                 style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: phase === 'revealed' ? 1 : 0 }}
               >
+                {/* Sheen spécial légendaire (face arrière) */}
+                {isLegendary && (
+                  <motion.div
+                    className="pointer-events-none absolute -inset-1 -rotate-12"
+                    initial={{ x: '-150%', opacity: 0.0 }}
+                    animate={{ x: '150%', opacity: 0.22 }}
+                    transition={{ duration: 2.0, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.0) 30%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.0) 70%, transparent 100%)'
+                    }}
+                  />
+                )}
+                {/* Effet foil (reflet métal) pour rare/épique/légendaire */}
+                {isFoil && (
+                  <motion.div
+                    className="pointer-events-none absolute inset-0"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: phase === 'revealed' ? 0.35 : 0 }}
+                    style={{
+                      background: 'conic-gradient(from 180deg at 50% 50%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.25) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.25) 75%, rgba(255,255,255,0.05) 100%)',
+                      mixBlendMode: 'screen'
+                    }}
+                  />
+                )}
+                {/* Bandeau Synaura */}
+                <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-r from-purple-600/60 via-pink-600/60 to-fuchsia-600/60 backdrop-blur-md border-b border-white/10 flex items-center justify-center">
+                  <div className="text-white/90 text-xs font-semibold tracking-wider">Synaura</div>
+                </div>
+
+                {/* Texturing overlay */}
+                <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
                 {/* Effet de brillance */}
                 <motion.div
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
@@ -353,7 +424,17 @@ export default function BoosterOpenModal({
                     </div>
                   </motion.div>
                 </div>
-              </motion.div>
+                  </motion.div>
+
+                {/* Logo Synaura en bas (face arrière) - garder lisible après flip */}
+                <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center" style={{ transform: 'rotateY(180deg)' }}>
+                  <div className="px-2 py-1 rounded-md bg-white/10 border border-white/20 backdrop-blur-sm flex items-center gap-2">
+                    <Image src="/synaura_symbol.svg" alt="Synaura" width={18} height={18} />
+                  </div>
+                </div>
+              {/* Épaisseur simulée (arêtes) */}
+              <div className="pointer-events-none absolute -right-1 top-3 bottom-3 w-2 rounded-r-2xl bg-gradient-to-b from-white/30 via-white/10 to-black/40 opacity-60" />
+              <div className="pointer-events-none absolute left-3 right-3 -bottom-1 h-2 rounded-b-2xl bg-gradient-to-r from-black/45 via-black/20 to-black/45 opacity-70" />
             </motion.div>
 
             {/* Effets de particules lors de la révélation */}

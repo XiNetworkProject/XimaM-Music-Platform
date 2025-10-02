@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,6 +31,22 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Charger boosts actifs pour ces pistes et appliquer un score boosté (plafonné x1.3)
+    const trackIds = (tracks || []).map(t => t.id);
+    let boostMap = new Map<string, number>();
+    if (trackIds.length) {
+      const nowIso = new Date().toISOString();
+      const { data: boosts } = await supabaseAdmin
+        .from('active_track_boosts')
+        .select('track_id, multiplier, expires_at')
+        .in('track_id', trackIds)
+        .gt('expires_at', nowIso);
+      (boosts || []).forEach((b: any) => {
+        const curr = boostMap.get(b.track_id) || 1;
+        boostMap.set(b.track_id, Math.max(curr, Number(b.multiplier) || 1));
+      });
+    }
+
     // Transformer les données pour correspondre au format attendu
     const formattedTracks = tracks?.map(track => ({
       _id: track.id,
@@ -49,6 +65,7 @@ export async function GET(request: NextRequest) {
       genre: track.genre,
       lyrics: track.lyrics || null,
       likes: track.likes || [],
+      rankingScore: (track.likes?.length || track.likes || 0) * Math.min(boostMap.get(track.id) || 1, 1.3),
       plays: track.plays || 0,
       createdAt: track.created_at,
       isFeatured: track.is_featured,

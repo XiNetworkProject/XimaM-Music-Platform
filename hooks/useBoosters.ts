@@ -79,9 +79,16 @@ export function useBoosters() {
       }
       if (!res.ok) return { ok: false as const };
       const json = await res.json();
-      setLastOpened(json.received);
+      const received = json?.received;
+      const normalized = received
+        ? {
+            inventoryId: received.inventoryId || received.inventory_id,
+            booster: received.booster,
+          }
+        : null;
+      if (normalized) setLastOpened(normalized);
       await fetchInventory();
-      return { ok: true as const, received: json.received };
+      return { ok: true as const, received: normalized };
     } finally {
       setLoading(false);
     }
@@ -107,6 +114,26 @@ export function useBoosters() {
     [fetchInventory]
   );
 
+  const useOnArtist = useCallback(
+    async (inventoryId: string) => {
+      if (!inventoryId) return { ok: false as const };
+      setLoading(true);
+      try {
+        const res = await fetch("/api/boosters/use", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ inventoryId }),
+        });
+        if (!res.ok) return { ok: false as const };
+        await fetchInventory();
+        return { ok: true as const };
+      } finally {
+        setLoading(false);
+      }
+    },
+    [fetchInventory]
+  );
+
   return {
     loading,
     inventory,
@@ -118,6 +145,7 @@ export function useBoosters() {
     fetchInventory,
     openDaily,
     useOnTrack,
+    useOnArtist,
   };
 }
 

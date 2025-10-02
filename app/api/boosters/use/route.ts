@@ -19,8 +19,8 @@ export async function POST(request: NextRequest) {
     const rawTargetTrackId = (body?.targetTrackId ?? '').toString().trim();
     const inventoryId = rawInventoryId;
     const targetTrackId = rawTargetTrackId;
-    if (!inventoryId || !targetTrackId) {
-      return NextResponse.json({ error: 'inventoryId et targetTrackId requis' }, { status: 400 });
+    if (!inventoryId) {
+      return NextResponse.json({ error: 'inventoryId requis' }, { status: 400 });
     }
     if (targetTrackId === 'radio-mixx-party') {
       return NextResponse.json({ error: 'La radio ne peut pas être boostée' }, { status: 400 });
@@ -45,8 +45,61 @@ export async function POST(request: NextRequest) {
     if (inv.status !== 'owned' || booster?.enabled === false) {
       return NextResponse.json({ error: 'Booster non utilisable' }, { status: 400 });
     }
+    if (booster?.type === 'artist') {
+      // Activer un boost artiste sur le propriétaire (l'artiste = userId)
+      const now = new Date();
+      const expires = new Date(now.getTime() + (booster.duration_hours * 3_600_000));
+      const nowIso = now.toISOString();
+      const expiresIso = expires.toISOString();
+
+      // Fusionner éventuels boosts actifs artiste
+      const { data: existing, error: existingErr } = await supabaseAdmin
+        .from('active_artist_boosts')
+        .select('id, multiplier, expires_at')
+        .eq('artist_id', userId)
+        .gt('expires_at', nowIso);
+      if (existingErr) {
+        return NextResponse.json({ error: 'Erreur lecture boost artiste' }, { status: 500 });
+      }
+
+      if (Array.isArray(existing) && existing.length > 0) {
+        const keepId = existing[0].id;
+        const mergedMultiplier = existing.reduce((m, b) => Math.max(m, Number(b.multiplier) || 1), Number(booster.multiplier) || 1);
+        const mergedExpires = new Date(Math.max(
+          ...existing.map((b) => new Date(b.expires_at).getTime()),
+          expires.getTime()
+        )).toISOString();
+
+        const { error: upd } = await supabaseAdmin
+          .from('active_artist_boosts')
+          .update({ multiplier: mergedMultiplier, expires_at: mergedExpires })
+          .eq('id', keepId);
+        if (upd) return NextResponse.json({ error: 'Erreur maj boost artiste' }, { status: 500 });
+      } else {
+        const { error: ins } = await supabaseAdmin
+          .from('active_artist_boosts')
+          .insert({ artist_id: userId, user_id: userId, booster_id: booster.id, multiplier: booster.multiplier, started_at: nowIso, expires_at: expiresIso, source: 'booster' });
+        if (ins) return NextResponse.json({ error: 'Erreur activation artiste' }, { status: 500 });
+      }
+
+      // Consommer l’inventaire
+      const { error: updErr2 } = await supabaseAdmin
+        .from('user_boosters')
+        .update({ status: 'used', used_at: new Date().toISOString() })
+        .eq('id', inventoryId)
+        .eq('user_id', userId);
+      if (updErr2) return NextResponse.json({ error: 'Erreur maj inventaire' }, { status: 500 });
+
+      return NextResponse.json({ ok: true, boost: { artistId: userId, type: 'artist' } });
+    }
+
     if (booster?.type !== 'track') {
       return NextResponse.json({ error: 'Ce booster ne cible pas une piste' }, { status: 400 });
+    }
+
+    // Pour booster de type piste, targetTrackId est requis
+    if (!targetTrackId) {
+      return NextResponse.json({ error: 'targetTrackId requis pour booster de piste' }, { status: 400 });
     }
 
     // Interdire les pistes IA

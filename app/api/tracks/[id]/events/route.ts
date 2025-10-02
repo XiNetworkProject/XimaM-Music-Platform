@@ -84,6 +84,56 @@ export async function POST(
       return NextResponse.json({ error: 'Erreur insertion' }, { status: 500 });
     }
 
+    // Mise à jour missions basées sur événements simples (plays/likes/shares)
+    try {
+      if (userId) {
+        const inc = {
+          plays: rows.filter((r) => r.event_type === 'play_complete').length,
+          likes: rows.filter((r) => r.event_type === 'like').length,
+          shares: rows.filter((r) => r.event_type === 'share').length,
+        };
+        if (inc.plays || inc.likes || inc.shares) {
+          // Lire missions actives
+          const { data: missions } = await supabaseAdmin
+            .from('missions')
+            .select('id, goal_type, threshold, enabled')
+            .eq('enabled', true);
+
+          const updates: { mission_id: string; delta: number }[] = [];
+          for (const m of missions || []) {
+            if (m.goal_type === 'plays' && inc.plays) updates.push({ mission_id: m.id, delta: inc.plays });
+            if (m.goal_type === 'likes' && inc.likes) updates.push({ mission_id: m.id, delta: inc.likes });
+            if (m.goal_type === 'shares' && inc.shares) updates.push({ mission_id: m.id, delta: inc.shares });
+          }
+
+          if (updates.length) {
+            for (const u of updates) {
+              // Upsert progression
+              const { data: um } = await supabaseAdmin
+                .from('user_missions')
+                .select('id, progress, completed_at')
+                .eq('user_id', userId)
+                .eq('mission_id', u.mission_id)
+                .maybeSingle();
+
+              const newProgress = (um?.progress || 0) + u.delta;
+              const nowIso = new Date().toISOString();
+              if (!um) {
+                await supabaseAdmin
+                  .from('user_missions')
+                  .insert({ user_id: userId, mission_id: u.mission_id, progress: newProgress, last_progress_at: nowIso });
+              } else {
+                await supabaseAdmin
+                  .from('user_missions')
+                  .update({ progress: newProgress, last_progress_at: nowIso })
+                  .eq('id', um.id);
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
     return NextResponse.json({ inserted: rows.length });
   } catch (error) {
     console.error('Erreur API events:', error);

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useBoosters } from '@/hooks/useBoosters';
 import BoosterOpenModal from '@/components/BoosterOpenModal';
+import TrackSelectModal from '@/components/TrackSelectModal';
 import toast from 'react-hot-toast';
 
 export default function BoostersPage() {
@@ -26,7 +27,8 @@ export default function BoostersPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'inventory' | 'missions' | 'history'>('inventory');
   const [showBoosterModal, setShowBoosterModal] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<string | null>(null);
+  const [selectModalOpen, setSelectModalOpen] = useState(false);
+  const [pendingInventoryId, setPendingInventoryId] = useState<string | null>(null);
 
   const {
     inventory,
@@ -34,6 +36,7 @@ export default function BoostersPage() {
     canOpen,
     openDaily,
     useOnTrack,
+    useOnArtist,
     lastOpened,
     loading: boostersLoading,
     fetchInventory
@@ -91,6 +94,19 @@ export default function BoostersPage() {
     } catch (error) {
       toast.error('Erreur lors de l\'activation du booster');
     }
+  };
+
+  const openSelectTrack = (inventoryId: string) => {
+    setPendingInventoryId(inventoryId);
+    setSelectModalOpen(true);
+  };
+
+  const onSelectTrack = async (trackId: string) => {
+    const inv = pendingInventoryId;
+    setSelectModalOpen(false);
+    if (!inv) return;
+    await handleUseBooster(inv, trackId);
+    setPendingInventoryId(null);
   };
 
   if (!session) {
@@ -288,10 +304,26 @@ export default function BoostersPage() {
 
                         {item.status === 'owned' && item.booster.type === 'track' && (
                           <button
-                            onClick={() => setSelectedTrack(item.id)}
+                            onClick={() => openSelectTrack(item.id)}
                             className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
                           >
                             Activer sur une piste
+                          </button>
+                        )}
+                        {item.status === 'owned' && item.booster.type === 'artist' && (
+                          <button
+                            onClick={async () => {
+                              const r = await useOnArtist(item.id);
+                              if (r.ok) {
+                                toast.success('Boost artiste activé !');
+                                fetchInventory();
+                              } else {
+                                toast.error('Activation impossible');
+                              }
+                            }}
+                            className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
+                          >
+                            Activer sur mon profil
                           </button>
                         )}
                       </motion.div>
@@ -312,11 +344,7 @@ export default function BoostersPage() {
               className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-6"
             >
               <h3 className="text-lg font-bold text-[var(--text)] mb-4">Missions</h3>
-              <div className="text-center py-12">
-                <Trophy className="w-16 h-16 text-[var(--text-muted)] mx-auto mb-4" />
-                <p className="text-[var(--text-muted)] mb-4">Système de missions en cours de développement</p>
-                <p className="text-sm text-[var(--text-muted)]">Bientôt disponible !</p>
-              </div>
+              <MissionsSection />
             </motion.div>
           )}
 
@@ -330,11 +358,7 @@ export default function BoostersPage() {
               className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-6"
             >
               <h3 className="text-lg font-bold text-[var(--text)] mb-4">Historique</h3>
-              <div className="text-center py-12">
-                <Calendar className="w-16 h-16 text-[var(--text-muted)] mx-auto mb-4" />
-                <p className="text-[var(--text-muted)] mb-4">Historique des boosters en cours de développement</p>
-                <p className="text-sm text-[var(--text-muted)]">Bientôt disponible !</p>
-              </div>
+              <HistorySection />
             </motion.div>
           )}
         </AnimatePresence>
@@ -348,7 +372,216 @@ export default function BoostersPage() {
           openedBooster={lastOpened ? { id: lastOpened.inventoryId, status: 'owned', obtained_at: new Date().toISOString(), booster: lastOpened.booster } : null}
           item={lastOpened || null}
         />
+
+        {/* Track Select Modal */}
+        <TrackSelectModal
+          isOpen={selectModalOpen}
+          onClose={() => setSelectModalOpen(false)}
+          onSelect={onSelectTrack}
+        />
       </div>
+    </div>
+  );
+}
+
+function HistorySection() {
+  const [loading, setLoading] = useState(false);
+  const [used, setUsed] = useState<any[]>([]);
+  const [active, setActive] = useState<any[]>([]);
+  const [activeArtist, setActiveArtist] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [nowTs, setNowTs] = useState<number>(Date.now());
+
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [invRes, actRes] = await Promise.all([
+          fetch('/api/boosters', { cache: 'no-store' }),
+          fetch('/api/boosters/my-active', { cache: 'no-store' }),
+        ]);
+        if (!invRes.ok) throw new Error('Erreur inventaire');
+        const invJson = await invRes.json();
+        const usedItems = (invJson?.inventory || []).filter((i: any) => i.status === 'used');
+        setUsed(usedItems);
+
+        if (!actRes.ok) throw new Error('Erreur boosts actifs');
+        const actJson = await actRes.json();
+        setActive(actJson?.boosts || []);
+        setActiveArtist(actJson?.artistBoosts || []);
+      } catch (e: any) {
+        setError(e?.message || 'Erreur');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) return <div className="text-[var(--text-muted)]">Chargement…</div>;
+  if (error) return <div className="text-red-400">{error}</div>;
+
+  const formatRemaining = (ms: number) => {
+    if (!ms || ms <= 0) return '0s';
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.floor((ms % 3_600_000) / 60_000);
+    const s = Math.floor((ms % 60_000) / 1000);
+    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h4 className="text-md font-semibold text-[var(--text)] mb-2">Boosts actifs (pistes)</h4>
+        {active.length === 0 ? (
+          <div className="text-[var(--text-muted)] text-sm">Aucun boost actif</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {active.map((b, idx) => (
+              <div key={idx} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-3)]">
+                <div className="text-[var(--text)] font-medium">Track: {b.track_id}</div>
+                <div className="text-sm text-[var(--text-muted)]">Multiplicateur: x{Number(b.multiplier).toFixed(2)}</div>
+                <div className="text-sm text-[var(--text-muted)]">Expire dans: {formatRemaining(new Date(b.expires_at).getTime() - nowTs)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h4 className="text-md font-semibold text-[var(--text)] mb-2">Boosts actifs (artiste)</h4>
+        {activeArtist.length === 0 ? (
+          <div className="text-[var(--text-muted)] text-sm">Aucun boost artiste actif</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {activeArtist.map((b, idx) => (
+              <div key={idx} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-3)]">
+                <div className="text-[var(--text)] font-medium">Artiste: moi</div>
+                <div className="text-sm text-[var(--text-muted)]">Multiplicateur: x{Number(b.multiplier).toFixed(2)}</div>
+                <div className="text-sm text-[var(--text-muted)]">Expire dans: {formatRemaining(new Date(b.expires_at).getTime() - nowTs)}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h4 className="text-md font-semibold text-[var(--text)] mb-2">Inventaire utilisé</h4>
+        {used.length === 0 ? (
+          <div className="text-[var(--text-muted)] text-sm">Aucun booster utilisé</div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {used.map((i: any) => (
+              <div key={i.id} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-3)]">
+                <div className="text-[var(--text)] font-semibold">{i.booster?.name || 'Booster'}</div>
+                <div className="text-sm text-[var(--text-muted)]">Rareté: {i.booster?.rarity}</div>
+                <div className="text-sm text-[var(--text-muted)]">Multiplicateur: x{Number(i.booster?.multiplier || 1).toFixed(2)}</div>
+                <div className="text-sm text-[var(--text-muted)]">Utilisé le: {i.used_at ? new Date(i.used_at).toLocaleString() : '-'}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MissionsSection() {
+  const [loading, setLoading] = useState(false);
+  const [missions, setMissions] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [claiming, setClaiming] = useState<string | null>(null);
+
+  const refresh = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/missions', { cache: 'no-store' });
+      if (!res.ok) throw new Error('Erreur chargement missions');
+      const json = await res.json();
+      setMissions(json?.missions || []);
+    } catch (e: any) {
+      setError(e?.message || 'Erreur');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refresh();
+  }, []);
+
+  const claim = async (missionId: string) => {
+    setClaiming(missionId);
+    try {
+      const res = await fetch('/api/missions/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionId }),
+      });
+      if (!res.ok) throw new Error('Claim impossible');
+      await refresh();
+      toast.success('Récompense récupérée !');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur');
+    } finally {
+      setClaiming(null);
+    }
+  };
+
+  if (loading) return <div className="text-[var(--text-muted)]">Chargement…</div>;
+  if (error) return <div className="text-red-400">{error}</div>;
+
+  return (
+    <div className="space-y-4">
+      {missions.length === 0 ? (
+        <div className="text-[var(--text-muted)]">Aucune mission disponible</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {missions.map((m) => (
+            <div key={m.id} className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-3)]">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-[var(--text)] font-semibold">{m.title}</div>
+                {m.completed ? (
+                  <span className="text-xs px-2 py-1 rounded-full bg-green-500/20 text-green-400">Complétée</span>
+                ) : (
+                  <span className="text-xs px-2 py-1 rounded-full bg-yellow-500/20 text-yellow-400">En cours</span>
+                )}
+              </div>
+              <div className="text-sm text-[var(--text-muted)] mb-2">Objectif: {m.threshold} {m.goal_type}</div>
+              <div className="w-full h-2 bg-black/20 rounded overflow-hidden mb-3">
+                <div
+                  className="h-2 bg-purple-500"
+                  style={{ width: `${Math.min(100, Math.round(((m.progress || 0) / Math.max(1, m.threshold)) * 100))}%` }}
+                />
+              </div>
+              <div className="text-sm text-[var(--text)] mb-3">Progression: {m.progress || 0} / {m.threshold}</div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs text-[var(--text-muted)]">Récompense: booster</div>
+                <button
+                  disabled={!m.completed || m.claimed || claiming === m.id}
+                  onClick={() => claim(m.id)}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    m.claimed
+                      ? 'bg-[var(--surface-2)] text-[var(--text-muted)] cursor-not-allowed'
+                      : m.completed
+                        ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                        : 'bg-[var(--surface-2)] text-[var(--text-muted)] cursor-not-allowed'
+                  }`}
+                >
+                  {m.claimed ? 'Déjà réclamé' : (claiming === m.id ? '...' : m.completed ? 'Réclamer' : 'En cours')}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

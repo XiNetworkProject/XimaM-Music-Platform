@@ -43,6 +43,20 @@ CREATE TABLE IF NOT EXISTS public.active_track_boosts (
 CREATE INDEX IF NOT EXISTS idx_active_boosts_track ON public.active_track_boosts(track_id);
 CREATE INDEX IF NOT EXISTS idx_active_boosts_expires ON public.active_track_boosts(expires_at);
 
+-- Boosts actifs appliqués aux artistes
+CREATE TABLE IF NOT EXISTS public.active_artist_boosts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  artist_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  booster_id UUID NOT NULL REFERENCES public.boosters(id) ON DELETE RESTRICT,
+  multiplier NUMERIC NOT NULL CHECK (multiplier >= 1.0),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  source TEXT NOT NULL DEFAULT 'booster'
+);
+CREATE INDEX IF NOT EXISTS idx_active_artist_boosts_artist ON public.active_artist_boosts(artist_id);
+CREATE INDEX IF NOT EXISTS idx_active_artist_boosts_expires ON public.active_artist_boosts(expires_at);
+
 -- Ouverture quotidienne (cooldown / streak)
 CREATE TABLE IF NOT EXISTS public.user_booster_daily (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,

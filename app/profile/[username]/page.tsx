@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import BoosterOpenModal from '@/components/BoosterOpenModal';
 import { useBoosters } from '@/hooks/useBoosters';
-import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp } from 'lucide-react';
+import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
 import { useAudioPlayer } from '@/app/providers';
@@ -93,6 +93,20 @@ export default function ProfileUserPage() {
 
   // Boosters
   const { inventory, remainingMs, canOpen, openDaily, useOnTrack, lastOpened, loading: boostersLoading } = useBoosters();
+  const [artistBoost, setArtistBoost] = useState<{ multiplier: number; expires_at: string } | null>(null);
+  const [nowTs, setNowTs] = useState<number>(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const formatRemainingMs = (ms: number) => {
+    if (!ms || ms <= 0) return '0s';
+    const h = Math.floor(ms / 3_600_000);
+    const m = Math.floor((ms % 3_600_000) / 60_000);
+    const s = Math.floor((ms % 60_000) / 1000);
+    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
+    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+  };
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   useEffect(() => {
     if (lastOpened) setShowBoosterModal(true);
@@ -165,6 +179,17 @@ export default function ProfileUserPage() {
                 else map[b.track_id].multiplier = Math.max(map[b.track_id].multiplier, Number(b.multiplier) || 1);
               });
               setActiveBoosts(map);
+            }
+          }
+        } catch {}
+        // Charger boost artiste si profil propriétaire
+        try {
+          if (session?.user?.id && data.id === session.user.id) {
+            const r = await fetch('/api/boosters/my-active', { cache: 'no-store' });
+            if (r.ok) {
+              const jj = await r.json();
+              const ab = (jj.artistBoosts || [])[0];
+              if (ab) setArtistBoost({ multiplier: Number(ab.multiplier) || 1, expires_at: ab.expires_at });
             }
           }
         } catch {}
@@ -1118,6 +1143,12 @@ export default function ProfileUserPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {artistBoost && (
+                      <div className="hidden sm:inline-flex items-center gap-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-xs px-3 py-1 rounded-full font-semibold shadow mr-2">
+                        <Sparkles className="w-4 h-4" />
+                        Boost artiste x{artistBoost.multiplier.toFixed(2)} · {formatRemainingMs(new Date(artistBoost.expires_at).getTime() - nowTs)}
+                      </div>
+                    )}
                     <button 
                       className={`p-3 rounded-xl transition-all duration-200 ${
                         trackViewMode === 'list' 
