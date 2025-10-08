@@ -24,21 +24,49 @@ export async function POST(req: NextRequest) {
     }
     await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: defaultPaymentMethod } });
 
-    // Créer la subscription
+    // Créer la subscription avec paiement immédiat requis
     const subscriptionResp = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
+      payment_behavior: 'default_incomplete', // Requiert un paiement immédiat
+      payment_settings: {
+        payment_method_types: ['card'],
+        save_default_payment_method: 'on_subscription'
+      },
       expand: ['latest_invoice.payment_intent']
     });
     const subscription = subscriptionResp as unknown as StripeType.Subscription;
 
+    // Vérifier que le paiement initial est requis
+    const invoice = subscription.latest_invoice as StripeType.Invoice;
+    if (invoice && invoice.amount_due > 0) {
+      const paymentIntent = invoice.payment_intent as StripeType.PaymentIntent;
+      if (paymentIntent && paymentIntent.status !== 'succeeded') {
+        return NextResponse.json({ 
+          error: 'Le paiement initial doit être confirmé avant l\'activation',
+          requiresPayment: true,
+          clientSecret: paymentIntent.client_secret
+        }, { status: 402 });
+      }
+    }
+
     // Mettre à jour le profil immédiatement (sans attendre le webhook)
     const priceToPlan = () => {
       const env = process.env;
-      // 1) Comparaison directe sur IDs
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR) return 'starter';
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR) return 'pro';
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR) return 'enterprise';
+      // 1) Comparaison directe sur IDs (prix normaux + prix de lancement)
+      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || 
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR ||
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH_LAUNCH || 
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR_LAUNCH) return 'starter';
+      
+      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || 
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR ||
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH_LAUNCH || 
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR_LAUNCH) return 'pro';
+      
+      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || 
+          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR) return 'enterprise';
+      
       // 2) Fallback par nom du produit / nickname Stripe
       const item = subscription.items?.data?.[0];
       const nick = (item?.price?.nickname || '').toLowerCase();
