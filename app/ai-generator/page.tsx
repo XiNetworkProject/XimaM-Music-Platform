@@ -239,11 +239,13 @@ export default function AIGenerator() {
       condition: sunoState === 'success' && sunoTracks.length > 0
     });
     
-    if (sunoState === 'success' && sunoTracks.length > 0) {
+    // Afficher les pistes dès qu'elles sont disponibles (streaming)
+    if ((sunoState === 'first' || sunoState === 'success') && sunoTracks.length > 0) {
       console.log('🎵 Suno tracks brutes:', sunoTracks);
       
       // Convertir les tracks Suno en format local
       const convertedTracks: GeneratedTrack[] = sunoTracks.map((track, index) => {
+        // Priorité: audio final > stream > vide
         const audioUrl = track.audio || track.stream || '';
         console.log(`🎵 Track ${index} conversion:`, { 
           originalTrack: track, 
@@ -269,27 +271,32 @@ export default function AIGenerator() {
 
       setGeneratedTracks(convertedTracks);
       setGeneratedTrack(convertedTracks[0]);
-      setGenerationStatus('completed');
-      setCurrentTaskId(null);
+      
+      // Marquer comme complété uniquement si toutes les pistes sont finales
+      if (sunoState === 'success') {
+        setGenerationStatus('completed');
+        setCurrentTaskId(null);
+        
+        // Rafraîchir la bibliothèque IA après génération complète
+        setTimeout(() => {
+          refreshGenerations();
+          console.log('🔄 Bibliothèque IA rafraîchie');
+        }, 2000);
+      } else {
+        // État intermédiaire: streaming disponible
+        setGenerationStatus('pending');
+        console.log('🎵 Streaming disponible, génération en cours...');
+      }
       
       console.log('✅ États mis à jour:', {
         generatedTracksLength: convertedTracks.length,
         generatedTrack: convertedTracks[0]?.title,
-        generationStatus: 'completed'
+        generationStatus: sunoState === 'success' ? 'completed' : 'pending (streaming)'
       });
-      
-      // Rafraîchir la bibliothèque IA après génération
-      setTimeout(() => {
-        refreshGenerations();
-        console.log('🔄 Bibliothèque IA rafraîchie');
-      }, 2000);
     } else if (sunoState === 'error') {
       console.error('❌ Suno error:', sunoError);
       setGenerationStatus('failed');
       setCurrentTaskId(null);
-    } else if (sunoState === 'first') {
-      // Première piste terminée
-      console.log('🎵 Première piste terminée !');
     }
   }, [sunoState, sunoTracks, sunoError, currentTaskId, description, style, lyrics, isInstrumental, customMode, title]);
 
@@ -890,12 +897,25 @@ export default function AIGenerator() {
             className="max-w-2xl mx-auto mt-8"
           >
             <div className="text-center mb-6">
-              <h3 className="text-xl font-semibold text-green-400 mb-2">
-                🎵 Génération terminée !
-              </h3>
-              <p className="text-gray-400">
-                Suno a généré {generatedTracks.length} version{generatedTracks.length > 1 ? 's' : ''} de votre musique
-              </p>
+              {generationStatus === 'completed' ? (
+                <>
+                  <h3 className="text-xl font-semibold text-green-400 mb-2">
+                    🎵 Génération terminée !
+                  </h3>
+                  <p className="text-gray-400">
+                    Suno a généré {generatedTracks.length} version{generatedTracks.length > 1 ? 's' : ''} de votre musique
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 className="text-xl font-semibold text-blue-400 mb-2 flex items-center justify-center gap-2">
+                    <div className="animate-pulse">🎵</div> Streaming disponible !
+                  </h3>
+                  <p className="text-gray-400">
+                    {generatedTracks.length} piste{generatedTracks.length > 1 ? 's' : ''} en cours de génération • Vous pouvez déjà écouter
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="space-y-4">
@@ -914,11 +934,19 @@ export default function AIGenerator() {
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold title-suno truncate">{track.title}</h3>
                       <p className="text-[var(--text-muted)] text-sm truncate">{track.style || '—'} • {formatSec(track.duration || 0)}</p>
-                      {track.isInstrumental && (
-                        <span className="inline-block bg-purple-600/20 text-purple-300 text-xs px-2 py-1 rounded-full mt-1 border border-purple-500/30">
-                          Instrumental
-                        </span>
-                      )}
+                      <div className="flex gap-2 mt-1">
+                        {track.isInstrumental && (
+                          <span className="inline-block bg-purple-600/20 text-purple-300 text-xs px-2 py-1 rounded-full border border-purple-500/30">
+                            Instrumental
+                          </span>
+                        )}
+                        {generationStatus === 'pending' && currentTaskId && (
+                          <span className="inline-flex items-center gap-1 bg-blue-600/20 text-blue-300 text-xs px-2 py-1 rounded-full border border-blue-500/30 animate-pulse">
+                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-ping"></div>
+                            Streaming
+                          </span>
+                        )}
+                      </div>
                   </div>
                 </div>
 

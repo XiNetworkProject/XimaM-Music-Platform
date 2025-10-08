@@ -48,7 +48,22 @@ export async function GET(req: NextRequest) {
     console.log('🔍 SunoData:', json.data?.response?.sunoData);
     console.log('🎵 Tracks normalisées:', tracks);
 
-    return NextResponse.json({ taskId, status, tracks });
+    // Mapper les statuts Suno vers nos statuts internes
+    // Suno renvoie: "pending", "text", "first", "complete", "error"
+    let normalizedStatus = status;
+    if (status === 'text') {
+      normalizedStatus = 'pending'; // Génération texte en cours
+    } else if (status === 'first') {
+      normalizedStatus = 'FIRST_SUCCESS'; // Première piste prête
+    } else if (status === 'complete') {
+      normalizedStatus = 'SUCCESS'; // Toutes les pistes prêtes
+    } else if (status === 'error') {
+      normalizedStatus = 'ERROR';
+    }
+
+    console.log(`🔄 Statut Suno: "${status}" → Normalisé: "${normalizedStatus}"`);
+
+    return NextResponse.json({ taskId, status: normalizedStatus, tracks });
 
   } catch (e: any) {
     console.error('❌ Erreur polling Suno:', e.message);
