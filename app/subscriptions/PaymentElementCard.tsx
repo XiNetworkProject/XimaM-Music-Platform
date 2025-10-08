@@ -56,34 +56,45 @@ function InnerPayment({ priceId, customerId, onSuccess }: { priceId: string; cus
 }
 
 export default function PaymentElementCard({ priceId, onSuccess }: { priceId: string; onSuccess: () => void }) {
-  const [clientSecret, setClientSecret] = useState<string>('');
-  const [customerId, setCustomerId] = useState<string>('');
+  const [checkoutUrl, setCheckoutUrl] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  
   useEffect(() => {
-    // seed client secret fetch once; InnerPayment will fetch but Elements needs options stable
     (async () => {
       try {
         const res = await fetch('/api/billing/create-subscription', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priceId }) });
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
           setError(j.error || 'Erreur initialisation paiement');
+          setLoading(false);
           return;
         }
         const json = await res.json();
-        setClientSecret(json.clientSecret);
-        setCustomerId(json.customerId);
+        if (json.checkoutUrl) {
+          // Rediriger automatiquement vers la page de paiement Stripe
+          window.location.href = json.checkoutUrl;
+        } else {
+          setError('URL de paiement non reçue');
+          setLoading(false);
+        }
       } catch (e: any) {
         setError('Erreur réseau');
+        setLoading(false);
       }
     })();
   }, [priceId]);
 
   if (error) return <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 text-red-400">{error}</div>;
-  if (!clientSecret) return <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 text-white/70">Initialisation…</div>;
+  
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret }}>
-      <InnerPayment priceId={priceId} customerId={customerId} onSuccess={onSuccess} />
-    </Elements>
+    <div className="panel-suno border border-[var(--border)] rounded-2xl p-6 text-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-12 h-12 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+        <div className="text-white/90">Redirection vers le paiement sécurisé...</div>
+        <div className="text-white/60 text-sm">Vous allez être redirigé vers Stripe</div>
+      </div>
+    </div>
   );
 }
 

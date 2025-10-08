@@ -29,15 +29,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Intent pour Payment Element intégré (mode subscription)
-    const setupIntent = await stripe.setupIntents.create({
+    // Créer une Checkout Session pour forcer le paiement immédiat du montant complet
+    const checkoutSession = await stripe.checkout.sessions.create({
       customer: customerId,
-      payment_method_types: ['card'],
-      usage: 'off_session',
-      metadata: { type: 'subscription_setup', userId: session.user.id },
+      mode: 'subscription',
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/subscriptions?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/subscriptions`,
+      subscription_data: {
+        metadata: {
+          userId: session.user.id,
+        },
+      },
+      allow_promotion_codes: true,
+      billing_address_collection: 'auto',
     });
 
-    return NextResponse.json({ clientSecret: setupIntent.client_secret, customerId });
+    return NextResponse.json({ 
+      checkoutUrl: checkoutSession.url,
+      sessionId: checkoutSession.id,
+      customerId 
+    });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
   }
