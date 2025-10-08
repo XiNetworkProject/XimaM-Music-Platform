@@ -21,6 +21,7 @@ interface GeneratedTrack {
   isInstrumental: boolean;
   duration: number;
   createdAt: string;
+  imageUrl?: string; // Cover image généré par Suno
 }
 
 // Interface Track compatible avec le lecteur principal
@@ -181,7 +182,7 @@ export default function AIGenerator() {
         username: 'synaura-ai'
       },
       audioUrl: gt.audioUrl,
-      coverUrl: undefined,
+      coverUrl: gt.imageUrl || '/synaura_symbol.svg',
       duration: gt.duration || 120,
       likes: [],
       comments: [],
@@ -251,19 +252,24 @@ export default function AIGenerator() {
           originalTrack: track, 
           audioUrl, 
           hasAudio: !!track.audio, 
-          hasStream: !!track.stream 
+          hasStream: !!track.stream,
+          hasImage: !!track.image,
+          title: track.title
         });
         
         return {
           id: track.id || `${currentTaskId}_${index}`,
           audioUrl,
           prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
-          title: customMode ? (track.title || title) : (track.title || `Musique générée ${index + 1}`),
-          style: customMode ? style : (style || 'Custom'),
+          // Utiliser le titre généré par Suno en priorité
+          title: track.title || title || `Musique générée ${index + 1}`,
+          // Utiliser le style d'origine ou celui généré par Suno (via tags)
+          style: track.raw?.tags || style || 'Custom',
           lyrics: customMode ? lyrics : '',
           isInstrumental,
           duration: track.duration || 120,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          imageUrl: track.image // Cover généré par Suno
         };
       });
 
@@ -929,8 +935,21 @@ export default function AIGenerator() {
                   className="panel-suno rounded-xl p-6 border border-[var(--border)] hover:bg-white/5 transition-colors"
                 >
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center">
-                      <Music className="w-8 h-8 text-white" />
+                    <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-xl flex items-center justify-center overflow-hidden">
+                      {track.imageUrl ? (
+                        <img 
+                          src={track.imageUrl} 
+                          alt={track.title} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Fallback si l'image ne charge pas
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = '<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>';
+                          }}
+                        />
+                      ) : (
+                        <Music className="w-8 h-8 text-white" />
+                      )}
                 </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold title-suno truncate">{track.title}</h3>
