@@ -73,8 +73,6 @@ export async function POST(req: NextRequest) {
         plan: priceToPlan(),
         subscription_status: subscription.status,
         subscription_current_period_end: periodEnd,
-        stripe_customer_id: checkoutSession.customer as string,
-        stripe_subscription_id: subscription.id,
         updated_at: new Date().toISOString()
       })
       .eq('id', session.user.id);
