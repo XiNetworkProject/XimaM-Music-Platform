@@ -88,9 +88,7 @@ export async function POST(req: NextRequest) {
     const modelAdjusted = requestedModel !== effectiveModel;
 
     // Validation minimale selon les règles customMode
-    if (!body.title) {
-      return NextResponse.json({ error: "title requis" }, { status: 400 });
-    }
+    // Le titre est optionnel: si absent, Suno le génère automatiquement
     if (!body.style) {
       return NextResponse.json({ error: "style requis" }, { status: 400 });
     }
@@ -108,10 +106,13 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // Générer un titre auto si non fourni (Suno le fera aussi côté serveur)
+    const autoTitle = body.title || undefined; // undefined = Suno génère
+
     const payload = {
       customMode: true,
       instrumental: body.instrumental,
-      title: body.title,
+      title: autoTitle,
       style: body.style,
       prompt: body.instrumental ? undefined : finalPrompt,
       model: effectiveModel,
@@ -154,7 +155,7 @@ export async function POST(req: NextRequest) {
         user_id: session.user.id,
         task_id: taskId,
         status: 'pending',
-        title: body.title,
+        title: autoTitle || 'Génération en cours',
         style: body.style,
         prompt: finalPrompt,
         instrumental: body.instrumental,

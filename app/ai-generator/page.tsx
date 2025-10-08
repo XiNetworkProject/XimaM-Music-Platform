@@ -311,9 +311,9 @@ export default function AIGenerator() {
       let prompt = '';
       
       if (customMode) {
-        // Mode personnalisé : utiliser titre, style, paroles
-        if (!title.trim() || !style.trim()) {
-          alert('Veuillez remplir le titre et le style de musique');
+        // Mode personnalisé : le style est obligatoire, le titre est optionnel
+        if (!style.trim()) {
+          alert('Veuillez remplir le style de musique');
           return;
         }
         const styleFinal = [style, ...selectedTags].filter(Boolean).join(', ');
@@ -341,7 +341,8 @@ export default function AIGenerator() {
       const audioWeightVal = customMode ? Math.round(audioWeight) / 100 : 0.5;
 
       const requestBody = {
-        title: customMode ? title : 'Musique générée',
+        // En mode custom: utiliser le titre saisi, sinon ne pas envoyer de titre (Suno génère)
+        title: customMode && title.trim() ? title : undefined,
         style: customMode ? [style, ...selectedTags].filter(Boolean).join(', ') : [description, ...selectedTags].filter(Boolean).join(', '),
         prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
         instrumental: isInstrumental,
