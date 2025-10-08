@@ -284,6 +284,20 @@ export default function UploadPage() {
 
   requireAuth();
 
+  // Mettre à jour le formData quand user change
+  useEffect(() => {
+    if (user?.name) {
+      setFormData(prev => ({
+        ...prev,
+        artist: user.name,
+        copyright: {
+          ...prev.copyright,
+          owner: user.name
+        }
+      }));
+    }
+  }, [user?.name]);
+
   // Charger usage + plan pour afficher les CTA/limitations
   useEffect(() => {
     (async () => {

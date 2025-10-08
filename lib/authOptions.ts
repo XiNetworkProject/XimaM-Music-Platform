@@ -99,7 +99,9 @@ export const authOptions: NextAuthOptions = {
             const extendedUser = {
               ...session.user,
               id: profile.id,
+              name: profile.name, // Toujours utiliser le nom à jour depuis la DB
               username: profile.username,
+              avatar: profile.avatar,
               role: profile.role || 'user',
               isVerified: profile.is_verified || false,
               bio: profile.bio,
