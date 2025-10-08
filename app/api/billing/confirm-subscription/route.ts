@@ -38,10 +38,10 @@ export async function POST(req: NextRequest) {
     const subscription = subscriptionResp as unknown as StripeType.Subscription;
 
     // Vérifier que le paiement initial est requis
-    const invoice = subscription.latest_invoice as StripeType.Invoice;
+    const invoice = subscription.latest_invoice as any;
     if (invoice && invoice.amount_due > 0) {
-      const paymentIntent = invoice.payment_intent as StripeType.PaymentIntent;
-      if (paymentIntent && paymentIntent.status !== 'succeeded') {
+      const paymentIntent = invoice.payment_intent;
+      if (paymentIntent && typeof paymentIntent === 'object' && paymentIntent.status !== 'succeeded') {
         return NextResponse.json({ 
           error: 'Le paiement initial doit être confirmé avant l\'activation',
           requiresPayment: true,
