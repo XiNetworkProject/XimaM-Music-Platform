@@ -19,7 +19,7 @@ import {
   Settings
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import BottomNav from '@/components/BottomNav';
 import { getEntitlements } from '@/lib/entitlements';
 import { MUSIC_GENRES } from '@/lib/genres';
@@ -376,14 +376,14 @@ export default function UploadPage() {
     const file = acceptedFiles[0];
     if (file) {
       if (!file.type.startsWith('audio/')) {
-        toast.error('Veuillez sélectionner un fichier audio valide');
+        notify.error('Fichier invalide', 'Veuillez sélectionner un fichier audio valide');
         return;
       }
       // Validation taille par plan
       const planMaxMb = (planKey === 'starter' ? 100 : planKey === 'pro' ? 200 : planKey === 'enterprise' ? 500 : 50);
       const sizeMb = file.size / 1024 / 1024;
       if (sizeMb > planMaxMb) {
-        toast.error(`Fichier trop volumineux pour votre plan (${sizeMb.toFixed(1)} MB). Limite: ${planMaxMb} MB.`);
+        notify.error('Fichier trop volumineux', `Fichier trop volumineux pour votre plan (${sizeMb.toFixed(1)} MB). Limite: ${planMaxMb} MB.`);
         return;
       }
       setAudioFile(file);
@@ -394,7 +394,7 @@ export default function UploadPage() {
     const file = acceptedFiles[0];
     if (file) {
       if (!file.type.startsWith('image/')) {
-        toast.error('Veuillez sélectionner une image valide');
+        notify.error('Image invalide', 'Veuillez sélectionner une image valide');
         return;
       }
       setCoverFile(file);
@@ -437,17 +437,17 @@ export default function UploadPage() {
 
   const handleSubmit = async () => {
     if (!canUpload) {
-      toast.error("Limite atteinte. Passez au plan supérieur pour uploader plus.");
+      notify.error("Limite atteinte", "Passez au plan supérieur pour uploader plus.");
       return;
     }
     
     if (!audioFile) {
-      toast.error('Veuillez sélectionner un fichier audio');
+      notify.error('Fichier requis', 'Veuillez sélectionner un fichier audio');
       return;
     }
 
     if (!formData.title.trim()) {
-      toast.error('Veuillez saisir un titre');
+      notify.error('Titre requis', 'Veuillez saisir un titre');
       return;
     }
 
@@ -455,13 +455,13 @@ export default function UploadPage() {
     setUploadProgress({ audio: 0, cover: 0 });
 
     try {
-      const audioLoadingToast = toast.loading('Upload audio en cours...');
+      notify.info('Upload en cours', 'Upload audio en cours...', 0);
       setUploadProgress(prev => ({ ...prev, audio: 25 }));
       
       const audioResult = await uploadToCloudinary(audioFile, 'video');
       setTempPublicIds(prev => ({ ...prev, audio: audioResult.public_id }));
       setUploadProgress(prev => ({ ...prev, audio: 75 }));
-      toast.dismiss(audioLoadingToast);
+      // Audio upload terminé
 
       // Vérification droits d'auteur (AudD) — no-op si token manquant
       try {
@@ -500,18 +500,18 @@ export default function UploadPage() {
 
       let coverResult: { public_id?: string; secure_url?: string } | null = null;
       if (coverFile) {
-        const coverLoadingToast = toast.loading('Upload image de couverture...');
+        notify.info('Upload image', 'Upload image de couverture...', 0);
         setUploadProgress(prev => ({ ...prev, cover: 25 }));
         
         coverResult = await uploadToCloudinary(coverFile, 'image');
         setTempPublicIds(prev => ({ ...prev, cover: coverResult?.public_id }));
         setUploadProgress(prev => ({ ...prev, cover: 75 }));
-        toast.dismiss(coverLoadingToast);
+        // Cover upload terminé
       }
 
       setUploadProgress({ audio: 100, cover: 100 });
 
-      const saveLoadingToast = toast.loading('Sauvegarde en cours...');
+      notify.info('Sauvegarde', 'Sauvegarde en cours...', 0);
       
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -530,12 +530,11 @@ export default function UploadPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        toast.dismiss(saveLoadingToast);
+        // Sauvegarde terminée
         throw new Error(errorData.error || 'Erreur lors de la sauvegarde');
       }
 
-      toast.dismiss(saveLoadingToast);
-      toast.success('Musique uploadée avec succès !');
+      notify.success('Upload réussi !', 'Musique uploadée avec succès !');
       
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('fromUpload', 'true');
@@ -543,8 +542,7 @@ export default function UploadPage() {
       
       router.push('/');
     } catch (error) {
-      toast.dismiss();
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de l\'upload');
+      notify.error('Erreur upload', error instanceof Error ? error.message : 'Erreur lors de l\'upload');
     } finally {
       setIsUploading(false);
       setUploadProgress({ audio: 0, cover: 0 });

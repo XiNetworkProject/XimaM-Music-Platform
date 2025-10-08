@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer l'utilisateur dans Supabase Auth
-    const { data: { user }, error: authError } = await supabase.auth.admin.createUser({
+    // Créer l'utilisateur dans Supabase Auth avec le client admin
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
       email_confirm: true
@@ -86,13 +86,13 @@ export async function POST(request: NextRequest) {
     if (authError || !user) {
       console.error('❌ Erreur lors de la création de l\'utilisateur Supabase:', authError);
       return NextResponse.json(
-        { error: 'Erreur lors de la création du compte' },
+        { error: authError?.message || 'Erreur lors de la création du compte' },
         { status: 500 }
       );
     }
 
-    // Créer le profil dans la table profiles
-    const { data: profile, error: profileError } = await supabase
+    // Créer le profil dans la table profiles avec le client admin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
         id: user.id,
@@ -100,7 +100,6 @@ export async function POST(request: NextRequest) {
         username: username.trim().toLowerCase(),
         email: email.trim().toLowerCase(),
         is_verified: true,
-        role: 'user',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
@@ -110,9 +109,9 @@ export async function POST(request: NextRequest) {
     if (profileError) {
       console.error('❌ Erreur lors de la création du profil:', profileError);
       // Supprimer l'utilisateur créé si le profil échoue
-      await supabase.auth.admin.deleteUser(user.id);
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
       return NextResponse.json(
-        { error: 'Erreur lors de la création du profil' },
+        { error: profileError?.message || 'Erreur lors de la création du profil' },
         { status: 500 }
       );
     }

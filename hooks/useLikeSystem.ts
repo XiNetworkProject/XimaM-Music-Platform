@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { toast } from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import { useLikeContext } from '@/contexts/LikeContext';
 
 interface LikeState {
@@ -92,13 +92,13 @@ export function useLikeSystem({
 
   const toggleLike = useCallback(async () => {
     if (!session?.user?.id) {
-      toast.error('Connectez-vous pour liker des titres');
+      notify.error('Connexion requise', 'Connectez-vous pour liker des titres');
       return;
     }
     
     // Ne pas permettre de liker la radio ou les pistes IA
     if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
-      toast.error(`Impossible de liker ${trackId.startsWith('ai-') ? 'une piste IA' : 'la radio'}`);
+      notify.error('Like impossible', `Impossible de liker ${trackId.startsWith('ai-') ? 'une piste IA' : 'la radio'}`);
       return;
     }
 
@@ -148,7 +148,7 @@ export function useLikeSystem({
 
       // Notification de succès + analytics (favorite/unfavorite)
       if (data.isLiked) {
-        toast.success('Titre ajouté aux favoris');
+        notify.success('Ajouté aux favoris', 'Titre ajouté aux favoris');
         try {
           await fetch(`/api/tracks/${trackId}/events`, {
             method: 'POST',
@@ -157,7 +157,7 @@ export function useLikeSystem({
           });
         } catch {}
       } else {
-        toast.success('Titre retiré des favoris');
+        notify.success('Retiré des favoris', 'Titre retiré des favoris');
         try {
           await fetch(`/api/tracks/${trackId}/events`, {
             method: 'POST',
@@ -184,7 +184,7 @@ export function useLikeSystem({
       // Restaurer l'état global en cas d'erreur
       syncLikeState(trackId, errorState.isLiked, errorState.likesCount);
       
-      toast.error('Erreur lors du like');
+      notify.error('Erreur like', 'Erreur lors du like');
     }
   }, [session?.user?.id, trackId, state.isLiked, state.likesCount, state.isLoading, onUpdate]);
 
@@ -207,7 +207,7 @@ export function useBatchLikeSystem() {
 
   const toggleLikeBatch = useCallback(async (trackId: string, currentState: { isLiked: boolean; likesCount: number }) => {
     if (!session?.user?.id) {
-      toast.error('Connectez-vous pour liker des titres');
+      notify.error('Connexion requise', 'Connectez-vous pour liker des titres');
       return;
     }
 
@@ -232,7 +232,7 @@ export function useBatchLikeSystem() {
 
     } catch (error) {
       console.error('Erreur like batch:', error);
-      toast.error('Erreur lors du like');
+      notify.error('Erreur like', 'Erreur lors du like');
       throw error;
     } finally {
       setBatchLoading(prev => {

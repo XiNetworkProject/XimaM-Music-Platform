@@ -64,4 +64,17 @@
 .aurora-3 { width: 60vw; height: 60vw; left: 10vw; bottom: -20vh; background: radial-gradient(circle at 40% 70%, rgba(0,211,167,0.25) 0%, transparent 60%); opacity: 0.25; }
 .aurora-vignette { position: absolute; inset: 0; background: radial-gradient(1200px 800px at 10% -10%, rgba(110,86,207,0.12), transparent 40%), radial-gradient(1000px 700px at 110% 10%, rgba(217,70,239,0.10), transparent 40%); }
 
+/* Animation pulse lente pour la bannière de lancement */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 

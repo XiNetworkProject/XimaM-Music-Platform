@@ -16,7 +16,7 @@ import InteractiveCounter from '@/components/InteractiveCounter';
 import SocialStats from '@/components/SocialStats';
 import UserProfileCard from '@/components/UserProfileCard';
 import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 const socialIcons = {
   instagram: Instagram,
@@ -321,18 +321,18 @@ export default function ProfileUserPage() {
       });
 
       if (res.ok) {
-        toast.success('Demande de conversation envoyée');
+        notify.success('Demande envoyée', 'Demande de conversation envoyée');
       } else {
         const data = await res.json();
         if (data.error === 'Conversation déjà existante') {
           // Rediriger vers la conversation existante
           router.push(`/messages/${data.conversationId}`);
         } else {
-          toast.error(data.error || 'Erreur lors de l\'envoi de la demande');
+          notify.error('Erreur envoi', data.error || 'Erreur lors de l\'envoi de la demande');
         }
       }
     } catch (error) {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur connexion', 'Erreur de connexion');
     }
   };
 
@@ -618,11 +618,11 @@ export default function ProfileUserPage() {
           )
         }));
         
-        toast.success(result.isLiked ? 'Track ajoutée aux favoris' : 'Track retirée des favoris');
+        notify.success(result.isLiked ? 'Ajouté aux favoris' : 'Retiré des favoris', result.isLiked ? 'Track ajoutée aux favoris' : 'Track retirée des favoris');
       }
     } catch (e: any) {
       setError(e.message || 'Erreur like');
-      toast.error(e.message || 'Erreur like');
+      notify.error('Erreur like', e.message || 'Erreur like');
     } finally {
       setLikeLoading(null);
     }
@@ -650,7 +650,7 @@ export default function ProfileUserPage() {
       }));
       
       setShowTrackOptions(null);
-      toast.success('Track supprimée avec succès');
+      notify.success('Track supprimée', 'Track supprimée avec succès');
       
       // Rafraîchir les données d'usage pour mettre à jour le stockage
       try {
@@ -666,7 +666,7 @@ export default function ProfileUserPage() {
       
     } catch (e: any) {
       setError(e.message || 'Erreur suppression');
-      toast.error(e.message || 'Erreur suppression');
+      notify.error('Erreur suppression', e.message || 'Erreur suppression');
     } finally {
       setDeleteLoading(null);
     }
@@ -729,10 +729,10 @@ export default function ProfileUserPage() {
       setShowEditTrackModal(false);
       setEditingTrack(null);
       setShowTrackOptions(null);
-      toast.success('Track modifiée avec succès');
+      notify.success('Track modifiée', 'Track modifiée avec succès');
     } catch (e: any) {
       setError(e.message || 'Erreur modification');
-      toast.error(e.message || 'Erreur modification');
+      notify.error('Erreur modification', e.message || 'Erreur modification');
     } finally {
       setUploading(false);
     }
@@ -792,10 +792,10 @@ export default function ProfileUserPage() {
       setShowFeatureTrackModal(false);
       setFeaturingTrack(null);
       setShowTrackOptions(null);
-      toast.success(data.track.is_featured ? 'Track mise en vedette' : 'Track retirée de la vedette');
+      notify.success(data.track.is_featured ? 'Track mise en vedette' : 'Track retirée de la vedette', data.track.is_featured ? 'Track mise en vedette' : 'Track retirée de la vedette');
     } catch (e: any) {
       setError(e.message || 'Erreur mise en avant');
-      toast.error(e.message || 'Erreur mise en avant');
+      notify.error('Erreur mise en avant', e.message || 'Erreur mise en avant');
     } finally {
       setUploading(false);
     }
@@ -1460,7 +1460,7 @@ export default function ProfileUserPage() {
                               const owned = inventory.find(it => it.status==='owned' && it.booster.type==='track');
                               if (owned && showTrackOptions) {
                                 await useOnTrack(owned.id, showTrackOptions);
-                                toast.success('Booster activé sur la piste');
+                                notify.success('Booster activé', 'Booster activé sur la piste');
                                 setShowTrackOptions(null);
                               }
                             }}

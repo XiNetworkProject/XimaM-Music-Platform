@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { LibraryPageSkeleton, EmptyState } from '@/components/Skeletons';
 import { 
   Heart, 
   Clock, 
@@ -401,14 +402,7 @@ export default function LibraryPage() {
 
   // État de chargement
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg)] text-[var(--text)] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)] mx-auto mb-4"></div>
-          <p>Chargement de votre bibliothèque...</p>
-        </div>
-      </div>
-    );
+    return <LibraryPageSkeleton />;
   }
 
   // État d'erreur
@@ -826,20 +820,15 @@ export default function LibraryPage() {
                     </div>
 
                       {filteredPlaylists.length === 0 ? (
-                      <div className="text-center py-12">
-                          <FolderPlus className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                          <p className="text-white/60 mb-4">
-                            {searchQuery ? 'Aucune playlist trouvée' : 'Aucune playlist créée'}
-                          </p>
-                          {!searchQuery && (
-                            <button
-                              onClick={() => setShowCreatePlaylist(true)}
-                              className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-6 py-3 rounded-full font-medium transition-all"
-                            >
-                              Créer une playlist
-                            </button>
-                          )}
-                      </div>
+                        <EmptyState
+                          icon={FolderPlus}
+                          title={searchQuery ? 'Aucune playlist trouvée' : 'Aucune playlist créée'}
+                          description={searchQuery ? 'Essayez avec d\'autres mots-clés' : 'Créez votre première playlist pour organiser vos musiques préférées'}
+                          action={!searchQuery ? {
+                            label: "Créer une playlist",
+                            onClick: () => setShowCreatePlaylist(true)
+                          } : undefined}
+                        />
                     ) : (
                         <div className={viewMode === 'grid' ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6' : 'space-y-4'}>
                           {filteredPlaylists.map((playlist) => (
@@ -911,12 +900,11 @@ export default function LibraryPage() {
                 <h2 className="text-xl font-bold mb-6">Écouté Récemment</h2>
                 
                   {filteredRecentTracks.length === 0 ? (
-                  <div className="text-center py-12">
-                      <Clock className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                      <p className="text-white/60">
-                        {searchQuery ? 'Aucun résultat trouvé' : 'Aucune écoute récente'}
-                      </p>
-                  </div>
+                    <EmptyState
+                      icon={Clock}
+                      title={searchQuery ? 'Aucun résultat trouvé' : 'Aucune écoute récente'}
+                      description={searchQuery ? 'Essayez avec d\'autres mots-clés' : 'Vos écoutes récentes apparaîtront ici'}
+                    />
                 ) : (
                   <div className="space-y-3">
                       {filteredRecentTracks.map((track, index) => (
@@ -984,20 +972,15 @@ export default function LibraryPage() {
                 <h2 className="text-xl font-bold mb-6">Mes Favoris</h2>
                 
                   {filteredFavoriteTracks.length === 0 ? (
-                  <div className="text-center py-12">
-                      <Heart className="w-16 h-16 text-white/40 mx-auto mb-4" />
-                      <p className="text-white/60 mb-4">
-                        {searchQuery ? 'Aucun résultat trouvé' : 'Aucun favori pour le moment'}
-                      </p>
-                      {!searchQuery && (
-                                          <a
-                        href="/discover"
-                        className="bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white px-6 py-3 rounded-full font-medium transition-all"
-                      >
-                        Découvrir de la musique
-                      </a>
-                      )}
-                  </div>
+                  <EmptyState
+                    icon={Heart}
+                    title={searchQuery ? 'Aucun résultat trouvé' : 'Aucun favori pour le moment'}
+                    description={searchQuery ? 'Essayez avec d\'autres mots-clés' : 'Likez des musiques pour les retrouver ici'}
+                    action={!searchQuery ? {
+                      label: "Découvrir de la musique",
+                      href: "/discover"
+                    } : undefined}
+                  />
                 ) : (
                   <div className="space-y-3">
                       {filteredFavoriteTracks.map((track, index) => (

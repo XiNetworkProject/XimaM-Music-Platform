@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { StatsPageSkeleton } from '@/components/Skeletons';
 
 type Daily = {
   day: string;
@@ -389,6 +390,10 @@ export default function StatsPage() {
   const topTracks = useMemo(() => {
     return [...tracks].sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 10);
   }, [tracks]);
+
+  if (loading) {
+    return <StatsPageSkeleton />;
+  }
 
   return (
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-10 pb-24 text-[var(--text)]">

@@ -41,7 +41,9 @@ class NotificationStore {
 
   subscribe(listener: (notifications: Notification[]) => void) {
     this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   add(notification: Omit<Notification, 'id'>) {
@@ -55,7 +57,7 @@ class NotificationStore {
     this.notify();
 
     // Auto-remove après duration
-    if (newNotification.duration > 0) {
+    if (newNotification.duration && newNotification.duration > 0) {
       setTimeout(() => this.remove(newNotification.id), newNotification.duration);
     }
   }
@@ -141,7 +143,8 @@ function NotificationItem({ notification, onRemove }: { notification: Notificati
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, x: 100, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="panel-suno border border-[var(--border)] rounded-xl p-4 shadow-lg max-w-sm w-full backdrop-blur-md"
+      className="panel-suno border border-[var(--border)] rounded-xl p-4 shadow-lg backdrop-blur-md"
+      style={{ minWidth: '480px', width: '480px' }}
     >
       <div className="flex items-start gap-3">
         <NotificationIcon type={notification.type} />
@@ -196,8 +199,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [showPanel, setShowPanel] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = notificationStore.subscribe(setNotifications);
-    return unsubscribe;
+    return notificationStore.subscribe(setNotifications);
   }, []);
 
   useEffect(() => {
@@ -242,7 +244,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
-              className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto panel-suno border border-[var(--border)] rounded-xl shadow-xl z-50"
+              className="absolute right-0 top-full mt-2 max-h-96 overflow-y-auto panel-suno border border-[var(--border)] rounded-xl shadow-xl z-50"
+              style={{ width: '260px', minWidth: '260px' }}
             >
               <div className="sticky top-0 bg-[var(--surface-2)] border-b border-[var(--border)] p-3 flex items-center justify-between">
                 <h3 className="font-semibold text-sm">Notifications</h3>

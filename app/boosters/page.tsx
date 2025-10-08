@@ -20,7 +20,7 @@ import {
 import { useBoosters } from '@/hooks/useBoosters';
 import BoosterOpenModal from '@/components/BoosterOpenModal';
 import TrackSelectModal from '@/components/TrackSelectModal';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 export default function BoostersPage() {
   const { data: session } = useSession();
@@ -86,13 +86,13 @@ export default function BoostersPage() {
     try {
       const result = await useOnTrack(inventoryId, trackId);
       if (result.ok) {
-        toast.success('Booster activé avec succès !');
+        notify.success('Booster activé !', 'Booster activé avec succès !');
         fetchInventory();
       } else {
-        toast.error('Erreur lors de l\'activation du booster');
+        notify.error('Erreur activation', 'Erreur lors de l\'activation du booster');
       }
     } catch (error) {
-      toast.error('Erreur lors de l\'activation du booster');
+      notify.error('Erreur activation', 'Erreur lors de l\'activation du booster');
     }
   };
 
@@ -315,10 +315,10 @@ export default function BoostersPage() {
                             onClick={async () => {
                               const r = await useOnArtist(item.id);
                               if (r.ok) {
-                                toast.success('Boost artiste activé !');
+                                notify.success('Boost artiste activé !', 'Votre profil est maintenant boosté !');
                                 fetchInventory();
                               } else {
-                                toast.error('Activation impossible');
+                                notify.error('Activation impossible', 'Impossible d\'activer le boost artiste');
                               }
                             }}
                             className="mt-2 w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
@@ -527,9 +527,9 @@ function MissionsSection() {
       });
       if (!res.ok) throw new Error('Claim impossible');
       await refresh();
-      toast.success('Récompense récupérée !');
+      notify.success('Récompense récupérée !', 'Mission accomplie !');
     } catch (e: any) {
-      toast.error(e?.message || 'Erreur');
+      notify.error('Erreur', e?.message || 'Erreur lors de la récupération de la récompense');
     } finally {
       setClaiming(null);
     }

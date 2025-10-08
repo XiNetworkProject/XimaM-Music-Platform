@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { toast } from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import { usePlaysContext } from '@/contexts/PlaysContext';
 
 interface PlaysState {
@@ -105,7 +105,7 @@ export function usePlaysSystem({
   const incrementPlays = useCallback(async () => {
     if (!trackId || !session?.user?.id || !isMounted.current) {
       if (!session?.user?.id) {
-        toast.error('Connectez-vous pour que vos écoutes soient comptabilisées');
+        notify.error('Connexion requise', 'Connectez-vous pour que vos écoutes soient comptabilisées');
       }
       return;
     }
@@ -171,7 +171,7 @@ export function usePlaysSystem({
         };
         setState(errorState);
         onUpdate?.(errorState);
-        toast.error('Erreur lors du comptage des écoutes');
+        notify.error('Erreur comptage', 'Erreur lors du comptage des écoutes');
       }
     } finally {
       // Retirer du suivi après un délai
@@ -230,7 +230,7 @@ export function useBatchPlaysSystem() {
 
   const incrementPlaysBatch = useCallback(async (trackId: string, currentPlays: number) => {
     if (!session?.user?.id) {
-      toast.error('Connectez-vous pour que vos écoutes soient comptabilisées');
+      notify.error('Connexion requise', 'Connectez-vous pour que vos écoutes soient comptabilisées');
       return;
     }
 
@@ -266,7 +266,7 @@ export function useBatchPlaysSystem() {
 
     } catch (error) {
       console.error('Erreur incrémentation batch:', error);
-      toast.error('Erreur lors du comptage des écoutes');
+      notify.error('Erreur comptage', 'Erreur lors du comptage des écoutes');
       throw error;
     } finally {
       setBatchLoading(prev => {

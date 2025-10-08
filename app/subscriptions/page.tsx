@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Calendar } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
 import PaymentUpdateCard from './PaymentUpdateCard';
 import { getEntitlements, PLAN_ENTITLEMENTS } from '@/lib/entitlements';
@@ -43,6 +43,9 @@ export default function SubscriptionsPage() {
   const plansRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const [updateClientSecret, setUpdateClientSecret] = useState<string>('');
+  
+  // Compte à rebours pour l'offre de lancement (30 jours à partir du 8 octobre 2025)
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   const fetchAll = useMemo(() => {
     return async () => {
@@ -115,6 +118,32 @@ export default function SubscriptionsPage() {
     })();
   }, [fetchAll]);
 
+  // Compte à rebours dynamique
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      // Date de fin de l'offre : 7 novembre 2025 (30 jours après le 8 octobre)
+      const endDate = new Date('2025-11-07T23:59:59').getTime();
+      const now = new Date().getTime();
+      const difference = endDate - now;
+
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60)
+        });
+      } else {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   // Rafraîchissement au retour d'onglet et intervalle léger
   useEffect(() => {
     const onVis = () => {
@@ -178,6 +207,66 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
+      {/* Bannière de lancement */}
+      <div className="relative z-10 w-full max-w-[1280px] mx-auto mb-6">
+        <div className="bg-gradient-to-r from-red-500 via-pink-500 to-purple-600 rounded-2xl p-1 animate-pulse-slow">
+          <div className="bg-black/40 backdrop-blur-xl rounded-xl p-6 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <div className="text-4xl animate-bounce">🎉</div>
+              <h2 className="text-2xl md:text-3xl font-bold text-white">
+                Offre de Lancement Exceptionnelle !
+              </h2>
+              <p className="text-white/90 text-lg max-w-2xl">
+                Profitez de <span className="font-bold text-yellow-300">50% à 70% de réduction</span> sur tous les abonnements pour célébrer le lancement de Synaura !
+              </p>
+              
+              {/* Compte à rebours */}
+              <div className="w-full max-w-2xl mt-2">
+                <div className="flex items-center justify-center gap-2 mb-3">
+                  <Clock className="w-5 h-5 text-yellow-300 animate-pulse" />
+                  <span className="text-white font-semibold text-lg">L'offre se termine dans :</span>
+                </div>
+                <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-md mx-auto">
+                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{timeLeft.days}</div>
+                    <div className="text-xs sm:text-sm text-white/70 mt-1">Jours</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{String(timeLeft.hours).padStart(2, '0')}</div>
+                    <div className="text-xs sm:text-sm text-white/70 mt-1">Heures</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{String(timeLeft.minutes).padStart(2, '0')}</div>
+                    <div className="text-xs sm:text-sm text-white/70 mt-1">Minutes</div>
+                  </div>
+                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
+                    <div className="text-3xl sm:text-4xl font-bold text-yellow-300 tabular-nums animate-pulse">{String(timeLeft.seconds).padStart(2, '0')}</div>
+                    <div className="text-xs sm:text-sm text-white/70 mt-1">Secondes</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
+                <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white font-semibold flex items-center gap-2">
+                  ⏰ Offre limitée
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white font-semibold flex items-center gap-2">
+                  🚀 Premiers inscrits
+                </div>
+                <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white font-semibold flex items-center gap-2">
+                  💎 Prix à vie
+                </div>
+              </div>
+              <div className="bg-yellow-400/20 border border-yellow-400/40 rounded-xl px-6 py-3 mt-2">
+                <p className="text-yellow-200 font-bold text-base">
+                  🎁 Les premiers abonnés conserveront ce prix réduit À VIE !
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="flex w-full flex-col gap-3">
           {hasPaymentIssue && (
@@ -393,6 +482,7 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isStarterActive}
             isActive={isStarterActive}
+            launchDiscount={60} // 60% de réduction pour le lancement
             limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', ai: `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth} générations IA/mois`,
@@ -414,6 +504,7 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isProActive}
             isActive={isProActive}
+            launchDiscount={50} // 50% de réduction pour le lancement
             limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}/mois` }}
             features={[
               `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth} générations IA/mois`,
@@ -599,7 +690,8 @@ function PlanCard({
   isActive,
   limits,
   features,
-  onChoose
+  onChoose,
+  launchDiscount
 }: {
   title: string;
   badge?: string;
@@ -611,15 +703,29 @@ function PlanCard({
   limits: { tracks: string; storage: string; playlists: string; quality: string; ai?: string };
   features?: string[];
   onChoose?: () => void;
+  launchDiscount?: number; // Pourcentage de réduction (50-70%)
 }) {
-  const price = useMemo(() => {
+  const { price, originalPrice, discountedPrice } = useMemo(() => {
+    const discount = launchDiscount || 0;
+    
     if (period === 'year') {
-      // -20% environ sur annuel
-      const yearly = Math.max(0, priceMonthly * 12 * 0.8);
-      return `${yearly.toFixed(2)}€ / an`;
+      // -20% sur annuel + réduction lancement
+      const yearlyBase = priceMonthly * 12 * 0.8;
+      const discounted = discount > 0 ? yearlyBase * (1 - discount / 100) : yearlyBase;
+      return {
+        price: `${discounted.toFixed(2)}€ / an`,
+        originalPrice: discount > 0 ? `${yearlyBase.toFixed(2)}€` : null,
+        discountedPrice: discount > 0 ? discounted : null
+      };
     }
-    return `${priceMonthly.toFixed(2)}€ / mois`;
-  }, [priceMonthly, period]);
+    
+    const discounted = discount > 0 ? priceMonthly * (1 - discount / 100) : priceMonthly;
+    return {
+      price: `${discounted.toFixed(2)}€ / mois`,
+      originalPrice: discount > 0 ? `${priceMonthly.toFixed(2)}€` : null,
+      discountedPrice: discount > 0 ? discounted : null
+    };
+  }, [priceMonthly, period, launchDiscount]);
 
   return (
     <div className={`flex h-full w-full flex-col rounded-3xl border overflow-hidden ${highlight ? 'border-purple-400/40 shadow-[0_0_40px_rgba(168,85,247,0.15)]' : 'border-[var(--border)]/70'}`}>
@@ -632,9 +738,35 @@ function PlanCard({
             )}
           </div>
 
+          {/* Badge de réduction de lancement */}
+          {launchDiscount && launchDiscount > 0 && (
+            <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1.5 rounded-full text-xs font-bold text-center shadow-lg">
+              🎉 OFFRE DE LANCEMENT -{launchDiscount}% 🎉
+            </div>
+          )}
+
           <div className="flex flex-col gap-1 text-white/85">
-            <div className="text-2xl">{title === 'Free' ? 'Gratuit' : price}</div>
-            <div className="text-xs text-white/50">Taxes calculées au paiement</div>
+            {title === 'Free' ? (
+              <div className="text-2xl">Gratuit</div>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {originalPrice && (
+                  <div className="text-lg text-white/50 line-through">{originalPrice}</div>
+                )}
+                <div className={`${originalPrice ? 'text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent' : 'text-2xl'}`}>
+                  {price}
+                </div>
+              </div>
+            )}
+            <div className="text-xs text-white/50">
+              {originalPrice ? (
+                <span className="text-green-400 font-semibold">
+                  Économisez {((parseFloat(originalPrice) - (discountedPrice || 0)) * (period === 'year' ? 1 : 12)).toFixed(2)}€{period === 'year' ? '/an' : '/an'}
+                </span>
+              ) : (
+                'Taxes calculées au paiement'
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-2 text-sm text-white/80">

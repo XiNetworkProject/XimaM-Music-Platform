@@ -10,6 +10,8 @@ import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
 import LikeButton from '@/components/LikeButton';
 import CommentButton from '@/components/CommentButton';
 import { AnimatedPlaysCounter, AnimatedLikeCounter } from '@/components/AnimatedCounter';
+import { DiscoverPageSkeleton } from '@/components/Skeletons';
+import { EmptyState } from '@/components/Skeletons';
 
 import SocialStats from '@/components/SocialStats';
 import FollowButton from '@/components/FollowButton';
@@ -1571,14 +1573,7 @@ export default function HomePage() {
   }, [showProgramDialog, realRadioProgram.length, fetchRadioInfo]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen text-white flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p>Chargement de votre univers musical...</p>
-        </div>
-      </div>
-    );
+    return <DiscoverPageSkeleton />;
   }
 
    const categoryConfigs: any[] = [];
@@ -2565,20 +2560,16 @@ export default function HomePage() {
 
       {/* Message si aucune musique */}
       {Object.values(categories).every(cat => cat.tracks.length === 0) && !loading && (
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <Music size={64} className="text-gray-600 mx-auto mb-6" />
-            <h2 className="text-2xl font-bold text-gray-400 mb-4">Aucune musique disponible</h2>
-            <p className="text-gray-500 mb-8">Soyez le premier à partager votre musique !</p>
-            <a
-              href="/upload"
-              className="inline-flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-6 py-3 rounded-full font-semibold hover:from-purple-700 hover:to-pink-700 transition-all duration-300"
-            >
-              <Mic2 size={20} />
-              <span>Uploader ma musique</span>
-            </a>
-          </div>
-        </div>
+        <EmptyState
+          icon={Music}
+          title="Aucune musique disponible"
+          description="Soyez le premier à partager votre musique !"
+          action={{
+            label: "Uploader ma musique",
+            href: "/upload",
+            icon: Mic2
+          }}
+        />
       )}
 
 
