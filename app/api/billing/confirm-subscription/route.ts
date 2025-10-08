@@ -24,19 +24,20 @@ export async function POST(req: NextRequest) {
     }
     await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: defaultPaymentMethod } });
 
-    // Créer la subscription avec essai de 3 jours (pour éviter proration 0€)
-    const now = Math.floor(Date.now() / 1000);
-    const trialEnd = now + (3 * 24 * 60 * 60); // 3 jours d'essai
-    
+    // Créer la subscription avec facturation immédiate au montant complet
     const subscriptionResp = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
-      trial_end: trialEnd, // Essai de 3 jours, puis facturation du montant complet
+      proration_behavior: 'none', // Pas de proration, facturer le montant complet
+      payment_behavior: 'error_if_incomplete', // Erreur si le paiement échoue
       payment_settings: {
         payment_method_types: ['card'],
         save_default_payment_method: 'on_subscription'
       },
-      expand: ['latest_invoice.payment_intent']
+      expand: ['latest_invoice.payment_intent'],
+      billing_cycle_anchor_config: {
+        day_of_month: new Date().getDate() // Ancrer sur le jour du mois actuel
+      }
     });
     const subscription = subscriptionResp as unknown as StripeType.Subscription;
 
