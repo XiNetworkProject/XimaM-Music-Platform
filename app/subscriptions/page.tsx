@@ -110,7 +110,37 @@ export default function SubscriptionsPage() {
   };
 
   useEffect(() => {
-    fetchAll();
+    // Vérifier si on revient d'une Checkout Session
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+    
+    if (sessionId) {
+      // Vérifier et activer l'abonnement
+      (async () => {
+        try {
+          const res = await fetch('/api/billing/verify-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId })
+          });
+          
+          if (res.ok) {
+            setToast({ type: 'success', msg: 'Abonnement activé avec succès !' });
+            // Nettoyer l'URL
+            window.history.replaceState({}, '', '/subscriptions');
+          } else {
+            setToast({ type: 'error', msg: 'Erreur lors de l\'activation de l\'abonnement' });
+          }
+        } catch (e) {
+          setToast({ type: 'error', msg: 'Erreur de vérification du paiement' });
+        } finally {
+          fetchAll();
+        }
+      })();
+    } else {
+      fetchAll();
+    }
+    
     // charger moyens de paiement
     (async () => {
       try {
