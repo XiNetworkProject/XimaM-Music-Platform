@@ -61,9 +61,18 @@ export default function SubscriptionsPage() {
   }, []);
 
   const priceMap = useMemo(() => ({
-    Starter: { month: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || '', year: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR || '' },
-    Pro: { month: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || '', year: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR || '' },
-    Enterprise: { month: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || '', year: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR || '' },
+    Starter: { 
+      month: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH_LAUNCH || process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || '', 
+      year: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR_LAUNCH || process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR || '' 
+    },
+    Pro: { 
+      month: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH_LAUNCH || process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || '', 
+      year: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR_LAUNCH || process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR || '' 
+    },
+    Enterprise: { 
+      month: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || '', 
+      year: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR || '' 
+    },
   }), []);
 
   const activePlanName = (current?.subscription?.name || 'Free').toLowerCase();
