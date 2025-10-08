@@ -289,10 +289,10 @@ export default function UploadPage() {
     if (user?.name) {
       setFormData(prev => ({
         ...prev,
-        artist: user.name,
+        artist: user.name || '',
         copyright: {
           ...prev.copyright,
-          owner: user.name
+          owner: user.name || ''
         }
       }));
     }
