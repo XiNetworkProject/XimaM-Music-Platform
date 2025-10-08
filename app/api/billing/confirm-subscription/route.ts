@@ -24,11 +24,14 @@ export async function POST(req: NextRequest) {
     }
     await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: defaultPaymentMethod } });
 
-    // Créer la subscription avec paiement immédiat requis
+    // Créer la subscription avec essai de 3 jours (pour éviter proration 0€)
+    const now = Math.floor(Date.now() / 1000);
+    const trialEnd = now + (3 * 24 * 60 * 60); // 3 jours d'essai
+    
     const subscriptionResp = await stripe.subscriptions.create({
       customer: customerId,
       items: [{ price: priceId }],
-      payment_behavior: 'default_incomplete', // Requiert un paiement immédiat
+      trial_end: trialEnd, // Essai de 3 jours, puis facturation du montant complet
       payment_settings: {
         payment_method_types: ['card'],
         save_default_payment_method: 'on_subscription'
@@ -36,19 +39,6 @@ export async function POST(req: NextRequest) {
       expand: ['latest_invoice.payment_intent']
     });
     const subscription = subscriptionResp as unknown as StripeType.Subscription;
-
-    // Vérifier que le paiement initial est requis
-    const invoice = subscription.latest_invoice as any;
-    if (invoice && invoice.amount_due > 0) {
-      const paymentIntent = invoice.payment_intent;
-      if (paymentIntent && typeof paymentIntent === 'object' && paymentIntent.status !== 'succeeded') {
-        return NextResponse.json({ 
-          error: 'Le paiement initial doit être confirmé avant l\'activation',
-          requiresPayment: true,
-          clientSecret: paymentIntent.client_secret
-        }, { status: 402 });
-      }
-    }
 
     // Mettre à jour le profil immédiatement (sans attendre le webhook)
     const priceToPlan = () => {
