@@ -52,12 +52,32 @@ export function useSunoWaiter(taskId?: string) {
 
         const status = json.status as string;
         const tracks = json.tracks || [];
-        setTracks(tracks);
-
+        
         console.log(`📊 Status Suno: ${status}`);
         console.log(`🎵 Tracks reçues:`, tracks);
         console.log(`🎵 Nombre de tracks:`, tracks.length);
         console.log(`🎵 JSON complet:`, json);
+        
+        // Vérifier si on a des URLs de streaming disponibles
+        const hasStreamUrls = tracks.some((t: any) => t.stream || t.audio);
+        console.log(`🔍 Has stream URLs: ${hasStreamUrls}`);
+        if (tracks.length > 0) {
+          tracks.forEach((t: any, i: number) => {
+            console.log(`🎵 Track ${i}:`, {
+              id: t.id,
+              title: t.title,
+              hasAudio: !!t.audio,
+              hasStream: !!t.stream,
+              audioUrl: t.audio?.substring(0, 50) + '...',
+              streamUrl: t.stream?.substring(0, 50) + '...'
+            });
+          });
+        }
+        
+        // Mettre à jour les tracks dès qu'on en a (streaming ou final)
+        if (tracks.length > 0 && hasStreamUrls) {
+          setTracks(tracks);
+        }
 
         if (status === "FIRST_SUCCESS" || status === "first") {
           setState("first");
