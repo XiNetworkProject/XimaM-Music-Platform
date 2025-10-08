@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
         'Musique générée',
         'Custom',
         '',
-        'V4_5',
+        // Tente d'inférer le modèle depuis les pistes sinon fallback
+        (Array.isArray(tracks) && tracks[0]?.raw?.model) || 'V4_5',
         { duration: 120 }
       );
       console.log("✅ Génération créée:", generation.id);

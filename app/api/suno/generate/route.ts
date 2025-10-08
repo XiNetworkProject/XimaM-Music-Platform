@@ -81,6 +81,12 @@ export async function POST(req: NextRequest) {
 
     console.log(`📊 Quota IA: ${remaining}/${entitlements.ai.maxGenerationsPerMonth} restantes`);
 
+    // Vérifier que le modèle demandé est autorisé par le plan, sinon fallback contrôlé
+    const allowedModels = entitlements.ai.availableModels || ["V4_5"];
+    const requestedModel = body.model || "V4_5";
+    const effectiveModel = allowedModels.includes(requestedModel) ? requestedModel : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
+    const modelAdjusted = requestedModel !== effectiveModel;
+
     // Validation minimale selon les règles customMode
     if (!body.title) {
       return NextResponse.json({ error: "title requis" }, { status: 400 });
@@ -108,7 +114,7 @@ export async function POST(req: NextRequest) {
       title: body.title,
       style: body.style,
       prompt: body.instrumental ? undefined : finalPrompt,
-      model: body.model ?? "V4_5",
+      model: effectiveModel,
       negativeTags: body.negativeTags,
       vocalGender: body.vocalGender,
       styleWeight: body.styleWeight ?? 0.65,
@@ -152,7 +158,7 @@ export async function POST(req: NextRequest) {
         style: body.style,
         prompt: finalPrompt,
         instrumental: body.instrumental,
-        model: body.model || 'V4_5',
+        model: effectiveModel,
         created_at: new Date().toISOString()
       });
     }
@@ -167,6 +173,8 @@ export async function POST(req: NextRequest) {
       data: json?.data,
       prompt: finalPrompt,
       model: payload.model,
+      modelAdjusted,
+      requestedModel,
       quota: {
         limit: entitlements.ai.maxGenerationsPerMonth,
         used: (usedThisMonth || 0) + 1,

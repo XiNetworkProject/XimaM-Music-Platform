@@ -159,7 +159,8 @@ class AIGenerationService {
       image_url: track.image || '',
       duration: Math.round(track.duration || 120), // Convertir en entier
       prompt: track.raw?.prompt || track.raw?.description || '',
-      model_name: track.raw?.model || track.raw?.version || '',
+      // Suno peut renvoyer model_name, model, version selon les endpoints
+      model_name: track.raw?.model_name || track.raw?.model || track.raw?.version || '',
       tags: Array.isArray(track.raw?.tags) ? track.raw.tags : [],
       // champs additionnels si ta table ai_tracks les a (sinon Supabase ignore)
       lyrics: track.raw?.lyrics || null,

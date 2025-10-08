@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX } from 'lucide-react';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -362,6 +363,14 @@ export default function AIGenerator() {
       }
 
       const data = await response.json();
+
+      // Synchroniser le modèle effectif et informer en cas de downgrade
+      if (data?.model) {
+        if (data?.modelAdjusted) {
+          try { toast(`Modèle indisponible sur votre plan: utilisation de ${data.model}`); } catch {}
+        }
+        try { setModelVersion(data.model); } catch {}
+      }
       
       console.log('🎵 Réponse API génération:', data);
       
