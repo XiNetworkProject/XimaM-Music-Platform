@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles, TrendingUp, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioPlayer } from '../app/providers';
+import NotificationCenter from './NotificationCenter';
 
 interface Track {
   _id: string;
@@ -398,9 +399,7 @@ export default function AppNavbar() {
                   <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:block">Uploader</span>
                 </Link>
-                <button aria-label="Notifications" className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
-                  <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
+                <NotificationCenter />
                 <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
                   {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                 </button>
