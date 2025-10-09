@@ -246,60 +246,53 @@ export default function SubscriptionsPage() {
 
   return (
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
-      {/* Bannière de lancement */}
-      <div className="relative z-10 w-full max-w-[1280px] mx-auto mb-6">
-        <div className="bg-gradient-to-r from-red-500 via-pink-500 to-purple-600 rounded-2xl p-1 animate-pulse-slow">
-          <div className="bg-black/40 backdrop-blur-xl rounded-xl p-6 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="text-4xl animate-bounce">🎉</div>
-              <h2 className="text-2xl md:text-3xl font-bold text-white">
-                Offre de Lancement Exceptionnelle !
+      {/* Bannière de lancement (raffinée, sans emoji) */}
+      <div className="relative z-10 w-full max-w-3xl mx-auto mb-4">
+        <div className="rounded-xl p-[1px] bg-[linear-gradient(90deg,rgba(236,72,153,0.35),rgba(168,85,247,0.35))]">
+          <div className="rounded-[12px] bg-[var(--surface)]/60 backdrop-blur-md border border-[var(--border)] p-4 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <h2 className="text-xl md:text-2xl font-extrabold title-suno">
+                Offre de lancement
               </h2>
-              <p className="text-white/90 text-lg max-w-2xl">
-                Profitez de <span className="font-bold text-yellow-300">50% à 70% de réduction</span> sur tous les abonnements pour célébrer le lancement de Synaura !
+              <p className="text-white/85 text-sm md:text-base max-w-xl">
+                Profitez de <span className="font-semibold text-white">50% à 70% de réduction</span> sur tous les abonnements pour célébrer le lancement de Synaura.
               </p>
-              
+
               {/* Compte à rebours */}
-              <div className="w-full max-w-2xl mt-2">
-                <div className="flex items-center justify-center gap-2 mb-3">
-                  <Clock className="w-5 h-5 text-yellow-300 animate-pulse" />
-                  <span className="text-white font-semibold text-lg">L'offre se termine dans :</span>
+              <div className="w-full max-w-xl mt-1">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Clock className="w-4 h-4 text-white/70" />
+                  <span className="text-white/90 text-sm font-medium">Se termine dans</span>
                 </div>
-                <div className="grid grid-cols-4 gap-2 sm:gap-4 max-w-md mx-auto">
-                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{timeLeft.days}</div>
-                    <div className="text-xs sm:text-sm text-white/70 mt-1">Jours</div>
+                <div className="grid grid-cols-4 gap-2 sm:gap-3 max-w-sm mx-auto">
+                  <div className="bg-white/[0.03] rounded-lg p-2 border border-white/10">
+                    <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{timeLeft.days}</div>
+                    <div className="text-[10px] sm:text-xs text-white/60 mt-1">Jours</div>
                   </div>
-                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{String(timeLeft.hours).padStart(2, '0')}</div>
-                    <div className="text-xs sm:text-sm text-white/70 mt-1">Heures</div>
+                  <div className="bg-white/[0.03] rounded-lg p-2 border border-white/10">
+                    <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{String(timeLeft.hours).padStart(2, '0')}</div>
+                    <div className="text-[10px] sm:text-xs text-white/60 mt-1">Heures</div>
                   </div>
-                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                    <div className="text-3xl sm:text-4xl font-bold text-white tabular-nums">{String(timeLeft.minutes).padStart(2, '0')}</div>
-                    <div className="text-xs sm:text-sm text-white/70 mt-1">Minutes</div>
+                  <div className="bg-white/[0.03] rounded-lg p-2 border border-white/10">
+                    <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{String(timeLeft.minutes).padStart(2, '0')}</div>
+                    <div className="text-[10px] sm:text-xs text-white/60 mt-1">Minutes</div>
                   </div>
-                  <div className="bg-gradient-to-br from-white/20 to-white/5 backdrop-blur-sm rounded-xl p-3 border border-white/20">
-                    <div className="text-3xl sm:text-4xl font-bold text-yellow-300 tabular-nums animate-pulse">{String(timeLeft.seconds).padStart(2, '0')}</div>
-                    <div className="text-xs sm:text-sm text-white/70 mt-1">Secondes</div>
+                  <div className="bg-white/[0.03] rounded-lg p-2 border border-white/10">
+                    <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{String(timeLeft.seconds).padStart(2, '0')}</div>
+                    <div className="text-[10px] sm:text-xs text-white/60 mt-1">Secondes</div>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center justify-center gap-4 mt-2">
-                <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white font-semibold flex items-center gap-2">
-                  ⏰ Offre limitée
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white font-semibold flex items-center gap-2">
-                  🚀 Premiers inscrits
-                </div>
-                <div className="bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white font-semibold flex items-center gap-2">
-                  💎 Prix à vie
-                </div>
+              {/* Points clés */}
+              <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                <div className="bg-white/5 rounded-full px-2.5 py-1 text-white/90 text-xs border border-white/10">Offre limitée</div>
+                <div className="bg-white/5 rounded-full px-2.5 py-1 text-white/90 text-xs border border-white/10">Premiers inscrits</div>
+                <div className="bg-white/5 rounded-full px-2.5 py-1 text-white/90 text-xs border border-white/10">Prix maintenu</div>
               </div>
-              <div className="bg-yellow-400/20 border border-yellow-400/40 rounded-xl px-6 py-3 mt-2">
-                <p className="text-yellow-200 font-bold text-base">
-                  🎁 Les premiers abonnés conserveront ce prix réduit À VIE !
-                </p>
+
+              <div className="rounded-lg px-3 py-2 mt-2 border border-[var(--border)] bg-[var(--surface-2)]/60 text-white/80 text-xs">
+                Les premiers abonnés conservent automatiquement ce tarif.
               </div>
             </div>
           </div>
