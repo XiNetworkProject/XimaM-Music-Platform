@@ -55,7 +55,6 @@ interface SearchResults {
 
 export default function AppNavbar() {
   const { data: session } = useSession();
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResults>({ tracks: [], artists: [], playlists: [], total: 0 });
   const [showSearchResults, setShowSearchResults] = useState(false);
@@ -63,14 +62,17 @@ export default function AppNavbar() {
   
   // Service audio pour lancer les tracks
   const { playTrack, audioState } = useAudioPlayer();
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    if (typeof document !== 'undefined') {
-      document.documentElement.classList.toggle('light', next === 'light');
+  
+  const goToProfile = () => {
+    const username = (session?.user as any)?.username;
+    if (username) {
+      window.location.href = `/profile/${username}`;
+    } else {
+      window.location.href = '/auth/signin';
     }
   };
+
+  // (toggle theme removed)
 
   // Fonction pour effectuer la recherche
   const performSearch = useCallback(async (query: string) => {
@@ -395,13 +397,22 @@ export default function AppNavbar() {
                   <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:block text-sm">IA</span>
                 </Link>
-                <Link href="/upload" className="inline-flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow-md">
-                  <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  <span className="hidden sm:block">Uploader</span>
-                </Link>
+                {/* Upload button removed from top navbar */}
                 <NotificationCenter />
-                <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                {/* theme toggle removed */}
+                {/* Profil (avatar) */}
+                <button
+                  onClick={goToProfile}
+                  className="flex items-center gap-2 ml-1 px-2 py-1.5 rounded-xl border border-[var(--border)] hover:bg-[var(--surface-2)]"
+                  aria-label="Profil"
+                >
+                  <img
+                    src={getValidImageUrl((session?.user as any)?.avatar || (session?.user as any)?.image, '/default-avatar.png')}
+                    alt="Profile"
+                    className="w-7 h-7 rounded-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                  />
+                  <span className="hidden md:block text-xs sm:text-sm text-white/90 font-medium">Profil</span>
                 </button>
               </>
             ) : (
@@ -410,9 +421,7 @@ export default function AppNavbar() {
                   <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   <span className="hidden sm:block">Se connecter</span>
                 </Link>
-                <button aria-label="Toggle theme" onClick={toggleTheme} className="hidden sm:flex p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm">
-                  {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                </button>
+                {/* theme toggle removed */}
               </>
             )}
           </div>

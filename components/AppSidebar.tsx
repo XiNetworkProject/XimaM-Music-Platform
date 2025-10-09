@@ -48,6 +48,7 @@ export default function AppSidebar() {
     { icon: Users, label: 'Communauté', desc: 'Forum & FAQ', href: '/community' },
     { icon: MessageCircle, label: 'Messages', desc: 'Discuter', href: '/messages' },
     { icon: TrendingUp, label: 'Stats', desc: 'Vos statistiques', href: '/stats' },
+    { icon: Settings, label: 'Abonnements', desc: 'Plans & facturation', href: '/subscriptions' },
   ];
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
