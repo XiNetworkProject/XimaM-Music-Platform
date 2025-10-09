@@ -4,12 +4,13 @@ import { authOptions } from '@/lib/authOptions';
 import { stripe } from '@/lib/stripe';
 
 // Codes promo personnalisés (en attendant de créer des Stripe Coupons)
-const CUSTOM_PROMO_CODES = {
+const CUSTOM_PROMO_CODES: Record<string, { discount: number; type: string; message: string }> = {
   'LAUNCH2025': { discount: 10, type: 'percent', message: '-10% supplémentaire sur l\'offre de lancement !' },
   'WELCOME': { discount: 5, type: 'percent', message: '-5% de bienvenue' },
   'EARLY': { discount: 15, type: 'percent', message: '-15% early adopter !' },
   'VIP': { discount: 20, type: 'percent', message: '-20% VIP exclusif !' },
   'SYNAURA50': { discount: 50, type: 'percent', message: '-50% offre spéciale !' },
+  'INFLUENCER': { discount: 100, type: 'percent', message: '-100% offre influenceur !' },
 };
 
 export async function POST(req: NextRequest) {
