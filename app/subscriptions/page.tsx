@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Calendar, Clock, Check, X } from 'lucide-react';
+import { Calendar, Clock } from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
 import PaymentUpdateCard from './PaymentUpdateCard';
 import { getEntitlements, PLAN_ENTITLEMENTS } from '@/lib/entitlements';
@@ -46,11 +46,6 @@ export default function SubscriptionsPage() {
   
   // Compte à rebours pour l'offre de lancement (30 jours à partir du 8 octobre 2025)
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  
-  // Code promo
-  const [promoCode, setPromoCode] = useState<string>('');
-  const [promoValidated, setPromoValidated] = useState<{ valid: boolean; discount?: number; type?: string; message?: string } | null>(null);
-  const [promoLoading, setPromoLoading] = useState(false);
 
   const fetchAll = useMemo(() => {
     return async () => {
@@ -84,41 +79,6 @@ export default function SubscriptionsPage() {
   const isFreeActive = activePlanName === 'free';
   const isStarterActive = activePlanName === 'starter';
   const isProActive = activePlanName === 'pro';
-
-  const validatePromoCode = async () => {
-    if (!promoCode.trim()) return;
-    
-    setPromoLoading(true);
-    try {
-      const res = await fetch('/api/billing/validate-promo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: promoCode.trim().toUpperCase() })
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok && data.valid) {
-        setPromoValidated({
-          valid: true,
-          discount: data.discount,
-          type: data.type,
-          message: data.message
-        });
-        setToast({ type: 'success', msg: `Code promo appliqué : ${data.message}` });
-      } else {
-        setPromoValidated({
-          valid: false,
-          message: data.error || 'Code promo invalide'
-        });
-        setToast({ type: 'error', msg: data.error || 'Code promo invalide' });
-      }
-    } catch (e) {
-      setToast({ type: 'error', msg: 'Erreur de validation du code promo' });
-    } finally {
-      setPromoLoading(false);
-    }
-  };
 
   const choosePlan = (priceId: string) => {
     if (!priceId) return;
@@ -522,55 +482,6 @@ export default function SubscriptionsPage() {
 
           {/* Toggle période (Mensuel / Annuel) - style Synaura */}
           <PeriodToggle value={period} onChange={setPeriod} />
-          
-          {/* Champ code promo */}
-          <div className="mt-6 w-full max-w-md">
-            <div className="panel-suno border border-[var(--border)] rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-white/90 text-sm font-medium">💎 Code promo</span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={promoCode}
-                  onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
-                  placeholder="ENTREZ VOTRE CODE"
-                  className="flex-1 px-4 py-2 bg-[var(--bg)] border border-[var(--border)] rounded-lg text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 uppercase"
-                  disabled={promoLoading}
-                />
-                <button
-                  onClick={validatePromoCode}
-                  disabled={!promoCode.trim() || promoLoading}
-                  className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-lg font-semibold hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                >
-                  {promoLoading ? 'Vérification...' : 'Appliquer'}
-                </button>
-              </div>
-              
-              {promoValidated && (
-                <div className={`mt-3 p-3 rounded-lg ${promoValidated.valid ? 'bg-green-500/20 border border-green-400/50 text-green-200' : 'bg-red-500/20 border border-red-400/50 text-red-200'}`}>
-                  <div className="flex items-center gap-2">
-                    {promoValidated.valid ? (
-                      <>
-                        <Check className="w-4 h-4" />
-                        <span className="text-sm font-medium">{promoValidated.message}</span>
-                      </>
-                    ) : (
-                      <>
-                        <X className="w-4 h-4" />
-                        <span className="text-sm">{promoValidated.message}</span>
-                      </>
-                    )}
-                  </div>
-                  {promoValidated.valid && promoValidated.discount && (
-                    <div className="mt-2 text-xs text-green-300">
-                      Réduction supplémentaire de {promoValidated.discount}% appliquée !
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Grille plans (droits affichés) */}

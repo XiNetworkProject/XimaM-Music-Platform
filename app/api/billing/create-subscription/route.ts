@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
     }
 
-    const { priceId } = await req.json();
+    const { priceId, promotionCode, couponId } = await req.json();
     if (!priceId) return NextResponse.json({ error: 'priceId requis' }, { status: 400 });
 
     // Rechercher un customer existant par email/metadata pour éviter les doublons
@@ -29,8 +29,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Construire les remises si un code promo/coupon est fourni
+    let discounts: { promotion_code?: string; coupon?: string }[] | undefined;
+    if (promotionCode) {
+      // Rechercher un Promotion Code actif correspondant au code fourni
+      const list = await stripe.promotionCodes.list({ code: promotionCode, active: true, limit: 1 });
+      const promo = list.data?.[0];
+      if (promo?.id) {
+        discounts = [{ promotion_code: promo.id }];
+      }
+    } else if (couponId) {
+      // Support direct d'un coupon Stripe si l'ID est fourni
+      try {
+        const coupon = await stripe.coupons.retrieve(couponId);
+        if (coupon?.id && coupon.valid !== false) {
+          discounts = [{ coupon: coupon.id }];
+        }
+      } catch {}
+    }
+
     // Créer une Checkout Session pour forcer le paiement immédiat du montant complet
-    const checkoutSession = await stripe.checkout.sessions.create({
+    const sessionParams: any = {
       customer: customerId,
       mode: 'subscription',
       line_items: [
@@ -46,9 +65,16 @@ export async function POST(req: NextRequest) {
           userId: session.user.id,
         },
       },
-      allow_promotion_codes: true,
       billing_address_collection: 'auto',
-    });
+    };
+    // Stripe n'autorise pas allow_promotion_codes et discounts ensemble
+    if (discounts && discounts.length > 0) {
+      sessionParams.discounts = discounts;
+    } else {
+      sessionParams.allow_promotion_codes = true;
+    }
+
+    const checkoutSession = await stripe.checkout.sessions.create(sessionParams);
 
     return NextResponse.json({ 
       checkoutUrl: checkoutSession.url,
