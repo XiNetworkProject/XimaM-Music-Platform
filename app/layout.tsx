@@ -7,6 +7,7 @@ import BottomNav from '@/components/BottomNav';
 import AppNavbar from '@/components/AppNavbar';
 import AppSidebar from '@/components/AppSidebar';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
+import { Analytics } from '@vercel/analytics/next';
 
 // Déclaration des types pour les fonctions globales
 declare global {
@@ -118,6 +119,7 @@ export default function RootLayout({
               <FullScreenPlayer />
             </div>
           </div>
+          <Analytics />
         </Providers>
       </body>
     </html>
