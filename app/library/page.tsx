@@ -229,17 +229,7 @@ export default function LibraryPage() {
   }, [session?.user?.id, recentLimit, favoritesLimit]);
 
   useEffect(() => {
-    // Timeout de sécurité pour éviter le chargement infini
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        setLoading(false);
-        setError('Délai d\'attente dépassé. Vérifiez votre connexion.');
-      }
-    }, 10000); // 10 secondes
-
     fetchLibraryData();
-
-    return () => clearTimeout(timeoutId);
   }, [fetchLibraryData]);
 
   // Synchronisation temps réel des écoutes via event global
