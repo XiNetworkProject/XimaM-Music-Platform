@@ -156,6 +156,16 @@ export default function BottomNav() {
     <>
       {/* Bottom Navigation - Design Suno épuré */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
+        {/* Crédit partenaire discret */}
+        <div className="px-3 pb-1">
+          <div className="mx-auto max-w-md">
+            <div className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]/70 backdrop-blur-md px-2.5 py-1 text-[11px] text-white/80">
+              <img src="/channels4_profile%20(2).jpg" alt="CIEUX INSTABLES" className="w-4 h-4 rounded-full object-cover" />
+              <span className="uppercase tracking-wide text-[var(--text-muted)]">Partenaire</span>
+              <span className="font-semibold">CIEUX INSTABLES</span>
+            </div>
+          </div>
+        </div>
         <div className="bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--border)]">
           <div className="@container flex w-full flex-row items-center justify-between gap-0 px-2 py-2.5">
             {/* Groupe gauche */}

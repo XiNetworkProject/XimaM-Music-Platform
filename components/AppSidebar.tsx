@@ -142,6 +142,16 @@ export default function AppSidebar() {
           </button>
         </div>
       </div>
+      {/* Crédit Partenaire */}
+      <div className="mt-3 px-2">
+        <div className="panel-suno border border-[var(--border)] rounded-xl px-3 py-2 flex items-center gap-3">
+          <img src="/channels4_profile%20(2).jpg" alt="CIEUX INSTABLES" className="w-8 h-8 rounded-full object-cover" />
+          <div className="flex flex-col leading-tight">
+            <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Partenaire</span>
+            <span className="text-sm font-semibold text-[var(--text)]">CIEUX INSTABLES</span>
+          </div>
+        </div>
+      </div>
     </aside>
   );
 }
