@@ -163,7 +163,7 @@ export default function CreatorModerationActions({
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="w-5 h-5 text-yellow-500" />

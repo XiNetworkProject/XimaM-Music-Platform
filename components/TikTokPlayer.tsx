@@ -316,13 +316,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     setIsDragging(true);
   }, []);
 
-  const handleDrag = useCallback((event: any, info: PanInfo) => {
+  const handleDrag = useCallback((event: any, info: any) => {
     if (isDragging) {
       setDragY(info.offset.y);
     }
   }, [isDragging]);
 
-  const handleDragEnd = useCallback((event: any, info: PanInfo) => {
+  const handleDragEnd = useCallback((event: any, info: any) => {
     setIsDragging(false);
     setDragY(0);
     
@@ -1088,7 +1088,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                           transition={{ duration: 0.15 }}
                           className="fixed right-4 bottom-28 w-56 max-h-[50vh] overflow-auto bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1 z-[200] pointer-events-auto"
                           role="menu"
-                          onClick={(e) => e.stopPropagation()}
+                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
                           <button
                             onClick={async () => {
