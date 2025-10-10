@@ -593,11 +593,11 @@ function MessageInputBar({
         <motion.input
         type="text"
         value={newMessage}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
             setNewMessage(e.target.value);
             handleTyping(); // Déclencher le statut de frappe
           }}
-        onKeyPress={(e) => e.key === 'Enter' && handleSendText()}
+        onKeyPress={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && handleSendText()}
         placeholder="Tapez votre message..."
           className="flex-1 min-w-0 px-4 py-3 bg-gradient-to-r from-white/10 to-white/5 backdrop-blur-sm border border-purple-400/30 rounded-2xl text-white placeholder-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-400 shadow-lg text-sm"
           disabled={uploading || isRecording}
