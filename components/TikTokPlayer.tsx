@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-import { useTrackLike } from '@/contexts/LikeContext';
+import { useLikeContext } from '@/contexts/LikeContext';
+import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown, Download, Lock } from 'lucide-react';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
 import InteractiveCounter from './InteractiveCounter';
@@ -77,7 +78,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   
   const currentIndex = audioState.currentTrackIndex ?? 0;
   const [isDragging, setIsDragging] = useState(false);
-  const [dragY, setDragY] = useState(0);
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showError, setShowError] = useState(false);
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
@@ -103,17 +103,156 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const { canDownload, upgradeMessage } = useDownloadPermission();
   const [lastTapTs, setLastTapTs] = useState(0);
   const [showLikeBurst, setShowLikeBurst] = useState(false);
+  const { updateLike } = useLikeContext();
+
+  const currentTrack = audioState.tracks[currentIndex] || null;
+
+  const { isLiked: likeIsLiked, likesCount: likeCount, toggleLike, checkLikeStatus } = useLikeSystem({
+    trackId: currentTrack?._id || '',
+    initialLikesCount: currentTrack?.likes?.length || 0,
+    initialIsLiked: currentTrack?.isLiked || false,
+  });
+  const handleLikeClick = useCallback(() => {
+    if (!currentTrack?._id) return;
+    toggleLike();
+  }, [currentTrack?._id, toggleLike]);
+  useEffect(() => { if (currentTrack?._id) checkLikeStatus(); }, [currentTrack?._id, checkLikeStatus]);
+
+  // Parallax basé sur le drag (motion value, sans re-render)
+  const containerY = useMotionValue(0);
+  const parallaxY = useTransform(containerY, [-120, 0, 120], [12, 0, -12]);
+
+  // Cache de covers déjà préchargées
+  const imageCacheRef = useRef<Set<string>>(new Set());
+ 
+   const getCoverUrl = useCallback((t: any | null): string => {
+     const raw = t?.coverUrl || '/default-cover.jpg';
+     return raw && typeof raw === 'string' && raw.includes('res.cloudinary.com')
+       ? raw.replace('/upload/', '/upload/f_auto,q_auto/')
+       : raw;
+   }, []);
+ 
+   const preloadImage = useCallback(async (src: string) => {
+     if (!src || imageCacheRef.current.has(src)) return;
+     imageCacheRef.current.add(src);
+     try {
+       const img = new Image();
+       img.src = src;
+       if ((img as any).decode) {
+         await (img as any).decode().catch(() => {});
+       } else {
+         await new Promise<void>((resolve) => {
+           img.onload = () => resolve();
+           img.onerror = () => resolve();
+         });
+       }
+     } catch {}
+   }, []);
+ 
+  // Gradient dynamique basé sur la cover
+  const [bgGrad, setBgGrad] = useState<string>('linear-gradient(135deg, rgba(36,26,74,0.6) 0%, rgba(59,11,55,0.6) 100%)');
+  const [prevBgGrad, setPrevBgGrad] = useState<string | null>(null);
+
+  const rgbToHsl = (r: number, g: number, b: number): [number, number, number] => {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r, g, b), min = Math.min(r, g, b);
+    let h = 0, s = 0; const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max - min);
+      switch (max) {
+        case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+        case g: h = (b - r) / d + 2; break;
+        case b: h = (r - g) / d + 4; break;
+      }
+      h /= 6;
+    }
+    return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+  };
+
+  const hslString = (h: number, s: number, l: number, a = 0.65) => `hsla(${h}, ${s}%, ${l}%, ${a})`;
+
+  const stringToHue = (str: string): number => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return Math.abs(hash) % 360;
+  };
+
+  const defaultGradientFrom = (seed: string) => {
+    const h = stringToHue(seed || 'synaura');
+    const c1 = hslString(h, 70, 30, 0.65);
+    const c2 = hslString((h + 25) % 360, 70, 20, 0.65);
+    return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+  };
+
+  const computeGradientFromCover = useCallback(async (url: string, seed: string): Promise<string> => {
+    try {
+      if (!url) return defaultGradientFrom(seed);
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.referrerPolicy = 'no-referrer';
+      img.src = url;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('img-error'));
+      });
+      const canvas = document.createElement('canvas');
+      const size = 24;
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return defaultGradientFrom(seed);
+      ctx.drawImage(img, 0, 0, size, size);
+      const data = ctx.getImageData(0, 0, size, size).data;
+      let r = 0, g = 0, b = 0, count = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = data[i + 3];
+        if (alpha < 16) continue;
+        r += data[i]; g += data[i + 1]; b += data[i + 2]; count++;
+      }
+      if (count === 0) return defaultGradientFrom(seed);
+      r = Math.round(r / count); g = Math.round(g / count); b = Math.round(b / count);
+      const [h, s, l] = rgbToHsl(r, g, b);
+      const c1 = hslString(h, Math.min(80, s + 10), Math.min(60, l + 10), 0.65);
+      const c2 = hslString((h + 20) % 360, s, Math.max(15, l - 15), 0.65);
+      return `linear-gradient(135deg, ${c1} 0%, ${c2} 100%)`;
+    } catch {
+      return defaultGradientFrom(seed);
+    }
+  }, []);
+
+  const prevTrack = useMemo(() => (currentIndex > 0 ? audioState.tracks[currentIndex - 1] : null), [audioState.tracks, currentIndex]);
+  const nextTrackMemo = useMemo(() => (currentIndex + 1 < audioState.tracks.length ? audioState.tracks[currentIndex + 1] : null), [audioState.tracks, currentIndex]);
+
+  // Préchargement ciblé des covers adjacentes
+  useEffect(() => {
+    const urls = [getCoverUrl(prevTrack), getCoverUrl(nextTrackMemo)].filter(Boolean) as string[];
+    urls.forEach((u) => preloadImage(u));
+  }, [prevTrack, nextTrackMemo, getCoverUrl, preloadImage]);
 
   // Variants d'animation de page
   const pageVariants = useMemo(() => ({
-    initial: (dir: 1 | -1) => ({ y: dir * 60, opacity: 0 }),
+    initial: (dir: 1 | -1) => ({ y: dir * 40, opacity: 0 }),
     animate: { y: 0, opacity: 1 },
-    exit: (dir: 1 | -1) => ({ y: -dir * 60, opacity: 0 })
+    exit: (dir: 1 | -1) => ({ y: -dir * 40, opacity: 0 })
   }), []);
 
   const volumeSliderRef = useRef<HTMLDivElement>(null);
-  const currentTrack = audioState.tracks[currentIndex] || null;
   const totalTracks = audioState.tracks.length;
+
+  // Mettre à jour le gradient quand la piste change
+  useEffect(() => {
+    let cancelled = false;
+    const url = getCoverUrl(currentTrack);
+    const seed = `${currentTrack?.title || ''}-${currentTrack?.artist?.name || currentTrack?.artist?.username || ''}`;
+    (async () => {
+      const next = await computeGradientFromCover(url, seed);
+      if (!cancelled) {
+        setPrevBgGrad(bgGrad);
+        setBgGrad(next);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentTrack?._id, currentTrack?.title, currentTrack?.artist?._id, getCoverUrl, computeGradientFromCover]);
 
   const formatTime = useCallback((seconds: number) => {
     if (!seconds || isNaN(seconds) || seconds < 0) return '--:--';
@@ -130,7 +269,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     const tracksToPreload: number[] = [];
     
     // Précharger les tracks autour de l'index actuel
-    for (let i = Math.max(0, startIndex - 1); i <= Math.min(totalTracks - 1, startIndex + count); i++) {
+    for (let i = Math.max(0, startIndex); i <= Math.min(totalTracks - 1, startIndex + Math.max(1, count - 1)); i++) {
       if (!preloadedTracks.has(i)) {
         tracksToPreload.push(i);
       }
@@ -178,7 +317,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
             audio.removeEventListener('error', handleError);
             audio.removeEventListener('loadedmetadata', handleCanPlay);
             resolve();
-          }, 3000);
+          }, 2000);
         });
       } catch (error) {
         console.warn(`Erreur préchargement track ${index}:`, error);
@@ -218,7 +357,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const handleNextTrack = useCallback(async () => {
     try {
       const now = Date.now();
-      if (now - lastNavigationTsRef.current < 200) return;
+      if (now - lastNavigationTsRef.current < 140) return;
       lastNavigationTsRef.current = now;
       if (isChangingTrack || totalTracks === 0) return;
       setIsChangingTrack(true);
@@ -252,7 +391,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const handlePreviousTrack = useCallback(async () => {
     try {
       const now = Date.now();
-      if (now - lastNavigationTsRef.current < 200) return;
+      if (now - lastNavigationTsRef.current < 140) return;
       lastNavigationTsRef.current = now;
       if (isChangingTrack || totalTracks === 0) return;
       setIsChangingTrack(true);
@@ -316,17 +455,14 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     setIsDragging(true);
   }, []);
 
-  const handleDrag = useCallback((event: any, info: any) => {
-    if (isDragging) {
-      setDragY(info.offset.y);
-    }
-  }, [isDragging]);
+  const handleDrag = useCallback((_event: any, _info: any) => {
+    // no-op pour éviter les re-renders pendant le drag
+  }, []);
 
   const handleDragEnd = useCallback((event: any, info: any) => {
     setIsDragging(false);
-    setDragY(0);
     
-    const threshold = 60;
+    const threshold = 40;
     const velocity = info.velocity.y;
     
     if (Math.abs(velocity) > 500 || Math.abs(info.offset.y) > threshold) {
@@ -350,7 +486,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       // Double tap => like
       if (currentTrack?._id) {
         try { (navigator as any)?.vibrate?.(10); } catch {}
-        handleLike(currentTrack._id);
+        handleLikeClick();
         setShowLikeBurst(true);
         setTimeout(() => setShowLikeBurst(false), 450);
       }
@@ -358,7 +494,28 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       togglePlay();
     }
     setLastTapTs(now);
-  }, [isDragging, isChangingTrack, lastTapTs, togglePlay, handleLike, currentTrack?._id]);
+  }, [isDragging, isChangingTrack, lastTapTs, togglePlay, handleLikeClick, currentTrack?._id]);
+
+  const shareCurrent = useCallback(async () => {
+    try {
+      const id = currentTrack?._id || '';
+      const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${id}?autoplay=1` : '';
+      const shareData = {
+        title: currentTrack?.title || 'Musique',
+        text: `Écoutez ${currentTrack?.title || 'ma musique'}`,
+        url: shareUrl
+      } as any;
+      if ((navigator as any).share) {
+        await (navigator as any).share(shareData);
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareData.url);
+        toast.success('Lien copié');
+      }
+      if (id) {
+        sendTrackEvents(id, { event_type: 'share', source: 'tiktok-player' });
+      }
+    } catch {}
+  }, [currentTrack?._id, currentTrack?.title]);
 
   // Gestion de la molette de souris
   const handleWheel = useCallback((event: WheelEvent) => {
@@ -445,27 +602,27 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   useEffect(() => {
     if (isOpen && totalTracks > 0) {
       // Précharger immédiatement les tracks les plus proches
-      preloadTracks(currentIndex, 3);
+      preloadTracks(currentIndex, 2);
       
       // Puis précharger plus de tracks en arrière-plan
       setTimeout(() => {
-        preloadTracks(currentIndex, 7);
+        preloadTracks(currentIndex, 3);
       }, 1000);
     }
   }, [isOpen, currentIndex, totalTracks, preloadTracks]);
 
   // Précharger les tracks suivantes quand on approche de la fin
   useEffect(() => {
-    if (isOpen && currentIndex > 0 && currentIndex % 3 === 0) {
-      preloadTracks(currentIndex, 5);
+    if (isOpen && currentIndex > 0 && currentIndex % 4 === 0) {
+      preloadTracks(currentIndex, 3);
     }
   }, [currentIndex, isOpen, preloadTracks]);
 
   // Nettoyer le cache des tracks trop éloignées
   useEffect(() => {
-    if (preloadedTracks.size > 10) {
+    if (preloadedTracks.size > 8) {
       const tracksToKeep = new Set<number>();
-      for (let i = Math.max(0, currentIndex - 3); i <= Math.min(totalTracks - 1, currentIndex + 3); i++) {
+      for (let i = Math.max(0, currentIndex - 2); i <= Math.min(totalTracks - 1, currentIndex + 2); i++) {
         if (preloadedTracks.has(i)) {
           tracksToKeep.add(i);
         }
@@ -749,31 +906,25 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
             onDragStart={handleDragStart}
             onDrag={handleDrag}
             onDragEnd={handleDragEnd}
-            style={{
-              y: isDragging ? dragY : 0,
-            }}
+            style={{ y: containerY }}
           >
             {/* Fond vidéo/audio avec cover animé */}
             <div className="absolute inset-0 w-full h-full overflow-hidden">
-              <div className="relative w-full h-full bg-gradient-to-br from-purple-900/20 to-pink-900/20">
+              <div className="relative w-full h-full">
+                {/* Cross-fade gradient */}
+                {prevBgGrad && (
+                  <motion.div className="absolute inset-0" initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.35 }} style={{ background: prevBgGrad }} />
+                )}
+                <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} style={{ background: bgGrad }} />
                 {/* Cover image avec rotation */}
                 <div className="absolute inset-0 flex items-center justify-center">
                   <motion.img
                     src={currentTrack?.coverUrl || '/default-cover.jpg'}
                     alt={currentTrack?.title || 'Track'}
-                    className="w-80 h-80 rounded-full object-cover shadow-2xl"
-                    animate={{
-                      rotate: audioState.isPlaying ? 360 : 0,
-                    }}
-                    transition={{
-                      duration: 6,
-                      repeat: audioState.isPlaying ? Infinity : 0,
-                      ease: "linear"
-                    }}
-                    style={{
-                      filter: 'blur(20px)',
-                      transform: 'scale(1.2)',
-                    }}
+                    className="w-80 h-80 rounded-full object-cover shadow-2xl will-change-transform"
+                    animate={{ rotate: audioState.isPlaying ? 360 : 0 }}
+                    transition={{ duration: 6, repeat: audioState.isPlaying ? Infinity : 0, ease: 'linear' }}
+                    style={{ filter: 'blur(12px)', transform: 'scale(1.06)', y: parallaxY }}
                   />
                 </div>
                 
@@ -817,29 +968,39 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 </div>
               </div>
 
+              <div className="pointer-events-auto">
+                <div className="absolute top-4 left-4 z-[105]" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                  <AudioQualityTooltip>
+                    <AudioQualityIndicator size="sm" showUpgrade={true} />
+                  </AudioQualityTooltip>
+                </div>
+              </div>
+ 
               {/* Zone de swipe avec indicateurs */}
               <div className="flex-1 flex items-center justify-center relative overflow-hidden select-none" onClick={handleSurfaceTap}>
-                {/* Indicateurs de swipe */}
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
-                  <motion.div
-                    className="w-1 h-8 bg-white/30 rounded-full"
-                    animate={{
-                      scaleY: currentIndex > 0 ? 1 : 0.3,
-                      opacity: currentIndex > 0 ? 1 : 0.5
-                    }}
-                  />
-                  <motion.div
-                    className="w-1 h-8 bg-white/30 rounded-full"
-                    animate={{
-                      scaleY: currentIndex < totalTracks - 1 ? 1 : 0.3,
-                      opacity: currentIndex < totalTracks - 1 ? 1 : 0.5
-                    }}
-                  />
+                {/* Pré-rendu GPU des slides adjacentes (invisibles) */}
+                <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>
+                  {prevTrack && (
+                    <img
+                      src={getCoverUrl(prevTrack)}
+                      alt=""
+                      className="w-0 h-0 opacity-0 will-change-transform translate-z-0"
+                      loading="eager"
+                      decoding="async"
+                    />
+                  )}
+                  {nextTrackMemo && (
+                    <img
+                      src={getCoverUrl(nextTrackMemo)}
+                      alt=""
+                      className="w-0 h-0 opacity-0 will-change-transform translate-z-0"
+                      loading="eager"
+                      decoding="async"
+                    />
+                  )}
                 </div>
 
-                {/* Instructions supprimées à la demande */}
-
-            {/* Cover principale + Panneau paroles */}
+                {/* Cover principale + Panneau paroles */}
                 <AnimatePresence mode="wait" custom={swipeDirection}>
                   <motion.div
                     key={audioState.currentTrackIndex}
@@ -849,26 +1010,9 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                     animate="animate"
                     exit="exit"
                     custom={swipeDirection}
-                    transition={{ duration: 0.22, ease: 'easeOut' }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
                   >
                   <div className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl">
-                    {currentTrack?.coverUrl?.includes('res.cloudinary.com') ? (
-                      <img
-                        src={currentTrack.coverUrl.replace('/upload/', '/upload/f_auto,q_auto/')} 
-                        alt={currentTrack?.title || 'Track'}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    ) : (
-                      <img
-                        src={currentTrack?.coverUrl || '/default-cover.jpg'}
-                        alt={currentTrack?.title || 'Track'}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    )}
                     {currentTrack?.coverUrl?.includes('res.cloudinary.com') ? (
                       <img
                         src={currentTrack.coverUrl.replace('/upload/', '/upload/f_auto,q_auto/')} 
@@ -898,7 +1042,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       <button
                         onClick={togglePlay}
                         disabled={audioState.isLoading || isChangingTrack}
-                        className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-lg flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50"
+                        className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-lg flex items-center justify-center hover:bg-white/30 transition-colors disabled:opacity-50 shadow-[0_0_0_0_rgba(255,255,255,0.0)] hover:shadow-[0_0_32px_4px_rgba(255,255,255,0.15)]"
                       >
                         {audioState.isLoading || isChangingTrack ? (
                           <Loader2 size={24} className="text-white animate-spin" />
@@ -958,27 +1102,74 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               </div>
             )}
 
-                {/* Indicateurs de swipe à droite */}
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col gap-2">
-                  <motion.div
-                    className={`w-1 h-8 rounded-full ${
-                      preloadedTracks.has(currentIndex - 1) ? 'bg-green-400' : 'bg-white/30'
-                    }`}
-                    animate={{
-                      scaleY: currentIndex > 0 ? 1 : 0.3,
-                      opacity: currentIndex > 0 ? 1 : 0.5
+                {/* Rail d'actions (droite) */}
+                <div className="absolute right-3 sm:right-4 bottom-24 sm:bottom-28 flex flex-col items-center gap-4 pointer-events-auto">
+                  <motion.button whileTap={{ scale: 0.9 }} onMouseDown={(e: React.MouseEvent) => e.stopPropagation()} onClick={(e: React.MouseEvent) => { e.stopPropagation(); handleLikeClick(); }} className="flex flex-col items-center text-white/90 hover:text-white">
+                     <Heart size={24} className={likeIsLiked ? 'text-white fill-white' : ''} />
+                     <span className="text-[11px] leading-none mt-1" aria-label="Nombre de likes">{likeCount}</span>
+                   </motion.button>
+                  <motion.button whileTap={{ scale: 0.9 }} onMouseDown={(e: React.MouseEvent) => e.stopPropagation()} onClick={(e: React.MouseEvent) => { e.stopPropagation(); setCommentsOpen(true); }} className="flex flex-col items-center text-white/90 hover:text-white">
+                    <MessageCircle size={24} />
+                    <span className="text-[11px] leading-none mt-1" aria-label="Nombre de commentaires">{(currentTrack?.comments?.length || 0)}</span>
+                  </motion.button>
+                  <motion.button whileTap={{ scale: 0.9 }} onMouseDown={(e: React.MouseEvent) => e.stopPropagation()} onClick={(e: React.MouseEvent) => { e.stopPropagation(); shareCurrent(); }} className="flex flex-col items-center text-white/90 hover:text-white">
+                    <Share2 size={24} />
+                    <span className="text-[10px] opacity-80">Partager</span>
+                  </motion.button>
+                  <motion.button
+                    whileTap={canDownload ? { scale: 0.9 } : {}}
+                    onMouseDown={(e: React.MouseEvent) => e.stopPropagation()}
+                    onClick={(e: React.MouseEvent) => {
+                      e.stopPropagation();
+                      if (!canDownload) {
+                        toast.error(upgradeMessage || 'Fonction non disponible pour votre offre');
+                        return;
+                      }
+                      setShowDownloadDialog(true);
                     }}
-                  />
-                  <motion.div
-                    className={`w-1 h-8 rounded-full ${
-                      preloadedTracks.has(currentIndex + 1) ? 'bg-green-400' : 'bg-white/30'
-                    }`}
-                    animate={{
-                      scaleY: currentIndex < totalTracks - 1 ? 1 : 0.3,
-                      opacity: currentIndex < totalTracks - 1 ? 1 : 0.5
-                    }}
-                  />
+                    className={`flex flex-col items-center ${canDownload ? 'text-white/90 hover:text-white' : 'text-white/50 cursor-not-allowed'}`}
+                    aria-disabled={!canDownload}
+                  >
+                    {canDownload ? <Download size={24} /> : <Lock size={24} />}
+                    <span className="text-[10px] opacity-80">Télécharger</span>
+                  </motion.button>
                 </div>
+
+                {/* Instructions supprimées à la demande */}
+
+                {/* Méta (bas gauche) */}
+                <motion.div className="absolute left-3 sm:left-4 bottom-20 sm:bottom-24 right-24 sm:right-28 pointer-events-none" key={`meta-${currentTrack?._id}`}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  transition={{ duration: 0.18 }}
+                >
+                  <div className="pointer-events-auto max-w-[70%] sm:max-w-[60%]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-white/20">
+                        <img src={currentTrack?.artist?.avatar || computedAvatar || '/default-avatar.jpg'} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="text-white font-semibold text-sm truncate">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste'}</div>
+                      <span onMouseDown={(e: React.MouseEvent) => e.stopPropagation()} onClick={(e: React.MouseEvent) => e.stopPropagation()} className="inline-flex">
+                        <FollowButton 
+                          artistId={currentTrack?.artist?._id}
+                          artistUsername={currentTrack?.artist?.username}
+                          size="sm"
+                        />
+                      </span>
+                    </div>
+                    <div className="text-white font-bold text-base sm:text-lg leading-tight line-clamp-2 flex items-center gap-2">
+                       {currentTrack?.title}
+                      {audioState.isPlaying && (
+                        <span className="inline-flex gap-0.5 items-end h-3" aria-hidden>
+                          <span className="w-0.5 bg-white/80 animate-[bar_1s_ease-in-out_infinite]" style={{height:'60%'}} />
+                          <span className="w-0.5 bg-white/70 animate-[bar_1s_ease-in-out_infinite_100ms]" style={{height:'90%'}} />
+                          <span className="w-0.5 bg-white/60 animate-[bar_1s_ease-in-out_infinite_200ms]" style={{height:'75%'}} />
+                        </span>
+                      )}
+                     </div>
+                  </div>
+                </motion.div>
               </div>
 
               {/* Barre de progression */}
@@ -1001,144 +1192,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 </div>
               </div>
 
-              {/* Informations de la track */}
-              <div className="px-4 pb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-8 h-8 rounded-full overflow-hidden">
-                    <img
-                      src={
-                        currentTrack?.artist?.avatar ||
-                        computedAvatar ||
-                        ((session?.user as any)?.avatar as string) ||
-                        (session?.user?.image as string) ||
-                        '/default-avatar.jpg'
-                      }
-                      alt={currentTrack?.artist?.name || 'Artist'}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-white font-semibold text-sm truncate">
-                      {currentTrack?.title || 'Titre inconnu'}
-                    </h3>
-                    <p className="text-white/70 text-xs truncate">
-                      {currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
-                    </p>
-                  </div>
-                  <FollowButton 
-                    artistId={currentTrack?.artist?._id}
-                    artistUsername={currentTrack?.artist?.username}
-                    size="sm"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                    <LikeButton
-                      trackId={currentTrack?._id || ''}
-                      initialLikesCount={currentTrack?.likes?.length || 0}
-                      initialIsLiked={currentTrack?.isLiked || false}
-                      size="sm"
-                      variant="card"
-                      showCount={true}
-                      className="flex items-center gap-1 text-white/70 hover:text-white transition-colors"
-                    />
-                    
-                    <button
-                      onClick={() => setCommentsOpen(true)}
-                      className="flex items-center gap-1 text-white/70 hover:text-white transition-colors"
-                    >
-                      <MessageCircle size={16} />
-                      <span className="text-xs">Commentaires</span>
-                    </button>
-
-                  {(hasTimed ? timedLyrics.length > 0 : plainLyrics.length > 0) && (
-                    <button
-                      onClick={() => setShowLyricsMobile(true)}
-                      className="flex items-center gap-1 text-white/70 hover:text-white transition-colors md:hidden"
-                      aria-label="Afficher les paroles"
-                    >
-                      <span className="text-xs">Paroles</span>
-                    </button>
-                  )}
-                  </div>
-                  
-                  <AudioQualityTooltip>
-                    <AudioQualityIndicator size="sm" showUpgrade={true} />
-                  </AudioQualityTooltip>
-                  
-                  <div className="relative" ref={moreMenuRef}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShowMoreMenu(v => !v); }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      className="text-white/70 hover:text-white transition-colors"
-                      aria-haspopup="menu"
-                      aria-expanded={showMoreMenu}
-                      aria-label="Plus d'options"
-                    >
-                      <MoreVertical size={16} />
-                    </button>
-                    <AnimatePresence>
-                      {showMoreMenu && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 6 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 6 }}
-                          transition={{ duration: 0.15 }}
-                          className="fixed right-4 bottom-28 w-56 max-h-[50vh] overflow-auto bg-black/95 backdrop-blur-xl border border-white/10 rounded-xl shadow-2xl p-1 z-[200] pointer-events-auto"
-                          role="menu"
-                          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={async () => {
-                              try {
-                                const id = currentTrack?._id || '';
-                                const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${id}?autoplay=1` : '';
-                                const shareData = {
-                                  title: currentTrack?.title || 'Musique',
-                                  text: `Écoutez ${currentTrack?.title || 'ma musique'}`,
-                                  url: shareUrl
-                                } as any;
-                                if ((navigator as any).share) {
-                                  await (navigator as any).share(shareData);
-                                } else if (navigator.clipboard) {
-                                  await navigator.clipboard.writeText(shareData.url);
-                                  toast.success('Lien copié');
-                                }
-                                if (id) {
-                                  sendTrackEvents(id, { event_type: 'share', source: 'tiktok-player' });
-                                }
-                              } catch {}
-                              setShowMoreMenu(false);
-                            }}
-                            className="w-full text-left text-white/90 hover:text-white hover:bg-white/10 rounded-lg px-3 py-2 text-sm flex items-center gap-2"
-                            role="menuitem"
-                          >
-                            <Share2 size={16} /> Partager
-                          </button>
-
-                          <button
-                            onClick={() => {
-                              setShowMoreMenu(false);
-                              if (!canDownload) {
-                                toast.error(upgradeMessage || 'Fonction non disponible pour votre offre');
-                                return;
-                              }
-                              setShowDownloadDialog(true);
-                            }}
-                            className={`w-full text-left rounded-lg px-3 py-2 text-sm flex items-center gap-2 ${canDownload ? 'text-white/90 hover:text-white hover:bg-white/10' : 'text-white/40 hover:text-white/50 hover:bg-white/5 cursor-not-allowed'}`}
-                            role="menuitem"
-                          >
-                            {canDownload ? <Download size={16} /> : <Lock size={16} />}
-                            Télécharger
-                          </button>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </div>
               {/* Bottom sheet commentaires */}
               <AnimatePresence>
                 {commentsOpen && (
