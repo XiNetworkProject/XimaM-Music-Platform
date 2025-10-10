@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioRecommendations } from './useAudioRecommendations';
+import { sendTrackEvents } from '@/lib/analyticsClient';
 
 interface Track {
   _id: string;
@@ -81,6 +82,10 @@ export const useAudioService = () => {
   // Système de suivi des écoutes pour éviter les doublons
   const [trackedPlays, setTrackedPlays] = useState<Set<string>>(new Set());
   
+  // Suivi des milestones de lecture (25%, 50%, 75%, 100%)
+  const lastMilestoneRef = useRef<number>(0);
+  const hasStartedRef = useRef<boolean>(false);
+  
   // Initialisation du service worker et des notifications
   useEffect(() => {
     if (isInitialized.current) return;
@@ -159,6 +164,42 @@ export const useAudioService = () => {
           ...prev, 
           currentTime: audio.currentTime 
         }));
+        
+        // Envoyer les événements de progression (25%, 50%, 75%, 98%=complete)
+        const currentTrack = state.currentTrack;
+        if (currentTrack && audio.duration > 0) {
+          const progressPct = (audio.currentTime / audio.duration) * 100;
+          const milestones = [25, 50, 75];
+          const trackId = currentTrack._id;
+          const isAI = String(trackId).startsWith('ai-');
+          
+          // Envoyer les milestones
+          for (const m of milestones) {
+            if (progressPct >= m && lastMilestoneRef.current < m) {
+              lastMilestoneRef.current = m;
+              sendTrackEvents(trackId, {
+                event_type: 'play_progress',
+                progress_pct: m,
+                position_ms: Math.round(audio.currentTime * 1000),
+                duration_ms: Math.round(audio.duration * 1000),
+                is_ai_track: isAI,
+                source: 'audio-player',
+              });
+            }
+          }
+          
+          // Envoyer play_complete à 98%
+          if (progressPct >= 98 && lastMilestoneRef.current < 100) {
+            lastMilestoneRef.current = 100;
+            sendTrackEvents(trackId, {
+              event_type: 'play_complete',
+              position_ms: Math.round(audio.currentTime * 1000),
+              duration_ms: Math.round(audio.duration * 1000),
+              is_ai_track: isAI,
+              source: 'audio-player',
+            });
+          }
+        }
       }
     };
 
@@ -366,6 +407,10 @@ export const useAudioService = () => {
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
         
+        // Réinitialiser les milestones pour la nouvelle piste
+        lastMilestoneRef.current = 0;
+        hasStartedRef.current = false;
+        
         // Réinitialiser les erreurs
         setState(prev => ({ ...prev, error: null, isLoading: true }));
         
@@ -507,6 +552,20 @@ export const useAudioService = () => {
             await playPromise;
           }
           setState(prev => ({ ...prev, isPlaying: true, error: null }));
+          
+          // Envoyer l'événement play_start (une seule fois par piste)
+          if (!hasStartedRef.current && state.currentTrack) {
+            hasStartedRef.current = true;
+            const trackId = state.currentTrack._id;
+            const isAI = String(trackId).startsWith('ai-');
+            sendTrackEvents(trackId, {
+              event_type: 'play_start',
+              position_ms: Math.round((audioRef.current.currentTime || 0) * 1000),
+              duration_ms: Math.round((audioRef.current.duration || 0) * 1000),
+              is_ai_track: isAI,
+              source: 'audio-player',
+            });
+          }
         } catch (err) {
           try {
             const previousVolume = audioRef.current.volume;
@@ -519,6 +578,20 @@ export const useAudioService = () => {
               try { if (audioRef.current) audioRef.current.volume = previousVolume; } catch {}
             }, 80);
             setState(prev => ({ ...prev, isPlaying: true, error: null }));
+            
+            // Envoyer l'événement play_start (une seule fois par piste)
+            if (!hasStartedRef.current && state.currentTrack) {
+              hasStartedRef.current = true;
+              const trackId = state.currentTrack._id;
+              const isAI = String(trackId).startsWith('ai-');
+              sendTrackEvents(trackId, {
+                event_type: 'play_start',
+                position_ms: Math.round((audioRef.current.currentTime || 0) * 1000),
+                duration_ms: Math.round((audioRef.current.duration || 0) * 1000),
+                is_ai_track: isAI,
+                source: 'audio-player',
+              });
+            }
           } catch {
             // Laisser l'UI gérer l'action manuelle
           }
