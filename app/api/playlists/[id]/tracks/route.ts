@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabaseAdmin as supabase } from '@/lib/supabase';
 
 // POST - Ajouter une track à une playlist
 export async function POST(
@@ -53,12 +48,26 @@ export async function POST(
       return NextResponse.json({ error: 'Track déjà dans la playlist' }, { status: 409 });
     }
 
-    // Ajouter la track à la playlist
+    // Trouver la prochaine position
+    let nextPosition = 0;
+    try {
+      const { data: maxRow } = await supabase
+        .from('playlist_tracks')
+        .select('position')
+        .eq('playlist_id', id)
+        .order('position', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      nextPosition = (maxRow?.position ?? -1) + 1;
+    } catch {}
+
+    // Ajouter la track à la playlist avec position
     const { data: playlistTrack, error: insertError } = await supabase
       .from('playlist_tracks')
       .insert({
         playlist_id: id,
         track_id: trackId,
+        position: nextPosition,
         added_at: new Date().toISOString()
       })
       .select()

@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { supabaseAdmin as supabase } from '@/lib/supabase';
 
 // GET - Récupérer une playlist spécifique
 export async function GET(
@@ -13,6 +10,8 @@ export async function GET(
 ) {
   try {
     const { id } = params;
+    const session = await getServerSession(authOptions).catch(() => null);
+    const userId = (session?.user as any)?.id || null;
 
     const { data: playlist, error } = await supabase
       .from('playlists')
@@ -20,7 +19,11 @@ export async function GET(
         *,
         tracks:playlist_tracks(
           track_id,
-          tracks(*)
+          position,
+          tracks(
+            id, title, creator_id, created_at, cover_url, audio_url, duration, genre,
+            profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
+          )
         )
       `)
       .eq('id', id)
@@ -30,16 +33,47 @@ export async function GET(
       return NextResponse.json({ error: 'Playlist non trouvée' }, { status: 404 });
     }
 
+    // Respecter la confidentialité: si privée et non propriétaire
+    if (playlist.is_public === false && playlist.creator_id !== userId) {
+      return NextResponse.json({ error: 'Playlist privée' }, { status: 403 });
+    }
+
+    const toTrack = (t: any) => ({
+      _id: t.id,
+      title: t.title,
+      artist: {
+        _id: t.creator_id,
+        username: t.profiles?.username,
+        name: t.profiles?.name,
+        avatar: t.profiles?.avatar,
+        isArtist: t.profiles?.is_artist,
+        artistName: t.profiles?.artist_name,
+      },
+      duration: t.duration || 0,
+      coverUrl: t.cover_url,
+      audioUrl: t.audio_url,
+      genre: Array.isArray(t.genre) ? t.genre : [],
+      likes: [],
+      plays: 0,
+      createdAt: t.created_at,
+      isLiked: false,
+    });
+
+    const rows = Array.isArray(playlist.tracks) ? playlist.tracks.slice() : [];
+    rows.sort((a: any, b: any) => (a?.position ?? 0) - (b?.position ?? 0));
+    const trackList = rows.map((pt: any) => pt?.tracks).filter(Boolean).map(toTrack);
+    const totalDuration = rows.reduce((total: number, pt: any) => total + ((pt?.tracks?.duration) || 0), 0);
+
     const formattedPlaylist = {
       _id: playlist.id,
       name: playlist.name,
       description: playlist.description || '',
       coverUrl: playlist.cover_url,
-      trackCount: playlist.tracks?.length || 0,
-      duration: playlist.tracks?.reduce((total: number, pt: any) => total + (pt.tracks?.duration || 0), 0) || 0,
+      trackCount: trackList.length || 0,
+      duration: totalDuration || 0,
       isPublic: playlist.is_public,
-      tracks: playlist.tracks?.map((pt: any) => pt.tracks).filter(Boolean) || [],
-      createdBy: playlist.created_by,
+      tracks: trackList,
+      createdBy: playlist.creator_id,
       createdAt: playlist.created_at,
       updatedAt: playlist.updated_at,
       likes: playlist.likes || [],
@@ -61,7 +95,7 @@ export async function PUT(
 ) {
   try {
     const { id } = params;
-    const { name, description, isPublic } = await request.json();
+    const { name, description, isPublic, coverUrl } = await request.json();
 
     const { data: playlist, error } = await supabase
       .from('playlists')
@@ -69,6 +103,7 @@ export async function PUT(
         name: name?.trim(),
         description: description?.trim(),
         is_public: isPublic,
+        cover_url: typeof coverUrl === 'string' ? coverUrl : undefined,
         updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -88,7 +123,7 @@ export async function PUT(
       duration: 0, // À calculer si nécessaire
       isPublic: playlist.is_public,
       tracks: [],
-      createdBy: playlist.created_by,
+      createdBy: playlist.creator_id,
       createdAt: playlist.created_at,
       updatedAt: playlist.updated_at,
       likes: playlist.likes || [],

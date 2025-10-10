@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
+import { supabaseAdmin as supabase } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { getEntitlements } from '@/lib/entitlements';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// utilisation du client admin centralisé
 
 // GET - Récupérer les playlists d'un utilisateur
 export async function GET(request: NextRequest) {
@@ -25,10 +23,14 @@ export async function GET(request: NextRequest) {
         *,
         tracks:playlist_tracks(
           track_id,
-          tracks(*)
+          position,
+          tracks(
+            id, title, creator_id, created_at, cover_url, audio_url, duration, genre,
+            profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
+          )
         )
       `)
-      .eq('created_by', userId)
+      .eq('creator_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -37,21 +39,48 @@ export async function GET(request: NextRequest) {
     }
 
     // Formater les données
-    const formattedPlaylists = playlists?.map(playlist => ({
-      _id: playlist.id,
-      name: playlist.name,
-      description: playlist.description || '',
-      coverUrl: playlist.cover_url,
-      trackCount: playlist.tracks?.length || 0,
-      duration: playlist.tracks?.reduce((total: number, pt: any) => total + (pt.tracks?.duration || 0), 0) || 0,
-      isPublic: playlist.is_public,
-      tracks: playlist.tracks?.map((pt: any) => pt.tracks).filter(Boolean) || [],
-      createdBy: playlist.created_by,
-      createdAt: playlist.created_at,
-      updatedAt: playlist.updated_at,
-      likes: playlist.likes || [],
-      followers: playlist.followers || []
-    })) || [];
+    const toTrack = (t: any) => ({
+      _id: t.id,
+      title: t.title,
+      artist: {
+        _id: t.creator_id,
+        username: t.profiles?.username,
+        name: t.profiles?.name,
+        avatar: t.profiles?.avatar,
+        isArtist: t.profiles?.is_artist,
+        artistName: t.profiles?.artist_name,
+      },
+      duration: t.duration || 0,
+      coverUrl: t.cover_url,
+      audioUrl: t.audio_url,
+      genre: Array.isArray(t.genre) ? t.genre : [],
+      likes: [],
+      plays: 0,
+      createdAt: t.created_at,
+      isLiked: false,
+    });
+
+    const formattedPlaylists = playlists?.map((playlist: any) => {
+      const rows = Array.isArray(playlist.tracks) ? playlist.tracks.slice() : [];
+      rows.sort((a: any, b: any) => (a?.position ?? 0) - (b?.position ?? 0));
+      const trackList = rows.map((pt: any) => pt?.tracks).filter(Boolean).map(toTrack);
+      const totalDuration = rows.reduce((total: number, pt: any) => total + ((pt?.tracks?.duration) || 0), 0);
+      return {
+        _id: playlist.id,
+        name: playlist.name,
+        description: playlist.description || '',
+        coverUrl: playlist.cover_url,
+        trackCount: trackList.length,
+        duration: totalDuration,
+        isPublic: playlist.is_public,
+        tracks: trackList,
+        createdBy: playlist.creator_id,
+        createdAt: playlist.created_at,
+        updatedAt: playlist.updated_at,
+        likes: [],
+        followers: []
+      };
+    }) || [];
 
     return NextResponse.json({ 
       playlists: formattedPlaylists,
@@ -89,7 +118,7 @@ export async function POST(request: NextRequest) {
       const { count } = await supabase
         .from('playlists')
         .select('*', { count: 'exact', head: true })
-        .eq('created_by', session.user.id);
+        .eq('creator_id', session.user.id);
       if ((count || 0) >= ent.uploads.maxPlaylists) {
         return NextResponse.json({ error: `Quota playlists atteint: ${ent.uploads.maxPlaylists}` }, { status: 403 });
       }
@@ -101,16 +130,17 @@ export async function POST(request: NextRequest) {
 
     console.log('🔍 Tentative d\'insertion dans Supabase...');
     
+    const playlistId = randomUUID();
+
     const { data: playlist, error } = await supabase
       .from('playlists')
       .insert({
+        id: playlistId,
         name: name.trim(),
         description: description?.trim() || '',
         is_public: isPublic !== false,
-        created_by: userId,
-        cover_url: null,
-        likes: [],
-        followers: []
+        creator_id: userId,
+        cover_url: null
       })
       .select()
       .single();
@@ -134,11 +164,11 @@ export async function POST(request: NextRequest) {
       duration: 0,
       isPublic: playlist.is_public,
       tracks: [],
-      createdBy: playlist.created_by,
+      createdBy: playlist.creator_id,
       createdAt: playlist.created_at,
       updatedAt: playlist.updated_at,
-      likes: playlist.likes || [],
-      followers: playlist.followers || []
+      likes: [],
+      followers: []
     };
 
     return NextResponse.json(formattedPlaylist, { status: 201 });
