@@ -8,6 +8,7 @@ import { Search, Sun, Moon, Bell, Plus, Music, User, Disc3, X, Headphones, Play,
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioPlayer } from '../app/providers';
 import NotificationCenter from './NotificationCenter';
+import Avatar from './Avatar';
 
 interface Track {
   _id: string;
@@ -145,7 +146,7 @@ export default function AppNavbar() {
   };
 
   // Fonction helper pour valider les URLs d'images
-  const getValidImageUrl = (url: string | undefined, fallback: string) => {
+  const getValidImageUrl = (url: string | undefined, fallback: string | null): string | null => {
     if (!url || url === '' || url === 'null' || url === 'undefined') {
       return fallback;
     }
@@ -240,7 +241,7 @@ export default function AppNavbar() {
                               >
                                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
                                   <img
-                                    src={getValidImageUrl(track.coverUrl, '/default-cover.jpg')}
+                                    src={getValidImageUrl(track.coverUrl, '/default-cover.jpg') || '/default-cover.jpg'}
                                     alt={track.title}
                                     className="w-full h-full object-cover"
                                     onError={(e) => {
@@ -295,20 +296,12 @@ export default function AppNavbar() {
                                   whileHover={{ backgroundColor: 'var(--surface-2)' }}
                                   className="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors"
                                 >
-                                  <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
-                                    <img
-                                      src={getValidImageUrl(artist.avatar, '/default-avatar.jpg')}
-                                      alt={artist.name}
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.currentTarget.style.display = 'none';
-                                        e.currentTarget.nextElementSibling?.classList.remove('hidden');
-                                      }}
-                                    />
-                                    <div className="w-full h-full flex items-center justify-center text-white font-bold text-lg hidden">
-                                      {artist.name[0]?.toUpperCase() || '?'}
-                                    </div>
-                                  </div>
+                                  <Avatar
+                                    src={getValidImageUrl(artist.avatar, null)}
+                                    name={artist.name}
+                                    username={artist.username}
+                                    size="md"
+                                  />
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-[var(--text)] truncate">
                                       {artist.name}
@@ -340,7 +333,7 @@ export default function AppNavbar() {
                                 >
                                   <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center">
                                     <img
-                                      src={getValidImageUrl(playlist.coverUrl, '/default-cover.jpg')}
+                                      src={getValidImageUrl(playlist.coverUrl, '/default-cover.jpg') || '/default-cover.jpg'}
                                       alt={playlist.name}
                                       className="w-full h-full object-cover"
                                       onError={(e) => {
@@ -406,11 +399,11 @@ export default function AppNavbar() {
                   className="flex items-center gap-2 ml-1 px-2 py-1.5 rounded-xl border border-[var(--border)] hover:bg-[var(--surface-2)]"
                   aria-label="Profil"
                 >
-                  <img
-                    src={getValidImageUrl((session?.user as any)?.avatar || (session?.user as any)?.image, '/default-avatar.png')}
-                    alt="Profile"
-                    className="w-7 h-7 rounded-full object-cover"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                  <Avatar
+                    src={getValidImageUrl((session?.user as any)?.avatar || (session?.user as any)?.image, null)}
+                    name={(session?.user as any)?.name}
+                    username={(session?.user as any)?.username}
+                    size="sm"
                   />
                   <span className="hidden md:block text-xs sm:text-sm text-white/90 font-medium">Profil</span>
                 </button>

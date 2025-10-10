@@ -9,6 +9,7 @@ import { useBoosters } from '@/hooks/useBoosters';
 import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp, Sparkles } from 'lucide-react';
 import dynamic from 'next/dynamic';
 const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
+import Avatar from '@/components/Avatar';
 import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
@@ -883,10 +884,12 @@ export default function ProfileUserPage() {
         <div className="relative flex flex-col items-center -mt-24 mb-8">
           <div className="relative mb-6">
           <div className="relative">
-            <img
-              src={editData.avatar || profile.avatar || '/default-avatar.png'}
-              alt="Avatar"
-                className="w-36 h-36 rounded-full object-cover border-4 border-[var(--border)] shadow-2xl bg-[var(--surface-2)] ring-4 ring-[var(--surface-1)]/50"
+            <Avatar
+              src={editData.avatar || profile.avatar}
+              name={profile.name}
+              username={profile.username}
+              size="2xl"
+              className="w-36 h-36 border-4 border-[var(--border)] shadow-2xl ring-4 ring-[var(--surface-1)]/50"
             />
               {/* Effet de lueur autour de l'avatar */}
               <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-pink-500/20 blur-xl -z-10"></div>

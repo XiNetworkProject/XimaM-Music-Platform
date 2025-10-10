@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Play, Heart, User, Music, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Avatar from './Avatar';
 
 interface SearchResult {
   _id: string;
@@ -13,6 +14,8 @@ interface SearchResult {
   imageUrl: string;
   metadata?: string;
   username?: string;
+  userName?: string;
+  userUsername?: string;
 }
 
 interface SearchModalProps {
@@ -45,7 +48,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   type: 'user',
                   title: user.name || user.username,
                   subtitle: `Artiste • ${user.followers?.length || 0} abonnés`,
-                  imageUrl: user.avatar || '/default-avatar.png',
+                  imageUrl: user.avatar || '',
+                  userName: user.name,
+                  userUsername: user.username,
                   username: user.username
                 });
               });
@@ -120,7 +125,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.15 }} // Animation plus rapide
             className="absolute top-0 left-0 right-0 panel-suno border-b border-[var(--border)]"
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             {/* Header */}
             <div className="p-4">
@@ -164,13 +169,20 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                        onClick={() => handleResultClick(result)}
                        className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors text-left"
                      >
-                      <img
-                        src={result.imageUrl}
-                        alt={result.title}
-                        className={`w-12 h-12 rounded object-cover ${
-                          result.type === 'user' ? 'rounded-full' : 'rounded-lg'
-                        }`}
-                      />
+                      {result.type === 'user' ? (
+                        <Avatar
+                          src={result.imageUrl || null}
+                          name={result.userName}
+                          username={result.userUsername}
+                          size="lg"
+                        />
+                      ) : (
+                        <img
+                          src={result.imageUrl}
+                          alt={result.title}
+                          className="w-12 h-12 rounded-lg object-cover"
+                        />
+                      )}
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <h3 className="font-medium">{result.title}</h3>

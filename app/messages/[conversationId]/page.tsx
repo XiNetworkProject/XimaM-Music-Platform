@@ -36,6 +36,7 @@ import toast from 'react-hot-toast';
 import React from 'react';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import RealTimeStatus from '@/components/RealTimeStatus';
+import Avatar from '@/components/Avatar';
 
 interface Message {
   _id: string;
@@ -428,13 +429,19 @@ const UserAvatar = ({ user, onlineStatus, isConnected }: {
   isConnected: boolean;
 }) => (
   <div className="relative">
-    <motion.img
-      src={user.avatar || '/default-avatar.png'}
-      alt={user.name}
-      className="w-12 h-12 rounded-full object-cover border-2 border-purple-400 shadow-lg"
+    <motion.div
       whileHover={{ scale: 1.05 }}
       transition={{ duration: 0.2 }}
-    />
+      className="w-12 h-12"
+    >
+      <Avatar
+        src={user.avatar}
+        name={user.name}
+        username={user.username}
+        size="lg"
+        className="border-2 border-purple-400 shadow-lg"
+      />
+    </motion.div>
     
     {/* Indicateur de statut en ligne */}
     {onlineStatus.isOnline && (

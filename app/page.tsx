@@ -15,6 +15,7 @@ import { EmptyState } from '@/components/Skeletons';
 
 import SocialStats from '@/components/SocialStats';
 import FollowButton from '@/components/FollowButton';
+import Avatar from '@/components/Avatar';
 import { 
   Play, Heart, Pause, Headphones, 
   Users, TrendingUp, Music, Flame, Calendar, UserPlus,
@@ -1956,7 +1957,13 @@ export default function HomePage() {
                           <div key={user._id || user.id} className="group flex w-full flex-row items-center rounded-lg p-2 transition-colors duration-150 hover:bg-[var(--surface-2)]">
                             <div className="flex min-w-0 flex-1 flex-row gap-3 items-center">
                               <button onClick={() => router.push(`/profile/${user.username}`, { scroll: false })} className="shrink-0">
-                                <img alt={user.name || user.username} src={(user.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} className="h-16 w-12 rounded-lg object-cover border border-[var(--border)]" loading="lazy" decoding="async" />
+                                <Avatar
+                                  src={(user.avatar || '').replace('/upload/','/upload/f_auto,q_auto/') || null}
+                                  name={user.name}
+                                  username={user.username}
+                                  size="lg"
+                                  className="h-16 w-16"
+                                />
                               </button>
                               <div className="flex min-w-0 flex-col justify-center gap-1">
                                 <button onClick={() => router.push(`/profile/${user.username}`, { scroll: false })} className="flex flex-row items-center gap-2">
@@ -2170,12 +2177,13 @@ export default function HomePage() {
                     onClick={() => router.push(`/profile/${user.username}`, { scroll: false })}
                         aria-label={`Créateur : ${user.name || user.username}`}
                   >
-                      <img
-                        alt={user.name || user.username}
-                          src={user.avatar || '/default-avatar.png'}
-                          className="aspect-square h-auto w-full rounded-full object-cover"
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
-                        />
+                      <Avatar
+                        src={user.avatar}
+                        name={user.name}
+                        username={user.username}
+                        size="2xl"
+                        className="aspect-square h-auto w-full"
+                      />
                         <div className="flex h-fit w-full flex-col">
                           <h3 className="overflow-hidden font-sans text-lg font-semibold text-ellipsis whitespace-nowrap text-[var(--text)]">{user.name || user.username}</h3>
                           <span className="line-clamp-1 font-sans text-sm font-normal text-[var(--text-muted)]">@{user.username}</span>

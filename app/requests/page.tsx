@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 import BottomNav from '@/components/BottomNav';
 import FollowRequestCard from '@/components/FollowRequestCard';
 import toast from 'react-hot-toast';
+import Avatar from '@/components/Avatar';
 
 interface FollowRequest {
   _id: string;
@@ -345,10 +346,11 @@ function MessageRequestCard({ request, onUpdate }: { request: MessageRequest; on
       className="glass-effect rounded-xl p-4 border border-white/10"
     >
       <div className="flex items-start space-x-3">
-        <img
-          src={request.from.avatar || '/default-avatar.png'}
-          alt={request.from.name}
-          className="w-12 h-12 rounded-full object-cover"
+        <Avatar
+          src={request.from.avatar}
+          name={request.from.name}
+          username={request.from.username}
+          size="lg"
         />
         
         <div className="flex-1">

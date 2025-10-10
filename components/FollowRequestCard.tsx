@@ -6,6 +6,7 @@ import { User, Check, X, MessageCircle, UserPlus, Clock } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
+import Avatar from './Avatar';
 
 interface FollowRequest {
   _id: string;
@@ -138,10 +139,12 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
             onClick={handleViewProfile}
             className="relative group"
           >
-            <img
-              src={request.from.avatar || '/default-avatar.png'}
-              alt={request.from.name}
-              className="w-12 h-12 rounded-full object-cover border-2 border-white/20 group-hover:border-purple-400 transition-colors"
+            <Avatar
+              src={request.from.avatar}
+              name={request.from.name}
+              username={request.from.username}
+              size="lg"
+              className="border-2 border-white/20 group-hover:border-purple-400 transition-colors"
             />
             <div className="absolute inset-0 rounded-full bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
           </button>

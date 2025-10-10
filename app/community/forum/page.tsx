@@ -6,6 +6,7 @@ import { MessageSquare, Plus, Search, Filter, ThumbsUp, Reply, Clock, User, Tag,
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { categorizePost, suggestTags } from '@/lib/postCategorization';
+import Avatar from '@/components/Avatar';
 
 interface Post {
   id: string;
@@ -136,7 +137,7 @@ export default function CommunityForumPage() {
                 id: post.user_id,
                 name: 'Utilisateur inconnu',
                 username: 'unknown',
-                avatar: '/default-avatar.png'
+                avatar: null
               }
             };
           })
@@ -472,12 +473,11 @@ export default function CommunityForumPage() {
                             </p>
                             <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
                               <div className="flex items-center gap-2">
-                                <img 
-                                  src={(post.author.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} 
-                                  alt={post.author.name}
-                                  className="w-5 h-5 rounded-full object-cover"
-                                  loading="lazy"
-                                  decoding="async"
+                                <Avatar
+                                  src={(post.author.avatar || '').replace('/upload/','/upload/f_auto,q_auto/') || null}
+                                  name={post.author.name}
+                                  username={post.author.username}
+                                  size="xs"
                                 />
                                 <span>{post.author.name}</span>
                               </div>
@@ -566,12 +566,11 @@ export default function CommunityForumPage() {
                           <div className="space-y-3">
                             {comments[post.id]?.map((comment: any) => (
                               <div key={comment.id} className="flex gap-3 p-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)]">
-                                <img 
-                                  src={(comment.profiles?.avatar || '/default-avatar.png').replace('/upload/','/upload/f_auto,q_auto/')} 
-                                  alt={comment.profiles?.name || 'Utilisateur'}
-                                  className="w-8 h-8 rounded-full object-cover"
-                                  loading="lazy"
-                                  decoding="async"
+                                <Avatar
+                                  src={(comment.profiles?.avatar || '').replace('/upload/','/upload/f_auto,q_auto/') || null}
+                                  name={comment.profiles?.name}
+                                  username={comment.profiles?.username}
+                                  size="sm"
                                 />
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">

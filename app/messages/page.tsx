@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import Avatar from '@/components/Avatar';
 import { 
   MessageCircle, 
   UserPlus, 
@@ -69,13 +70,19 @@ const UserAvatar = ({ user, isOnline = false, isTyping = false }: {
   isTyping?: boolean;
 }) => (
   <div className="relative">
-    <motion.img
-      src={user.avatar || '/default-avatar.png'}
-      alt={user.name}
-      className="w-14 h-14 rounded-full object-cover border-2 border-purple-400 shadow-lg"
+    <motion.div
       whileHover={{ scale: 1.05 }}
       transition={{ duration: 0.2 }}
-    />
+      className="w-14 h-14"
+    >
+      <Avatar
+        src={user.avatar}
+        name={user.name}
+        username={user.username}
+        size="lg"
+        className="border-2 border-purple-400 shadow-lg"
+      />
+    </motion.div>
     
     {/* Indicateur de statut en ligne */}
     {isOnline && (
@@ -156,7 +163,7 @@ const RequestActions = ({
     <span className="text-sm text-orange-400 font-medium">Demande en attente</span>
     <div className="flex space-x-2">
       <motion.button
-        onClick={(e) => {
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           onAccept(conversationId);
         }}
@@ -167,7 +174,7 @@ const RequestActions = ({
         <Check size={16} className="text-white" />
       </motion.button>
       <motion.button
-        onClick={(e) => {
+        onClick={(e: React.MouseEvent) => {
           e.stopPropagation();
           onDecline(conversationId);
         }}
@@ -378,7 +385,7 @@ export default function MessagesPage() {
             type="text"
             placeholder="Rechercher des conversations..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
             className="w-full pl-12 pr-4 py-4 bg-[var(--bg)] border border-[var(--border)] rounded-2xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-0 focus:border-[var(--color-primary)] shadow-none"
             whileFocus={{ scale: 1.02 }}
             transition={{ duration: 0.2 }}
