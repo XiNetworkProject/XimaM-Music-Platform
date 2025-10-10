@@ -100,7 +100,12 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        return NextResponse.json({ tracks: results.slice(0, limitFallback) });
+        const final = results.slice(0, limitFallback);
+        if (final.length) {
+          // Diversifier l'ordre pour Trending (et éviter de mimer "nouveautés")
+          final.sort(() => Math.random() - 0.5);
+        }
+        return NextResponse.json({ tracks: final });
       } catch (e) {
         console.error('ranking: fallback trending error (statsErr)', e);
         return NextResponse.json({ tracks: [] });
@@ -110,6 +115,164 @@ export async function GET(request: NextRequest) {
     // Stats filtrées et horodatage courant (nécessaires au scoring)
     const now = Date.now();
     const filteredStats = (statsRows || []).filter((r: any) => (includeAi ? true : !r.is_ai_track));
+
+    // Fallback 1: si aucune stat agrégée, calculer "trending" à partir des track_events récents
+    if (!filteredStats.length) {
+      try {
+        const sinceIso = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: evs, error: evErr } = await supabaseAdmin
+          .from('track_events')
+          .select('track_id, event_type, created_at, is_ai_track')
+          .gte('created_at', sinceIso);
+        if (evErr) throw evErr;
+
+        const agg = new Map<string, { plays: number; completes: number; likes: number; shares: number; favs: number; last: number; isAI: boolean }>();
+        (evs || []).forEach((e: any) => {
+          const id = String(e.track_id);
+          const cur = agg.get(id) || { plays: 0, completes: 0, likes: 0, shares: 0, favs: 0, last: 0, isAI: Boolean(e.is_ai_track) };
+          switch (e.event_type) {
+            case 'play_start': cur.plays++; break;
+            case 'play_complete': cur.completes++; break;
+            case 'favorite': cur.favs++; break;
+            case 'share': cur.shares++; break;
+            case 'like': cur.likes++; break;
+            default: break;
+          }
+          cur.last = Math.max(cur.last, new Date(e.created_at).getTime());
+          agg.set(id, cur);
+        });
+
+        const ids = Array.from(agg.keys());
+        const normalIds = ids.filter((id) => !String(id).startsWith('ai-'));
+        const aiIds = ids.filter((id) => String(id).startsWith('ai-')).map((id) => String(id).slice(3));
+
+        let normalTracks: any[] = [];
+        if (normalIds.length) {
+          const { data } = await supabaseAdmin
+            .from('tracks')
+            .select(`
+              id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre,
+              profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
+            `)
+            .in('id', normalIds)
+            .eq('is_public', true);
+          normalTracks = data || [];
+        }
+
+        let aiTracks: any[] = [];
+        if (includeAi && aiIds.length) {
+          const { data } = await supabaseAdmin
+            .from('ai_tracks')
+            .select(`
+              id, title, user_id, created_at, image_url, audio_url, duration, tags,
+              profiles:profiles!ai_tracks_user_id_fkey ( id, username, name, avatar, is_verified )
+            `)
+            .in('id', aiIds as any);
+          aiTracks = (data || []).map((t: any) => ({ ...t, _aiPrefixedId: `ai-${t.id}` }));
+        }
+
+        const scoredNormal = normalTracks.map((t: any) => {
+          const r = agg.get(String(t.id))!;
+          const ageHours = Math.max(1, (now - (r?.last || new Date(t.created_at).getTime())) / 3_600_000);
+          // Score simple basé sur les événements + décroissance
+          const score = (
+            Math.log10(1 + (r?.plays || 0)) +
+            1.5 * Math.log10(1 + (r?.completes || 0)) +
+            1.2 * Math.log10(1 + (r?.likes || 0)) +
+            1.3 * Math.log10(1 + (r?.shares || 0)) +
+            1.0 * Math.log10(1 + (r?.favs || 0))
+          ) * Math.exp(-ageHours * Math.LN2 / 24); // demi‑vie 24h
+          return {
+            _id: t.id,
+            title: t.title,
+            artist: {
+              _id: t.creator_id,
+              username: t.profiles?.username,
+              name: t.profiles?.name,
+              avatar: t.profiles?.avatar,
+              isArtist: t.profiles?.is_artist,
+              artistName: t.profiles?.artist_name,
+            },
+            duration: t.duration || 0,
+            coverUrl: t.cover_url,
+            audioUrl: t.audio_url,
+            genre: t.genre || [],
+            likes: [],
+            plays: 0,
+            createdAt: t.created_at,
+            isFeatured: false,
+            isVerified: t.profiles?.is_verified || false,
+            rankingScore: Number(score.toFixed(6)),
+            isAI: false,
+          };
+        });
+
+        const scoredAI = aiTracks.map((t: any) => {
+          const r = agg.get(`ai-${t.id}`)!;
+          const ageHours = Math.max(1, (now - (r?.last || new Date(t.created_at).getTime())) / 3_600_000);
+          const score = (
+            Math.log10(1 + (r?.plays || 0)) +
+            1.5 * Math.log10(1 + (r?.completes || 0)) +
+            1.2 * Math.log10(1 + (r?.likes || 0)) +
+            1.3 * Math.log10(1 + (r?.shares || 0)) +
+            1.0 * Math.log10(1 + (r?.favs || 0))
+          ) * Math.exp(-ageHours * Math.LN2 / 24);
+          return {
+            _id: `ai-${t.id}`,
+            title: t.title || 'Titre IA',
+            artist: {
+              _id: t.user_id,
+              username: t.profiles?.username,
+              name: t.profiles?.name || t.profiles?.username,
+              avatar: t.profiles?.avatar,
+              isArtist: true,
+              artistName: t.profiles?.name || t.profiles?.username,
+            },
+            duration: t.duration || 0,
+            coverUrl: t.image_url || '/default-cover.jpg',
+            audioUrl: t.audio_url,
+            genre: Array.isArray(t.tags) ? t.tags : [],
+            likes: [],
+            plays: 0,
+            createdAt: t.created_at,
+            isFeatured: false,
+            isVerified: t.profiles?.is_verified || false,
+            rankingScore: Number(score.toFixed(6)),
+            isAI: true,
+          };
+        });
+
+        const combined = [...scoredNormal, ...(includeAi ? scoredAI : [])]
+          .sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0))
+          .slice(0, limit);
+
+        // Si toujours vide, fallback 2: récents publics
+        if (!combined.length) {
+          const { data: recentTracks } = await supabaseAdmin
+            .from('tracks')
+            .select('id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre')
+            .eq('is_public', true)
+            .order('created_at', { ascending: false })
+            .limit(limit);
+          return NextResponse.json({ tracks: (recentTracks || []).map((t: any) => ({
+            _id: t.id,
+            title: t.title,
+            artist: { _id: t.creator_id, username: '', name: '', avatar: '', isArtist: false, artistName: '' },
+            duration: t.duration || 0,
+            coverUrl: t.cover_url,
+            audioUrl: t.audio_url,
+            genre: t.genre || [],
+            likes: [], plays: 0, createdAt: t.created_at, isFeatured: false, isVerified: false, rankingScore: 0, isAI: false,
+          })) });
+        }
+
+        return NextResponse.json({ tracks: combined });
+      } catch (e) {
+        console.error('ranking: fallback track_events error', e);
+        // En dernier recours
+        return NextResponse.json({ tracks: [] });
+      }
+    }
 
     // Séparer pistes normales et IA
     const normalIds = filteredStats.filter((r: any) => !r.is_ai_track).map((r: any) => r.track_id);
