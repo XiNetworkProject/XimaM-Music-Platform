@@ -618,7 +618,7 @@ export default function CommunityForumPage() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-[var(--surface-1)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <h2 className="text-xl font-bold mb-4">Nouveau post</h2>
               
