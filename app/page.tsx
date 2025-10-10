@@ -253,7 +253,9 @@ export default function HomePage() {
   }, [categories?.forYou?.tracks, dailyDiscoveries, featuredTracks]);
   const trendingUnique = useMemo(() => {
     const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
-    return (categories.trending.tracks || []).filter((t: any) => !forYouIds.has(t._id));
+    const trendingList = (categories.trending.tracks || []);
+    const filtered = trendingList.filter((t: any) => !forYouIds.has(t._id));
+    return filtered.length > 0 ? filtered : trendingList;
   }, [categories.trending.tracks, forYouList]);
   // Ajouter 1 slide promo abonnement au début
   const totalSlides = useMemo(() => Math.max(1, heroTracks.length + 1), [heroTracks.length]);

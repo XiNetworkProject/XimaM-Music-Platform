@@ -17,14 +17,7 @@ export async function GET(request: NextRequest) {
       .select('*');
 
     if (statsErr) {
-      console.error('ranking: erreur stats 30d', statsErr);
-      return NextResponse.json({ error: 'Erreur stats' }, { status: 500 });
-    }
-
-    const now = Date.now();
-    const filteredStats = (statsRows || []).filter((r) => (includeAi ? true : !r.is_ai_track));
-    if (!filteredStats.length) {
-      // Fallback: aucune stat agrégée encore -> renvoyer les dernières pistes publiques (et IA si demandé)
+      console.error('ranking: erreur stats 30d, fallback recent', statsErr);
       try {
         const limitFallback = Math.max(1, Math.min(limit, 50));
         const results: any[] = [];
@@ -69,7 +62,6 @@ export async function GET(request: NextRequest) {
         }
 
         if (includeAi) {
-          // Pistes IA récentes
           const { data: recentAI, error: recentAIErr } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
@@ -108,17 +100,20 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Limiter et renvoyer le fallback
         return NextResponse.json({ tracks: results.slice(0, limitFallback) });
       } catch (e) {
-        console.error('ranking: fallback trending error', e);
+        console.error('ranking: fallback trending error (statsErr)', e);
         return NextResponse.json({ tracks: [] });
       }
     }
 
+    // Stats filtrées et horodatage courant (nécessaires au scoring)
+    const now = Date.now();
+    const filteredStats = (statsRows || []).filter((r: any) => (includeAi ? true : !r.is_ai_track));
+
     // Séparer pistes normales et IA
-    const normalIds = filteredStats.filter((r) => !r.is_ai_track).map((r) => r.track_id);
-    const aiIds = filteredStats.filter((r) => r.is_ai_track).map((r) => r.track_id);
+    const normalIds = filteredStats.filter((r: any) => !r.is_ai_track).map((r: any) => r.track_id);
+    const aiIds = filteredStats.filter((r: any) => r.is_ai_track).map((r: any) => r.track_id);
 
     // Récupérer métadonnées pour pistes normales
     let normalTracks: any[] = [];
@@ -141,7 +136,7 @@ export async function GET(request: NextRequest) {
     let aiTracks: any[] = [];
     if (aiIds.length) {
       // Les track_id IA peuvent être préfixés 'ai-<id>'. On retire le préfixe pour la jointure.
-      const rawAiIds = aiIds.map((id) => (String(id).startsWith('ai-') ? String(id).slice(3) : id));
+      const rawAiIds = aiIds.map((id: any) => (String(id).startsWith('ai-') ? String(id).slice(3) : id));
       const { data, error } = await supabaseAdmin
         .from('ai_tracks')
         .select(`
@@ -156,7 +151,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const statsMap = new Map<string, any>(filteredStats.map((r) => [r.track_id, r]));
+    const statsMap = new Map<string, any>(filteredStats.map((r: any) => [r.track_id, r]));
 
     // Charger les boosts actifs pour les pistes normales
     const activeBoostsMap = new Map<string, number>();
