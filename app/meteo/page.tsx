@@ -91,7 +91,7 @@ export default function MeteoPublicPage() {
             )}
             
             {bulletin.content && (
-              <p className="text-[var(--text-secondary)] mb-4 leading-relaxed">
+              <p className="text-[var(--text-secondary)] mb-4 leading-relaxed whitespace-pre-wrap break-words">
                 {bulletin.content}
               </p>
             )}
