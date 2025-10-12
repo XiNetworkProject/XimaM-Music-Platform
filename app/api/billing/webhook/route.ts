@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       }
       case 'checkout.session.completed': {
         const sessionObj = event.data.object as any;
-        if (sessionObj.mode === 'payment') {
+        if (sessionObj.mode === 'payment' && sessionObj.payment_status === 'paid') {
           // Identifier l'utilisateur: id direct, sinon email → lookup profil
           let userId: string | null = sessionObj.metadata?.userId || null;
           const email: string | undefined = sessionObj.customer_details?.email || sessionObj.metadata?.email;
@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
           }
 
           // Créditer des crédits IA si c'est un achat de crédits
-          const line = sessionObj.display_items?.[0] || sessionObj.line_items?.data?.[0];
+          // Stripe n'envoie pas line_items par défaut: sécurité via amount_total/metadata
+          const line = sessionObj.line_items?.data?.[0] || sessionObj.display_items?.[0];
           const meta = (line?.price?.product?.metadata || sessionObj.metadata || {}) as any;
           const base = parseInt(meta.baseCredits || '0', 10);
           const bonus = parseInt(meta.bonusCredits || '0', 10);

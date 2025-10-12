@@ -93,6 +93,22 @@ export default function AIGenerator() {
       const data = await fetchCreditsBalance();
       if (data && typeof data.balance === 'number') setCreditsBalance(data.balance);
     })();
+    // Vérifier si retour de Checkout Stripe
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const sid = params.get('session_id');
+      if (sid) {
+        // Petit délai pour laisser le webhook agir
+        setTimeout(async () => {
+          const refreshed = await fetchCreditsBalance();
+          if (refreshed && typeof refreshed.balance === 'number') setCreditsBalance(refreshed.balance);
+          // Nettoyer l'URL
+          const url = new URL(window.location.href);
+          url.searchParams.delete('session_id');
+          window.history.replaceState({}, '', url.toString());
+        }, 1500);
+      }
+    } catch {}
   }, []);
   const [vocalGender, setVocalGender] = useState<string>(''); // 'm' | 'f' | ''
   const [negativeTags, setNegativeTags] = useState<string>('');
