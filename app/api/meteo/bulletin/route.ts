@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
-import { uploadImage } from '@/lib/cloudinary';
+import { uploadImage, uploadImageDirect } from '@/lib/cloudinary';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,15 +40,21 @@ export async function POST(request: NextRequest) {
     const bytes = await imageFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // Upload vers Cloudinary
-    const uploadResult = await uploadImage(buffer, {
-      folder: 'meteo-bulletins',
-      public_id: `bulletin_${Date.now()}`,
-      width: 1200,
-      height: 800,
-      crop: 'fill',
-      quality: 'auto'
-    });
+    // Upload vers Cloudinary (avec repli en REST si SDK échoue)
+    let uploadResult;
+    try {
+      uploadResult = await uploadImage(buffer, {
+        folder: 'meteo-bulletins',
+        resource_type: 'image',
+        public_id: `bulletin_${Date.now()}`,
+        quality: 'auto',
+      });
+    } catch (e) {
+      // Fallback REST signé (souvent plus tolérant en prod)
+      uploadResult = await uploadImageDirect(buffer, {
+        folder: 'meteo-bulletins',
+      });
+    }
 
     const { secure_url, public_id } = uploadResult;
 
@@ -65,8 +74,8 @@ export async function POST(request: NextRequest) {
     if (currentBulletin?.image_public_id) {
       try {
         console.log('🗑️ Suppression ancienne image Cloudinary:', currentBulletin.image_public_id);
-        const { v2: cloudinary } = await import('cloudinary');
-        await cloudinary.uploader.destroy(currentBulletin.image_public_id);
+        const { deleteFile } = await import('@/lib/cloudinary');
+        await deleteFile(currentBulletin.image_public_id, 'image');
         console.log('✅ Ancienne image supprimée');
       } catch (deleteError) {
         console.error('❌ Erreur suppression ancienne image:', deleteError);
