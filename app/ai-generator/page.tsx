@@ -102,6 +102,17 @@ export default function AIGenerator() {
         setTimeout(async () => {
           const refreshed = await fetchCreditsBalance();
           if (refreshed && typeof refreshed.balance === 'number') setCreditsBalance(refreshed.balance);
+          // Si pas d’effet, tente une vérification côté serveur (secours)
+          try {
+            const res = await fetch('/api/billing/credits/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sid }) });
+            if (res.ok) {
+              const j = await res.json();
+              if (j?.added) {
+                const b = await fetchCreditsBalance();
+                if (b && typeof b.balance === 'number') setCreditsBalance(b.balance);
+              }
+            }
+          } catch {}
           // Nettoyer l'URL
           const url = new URL(window.location.href);
           url.searchParams.delete('session_id');
