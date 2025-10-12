@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useAudioRecommendations } from './useAudioRecommendations';
 import { sendTrackEvents } from '@/lib/analyticsClient';
+import { getCdnUrl } from '@/lib/cdn';
 
 interface Track {
   _id: string;
@@ -218,30 +219,40 @@ export const useAudioService = () => {
     };
 
     const handleError = (e: Event) => {
-      console.error('Erreur audio:', e);
+      console.error('❌ Erreur audio:', e);
       
       // Analyser le type d'erreur
       const audio = audioRef.current;
-      let errorMessage = 'Erreur de lecture audio';
+      if (!audio) return;
       
-      if (audio && audio.error) {
+      let errorMessage = 'Erreur de lecture audio';
+      let shouldRetry = false;
+      
+      if (audio.error) {
         switch (audio.error.code) {
           case MediaError.MEDIA_ERR_ABORTED:
             errorMessage = 'Lecture interrompue';
+            shouldRetry = false;
             break;
           case MediaError.MEDIA_ERR_NETWORK:
             errorMessage = 'Erreur réseau - impossible de charger l\'audio';
+            shouldRetry = true; // Retry sur erreur réseau
             break;
           case MediaError.MEDIA_ERR_DECODE:
             errorMessage = 'Format audio non supporté';
+            shouldRetry = false;
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
             errorMessage = 'Source audio non supportée';
+            shouldRetry = true; // Peut-être un problème temporaire CDN
             break;
           default:
             errorMessage = 'Erreur de lecture audio';
+            shouldRetry = true;
         }
       }
+      
+      console.error('🔴 Type d\'erreur:', errorMessage, '- Retry:', shouldRetry);
       
       setState(prev => ({ 
         ...prev, 
@@ -249,10 +260,35 @@ export const useAudioService = () => {
         isLoading: false 
       }));
       
-      // Réessayer automatiquement après un délai
-      setTimeout(() => {
-        setState(prev => ({ ...prev, error: null }));
-      }, 3000);
+      // Tentative de récupération automatique pour certaines erreurs
+      if (shouldRetry && state.currentTrack) {
+        console.log('🔄 Tentative de récupération automatique...');
+        setTimeout(() => {
+          if (audioRef.current && state.currentTrack) {
+            // Réinitialiser l'élément audio
+            const currentSrc = audioRef.current.src;
+            audioRef.current.src = '';
+            audioRef.current.load();
+            
+            // Recharger avec un délai
+            setTimeout(() => {
+              if (audioRef.current && currentSrc) {
+                audioRef.current.src = currentSrc;
+                audioRef.current.load();
+                audioRef.current.play().catch(err => {
+                  console.error('❌ Échec récupération:', err);
+                });
+              }
+            }, 500);
+          }
+          setState(prev => ({ ...prev, error: null }));
+        }, 2000);
+      } else {
+        // Effacer l'erreur après 5 secondes
+        setTimeout(() => {
+          setState(prev => ({ ...prev, error: null }));
+        }, 5000);
+      }
     };
 
     const handlePlay = () => {
@@ -414,8 +450,8 @@ export const useAudioService = () => {
         // Réinitialiser les erreurs
         setState(prev => ({ ...prev, error: null, isLoading: true }));
         
-        // Changer la source audio avec gestion d'erreur
-        audioRef.current.src = track.audioUrl;
+        // Changer la source audio avec gestion d'erreur (via CDN)
+        audioRef.current.src = getCdnUrl(track.audioUrl) || track.audioUrl;
         
         // Attendre que l'audio soit chargé
         await new Promise((resolve, reject) => {
@@ -545,6 +581,17 @@ export const useAudioService = () => {
       }
       
       if (audioRef.current) {
+        // Vérifier que l'audio a bien une source avant de jouer
+        if (!audioRef.current.src || audioRef.current.src === '') {
+          console.error('❌ Tentative de lecture sans source audio');
+          if (state.currentTrack?.audioUrl) {
+            audioRef.current.src = getCdnUrl(state.currentTrack.audioUrl) || state.currentTrack.audioUrl;
+            audioRef.current.load();
+          } else {
+            throw new Error('Aucune source audio disponible');
+          }
+        }
+        
         // Gestion spécifique autoplay: tenter play normal, sinon play à volume min puis rétablir
         try {
           const playPromise = audioRef.current.play();
@@ -1242,6 +1289,57 @@ export const useAudioService = () => {
       }
     }
   }, [repeat, queue.length, allTracks.length, state.currentTrack, session, allTracks, loadAllTracks, loadTrack, play, updatePlayCount, nextTrack]);
+
+  // Watchdog: vérifier périodiquement que l'audio fonctionne
+  useEffect(() => {
+    const watchdogInterval = setInterval(() => {
+      const audio = audioRef.current;
+      if (!audio || !state.currentTrack) return;
+      
+      // Vérifier si l'audio devrait jouer mais ne joue pas
+      if (state.isPlaying && audio.paused && !state.isLoading) {
+        console.warn('⚠️ Watchdog: Audio censé jouer mais en pause. Tentative de récupération...');
+        
+        // Vérifier que la source est toujours valide
+        if (!audio.src || audio.src === '') {
+          console.error('❌ Watchdog: Source audio perdue !');
+          if (state.currentTrack.audioUrl) {
+            audio.src = getCdnUrl(state.currentTrack.audioUrl) || state.currentTrack.audioUrl;
+            audio.load();
+          }
+        }
+        
+        // Tenter de relancer la lecture
+        audio.play().catch(err => {
+          console.error('❌ Watchdog: Échec relance lecture:', err);
+          setState(prev => ({ 
+            ...prev, 
+            isPlaying: false,
+            error: 'Le son s\'est arrêté. Cliquez pour relancer.'
+          }));
+        });
+      }
+      
+      // Vérifier si l'audio est bloqué (timeupdate ne progresse plus)
+      if (state.isPlaying && !audio.paused && state.currentTime > 0) {
+        const lastTime = (audio as any)._lastWatchdogTime || 0;
+        if (lastTime === audio.currentTime && audio.currentTime < audio.duration - 1) {
+          console.warn('⚠️ Watchdog: Audio bloqué (time ne progresse plus). Reset...');
+          const currentTime = audio.currentTime;
+          audio.pause();
+          setTimeout(() => {
+            if (audioRef.current) {
+              audioRef.current.currentTime = currentTime;
+              audioRef.current.play().catch(console.error);
+            }
+          }, 100);
+        }
+        (audio as any)._lastWatchdogTime = audio.currentTime;
+      }
+    }, 3000); // Vérifier toutes les 3 secondes
+    
+    return () => clearInterval(watchdogInterval);
+  }, [state.isPlaying, state.currentTrack, state.isLoading, state.currentTime]);
 
   return audioService;
 }; 

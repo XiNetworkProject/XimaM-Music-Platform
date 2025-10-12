@@ -185,7 +185,7 @@ export default function CommunityPage() {
                 <div className="text-2xl font-bold text-[var(--text)]">{stats.implementedSuggestions}</div>
                 <div className="text-sm text-[var(--text-muted)]">Suggestions implémentées</div>
               </motion.div>
-            </div>
+          </div>
         </div>
 
           {/* Navigation rapide */}

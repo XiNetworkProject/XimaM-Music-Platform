@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Compass, BookOpen, MessageCircle, Settings, Plus, Music, TrendingUp, Users, HelpCircle } from 'lucide-react';
+import { Home, Compass, BookOpen, MessageCircle, Settings, Plus, Music, TrendingUp, Users, HelpCircle, Cloud } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useEffect, useState } from 'react';
@@ -49,6 +49,7 @@ export default function AppSidebar() {
     { icon: MessageCircle, label: 'Messages', desc: 'Discuter', href: '/messages' },
     { icon: TrendingUp, label: 'Stats', desc: 'Vos statistiques', href: '/stats' },
     { icon: Settings, label: 'Abonnements', desc: 'Plans & facturation', href: '/subscriptions' },
+    { icon: Cloud, label: 'Météo', desc: 'Alertemps', href: '/meteo', isPartner: true },
   ];
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
@@ -68,13 +69,16 @@ export default function AppSidebar() {
             const unread = Array.isArray(notifications)
               ? notifications.filter((n: any) => !n.read || n.unread === true || n.status === 'unread').length
               : 0;
+            const isPartner = (item as any).isPartner;
             return (
               <button
                 key={item.href}
                 onClick={() => router.push(item.href, { scroll: false })}
                 className={`w-full text-left group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all ${
                   active
-                    ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40 text-[var(--text)]'
+                    ? isPartner
+                      ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                      : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40 text-[var(--text)]'
                     : 'border-[var(--border)] hover:bg-white/5 text-[var(--text-muted)] hover:text-[var(--text)]'
                 }`}
                 title={`${item.label} — ${item.desc}`}

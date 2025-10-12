@@ -195,52 +195,52 @@ export async function GET(request: NextRequest) {
     // Filtres avancés (featured/sort/category)
     if (featured !== null || sort !== null || category) {
       let query = supabaseAdmin
-        .from('tracks')
-        .select(`
-          id,
-          title,
-          genre,
-          plays,
-          likes,
-          created_at,
-          creator_id,
-          cover_url,
-          audio_url,
-          duration,
-          is_featured,
+      .from('tracks')
+      .select(`
+        id,
+        title,
+        genre,
+        plays,
+        likes,
+        created_at,
+        creator_id,
+        cover_url,
+        audio_url,
+        duration,
+        is_featured,
           is_public,
           profiles:profiles!tracks_creator_id_fkey (
             id, username, name, avatar, is_artist, artist_name
           )
-        `)
-        .eq('is_public', true);
+      `)
+      .eq('is_public', true);
 
-      if (category && category !== 'all') {
-        query = query.contains('genre', [category]);
-      }
-      if (featured === 'true') {
-        query = query.eq('is_featured', true);
-      }
+    if (category && category !== 'all') {
+      query = query.contains('genre', [category]);
+    }
+    if (featured === 'true') {
+      query = query.eq('is_featured', true);
+    }
       const sortKey = sort || 'trending';
       switch (sortKey) {
-        case 'trending':
-          query = query.order('plays', { ascending: false });
-          break;
-        case 'newest':
-          query = query.order('created_at', { ascending: false });
-          break;
-        case 'popular':
-          query = query.order('likes', { ascending: false });
-          break;
-        case 'featured':
-          query = query.order('is_featured', { ascending: false }).order('plays', { ascending: false });
-          break;
-        default:
-          query = query.order('plays', { ascending: false });
-      }
-      query = query.limit(limit);
+      case 'trending':
+        query = query.order('plays', { ascending: false });
+        break;
+      case 'newest':
+        query = query.order('created_at', { ascending: false });
+        break;
+      case 'popular':
+        query = query.order('likes', { ascending: false });
+        break;
+      case 'featured':
+        query = query.order('is_featured', { ascending: false }).order('plays', { ascending: false });
+        break;
+      default:
+        query = query.order('plays', { ascending: false });
+    }
+    query = query.limit(limit);
 
-      const { data: tracks, error } = await query;
+    const { data: tracks, error } = await query;
       if (error || !Array.isArray(tracks)) {
         return NextResponse.json({ tracks: [] });
       }
@@ -248,7 +248,7 @@ export async function GET(request: NextRequest) {
       const formattedTracks = tracks.map((t: any) => ({
         _id: t.id,
         title: t.title,
-        artist: {
+            artist: {
           _id: t.creator_id,
           username: t.profiles?.username || 'Utilisateur',
           name: t.profiles?.name || t.profiles?.username || 'Utilisateur',

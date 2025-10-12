@@ -84,12 +84,12 @@ export default function SettingsPage() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="panel-suno border border-[var(--border)] rounded-2xl p-6 text-center"
             >
-              <button
-                onClick={() => router.push('/auth/signin')}
+        <button
+          onClick={() => router.push('/auth/signin')}
                 className="w-full bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white py-3 px-4 rounded-xl font-semibold hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:ring-offset-2 focus:ring-offset-transparent transition-all duration-200 shadow-lg hover:shadow-purple-500/25"
-              >
-                Se connecter
-              </button>
+        >
+          Se connecter
+        </button>
             </motion.div>
           </div>
         </main>
@@ -400,7 +400,7 @@ export default function SettingsPage() {
               <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
                 <Settings className="w-8 h-8 text-white" />
               </div>
-            </div>
+        </div>
             <h1 className="text-3xl font-bold text-white mb-2">Paramètres</h1>
             <p className="text-white/60">Personnalisez votre expérience musicale</p>
           </motion.div>
@@ -416,29 +416,29 @@ export default function SettingsPage() {
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
             
             <div className="relative p-6">
-              <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-4">
                 <div className="relative">
-                  <img
-                    src={user?.image || '/default-avatar.png'}
-                    alt={user?.name || 'Avatar'}
+              <img
+                src={user?.image || '/default-avatar.png'}
+                alt={user?.name || 'Avatar'}
                     className="w-16 h-16 rounded-full object-cover border-2 border-white/20 shadow-lg"
-                  />
+              />
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 border-2 border-white/20 flex items-center justify-center">
                     <Crown className="w-3 h-3 text-white" />
                   </div>
                 </div>
-                <div className="flex-1">
+              <div className="flex-1">
                   <h2 className="text-lg font-semibold text-white/90">{user?.name}</h2>
-                  <p className="text-white/60">@{user?.username}</p>
-                  <p className="text-sm text-white/40">{user?.email}</p>
-                </div>
+                <p className="text-white/60">@{user?.username}</p>
+                <p className="text-sm text-white/40">{user?.email}</p>
+              </div>
                 <div className="flex items-center gap-2">
                   <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
                     Premium
                   </div>
                 </div>
-              </div>
             </div>
+          </div>
           </motion.div>
 
           {/* Limites d'abonnement */}

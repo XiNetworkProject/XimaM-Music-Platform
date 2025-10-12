@@ -1,5 +1,7 @@
 'use client';
 
+import { getCdnUrl } from '@/lib/cdn';
+
 interface AvatarProps {
   src?: string | null | undefined;
   name?: string;
@@ -52,7 +54,7 @@ export default function Avatar({ src, name, username, size = 'md', className = '
   if (src) {
     return (
       <img
-        src={src}
+        src={getCdnUrl(src) || src}
         alt={displayName}
         className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
         onError={(e) => {

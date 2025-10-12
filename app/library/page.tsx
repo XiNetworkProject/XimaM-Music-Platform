@@ -43,6 +43,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
 import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
 import { notify, notificationStore } from '@/components/NotificationCenter';
+import { applyCdnToTracks } from '@/lib/cdnHelpers';
 // Composants temporairement commentés jusqu'à leur création
 // import LikeButton from '@/components/LikeButton';
 // import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
@@ -181,7 +182,7 @@ export default function LibraryPage() {
         const recentResponse = await fetch(`/api/tracks?recent=true&limit=${recentLimit}`, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache' } });
         if (recentResponse.ok) {
           const recentData = await recentResponse.json();
-          setRecentTracks(recentData.tracks || []);
+          setRecentTracks(applyCdnToTracks(recentData.tracks || []));
         } else {
           console.warn('Erreur lors du chargement des pistes récentes:', recentResponse.status);
         }
@@ -194,7 +195,7 @@ export default function LibraryPage() {
         const favoritesResponse = await fetch(`/api/tracks?liked=true&limit=${favoritesLimit}`, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate', 'Pragma': 'no-cache' } });
         if (favoritesResponse.ok) {
           const favoritesData = await favoritesResponse.json();
-          setFavoriteTracks(favoritesData.tracks || []);
+          setFavoriteTracks(applyCdnToTracks(favoritesData.tracks || []));
         } else {
           console.warn('Erreur lors du chargement des favoris:', favoritesResponse.status);
         }

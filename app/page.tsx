@@ -12,6 +12,8 @@ import CommentButton from '@/components/CommentButton';
 import { AnimatedPlaysCounter, AnimatedLikeCounter } from '@/components/AnimatedCounter';
 import { DiscoverPageSkeleton } from '@/components/Skeletons';
 import { EmptyState } from '@/components/Skeletons';
+import { applyCdnToTracks, applyCdnToUsers } from '@/lib/cdnHelpers';
+import MeteoWidget from '@/components/MeteoWidget';
 
 import SocialStats from '@/components/SocialStats';
 import FollowButton from '@/components/FollowButton';
@@ -379,7 +381,9 @@ export default function HomePage() {
           throw new Error('Format de réponse invalide');
         }
         
-        const tracksWithLikes = data.tracks.map((track: any) => ({
+        // Appliquer le CDN et ajouter les likes
+        const cdnTracks = applyCdnToTracks(data.tracks);
+        const tracksWithLikes = cdnTracks.map((track: any) => ({
           ...track,
           likes: track.likes || 0,
           isLiked: false
@@ -1911,7 +1915,7 @@ export default function HomePage() {
                                           IA
                                         </span>
                                       )}
-                                    </div>
+                </div>
                 </div>
                                   <div className="absolute inset-0 flex items-center justify-center rounded-lg transition-colors duration-150 text-[var(--text)] bg-transparent">
                                     {currentTrack?._id === track._id && audioState.isPlaying ? (
@@ -1919,7 +1923,7 @@ export default function HomePage() {
                                     ) : (
                                       <Play size={18} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                                     )}
-                </div>
+              </div>
                                 </button>
 
                                 <div className="flex flex-col gap-1 min-w-0 flex-1">
@@ -2586,8 +2590,10 @@ export default function HomePage() {
 
       {/* Dialog Radio supprimé - remplacé par un dépliant intégré dans la section radio */}
 
-
-
+      {/* Widget Météo Alertemps - Discret en bas de page */}
+      <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6 mt-8 mb-4">
+        <MeteoWidget />
+      </div>
 
         </div>
       </div>

@@ -20,6 +20,7 @@ import DownloadDialog from './DownloadDialog';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
 import FollowButton from './FollowButton';
 import { sendTrackEvents } from '@/lib/analyticsClient';
+import { getCdnUrl } from '@/lib/cdn';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -223,11 +224,11 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const prevTrack = useMemo(() => (currentIndex > 0 ? audioState.tracks[currentIndex - 1] : null), [audioState.tracks, currentIndex]);
   const nextTrackMemo = useMemo(() => (currentIndex + 1 < audioState.tracks.length ? audioState.tracks[currentIndex + 1] : null), [audioState.tracks, currentIndex]);
 
-  // Préchargement ciblé des covers adjacentes
-  useEffect(() => {
-    const urls = [getCoverUrl(prevTrack), getCoverUrl(nextTrackMemo)].filter(Boolean) as string[];
-    urls.forEach((u) => preloadImage(u));
-  }, [prevTrack, nextTrackMemo, getCoverUrl, preloadImage]);
+    // Préchargement ciblé des covers adjacentes
+    useEffect(() => {
+      const urls = [getCoverUrl(prevTrack), getCoverUrl(nextTrackMemo)].filter(Boolean).map(u => getCdnUrl(u)!) as string[];
+      urls.forEach((u) => preloadImage(u));
+    }, [prevTrack, nextTrackMemo, getCoverUrl, preloadImage]);
 
   // Variants d'animation de page
   const pageVariants = useMemo(() => ({
@@ -242,7 +243,8 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   // Mettre à jour le gradient quand la piste change
   useEffect(() => {
     let cancelled = false;
-    const url = getCoverUrl(currentTrack);
+    const rawUrl = getCoverUrl(currentTrack);
+    const url = getCdnUrl(rawUrl) || rawUrl;
     const seed = `${currentTrack?.title || ''}-${currentTrack?.artist?.name || currentTrack?.artist?.username || ''}`;
     (async () => {
       const next = await computeGradientFromCover(url, seed);
@@ -287,7 +289,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       
       try {
         // Créer un élément audio pour précharger
-        const audio = new Audio(track.audioUrl);
+        const audio = new Audio(getCdnUrl(track.audioUrl) || track.audioUrl);
         audio.preload = 'metadata';
         audio.crossOrigin = 'anonymous';
         
@@ -568,6 +570,93 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     setVolume(volume);
   }, [setVolume]);
 
+  // Effets cover: tilt léger + halo/anneau
+  const coverRef = useRef<HTMLDivElement>(null);
+  const tiltRafRef = useRef<number | null>(null);
+  const handleCoverMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const el = coverRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const nx = (e.clientX - rect.left) / rect.width;   // 0..1
+    const ny = (e.clientY - rect.top) / rect.height;   // 0..1
+    const rx = (0.5 - ny) * 6; // max 6deg
+    const ry = (nx - 0.5) * 6;
+    if (tiltRafRef.current) cancelAnimationFrame(tiltRafRef.current);
+    tiltRafRef.current = requestAnimationFrame(() => {
+      el.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+    });
+  }, []);
+  const handleCoverMouseLeave = useCallback(() => {
+    const el = coverRef.current;
+    if (!el) return;
+    el.style.transform = 'perspective(800px) rotateX(0deg) rotateY(0deg)';
+  }, []);
+
+  // Scrubbing (drag sur la barre de progression)
+  const progressRef = useRef<HTMLDivElement>(null);
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [scrubPct, setScrubPct] = useState<number | null>(null);
+  const [scrubTime, setScrubTime] = useState<number>(0);
+  const scrubRafRef = useRef<number | null>(null);
+
+  const computeScrubFromClientX = useCallback((clientX: number) => {
+    const el = progressRef.current;
+    if (!el || !audioState.duration) return;
+    const rect = el.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    const t = pct * audioState.duration;
+    // raf pour limiter le re-render
+    if (scrubRafRef.current) cancelAnimationFrame(scrubRafRef.current);
+    scrubRafRef.current = requestAnimationFrame(() => {
+      setScrubPct(pct);
+      setScrubTime(t);
+    });
+  }, [audioState.duration]);
+
+  const onScrubStart = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
+    if (!audioState.duration) return;
+    setIsScrubbing(true);
+    if ('touches' in e && e.touches[0]) {
+      computeScrubFromClientX(e.touches[0].clientX);
+    } else if ('clientX' in e) {
+      computeScrubFromClientX((e as React.MouseEvent<HTMLDivElement>).clientX);
+    }
+  }, [audioState.duration, computeScrubFromClientX]);
+
+  const onScrubMove = useCallback((ev: MouseEvent | TouchEvent) => {
+    if (!isScrubbing) return;
+    if ('touches' in ev && (ev as TouchEvent).touches[0]) {
+      computeScrubFromClientX((ev as TouchEvent).touches[0].clientX);
+    } else if ('clientX' in ev) {
+      computeScrubFromClientX((ev as MouseEvent).clientX);
+    }
+  }, [isScrubbing, computeScrubFromClientX]);
+
+  const onScrubEnd = useCallback(() => {
+    if (!isScrubbing || scrubPct == null || !audioState.duration) { setIsScrubbing(false); return; }
+    const newTime = scrubPct * audioState.duration;
+    seek(newTime);
+    setIsScrubbing(false);
+    setScrubPct(null);
+  }, [isScrubbing, scrubPct, audioState.duration, seek]);
+
+  // Attacher/détacher les listeners globaux pendant le scrubbing
+  useEffect(() => {
+    if (!isScrubbing) return;
+    const move = (e: MouseEvent | TouchEvent) => onScrubMove(e);
+    const up = () => onScrubEnd();
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', up);
+    return () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      window.removeEventListener('touchmove', move as any);
+      window.removeEventListener('touchend', up);
+    };
+  }, [isScrubbing, onScrubMove, onScrubEnd]);
+
   // Fermer les menus/slider quand on clique ailleurs + gestion ESC
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -830,7 +919,8 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       try {
         setAutoTimes(null);
         if (hasTimed) return; // inutil
-        const url = currentTrack?.audioUrl;
+        const rawUrl = currentTrack?.audioUrl;
+        const url = getCdnUrl(rawUrl) || rawUrl;
         if (!url || !plainLyrics.length) return;
         const res = await fetch(url, { cache: 'force-cache' }).catch(() => null);
         if (!res || !res.ok) return;
@@ -908,29 +998,31 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
             onDragEnd={handleDragEnd}
             style={{ y: containerY }}
           >
-            {/* Fond vidéo/audio avec cover animé */}
+            {/* Fond dynamique avec gradient animé */}
             <div className="absolute inset-0 w-full h-full overflow-hidden">
-              <div className="relative w-full h-full">
-                {/* Cross-fade gradient */}
-                {prevBgGrad && (
-                  <motion.div className="absolute inset-0" initial={{ opacity: 1 }} animate={{ opacity: 0 }} transition={{ duration: 0.35 }} style={{ background: prevBgGrad }} />
-                )}
-                <motion.div className="absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35 }} style={{ background: bgGrad }} />
-                {/* Cover image avec rotation */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <motion.img
-                    src={currentTrack?.coverUrl || '/default-cover.jpg'}
-                    alt={currentTrack?.title || 'Track'}
-                    className="w-80 h-80 rounded-full object-cover shadow-2xl will-change-transform"
-                    animate={{ rotate: audioState.isPlaying ? 360 : 0 }}
-                    transition={{ duration: 6, repeat: audioState.isPlaying ? Infinity : 0, ease: 'linear' }}
-                    style={{ filter: 'blur(12px)', transform: 'scale(1.06)', y: parallaxY }}
-                  />
-                </div>
-                
-                {/* Overlay gradient */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-              </div>
+              {/* Gradient animé basé sur la cover */}
+              {prevBgGrad && (
+                <motion.div 
+                  className="absolute inset-0" 
+                  initial={{ opacity: 1 }} 
+                  animate={{ opacity: 0 }} 
+                  transition={{ duration: 0.5 }} 
+                  style={{ background: prevBgGrad }} 
+                />
+              )}
+              <motion.div 
+                className="absolute inset-0" 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                transition={{ duration: 0.5 }} 
+                style={{ background: bgGrad }} 
+              />
+              
+              {/* Overlay sombre pour contraste */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
+              
+              {/* Effet de particules/grain subtil */}
+              <div className="absolute inset-0 opacity-20 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMDAiIGhlaWdodD0iMzAwIj48ZmlsdGVyIGlkPSJhIiB4PSIwIiB5PSIwIj48ZmVUdXJidWxlbmNlIGJhc2VGcmVxdWVuY3k9Ii43NSIgc3RpdGNoVGlsZXM9InN0aXRjaCIgdHlwZT0iZnJhY3RhbE5vaXNlIi8+PGZlQ29sb3JNYXRyaXggdHlwZT0ic2F0dXJhdGUiIHZhbHVlcz0iMCIvPjwvZmlsdGVyPjxwYXRoIGQ9Ik0wIDBoMzAwdjMwMEgweiIgZmlsdGVyPSJ1cmwoI2EpIiBvcGFjaXR5PSIuMDUiLz48L3N2Zz4=')]" />
             </div>
 
             {/* Contenu principal */}
@@ -982,7 +1074,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 <div className="absolute inset-0 pointer-events-none select-none" aria-hidden>
                   {prevTrack && (
                     <img
-                      src={getCoverUrl(prevTrack)}
+                      src={getCdnUrl(getCoverUrl(prevTrack)) || ''}
                       alt=""
                       className="w-0 h-0 opacity-0 will-change-transform translate-z-0"
                       loading="eager"
@@ -991,7 +1083,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                   )}
                   {nextTrackMemo && (
                     <img
-                      src={getCoverUrl(nextTrackMemo)}
+                      src={getCdnUrl(getCoverUrl(nextTrackMemo)) || ''}
                       alt=""
                       className="w-0 h-0 opacity-0 will-change-transform translate-z-0"
                       loading="eager"
@@ -1012,7 +1104,25 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                     custom={swipeDirection}
                     transition={{ duration: 0.18, ease: 'easeOut' }}
                   >
-                  <div className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl">
+                  <div 
+                    ref={coverRef}
+                    className="relative w-64 h-64 rounded-full overflow-hidden shadow-2xl will-change-transform transition-transform duration-150"
+                    onMouseMove={handleCoverMouseMove}
+                    onMouseLeave={handleCoverMouseLeave}
+                  >
+                    {/* halo pulsé */}
+                    <div className="absolute -inset-6 rounded-full opacity-40 blur-2xl pointer-events-none"
+                         style={{
+                           background: 'radial-gradient(40% 40% at 50% 50%, rgba(168,85,247,0.6), rgba(236,72,153,0.35), transparent)'
+                         }}
+                    />
+                    {/* anneau dégradé rotatif discret */}
+                    <div className="absolute -inset-3 rounded-full border-2 pointer-events-none"
+                         style={{
+                           borderImage: 'conic-gradient(from 0deg, rgba(168,85,247,0.4), rgba(236,72,153,0.4), rgba(168,85,247,0.4)) 1',
+                           animation: audioState.isPlaying ? 'spin-slow 9s linear infinite' : 'none'
+                         }}
+                    />
                     {currentTrack?.coverUrl?.includes('res.cloudinary.com') ? (
                       <img
                         src={currentTrack.coverUrl.replace('/upload/', '/upload/f_auto,q_auto/')} 
@@ -1037,8 +1147,22 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                       </div>
                     )}
                     
-                    {/* Overlay avec icône play/pause */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                     {/* Reflet "sheen" au changement de piste */}
+                     <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                       <motion.div
+                         key={`sheen-${currentTrack?._id}-${isChangingTrack}`}
+                         initial={{ x: '-120%', opacity: 0 }}
+                         animate={{ x: '140%', opacity: 0.7 }}
+                         transition={{ duration: 0.9, ease: 'easeOut' }}
+                         className="h-full w-1/3 rotate-12"
+                         style={{
+                           background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent)'
+                         }}
+                       />
+                     </div>
+
+                     {/* Overlay avec icône play/pause */}
+                     <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                       <button
                         onClick={togglePlay}
                         disabled={audioState.isLoading || isChangingTrack}
@@ -1172,25 +1296,41 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                 </motion.div>
               </div>
 
-              {/* Barre de progression */}
-              <div className="px-4 pb-4">
-                <div 
-                  className="w-full h-1 bg-white/20 rounded-full relative cursor-pointer"
-                  onClick={handleSeek}
-                >
-                  <div 
-                    className="h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full relative transition-all duration-100"
-                    style={{ width: `${progressPercentage}%` }}
-                  >
-                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg" />
-                  </div>
-                </div>
-                
-                <div className="flex justify-between text-xs text-white/70 mt-2">
-                  <span>{formatTime(audioState.currentTime)}</span>
-                  <span>{formatTime(audioState.duration)}</span>
-                </div>
-              </div>
+               {/* Barre de progression (scrubbing + bulle temps) */}
+               <div className="px-4 pb-4 select-none">
+                 <div 
+                   ref={progressRef}
+                   className="w-full h-1.5 bg-white/15 rounded-full relative cursor-pointer"
+                   onClick={handleSeek}
+                   onMouseDown={onScrubStart}
+                   onTouchStart={onScrubStart}
+                 >
+                   {/* piste lue */}
+                   <div 
+                     className="h-full bg-gradient-to-r from-purple-400 to-pink-400 rounded-full relative"
+                     style={{ width: `${isScrubbing && scrubPct != null ? scrubPct * 100 : progressPercentage}%` }}
+                   />
+                   {/* poignée */}
+                   <div
+                     className="absolute top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow"
+                     style={{ left: `calc(${isScrubbing && scrubPct != null ? scrubPct * 100 : progressPercentage}% - 6px)` }}
+                   />
+                   {/* bulle temps */}
+                   {isScrubbing && (
+                     <div
+                       className="absolute -top-8 px-2 py-1 rounded-md bg-black/70 text-white text-[10px]"
+                       style={{ left: `calc(${(scrubPct || 0) * 100}% - 18px)` }}
+                     >
+                       {formatTime(scrubTime)}
+                     </div>
+                   )}
+                 </div>
+
+                 <div className="flex justify-between text-xs text-white/70 mt-2">
+                   <span>{formatTime(isScrubbing ? scrubTime : audioState.currentTime)}</span>
+                   <span>{formatTime(audioState.duration)}</span>
+                 </div>
+               </div>
 
               {/* Bottom sheet commentaires */}
               <AnimatePresence>

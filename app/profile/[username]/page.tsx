@@ -1446,7 +1446,7 @@ export default function ProfileUserPage() {
                         </div>
                       </div>
                       <div className="p-2 space-y-1">
-                        <button
+                                  <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
                           onClick={() => {
                             const track = userTracks.find(t => t.id === showTrackOptions);
@@ -1455,9 +1455,9 @@ export default function ProfileUserPage() {
                         >
                           <TrendingUp className="w-4 h-4 text-green-400" />
                           <span>Voir les stats</span>
-                        </button>
+                                  </button>
                         {isOwnProfile && inventory.some(it => it.status==='owned' && it.booster.type==='track') && (
-                          <button
+                                  <button
                             className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
                             onClick={async () => {
                               const owned = inventory.find(it => it.status==='owned' && it.booster.type==='track');
@@ -1470,7 +1470,7 @@ export default function ProfileUserPage() {
                           >
                             <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
                             <span>Activer un booster</span>
-                          </button>
+                                  </button>
                         )}
                                   <button
                           className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"

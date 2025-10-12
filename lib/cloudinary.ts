@@ -100,7 +100,7 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
   try {
     console.log('🔄 Début upload Cloudinary...');
     console.log('Options:', options);
-    console.log('Taille buffer:', file.length);
+    console.log('Taille buffer:', Buffer.byteLength(file));
     
     // Vérifier la configuration Cloudinary
     console.log('🔍 Vérification config Cloudinary...');
@@ -125,7 +125,7 @@ export const uploadImage = async (file: Buffer, options: any = {}): Promise<Clou
       
       const uploadStream = cloudinary.uploader.upload_stream(
         uploadOptions,
-        (error, result) => {
+        (error: any, result: any) => {
           if (error) {
             console.error('❌ Erreur Cloudinary dans callback:', error);
             console.error('Type d\'erreur:', error.constructor.name);
@@ -187,7 +187,7 @@ export const uploadAudio = async (file: Buffer, options: any = {}): Promise<Clou
           quality: 'auto',
           ...options,
         },
-        (error, result) => {
+        (error: any, result: any) => {
           if (error) reject(error);
           else resolve(result as CloudinaryResult);
         }

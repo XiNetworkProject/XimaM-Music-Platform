@@ -18,7 +18,8 @@ import {
   Compass,
   BookOpen,
   Users,
-  MoreHorizontal
+  MoreHorizontal,
+  Cloud
 } from 'lucide-react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useAudioPlayer } from '@/app/providers';
@@ -92,6 +93,13 @@ export default function BottomNav() {
       label: 'Abonnements',
       path: '/subscriptions',
       active: pathname === '/subscriptions',
+      public: true
+    },
+    {
+      icon: Cloud,
+      label: 'Météo',
+      path: '/meteo',
+      active: pathname === '/meteo',
       public: true
     },
     {
