@@ -3,6 +3,7 @@ import { generateCustomMusic, createProductionPrompt } from "@/lib/suno";
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { getEntitlements } from '@/lib/entitlements';
 
 const BASE = "https://api.sunoapi.org";
@@ -87,6 +88,35 @@ export async function POST(req: NextRequest) {
     const effectiveModel = allowedModels.includes(requestedModel) ? requestedModel : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
     const modelAdjusted = requestedModel !== effectiveModel;
 
+    // Vérifier le solde de crédits et débiter avant l'appel Suno
+    const { data: balanceRow } = await supabaseAdmin
+      .from('ai_credit_balances')
+      .select('balance')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    const currentBalance: number = balanceRow?.balance ?? 0;
+    if (currentBalance < CREDITS_PER_GENERATION) {
+      return NextResponse.json({
+        error: 'Crédits insuffisants',
+        insufficientCredits: true,
+        required: CREDITS_PER_GENERATION,
+        balance: currentBalance,
+      }, { status: 402 });
+    }
+
+    // Débit des crédits (sécurisé en SQL)
+    const { data: debitOk, error: debitError } = await (supabaseAdmin as any)
+      .rpc('ai_debit_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+    if (debitError || debitOk !== true) {
+      return NextResponse.json({
+        error: 'Impossible de débiter les crédits',
+        insufficientCredits: true,
+        required: CREDITS_PER_GENERATION,
+        balance: currentBalance,
+      }, { status: 402 });
+    }
+
     // Validation minimale selon les règles customMode
     // Le titre est optionnel: si absent, Suno le génère automatiquement
     if (!body.style) {
@@ -141,6 +171,10 @@ export async function POST(req: NextRequest) {
     
     if (!response.ok) {
       console.error("❌ Erreur API Suno:", json);
+      // Rembourser les crédits en cas d'échec immédiat
+      try {
+        await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+      } catch {}
       return NextResponse.json(
         { error: json?.msg || "Erreur Suno", raw: json }, 
         { status: response.status }
@@ -167,6 +201,11 @@ export async function POST(req: NextRequest) {
     console.log("✅ Génération Suno réussie:", json);
     // Retourner un schéma compatible frontend: taskId à la racine
     const rootTaskId = json?.data?.taskId || json?.taskId || taskId;
+    const { data: newBalanceRow } = await supabaseAdmin
+      .from('ai_credit_balances')
+      .select('balance')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
     return NextResponse.json({
       taskId: rootTaskId,
       code: json?.code,
@@ -180,6 +219,10 @@ export async function POST(req: NextRequest) {
         limit: entitlements.ai.maxGenerationsPerMonth,
         used: (usedThisMonth || 0) + 1,
         remaining: remaining - 1
+      },
+      credits: {
+        debited: CREDITS_PER_GENERATION,
+        balance: newBalanceRow?.balance ?? (currentBalance - CREDITS_PER_GENERATION)
       }
     });
   } catch (error) {

@@ -316,15 +316,13 @@ export default function UploadPage() {
   const canUpload = (() => {
     if (!usage) return true;
     const overTracks = usage.tracks.limit >= 0 && usage.tracks.used >= usage.tracks.limit;
-    const overStorage = usage.storage.percentage >= 100;
-    return !(overTracks || overStorage);
+    return !overTracks;
   })();
 
   useEffect(() => {
     if (!usage) return;
     const msgs: string[] = [];
     if (usage.tracks.limit >= 0 && usage.tracks.used >= usage.tracks.limit) msgs.push('Limite de pistes atteinte');
-    if (usage.storage.percentage >= 100) msgs.push('Stockage plein');
     setBlockedMsg(msgs.length ? msgs.join(' • ') : null);
   }, [usage]);
 
@@ -394,7 +392,7 @@ export default function UploadPage() {
         return;
       }
       // Validation taille par plan
-      const planMaxMb = (planKey === 'starter' ? 100 : planKey === 'pro' ? 200 : planKey === 'enterprise' ? 500 : 50);
+      const planMaxMb = (planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? 1000 : 80);
       const sizeMb = file.size / 1024 / 1024;
       if (sizeMb > planMaxMb) {
         notify.error('Fichier trop volumineux', `Fichier trop volumineux pour votre plan (${sizeMb.toFixed(1)} MB). Limite: ${planMaxMb} MB.`);
@@ -662,7 +660,7 @@ export default function UploadPage() {
                           <p className="text-white/60 text-sm">ou cliquez pour sélectionner</p>
                         </div>
                         <p className="text-xs sm:text-sm text-white/40">
-                          Formats supportés: MP3, WAV, FLAC — limites: Free 50 MB · Starter 100 MB · Pro 200 MB
+                          Formats supportés: MP3, WAV, FLAC — limites: Free 80 MB · Starter 200 MB · Pro 500 MB
                         </p>
                       </div>
                       </div>
@@ -1000,50 +998,7 @@ export default function UploadPage() {
                     </div>
                   )}
 
-                  {/* Prévisualisation impact stockage */}
-                  {usage && (
-                    <div className="bg-white/[0.02] border border-[var(--border)] rounded-lg p-3">
-                      <h4 className="text-sm font-medium text-white/80 mb-2">Impact sur votre stockage</h4>
-                      <div className="space-y-2 text-xs text-white/70">
-                        <div className="flex justify-between">
-                          <span>Stockage actuel :</span>
-                          <span>{usage.storage.used.toFixed(2)} / {usage.storage.limit} GB</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Taille audio :</span>
-                          <span>+{((audioFile?.size || 0) / 1024 / 1024 / 1024).toFixed(3)} GB</span>
-                        </div>
-                        {coverFile && (
-                          <div className="flex justify-between">
-                            <span>Taille cover :</span>
-                            <span>+{((coverFile?.size || 0) / 1024 / 1024 / 1024).toFixed(3)} GB</span>
-                          </div>
-                        )}
-                        <div className="border-t border-white/10 pt-2 flex justify-between font-medium">
-                          <span>Après upload :</span>
-                          <span className={`${
-                            (usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) > usage.storage.limit 
-                              ? 'text-red-400' 
-                              : 'text-green-400'
-                          }`}>
-                            {(usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024).toFixed(2)} / {usage.storage.limit} GB
-                          </span>
-                        </div>
-                        <div className="w-full bg-white/10 rounded-full h-1.5 mt-2">
-                          <div
-                            className={`h-1.5 rounded-full transition-all duration-300 ${
-                              (usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) > usage.storage.limit
-                                ? 'bg-red-500'
-                                : 'bg-green-500'
-                            }`}
-                            style={{ 
-                              width: `${Math.min(100, ((usage.storage.used + ((audioFile?.size || 0) + (coverFile?.size || 0)) / 1024 / 1024 / 1024) / usage.storage.limit) * 100)}%` 
-                            }}
-                          />
-                  </div>
-                </div>
-                    </div>
-                  )}
+                  {/* Section impact stockage supprimée */}
                 </motion.div>
               )}
             </AnimatePresence>

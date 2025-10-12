@@ -147,10 +147,7 @@ function SubscriptionSuccessContent() {
                     <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
                     <span className="text-gray-300">Support prioritaire</span>
                   </div>
-                  <div className="flex items-center text-sm">
-                    <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                    <span className="text-gray-300">Stockage étendu</span>
-                  </div>
+                  
                 </div>
               </div>
             </motion.div>

@@ -30,6 +30,12 @@ export async function GET(_req: NextRequest) {
 
     const used_this_month = count || 0;
     const remaining = Math.max(0, monthly_limit - used_this_month);
+    // Ajouter info crédits pour l’UI
+    const { data: creditRow } = await supabaseAdmin
+      .from('ai_credit_balances')
+      .select('balance')
+      .eq('user_id', userId)
+      .maybeSingle();
     const reset = new Date(startOfMonth);
     reset.setMonth(reset.getMonth() + 1);
 
@@ -42,6 +48,8 @@ export async function GET(_req: NextRequest) {
       reset_date: reset.toISOString(),
       remaining,
       aiGenerationEnabled: entitlements.features.aiGeneration,
+      monthlyCredits: entitlements.ai.monthlyCredits ?? 0,
+      creditBalance: creditRow?.balance ?? 0,
     });
   } catch (e: any) {
     return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });

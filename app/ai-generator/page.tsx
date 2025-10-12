@@ -4,7 +4,9 @@
 import React, { useState, useEffect } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins } from 'lucide-react';
+import BuyCreditsModal from '@/components/BuyCreditsModal';
+import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
 import { useAudioPlayer } from '@/app/providers';
 import { useSunoWaiter } from '@/hooks/useSunoWaiter';
@@ -51,6 +53,8 @@ export default function AIGenerator() {
   const { generations: bgGenerations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
   
   const [isGenerating, setIsGenerating] = useState(false);
+  const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [generatedTrack, setGeneratedTrack] = useState<GeneratedTrack | null>(null);
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'pending' | 'completed' | 'failed'>('idle');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
@@ -83,6 +87,13 @@ export default function AIGenerator() {
   const [weirdness, setWeirdness] = useState<number>(50);
   const [styleInfluence, setStyleInfluence] = useState<number>(50);
   const [audioWeight, setAudioWeight] = useState<number>(50);
+
+  useEffect(() => {
+    (async () => {
+      const data = await fetchCreditsBalance();
+      if (data && typeof data.balance === 'number') setCreditsBalance(data.balance);
+    })();
+  }, []);
   const [vocalGender, setVocalGender] = useState<string>(''); // 'm' | 'f' | ''
   const [negativeTags, setNegativeTags] = useState<string>('');
 
@@ -373,10 +384,17 @@ export default function AIGenerator() {
       });
 
       if (!response.ok) {
+        // Crédit insuffisant → ouvrir le modal d’achat
+        if (response.status === 402) {
+          setShowBuyCredits(true);
+        }
         throw new Error('Erreur lors de la génération');
       }
 
       const data = await response.json();
+      if (data?.credits?.balance != null) {
+        setCreditsBalance(data.credits.balance);
+      }
 
       // Synchroniser le modèle effectif et informer en cas de downgrade
       if (data?.model) {
@@ -502,9 +520,20 @@ export default function AIGenerator() {
       {/* Header */}
       <div className="container mx-auto px-4 py-8 pb-24">
 
-        {/* Model Display (pill) */}
+        {/* Solde crédits + Model Display */}
         <div className="max-w-2xl mx-auto mb-6">
           <div className="flex flex-wrap items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowBuyCredits(true)}
+              className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[12px]"
+              aria-label="Acheter des crédits"
+              title="Acheter des crédits"
+            >
+              <Coins className="w-4 h-4 text-yellow-300" />
+              <span>{creditsBalance} crédits</span>
+              <span className="text-[var(--text-muted)]">(≈ {Math.floor(creditsBalance / 12)} gen)</span>
+            </button>
             <span className={`relative inline-flex items-center gap-2 px-3 py-1 text-[12px] leading-[20px] rounded-full border border-[var(--border)] bg-[var(--surface-2)] ${modelVersion === 'V5' ? 'text-blue-400 border-blue-400/30 bg-blue-400/10' : modelVersion === 'V4_5PLUS' ? 'text-purple-400 border-purple-400/30 bg-purple-400/10' : ''}`}>
               Modèle: {modelVersion === 'V5' ? 'V5 (Beta)' : modelVersion === 'V4_5PLUS' ? 'V4.5+' : modelVersion.replace('_', '.')}
             </span>
@@ -1063,6 +1092,8 @@ export default function AIGenerator() {
           </motion.div>
         )}
           </div>
+
+      <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
     </div>
   );
 }

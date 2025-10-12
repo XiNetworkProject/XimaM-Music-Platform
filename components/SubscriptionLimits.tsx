@@ -16,11 +16,7 @@ interface UsageInfo {
     limit: number;
     percentage: number;
   };
-  storage: {
-    used: number;
-    limit: number;
-    percentage: number;
-  };
+  // stockage supprimé
 }
 
 interface SubscriptionData {
@@ -29,7 +25,6 @@ interface SubscriptionData {
   limits: {
     maxTracks: number;
     maxPlaylists: number;
-    maxStorageGB: number;
   };
 }
 
@@ -197,15 +192,9 @@ export default function SubscriptionLimits() {
             <div className="space-y-4">
               {Object.entries(usageInfo).map(([key, data], index) => {
                 const label = key === 'tracks' ? 'Pistes' : 
-                             key === 'playlists' ? 'Playlists' :
-                             key === 'storage' ? 'Stockage (GB)' : key;
+                             key === 'playlists' ? 'Playlists' : key;
                 
-                const formatValue = (value: number) => {
-                  if (key === 'storage') {
-                    return value.toFixed(2);
-                  }
-                  return value.toString();
-                };
+                const formatValue = (value: number) => value.toString();
 
                 return (
                   <motion.div 

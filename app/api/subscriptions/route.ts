@@ -18,23 +18,23 @@ export async function GET(request: NextRequest) {
     const subscriptionPlans = [
       {
         id: 'free',
-        name: 'Gratuit',
+        name: 'free',
         price: 0,
         currency: 'EUR',
         interval: 'mois',
-        description: 'Accès limité aux fonctionnalités de base',
+        description: 'Essentiel pour démarrer',
         features: [
-          '5 pistes maximum',
-          '3 playlists maximum',
-          '500MB de stockage',
+          '50 crédits offerts à l’inscription (≈ 4 générations)',
+          '10 pistes maximum',
+          '5 playlists maximum',
           'Qualité audio standard',
           'Support communautaire'
         ],
         limits: {
-          maxTracks: 5,
-          maxPlaylists: 3,
-          maxStorageGB: 0.5,
+          maxTracks: 10,
+          maxPlaylists: 5,
           audioQuality: 'Standard',
+          fileMaxMb: 80,
           ads: true,
           analytics: false,
           collaborations: false,
@@ -42,61 +42,88 @@ export async function GET(request: NextRequest) {
           support: 'Communautaire'
         },
         popular: false,
-        recommended: false
+        recommended: false,
+        creditsMonthly: 0
       },
       {
-        id: 'pro',
-        name: 'Pro',
+        id: 'starter',
+        name: 'starter',
         price: 9.99,
         currency: 'EUR',
         interval: 'mois',
-        description: 'Pour les créateurs sérieux',
+        description: 'Pour créer régulièrement',
         features: [
-          '100 pistes maximum',
-          '50 playlists maximum',
-          '10GB de stockage',
-          'Qualité audio HD',
-          'Sans publicités',
-          'Analytics avancées',
-          'Support prioritaire'
+          '120 crédits / mois (≈ 10 générations)',
+          '20 pistes / mois',
+          '20 playlists',
+          'Qualité audio 256 kbps',
+          'Sans publicités'
         ],
         limits: {
-          maxTracks: 100,
-          maxPlaylists: 50,
-          maxStorageGB: 10,
-          audioQuality: 'HD',
+          maxTracks: 20,
+          maxPlaylists: 20,
+          audioQuality: '256kbps',
+          fileMaxMb: 200,
           ads: false,
           analytics: true,
           collaborations: false,
           apiAccess: false,
-          support: 'Prioritaire'
+          support: 'Standard'
         },
         popular: true,
-        recommended: true
+        recommended: true,
+        creditsMonthly: 120
       },
       {
-        id: 'premium',
-        name: 'Premium',
+        id: 'pro',
+        name: 'pro',
         price: 19.99,
         currency: 'EUR',
         interval: 'mois',
-        description: 'Pour les artistes professionnels',
+        description: 'Pour les créateurs avancés',
         features: [
+          '360 crédits / mois (≈ 30 générations)',
+          '50 pistes / mois',
+          'Playlists illimitées',
+          'Qualité audio 320 kbps',
+          'Analytics avancées',
+          'Support prioritaire'
+        ],
+        limits: {
+          maxTracks: 50,
+          maxPlaylists: -1,
+          audioQuality: '320kbps',
+          fileMaxMb: 500,
+          ads: false,
+          analytics: true,
+          collaborations: true,
+          apiAccess: false,
+          support: 'Prioritaire'
+        },
+        popular: false,
+        recommended: false,
+        creditsMonthly: 360
+      },
+      {
+        id: 'enterprise',
+        name: 'enterprise',
+        price: 39.99,
+        currency: 'EUR',
+        interval: 'mois',
+        description: 'Pour les équipes et studios',
+        features: [
+          '1200 crédits / mois (≈ 100 générations)',
           'Pistes illimitées',
           'Playlists illimitées',
-          '100GB de stockage',
           'Qualité audio Ultra HD',
-          'Sans publicités',
-          'Analytics complètes',
-          'Collaborations',
-          'Accès API',
+          'Collaborations + API',
           'Support dédié'
         ],
         limits: {
-          maxTracks: -1, // Illimité
-          maxPlaylists: -1, // Illimité
-          maxStorageGB: 100,
+          maxTracks: -1,
+          maxPlaylists: -1,
           audioQuality: 'Ultra HD',
+          fileMaxMb: 1000,
           ads: false,
           analytics: true,
           collaborations: true,
@@ -104,7 +131,8 @@ export async function GET(request: NextRequest) {
           support: 'Dédié'
         },
         popular: false,
-        recommended: false
+        recommended: false,
+        creditsMonthly: 1200
       }
     ];
 

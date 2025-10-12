@@ -562,7 +562,6 @@ export default function SubscriptionPlans() {
                       <h3 className="text-2xl font-bold text-white capitalize mb-2">
                         {plan.name === 'free' ? 'Gratuit' :
                          plan.name === 'starter' ? 'Starter' :
-                         plan.name === 'creator' ? 'Creator' :
                          plan.name === 'pro' ? 'Pro' : 'Enterprise'}
                       </h3>
                       <div className="text-4xl font-bold text-white mb-1">
@@ -573,8 +572,19 @@ export default function SubscriptionPlans() {
                       </div>
                     </div>
 
-                    {/* Limits */}
+                    {/* Credits + Limits */}
                     <div className="space-y-3 mb-6">
+                      {Boolean((plan as any).creditsMonthly) && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-300 flex items-center space-x-2">
+                            <Sparkles size={14} />
+                            <span>Crédits IA / mois</span>
+                          </span>
+                          <span className="text-white font-semibold">
+                            {(plan as any).creditsMonthly} (≈ {Math.floor(((plan as any).creditsMonthly || 0) / 12)} gen)
+                          </span>
+                        </div>
+                      )}
                                              <div className="flex items-center justify-between text-sm">
                          <span className="text-gray-300 flex items-center space-x-2">
                            <Upload size={14} />
@@ -582,15 +592,6 @@ export default function SubscriptionPlans() {
                          </span>
                          <span className="text-white font-semibold">
                            {plan.limits.maxTracks === -1 ? 'Illimité' : plan.limits.maxTracks.toLocaleString()}/mois
-                         </span>
-                       </div>
-                       <div className="flex items-center justify-between text-sm">
-                         <span className="text-gray-300 flex items-center space-x-2">
-                           <MessageCircle size={14} />
-                           <span>Stockage</span>
-                         </span>
-                         <span className="text-white font-semibold">
-                           {plan.limits.maxStorageGB === -1 ? 'Illimité' : plan.limits.maxStorageGB.toLocaleString()}GB
                          </span>
                        </div>
                        <div className="flex items-center justify-between text-sm">
@@ -620,6 +621,15 @@ export default function SubscriptionPlans() {
                            {getQualityLabel(plan.limits.audioQuality)}
                          </span>
                        </div>
+                       {(plan as any).limits?.fileMaxMb && (
+                         <div className="flex items-center justify-between text-sm">
+                           <span className="text-gray-300 flex items-center space-x-2">
+                             <Upload size={14} />
+                             <span>Taille max fichier</span>
+                           </span>
+                           <span className="text-white font-semibold">{(plan as any).limits.fileMaxMb} MB</span>
+                         </div>
+                       )}
                     </div>
 
                     {/* Features */}

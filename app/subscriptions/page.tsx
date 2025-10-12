@@ -1,15 +1,17 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Calendar, Clock } from 'lucide-react';
+import { Calendar, Clock, Coins } from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
 import PaymentUpdateCard from './PaymentUpdateCard';
 import { getEntitlements, PLAN_ENTITLEMENTS } from '@/lib/entitlements';
+import BuyCreditsModal from '@/components/BuyCreditsModal';
+import { fetchCreditsBalance } from '@/lib/credits';
 
 type UsageInfo = {
   tracks: { used: number; limit: number; percentage: number };
   playlists: { used: number; limit: number; percentage: number };
-  storage: { used: number; limit: number; percentage: number };
+  // stockage supprimé
 };
 
 type CurrentSubscription = {
@@ -33,6 +35,8 @@ export default function SubscriptionsPage() {
   const [period, setPeriod] = useState<'month' | 'year'>('year');
   const [selectedPriceId, setSelectedPriceId] = useState<string>('');
   const [paid, setPaid] = useState(false);
+  const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
   const payRef = useRef<HTMLDivElement>(null);
   const pmRef = useRef<HTMLDivElement>(null);
   const [pmList, setPmList] = useState<any[]>([]);
@@ -50,12 +54,14 @@ export default function SubscriptionsPage() {
   const fetchAll = useMemo(() => {
     return async () => {
       try {
-        const [u, c] = await Promise.all([
+        const [u, c, b] = await Promise.all([
           fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null)
+          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetchCreditsBalance().catch(() => ({ balance: 0 }))
         ]);
         if (u) setUsage(u);
         if (c) setCurrent(c);
+        if (b && typeof (b as any).balance === 'number') setCreditsBalance((b as any).balance);
       } catch {}
     };
   }, []);
@@ -213,7 +219,7 @@ export default function SubscriptionsPage() {
     if (!usage) return [] as string[];
     const warns: string[] = [];
     if (usage.tracks.percentage >= 90) warns.push('Vos pistes sont presque au maximum.');
-    if (usage.storage.percentage >= 90) warns.push('Votre stockage est presque plein.');
+    // stockage supprimé
     if (usage.playlists.percentage >= 90) warns.push('Vos playlists sont presque au maximum.');
     return warns;
   }, [usage]);
@@ -233,11 +239,7 @@ export default function SubscriptionsPage() {
     return `${usage.tracks.used}/${usage.tracks.limit}`;
   }, [usage]);
 
-  const storageText = useMemo(() => {
-    if (!usage) return '—';
-    const used = typeof usage.storage.used === 'number' ? usage.storage.used.toFixed(2) : usage.storage.used;
-    return `${used}/${usage.storage.limit} GB`;
-  }, [usage]);
+  // stockage supprimé
 
   const playlistsText = useMemo(() => {
     if (!usage) return '—';
@@ -356,13 +358,14 @@ export default function SubscriptionsPage() {
                   <span className="text-xs text-[var(--text-muted)]/90">Pistes uploadées</span>
                   <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{uploadsText}</span></span>
                 </div>
-                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                  <span className="text-xs text-[var(--text-muted)]/90">Stockage</span>
-                  <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{storageText}</span></span>
-                </div>
+                
                 <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
                   <span className="text-xs text-[var(--text-muted)]/90">Playlists</span>
                   <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{playlistsText}</span></span>
+                </div>
+                <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
+                  <span className="text-xs text-[var(--text-muted)]/90">Crédits restants</span>
+                  <span className="text-sm text-[var(--text)]"><span className="rounded-md border border-[var(--border)]/60 bg-white/5 px-2 py-0.5">{creditsBalance} (≈ {Math.floor(creditsBalance/12)} gen)</span></span>
                 </div>
               </div>
 
@@ -381,8 +384,8 @@ export default function SubscriptionsPage() {
                   <span className="relative flex flex-row items-center justify-center gap-2">Mettre à jour le paiement</span>
                 </button>
                 <div className="flex">
-                  <button type="button" className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]">
-                    <span className="relative flex flex-row items-center justify-center gap-2">Acheter plus</span>
+                  <button type="button" onClick={() => setShowBuyCredits(true)} className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.25)]">
+                    <span className="relative flex flex-row items-center justify-center gap-2"><Coins className="w-4 h-4"/>Acheter des crédits</span>
                   </button>
                 </div>
                 {!isFreeActive && (
@@ -488,12 +491,13 @@ export default function SubscriptionsPage() {
             period={period}
             disabled={isFreeActive}
             isActive={isFreeActive}
-            limits={{ tracks: '5/mois', storage: '0.5 GB', playlists: '3', quality: '128 kbps', ai: `${PLAN_ENTITLEMENTS.free.ai.maxGenerationsPerMonth}/mois` }}
+            limits={{ tracks: '10/mois', playlists: '5', quality: '128 kbps', credits: `${PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0} (≈ ${Math.floor((PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0)/12)} gen)`, file: '80 MB' }}
+            monthlyCredits={PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0}
             features={[
               'Profil public et bibliothèque',
               'Uploads limités',
               'Lecture et découverte de base',
-              '1 génération IA/mois',
+              '50 crédits de bienvenue (≈ 4 gén.)',
               'Modèle V4.5 uniquement'
             ]}
             onChoose={async () => {
@@ -515,9 +519,10 @@ export default function SubscriptionsPage() {
             disabled={isStarterActive}
             isActive={isStarterActive}
             launchDiscount={60} // 60% de réduction pour le lancement
-            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', ai: `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}/mois` }}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`, playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`, quality: '256 kbps', credits: `${PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0} (≈ ${Math.floor((PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0)/12)} gen)`, file: '200 MB' }}
+            monthlyCredits={PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0}
             features={[
-              `${PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth} générations IA/mois`,
+              `${PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0} crédits / mois (≈ ${Math.floor((PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0)/12)} gén.)`,
               'Modèles V4.5 et V4.5+',
               PLAN_ENTITLEMENTS.starter.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.starter.features.adFree ? 'Sans publicité' : '',
@@ -537,9 +542,10 @@ export default function SubscriptionsPage() {
             disabled={isProActive}
             isActive={isProActive}
             launchDiscount={50} // 50% de réduction pour le lancement
-            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, storage: `${PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB`, playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}/mois` }}
+            limits={{ tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`, playlists: 'Illimité', quality: '320 kbps', credits: `${PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0} (≈ ${Math.floor((PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0)/12)} gen)`, file: '500 MB' }}
+            monthlyCredits={PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0}
             features={[
-              `${PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth} générations IA/mois`,
+              `${PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0} crédits / mois (≈ ${Math.floor((PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0)/12)} gén.)`,
               'Tous les modèles IA (V4.5, V4.5+, V5)',
               PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
               PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists ? 'Playlists collaboratives' : '',
@@ -557,9 +563,10 @@ export default function SubscriptionsPage() {
             priceMonthly={59.99}
             period={period}
             disabled
-            limits={{ tracks: 'Illimité', storage: 'Illimité', playlists: 'Illimité', quality: '320 kbps', ai: `${PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}/mois` }}
+            limits={{ tracks: 'Illimité', playlists: 'Illimité', quality: '320 kbps', credits: `${PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0} (≈ ${Math.floor((PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0)/12)} gen)`, file: '1000 MB' }}
+            monthlyCredits={PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0}
             features={[
-              `${PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth} générations IA/mois`,
+              `${PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0} crédits / mois (≈ ${Math.floor((PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0)/12)} gén.)`,
               'Tous les modèles IA (V4.5, V4.5+, V5)',
               'Accès à la messagerie',
               'Analyses avancées',
@@ -581,16 +588,12 @@ export default function SubscriptionsPage() {
           <div className="text-white/80">Enterprise</div>
 
           <div className="text-white/60">Pistes/mois</div>
-          <div>5</div>
+          <div>10</div>
           <div>{PLAN_ENTITLEMENTS.starter.uploads.maxTracks}</div>
           <div>{PLAN_ENTITLEMENTS.pro.uploads.maxTracks}</div>
           <div>Illimité</div>
 
-          <div className="text-white/60">Stockage</div>
-          <div>0.5 GB</div>
-          <div>{PLAN_ENTITLEMENTS.starter.uploads.maxStorageGb} GB</div>
-          <div>{PLAN_ENTITLEMENTS.pro.uploads.maxStorageGb} GB</div>
-          <div>Illimité</div>
+          
 
           <div className="text-white/60">Playlists</div>
           <div>3</div>
@@ -598,11 +601,11 @@ export default function SubscriptionsPage() {
           <div>Illimité</div>
           <div>Illimité</div>
 
-          <div className="text-white/60">Générations IA/mois</div>
-          <div>{PLAN_ENTITLEMENTS.free.ai.maxGenerationsPerMonth}</div>
-          <div>{PLAN_ENTITLEMENTS.starter.ai.maxGenerationsPerMonth}</div>
-          <div>{PLAN_ENTITLEMENTS.pro.ai.maxGenerationsPerMonth}</div>
-          <div>{PLAN_ENTITLEMENTS.enterprise.ai.maxGenerationsPerMonth}</div>
+          <div className="text-white/60">Crédits/mois (≈ gen)</div>
+          <div>{PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0} (≈ {Math.floor((PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0)/12)})</div>
+          <div>{PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0} (≈ {Math.floor((PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0)/12)})</div>
+          <div>{PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0} (≈ {Math.floor((PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0)/12)})</div>
+          <div>{PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0} (≈ {Math.floor((PLAN_ENTITLEMENTS.enterprise.ai.monthlyCredits ?? 0)/12)})</div>
 
           <div className="text-white/60">Qualité audio</div>
           <div>{PLAN_ENTITLEMENTS.free.audio.maxQualityKbps} kbps</div>
@@ -627,6 +630,9 @@ export default function SubscriptionsPage() {
           <div>—</div>
           <div>{PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Oui' : '—'}</div>
           <div>Oui</div>
+        </div>
+        <div className="mt-3 text-center text-xs text-white/60">
+          1 génération = 12 crédits. Les crédits non utilisés sont conservés.
         </div>
       </div>
 
@@ -667,6 +673,7 @@ export default function SubscriptionsPage() {
           </div>
         </div>
       )}
+      <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
     </div>
   );
 }
@@ -723,7 +730,8 @@ function PlanCard({
   limits,
   features,
   onChoose,
-  launchDiscount
+  launchDiscount,
+  monthlyCredits
 }: {
   title: string;
   badge?: string;
@@ -732,10 +740,11 @@ function PlanCard({
   period: 'month' | 'year';
   disabled?: boolean;
   isActive?: boolean;
-  limits: { tracks: string; storage: string; playlists: string; quality: string; ai?: string };
+  limits: { tracks: string; playlists: string; quality: string; ai?: string; credits?: string; file?: string };
   features?: string[];
   onChoose?: () => void;
   launchDiscount?: number; // Pourcentage de réduction (50-70%)
+  monthlyCredits?: number;
 }) {
   const { price, originalPrice, discountedPrice } = useMemo(() => {
     const discount = launchDiscount || 0;
@@ -788,6 +797,11 @@ function PlanCard({
                 <div className={`${originalPrice ? 'text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent' : 'text-2xl'}`}>
                   {price}
                 </div>
+                {typeof monthlyCredits === 'number' && monthlyCredits > 0 && (
+                  <div className="text-xs text-white/70">
+                    {monthlyCredits} crédits inclus / mois (≈ {Math.floor(monthlyCredits/12)} gén.)
+                  </div>
+                )}
               </div>
             )}
             <div className="text-xs text-white/50">
@@ -803,10 +817,10 @@ function PlanCard({
 
           <div className="grid grid-cols-1 gap-2 text-sm text-white/80">
             <div className="flex items-center justify-between"><span>Pistes</span><span className="font-medium">{limits.tracks}</span></div>
-            <div className="flex items-center justify-between"><span>Stockage</span><span className="font-medium">{limits.storage}</span></div>
             <div className="flex items-center justify-between"><span>Playlists</span><span className="font-medium">{limits.playlists}</span></div>
             <div className="flex items-center justify-between"><span>Qualité</span><span className="font-medium">{limits.quality}</span></div>
-            {limits.ai && <div className="flex items-center justify-between"><span>Générations IA</span><span className="font-medium">{limits.ai}</span></div>}
+            {limits.credits && <div className="flex items-center justify-between"><span>Crédits / mois (≈ gen)</span><span className="font-medium">{limits.credits}</span></div>}
+            {limits.file && <div className="flex items-center justify-between"><span>Taille max fichier</span><span className="font-medium">{limits.file}</span></div>}
           </div>
 
           {features && features.length > 0 && (

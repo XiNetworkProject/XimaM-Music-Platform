@@ -35,14 +35,12 @@ export async function POST(request: NextRequest) {
         features: [
           '5 pistes maximum',
           '3 playlists maximum',
-          '500MB de stockage',
           'Qualité audio standard',
           'Support communautaire'
         ],
         limits: {
           maxTracks: 5,
           maxPlaylists: 3,
-          maxStorageGB: 0.5,
           audioQuality: 'Standard',
           ads: true,
           analytics: false,
@@ -63,7 +61,6 @@ export async function POST(request: NextRequest) {
         features: [
           '100 pistes maximum',
           '50 playlists maximum',
-          '10GB de stockage',
           'Qualité audio HD',
           'Sans publicités',
           'Analytics avancées',
@@ -72,7 +69,6 @@ export async function POST(request: NextRequest) {
         limits: {
           maxTracks: 100,
           maxPlaylists: 50,
-          maxStorageGB: 10,
           audioQuality: 'HD',
           ads: false,
           analytics: true,
@@ -93,7 +89,6 @@ export async function POST(request: NextRequest) {
         features: [
           'Pistes illimitées',
           'Playlists illimitées',
-          '100GB de stockage',
           'Qualité audio Ultra HD',
           'Sans publicités',
           'Analytics complètes',
@@ -104,7 +99,6 @@ export async function POST(request: NextRequest) {
         limits: {
           maxTracks: -1, // Illimité
           maxPlaylists: -1, // Illimité
-          maxStorageGB: 100,
           audioQuality: 'Ultra HD',
           ads: false,
           analytics: true,
