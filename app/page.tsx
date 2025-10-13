@@ -107,6 +107,7 @@ export default function HomePage() {
   const [isCarouselInView, setIsCarouselInView] = useState(true);
   const rafRef = useRef<number | null>(null);
   const newSongsRef = useRef<HTMLDivElement>(null);
+  const creatorsRef = useRef<HTMLDivElement>(null);
 
   // Annonces du carrousel (admin)
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -127,6 +128,13 @@ export default function HomePage() {
     const el = newSongsRef.current;
     if (!el) return;
     const cardWidth = 172 + 12; // largeur de carte + interstice approx
+    el.scrollBy({ left: (direction === 'left' ? -1 : 1) * cardWidth * 3, behavior: 'smooth' });
+  }, []);
+
+  const scrollCreators = useCallback((direction: 'left' | 'right') => {
+    const el = creatorsRef.current;
+    if (!el) return;
+    const cardWidth = 192 + 16; // largeur de carte + interstice approx (w-48 = 192px + gap-4 = 16px)
     el.scrollBy({ left: (direction === 'left' ? -1 : 1) * cardWidth * 3, behavior: 'smooth' });
   }, []);
 
@@ -2150,6 +2158,18 @@ export default function HomePage() {
               <div className="flex items-center gap-4">
                 <h2 className="font-sans font-semibold text-[20px] leading-[24px] pb-2 text-[var(--text)]">Créateurs que vous pourriez aimer</h2>
               </div>
+              <div className="hidden sm:flex items-center gap-2">
+                <button aria-label="Scroll left" onClick={() => scrollCreators('left')} className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75">
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1"><path d="m9.398 12.005 6.194-6.193q.315-.316.305-.748a1.06 1.06 0 0 0-.326-.748Q15.255 4 14.823 4t-.748.316l-6.467 6.488a1.7 1.7 0 0 0-.38.57 1.7 1.7 0 0 0-.126.631q0 .315.127.632.126.315.379.569l6.488 6.488q.316.316.738.306a1.05 1.05 0 0 0 .737-.327q.316-.316.316-.748t-.316-.748z"/></svg>
+                  </span>
+                </button>
+                <button aria-label="Scroll right" onClick={() => scrollCreators('right')} className="relative inline-block font-sans font-medium text-center select-none text-[15px] leading-[24px] rounded-full aspect-square p-2 text-[var(--text)] bg-[var(--surface-2)] hover:before:bg-[var(--surface-3)] before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75">
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1"><path d="M14.602 12.005 8.407 5.812a.99.99 0 0 1-.305-.748q.01-.432.326-.748T9.177 4t.748.316l6.467 6.488q.253.253.38.57.126.315.126.631 0 .315-.127.632-.126.315-.379.569l-6.488 6.488a.97.97 0 0 1-.738.306 1.05 1.05 0 0 1-.737-.327q-.316-.316-.316-.748t.316-.748z"/></svg>
+                  </span>
+                </button>
+              </div>
             </div>
             {usersLoading ? (
               <div className="flex items-center justify-center py-10">
@@ -2158,7 +2178,7 @@ export default function HomePage() {
             ) : (
               <div className="relative w-full overflow-hidden" style={{ height: '20.5rem' }}>
                 <div className="h-full w-full overflow-hidden [mask-image:linear-gradient(to_right,black,black_85%,transparent)] [mask-size:100%_100%] transition-[mask-image] duration-500">
-                  <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 px-1">
+                  <section className="flex h-auto w-full overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden gap-4 px-1" ref={creatorsRef}>
                 {popularUsers?.slice(0, 6).map((user, index) => (
                       <div key={user._id || user.id || index} className="relative flex h-fit w-48 shrink-0 cursor-pointer flex-col gap-4 rounded-lg p-4 transition ease-in-out hover:bg-[var(--surface-2)]/60 border border-transparent hover:border-[var(--border)]"
                         title={user.name || user.username}
