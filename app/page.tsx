@@ -1868,7 +1868,7 @@ export default function HomePage() {
                           onClick={() => router.push('/for-you', { scroll: false })}
                           className="flex cursor-pointer flex-row items-center hover:underline"
                         >
-                          <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">For You</div>
+                          <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Pour toi</div>
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 pt-0.5 text-[var(--text-muted)]">
                             <path d="m13.902 11.702-3.9-3.9a.99.99 0 1 1 1.4-1.4l4.593 4.593a1 1 0 0 1 0 1.414l-4.593 4.593a.99.99 0 1 1-1.4-1.4z" />
                           </svg>
@@ -1946,7 +1946,7 @@ export default function HomePage() {
                   <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
                       <div className="flex flex-row justify-between items-center">
-                        <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Suggested Creators</div>
+                        <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Créateurs suggérés</div>
                       </div>
                       <div className="flex flex-col gap-1">
                         {(popularUsers || [])?.slice(0, 6).map((user) => (
