@@ -765,7 +765,7 @@ export default function HomePage() {
 
       // Charger les données secondaires en parallèle
       await Promise.all([
-        fetchCategoryData('recent', '/api/tracks/recent?limit=50', forceRefresh),
+        fetchCategoryData('recent', '/api/tracks/recent?limit=50', true), // Toujours forcer le refresh pour les nouvelles musiques
         fetchCategoryData('recommended', '/api/tracks/recommended?limit=50', forceRefresh),
         fetchCategoryData('following', '/api/tracks/following?limit=50', forceRefresh),
         fetchPopularUsers(),
@@ -799,6 +799,15 @@ export default function HomePage() {
     fetchAllCategories();
   }, [fetchAllCategories]);
 
+  // Rafraîchir automatiquement les nouvelles musiques toutes les 2 minutes
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchCategoryData('recent', '/api/tracks/recent?limit=50', true);
+    }, 120000); // Toutes les 2 minutes
+    
+    return () => clearInterval(interval);
+  }, [fetchCategoryData]);
+
   // Détecter si on vient d'un upload et forcer le rechargement
   useEffect(() => {
     const isFromUpload = sessionStorage.getItem('fromUpload');
@@ -828,15 +837,15 @@ export default function HomePage() {
     dataCache.clear();
     
     const categoryApis = [
-      { key: 'forYou', url: '/api/ranking/feed?limit=50&ai=1' },
-      { key: 'trending', url: '/api/ranking/feed?limit=50' },
-      { key: 'popular', url: '/api/tracks/popular?limit=50' },
-      { key: 'recent', url: '/api/tracks/recent?limit=50' },
-      { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
-      { key: 'following', url: '/api/tracks/following?limit=50' }
+      { key: 'forYou', url: '/api/ranking/feed?limit=50&ai=1', forceRefresh: false },
+      { key: 'trending', url: '/api/ranking/feed?limit=50', forceRefresh: false },
+      { key: 'popular', url: '/api/tracks/popular?limit=50', forceRefresh: false },
+      { key: 'recent', url: '/api/tracks/recent?limit=50', forceRefresh: true }, // Toujours forcer le refresh pour les nouvelles musiques
+      { key: 'recommended', url: '/api/tracks/recommended?limit=50', forceRefresh: false },
+      { key: 'following', url: '/api/tracks/following?limit=50', forceRefresh: false }
     ];
 
-    await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url)));
+    await Promise.all(categoryApis.map(({ key, url, forceRefresh }) => fetchCategoryData(key, url, forceRefresh)));
     setRefreshing(false);
   }, [fetchCategoryData]);
 
