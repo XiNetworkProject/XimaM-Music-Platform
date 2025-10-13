@@ -71,7 +71,7 @@ interface Announcement {
 
 // Cache simple pour les données (sans les écoutes pour éviter les désynchronisations)
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
-const CACHE_DURATION = 5 * 1000; // 5 secondes (réduit encore plus pour éviter les données obsolètes)
+const CACHE_DURATION = 30 * 1000; // 30 secondes (augmenté pour réduire les appels API)
 
 export default function HomePage() {
   const { data: session } = useSession();
@@ -344,17 +344,16 @@ export default function HomePage() {
 
   // Fonction optimisée pour charger les données avec cache
   const fetchCategoryData = useCallback(async (key: string, url: string, forceRefresh = false) => {
-    // Toujours forcer le refresh pour éviter les désynchronisations d'écoutes
-    const shouldForceRefresh = forceRefresh || key === 'featured' || key === 'trending' || key === 'popular';
-    
-    // Vérifier le cache d'abord (sauf si forceRefresh est true)
-    const cached = dataCache.get(key);
-    if (!shouldForceRefresh && cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      setCategories(prev => ({
-        ...prev,
-        [key]: { tracks: cached.tracks, loading: false, error: null }
-      }));
-      return;
+    // Vérifier le cache d'abord (sauf si force refresh)
+    if (!forceRefresh) {
+      const cached = dataCache.get(key);
+      if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+        setCategories(prev => ({
+          ...prev,
+          [key]: { tracks: cached.tracks, loading: false, error: null }
+        }));
+        return; // Utiliser les données en cache
+      }
     }
 
     try {
@@ -363,14 +362,14 @@ export default function HomePage() {
         [key]: { ...prev[key], loading: true }
       }));
 
-      // Ajouter un timestamp pour éviter le cache navigateur
+      // Ajouter un timestamp pour éviter le cache navigateur seulement si force refresh
       const urlWithTimestamp = forceRefresh ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}` : url;
       
       const response = await fetch(urlWithTimestamp, {
-        headers: {
+        headers: forceRefresh ? {
           'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
           'Pragma': 'no-cache'
-        }
+        } : {}
       });
       
       if (response.ok) {
@@ -483,7 +482,6 @@ export default function HomePage() {
         
         // Vérifier que data.tracks existe et est un tableau
         if (!data.tracks || !Array.isArray(data.tracks)) {
-          console.error('❌ Format de réponse invalide pour daily discoveries:', data);
           return;
         }
         
@@ -558,7 +556,6 @@ export default function HomePage() {
         
         // Vérifier que data.tracks existe et est un tableau
         if (!data.tracks || !Array.isArray(data.tracks)) {
-          console.error('❌ Format de réponse invalide pour collaborations:', data);
           return;
         }
         
@@ -584,7 +581,6 @@ export default function HomePage() {
         
         // Vérifier que data.events existe et est un tableau
         if (!data.events || !Array.isArray(data.events)) {
-          console.error('❌ Format de réponse invalide pour live events:', data);
           setLiveEvents([]);
           return;
         }
@@ -614,7 +610,6 @@ export default function HomePage() {
         
         // Vérifier que data est valide et contient les propriétés attendues
         if (!data || typeof data !== 'object') {
-          console.error('❌ Format de réponse invalide pour search:', data);
           setSearchResults({ tracks: [], artists: [], playlists: [] });
           return;
         }
@@ -630,11 +625,9 @@ export default function HomePage() {
         setSearchResults(safeData);
         setShowSearchResults(true);
       } else {
-        console.error('❌ Erreur API search:', response.status, response.statusText);
         setSearchResults({ tracks: [], artists: [], playlists: [] });
       }
     } catch (error) {
-      console.error('❌ Erreur chargement search:', error);
       setSearchResults({ tracks: [], artists: [], playlists: [] });
     } finally {
       setSearchLoading(false);
@@ -651,7 +644,6 @@ export default function HomePage() {
         
         // Vérifier que data.data existe et contient les stats
         if (!data.data || !data.success) {
-          console.error('❌ Format de réponse invalide pour community stats:', data);
           setCommunityStats([]);
           return;
         }
@@ -677,7 +669,6 @@ export default function HomePage() {
         
         // Vérifier que data.tracks existe et est un tableau
         if (!data.tracks || !Array.isArray(data.tracks)) {
-          console.error('❌ Format de réponse invalide pour personal recommendations:', data);
           setPersonalRecommendations([]);
           setUserPreferences({});
           return;
@@ -705,7 +696,6 @@ export default function HomePage() {
         
         // Vérifier que data est valide
         if (!data || typeof data !== 'object') {
-          console.error('❌ Format de réponse invalide pour recent activity:', data);
           setRecentActivity([]);
           return;
         }
@@ -728,7 +718,6 @@ export default function HomePage() {
         const data = await response.json();
         setPopularPlaylists(data.playlists || []);
       } else {
-        console.error('Erreur API playlists populaires:', response.status);
         setPopularPlaylists([]);
       }
     } catch (error) {
@@ -748,7 +737,6 @@ export default function HomePage() {
         
         // Vérifier que data.genres existe et est un tableau
         if (!data.genres || !Array.isArray(data.genres)) {
-          console.error('❌ Format de réponse invalide pour music genres:', data);
           setMusicGenres([]);
           return;
         }
@@ -766,36 +754,39 @@ export default function HomePage() {
   const fetchAllCategories = useCallback(async (forceRefresh = false) => {
     setLoading(true);
     
-    const categoryApis = [
-      { key: 'forYou', url: '/api/ranking/feed?limit=50&ai=1' },
-      { key: 'trending', url: '/api/ranking/feed?limit=50' },
-      { key: 'popular', url: '/api/tracks/popular?limit=50' },
-      { key: 'recent', url: '/api/tracks/recent?limit=50' },
-      { key: 'recommended', url: '/api/tracks/recommended?limit=50' },
-      { key: 'following', url: '/api/tracks/following?limit=50' }
-    ];
-
     try {
-      // Charger les pistes en vedette en premier
-      await fetchCategoryData('featured', '/api/tracks/featured?limit=5', forceRefresh);
-
-      // Charger les autres catégories en parallèle
-      await Promise.all(categoryApis.map(({ key, url }) => fetchCategoryData(key, url, forceRefresh)));
-
-      // Charger les nouvelles données
+      // Charger les données essentielles en premier (priorité)
       await Promise.all([
+        fetchCategoryData('featured', '/api/tracks/featured?limit=5', forceRefresh),
+        fetchCategoryData('forYou', '/api/ranking/feed?limit=50&ai=1', forceRefresh),
+        fetchCategoryData('trending', '/api/ranking/feed?limit=50', forceRefresh),
+        fetchCategoryData('popular', '/api/tracks/popular?limit=50', forceRefresh)
+      ]);
+
+      // Charger les données secondaires en parallèle
+      await Promise.all([
+        fetchCategoryData('recent', '/api/tracks/recent?limit=50', forceRefresh),
+        fetchCategoryData('recommended', '/api/tracks/recommended?limit=50', forceRefresh),
+        fetchCategoryData('following', '/api/tracks/following?limit=50', forceRefresh),
         fetchPopularUsers(),
         fetchDailyDiscoveries(),
-        fetchWeeklyTrends(),
-        fetchCommunityPlaylists(),
-        fetchCollaborations(),
-        fetchLiveEvents(),
-        fetchCommunityStats(),
-        fetchPersonalRecommendations(),
-        fetchRecentActivity(),
-        fetchPopularPlaylists(),
-        fetchMusicGenres()
+        fetchWeeklyTrends()
       ]);
+
+      // Charger les données optionnelles en arrière-plan
+      setTimeout(() => {
+        Promise.all([
+          fetchCommunityPlaylists(),
+          fetchCollaborations(),
+          fetchLiveEvents(),
+          fetchCommunityStats(),
+          fetchPersonalRecommendations(),
+          fetchRecentActivity(),
+          fetchPopularPlaylists(),
+          fetchMusicGenres()
+        ]).catch(() => {}); // Ignorer les erreurs pour les données optionnelles
+      }, 1000);
+
     } catch (error) {
       // Erreur silencieuse
     } finally {
@@ -1127,10 +1118,8 @@ export default function HomePage() {
     try {
       // URL de streaming directe HTTPS
       const streamUrl = 'https://rocket.streamradio.fr/stream/mixxparty';
-      console.log('URL de streaming radio configurée:', streamUrl);
       return streamUrl;
     } catch (error) {
-      console.error('Erreur récupération URL streaming:', error);
       return 'https://rocket.streamradio.fr/stream/mixxparty'; // URL de fallback
     }
   };
@@ -1182,19 +1171,12 @@ export default function HomePage() {
             setTracks(updatedTracks);
           }
           
-          console.log('📻 Métadonnées radio mises à jour:', {
-            source: result.source,
-            listeners: radioData.stats.listeners,
-            currentTrack: radioData.currentTrack.title,
-            bitrate: radioData.stats.bitrate,
-            quality: radioData.stats.quality
-          });
+          // Métadonnées radio mises à jour
         }
       } else {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('❌ Erreur récupération métadonnées radio:', error);
       
       // En cas d'erreur, utiliser les infos par défaut
       setRadioInfo(prev => ({
@@ -1291,7 +1273,6 @@ export default function HomePage() {
         pause();
       }
       setIsRadioPlaying(false);
-      console.log('Radio arrêtée');
     } else {
       // Démarrer la radio
       try {
@@ -1324,7 +1305,6 @@ export default function HomePage() {
         // Utiliser le système de lecture audio existant
         playTrack(radioTrack);
         setIsRadioPlaying(true);
-        console.log('Radio démarrée - Mixx Party via le player principal');
         
           } catch (error) {
       // Erreur silencieuse
@@ -1440,12 +1420,10 @@ export default function HomePage() {
       const response = await fetch('https://rocket.streamradio.fr/status-json.xsl');
       if (response.ok) {
         const data = await response.json();
-        console.log('Données StreamRadio:', data);
         
         // Analyser les données disponibles
         if (data.icestats && data.icestats.source) {
           const source = data.icestats.source;
-          console.log('Métadonnées source:', source);
           
           // Extraire les informations en temps réel
           const currentTrack = {
@@ -1457,8 +1435,6 @@ export default function HomePage() {
             server_name: source.server_name || 'Mixx Party Radio',
             server_description: source.server_description || 'Radio en boucle continue'
           };
-          
-          console.log('Piste actuelle:', currentTrack);
           
           // Créer les informations de la radio
           const radioInfo = {
@@ -1481,9 +1457,7 @@ export default function HomePage() {
           };
           
           setRealRadioProgram([radioInfo]);
-          console.log('Informations radio mises à jour:', radioInfo);
         } else {
-          console.log('Aucune donnée source trouvée, utilisation du fallback');
           setRealRadioProgram([{
             currentTrack: {
               title: 'Mixx Party Radio',
@@ -1512,7 +1486,6 @@ export default function HomePage() {
           }]);
         }
       } else {
-        console.log('Erreur API, utilisation du fallback');
         setRealRadioProgram([{
           currentTrack: {
             title: 'Mixx Party Radio',
