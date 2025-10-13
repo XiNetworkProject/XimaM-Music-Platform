@@ -767,7 +767,7 @@ export default function HomePage() {
       await Promise.all([
         fetchCategoryData('featured', '/api/tracks/featured?limit=5', forceRefresh),
         fetchCategoryData('forYou', '/api/ranking/feed?limit=50&ai=1', forceRefresh),
-        fetchCategoryData('trending', '/api/ranking/feed?limit=50', forceRefresh),
+        fetchCategoryData('trending', '/api/tracks/trending?limit=50', forceRefresh), // Musiques les plus écoutées
         fetchCategoryData('popular', '/api/tracks/popular?limit=50', forceRefresh)
       ]);
 
@@ -846,7 +846,7 @@ export default function HomePage() {
     
     const categoryApis = [
       { key: 'forYou', url: '/api/ranking/feed?limit=50&ai=1', forceRefresh: false },
-      { key: 'trending', url: '/api/ranking/feed?limit=50', forceRefresh: false },
+      { key: 'trending', url: '/api/tracks/trending?limit=50', forceRefresh: false }, // Musiques les plus écoutées
       { key: 'popular', url: '/api/tracks/popular?limit=50', forceRefresh: false },
       { key: 'recent', url: '/api/tracks/recent?limit=50', forceRefresh: true }, // Toujours forcer le refresh pour les nouvelles musiques
       { key: 'recommended', url: '/api/tracks/recommended?limit=50', forceRefresh: false },
@@ -1981,7 +1981,7 @@ export default function HomePage() {
                     </div>
             </div>
             
-                  {/* Colonne 3: Trending */}
+                  {/* Colonne 3: Trending - Musiques les plus écoutées */}
                   <div className="w-full max-w-full overflow-hidden">
                     <div className="flex min-h-96 flex-col gap-3 text-[var(--text)]">
                       <div className="flex flex-row justify-between items-center">
@@ -1989,7 +1989,7 @@ export default function HomePage() {
                           onClick={() => router.push('/trending', { scroll: false })}
                           className="flex cursor-pointer flex-row items-center hover:underline"
               >
-                          <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Trending</div>
+                          <div className="font-sans font-semibold text-[20px] leading-[24px] line-clamp-1">Les plus écoutées</div>
                           <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6 pt-0.5 text-[var(--text-muted)]">
                             <path d="m13.902 11.702-3.9-3.9a.99.99 0 1 1 1.4-1.4l4.593 4.593a1 1 0 0 1 0 1.414l-4.593 4.593a.99.99 0 1 1-1.4-1.4z" />
                           </svg>
