@@ -94,8 +94,45 @@ export default function ForYouPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--background)] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--color-primary)]"></div>
+      <div className="min-h-screen bg-[var(--background)]">
+        {/* Header skeleton */}
+        <div className="relative h-64 sm:h-80 bg-gradient-to-b from-purple-900/20 via-purple-800/10 to-[var(--background)] animate-pulse">
+          <div className="absolute top-4 left-4 sm:top-6 sm:left-6 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10" />
+          <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-6 sm:pb-8">
+            <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+              <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg bg-white/10" />
+              <div className="flex-1 flex flex-col gap-2 sm:gap-3">
+                <div className="h-5 w-20 rounded bg-white/10" />
+                <div className="h-8 sm:h-12 w-3/4 rounded bg-white/10" />
+                <div className="h-4 w-2/3 rounded bg-white/10" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* List skeleton */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/10 animate-pulse" />
+          </div>
+          <div className="space-y-1">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-2 sm:gap-3 lg:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg border border-[var(--border)]/50 bg-[var(--surface)]/30 animate-pulse">
+                <div className="hidden sm:block h-4 w-6 bg-white/10 rounded" />
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 col-span-1">
+                  <div className="w-10 h-10 sm:w-11 sm:h-11 rounded bg-white/10" />
+                  <div className="flex-1 flex flex-col gap-2 min-w-0">
+                    <div className="h-4 w-2/3 bg-white/10 rounded" />
+                    <div className="h-3 w-1/3 bg-white/10 rounded" />
+                  </div>
+                </div>
+                <div className="hidden sm:block h-4 w-20 bg-white/10 rounded" />
+                <div className="hidden sm:block h-4 w-10 bg-white/10 rounded mx-auto" />
+                <div className="h-4 w-12 bg-white/10 rounded ml-auto sm:mx-auto" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -136,9 +173,10 @@ export default function ForYouPage() {
         </div>
       </div>
 
-      {/* Contrôles */}
+      {/* Contrôles + Liste dans un conteneur carte */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-6 relative z-10">
-        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 backdrop-blur-sm shadow-lg overflow-hidden">
+          <div className="px-3 sm:px-4 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
           <button
             onClick={() => {
               if (tracks.length > 0) {
@@ -156,12 +194,10 @@ export default function ForYouPage() {
               <Play size={20} className="text-white ml-0.5 sm:w-6 sm:h-6 sm:ml-1" fill="white" />
             )}
           </button>
-        </div>
+          </div>
 
-        {/* Liste des tracks */}
-        <div className="space-y-0.5 sm:space-y-1">
-          {/* Header - Desktop only */}
-          <div className="hidden sm:grid grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-3 lg:gap-4 px-3 sm:px-4 py-2 text-xs sm:text-sm text-[var(--text-muted)] border-b border-[var(--border)]">
+          {/* Header - Desktop only sticky */}
+          <div className="hidden sm:grid sticky top-0 z-10 bg-[var(--surface)]/80 backdrop-blur-md border-t border-b border-[var(--border)] grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-3 lg:gap-4 px-3 sm:px-4 py-2 text-xs sm:text-sm text-[var(--text-muted)]">
             <div className="text-center">#</div>
             <div>Titre</div>
             <div>Genre</div>
@@ -174,6 +210,7 @@ export default function ForYouPage() {
           </div>
 
           {/* Tracks */}
+          <div className="divide-y divide-[var(--border)]/60">
           {tracks.map((track, index) => {
             const isPlaying = currentTrack?._id === track._id && audioState.isPlaying;
             
@@ -181,8 +218,10 @@ export default function ForYouPage() {
               <div
                 key={track._id}
                 onClick={() => handlePlayTrack(track)}
-                className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-2 sm:gap-3 lg:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg hover:bg-[var(--surface-2)] active:bg-[var(--surface-3)] transition-colors cursor-pointer group"
+                className="relative grid grid-cols-[auto_1fr_auto] sm:grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-2 sm:gap-3 lg:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-[var(--surface-2)]/70 active:bg-[var(--surface-3)] transition-colors cursor-pointer group"
               >
+                {/* Accent gauche au survol */}
+                <div className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-[var(--color-primary)]/0 via-[var(--color-primary)]/50 to-[var(--color-primary)]/0 opacity-0 group-hover:opacity-100 transition-opacity" />
                 {/* Numéro / Play icon - Desktop */}
                 <div className="hidden sm:flex items-center justify-center text-[var(--text-muted)] w-10">
                   {isPlaying ? (
@@ -257,6 +296,7 @@ export default function ForYouPage() {
               </div>
             );
           })}
+          </div>
         </div>
 
         {error && (
