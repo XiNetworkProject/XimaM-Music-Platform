@@ -43,39 +43,44 @@ export default function MeteoWidget() {
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       onClick={() => router.push('/meteo')}
-      className="w-full bg-[var(--surface)] border border-[var(--border)] rounded-2xl overflow-hidden hover:border-blue-400/50 transition-all group"
+      className="w-full bg-gradient-to-r from-blue-50/10 to-cyan-50/10 border border-blue-200/20 rounded-2xl overflow-hidden hover:border-blue-400/50 hover:from-blue-50/20 hover:to-cyan-50/20 transition-all group backdrop-blur-sm"
     >
-      <div className="flex items-center gap-4 p-4">
-        {/* Miniature */}
-        <div className="w-20 h-20 bg-[var(--surface-2)] rounded-xl overflow-hidden flex-shrink-0">
+      <div className="flex items-center gap-4 p-5">
+        {/* Image météo format paysage */}
+        <div className="w-32 h-20 bg-gradient-to-r from-blue-100/20 to-cyan-100/20 rounded-xl overflow-hidden flex-shrink-0 border border-blue-200/30">
           <img 
             src={bulletin.image_url}
-            alt="Météo"
+            alt="Bulletin météo"
             className="w-full h-full object-cover"
           />
         </div>
 
         {/* Contenu */}
         <div className="flex-1 text-left">
-          <div className="flex items-center gap-2 mb-1">
-            <Cloud className="w-4 h-4 text-blue-400" />
-            <span className="text-xs font-semibold text-blue-400">Alertemps</span>
+          <div className="flex items-center gap-2 mb-2">
+            <Cloud className="w-5 h-5 text-blue-500" />
+            <span className="text-sm font-semibold text-blue-500 bg-blue-100/20 px-2 py-1 rounded-full">Alertemps</span>
           </div>
           
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] line-clamp-1">
+          <h3 className="text-base font-semibold text-[var(--text-primary)] line-clamp-1 mb-1">
             {bulletin.title || 'Bulletin météo'}
           </h3>
           
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Mis à jour {new Date(bulletin.created_at).toLocaleDateString('fr-FR', {
+          <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+            <svg className="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            </svg>
+            <span>Mis à jour {new Date(bulletin.created_at).toLocaleDateString('fr-FR', {
               day: 'numeric',
               month: 'short'
-            })}
-          </p>
+            })}</span>
+          </div>
         </div>
 
-        {/* Flèche */}
-        <ChevronRight className="w-5 h-5 text-[var(--text-muted)] group-hover:text-blue-400 transition-colors flex-shrink-0" />
+        {/* Flèche avec style météo */}
+        <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100/20 group-hover:bg-blue-200/30 transition-colors">
+          <ChevronRight className="w-5 h-5 text-blue-500 group-hover:text-blue-600 transition-colors" />
+        </div>
       </div>
     </motion.button>
   );
