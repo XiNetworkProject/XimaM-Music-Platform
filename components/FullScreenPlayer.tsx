@@ -257,7 +257,7 @@ export default function FullScreenPlayer() {
                 </button>
                 {showVolumeSlider && (
                   <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
-                    <input type="range" min="0" max="1" step="0.1" value={audioState.volume} onChange={handleVolumeChange} className="w-24 h-2" />
+                    <input type="range" min="0" max="1" step="0.1" value={audioState.volume} onChange={handleVolumeChange} className="volume-slider w-40" />
                   </div>
                 )}
               </div>
@@ -494,7 +494,7 @@ export default function FullScreenPlayer() {
                           step="0.1"
                           value={audioState.volume}
                           onChange={handleVolumeChange}
-                          className="volume-slider w-20 h-2"
+                          className="volume-slider w-32"
                         />
                       </div>
                     )}
