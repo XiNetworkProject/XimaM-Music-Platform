@@ -103,33 +103,33 @@ export default function ForYouPage() {
   return (
     <div className="min-h-screen bg-[var(--background)] pb-32">
       {/* Header avec image de fond */}
-      <div className="relative h-80 bg-gradient-to-b from-purple-900/40 via-purple-800/20 to-[var(--background)]">
+      <div className="relative h-64 sm:h-80 bg-gradient-to-b from-purple-900/40 via-purple-800/20 to-[var(--background)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(168,85,247,0.15),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(236,72,153,0.1),transparent_50%)]"></div>
         
-        <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-8">
+        <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-6 sm:pb-8">
           <button
             onClick={() => router.back()}
-            className="absolute top-6 left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-colors"
+            className="absolute top-4 left-4 sm:top-6 sm:left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-colors"
           >
-            <ArrowLeft size={24} className="text-white" />
+            <ArrowLeft size={20} className="text-white sm:w-6 sm:h-6" />
           </button>
 
-          <div className="flex items-end gap-6">
-            <div className="w-56 h-56 rounded-lg shadow-2xl bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center">
-              <Sparkles size={80} className="text-white" />
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
+            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg shadow-2xl bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center flex-shrink-0">
+              <Sparkles size={48} className="text-white sm:w-16 sm:h-16" />
             </div>
             
-            <div className="flex-1 text-white pb-2">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-500/30 backdrop-blur-sm border border-purple-400/30">
+            <div className="flex-1 text-white">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-500/30 backdrop-blur-sm border border-purple-400/30">
                   PLAYLIST
                 </span>
               </div>
-              <h1 className="text-5xl sm:text-7xl font-bold mb-4 drop-shadow-lg">Pour toi</h1>
-              <p className="text-lg text-white/80 mb-4">Musiques sélectionnées spécialement pour vous par notre algorithme IA</p>
-              <div className="flex items-center gap-4 text-sm">
-                <span className="text-white/80">{tracks.length} titres</span>
+              <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold mb-2 sm:mb-4 drop-shadow-lg">Pour toi</h1>
+              <p className="text-sm sm:text-base lg:text-lg text-white/80 mb-2 sm:mb-4 line-clamp-2">Musiques sélectionnées spécialement pour vous par notre algorithme IA</p>
+              <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
+                <span className="text-white/80 font-medium">{tracks.length} titres</span>
               </div>
             </div>
           </div>
@@ -137,8 +137,8 @@ export default function ForYouPage() {
       </div>
 
       {/* Contrôles */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10">
-        <div className="flex items-center gap-4 mb-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-6 relative z-10">
+        <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
           <button
             onClick={() => {
               if (tracks.length > 0) {
@@ -148,28 +148,28 @@ export default function ForYouPage() {
                 playTrack(tracks[0]);
               }
             }}
-            className="w-14 h-14 rounded-full bg-[var(--color-primary)] hover:scale-105 transition-transform flex items-center justify-center shadow-lg"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[var(--color-primary)] hover:scale-105 active:scale-95 transition-transform flex items-center justify-center shadow-lg"
           >
             {currentTrack && tracks.some(t => t._id === currentTrack._id) && audioState.isPlaying ? (
-              <Pause size={24} className="text-white" fill="white" />
+              <Pause size={20} className="text-white sm:w-6 sm:h-6" fill="white" />
             ) : (
-              <Play size={24} className="text-white ml-1" fill="white" />
+              <Play size={20} className="text-white ml-0.5 sm:w-6 sm:h-6 sm:ml-1" fill="white" />
             )}
           </button>
         </div>
 
         {/* Liste des tracks */}
-        <div className="space-y-1">
-          {/* Header */}
-          <div className="grid grid-cols-[16px_4fr_2fr_1fr_80px] gap-4 px-4 py-2 text-sm text-[var(--text-muted)] border-b border-[var(--border)]">
+        <div className="space-y-0.5 sm:space-y-1">
+          {/* Header - Desktop only */}
+          <div className="hidden sm:grid grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-3 lg:gap-4 px-3 sm:px-4 py-2 text-xs sm:text-sm text-[var(--text-muted)] border-b border-[var(--border)]">
             <div className="text-center">#</div>
             <div>Titre</div>
-            <div className="hidden sm:block">Album</div>
-            <div className="hidden md:flex items-center gap-1">
-              <Clock size={16} />
+            <div>Genre</div>
+            <div className="flex items-center justify-center gap-1">
+              <Clock size={14} />
             </div>
-            <div className="text-center">
-              <Headphones size={16} className="inline" />
+            <div className="flex items-center justify-center gap-1">
+              <Headphones size={14} />
             </div>
           </div>
 
@@ -181,10 +181,10 @@ export default function ForYouPage() {
               <div
                 key={track._id}
                 onClick={() => handlePlayTrack(track)}
-                className="grid grid-cols-[16px_4fr_2fr_1fr_80px] gap-4 px-4 py-3 rounded-lg hover:bg-[var(--surface-2)] transition-colors cursor-pointer group"
+                className="grid grid-cols-[auto_1fr_auto] sm:grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-2 sm:gap-3 lg:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg hover:bg-[var(--surface-2)] active:bg-[var(--surface-3)] transition-colors cursor-pointer group"
               >
-                {/* Numéro / Play icon */}
-                <div className="flex items-center justify-center text-[var(--text-muted)]">
+                {/* Numéro / Play icon - Desktop */}
+                <div className="hidden sm:flex items-center justify-center text-[var(--text-muted)] w-10">
                   {isPlaying ? (
                     <div className="flex gap-0.5 items-end h-4">
                       <div className="w-0.5 h-2 bg-[var(--color-primary)] animate-[music-bar-1_0.8s_ease-in-out_infinite]"></div>
@@ -194,49 +194,65 @@ export default function ForYouPage() {
                   ) : (
                     <>
                       <span className="group-hover:hidden text-sm">{index + 1}</span>
-                      <Play size={16} className="hidden group-hover:block" fill="currentColor" />
+                      <Play size={14} className="hidden group-hover:block" fill="currentColor" />
                     </>
                   )}
                 </div>
 
                 {/* Titre et artiste */}
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-2 sm:gap-3 min-w-0 col-span-1">
+                  {/* Play icon - Mobile */}
+                  <div className="sm:hidden flex-shrink-0">
+                    {isPlaying ? (
+                      <div className="flex gap-0.5 items-end h-4 w-4">
+                        <div className="w-0.5 h-2 bg-[var(--color-primary)] animate-[music-bar-1_0.8s_ease-in-out_infinite]"></div>
+                        <div className="w-0.5 h-3 bg-[var(--color-primary)] animate-[music-bar-2_0.8s_ease-in-out_0.2s_infinite]"></div>
+                        <div className="w-0.5 h-2.5 bg-[var(--color-primary)] animate-[music-bar-3_0.8s_ease-in-out_0.4s_infinite]"></div>
+                      </div>
+                    ) : (
+                      <Play size={14} className="text-[var(--text-muted)]" fill="currentColor" />
+                    )}
+                  </div>
+                  
                   <img
                     src={track.coverUrl || '/default-cover.jpg'}
                     alt={track.title}
-                    className="w-10 h-10 rounded object-cover flex-shrink-0"
+                    className="w-10 h-10 sm:w-11 sm:h-11 rounded object-cover flex-shrink-0"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
                     }}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="font-medium text-[var(--text)] truncate flex items-center gap-2">
-                      {track.title}
+                    <div className="font-medium text-sm sm:text-base text-[var(--text)] truncate flex items-center gap-1.5">
+                      <span className="truncate">{track.title}</span>
                       {String(track._id || '').startsWith('ai-') && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-semibold bg-purple-600/20 text-purple-400 border border-purple-500/30 flex-shrink-0">
                           IA
                         </span>
                       )}
                     </div>
-                    <div className="text-sm text-[var(--text-muted)] truncate">
+                    <div className="text-xs sm:text-sm text-[var(--text-muted)] truncate">
                       {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
                     </div>
                   </div>
                 </div>
 
-                {/* Album (genre) */}
+                {/* Genre - Desktop */}
                 <div className="hidden sm:flex items-center text-sm text-[var(--text-muted)] truncate">
                   {track.genre?.[0] || 'Musique'}
                 </div>
 
-                {/* Durée */}
-                <div className="hidden md:flex items-center text-sm text-[var(--text-muted)]">
+                {/* Durée - Desktop */}
+                <div className="hidden sm:flex items-center justify-center text-sm text-[var(--text-muted)]">
                   {formatDuration(track.duration)}
                 </div>
 
                 {/* Lectures */}
-                <div className="flex items-center justify-center text-sm text-[var(--text-muted)]">
-                  {formatNumber(track.plays || 0)}
+                <div className="flex flex-col sm:flex-row items-end sm:items-center justify-end sm:justify-center gap-0.5 sm:gap-0 text-xs sm:text-sm text-[var(--text-muted)]">
+                  <span className="sm:hidden text-[10px] opacity-60">
+                    <Headphones size={10} className="inline mr-0.5" />
+                  </span>
+                  <span className="font-medium">{formatNumber(track.plays || 0)}</span>
                 </div>
               </div>
             );
