@@ -1017,8 +1017,8 @@ export default function UploadPage() {
                         className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress.audio}%` }}
                       />
-                    </div>
                   </div>
+                </div>
                 )}
                 
                 {uploadProgress.cover > 0 && (

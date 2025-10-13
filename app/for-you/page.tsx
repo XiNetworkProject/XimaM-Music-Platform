@@ -168,7 +168,7 @@ export default function ForYouPage() {
           </button>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
-            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg shadow-2xl overflow-hidden relative flex-shrink-0 border border-[var(--border)]">
+            <div className="w-full aspect-[16/9] sm:w-48 sm:h-48 sm:aspect-auto rounded-lg shadow-2xl overflow-hidden relative sm:flex-shrink-0 border border-[var(--border)]">
               {tracks.length > 0 ? (
                 <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
                   {mosaicCovers.map((src, i) => (
