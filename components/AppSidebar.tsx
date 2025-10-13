@@ -4,16 +4,14 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Compass, BookOpen, MessageCircle, Settings, Plus, Music, TrendingUp, Users, HelpCircle, Cloud } from 'lucide-react';
+import { Home, Compass, BookOpen, Settings, Plus, Music, TrendingUp, Users, HelpCircle, Cloud } from 'lucide-react';
 import { useSession } from 'next-auth/react';
-import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useEffect, useState } from 'react';
 
 export default function AppSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const { notifications } = useMessageNotifications();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const getSafeAvatar = () => {
@@ -46,7 +44,6 @@ export default function AppSidebar() {
     { icon: Compass, label: 'Découvrir', desc: 'Explorer', href: '/discover' },
     { icon: BookOpen, label: 'Bibliothèque', desc: 'Vos favoris', href: '/library' },
     { icon: Users, label: 'Communauté', desc: 'Forum & FAQ', href: '/community' },
-    { icon: MessageCircle, label: 'Messages', desc: 'Discuter', href: '/messages' },
     { icon: TrendingUp, label: 'Stats', desc: 'Vos statistiques', href: '/stats' },
     { icon: Settings, label: 'Abonnements', desc: 'Plans & facturation', href: '/subscriptions', isNew: true },
     { icon: Cloud, label: 'Météo', desc: 'Alertemps', href: '/meteo', isPartner: true, isNew: true },
@@ -65,10 +62,6 @@ export default function AppSidebar() {
         <nav className="px-2 py-2 space-y-1 flex-1 overflow-y-auto">
           {nav.map(item => {
             const active = isActive(item.href);
-            const isMessages = item.label === 'Messages';
-            const unread = Array.isArray(notifications)
-              ? notifications.filter((n: any) => !n.read || n.unread === true || n.status === 'unread').length
-              : 0;
             const isPartner = (item as any).isPartner;
             const isNew = (() => {
               const raw = (item as any).isNew;
@@ -105,11 +98,6 @@ export default function AppSidebar() {
                 </div>
                 {isNew && (
                   <span className="ml-auto inline-flex items-center justify-center px-2 h-5 text-[10px] rounded-full bg-green-500/20 text-green-300 border border-green-500/40">Nouveau</span>
-                )}
-                {isMessages && unread > 0 && (
-                  <span className="ml-auto inline-flex items-center justify-center px-2 h-5 text-[11px] rounded-full bg-red-500/20 text-red-300 border border-red-500/40">
-                    {unread > 99 ? '99+' : unread}
-                  </span>
                 )}
               </button>
             );
