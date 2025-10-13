@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
@@ -92,6 +92,15 @@ export default function ForYouPage() {
     return Array.isArray(likes) ? likes.length : likes || 0;
   };
 
+  const totalPlays = useMemo(() => (tracks || []).reduce((acc, t) => acc + (t.plays || 0), 0), [tracks]);
+  const totalDurationSec = useMemo(() => (tracks || []).reduce((acc, t) => acc + (t.duration || 0), 0), [tracks]);
+  const formatTotalDuration = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    if (hrs > 0) return `${hrs} h ${mins} min`;
+    return `${mins} min`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[var(--background)]">
@@ -165,8 +174,19 @@ export default function ForYouPage() {
               </div>
               <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold mb-2 sm:mb-4 drop-shadow-lg">Pour toi</h1>
               <p className="text-sm sm:text-base lg:text-lg text-white/80 mb-2 sm:mb-4 line-clamp-2">Musiques sélectionnées spécialement pour vous par notre algorithme IA</p>
-              <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm">
-                <span className="text-white/80 font-medium">{tracks.length} titres</span>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-white/10 border border-white/15 text-white/90">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 5h18v2H3zm0 6h12v2H3zm0 6h8v2H3z"/></svg>
+                  {tracks.length} titres
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-white/10 border border-white/15 text-white/90">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 3a9 9 0 1 0 9 9h-2a7 7 0 1 1-7-7V3z"/></svg>
+                  {formatNumber(totalPlays)} écoutes
+                </span>
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-white/10 border border-white/15 text-white/90">
+                  <Clock size={12} />
+                  {formatTotalDuration(totalDurationSec)}
+                </span>
               </div>
             </div>
           </div>
