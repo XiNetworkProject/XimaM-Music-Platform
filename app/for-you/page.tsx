@@ -100,6 +100,12 @@ export default function ForYouPage() {
     if (hrs > 0) return `${hrs} h ${mins} min`;
     return `${mins} min`;
   };
+  const mosaicCovers = useMemo(() => {
+    const urls = (tracks || []).map(t => t.coverUrl || '/default-cover.jpg');
+    const base = urls.slice(0, 4);
+    while (base.length < 4) base.push('/default-cover.jpg');
+    return base;
+  }, [tracks]);
 
   if (loading) {
     return (
@@ -162,8 +168,19 @@ export default function ForYouPage() {
           </button>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
-            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg shadow-2xl bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center flex-shrink-0">
-              <Sparkles size={48} className="text-white sm:w-16 sm:h-16" />
+            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg shadow-2xl overflow-hidden relative flex-shrink-0 border border-[var(--border)]">
+              {tracks.length > 0 ? (
+                <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+                  {mosaicCovers.map((src, i) => (
+                    <img key={i} src={src} alt="cover" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 flex items-center justify-center">
+                  <Sparkles size={48} className="text-white sm:w-16 sm:h-16" />
+                </div>
+              )}
+              <div className="pointer-events-none absolute inset-0 bg-black/5" />
             </div>
             
             <div className="flex-1 text-white">
@@ -273,7 +290,9 @@ export default function ForYouPage() {
                     )}
                   </div>
                   
-                  <img
+                  <div className="relative">
+                    <span className="absolute right-[2px] bottom-[2px] z-10 flex items-center rounded-sm bg-black/60 px-1.5 font-mono text-[10px] font-bold text-white/90">{formatDuration(track.duration)}</span>
+                    <img
                     src={track.coverUrl || '/default-cover.jpg'}
                     alt={track.title}
                     className="w-10 h-10 sm:w-11 sm:h-11 rounded object-cover flex-shrink-0"
@@ -281,6 +300,7 @@ export default function ForYouPage() {
                       (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
                     }}
                   />
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-medium text-sm sm:text-base text-[var(--text)] truncate flex items-center gap-1.5">
                       <span className="truncate">{track.title}</span>

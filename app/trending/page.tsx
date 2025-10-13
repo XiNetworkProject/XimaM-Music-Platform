@@ -102,6 +102,12 @@ export default function TrendingPage() {
     if (hrs > 0) return `${hrs} h ${mins} min`;
     return `${mins} min`;
   };
+  const mosaicCovers = useMemo(() => {
+    const urls = (tracks || []).map(t => t.coverUrl || '/default-cover.jpg');
+    const base = urls.slice(0, 4);
+    while (base.length < 4) base.push('/default-cover.jpg');
+    return base;
+  }, [tracks]);
 
   if (loading) {
     return (
@@ -164,8 +170,19 @@ export default function TrendingPage() {
           </button>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4 sm:gap-6">
-            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg shadow-2xl bg-gradient-to-br from-orange-600 via-red-500 to-pink-500 flex items-center justify-center flex-shrink-0">
-              <Flame size={48} className="text-white sm:w-16 sm:h-16" />
+            <div className="w-32 h-32 sm:w-48 sm:h-48 rounded-lg shadow-2xl overflow-hidden relative flex-shrink-0 border border-[var(--border)]">
+              {tracks.length > 0 ? (
+                <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
+                  {mosaicCovers.map((src, i) => (
+                    <img key={i} src={src} alt="cover" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                  ))}
+                </div>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-orange-600 via-red-500 to-pink-500 flex items-center justify-center">
+                  <Flame size={48} className="text-white sm:w-16 sm:h-16" />
+                </div>
+              )}
+              <div className="pointer-events-none absolute inset-0 bg-black/5" />
             </div>
             
             <div className="flex-1 text-white">
@@ -290,6 +307,7 @@ export default function TrendingPage() {
                   </div>
                   
                   <div className="relative">
+                    <span className="absolute right-[2px] bottom-[2px] z-10 flex items-center rounded-sm bg-black/60 px-1.5 font-mono text-[10px] font-bold text-white/90">{formatDuration(track.duration)}</span>
                     <img
                       src={track.coverUrl || '/default-cover.jpg'}
                       alt={track.title}
