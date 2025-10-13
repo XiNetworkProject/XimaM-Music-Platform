@@ -48,8 +48,8 @@ export default function AppSidebar() {
     { icon: Users, label: 'Communauté', desc: 'Forum & FAQ', href: '/community' },
     { icon: MessageCircle, label: 'Messages', desc: 'Discuter', href: '/messages' },
     { icon: TrendingUp, label: 'Stats', desc: 'Vos statistiques', href: '/stats' },
-    { icon: Settings, label: 'Abonnements', desc: 'Plans & facturation', href: '/subscriptions' },
-    { icon: Cloud, label: 'Météo', desc: 'Alertemps', href: '/meteo', isPartner: true },
+    { icon: Settings, label: 'Abonnements', desc: 'Plans & facturation', href: '/subscriptions', isNew: true },
+    { icon: Cloud, label: 'Météo', desc: 'Alertemps', href: '/meteo', isPartner: true, isNew: true },
   ];
 
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
@@ -70,6 +70,19 @@ export default function AppSidebar() {
               ? notifications.filter((n: any) => !n.read || n.unread === true || n.status === 'unread').length
               : 0;
             const isPartner = (item as any).isPartner;
+            const isNew = (() => {
+              const raw = (item as any).isNew;
+              if (!raw) return false;
+              try {
+                const version = (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v1';
+                const ts = Number(localStorage.getItem(`whatsnew.${version}.date`) || 0);
+                if (!ts) return true;
+                const sevenDays = 7 * 24 * 60 * 60 * 1000;
+                return Date.now() - ts < sevenDays;
+              } catch {
+                return true;
+              }
+            })();
             return (
               <button
                 key={item.href}
@@ -90,6 +103,9 @@ export default function AppSidebar() {
                     <span className="text-xs text-[var(--text-muted)] leading-3">{item.desc}</span>
                   </div>
                 </div>
+                {isNew && (
+                  <span className="ml-auto inline-flex items-center justify-center px-2 h-5 text-[10px] rounded-full bg-green-500/20 text-green-300 border border-green-500/40">Nouveau</span>
+                )}
                 {isMessages && unread > 0 && (
                   <span className="ml-auto inline-flex items-center justify-center px-2 h-5 text-[11px] rounded-full bg-red-500/20 text-red-300 border border-red-500/40">
                     {unread > 99 ? '99+' : unread}

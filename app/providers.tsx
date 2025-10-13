@@ -1,8 +1,9 @@
 'use client';
 
-import { QueryClient, QueryClientProvider } from 'react-query';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
+import dynamic from 'next/dynamic';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { useMediaSession, type MediaTrack as MSMediaTrack } from '@/hooks/useMediaSession';
 import { toArtworkList } from '@/lib/mediaArtwork';
@@ -626,6 +627,41 @@ function PlaysSyncWrapper({ children }: { children: React.ReactNode }) {
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  const WhatsNewModal = dynamic(() => import('@/components/WhatsNewModal'), { ssr: false });
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const WHATSNEW_VERSION = (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v1';
+  useEffect(() => {
+    try {
+      const key = `whatsnew.${WHATSNEW_VERSION}.shown`;
+      const dateKey = `whatsnew.${WHATSNEW_VERSION}.date`;
+      if (typeof window !== 'undefined' && !localStorage.getItem(key)) {
+        setShowWhatsNew(true);
+        localStorage.setItem(key, '1');
+        localStorage.setItem(dateKey, String(Date.now()));
+      }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      const params = new URLSearchParams(window.location.search);
+      const flag = params.get('whatsnew');
+      const key = `whatsnew.${WHATSNEW_VERSION}.shown`;
+      const dateKey = `whatsnew.${WHATSNEW_VERSION}.date`;
+      if (flag === '1' || flag === 'true') {
+        setShowWhatsNew(true);
+      } else if (flag === 'reset') {
+        localStorage.removeItem(key);
+        localStorage.removeItem(dateKey);
+        setShowWhatsNew(true);
+      }
+    } catch {}
+  }, []);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as any).showWhatsNew = () => setShowWhatsNew(true);
+    }
+  }, []);
   return (
     <SessionProvider 
       refetchInterval={5 * 60} // Refetch toutes les 5 minutes
@@ -638,6 +674,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               <AudioPlayerProvider>
                 <SubscriptionProvider>
                   {children}
+                  <WhatsNewModal isOpen={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
                   <Toaster position="top-center" />
                 </SubscriptionProvider>
               </AudioPlayerProvider>
