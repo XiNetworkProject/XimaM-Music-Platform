@@ -7,13 +7,10 @@ import { useAudioPlayer } from '@/app/providers';
 import { 
   Play, 
   Pause, 
-  Heart, 
   Headphones,
   Sparkles,
   Clock,
-  ArrowLeft,
-  Share2,
-  MoreHorizontal
+  ArrowLeft
 } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +37,7 @@ interface Track {
 export default function ForYouPage() {
   const router = useRouter();
   const { data: session } = useSession();
-  const { playTrack, audioState } = useAudioPlayer();
+  const { playTrack, audioState, setTracks: setAudioTracks, setCurrentTrackIndex } = useAudioPlayer();
   
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +69,10 @@ export default function ForYouPage() {
   };
 
   const handlePlayTrack = (track: Track) => {
+    // Charger toutes les pistes dans le lecteur et jouer celle sélectionnée
+    const trackIndex = tracks.findIndex(t => t._id === track._id);
+    setAudioTracks(tracks);
+    setCurrentTrackIndex(trackIndex >= 0 ? trackIndex : 0);
     playTrack(track);
   };
 
@@ -139,22 +140,21 @@ export default function ForYouPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 relative z-10">
         <div className="flex items-center gap-4 mb-8">
           <button
-            onClick={() => tracks.length > 0 && handlePlayTrack(tracks[0])}
+            onClick={() => {
+              if (tracks.length > 0) {
+                // Jouer toutes les pistes dans l'ordre
+                setAudioTracks(tracks);
+                setCurrentTrackIndex(0);
+                playTrack(tracks[0]);
+              }
+            }}
             className="w-14 h-14 rounded-full bg-[var(--color-primary)] hover:scale-105 transition-transform flex items-center justify-center shadow-lg"
           >
-            <Play size={24} className="text-white ml-1" fill="white" />
-          </button>
-          
-          <button className="p-3 rounded-full hover:bg-[var(--surface-2)] transition-colors">
-            <Heart size={24} className="text-[var(--text-muted)]" />
-          </button>
-          
-          <button className="p-3 rounded-full hover:bg-[var(--surface-2)] transition-colors">
-            <Share2 size={24} className="text-[var(--text-muted)]" />
-          </button>
-          
-          <button className="p-3 rounded-full hover:bg-[var(--surface-2)] transition-colors">
-            <MoreHorizontal size={24} className="text-[var(--text-muted)]" />
+            {currentTrack && tracks.some(t => t._id === currentTrack._id) && audioState.isPlaying ? (
+              <Pause size={24} className="text-white" fill="white" />
+            ) : (
+              <Play size={24} className="text-white ml-1" fill="white" />
+            )}
           </button>
         </div>
 
