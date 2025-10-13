@@ -256,8 +256,27 @@ export default function FullScreenPlayer() {
                   {audioState.isMuted ? <VolumeX size={18}/> : <Volume2 size={18}/>}
                 </button>
                 {showVolumeSlider && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
-                    <input type="range" min="0" max="1" step="0.1" value={audioState.volume} onChange={handleVolumeChange} className="volume-slider w-40" />
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3">
+                    <div className="volume-popover">
+                      <div className="volume-vertical-wrapper">
+                        <input
+                          type="range"
+                          min="0"
+                          max="1"
+                          step="0.01"
+                          value={audioState.volume}
+                          onChange={handleVolumeChange}
+                          className="volume-slider-vertical"
+                        />
+                        <div className="volume-tooltip">{Math.round((audioState.volume || 0) * 100)}%</div>
+                      </div>
+                      <div className="flex items-center justify-between gap-1 mt-2">
+                        <button className="volume-chip" onClick={() => setVolume(0)}>0%</button>
+                        <button className="volume-chip" onClick={() => setVolume(0.5)}>50%</button>
+                        <button className="volume-chip" onClick={() => setVolume(1)}>100%</button>
+                      </div>
+                      <div className="popover-arrow" />
+                    </div>
                   </div>
                 )}
               </div>
