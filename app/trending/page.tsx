@@ -128,10 +128,8 @@ export default function TrendingPage() {
                 </span>
               </div>
               <h1 className="text-5xl sm:text-7xl font-bold mb-4 drop-shadow-lg">Les plus écoutées</h1>
-              <p className="text-lg text-white/80 mb-4">Les musiques les plus populaires en ce moment sur XimaM</p>
+              <p className="text-lg text-white/80 mb-4">Les musiques les plus populaires en ce moment</p>
               <div className="flex items-center gap-4 text-sm">
-                <span className="font-semibold">XimaM</span>
-                <span className="text-white/60">•</span>
                 <span className="text-white/80">{tracks.length} titres</span>
                 <span className="text-white/60">•</span>
                 <span className="text-white/80 flex items-center gap-1">

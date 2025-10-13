@@ -125,11 +125,9 @@ export default function ForYouPage() {
                   PLAYLIST
                 </span>
               </div>
-              <h1 className="text-5xl sm:text-7xl font-bold mb-4 drop-shadow-lg">For You</h1>
+              <h1 className="text-5xl sm:text-7xl font-bold mb-4 drop-shadow-lg">Pour toi</h1>
               <p className="text-lg text-white/80 mb-4">Musiques sélectionnées spécialement pour vous par notre algorithme IA</p>
               <div className="flex items-center gap-4 text-sm">
-                <span className="font-semibold">XimaM</span>
-                <span className="text-white/60">•</span>
                 <span className="text-white/80">{tracks.length} titres</span>
               </div>
             </div>
