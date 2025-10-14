@@ -217,20 +217,20 @@ export default function NotificationCenter({ className = '' }: NotificationCente
 
   return (
     <>
-      {/* Notification Button */}
+      {/* Notification Button - Style modernisé */}
       <div className="relative">
         <button
           aria-label="Notifications"
           onClick={() => setShowPanel(!showPanel)}
-          className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface)] shadow-sm transition-colors relative ${className}`}
+          className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full hover:bg-[var(--surface-2)] transition-all duration-200 relative ${className} ${showPanel ? 'bg-[var(--surface-2)]' : ''}`}
         >
-          <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
+          <Bell className="w-5 h-5" />
           
           {unreadCount > 0 && (
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+              className="absolute top-0 right-0 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </motion.div>

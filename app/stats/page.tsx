@@ -244,10 +244,11 @@ export default function StatsPage() {
   const [trackDaily, setTrackDaily] = useState<Daily[] | null>(null);
   const [loadingTrackDetail, setLoadingTrackDetail] = useState(false);
 
-  // Onboarding: marquer la visite des stats
+  // Onboarding: marquer la visite des stats (localStorage ET sessionStorage pour plus de persistance)
   useEffect(() => {
     try {
       localStorage.setItem('onboarding.viewedStats', '1');
+      sessionStorage.setItem('onboarding.viewedStats', '1');
       window.dispatchEvent(new Event('onboardingStatsViewed'));
     } catch {}
   }, []);

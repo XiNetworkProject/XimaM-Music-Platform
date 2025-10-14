@@ -18,6 +18,7 @@ export default function OnboardingChecklist() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statsViewed, setStatsViewed] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const refreshUsage = useCallback(async () => {
     try {
@@ -37,14 +38,43 @@ export default function OnboardingChecklist() {
     }
   }, []);
 
+  // Chargement initial avec toutes les données
   useEffect(() => {
-    refreshUsage();
-    const onFocus = () => {
-      // Recharger en revenant sur l'appli
-      refreshUsage();
-      setStatsViewed(!!localStorage.getItem('onboarding.viewedStats'));
+    const loadOnboardingData = async () => {
+      try {
+        setLoading(true);
+        
+        // Charger les données d'usage
+        const res = await fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } });
+        if (res.ok) {
+          const data = await res.json();
+          setUsage(data);
+        }
+        
+        // Charger l'état viewedStats depuis localStorage ET sessionStorage
+        const localViewed = localStorage.getItem('onboarding.viewedStats');
+        const sessionViewed = sessionStorage.getItem('onboarding.viewedStats');
+        setStatsViewed(!!(localViewed || sessionViewed));
+        
+      } catch (err) {
+        setError('Erreur de chargement');
+      } finally {
+        setLoading(false);
+        // Marquer le chargement initial comme terminé après un délai pour éviter le flash
+        setTimeout(() => setInitialLoadComplete(true), 300);
+      }
     };
-    setStatsViewed(!!localStorage.getItem('onboarding.viewedStats'));
+
+    loadOnboardingData();
+
+    // Écouter les changements
+    const onFocus = () => {
+      refreshUsage();
+      const localViewed = localStorage.getItem('onboarding.viewedStats');
+      const sessionViewed = sessionStorage.getItem('onboarding.viewedStats');
+      setStatsViewed(!!(localViewed || sessionViewed));
+    };
+    
     window.addEventListener('focus', onFocus);
     window.addEventListener('onboardingStatsViewed', onFocus as any);
     return () => {
@@ -66,6 +96,11 @@ export default function OnboardingChecklist() {
   }, [user?.id, usage?.tracks?.used, statsViewed]);
 
   const progress = Math.round((steps.completedCount / 3) * 100);
+
+  // Ne rien afficher tant que le chargement initial n'est pas terminé
+  if (!initialLoadComplete) {
+    return null;
+  }
 
   // Masquer si tout est complété
   if (!loading && !error && steps.completedCount === 3) {

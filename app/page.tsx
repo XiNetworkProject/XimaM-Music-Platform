@@ -340,12 +340,12 @@ export default function HomePage() {
   const fetchCategoryData = useCallback(async (key: string, url: string, forceRefresh = false) => {
     // Vérifier le cache d'abord (sauf si force refresh)
     if (!forceRefresh) {
-      const cached = dataCache.get(key);
+    const cached = dataCache.get(key);
       if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-        setCategories(prev => ({
-          ...prev,
-          [key]: { tracks: cached.tracks, loading: false, error: null }
-        }));
+      setCategories(prev => ({
+        ...prev,
+        [key]: { tracks: cached.tracks, loading: false, error: null }
+      }));
         return; // Utiliser les données en cache
       }
     }
@@ -770,14 +770,14 @@ export default function HomePage() {
       // Charger les données optionnelles en arrière-plan
       setTimeout(() => {
         Promise.all([
-          fetchCommunityPlaylists(),
-          fetchCollaborations(),
-          fetchLiveEvents(),
-          fetchCommunityStats(),
-          fetchPersonalRecommendations(),
-          fetchRecentActivity(),
-          fetchPopularPlaylists(),
-          fetchMusicGenres()
+        fetchCommunityPlaylists(),
+        fetchCollaborations(),
+        fetchLiveEvents(),
+        fetchCommunityStats(),
+        fetchPersonalRecommendations(),
+        fetchRecentActivity(),
+        fetchPopularPlaylists(),
+        fetchMusicGenres()
         ]).catch(() => {}); // Ignorer les erreurs pour les données optionnelles
       }, 1000);
 
@@ -1574,12 +1574,12 @@ export default function HomePage() {
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-500/20 rounded-lg">
                   <LogIn className="w-5 h-5 text-blue-400" />
-          </div>
+            </div>
                 <div>
                   <h3 className="font-semibold text-white">Accès limité</h3>
                   <p className="text-sm text-white/70">Connectez-vous pour accéder à toutes les fonctionnalités</p>
+          </div>
         </div>
-              </div>
               <Link 
                 href="/auth/signin"
                 className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-lg hover:from-blue-600 hover:to-purple-700 transition-all duration-200 text-sm font-medium"
