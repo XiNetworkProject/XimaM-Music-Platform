@@ -60,9 +60,35 @@ export default function AppNavbar() {
   const [searchResults, setSearchResults] = useState<SearchResults>({ tracks: [], artists: [], playlists: [], total: 0 });
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [userPlan, setUserPlan] = useState<string | null>(null);
+  const [planLoading, setPlanLoading] = useState(true);
   
   // Service audio pour lancer les tracks
   const { playTrack, audioState } = useAudioPlayer();
+  
+  // Charger le plan de l'utilisateur
+  useEffect(() => {
+    const loadUserPlan = async () => {
+      if (!session?.user?.id) {
+        setPlanLoading(false);
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/subscriptions/usage');
+        if (res.ok) {
+          const data = await res.json();
+          setUserPlan(data.plan || 'free');
+        }
+      } catch (error) {
+        console.error('Erreur chargement plan:', error);
+      } finally {
+        setPlanLoading(false);
+      }
+    };
+    
+    loadUserPlan();
+  }, [session?.user?.id]);
   
   const goToProfile = () => {
     const username = (session?.user as any)?.username;
@@ -381,15 +407,36 @@ export default function AppNavbar() {
           <div className="flex items-center gap-2 flex-shrink-0">
             {session ? (
               <>
-                {/* Bouton Premium - mis en avant */}
-                <Link 
-                  href="/subscriptions" 
-                  className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-white text-black hover:scale-105 transition-transform shadow-lg"
-                  style={{ flexShrink: 0 }}
-                >
-                  <Crown className="w-4 h-4" />
-                  <span>Premium</span>
-                </Link>
+                {/* Bouton Premium - adapté selon le plan */}
+                {!planLoading && (
+                  <>
+                    {/* Plan Free - Afficher "Premium" */}
+                    {(userPlan === 'free' || !userPlan) && (
+                      <Link 
+                        href="/subscriptions" 
+                        className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-white text-black hover:scale-105 transition-transform shadow-lg"
+                        style={{ flexShrink: 0 }}
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span>Premium</span>
+                      </Link>
+                    )}
+                    
+                    {/* Plan Starter - Afficher "Passer en Pro" */}
+                    {userPlan === 'starter' && (
+                      <Link 
+                        href="/subscriptions" 
+                        className="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold bg-gradient-to-r from-amber-500 to-yellow-500 text-black hover:scale-105 transition-transform shadow-lg"
+                        style={{ flexShrink: 0 }}
+                      >
+                        <Crown className="w-4 h-4" />
+                        <span>Passer Pro</span>
+                      </Link>
+                    )}
+                    
+                    {/* Plan Pro/Enterprise - Ne rien afficher */}
+                  </>
+                )}
                 
                 {/* Bouton IA - agrandi et mis en avant */}
                 <Link 
