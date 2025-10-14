@@ -78,6 +78,7 @@ export default function AppNavbar() {
         const res = await fetch('/api/subscriptions/usage');
         if (res.ok) {
           const data = await res.json();
+          console.log('📊 Plan utilisateur chargé:', data.plan);
           setUserPlan(data.plan || 'free');
         }
       } catch (error) {
