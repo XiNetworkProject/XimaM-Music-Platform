@@ -240,10 +240,16 @@ export default function HomePage() {
     return (dailyDiscoveries && dailyDiscoveries.length > 0 ? dailyDiscoveries : featuredTracks);
   }, [categories?.forYou?.tracks, dailyDiscoveries, featuredTracks]);
   const trendingUnique = useMemo(() => {
-    const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
     const trendingList = (categories.trending.tracks || []);
-    const filtered = trendingList.filter((t: any) => !forYouIds.has(t._id));
-    return filtered.length > 0 ? filtered : trendingList;
+    console.log('🎵 Trending tracks:', trendingList.length, trendingList.slice(0, 3));
+    
+    // Temporairement : afficher toutes les pistes trending sans filtrage
+    return trendingList;
+    
+    // Ancienne logique commentée :
+    // const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
+    // const filtered = trendingList.filter((t: any) => !forYouIds.has(t._id));
+    // return filtered.length > 0 ? filtered : trendingList;
   }, [categories.trending.tracks, forYouList]);
   // Ajouter 1 slide promo abonnement au début
   const totalSlides = useMemo(() => Math.max(1, heroTracks.length + 1), [heroTracks.length]);
@@ -361,8 +367,14 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         
+        // Debug pour trending
+        if (key === 'trending') {
+          console.log('🎵 API trending response:', data);
+        }
+        
         // Vérifier que data.tracks existe et est un tableau
         if (!data.tracks || !Array.isArray(data.tracks)) {
+          console.error('❌ Format de réponse invalide pour', key, data);
           throw new Error('Format de réponse invalide');
         }
         
