@@ -65,8 +65,11 @@ export async function GET(request: NextRequest) {
           const { data: recentAI, error: recentAIErr } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, user_id, created_at, image_url, audio_url, duration, tags,
-              profiles:profiles!ai_tracks_user_id_fkey ( id, username, name, avatar, is_verified )
+              id, title, created_at, image_url, audio_url, duration, tags,
+              generation:ai_generations!inner (
+                user_id,
+                profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar, is_verified )
+              )
             `)
             .order('created_at', { ascending: false })
             .limit(limitFallback);
@@ -77,12 +80,12 @@ export async function GET(request: NextRequest) {
                 _id: `ai-${t.id}`,
                 title: t.title || 'Titre IA',
                 artist: {
-                  _id: t.user_id,
-                  username: t.profiles?.username,
-                  name: t.profiles?.name || t.profiles?.username,
-                  avatar: t.profiles?.avatar,
+                  _id: t.generation?.user_id,
+                  username: t.generation?.profiles?.username,
+                  name: t.generation?.profiles?.name || t.generation?.profiles?.username,
+                  avatar: t.generation?.profiles?.avatar,
                   isArtist: true,
-                  artistName: t.profiles?.name || t.profiles?.username,
+                  artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
                 },
                 duration: t.duration || 0,
                 coverUrl: t.image_url || '/default-cover.jpg',
@@ -92,7 +95,7 @@ export async function GET(request: NextRequest) {
                 plays: 0,
                 createdAt: t.created_at,
                 isFeatured: false,
-                isVerified: t.profiles?.is_verified || false,
+                isVerified: t.generation?.profiles?.is_verified || false,
                 rankingScore: 0,
                 isAI: true,
               }))
@@ -164,8 +167,11 @@ export async function GET(request: NextRequest) {
           const { data } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, user_id, created_at, image_url, audio_url, duration, tags,
-              profiles:profiles!ai_tracks_user_id_fkey ( id, username, name, avatar, is_verified )
+              id, title, created_at, image_url, audio_url, duration, tags,
+              generation:ai_generations!inner (
+                user_id,
+                profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar, is_verified )
+              )
             `)
             .in('id', aiIds as any);
           aiTracks = (data || []).map((t: any) => ({ ...t, _aiPrefixedId: `ai-${t.id}` }));
@@ -221,12 +227,12 @@ export async function GET(request: NextRequest) {
             _id: `ai-${t.id}`,
             title: t.title || 'Titre IA',
             artist: {
-              _id: t.user_id,
-              username: t.profiles?.username,
-              name: t.profiles?.name || t.profiles?.username,
-              avatar: t.profiles?.avatar,
+              _id: t.generation?.user_id,
+              username: t.generation?.profiles?.username,
+              name: t.generation?.profiles?.name || t.generation?.profiles?.username,
+              avatar: t.generation?.profiles?.avatar,
               isArtist: true,
-              artistName: t.profiles?.name || t.profiles?.username,
+              artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
             },
             duration: t.duration || 0,
             coverUrl: t.image_url || '/default-cover.jpg',
@@ -236,7 +242,7 @@ export async function GET(request: NextRequest) {
             plays: 0,
             createdAt: t.created_at,
             isFeatured: false,
-            isVerified: t.profiles?.is_verified || false,
+            isVerified: t.generation?.profiles?.is_verified || false,
             rankingScore: Number(score.toFixed(6)),
             isAI: true,
           };
@@ -300,13 +306,16 @@ export async function GET(request: NextRequest) {
     if (aiIds.length) {
       // Les track_id IA peuvent être préfixés 'ai-<id>'. On retire le préfixe pour la jointure.
       const rawAiIds = aiIds.map((id: any) => (String(id).startsWith('ai-') ? String(id).slice(3) : id));
-      const { data, error } = await supabaseAdmin
-        .from('ai_tracks')
-        .select(`
-          id, title, user_id, created_at, image_url, audio_url, duration, tags,
-          profiles:profiles!ai_tracks_user_id_fkey ( id, username, name, avatar, is_verified )
-        `)
-        .in('id', rawAiIds);
+        const { data, error } = await supabaseAdmin
+          .from('ai_tracks')
+          .select(`
+            id, title, created_at, image_url, audio_url, duration, tags,
+            generation:ai_generations!inner (
+              user_id,
+              profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar, is_verified )
+            )
+          `)
+          .in('id', rawAiIds);
       if (error) {
         console.error('ranking: erreur ai_tracks meta', error);
       } else {
@@ -403,12 +412,12 @@ export async function GET(request: NextRequest) {
         _id: trackId,
         title: t.title || 'Titre IA',
         artist: {
-          _id: t.user_id,
-          username: t.profiles?.username,
-          name: t.profiles?.name || t.profiles?.username,
-          avatar: t.profiles?.avatar,
+          _id: t.generation?.user_id,
+          username: t.generation?.profiles?.username,
+          name: t.generation?.profiles?.name || t.generation?.profiles?.username,
+          avatar: t.generation?.profiles?.avatar,
           isArtist: true,
-          artistName: t.profiles?.name || t.profiles?.username,
+          artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
         },
         duration: t.duration || 0,
         coverUrl: t.image_url || '/default-cover.jpg',
@@ -418,7 +427,7 @@ export async function GET(request: NextRequest) {
         plays: 0,
         createdAt: t.created_at,
         isFeatured: false,
-        isVerified: t.profiles?.is_verified || false,
+        isVerified: t.generation?.profiles?.is_verified || false,
         rankingScore: score,
         isAI: true,
       };

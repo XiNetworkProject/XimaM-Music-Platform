@@ -50,12 +50,12 @@ export async function GET(request: NextRequest) {
       _id: `ai-${t.id}`,
       title: t.title || 'Titre IA',
       artist: {
-        _id: t.user_id,
-        username: t.profiles?.username,
-        name: t.profiles?.name || t.profiles?.username,
-        avatar: t.profiles?.avatar,
+        _id: t.generation?.user_id,
+        username: t.generation?.profiles?.username,
+        name: t.generation?.profiles?.name || t.generation?.profiles?.username,
+        avatar: t.generation?.profiles?.avatar,
         isArtist: true,
-        artistName: t.profiles?.name || t.profiles?.username,
+        artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
       },
       duration: t.duration || 0,
       coverUrl: t.image_url || '/default-cover.jpg',
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       const { data: likeRows, error: likeErr } = await supabaseAdmin
         .from('track_likes')
         .select('track_id, created_at')
-        .eq('user_id', userId)
+          .eq('generation.user_id', userId)
         .order('created_at', { ascending: false })
         .limit(1000);
 
@@ -112,8 +112,11 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, user_id, created_at, image_url, audio_url, duration, tags,
-            profiles:profiles!ai_tracks_user_id_fkey ( id, username, name, avatar )
+            id, title, created_at, image_url, audio_url, duration, tags,
+            generation:ai_generations!inner (
+              user_id,
+              profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar )
+            )
           `)
           .in('id', aiIds);
         if (!error && Array.isArray(data)) {
@@ -134,7 +137,7 @@ export async function GET(request: NextRequest) {
       const { data: events, error: evErr } = await supabaseAdmin
         .from('track_events')
         .select('track_id, created_at')
-        .eq('user_id', userId)
+          .eq('generation.user_id', userId)
         .in('event_type', ['play_start', 'play_complete'])
         .order('created_at', { ascending: false })
         .limit(2000);
@@ -175,8 +178,11 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, user_id, created_at, image_url, audio_url, duration, tags,
-            profiles:profiles!ai_tracks_user_id_fkey ( id, username, name, avatar )
+            id, title, created_at, image_url, audio_url, duration, tags,
+            generation:ai_generations!inner (
+              user_id,
+              profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar )
+            )
           `)
           .in('id', aiIds);
         if (!error && Array.isArray(data)) {
