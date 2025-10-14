@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
 
     // Récupérer les pistes tendance depuis Supabase (basé sur les plays récents)
-    const { data: tracks, error } = await supabase
+    const { data: tracks, error } = await supabaseAdmin
       .from('tracks')
       .select(`
         *,
