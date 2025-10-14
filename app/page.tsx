@@ -241,7 +241,6 @@ export default function HomePage() {
   }, [categories?.forYou?.tracks, dailyDiscoveries, featuredTracks]);
   const trendingUnique = useMemo(() => {
     const trendingList = (categories.trending.tracks || []);
-    console.log('🎵 Trending tracks:', trendingList.length, trendingList.slice(0, 3));
     
     // Filtrage moins agressif : garder au minimum 6 pistes
     const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
@@ -370,14 +369,8 @@ export default function HomePage() {
       if (response.ok) {
         const data = await response.json();
         
-        // Debug pour trending
-        if (key === 'trending') {
-          console.log('🎵 API trending response:', data);
-        }
-        
         // Vérifier que data.tracks existe et est un tableau
         if (!data.tracks || !Array.isArray(data.tracks)) {
-          console.error('❌ Format de réponse invalide pour', key, data);
           throw new Error('Format de réponse invalide');
         }
         
