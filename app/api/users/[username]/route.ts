@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -18,7 +18,7 @@ export async function GET(
     console.log(`🔍 Récupération du profil pour: ${username}`);
 
     // Récupérer le profil utilisateur depuis Supabase
-    const { data: profile, error: profileError } = await supabase
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('*')
       .eq('username', username)
@@ -35,14 +35,14 @@ export async function GET(
     console.log(`✅ Profil trouvé pour: ${username}`);
 
     // Récupérer les tracks de l'utilisateur
-    const { data: tracks, error: tracksError } = await supabase
+    const { data: tracks, error: tracksError } = await supabaseAdmin
       .from('tracks')
       .select('*')
       .eq('creator_id', profile.id)
       .order('created_at', { ascending: false });
 
     // Récupérer les playlists de l'utilisateur
-    const { data: playlists, error: playlistsError } = await supabase
+    const { data: playlists, error: playlistsError } = await supabaseAdmin
       .from('playlists')
       .select('*')
       .eq('creator_id', profile.id)
@@ -112,7 +112,7 @@ export async function PUT(
     console.log(`🔄 Mise à jour du profil pour: ${username}`);
 
     // Vérifier que l'utilisateur existe
-    const { data: existingProfile, error: profileError } = await supabase
+    const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('id')
       .eq('username', username)
@@ -126,7 +126,7 @@ export async function PUT(
     }
 
     // Mettre à jour le profil
-    const { data: updatedProfile, error: updateError } = await supabase
+    const { data: updatedProfile, error: updateError } = await supabaseAdmin
       .from('profiles')
       .update({
         name: body.name,
