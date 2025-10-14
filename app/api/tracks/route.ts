@@ -114,13 +114,35 @@ export async function GET(request: NextRequest) {
           .select(`
             id, title, created_at, image_url, audio_url, duration, tags,
             generation:ai_generations!inner (
-              user_id,
-              profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar )
+              user_id
             )
           `)
           .in('id', aiIds);
         if (!error && Array.isArray(data)) {
-          tracks.push(...data.map(toAiTrack));
+          // Récupérer les profils séparément et les associer
+          let aiTracksWithProfiles = data;
+          if (data.length > 0) {
+            const userIds = Array.from(new Set(data.map((t: any) => t.generation?.user_id).filter(Boolean)));
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabaseAdmin
+                .from('profiles')
+                .select('id, username, name, avatar')
+                .in('id', userIds);
+              
+              const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
+              
+              // Associer les profils aux tracks
+              aiTracksWithProfiles = data.map(t => ({
+                ...t,
+                generation: {
+                  ...t.generation,
+                  profiles: profilesMap.get((t as any).generation?.user_id)
+                }
+              }));
+            }
+          }
+          
+          tracks.push(...aiTracksWithProfiles.map(toAiTrack));
         }
       }
 
@@ -180,13 +202,35 @@ export async function GET(request: NextRequest) {
           .select(`
             id, title, created_at, image_url, audio_url, duration, tags,
             generation:ai_generations!inner (
-              user_id,
-              profiles:profiles!ai_generations_user_id_fkey ( id, username, name, avatar )
+              user_id
             )
           `)
           .in('id', aiIds);
         if (!error && Array.isArray(data)) {
-          tracks.push(...data.map(toAiTrack));
+          // Récupérer les profils séparément et les associer
+          let aiTracksWithProfiles = data;
+          if (data.length > 0) {
+            const userIds = Array.from(new Set(data.map((t: any) => t.generation?.user_id).filter(Boolean)));
+            if (userIds.length > 0) {
+              const { data: profiles } = await supabaseAdmin
+                .from('profiles')
+                .select('id, username, name, avatar')
+                .in('id', userIds);
+              
+              const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
+              
+              // Associer les profils aux tracks
+              aiTracksWithProfiles = data.map(t => ({
+                ...t,
+                generation: {
+                  ...t.generation,
+                  profiles: profilesMap.get((t as any).generation?.user_id)
+                }
+              }));
+            }
+          }
+          
+          tracks.push(...aiTracksWithProfiles.map(toAiTrack));
         }
       }
 

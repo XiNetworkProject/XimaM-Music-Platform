@@ -414,7 +414,7 @@ class AIGenerationService {
       .select(`
         *,
         tracks:ai_tracks(*),
-        user:users!ai_generations_user_id_fkey(name, username, avatar)
+        user_id
       `)
       .eq('is_public', true)
       .eq('status', 'completed')
