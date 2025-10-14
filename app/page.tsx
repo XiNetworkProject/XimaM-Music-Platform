@@ -243,13 +243,16 @@ export default function HomePage() {
     const trendingList = (categories.trending.tracks || []);
     console.log('🎵 Trending tracks:', trendingList.length, trendingList.slice(0, 3));
     
-    // Temporairement : afficher toutes les pistes trending sans filtrage
-    return trendingList;
+    // Filtrage moins agressif : garder au minimum 6 pistes
+    const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
+    const filtered = trendingList.filter((t: any) => !forYouIds.has(t._id));
     
-    // Ancienne logique commentée :
-    // const forYouIds = new Set((forYouList || []).map((t: any) => t._id));
-    // const filtered = trendingList.filter((t: any) => !forYouIds.has(t._id));
-    // return filtered.length > 0 ? filtered : trendingList;
+    // Si après filtrage on a moins de 6 pistes, prendre les premières de la liste originale
+    if (filtered.length < 6 && trendingList.length >= 6) {
+      return trendingList.slice(0, 6);
+    }
+    
+    return filtered.length > 0 ? filtered : trendingList;
   }, [categories.trending.tracks, forYouList]);
   // Ajouter 1 slide promo abonnement au début
   const totalSlides = useMemo(() => Math.max(1, heroTracks.length + 1), [heroTracks.length]);
