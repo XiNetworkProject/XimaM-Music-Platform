@@ -28,7 +28,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import dynamicImport from 'next/dynamic';
 const OnboardingChecklist = dynamicImport(() => import('@/components/OnboardingChecklist'), { ssr: false });
-const AnnouncementsCarousel = dynamicImport(() => import('@/components/AnnouncementsCarousel'), { ssr: false });
 
 export const dynamic = 'force-dynamic';
 
@@ -61,13 +60,6 @@ interface CategoryData {
   error: string | null;
 }
 
-// Annonce pour le carrousel
-interface Announcement {
-  id: string;
-  title: string;
-  body?: string | null;
-  image_url?: string | null;
-}
 
 // Cache simple pour les données (sans les écoutes pour éviter les désynchronisations)
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
@@ -109,20 +101,6 @@ export default function HomePage() {
   const newSongsRef = useRef<HTMLDivElement>(null);
   const creatorsRef = useRef<HTMLDivElement>(null);
 
-  // Annonces du carrousel (admin)
-  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  useEffect(() => {
-    const loadAnnouncements = async () => {
-      try {
-        const res = await fetch('/api/announcements', { headers: { 'Cache-Control': 'no-store' } });
-        if (res.ok) {
-          const json = await res.json();
-          setAnnouncements(json.items || []);
-        }
-      } catch {}
-    };
-    loadAnnouncements();
-  }, []);
 
   const scrollNewSongs = useCallback((direction: 'left' | 'right') => {
     const el = newSongsRef.current;
@@ -1578,9 +1556,6 @@ export default function HomePage() {
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
-        <div className="mb-6">
-          <AnnouncementsCarousel />
-            </div>
         {/* Onboarding simple (3 étapes) - seulement si connecté */}
         {session && <OnboardingChecklist />}
         
