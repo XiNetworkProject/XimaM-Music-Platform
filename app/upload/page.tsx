@@ -1192,9 +1192,32 @@ export default function UploadPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
-                          if (file) setAlbumCoverFile(file);
+                          if (file) {
+                            // Compresser si > 5MB
+                            if (file.size > 5 * 1024 * 1024) {
+                              const canvas = document.createElement('canvas');
+                              const ctx = canvas.getContext('2d');
+                              const img = new window.Image();
+                              
+                              img.onload = () => {
+                                canvas.width = 800;
+                                canvas.height = 800;
+                                ctx?.drawImage(img, 0, 0, 800, 800);
+                                canvas.toBlob((blob) => {
+                                  if (blob) {
+                                    const compressedFile = new File([blob], file.name, { type: 'image/jpeg' });
+                                    setAlbumCoverFile(compressedFile);
+                                    notify.info('Image compressée', 'L\'image a été compressée pour optimiser l\'upload');
+                                  }
+                                }, 'image/jpeg', 0.85);
+                              };
+                              img.src = URL.createObjectURL(file);
+                            } else {
+                              setAlbumCoverFile(file);
+                            }
+                          }
                         }}
                         className="hidden"
                         id="album-cover-input"
@@ -1202,7 +1225,7 @@ export default function UploadPage() {
                       <label htmlFor="album-cover-input" className="cursor-pointer">
                         <Image size={40} className="mx-auto text-white/40 mb-2" />
                         <p className="text-sm font-medium">Ajouter une cover</p>
-                        <p className="text-xs text-[var(--text-muted)] mt-1">Format carré recommandé (1:1)</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-1">Format carré recommandé (1:1) • Max 10MB</p>
                       </label>
                     </div>
                   ) : (

@@ -17,6 +17,11 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     
+    console.log('📦 Création d\'album - FormData entries:');
+    Array.from(formData.entries()).forEach(([key, value]) => {
+      console.log(`  ${key}:`, value instanceof File ? `File: ${value.name}` : value);
+    });
+    
     // Récupérer les informations de l'album
     const title = formData.get('title') as string;
     const artist = formData.get('artist') as string;
@@ -32,7 +37,10 @@ export async function POST(request: NextRequest) {
     const coverFile = formData.get('cover') as File | null;
     const trackCount = parseInt(formData.get('trackCount') as string || '0');
 
+    console.log('📊 Données extraites:', { title, artist, trackCount, hasCover: !!coverFile });
+
     if (!title || !artist || trackCount === 0) {
+      console.error('❌ Validation échouée:', { title, artist, trackCount });
       return NextResponse.json({ error: 'Données manquantes' }, { status: 400 });
     }
 
@@ -41,18 +49,41 @@ export async function POST(request: NextRequest) {
     let coverPublicId = null;
     
     if (coverFile) {
-      const bytes = await coverFile.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      const uploadResult = await uploadImage(buffer, {
-        folder: 'ximam/albums',
-        public_id: `album_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        width: 800,
-        height: 800,
-        crop: 'fill',
-        quality: 'auto'
-      });
-      coverUrl = uploadResult.secure_url;
-      coverPublicId = uploadResult.public_id;
+      console.log('📸 Upload cover de l\'album...');
+      try {
+        const bytes = await coverFile.arrayBuffer();
+        let buffer = Buffer.from(bytes);
+        
+        // Si le fichier est trop grand (> 9MB), on le compresse davantage
+        if (buffer.length > 9 * 1024 * 1024) {
+          console.log('⚠️ Fichier trop grand, compression automatique...');
+          const uploadResult = await uploadImage(buffer, {
+            folder: 'ximam/albums',
+            public_id: `album_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            width: 600,
+            height: 600,
+            crop: 'fill',
+            quality: 80 // Réduire la qualité pour compresser
+          });
+          coverUrl = uploadResult.secure_url;
+          coverPublicId = uploadResult.public_id;
+        } else {
+          const uploadResult = await uploadImage(buffer, {
+            folder: 'ximam/albums',
+            public_id: `album_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            width: 800,
+            height: 800,
+            crop: 'fill',
+            quality: 'auto'
+          });
+          coverUrl = uploadResult.secure_url;
+          coverPublicId = uploadResult.public_id;
+        }
+        console.log('✅ Cover uploadée:', coverPublicId);
+      } catch (error) {
+        console.error('❌ Erreur upload cover:', error);
+        throw error;
+      }
     }
 
     // Créer l'album dans la base de données
@@ -99,17 +130,24 @@ export async function POST(request: NextRequest) {
       }
 
       try {
+        console.log(`🎵 Upload piste ${i + 1}/${trackCount}: ${trackTitle}`);
+        
         // Upload de l'audio
         const audioBytes = await trackFile.arrayBuffer();
         const audioBuffer = Buffer.from(audioBytes);
+        
+        console.log(`  Taille fichier: ${(audioBuffer.length / 1024 / 1024).toFixed(2)} MB`);
+        
         const audioUploadResult = await uploadAudio(audioBuffer, {
           folder: 'ximam/audio',
-          public_id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          resource_type: 'video'
+          public_id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         });
+
+        console.log(`  ✅ Audio uploadé:`, audioUploadResult.public_id);
 
         // Récupérer la durée depuis Cloudinary (plus fiable côté serveur)
         const duration = audioUploadResult.duration || 0;
+        console.log(`  Durée:`, duration);
 
         // Créer la piste dans la base
         const { data: track, error: trackError } = await supabaseAdmin
