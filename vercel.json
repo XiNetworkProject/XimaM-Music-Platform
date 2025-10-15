@@ -6,7 +6,12 @@
     },
     "app/api/albums/route.ts": {
       "maxDuration": 300
+    },
+    "app/api/albums/create/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/albums/add-track/route.ts": {
+      "maxDuration": 60
     }
-  },
-  "maxRequestBodySize": "100mb"
+  }
 } 
