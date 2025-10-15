@@ -99,10 +99,7 @@ export async function POST(request: NextRequest) {
         cover_url: coverUrl,
         cover_public_id: coverPublicId,
         is_explicit: isExplicit,
-        is_public: isPublic,
-        copyright_owner: copyrightOwner || artist,
-        copyright_year: copyrightYear || new Date().getFullYear(),
-        copyright_rights: copyrightRights || 'Tous droits réservés'
+        is_public: isPublic
       })
       .select()
       .single();
@@ -164,10 +161,7 @@ export async function POST(request: NextRequest) {
             duration: Math.floor(duration),
             genre,
             is_explicit: isExplicit,
-            is_public: isPublic,
-            copyright_owner: copyrightOwner || artist,
-            copyright_year: copyrightYear || new Date().getFullYear(),
-            copyright_rights: copyrightRights || 'Tous droits réservés'
+            is_public: isPublic
           })
           .select()
           .single();
