@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
       }
       const trackGenre = Array.isArray(trackData.genre) ? trackData.genre : [];
 
+      const albumId = (trackData?.albumId && typeof trackData.albumId === 'string' && trackData.albumId.trim().length) ? trackData.albumId : null;
+
       const { data: track, error } = await supabaseAdmin
         .from('tracks')
         .insert({
@@ -70,6 +72,7 @@ export async function POST(request: NextRequest) {
           cover_size_mb: (jsonData.coverBytes ? Math.round(jsonData.coverBytes / (1024*1024)) : null),
           audio_public_id: audioPublicId || null,
           cover_public_id: coverPublicId || null,
+          album_id: albumId,
         })
         .select()
         .single();
