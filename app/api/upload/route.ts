@@ -49,8 +49,7 @@ export async function POST(request: NextRequest) {
         }
       }
       const trackGenre = Array.isArray(trackData.genre) ? trackData.genre : [];
-
-      const albumId = (trackData?.albumId && typeof trackData.albumId === 'string' && trackData.albumId.trim().length) ? trackData.albumId : null;
+      const albumName: string | null = (trackData.album && String(trackData.album).trim()) ? String(trackData.album).trim() : null;
 
       const { data: track, error } = await supabaseAdmin
         .from('tracks')
@@ -62,6 +61,7 @@ export async function POST(request: NextRequest) {
           genre: trackGenre,
           audio_url: audioUrl,
           cover_url: coverUrl || null,
+          album: albumName,
           duration: trackDuration,
           creator_id: session.user.id,
           is_public: trackData.isPublic !== false,
@@ -72,7 +72,6 @@ export async function POST(request: NextRequest) {
           cover_size_mb: (jsonData.coverBytes ? Math.round(jsonData.coverBytes / (1024*1024)) : null),
           audio_public_id: audioPublicId || null,
           cover_public_id: coverPublicId || null,
-          album_id: albumId,
         })
         .select()
         .single();

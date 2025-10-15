@@ -40,6 +40,7 @@ interface Track {
   isLiked?: boolean;
   genre?: string[];
   lyrics?: string;
+  album?: string | null;
 }
 
 interface AudioPlayerState {
@@ -136,7 +137,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       id: String(t._id),
       title: t.title,
       artist: t.artist?.name || t.artist?.username || 'Unknown',
-      album: 'Synaura',
+      album: (t as any).album || 'Synaura',
       artwork: toArtworkList(t.coverUrl),
       duration: typeof audioService.state.duration === 'number' ? audioService.state.duration : undefined,
       url: t.audioUrl,

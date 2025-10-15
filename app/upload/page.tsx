@@ -28,7 +28,6 @@ interface UploadFormData {
   title: string;
   artist: string;
   album?: string;
-  albumId?: string;
   genre: string[];
   description: string;
   lyrics?: string;
@@ -44,6 +43,74 @@ interface UploadFormData {
 interface UploadProgress {
   audio: number;
   cover: number;
+}
+
+// Compression côté client pour images > 10MB (Cloudinary refuse les fichiers trop volumineux)
+async function compressImageIfNeeded(file: File, maxBytes: number = 10 * 1024 * 1024): Promise<File> {
+  try {
+    if (!file || file.size <= maxBytes) return file;
+
+    // Charger l'image
+    const imageBitmap = await createImageBitmap(file).catch(async () => {
+      // Fallback via HTMLImageElement
+      return new Promise<ImageBitmap>(async (resolve, reject) => {
+        try {
+          const url = URL.createObjectURL(file);
+          const img = new Image();
+          img.onload = async () => {
+            try {
+              const bm = await createImageBitmap(img);
+              URL.revokeObjectURL(url);
+              resolve(bm);
+            } catch (e) {
+              URL.revokeObjectURL(url);
+              reject(e);
+            }
+          };
+          img.onerror = (_e: any) => { URL.revokeObjectURL(url); reject(new Error('image load error')); };
+          img.src = url;
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+
+    // Dimension cible initiale: limiter le plus grand côté à ~1600px
+    const maxDim = 1600;
+    let { width, height } = imageBitmap;
+    const ratio = width > height ? maxDim / width : maxDim / height;
+    const scale = Math.min(1, ratio);
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+
+    // Essayer différentes qualités jusqu'à passer sous la limite
+    let quality = 0.85;
+    let outBlob: Blob | null = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      outBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (outBlob && outBlob.size <= maxBytes) break;
+      // Baisser la qualité, puis réduire un peu la taille si nécessaire
+      if (quality > 0.5) quality -= 0.1; else {
+        canvas.width = Math.max(1, Math.round(canvas.width * 0.85));
+        canvas.height = Math.max(1, Math.round(canvas.height * 0.85));
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(imageBitmap, 0, 0, canvas.width, canvas.height);
+      }
+    }
+
+    if (!outBlob) return file;
+
+    // Créer un nouveau File JPEG compressé
+    const newName = file.name.replace(/\.[^/.]+$/, '') + '-compressed.jpg';
+    return new File([outBlob], newName, { type: 'image/jpeg', lastModified: Date.now() });
+  } catch {
+    return file; // En cas d'erreur de compression, utiliser l'original
+  }
 }
 
 // Fonction pour upload direct vers Cloudinary
@@ -64,7 +131,12 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
   const { signature, apiKey, cloudName } = await signatureResponse.json();
 
   const formData = new FormData();
-  formData.append('file', file);
+  let fileToUpload = file;
+  if (resourceType === 'image' && file.size > 10 * 1024 * 1024) {
+    // Compresser automatiquement les images > 10MB
+    try { fileToUpload = await compressImageIfNeeded(file); } catch {}
+  }
+  formData.append('file', fileToUpload);
   formData.append('folder', resourceType === 'video' ? 'ximam/audio' : 'ximam/images');
   formData.append('public_id', publicId);
   formData.append('resource_type', resourceType);
@@ -76,6 +148,7 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
     formData.append('width', '800');
     formData.append('height', '800');
     formData.append('crop', 'fill');
+    // Note: la transformation côté Cloudinary n'affecte pas la taille uploadée. La compression est faite côté client ci-dessus.
   }
 
   const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`, {
@@ -253,7 +326,10 @@ export default function UploadPage() {
   const router = useRouter();
   
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [albumFiles, setAlbumFiles] = useState<File[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [uploadMode, setUploadMode] = useState<'single' | 'album'>('single');
+  const [albumTrackMetas, setAlbumTrackMetas] = useState<Array<{ file: File; title: string; duration: number }>>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -271,7 +347,6 @@ export default function UploadPage() {
     title: '',
     artist: user?.name || '',
     album: '',
-    albumId: '',
     genre: [],
     description: '',
     lyrics: '',
@@ -387,22 +462,39 @@ export default function UploadPage() {
   }, [user?.name]);
 
   const onAudioDrop = useCallback((acceptedFiles: File[]) => {
+    if (uploadMode === 'album') {
+      const valid: File[] = [];
+      const planMaxMb = (planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? 1000 : 80);
+      for (const file of acceptedFiles) {
+        if (!file.type.startsWith('audio/')) continue;
+        const sizeMb = file.size / 1024 / 1024;
+        if (sizeMb > planMaxMb) {
+          notify.error('Fichier trop volumineux', `${file.name} dépasse la limite (${sizeMb.toFixed(1)} MB > ${planMaxMb} MB)`);
+          continue;
+        }
+        valid.push(file);
+      }
+      if (valid.length === 0) return;
+      setAlbumFiles(prev => [...prev, ...valid]);
+      if (!audioFile) setAudioFile(valid[0]);
+    } else {
     const file = acceptedFiles[0];
     if (file) {
       if (!file.type.startsWith('audio/')) {
-        notify.error('Fichier invalide', 'Veuillez sélectionner un fichier audio valide');
-        return;
-      }
-      // Validation taille par plan
-      const planMaxMb = (planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? 1000 : 80);
-      const sizeMb = file.size / 1024 / 1024;
-      if (sizeMb > planMaxMb) {
-        notify.error('Fichier trop volumineux', `Fichier trop volumineux pour votre plan (${sizeMb.toFixed(1)} MB). Limite: ${planMaxMb} MB.`);
+          notify.error('Fichier invalide', 'Veuillez sélectionner un fichier audio valide');
+          return;
+        }
+        // Validation taille par plan
+        const planMaxMb = (planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? 1000 : 80);
+        const sizeMb = file.size / 1024 / 1024;
+        if (sizeMb > planMaxMb) {
+          notify.error('Fichier trop volumineux', `Fichier trop volumineux pour votre plan (${sizeMb.toFixed(1)} MB). Limite: ${planMaxMb} MB.`);
         return;
       }
       setAudioFile(file);
     }
-  }, []);
+    }
+  }, [uploadMode, planKey, audioFile]);
 
   const onCoverDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -415,10 +507,47 @@ export default function UploadPage() {
     }
   }, []);
 
+  // Construire les métadonnées des pistes d'album (titres + durées) quand les fichiers changent
+  useEffect(() => {
+    if (uploadMode !== 'album') return;
+    let isCancelled = false;
+    (async () => {
+      const metas: Array<{ file: File; title: string; duration: number }> = [];
+      for (const f of albumFiles) {
+        // Titre par défaut depuis le nom de fichier sans extension
+        const baseTitle = f.name.replace(/\.[^/.]+$/, '');
+        // Calculer la durée via Audio
+        let duration = 0;
+        try {
+          const url = URL.createObjectURL(f);
+          duration = await new Promise<number>((resolve) => {
+            const a = new Audio(url);
+            const cleanup = () => {
+              a.removeEventListener('loadedmetadata', onLoaded);
+              a.removeEventListener('error', onError);
+              URL.revokeObjectURL(url);
+            };
+            const onLoaded = () => { const d = isFinite(a.duration) ? a.duration : 0; cleanup(); resolve(d || 0); };
+            const onError = () => { cleanup(); resolve(0); };
+            a.addEventListener('loadedmetadata', onLoaded);
+            a.addEventListener('error', onError);
+          });
+        } catch {}
+        metas.push({ file: f, title: baseTitle, duration: Math.round(duration || 0) });
+      }
+      if (!isCancelled) setAlbumTrackMetas(metas);
+    })();
+    return () => { isCancelled = true; };
+  }, [albumFiles, uploadMode]);
+
+  const handleAlbumTrackTitleChange = (index: number, value: string) => {
+    setAlbumTrackMetas(prev => prev.map((m, i) => i === index ? { ...m, title: value } : m));
+  };
+
   const { getRootProps: getAudioRootProps, getInputProps: getAudioInputProps, isDragActive: isAudioDragActive } = useDropzone({
     onDrop: onAudioDrop,
     accept: { 'audio/*': [] },
-    maxFiles: 1
+    maxFiles: uploadMode === 'album' ? 50 : 1
   });
 
   const { getRootProps: getCoverRootProps, getInputProps: getCoverInputProps, isDragActive: isCoverDragActive } = useDropzone({
@@ -455,8 +584,12 @@ export default function UploadPage() {
       return;
     }
     
-    if (!audioFile) {
+    if (uploadMode === 'single' && !audioFile) {
       notify.error('Fichier requis', 'Veuillez sélectionner un fichier audio');
+      return;
+    }
+    if (uploadMode === 'album' && albumFiles.length === 0) {
+      notify.error('Fichiers requis', 'Veuillez ajouter au moins une piste pour l\'album');
       return;
     }
 
@@ -472,18 +605,35 @@ export default function UploadPage() {
       notify.info('Upload en cours', 'Upload audio en cours...', 0);
       setUploadProgress(prev => ({ ...prev, audio: 25 }));
       
+      // Mode SINGLE: upload une seule piste
+      let uploadedTracks: { secure_url: string; public_id: string; duration?: number; file?: File }[] = [];
+      if (uploadMode === 'single' && audioFile) {
       const audioResult = await uploadToCloudinary(audioFile, 'video');
-      setTempPublicIds(prev => ({ ...prev, audio: audioResult.public_id }));
+        setTempPublicIds(prev => ({ ...prev, audio: audioResult.public_id }));
       setUploadProgress(prev => ({ ...prev, audio: 75 }));
-      // Audio upload terminé
+        uploadedTracks.push({ secure_url: audioResult.secure_url, public_id: audioResult.public_id, duration: audioResult.duration, file: audioFile });
+      }
+      // Mode ALBUM: uploader toutes les pistes
+      if (uploadMode === 'album' && albumFiles.length > 0) {
+        for (let i = 0; i < albumFiles.length; i++) {
+          const f = albumFiles[i];
+          notify.info('Upload piste', `${f.name} (${i+1}/${albumFiles.length})`, 0);
+          const res = await uploadToCloudinary(f, 'video');
+          uploadedTracks.push({ secure_url: res.secure_url, public_id: res.public_id, duration: res.duration, file: f });
+          setTempPublicIds(prev => ({ ...prev, audio: res.public_id }));
+          setUploadProgress(prev => ({ ...prev, audio: Math.min(95, Math.round(((i+1)/albumFiles.length)*90)+5) }));
+        }
+      }
 
-      // Vérification droits d'auteur (AudD) — no-op si token manquant
+      // Vérification droits d'auteur (AudD) — no-op si token manquant (sur la première piste)
       try {
+        const mainAudio = uploadedTracks[0];
+        if (!mainAudio) throw new Error('Aucune piste uploadée');
         const checkResp = await fetch('/api/upload/copyright-check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            audioUrl: audioResult.secure_url,
+            audioUrl: mainAudio.secure_url,
             title: formData.title,
             artist: formData.artist,
           })
@@ -506,8 +656,9 @@ export default function UploadPage() {
         }
       } catch (e: any) {
         // En cas de conflit, rollback l'upload audio temporaire
-        if (tempPublicIds.audio || audioResult.public_id) {
-          try { await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: audioResult.public_id }) }); } catch {}
+        const mainAudio = uploadedTracks[0];
+        if (tempPublicIds.audio || mainAudio?.public_id) {
+          try { await fetch('/api/upload/cleanup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ audioPublicId: mainAudio?.public_id }) }); } catch {}
         }
         throw e;
       }
@@ -523,48 +674,81 @@ export default function UploadPage() {
         // Cover upload terminé
       }
 
-      // Créer un album si demandé
-      let albumIdToUse = formData.albumId?.trim() || '';
-      if (!albumIdToUse && (formData.album || '').trim().length) {
-        try {
-          const albumResp = await fetch('/api/albums/create-from-upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ albumName: formData.album?.trim(), coverUrl: coverResult?.secure_url, coverPublicId: coverResult?.public_id })
-          });
-          if (albumResp.ok) {
-            const aj = await albumResp.json();
-            if (aj?.albumId) albumIdToUse = aj.albumId;
-          }
-        } catch {}
-      }
-
       setUploadProgress({ audio: 100, cover: 100 });
 
       notify.info('Sauvegarde', 'Sauvegarde en cours...', 0);
       
+      if (uploadMode === 'single') {
+        const tr = uploadedTracks[0]!;
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          audioUrl: audioResult.secure_url,
-          audioPublicId: audioResult.public_id,
-          coverUrl: (coverResult && coverResult.secure_url) ? coverResult.secure_url : null,
-          coverPublicId: (coverResult && coverResult.public_id) ? coverResult.public_id : null,
-          trackData: { ...formData, albumId: albumIdToUse || formData.albumId },
-          duration: audioResult.duration || 0,
-          audioBytes: Math.round((audioFile?.size || 0)),
-          coverBytes: Math.round((coverFile?.size || 0)),
+            audioUrl: tr.secure_url,
+            audioPublicId: tr.public_id,
+            coverUrl: (coverResult && coverResult.secure_url) ? coverResult.secure_url : null,
+            coverPublicId: (coverResult && coverResult.public_id) ? coverResult.public_id : null,
+            trackData: { ...formData, album: (formData.album || '').trim() ? formData.album : null },
+            duration: tr.duration || 0,
+            audioBytes: Math.round((tr.file?.size || 0)),
+            coverBytes: Math.round((coverFile?.size || 0)),
         }),
       });
-
       if (!response.ok) {
         const errorData = await response.json();
-        // Sauvegarde terminée
         throw new Error(errorData.error || 'Erreur lors de la sauvegarde');
       }
+        notify.success('Upload réussi !', 'Musique uploadée avec succès !');
+      } else {
+        // Créer une playlist comme album
+        const albumName = formData.title || `Album ${new Date().toLocaleDateString()}`;
+        const plRes = await fetch('/api/playlists', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: albumName, description: formData.description || '', isPublic: formData.isPublic, coverUrl: coverResult?.secure_url || null })
+        });
+        if (!plRes.ok) {
+          const e = await plRes.json();
+          throw new Error(e.error || 'Erreur création album');
+        }
+        const playlist = await plRes.json();
 
-      notify.success('Upload réussi !', 'Musique uploadée avec succès !');
+        // Enregistrer chaque piste comme track puis l'ajouter à la playlist
+        for (let i = 0; i < uploadedTracks.length; i++) {
+          const tr = uploadedTracks[i];
+          // Utiliser le titre saisi pour chaque piste (albumTrackMetas), fallback nom de fichier
+          const custom = albumTrackMetas[i]?.title?.trim();
+          const fallbackFromFile = (tr.file?.name || '').replace(/\.[^/.]+$/, '') || `Piste ${i+1}`;
+          const metaTitle = custom || fallbackFromFile;
+          const tRes = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              audioUrl: tr.secure_url,
+              audioPublicId: tr.public_id,
+              coverUrl: (coverResult && coverResult.secure_url) ? coverResult.secure_url : null,
+              coverPublicId: (coverResult && coverResult.public_id) ? coverResult.public_id : null,
+              trackData: { ...formData, title: metaTitle, album: (formData.title || '').trim() || null },
+              duration: tr.duration || 0,
+              audioBytes: Math.round((tr.file?.size || 0)),
+              coverBytes: Math.round((coverFile?.size || 0)),
+            }),
+          });
+          if (!tRes.ok) {
+            const e = await tRes.json();
+            throw new Error(e.error || `Erreur sauvegarde piste ${i+1}`);
+          }
+          const tJson = await tRes.json();
+          const trackId = tJson.trackId;
+          // Ajouter à la playlist
+          await fetch(`/api/playlists/${encodeURIComponent(playlist._id)}/tracks`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ trackId })
+          });
+        }
+        notify.success('Album publié !', `${uploadedTracks.length} piste(s) ajoutée(s) à l'album ${albumName}.`);
+      }
       
       if (typeof window !== 'undefined') {
         sessionStorage.setItem('fromUpload', 'true');
@@ -617,8 +801,25 @@ export default function UploadPage() {
           
           {/* Header */}
           <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
-            <h1 className="text-2xl max-md:text-base">Upload Track</h1>
+            <h1 className="text-2xl max-md:text-base">Upload {uploadMode === 'album' ? 'Album' : 'Track'}</h1>
             <div className="flex flex-row gap-2">
+              {/* Toggle Single/Album */}
+              <div className="flex items-center gap-1 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-full p-1">
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('single')}
+                  className={`px-3 py-1 rounded-full text-sm ${uploadMode === 'single' ? 'bg-white text-black' : 'text-[var(--text)] hover:bg-white/10'}`}
+                >
+                  Titre seul
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('album')}
+                  className={`px-3 py-1 rounded-full text-sm ${uploadMode === 'album' ? 'bg-white text-black' : 'text-[var(--text)] hover:bg-white/10'}`}
+                >
+                  Album
+                </button>
+                  </div>
               {audioFile && (
                 <button 
                   type="button" 
@@ -661,7 +862,7 @@ export default function UploadPage() {
                   exit={{ opacity: 0, x: 20 }}
                   className="flex w-full flex-col items-stretch justify-start gap-3 p-3 sm:p-4"
                 >
-                  {!audioFile ? (
+                  {!audioFile && uploadMode === 'single' ? (
                   <div
                     {...getAudioRootProps()}
                       className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-colors cursor-pointer ${
@@ -681,8 +882,8 @@ export default function UploadPage() {
                           Formats supportés: MP3, WAV, FLAC — limites: Free 80 MB · Starter 200 MB · Pro 500 MB
                         </p>
                       </div>
-                      </div>
-                    ) : (
+                  </div>
+                    ) : uploadMode === 'single' ? (
                     <MediaPreview 
                       file={audioFile} 
                       coverFile={coverFile}
@@ -698,7 +899,78 @@ export default function UploadPage() {
                         }
                       }}
                     />
-                  )}
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      <div
+                        {...getAudioRootProps()}
+                        className={`border-2 border-dashed rounded-xl p-6 sm:p-8 text-center transition-colors cursor-pointer ${
+                          isAudioDragActive
+                            ? 'border-purple-400 bg-purple-500/10'
+                            : 'border-[var(--border)] hover:border-purple-400/50'
+                        }`}
+                      >
+                        <input {...getAudioInputProps()} />
+                        <div className="space-y-3">
+                          <Upload size={40} className="mx-auto text-white/40 sm:w-16 sm:h-16" />
+                        <div>
+                            <p className="text-lg sm:text-xl font-medium">Glissez vos fichiers audio ici</p>
+                            <p className="text-white/60 text-sm">ou cliquez pour sélectionner (jusqu'à 50)</p>
+                        </div>
+                          <p className="text-xs sm:text-sm text-white/40">
+                            Formats supportés: MP3, WAV, FLAC — limites par fichier: Free 80 MB · Starter 200 MB · Pro 500 MB
+                        </p>
+                  </div>
+                </div>
+
+                      {albumFiles.length > 0 && (
+                        <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+                          {albumTrackMetas.map((m, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-2 gap-3">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    // Lecture preview avec audioRef partagé
+                                    try {
+                                      if (audioRef.current && !audioRef.current.paused) {
+                                        audioRef.current.pause();
+                                      }
+                                      const url = URL.createObjectURL(m.file);
+                                      const a = new Audio(url);
+                                      audioRef.current = a;
+                                      a.addEventListener('ended', () => { try { URL.revokeObjectURL(url); } catch {} });
+                                      await a.play();
+                                    } catch {}
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                                  aria-label="Pré-écouter"
+                                >
+                                  <Play className="w-4 h-4" />
+                                </button>
+                                <div className="min-w-0 flex-1">
+                                  <input
+                                    type="text"
+                                    value={m.title}
+                                    onChange={(e) => handleAlbumTrackTitleChange(idx, e.target.value)}
+                                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)]"
+                                    placeholder={`Titre #${idx+1}`}
+                                  />
+                                  <div className="text-xs text-white/50 mt-0.5">{(m.file.size/1024/1024).toFixed(2)} MB • {Math.floor((m.duration||0)/60)}:{String(Math.floor((m.duration||0)%60)).padStart(2,'0')}</div>
+                        </div>
+                      </div>
+                              <button
+                                type="button"
+                                onClick={() => { setAlbumFiles(prev => prev.filter((_, i) => i !== idx)); setAlbumTrackMetas(prev => prev.filter((_, i) => i !== idx)); }}
+                                className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20"
+                              >
+                                Retirer
+                              </button>
+                        </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                   {/* Contrôles audio compacts */}
                   {audioFile && (
@@ -741,17 +1013,17 @@ export default function UploadPage() {
                   exit={{ opacity: 0, x: 20 }}
                   className="flex flex-col gap-4 p-3 sm:p-4"
                 >
-                  <h2 className="text-xl font-semibold">Informations de la piste</h2>
+                  <h2 className="text-xl font-semibold">{uploadMode === 'album' ? 'Informations de l\'album' : 'Informations de la piste'}</h2>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-white/80">Titre *</label>
+                      <label className="block text-sm font-medium text-white/80">{uploadMode === 'album' ? 'Nom de l\'album *' : 'Titre *'}</label>
                   <input
                     type="text"
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
                         className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
-                    placeholder="Titre de votre musique"
+                        placeholder={uploadMode === 'album' ? "Nom de l'album" : "Titre de votre musique"}
                     required
                   />
                 </div>
@@ -779,32 +1051,6 @@ export default function UploadPage() {
                     placeholder="Décrivez votre musique..."
                   />
                 </div>
-
-                  {/* Album grouping */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-white/80">Album (optionnel)</label>
-                      <input
-                        type="text"
-                        value={formData.album || ''}
-                        onChange={(e) => handleInputChange('album', e.target.value)}
-                        className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
-                        placeholder="Nom de l'album"
-                      />
-                      <p className="text-xs text-white/50">Si vous le renseignez, un album sera créé et vos pistes seront regroupées.</p>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-white/80">Album ID existant (optionnel)</label>
-                      <input
-                        type="text"
-                        value={formData.albumId || ''}
-                        onChange={(e) => handleInputChange('albumId', e.target.value)}
-                        className="w-full px-3 py-2.5 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg focus:outline-none focus:border-purple-400 transition-colors text-[var(--text)] text-sm"
-                        placeholder="album_xxxxx (laisser vide pour créer)"
-                      />
-                      <p className="text-xs text-white/50">Laissez vide pour créer un nouvel album avec ce nom.</p>
-                    </div>
-                  </div>
 
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-white/80">Paroles (optionnel)</label>
@@ -839,7 +1085,7 @@ export default function UploadPage() {
                 </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-white/80">Image de couverture</label>
+                    <label className="block text-sm font-medium text-white/80">{uploadMode === 'album' ? 'Cover de l\'album' : 'Image de couverture'}</label>
                     <div
                       {...getCoverRootProps()}
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors cursor-pointer ${
@@ -951,64 +1197,97 @@ export default function UploadPage() {
                 >
                   <h2 className="text-xl font-semibold">Prévisualisation finale</h2>
                   
-                  {/* Rendu final comme une TrackCard compacte */}
-                  <div className="bg-white/[0.04] backdrop-blur-md border border-[var(--border)] rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
-                        {coverFile ? (
-                          <img 
-                            src={URL.createObjectURL(coverFile)} 
-                            alt="Cover" 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Music className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+                  {uploadMode === 'single' ? (
+                    // Preview d'une piste
+                    <div className="bg-white/[0.04] backdrop-blur-md border border-[var(--border)] rounded-lg p-3">
+                      <div className="flex items-center gap-3">
+                        <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
+                          {coverFile ? (
+                            <img src={URL.createObjectURL(coverFile)} alt="Cover" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Music className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                   </div>
-                        )}
-                </div>
-
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-[var(--text)] truncate text-sm sm:text-base">{formData.title || 'Sans titre'}</h3>
-                        <p className="text-xs sm:text-sm text-white/70">{formData.artist}</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          {formData.genre.slice(0, 2).map(g => (
-                            <span key={g} className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{g}</span>
-                          ))}
-                          {formData.genre.length > 2 && (
-                            <span className="text-xs text-white/50">+{formData.genre.length - 2}</span>
                           )}
+                </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-[var(--text)] truncate text-sm sm:text-base">{formData.title || 'Sans titre'}</h3>
+                          <p className="text-xs sm:text-sm text-white/70">{formData.artist}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {formData.genre.slice(0, 2).map(g => (
+                              <span key={g} className="text-xs px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{g}</span>
+                            ))}
+                            {formData.genre.length > 2 && (
+                              <span className="text-xs text-white/50">+{formData.genre.length - 2}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button type="button" onClick={() => setIsPlaying(!isPlaying)} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                            {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
+                          </button>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsPlaying(!isPlaying)}
-                          className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                        >
-                          {isPlaying ? <Pause className="w-4 h-4 sm:w-5 sm:h-5" /> : <Play className="w-4 h-4 sm:w-5 sm:h-5" />}
-                        </button>
+                      {audioFile && (
+                        <div className="mt-3">
+                          <WaveformDisplay audioFile={audioFile} currentTime={currentTime} duration={duration} onSeek={(time) => { if (audioRef.current) { audioRef.current.currentTime = time; setCurrentTime(time); } }} />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    // Preview d'album (style playlist)
+                    <div className="bg-white/[0.02] border border-[var(--border)] rounded-lg overflow-hidden">
+                      <div className="p-3 flex items-center gap-3 border-b border-[var(--border)]">
+                        <div className="relative w-16 h-16 rounded-md overflow-hidden bg-gradient-to-br from-purple-500 to-cyan-500 flex-shrink-0">
+                          {coverFile ? (
+                            <img src={URL.createObjectURL(coverFile)} alt="Cover" className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Music className="w-7 h-7 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-base font-semibold text-[var(--text)] truncate">{formData.title || 'Nouvel album'}</div>
+                          <div className="text-sm text-white/70 truncate">{formData.artist}</div>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {formData.genre.slice(0, 3).map(g => (
+                              <span key={g} className="text-[10px] px-1.5 py-0.5 bg-purple-500/20 text-purple-300 rounded-full">{g}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="divide-y divide-[var(--border)]">
+                        {albumTrackMetas.map((m, idx) => (
+                          <div key={idx} className="flex items-center gap-3 p-2">
+                            <div className="w-6 text-center text-white/50 text-xs">{idx+1}</div>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  if (audioRef.current && !audioRef.current.paused) audioRef.current.pause();
+                                  const url = URL.createObjectURL(m.file);
+                                  const a = new Audio(url);
+                                  audioRef.current = a;
+                                  a.addEventListener('ended', () => { try { URL.revokeObjectURL(url); } catch {} });
+                                  await a.play();
+                                } catch {}
+                              }}
+                              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center"
+                              aria-label="Pré-écouter"
+                            >
+                              <Play className="w-4 h-4" />
+                            </button>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm text-[var(--text)] truncate">{m.title}</div>
+                              <div className="text-xs text-white/50 truncate">{formData.artist}</div>
+                            </div>
+                            <div className="text-xs text-white/50 w-12 text-right">{Math.floor(m.duration/60)}:{String(Math.floor(m.duration%60)).padStart(2,'0')}</div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    
-                    {/* Mini waveform dans la preview */}
-                    {audioFile && (
-                      <div className="mt-3">
-                        <WaveformDisplay 
-                          audioFile={audioFile}
-                          currentTime={currentTime}
-                          duration={duration}
-                          onSeek={(time) => {
-                            if (audioRef.current) {
-                              audioRef.current.currentTime = time;
-                              setCurrentTime(time);
-                            }
-                          }}
-                        />
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-3 text-xs sm:text-sm text-white/70">
                     <div className="flex justify-between">
@@ -1076,12 +1355,12 @@ export default function UploadPage() {
                         className="bg-purple-500 h-1.5 rounded-full transition-all duration-300"
                         style={{ width: `${uploadProgress.cover}%` }}
                       />
-                    </div>
+                  </div>
                   </div>
                 )}
               </div>
             )}
-          </div>
+                </div>
 
           {/* Footer avec navigation compacte */}
           <div className="flex h-fit flex-col justify-end gap-2 p-3 sm:p-4 border-t border-[var(--border)]">

@@ -548,6 +548,7 @@ export default function ProfileUserPage() {
         audioUrl: normalizedTrack.audioUrl,
         coverUrl: normalizedTrack.coverUrl,
         duration: track.duration,
+        album: (track as any).album || null,
         likes: track.likes || [],
         comments: track.comments || [],
         plays: track.plays || 0,

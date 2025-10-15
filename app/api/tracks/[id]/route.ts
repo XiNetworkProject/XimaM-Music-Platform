@@ -52,7 +52,8 @@ export async function GET(
       isPublic: track.is_public !== false,
       createdAt: track.created_at,
       updatedAt: track.updated_at,
-      lyrics: track.lyrics || null
+      lyrics: track.lyrics || null,
+      album: track.album || null
     };
 
     return NextResponse.json(formattedTrack);

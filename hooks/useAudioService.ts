@@ -22,6 +22,7 @@ interface Track {
   isLiked?: boolean;
   genre?: string[];
   createdAt?: string;
+  album?: string | null;
 }
 
 interface AudioServiceState {
@@ -1150,9 +1151,20 @@ export const useAudioService = () => {
           console.log('Erreur lors de la répétition de la piste');
         });
       }
-    } else if (repeat === 'all' || queue.length > 1) {
-      nextTrack();
-    } else {
+      return;
+    }
+
+    // Si on a une queue explicite (album/playlist), avancer si possible; sinon tomber en auto‑play global
+    if (queue.length > 1) {
+      const isLastInQueue = currentIndex >= queue.length - 1;
+      if (!isLastInQueue || repeat === 'all') {
+        nextTrack();
+        return;
+      }
+      // Fin de queue sans repeat: continuer vers auto‑play global ci‑dessous
+    }
+
+    {
       // Auto-play automatique pour toutes les pistes (pas seulement les playlists)
       if (allTracks.length === 0) {
         console.log('Chargement des pistes pour auto-play...');

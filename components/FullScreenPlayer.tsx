@@ -5,7 +5,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useTrackLike } from '@/contexts/LikeContext';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, ChevronDown } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, ChevronDown, Disc3, ListMusic } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
@@ -22,6 +22,7 @@ export default function FullScreenPlayer() {
     setCurrentTrackIndex, 
     setShowPlayer, 
     setIsMinimized, 
+    setTracks,
     handleLike, 
     setShuffle, 
     setRepeat,
@@ -42,9 +43,44 @@ export default function FullScreenPlayer() {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showError, setShowError] = useState(false);
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
+  const [albumOpen, setAlbumOpen] = useState(false);
+  const [albumLoading, setAlbumLoading] = useState(false);
+  const [albumPlaylist, setAlbumPlaylist] = useState<any | null>(null);
 
   const volumeSliderRef = useRef<HTMLDivElement>(null);
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
+  const openAlbumPanel = useCallback(async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    try {
+      e?.stopPropagation?.();
+      const albumName = (currentTrack as any)?.album as string | undefined;
+      if (!albumName || !currentTrack?.artist?._id) return;
+      setAlbumOpen(true);
+      setAlbumLoading(true);
+      setAlbumPlaylist(null);
+      const res = await fetch(`/api/playlists?user=${encodeURIComponent(currentTrack.artist._id)}`, { cache: 'no-store' });
+      if (!res.ok) { setAlbumLoading(false); return; }
+      const json = await res.json();
+      const name = String(albumName || '').toLowerCase();
+      const pl = Array.isArray(json?.playlists) ? json.playlists.find((p: any) => String(p.name || '').toLowerCase() === name) : null;
+      setAlbumPlaylist(pl || null);
+    } catch {
+      setAlbumPlaylist(null);
+    } finally {
+      setAlbumLoading(false);
+    }
+  }, [currentTrack?.album, currentTrack?.artist?._id]);
+
+  const playAlbumAll = useCallback(async () => {
+    try {
+      if (!albumPlaylist?.tracks || albumPlaylist.tracks.length === 0) return;
+      const list = albumPlaylist.tracks;
+      setTracks(list);
+      setCurrentTrackIndex(0);
+      await play();
+      setAlbumOpen(false);
+    } catch {}
+  }, [albumPlaylist, setTracks, setCurrentTrackIndex, play]);
+
 
   const formatTime = useCallback((seconds: number) => {
     if (!seconds || isNaN(seconds) || seconds < 0) return '--:--';
@@ -200,10 +236,20 @@ export default function FullScreenPlayer() {
                 </div>
                 <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
               </div>
-              <span className="flex flex-col text-sm font-medium md:flex-row">
+              <span className="flex flex-col text-sm font-medium md:flex-row gap-0.5 md:items-center">
                 <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
                   <span className="line-clamp-1 w-full lg:max-w-[220px] md:max-w-[180px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
                 </a>
+                {(currentTrack as any)?.album && (
+                  <button onClick={openAlbumPanel} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ml-0 md:ml-2 bg-white/10 hover:bg-white/15 border border-white/10">
+                    <Disc3 size={12} /> Album
+                  </button>
+                )}
+                {!(currentTrack as any)?.album && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ml-0 md:ml-2 bg-white/5 border border-white/10 opacity-70">
+                    <ListMusic size={12} /> Single
+                  </span>
+                )}
                 <div className="hidden md:block ml-2">
                   <AudioQualityTooltip>
                     <AudioQualityIndicator size="sm" />
@@ -371,7 +417,12 @@ export default function FullScreenPlayer() {
               {/* Centre : titre, artiste, animation d'onde/barre + statistiques */}
               <div className="flex flex-col items-center flex-1 justify-center">
                 <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center title-suno">{currentTrack?.title || 'Titre inconnu'}</span>
-                <span className="text-lg text-gray-300 mb-2 text-center">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+                <span className="text-lg text-gray-300 mb-1 text-center">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
+                {(currentTrack as any)?.album && (
+                  <button onClick={openAlbumPanel} className="inline-flex items-center gap-2 text-sm text-white/85 bg-white/10 hover:bg-white/15 border border-white/10 rounded-full px-3 py-1">
+                    <Disc3 size={14} /> {(currentTrack as any).album}
+                  </button>
+                )}
                 
                 {/* Statistiques de la piste */}
                 <div className="flex items-center space-x-6 mb-4 text-sm text-gray-400">
@@ -522,6 +573,53 @@ export default function FullScreenPlayer() {
               </div>
               
 
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Album Panel */}
+      <AnimatePresence>
+        {albumOpen && (
+          <motion.div
+            className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setAlbumOpen(false)}
+          >
+            <motion.div
+              className="absolute bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl p-3 sm:p-4 max-h-[70vh] overflow-y-auto"
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10"><Disc3 size={12}/> Album</span>
+                  <div className="text-sm font-semibold">{currentTrack?.album || 'Album'}</div>
+                </div>
+                <button className="px-3 py-1.5 text-sm rounded-full bg-white text-black" onClick={playAlbumAll} disabled={albumLoading || !albumPlaylist?.tracks?.length}>Lire l'album</button>
+              </div>
+              {albumLoading && <div className="text-white/70 text-sm p-2">Chargement de l'album…</div>}
+              {!albumLoading && !albumPlaylist && <div className="text-white/70 text-sm p-2">Album introuvable.</div>}
+              {!albumLoading && albumPlaylist?.tracks?.length > 0 && (
+                <div className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+                  {albumPlaylist.tracks.map((t: any, i: number) => (
+                    <div key={t._id || i} className="flex items-center gap-3 p-2">
+                      <div className="w-6 text-center text-white/50 text-xs">{i+1}</div>
+                      <img src={(t.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} alt="" className="w-10 h-10 rounded object-cover" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-[var(--text)] truncate">{t.title}</div>
+                        <div className="text-xs text-white/50 truncate">{t.artist?.name || t.artist?.username || ''}</div>
+                      </div>
+                      <button className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20" onClick={async()=>{ setTracks(albumPlaylist.tracks); setCurrentTrackIndex(i); await play(); setAlbumOpen(false); }}>Lire</button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </motion.div>
           </motion.div>
         )}

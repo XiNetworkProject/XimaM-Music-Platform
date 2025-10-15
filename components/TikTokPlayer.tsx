@@ -7,7 +7,7 @@ import { useLikeContext } from '@/contexts/LikeContext';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown, Download, Lock } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, Share2, MoreVertical, ChevronUp, ChevronDown, Download, Lock, Disc3, ListMusic } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import toast from 'react-hot-toast';
 import FloatingParticles from './FloatingParticles';
@@ -36,6 +36,8 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     setCurrentTrackIndex, 
     setShowPlayer, 
     setIsMinimized, 
+    setTracks,
+    setQueueAndPlay,
     handleLike, 
     setShuffle, 
     setRepeat,
@@ -82,6 +84,9 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [showError, setShowError] = useState(false);
   const [isNotificationRequested, setIsNotificationRequested] = useState(false);
+  const [albumOpen, setAlbumOpen] = useState(false);
+  const [albumLoading, setAlbumLoading] = useState(false);
+  const [albumPlaylist, setAlbumPlaylist] = useState<any | null>(null);
   const [wheelDelta, setWheelDelta] = useState(0);
   const [isChangingTrack, setIsChangingTrack] = useState(false);
   const [boostMultiplier, setBoostMultiplier] = useState<number | null>(null);
@@ -107,6 +112,39 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const { updateLike } = useLikeContext();
 
   const currentTrack = audioState.tracks[currentIndex] || null;
+  const openAlbumPanel = useCallback(async (e?: React.MouseEvent<HTMLButtonElement>) => {
+    try {
+      e?.stopPropagation?.();
+      const albumName = (currentTrack as any)?.album as string | undefined;
+      if (!albumName || !currentTrack?.artist?._id) return;
+      setAlbumOpen(true);
+      setAlbumLoading(true);
+      setAlbumPlaylist(null);
+      const res = await fetch(`/api/playlists?user=${encodeURIComponent(currentTrack.artist._id)}`, { cache: 'no-store' });
+      if (!res.ok) { setAlbumLoading(false); return; }
+      const json = await res.json();
+      const name = String(albumName || '').toLowerCase();
+      const pl = Array.isArray(json?.playlists) ? json.playlists.find((p: any) => String(p.name || '').toLowerCase() === name) : null;
+      setAlbumPlaylist(pl || null);
+    } catch {
+      setAlbumPlaylist(null);
+    } finally {
+      setAlbumLoading(false);
+    }
+  }, [currentTrack?.artist?._id, currentTrack]);
+
+  const playAlbumAll = useCallback(async () => {
+    try {
+      if (!albumPlaylist?.tracks || albumPlaylist.tracks.length === 0) return;
+      const list = albumPlaylist.tracks;
+      setTracks(list);
+      setCurrentTrackIndex(0);
+      setQueueAndPlay(list, 0);
+      await play();
+      setAlbumOpen(false);
+    } catch {}
+  }, [albumPlaylist, setTracks, setCurrentTrackIndex, setQueueAndPlay, play]);
+
 
   const { isLiked: likeIsLiked, likesCount: likeCount, toggleLike, checkLikeStatus } = useLikeSystem({
     trackId: currentTrack?._id || '',
@@ -978,6 +1016,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   }
 
   return (
+    <>
     <AnimatePresence>
       {isOpen && (
         <motion.div
@@ -1282,7 +1321,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                         />
                       </span>
                     </div>
-                    <div className="text-white font-bold text-base sm:text-lg leading-tight line-clamp-2 flex items-center gap-2">
+              <div className="text-white font-bold text-base sm:text-lg leading-tight line-clamp-2 flex items-center gap-2">
                        {currentTrack?.title}
                       {audioState.isPlaying && (
                         <span className="inline-flex gap-0.5 items-end h-3" aria-hidden>
@@ -1292,6 +1331,23 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
                         </span>
                       )}
                      </div>
+                      {/* Badge album / single + bouton album */}
+                      <div className="mt-1 flex items-center gap-2">
+                        { (currentTrack as any)?.album ? (
+                          <>
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10">
+                              <Disc3 size={12} /> Album
+                            </span>
+                            <button onClick={(e)=>openAlbumPanel(e as any)} className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] rounded-full bg-white/10 hover:bg-white/20 border border-white/10">
+                              <Disc3 size={12} /> {(currentTrack as any).album}
+                            </button>
+                          </>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] bg-white/5 border border-white/10 opacity-80">
+                            <ListMusic size={12} /> Single
+                          </span>
+                        )}
+                      </div>
                   </div>
                 </motion.div>
               </div>
@@ -1441,5 +1497,52 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
         </motion.div>
       )}
     </AnimatePresence>
+    {/* Album Panel */}
+    <AnimatePresence>
+      {albumOpen && (
+        <motion.div
+          className="fixed inset-0 z-[130] bg-black/70 backdrop-blur-md"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={() => setAlbumOpen(false)}
+        >
+          <motion.div
+            className="absolute bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl p-3 sm:p-4 max-h-[72vh] overflow-y-auto"
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10"><Disc3 size={12}/> Album</span>
+                <div className="text-sm font-semibold">{(currentTrack as any)?.album || 'Album'}</div>
+              </div>
+              <button className="px-3 py-1.5 text-sm rounded-full bg-white text-black" onClick={playAlbumAll} disabled={albumLoading || !albumPlaylist?.tracks?.length}>Lire l'album</button>
+            </div>
+            {albumLoading && <div className="text-white/70 text-sm p-2">Chargement de l'album…</div>}
+            {!albumLoading && !albumPlaylist && <div className="text-white/70 text-sm p-2">Album introuvable.</div>}
+            {!albumLoading && albumPlaylist?.tracks?.length > 0 && (
+              <div className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+                {albumPlaylist.tracks.map((t: any, i: number) => (
+                  <div key={t._id || i} className="flex items-center gap-3 p-2">
+                    <div className="w-6 text-center text-white/50 text-xs">{i+1}</div>
+                    <img src={(t.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} alt="" className="w-10 h-10 rounded object-cover" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm text-[var(--text)] truncate">{t.title}</div>
+                      <div className="text-xs text-white/50 truncate">{t.artist?.name || t.artist?.username || ''}</div>
+                    </div>
+                    <button className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20" onClick={async()=>{ const list = albumPlaylist.tracks; setTracks(list); setCurrentTrackIndex(i); setQueueAndPlay(list, i); await play(); setAlbumOpen(false); }}>Lire</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </>
   );
 }

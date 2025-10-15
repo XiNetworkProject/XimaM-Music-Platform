@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
           track_id,
           position,
           tracks(
-            id, title, creator_id, created_at, cover_url, audio_url, duration, genre,
+            id, title, creator_id, created_at, cover_url, audio_url, duration, genre, album,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           )
         )
@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       duration: t.duration || 0,
       coverUrl: t.cover_url,
       audioUrl: t.audio_url,
+      album: t.album || null,
       genre: Array.isArray(t.genre) ? t.genre : [],
       likes: [],
       plays: 0,
@@ -96,7 +97,7 @@ export async function GET(request: NextRequest) {
 // POST - Créer une nouvelle playlist
 export async function POST(request: NextRequest) {
   try {
-    const { name, description, isPublic } = await request.json();
+    const { name, description, isPublic, coverUrl } = await request.json();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
@@ -140,7 +141,7 @@ export async function POST(request: NextRequest) {
         description: description?.trim() || '',
         is_public: isPublic !== false,
         creator_id: userId,
-        cover_url: null
+        cover_url: coverUrl || null
       })
       .select()
       .single();

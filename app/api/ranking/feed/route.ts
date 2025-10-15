@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         const { data: recentTracks, error: recentErr } = await supabaseAdmin
           .from('tracks')
           .select(`
-            id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays,
+            id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays, album,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
           `)
           .eq('is_public', true)
@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
               duration: t.duration || 0,
               coverUrl: t.cover_url,
               audioUrl: t.audio_url,
+              album: t.album || null,
               genre: t.genre || [],
               likes: [],
               plays: t.plays || 0,
@@ -176,7 +177,7 @@ export async function GET(request: NextRequest) {
           const { data } = await supabaseAdmin
             .from('tracks')
             .select(`
-              id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays,
+              id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, plays, album,
               profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
             `)
             .in('id', normalIds)
@@ -245,6 +246,7 @@ export async function GET(request: NextRequest) {
             duration: t.duration || 0,
             coverUrl: t.cover_url,
             audioUrl: t.audio_url,
+            album: t.album || null,
             genre: t.genre || [],
             likes: [],
             plays: t.plays || 0,
@@ -333,7 +335,7 @@ export async function GET(request: NextRequest) {
       const { data, error } = await supabaseAdmin
         .from('tracks')
         .select(`
-          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays,
+          id, title, creator_id, created_at, is_public, cover_url, audio_url, duration, genre, lyrics, plays, album,
           profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name, is_verified )
         `)
         .in('id', normalIds);
@@ -444,6 +446,7 @@ export async function GET(request: NextRequest) {
         duration: t.duration || 0,
         coverUrl: t.cover_url,
         audioUrl: t.audio_url,
+        album: t.album || null,
         genre: t.genre || [],
         lyrics: t.lyrics || null,
         likes: [],

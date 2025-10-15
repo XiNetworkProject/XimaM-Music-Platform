@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       duration: track.duration,
       coverUrl: track.cover_url,
       audioUrl: track.audio_url,
+      album: track.album || null,
       genre: track.genre,
       lyrics: track.lyrics || null,
       likes: track.likes || [],
