@@ -3,6 +3,10 @@
   "functions": {
     "app/api/upload/route.ts": {
       "maxDuration": 60
+    },
+    "app/api/albums/route.ts": {
+      "maxDuration": 300
     }
-  }
+  },
+  "maxRequestBodySize": "100mb"
 } 

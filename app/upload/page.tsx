@@ -1351,48 +1351,80 @@ export default function UploadPage() {
                       setIsUploading(true);
                       
                       try {
-                        const formDataToSend = new FormData();
-                        formDataToSend.append('title', albumFormData.title);
-                        formDataToSend.append('artist', albumFormData.artist);
-                        formDataToSend.append('releaseDate', albumFormData.releaseDate);
-                        formDataToSend.append('genre', JSON.stringify(albumFormData.genre));
-                        formDataToSend.append('description', albumFormData.description);
-                        formDataToSend.append('isExplicit', String(albumFormData.isExplicit));
-                        formDataToSend.append('isPublic', String(albumFormData.isPublic));
-                        formDataToSend.append('copyrightOwner', albumFormData.copyright.owner);
-                        formDataToSend.append('copyrightYear', String(albumFormData.copyright.year));
-                        formDataToSend.append('copyrightRights', albumFormData.copyright.rights);
-                        formDataToSend.append('trackCount', String(albumTracks.length));
+                        // Étape 1: Créer l'album avec la cover
+                        const albumData = new FormData();
+                        albumData.append('title', albumFormData.title);
+                        albumData.append('artist', albumFormData.artist);
+                        albumData.append('releaseDate', albumFormData.releaseDate);
+                        albumData.append('genre', JSON.stringify(albumFormData.genre));
+                        albumData.append('description', albumFormData.description);
+                        albumData.append('isExplicit', String(albumFormData.isExplicit));
+                        albumData.append('isPublic', String(albumFormData.isPublic));
                         
                         if (albumCoverFile) {
-                          formDataToSend.append('cover', albumCoverFile);
+                          albumData.append('cover', albumCoverFile);
                         }
                         
-                        // Ajouter chaque piste
-                        albumTracks.forEach((track, index) => {
-                          if (track.audioFile) {
-                            formDataToSend.append(`track_${index}_file`, track.audioFile);
-                            formDataToSend.append(`track_${index}_title`, track.title);
-                            formDataToSend.append(`track_${index}_number`, String(track.trackNumber));
-                          }
-                        });
-                        
-                        const response = await fetch('/api/albums', {
+                        const createResponse = await fetch('/api/albums/create', {
                           method: 'POST',
-                          body: formDataToSend
+                          body: albumData
                         });
                         
-                        if (!response.ok) {
-                          const error = await response.json();
-                          console.error('❌ Réponse API albums:', error);
-                          throw new Error(error.details || error.error || 'Erreur lors de la publication');
+                        if (!createResponse.ok) {
+                          const error = await createResponse.json();
+                          throw new Error(error.details || error.error || 'Erreur lors de la création de l\'album');
                         }
                         
-                        const result = await response.json();
+                        const { album } = await createResponse.json();
+                        
+                        // Étape 2: Uploader chaque piste une par une
+                        let uploadedCount = 0;
+                        const trackErrors: string[] = [];
+                        
+                        for (let i = 0; i < albumTracks.length; i++) {
+                          const track = albumTracks[i];
+                          if (!track.audioFile) continue;
+                          
+                          try {
+                            setUploadProgress({ 
+                              audio: Math.round(((i + 1) / albumTracks.length) * 100), 
+                              cover: 100 
+                            });
+                            
+                            const trackFormData = new FormData();
+                            trackFormData.append('albumId', album.id);
+                            trackFormData.append('trackFile', track.audioFile);
+                            trackFormData.append('trackTitle', track.title);
+                            trackFormData.append('trackNumber', String(track.trackNumber));
+                            trackFormData.append('genre', JSON.stringify(albumFormData.genre));
+                            trackFormData.append('isExplicit', String(albumFormData.isExplicit));
+                            trackFormData.append('isPublic', String(albumFormData.isPublic));
+                            trackFormData.append('coverUrl', album.cover_url || '');
+                            trackFormData.append('coverPublicId', album.cover_public_id || '');
+                            
+                            const trackResponse = await fetch('/api/albums/add-track', {
+                              method: 'POST',
+                              body: trackFormData
+                            });
+                            
+                            if (trackResponse.ok) {
+                              uploadedCount++;
+                            } else {
+                              const error = await trackResponse.json();
+                              trackErrors.push(`${track.title}: ${error.error}`);
+                            }
+                          } catch (error) {
+                            trackErrors.push(`${track.title}: ${error instanceof Error ? error.message : 'Erreur inconnue'}`);
+                          }
+                        }
+                        
+                        if (uploadedCount === 0) {
+                          throw new Error('Aucune piste n\'a pu être uploadée');
+                        }
                         
                         notify.success(
                           'Album publié avec succès !',
-                          `${result.tracks.length} piste(s) uploadée(s)`
+                          `${uploadedCount} piste(s) uploadée(s)${trackErrors.length > 0 ? ` (${trackErrors.length} erreur(s))` : ''}`
                         );
                         
                         // Rediriger vers la page d'accueil
@@ -1407,6 +1439,7 @@ export default function UploadPage() {
                         );
                       } finally {
                         setIsUploading(false);
+                        setUploadProgress({ audio: 0, cover: 0 });
                       }
                     }}
                     disabled={!albumFormData.title || albumTracks.length === 0 || isUploading}
