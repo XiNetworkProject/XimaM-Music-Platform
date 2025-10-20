@@ -22,7 +22,7 @@ import {
   Play, Heart, Pause, Headphones, 
   Users, TrendingUp, Music, Flame, Calendar, UserPlus,
   Sparkles, Crown, Radio, Mic2, Share2, Eye, 
-  X, MessageCircle, LogIn
+  X, MessageCircle, LogIn, Cloud
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -253,8 +253,9 @@ export default function HomePage() {
     
     return filtered.length > 0 ? filtered : trendingList;
   }, [categories.trending.tracks, forYouList]);
-  // Ajouter 1 slide promo abonnement au début
-  const totalSlides = useMemo(() => Math.max(1, heroTracks.length + 1), [heroTracks.length]);
+  // Slides statiques: 0 = Météo, 1 = Abonnements, 2 = IA
+  const STATIC_SLIDES = 3;
+  const totalSlides = useMemo(() => Math.max(1, heroTracks.length + STATIC_SLIDES), [heroTracks.length]);
 
   // Synchronisation temps réel pour les listes d'accueil
   useEffect(() => {
@@ -867,8 +868,8 @@ export default function HomePage() {
     }
     
     let start: number | null = null;
-    // Allonger la visibilité de la première diapo (promo abonnements)
-    const isPromo = currentSlide === 0;
+    // Allonger la visibilité des diapositives statiques (météo, abonnements, IA)
+    const isPromo = currentSlide < STATIC_SLIDES;
     const durationMs = isPromo ? 14000 : 8000;
 
     const step = (ts: number) => {
@@ -892,7 +893,7 @@ export default function HomePage() {
       }
       setAutoProgress(0);
     };
-  }, [isAutoPlaying, isCarouselInView, totalSlides]);
+  }, [isAutoPlaying, isCarouselInView, totalSlides, STATIC_SLIDES]);
 
   useEffect(() => {
     if (isNative) {
@@ -1561,6 +1562,10 @@ export default function HomePage() {
 
    const categoryConfigs: any[] = [];
 
+  // Index et piste courante pour les slides dynamiques (après les 3 slides statiques)
+  const heroIndex = currentSlide - STATIC_SLIDES;
+  const heroTrack = heroIndex >= 0 && heroIndex < heroTracks.length ? heroTracks[heroIndex] : null;
+
   return (
     <div className="text-white pt-0 pb-20 lg:pb-4 overflow-x-hidden w-full">
         <div className="w-full max-w-none sm:max-w-7xl sm:mx-auto px-2 sm:px-4 md:px-6">
@@ -1617,14 +1622,25 @@ export default function HomePage() {
                 {/* Image de fond avec effet parallax et overlay */}
                 <div className="absolute inset-0 overflow-hidden">
                   {currentSlide === 0 ? (
-                  <img
+                    // Slide Météo (Alertemps)
+                    <img
+                      src={'/meteocaroussel.webp'}
+                      alt={'Météo Alertemps sur Synaura'}
+                      className="w-full h-full object-cover"
+                      loading="eager"
+                      onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
+                    />
+                  ) : currentSlide === 1 ? (
+                    // Slide Abonnements
+                    <img
                       src={'/fe904850-2547-4e2e-8cc3-085a7704488b.webp'}
                       alt={'Abonnements Synaura'}
                       className="w-full h-full object-cover"
                       loading="eager"
                       onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
                     />
-                  ) : currentSlide === 1 ? (
+                  ) : currentSlide === 2 ? (
+                    // Slide IA
                     <img
                       src={'/DALL·E 2025-09-26 23.14.53 - A minimalist, abstract landscape-format illustration symbolizing AI-generated music. The image features a stylized humanoid head made of flowing digit.webp'}
                       alt={'Générateur de Musique IA'}
@@ -1634,8 +1650,8 @@ export default function HomePage() {
                     />
                   ) : (
                     <img
-                      src={getValidImageUrl(heroTracks[currentSlide-1].coverUrl, '/default-cover.jpg')}
-                      alt={heroTracks[currentSlide-1].title}
+                      src={getValidImageUrl(heroTrack?.coverUrl, '/default-cover.jpg')}
+                      alt={heroTrack?.title || 'Titre'}
                       className="w-full h-full object-cover"
                       loading="eager"
                       onError={(e) => { e.currentTarget.src = '/default-cover.jpg'; }}
@@ -1656,8 +1672,10 @@ export default function HomePage() {
                   >
                     <div className="w-2 h-2 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full animate-pulse"></div>
                     {currentSlide === 0 ? (
-                      <span className="text-[var(--text)] text-sm font-medium">Offre Premium</span>
+                      <span className="text-[var(--text)] text-sm font-medium">Bulletin météo</span>
                     ) : currentSlide === 1 ? (
+                      <span className="text-[var(--text)] text-sm font-medium">Offre Premium</span>
+                    ) : currentSlide === 2 ? (
                       <span className="text-[var(--text)] text-sm font-medium">IA Musicale</span>
                     ) : (
                       <>
@@ -1669,7 +1687,19 @@ export default function HomePage() {
 
                   {/* Badges secondaires */}
                   <div className="flex items-center justify-center gap-3 mb-6 animate-slide-up">
-                    {currentSlide === 1 ? (
+                    {currentSlide === 0 ? (
+                      <>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-blue-500/15 backdrop-blur-md text-blue-200 font-medium">
+                          Alertemps
+                        </span>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-blue-500/15 backdrop-blur-md text-blue-200 font-medium">
+                          Bulletin hebdomadaire
+                        </span>
+                        <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-blue-500/15 backdrop-blur-md text-blue-200 font-medium">
+                          Cartes haute résolution
+                        </span>
+                      </>
+                    ) : currentSlide === 2 ? (
                       <>
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
                           Génération IA
@@ -1681,18 +1711,18 @@ export default function HomePage() {
                           Gratuit
                         </span>
                       </>
-                    ) : currentSlide > 1 && Array.isArray(heroTracks[currentSlide-1]?.genre) && ((heroTracks[currentSlide-1]?.genre?.length || 0) > 0) ? (
+                    ) : currentSlide >= STATIC_SLIDES && Array.isArray(heroTrack?.genre) && ((heroTrack?.genre?.length || 0) > 0) ? (
                       <>
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                          {heroTracks[currentSlide-1]?.genre?.[0]}
+                          {heroTrack?.genre?.[0]}
                         </span>
-                        {heroTracks[currentSlide-1].createdAt && (
+                        {heroTrack?.createdAt && (
                           <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                            {formatDate(heroTracks[currentSlide-1].createdAt)}
+                            {formatDate(heroTrack?.createdAt)}
                       </span>
                     )}
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-[var(--surface-2)] backdrop-blur-md text-[var(--text)] font-medium">
-                          {formatDuration(heroTracks[currentSlide-1].duration)}
+                          {formatDuration(heroTrack?.duration || 0)}
                     </span>
                       </>
                     ) : null}
@@ -1705,16 +1735,16 @@ export default function HomePage() {
                       textShadow: '0 0 30px rgba(168, 85, 247, 0.5), 0 0 60px rgba(236, 72, 153, 0.3)'
                     }}
                         >
-                          {currentSlide === 0 ? 'Débloquez tout Synaura' : currentSlide === 1 ? 'Générateur de Musique IA' : heroTracks[currentSlide-1].title}
+                          {currentSlide === 0 ? 'Météo Alertemps sur Synaura' : currentSlide === 1 ? 'Débloquez tout Synaura' : currentSlide === 2 ? 'Générateur de Musique IA' : heroTracks[currentSlide-STATIC_SLIDES].title}
                         </h1>
 
                   {/* Artiste avec avatar */}
-                  {currentSlide > 1 && (
+                  {currentSlide >= STATIC_SLIDES && (
                     <div className="flex items-center justify-center gap-3 mb-4 animate-slide-up">
                       <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 shadow-lg">
                         <img
-                          src={heroTracks[currentSlide-1].artist?.avatar || '/default-avatar.png'}
-                          alt={heroTracks[currentSlide-1].artist?.name}
+                          src={heroTrack?.artist?.avatar || '/default-avatar.png'}
+                          alt={heroTrack?.artist?.name}
                         className="w-full h-full object-cover"
                           onError={(e) => { e.currentTarget.src = '/default-avatar.png'; }}
                               />
@@ -1722,14 +1752,14 @@ export default function HomePage() {
                     <div className="text-left">
                         <p className="text-[var(--text-muted)] text-lg font-medium">par</p>
                         <h3 className="text-2xl font-bold text-[var(--text)] hover:text-purple-300 transition-colors cursor-pointer">
-                          {heroTracks[currentSlide-1].artist?.name || heroTracks[currentSlide-1].artist?.username || 'Artiste inconnu'}
+                          {heroTrack?.artist?.name || heroTrack?.artist?.username || 'Artiste inconnu'}
                       </h3>
                           </div>
                         </div>
                   )}
                   
                   {/* Description pour IA */}
-                  {currentSlide === 1 && (
+                  {currentSlide === 2 && (
                     <div className="text-center mb-4 animate-slide-up">
                       <p className="text-[var(--text-muted)] text-lg font-medium">
                         Créez de la musique unique avec l'intelligence artificielle
@@ -1741,6 +1771,15 @@ export default function HomePage() {
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 animate-slide-up">
                     {/* Bouton Play principal */}
                           {currentSlide === 0 ? (
+                            <button
+                              onClick={() => router.push('/meteo', { scroll: false })}
+                              className="group relative flex items-center space-x-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 shadow-xl hover:scale-105 active:scale-95"
+                              aria-label="Voir la météo"
+                            >
+                              <Cloud size={18} />
+                              <span>Voir la météo</span>
+                            </button>
+                          ) : currentSlide === 1 ? (
                           <button
                               onClick={() => router.push('/subscriptions', { scroll: false })}
                               className="group relative flex items-center space-x-2 bg-gradient-to-r from-green-500 via-emerald-500 to-green-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 shadow-xl hover:scale-105 active:scale-95"
@@ -1749,7 +1788,7 @@ export default function HomePage() {
                               <Crown size={18} />
                               <span>Débloquer toutes les fonctionnalités</span>
                             </button>
-                          ) : currentSlide === 1 ? (
+                          ) : currentSlide === 2 ? (
                             <button
                               onClick={() => router.push('/ai-generator', { scroll: false })}
                               className="group relative flex items-center space-x-2 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 shadow-xl hover:scale-105 active:scale-95"
@@ -1760,21 +1799,21 @@ export default function HomePage() {
                             </button>
                           ) : (
                             <button
-                              onClick={() => handlePlayTrack(heroTracks[currentSlide-1])}
+                              onClick={() => heroTrack && handlePlayTrack(heroTrack)}
                       className="group relative flex items-center space-x-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl font-semibold text-sm hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-xl hover:shadow-purple-500/40 hover:scale-105 active:scale-95"
-                      aria-label={currentTrack?._id === heroTracks[currentSlide-1]._id && audioState.isPlaying ? 'Mettre en pause' : 'Lire la piste'}
+                      aria-label={heroTrack && currentTrack?._id === heroTrack._id && audioState.isPlaying ? 'Mettre en pause' : 'Lire la piste'}
                           >
                       {/* Effet de lueur */}
                       <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-pink-400 rounded-2xl blur-xl opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
                       
                       <div className="relative flex items-center space-x-3">
-                            {currentTrack?._id === heroTracks[currentSlide-1]._id && audioState.isPlaying ? (
+                            {heroTrack && currentTrack?._id === heroTrack._id && audioState.isPlaying ? (
                           <Pause size={18} />
                             ) : (
                           <Play size={18} className="ml-0.5" />
                             )}
                             <span>
-                              {currentTrack?._id === heroTracks[currentSlide-1]._id && audioState.isPlaying ? 'Pause' : 'Écouter'}
+                              {heroTrack && currentTrack?._id === heroTrack._id && audioState.isPlaying ? 'Pause' : 'Écouter'}
                             </span>
                       </div>
                           </button>) }

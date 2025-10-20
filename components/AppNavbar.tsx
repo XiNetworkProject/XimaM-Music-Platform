@@ -4,9 +4,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { Search, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles, LogIn, Crown } from 'lucide-react';
+import { Search, Bell, Plus, Music, User, Disc3, X, Headphones, Play, Sparkles, LogIn, Crown, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAudioPlayer } from '../app/providers';
+import { useSidebar } from '@/app/providers';
 import NotificationCenter from './NotificationCenter';
 import Avatar from './Avatar';
 
@@ -65,6 +66,7 @@ export default function AppNavbar() {
   
   // Service audio pour lancer les tracks
   const { playTrack, audioState } = useAudioPlayer();
+  const { toggleSidebar } = useSidebar();
   
   // Charger le plan de l'utilisateur
   useEffect(() => {
@@ -207,6 +209,15 @@ export default function AppNavbar() {
     <header className="sticky top-0 z-40">
       <div className="mx-auto max-w-[2000px] px-2 sm:px-4 md:px-6 py-2">
         <div className="panel-suno rounded-xl sm:rounded-2xl px-3 sm:px-4 md:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-4 border border-[var(--border)]/50 bg-[var(--surface)]/95 backdrop-blur-md shadow-lg">
+          {/* Toggle sidebar (mobile + desktop) */}
+          <button
+            onClick={toggleSidebar}
+            className="inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-[var(--surface-2)] transition-colors"
+            aria-label="Basculer la barre latérale"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
           {/* Logo */}
           <Link href="/" className="flex items-center flex-shrink-0" aria-label="Synaura">
             <Image src="/synaura_symbol.svg" alt="Synaura" width={32} height={32} className="w-8 h-8 sm:w-9 sm:h-9" priority />

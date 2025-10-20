@@ -578,6 +578,61 @@ export function useAudioPlayer() {
   return context;
 }
 
+// Sidebar context
+interface SidebarContextType {
+  isSidebarOpen: boolean;
+  toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
+}
+
+const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
+
+function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+
+  // Charger l'état depuis le stockage et adapter selon la taille d'écran
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('ui.sidebar.open');
+      if (stored === '0') {
+        setIsSidebarOpen(false);
+        return;
+      }
+      if (stored === '1') {
+        setIsSidebarOpen(true);
+        return;
+      }
+    } catch {}
+    // Par défaut: ouvert sur grands écrans, fermé sinon
+    if (typeof window !== 'undefined') {
+      setIsSidebarOpen(window.innerWidth >= 1024);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('ui.sidebar.open', isSidebarOpen ? '1' : '0');
+    } catch {}
+  }, [isSidebarOpen]);
+
+  const toggleSidebar = useCallback(() => setIsSidebarOpen(v => !v), []);
+  const setSidebarOpen = useCallback((open: boolean) => setIsSidebarOpen(open), []);
+
+  const value = useMemo(() => ({ isSidebarOpen, toggleSidebar, setSidebarOpen }), [isSidebarOpen, toggleSidebar, setSidebarOpen]);
+
+  return (
+    <SidebarContext.Provider value={value}>
+      {children}
+    </SidebarContext.Provider>
+  );
+}
+
+export function useSidebar() {
+  const ctx = useContext(SidebarContext);
+  if (!ctx) throw new Error('useSidebar must be used within SidebarProvider');
+  return ctx;
+}
+
 // Provider d'abonnement global
 function SubscriptionProvider({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
@@ -673,11 +728,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           <PlaysProvider>
             <PlaysSyncWrapper>
               <AudioPlayerProvider>
-                <SubscriptionProvider>
-                  {children}
-                  <WhatsNewModal isOpen={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
-                  <Toaster position="top-center" />
-                </SubscriptionProvider>
+                <SidebarProvider>
+                  <SubscriptionProvider>
+                    {children}
+                    <WhatsNewModal isOpen={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
+                    <Toaster position="top-center" />
+                  </SubscriptionProvider>
+                </SidebarProvider>
               </AudioPlayerProvider>
             </PlaysSyncWrapper>
           </PlaysProvider>

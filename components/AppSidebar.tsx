@@ -4,11 +4,13 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { Home, Compass, BookOpen, Settings, Plus, Music, TrendingUp, Users, HelpCircle, Cloud } from 'lucide-react';
+import { Home, Compass, BookOpen, Settings, Plus, TrendingUp, Users, HelpCircle, Cloud } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
+import { useSidebar } from '@/app/providers';
 
 export default function AppSidebar() {
+  const { isSidebarOpen } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
@@ -52,11 +54,11 @@ export default function AppSidebar() {
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   return (
-    <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 z-30 p-4">
+    <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 ${isSidebarOpen ? 'lg:w-72' : 'lg:w-24'} transition-[width] duration-200 ease-in-out z-30 p-4 overflow-hidden`}>
       <div className="panel-suno border border-[var(--border)] rounded-2xl h-full flex flex-col overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <Image src="/synaura_symbol.svg" alt="Synaura" width={28} height={28} />
-          <div className="font-extrabold tracking-tight text-lg">Synaura</div>
+          <div className={`font-extrabold tracking-tight text-lg ${isSidebarOpen ? '' : 'hidden'}`}>Synaura</div>
         </div>
 
         <nav className="px-2 py-2 space-y-1 flex-1 overflow-y-auto">
@@ -80,7 +82,7 @@ export default function AppSidebar() {
               <button
                 key={item.href}
                 onClick={() => router.push(item.href, { scroll: false })}
-                className={`w-full text-left group flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border transition-all ${
+                className={`w-full text-left group flex items-center ${isSidebarOpen ? 'justify-between' : 'justify-center'} gap-3 px-3 py-2.5 rounded-xl border transition-all ${
                   active
                     ? isPartner
                       ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
@@ -89,14 +91,16 @@ export default function AppSidebar() {
                 }`}
                 title={`${item.label} — ${item.desc}`}
               >
-                <div className="flex items-center gap-3">
-                  <item.icon className="w-5 h-5" />
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold leading-4">{item.label}</span>
-                    <span className="text-xs text-[var(--text-muted)] leading-3">{item.desc}</span>
-                  </div>
+                <div className={`flex items-center ${isSidebarOpen ? 'gap-3' : ''}`}>
+                  <item.icon className={`${isSidebarOpen ? 'w-5 h-5' : 'w-6 h-6'}`} />
+                  {isSidebarOpen && (
+                    <div className="flex flex-col">
+                      <span className="text-sm font-semibold leading-4">{item.label}</span>
+                      <span className="text-xs text-[var(--text-muted)] leading-3">{item.desc}</span>
+                    </div>
+                  )}
                 </div>
-                {isNew && (
+                {isSidebarOpen && isNew && (
                   <span className="ml-auto inline-flex items-center justify-center px-2 h-5 text-[10px] rounded-full bg-green-500/20 text-green-300 border border-green-500/40">Nouveau</span>
                 )}
               </button>
@@ -105,61 +109,97 @@ export default function AppSidebar() {
         </nav>
 
         <div className="px-3 pb-3 pt-1 space-y-2">
-          <button
-            onClick={() => router.push('/upload', { scroll: false })}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow"
-            title="Uploader — Partager votre musique"
-          >
-            <Plus className="w-4 h-4" /> Uploader
-          </button>
+          {isSidebarOpen ? (
+            <>
+              <button
+                onClick={() => router.push('/upload', { scroll: false })}
+                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow"
+                title="Uploader — Partager votre musique"
+              >
+                <Plus className="w-4 h-4" /> Uploader
+              </button>
 
-          <button
-            onClick={() => router.push('/ai-generator', { scroll: false })}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold btn-suno"
-            title="IA — Générateur de musique"
-          >
-            <Music className="w-4 h-4" /> IA
-          </button>
+              
 
-          <button
-            onClick={() => router.push('/settings', { scroll: false })}
-            className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border ${
-              pathname.startsWith('/settings')
-                ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40'
-                : 'border-[var(--border)] hover:bg-white/5'
-            }`}
-            title="Paramètres"
-          >
-            <Settings className="w-4 h-4" /> Paramètres
-          </button>
+              <button
+                onClick={() => router.push('/settings', { scroll: false })}
+                className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border ${
+                  pathname.startsWith('/settings')
+                    ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40'
+                    : 'border-[var(--border)] hover:bg-white/5'
+                }`}
+                title="Paramètres"
+              >
+                <Settings className="w-4 h-4" /> Paramètres
+              </button>
 
-          <button
-            onClick={() => router.push(session?.user?.username ? `/profile/${session.user.username}` : '/auth/signin', { scroll: false })}
-            className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-white/5"
-            title="Profil"
-          >
-            <img
-              src={getSafeAvatar()}
-              alt="Profile"
-              className="w-5 h-5 rounded-full object-cover"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-              }}
-            />
-            {session?.user?.name || session?.user?.username || 'Profil'}
-          </button>
+              <button
+                onClick={() => router.push(session?.user?.username ? `/profile/${session.user.username}` : '/auth/signin', { scroll: false })}
+                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] hover:bg-white/5"
+                title="Profil"
+              >
+                <img
+                  src={getSafeAvatar()}
+                  alt="Profile"
+                  className="w-5 h-5 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                  }}
+                />
+                {session?.user?.name || session?.user?.username || 'Profil'}
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={() => router.push('/upload', { scroll: false })}
+                className="w-12 h-12 inline-flex items-center justify-center rounded-xl bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white shadow"
+                title="Uploader"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+              
+              <button
+                onClick={() => router.push('/settings', { scroll: false })}
+                className={`w-12 h-12 inline-flex items-center justify-center rounded-xl border ${
+                  pathname.startsWith('/settings')
+                    ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-purple-500/40'
+                    : 'border-[var(--border)] hover:bg-white/5'
+                }`}
+                title="Paramètres"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => router.push(session?.user?.username ? `/profile/${session.user.username}` : '/auth/signin', { scroll: false })}
+                className="w-12 h-12 inline-flex items-center justify-center rounded-xl border border-[var(--border)] hover:bg-white/5"
+                title="Profil"
+              >
+                <img
+                  src={getSafeAvatar()}
+                  alt="Profile"
+                  className="w-6 h-6 rounded-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                  }}
+                />
+              </button>
+            </div>
+          )}
         </div>
       </div>
       {/* Crédit Partenaire */}
-      <div className="mt-3 px-2">
-        <div className="panel-suno border border-[var(--border)] rounded-xl px-3 py-2 flex items-center gap-3">
-          <img src="/channels4_profile%20(2).jpg" alt="CIEUX INSTABLES" className="w-8 h-8 rounded-full object-cover" />
-          <div className="flex flex-col leading-tight">
-            <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Partenaire</span>
-            <span className="text-sm font-semibold text-[var(--text)]">CIEUX INSTABLES</span>
+      {isSidebarOpen && (
+        <div className="mt-3 px-2">
+          <div className="panel-suno border border-[var(--border)] rounded-xl px-3 py-2 flex items-center gap-3">
+            <img src="/channels4_profile%20(2).jpg" alt="CIEUX INSTABLES" className="w-8 h-8 rounded-full object-cover" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-[10px] uppercase tracking-wide text-[var(--text-muted)]">Partenaire</span>
+              <span className="text-sm font-semibold text-[var(--text)]">CIEUX INSTABLES</span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 }

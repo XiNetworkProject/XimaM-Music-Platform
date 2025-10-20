@@ -6,6 +6,7 @@ import Providers from './providers';
 import BottomNav from '@/components/BottomNav';
 import AppNavbar from '@/components/AppNavbar';
 import AppSidebar from '@/components/AppSidebar';
+import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 import { Analytics } from '@vercel/analytics/next';
 
@@ -110,14 +111,14 @@ export default function RootLayout({
 
           <div className="flex min-h-screen overflow-x-hidden max-w-full">
             <AppSidebar />
-            <div className="flex-1 flex flex-col lg:pl-72 overflow-x-hidden max-w-full">
+            <LayoutContent>
               <AppNavbar />
               <main className="flex-1 overflow-x-hidden max-w-full">
                 {children}
               </main>
               <BottomNav />
               <FullScreenPlayer />
-            </div>
+            </LayoutContent>
           </div>
           <Analytics />
         </Providers>
