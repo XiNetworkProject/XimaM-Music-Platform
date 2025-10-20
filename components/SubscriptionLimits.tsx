@@ -190,45 +190,49 @@ export default function SubscriptionLimits() {
           
           {usageInfo && (
             <div className="space-y-4">
-              {Object.entries(usageInfo).map(([key, data], index) => {
-                const label = key === 'tracks' ? 'Pistes' : 
-                             key === 'playlists' ? 'Playlists' : key;
-                
-                const formatValue = (value: number) => value.toString();
+              {(['tracks', 'playlists'] as const)
+                .filter((k) => {
+                  const section = (usageInfo as any)[k];
+                  return section && typeof section.used === 'number' && typeof section.limit === 'number';
+                })
+                .map((key, index) => {
+                  const data = (usageInfo as any)[key] as { used: number; limit: number; percentage: number };
+                  const label = key === 'tracks' ? 'Pistes' : 'Playlists';
+                  const formatValue = (value: number) => String(value);
 
-                return (
-                  <motion.div 
-                    key={key} 
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className="space-y-3"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-white/70 font-medium">{label}</span>
-                      <span className={`font-semibold ${getUsageText(data.percentage)}`}>
-                        {formatValue(data.used)} / {formatValue(data.limit)}
-                      </span>
-                    </div>
-                    
-                    <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${Math.min(data.percentage, 100)}%` }}
-                        transition={{ duration: 0.8, delay: index * 0.1 }}
-                        className={`h-3 rounded-full bg-gradient-to-r ${getUsageColor(data.percentage)} shadow-sm`}
-                      />
-                    </div>
-                    
-                    {data.percentage >= 90 && (
-                      <div className="flex items-center gap-2 text-xs text-red-400">
-                        <AlertTriangle className="w-4 h-4" />
-                        Limite presque atteinte ({data.percentage.toFixed(0)}%)
+                  return (
+                    <motion.div 
+                      key={key} 
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      className="space-y-3"
+                    >
+                      <div className="flex justify-between items-center">
+                        <span className="text-white/70 font-medium">{label}</span>
+                        <span className={`font-semibold ${getUsageText(data.percentage)}`}>
+                          {formatValue(data.used)} / {formatValue(data.limit)}
+                        </span>
                       </div>
-                    )}
-                  </motion.div>
-                );
-              })}
+                      
+                      <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${Math.min(data.percentage, 100)}%` }}
+                          transition={{ duration: 0.8, delay: index * 0.1 }}
+                          className={`h-3 rounded-full bg-gradient-to-r ${getUsageColor(data.percentage)} shadow-sm`}
+                        />
+                      </div>
+                      
+                      {data.percentage >= 90 && (
+                        <div className="flex items-center gap-2 text-xs text-red-400">
+                          <AlertTriangle className="w-4 h-4" />
+                          Limite presque atteinte ({data.percentage.toFixed(0)}%)
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
             </div>
           )}
         </div>
