@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Récupérer le bulletin courant (public, pas besoin d'authentification)
@@ -14,14 +16,29 @@ export async function GET() {
 
     if (error && error.code !== 'PGRST116') {
       console.error('Erreur récupération bulletin public:', error);
-      return NextResponse.json({ bulletin: null });
+      const resErr = NextResponse.json({ bulletin: null });
+      resErr.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      resErr.headers.set('Pragma', 'no-cache');
+      resErr.headers.set('Expires', '0');
+      resErr.headers.set('CDN-Cache-Control', 'no-store');
+      return resErr;
     }
 
-    return NextResponse.json({ bulletin });
+    const res = NextResponse.json({ bulletin });
+    res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.headers.set('Pragma', 'no-cache');
+    res.headers.set('Expires', '0');
+    res.headers.set('CDN-Cache-Control', 'no-store');
+    return res;
 
   } catch (error) {
     console.error('Erreur API bulletin public:', error);
-    return NextResponse.json({ bulletin: null });
+    const resCatch = NextResponse.json({ bulletin: null });
+    resCatch.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    resCatch.headers.set('Pragma', 'no-cache');
+    resCatch.headers.set('Expires', '0');
+    resCatch.headers.set('CDN-Cache-Control', 'no-store');
+    return resCatch;
   }
 }
 
