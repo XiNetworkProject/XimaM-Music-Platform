@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Cloud, Calendar, AlertCircle, ExternalLink } from 'lucide-react';
+import { Cloud, Calendar, AlertCircle, ExternalLink, Youtube, Instagram, Facebook, Globe } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface Bulletin {
@@ -112,16 +112,58 @@ export default function MeteoPublicPage() {
               </div>
             </div>
 
-            {/* Lien vers Cieux Instables YouTube */}
-            <a
-              href="https://www.youtube.com/@CIEUXINSTABLES"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl transition-colors font-medium"
-            >
-              <span>Chaîne YouTube Cieux Instables</span>
-              <ExternalLink className="w-4 h-4" />
-            </a>
+            {/* Liens partenaires */}
+            <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <a
+                href="https://www.youtube.com/@CIEUXINSTABLES"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-red-600/90 hover:bg-red-700 text-white transition-colors font-medium"
+              >
+                <span className="inline-flex items-center gap-2"><Youtube className="w-4 h-4" /> Chaîne YouTube Cieux Instables</span>
+                <ExternalLink className="w-4 h-4 opacity-90" />
+              </a>
+
+              <a
+                href="https://www.youtube.com/@alertemps"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-red-600/90 hover:bg-red-700 text-white transition-colors font-medium"
+              >
+                <span className="inline-flex items-center gap-2"><Youtube className="w-4 h-4" /> Chaîne YouTube Alertemps</span>
+                <ExternalLink className="w-4 h-4 opacity-90" />
+              </a>
+
+              <a
+                href="https://alertemps.wixsite.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-blue-600/90 hover:bg-blue-700 text-white transition-colors font-medium"
+              >
+                <span className="inline-flex items-center gap-2"><Globe className="w-4 h-4" /> Site web Alertemps</span>
+                <ExternalLink className="w-4 h-4 opacity-90" />
+              </a>
+
+              <a
+                href="https://www.instagram.com/alertemps_france/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-gradient-to-r from-pink-500/90 to-purple-500/90 hover:from-pink-600 hover:to-purple-600 text-white transition-colors font-medium"
+              >
+                <span className="inline-flex items-center gap-2"><Instagram className="w-4 h-4" /> Instagram Alertemps</span>
+                <ExternalLink className="w-4 h-4 opacity-90" />
+              </a>
+
+              <a
+                href="https://www.facebook.com/p/Alertemps_france-100090219754668/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-blue-700/90 hover:bg-blue-800 text-white transition-colors font-medium sm:col-span-2"
+              >
+                <span className="inline-flex items-center gap-2"><Facebook className="w-4 h-4" /> Facebook Alertemps</span>
+                <ExternalLink className="w-4 h-4 opacity-90" />
+              </a>
+            </div>
           </div>
         </motion.div>
 
