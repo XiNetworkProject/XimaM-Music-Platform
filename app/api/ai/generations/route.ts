@@ -26,15 +26,11 @@ export async function GET(req: NextRequest) {
       metadata: g.metadata
     })));
     
-    // Filtrer les générations complétées avec des tracks
-    const completedGenerations = generations.filter(g => 
-      g.status === 'completed' && g.tracks && g.tracks.length > 0
-    );
-    
-    console.log(`✅ Générations complétées avec tracks:`, completedGenerations.length);
+    // Retourner toutes les générations (pas seulement les complétées)
+    console.log(`✅ Toutes les générations:`, generations.length);
     
     return NextResponse.json({
-      generations: completedGenerations.map(gen => ({
+      generations: generations.map(gen => ({
         id: gen.id,
         taskId: gen.task_id,
         status: gen.status,

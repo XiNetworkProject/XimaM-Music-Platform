@@ -42,18 +42,27 @@ export function useAIGenerations() {
     const fetchGenerations = async () => {
       try {
         setLoading(true);
+        console.log('🔄 Récupération des générations pour userId:', session?.user?.id);
+        
         const response = await fetch('/api/ai/generations', {
           credentials: 'include'
         });
 
+        console.log('📡 Réponse API:', response.status, response.statusText);
+
         if (!response.ok) {
-          throw new Error('Erreur lors de la récupération des générations');
+          const errorText = await response.text();
+          console.error('❌ Erreur API:', errorText);
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('📊 Données reçues:', data);
+        console.log('📊 Nombre de générations:', data.generations?.length || 0);
+        
         setGenerations(data.generations || []);
       } catch (err: any) {
-        console.error('Erreur récupération générations:', err);
+        console.error('❌ Erreur récupération générations:', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -71,18 +80,27 @@ export function useAIGenerations() {
   const refreshGenerations = async () => {
     try {
       setLoading(true);
+      console.log('🔄 Rafraîchissement des générations...');
+      
       const response = await fetch('/api/ai/generations', {
         credentials: 'include'
       });
 
+      console.log('📡 Réponse refresh:', response.status, response.statusText);
+
       if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des générations');
+        const errorText = await response.text();
+        console.error('❌ Erreur refresh API:', errorText);
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
 
       const data = await response.json();
+      console.log('📊 Données refresh reçues:', data);
+      console.log('📊 Nombre de générations refresh:', data.generations?.length || 0);
+      
       setGenerations(data.generations || []);
     } catch (err: any) {
-      console.error('Erreur récupération générations:', err);
+      console.error('❌ Erreur refresh générations:', err);
       setError(err.message);
     } finally {
       setLoading(false);

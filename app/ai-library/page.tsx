@@ -330,7 +330,7 @@ export default function AILibrary() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-400 mx-auto"></div>
             <p className="text-[var(--text-muted)] mt-4">Chargement de votre bibliothèque...</p>
           </div>
-          ) : (filteredGenerations.length === 0 && allTracks.length === 0) ? (
+          ) : (generations.length === 0 && allTracks.length === 0) ? (
             <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center">
               <Music className="w-16 h-16 mx-auto mb-4 text-white/40" />
               <h3 className="text-xl font-semibold mb-2">Aucune musique trouvée</h3>
@@ -341,7 +341,7 @@ export default function AILibrary() {
           ) : (
             <div className="panel-suno border border-[var(--border)] rounded-xl p-3 sm:p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredGenerations.map((generation, index) => (
+            {generations.map((generation, index) => (
               <motion.div
                 key={generation.id}
                 initial={{ opacity: 0, y: 20 }}

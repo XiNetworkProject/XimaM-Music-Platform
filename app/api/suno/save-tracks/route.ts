@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (existingGeneration) {
-        await aiGenerationService.updateGenerationStatus(existingGeneration.id, status, tracks);
+        // Passer le taskId au lieu de l'id
+        await aiGenerationService.updateGenerationStatus(taskId, status, tracks);
         console.log("✅ Génération mise à jour avec succès");
       } else {
         throw new Error("Génération non trouvée");
@@ -46,35 +47,31 @@ export async function POST(req: NextRequest) {
       console.log("⚠️ Génération non trouvée, création avec userId:", session.user.id);
       console.log("📊 Erreur originale:", error.message);
       
+      // Fallback sur V4_5 si le modèle n'est pas disponible
+      // Note: Le modelName de Suno (chirp-auk) est un identifiant interne, pas utilisable
+      const inferredModel = 'V4_5';
+      
       const generation = await aiGenerationService.createGeneration(
         session.user.id,
         taskId,
         'Musique générée',
         'Custom',
         '',
-        // Tente d'inférer le modèle depuis les pistes sinon fallback
-        (Array.isArray(tracks) && tracks[0]?.raw?.model) || 'V4_5',
+        inferredModel,
         { duration: 120 }
       );
       console.log("✅ Génération créée:", generation.id);
-      // Puis sauvegarder les tracks et mettre à jour le statut
-      await aiGenerationService.updateGenerationStatus(generation.id, status, tracks);
+      // Puis sauvegarder les tracks et mettre à jour le statut (avec taskId)
+      await aiGenerationService.updateGenerationStatus(taskId, status, tracks);
     }
 
     console.log("✅ Tracks sauvegardées avec succès");
 
     // Mettre à jour le statut de la génération comme "completed"
     try {
-      const { data: existingGeneration } = await supabaseAdmin
-        .from('ai_generations')
-        .select('id')
-        .eq('task_id', taskId)
-        .single();
-
-      if (existingGeneration) {
-        await aiGenerationService.updateGenerationStatus(existingGeneration.id, 'completed');
-        console.log("✅ Statut de génération mis à jour vers 'completed'");
-      }
+      // Passer directement le taskId
+      await aiGenerationService.updateGenerationStatus(taskId, 'completed');
+      console.log("✅ Statut de génération mis à jour vers 'completed'");
     } catch (error) {
       console.error("⚠️ Erreur mise à jour statut final:", error);
     }

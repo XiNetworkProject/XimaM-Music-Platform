@@ -112,10 +112,23 @@ class AIGenerationService {
     return data;
   }
 
-  // 🎵 Mettre à jour le statut d'une génération
-  async updateGenerationStatus(generationId: string, status: string, tracks?: Track[]): Promise<void> {
-    console.log("🔄 Mise à jour statut génération:", generationId, "->", status);
+  // 🎵 Mettre à jour le statut d'une génération (par task_id)
+  async updateGenerationStatus(taskId: string, status: string, tracks?: Track[]): Promise<void> {
+    console.log("🔄 Mise à jour statut génération par task_id:", taskId, "->", status);
     
+    // Trouver la génération par task_id
+    const { data: generation, error: findError } = await supabaseAdmin
+      .from('ai_generations')
+      .select('id')
+      .eq('task_id', taskId)
+      .single();
+
+    if (findError || !generation) {
+      console.error("❌ Génération non trouvée pour task_id:", taskId, findError);
+      throw new Error(`Génération non trouvée pour task_id: ${taskId}`);
+    }
+
+    const generationId = generation.id;
     const updateData: any = { status };
 
     const { error } = await supabaseAdmin
@@ -138,35 +151,57 @@ class AIGenerationService {
 
   // 🎵 Sauvegarder les tracks d'une génération
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
-    console.log("💾 Sauvegarde tracks pour génération:", generationId);
-    console.log("📊 Tracks à sauvegarder:", tracks);
-    
-    // Récupérer le titre de la génération pour l'utiliser dans les tracks
-    const { data: generation } = await supabaseAdmin
+    // Récupérer le titre, le style et le modèle de la génération pour les utiliser dans les tracks
+    const { data: generation, error: genError } = await supabaseAdmin
       .from('ai_generations')
-      .select('metadata')
+      .select('metadata, prompt, model, task_id')
       .eq('id', generationId)
       .single();
     
-    const generationTitle = generation?.metadata?.title || 'Musique générée';
+    if (genError || !generation) {
+      console.error("❌ Erreur récupération génération:", genError);
+      throw new Error(`Impossible de récupérer la génération ${generationId}`);
+    }
     
-    const tracksData = tracks.map((track, index) => ({
-      generation_id: generationId,
-      suno_id: track.id,
-      title: track.title || `${generationTitle} ${index + 1}`,
-      audio_url: track.audio || '',
-      stream_audio_url: track.stream || '',
-      image_url: track.image || '',
-      duration: Math.round(track.duration || 120), // Convertir en entier
-      prompt: track.raw?.prompt || track.raw?.description || '',
-      // Suno peut renvoyer model_name, model, version selon les endpoints
-      model_name: track.raw?.model_name || track.raw?.model || track.raw?.version || '',
-      tags: Array.isArray(track.raw?.tags) ? track.raw.tags : [],
-      // champs additionnels si ta table ai_tracks les a (sinon Supabase ignore)
-      lyrics: track.raw?.lyrics || null,
-      style: track.raw?.style || null,
-      source_links: track.raw?.links ? JSON.stringify(track.raw.links) : null
-    }));
+    const generationTitle = generation?.metadata?.title || 'Musique générée';
+    const generationStyle = generation?.metadata?.style || '';
+    const generationLyrics = generation?.prompt || '';
+    
+    const finalModel = generation?.model || 'V4_5';
+    
+    console.log("🔍 MODÈLE RÉCUPÉRÉ:", {
+      generationId,
+      modelFromDB: generation?.model,
+      finalModel,
+      taskId: generation?.task_id
+    });
+    
+    const tracksData = tracks.map((track, index) => {
+      // Suno renvoie les tags comme une chaîne séparée par des virgules
+      const tagsString = track.raw?.tags || '';
+      const tagsArray = typeof tagsString === 'string' 
+        ? tagsString.split(',').map(t => t.trim()).filter(Boolean) 
+        : (Array.isArray(tagsString) ? tagsString : []);
+      
+      return {
+        generation_id: generationId,
+        suno_id: track.id,
+        title: track.title || `${generationTitle} ${index + 1}`,
+        audio_url: track.audio || '',
+        stream_audio_url: track.stream || '',
+        image_url: track.image || '',
+        duration: Math.round(track.duration || 120), // Convertir en entier
+        prompt: track.raw?.prompt || generationLyrics || '', // Paroles/lyrics
+        // Utiliser UNIQUEMENT le modèle de la génération (celui réellement utilisé par l'utilisateur)
+        // Le modelName de Suno (chirp-auk) est un identifiant interne, pas le nom du modèle
+        model_name: finalModel,
+        tags: tagsArray, // Tags Suno (genres/styles)
+        // Style musical séparé
+        style: generationStyle || track.raw?.style || tagsString || null,
+        lyrics: track.raw?.lyrics || track.raw?.prompt || generationLyrics || null,
+        source_links: track.raw?.links ? JSON.stringify(track.raw.links) : null
+      };
+    });
 
     console.log("📊 Données tracks formatées:", tracksData);
 

@@ -32,6 +32,22 @@
   --foreground-rgb: 255, 255, 255;
   --background-start-rgb: 0, 0, 0;
   --background-end-rgb: 0, 0, 0;
+
+  /* Suno AI Variables */
+  --background-primary: transparent;
+  --background-secondary: #111111;
+  --background-tertiary: #1a1a1a;
+  --foreground-primary: #ffffff;
+  --foreground-secondary: #a3a3a3;
+  --foreground-tertiary: #737373;
+  --border-primary: #262626;
+  --border-secondary: #404040;
+  --accent-brand: #6E56CF;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-error: #ef4444;
 }
 
 .light {
@@ -44,6 +60,22 @@
   --text-muted: rgba(11,18,32,0.7);
   --glass-bg: rgba(0,0,0,0.06);
   --glass-border: rgba(0,0,0,0.08);
+
+  /* Suno AI Variables - Light Mode */
+  --background-primary: transparent;
+  --background-secondary: #f8f9fa;
+  --background-tertiary: #f1f3f4;
+  --foreground-primary: #1a1a1a;
+  --foreground-secondary: #6b7280;
+  --foreground-tertiary: #9ca3af;
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+  --accent-brand: #6E56CF;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-error: #ef4444;
 }
 
 * {
@@ -1169,6 +1201,146 @@ a {
 @keyframes tiktok-fade-in {
   from { opacity: 0; transform: scale(0.9); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* === Suno AI Custom Styles === */
+.bg-background-primary { background-color: var(--background-primary); }
+.bg-background-secondary { background-color: var(--background-secondary); }
+.bg-background-tertiary { background-color: var(--background-tertiary); }
+.text-foreground-primary { color: var(--foreground-primary); }
+.text-foreground-secondary { color: var(--foreground-secondary); }
+.text-foreground-tertiary { color: var(--foreground-tertiary); }
+.border-border-primary { border-color: var(--border-primary); }
+.border-border-secondary { border-color: var(--border-secondary); }
+.text-accent-brand { color: var(--accent-brand); }
+.text-accent-blue { color: var(--accent-blue); }
+.text-accent-purple { color: var(--accent-purple); }
+.text-accent-success { color: var(--accent-success); }
+.text-accent-warning { color: var(--accent-warning); }
+.text-accent-error { color: var(--accent-error); }
+.bg-accent-brand { background-color: var(--accent-brand); }
+.bg-accent-blue { background-color: var(--accent-blue); }
+.bg-accent-purple { background-color: var(--accent-purple); }
+.bg-accent-success { background-color: var(--accent-success); }
+.bg-accent-warning { background-color: var(--accent-warning); }
+.bg-accent-error { background-color: var(--accent-error); }
+
+/* Suno Button Styles */
+.suno-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: 1px solid var(--border-primary);
+  background: var(--background-secondary);
+  color: var(--foreground-primary);
+  cursor: pointer;
+}
+
+.suno-button:hover {
+  background: var(--background-tertiary);
+  border-color: var(--border-secondary);
+}
+
+.suno-button-primary {
+  background: var(--accent-brand);
+  border-color: var(--accent-brand);
+  color: white;
+}
+
+.suno-button-primary:hover {
+  background: #5B45BE;
+  border-color: #5B45BE;
+}
+
+.suno-button-secondary {
+  background: var(--accent-blue);
+  border-color: var(--accent-blue);
+  color: white;
+}
+
+.suno-button-secondary:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+/* Suno Input Styles */
+.suno-input {
+  background: var(--background-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--foreground-primary);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.suno-input:focus {
+  outline: none;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.suno-input::placeholder {
+  color: var(--foreground-tertiary);
+}
+
+/* Upload-style Card Classes */
+.bg-white-upload {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.backdrop-blur-upload {
+  backdrop-filter: blur(24px);
+}
+
+.border-upload {
+  border: 1px solid var(--border);
+}
+
+/* Suno AI hover-only class */
+.hover-only {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.group\/row:hover .hover-only,
+.clip-image-container:hover .hover-only {
+  opacity: 1;
+}
+
+/* Effet d'illumination au survol des tracks */
+.clip-image-container:hover {
+  filter: brightness(1.1);
+  transition: filter 0.2s ease;
+}
+
+[data-testid="clip-row"]:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  transition: background-color 0.2s ease;
+}
+
+[data-uppy-theme=dark] [data-testid="clip-row"]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Suno Card Styles */
+.suno-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  transition: all 0.2s ease;
+}
+
+.suno-card:hover {
+  border-color: var(--border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 /* === Uppy Audio & Dashboard styles === */

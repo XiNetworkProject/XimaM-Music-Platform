@@ -1623,7 +1623,7 @@ export default function HomePage() {
                 <div className="absolute inset-0 overflow-hidden">
                   {currentSlide === 0 ? (
                     // Slide Météo (Alertemps)
-                    <img
+                  <img
                       src={'/meteocaroussel.webp'}
                       alt={'Météo Alertemps sur Synaura'}
                       className="w-full h-full object-cover"
@@ -1691,7 +1691,7 @@ export default function HomePage() {
                       <>
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-blue-500/15 backdrop-blur-md text-blue-200 font-medium">
                           Alertemps
-                        </span>
+                      </span>
                         <span className="px-3 py-1.5 text-sm rounded-full border border-[var(--border)] bg-blue-500/15 backdrop-blur-md text-blue-200 font-medium">
                           Bulletin hebdomadaire
                         </span>
@@ -1771,7 +1771,7 @@ export default function HomePage() {
                   <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 animate-slide-up">
                     {/* Bouton Play principal */}
                           {currentSlide === 0 ? (
-                            <button
+                          <button
                               onClick={() => router.push('/meteo', { scroll: false })}
                               className="group relative flex items-center space-x-2 bg-gradient-to-r from-blue-500 via-cyan-500 to-blue-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-300 shadow-xl hover:scale-105 active:scale-95"
                               aria-label="Voir la météo"
