@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { aiGenerationService } from '@/lib/aiGenerationService';
-import { getUserEntitlements } from '@/lib/entitlements';
-import { deductCredits } from '@/lib/credits';
+import { supabaseAdmin } from '@/lib/supabase';
 
 // Coût en crédits pour un cover/remix
 const CREDITS_PER_COVER = 10;
@@ -88,35 +87,23 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Récupérer les entitlements de l'utilisateur
-    const entitlements = await getUserEntitlements(session.user.id);
-
-    // Vérifier si l'utilisateur a accès à l'IA
-    if (!entitlements.ai.enabled) {
-      return NextResponse.json({ 
-        error: "Votre plan ne permet pas d'utiliser l'IA" 
-      }, { status: 403 });
-    }
-
-    // Vérifier le modèle et appliquer le fallback
-    const allowedModels = entitlements.ai.availableModels || ["V4_5"];
-    const requestedModel = model || "V4_5";
-    const effectiveModel = allowedModels.includes(requestedModel) 
-      ? requestedModel 
-      : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
-    
-    const modelAdjusted = requestedModel !== effectiveModel;
-
     // Vérifier les crédits disponibles
-    const { data: balanceData, error: balanceError } = await aiGenerationService.getCreditBalance(session.user.id);
+    const { data: balanceData } = await supabaseAdmin
+      .from('ai_credit_balances')
+      .select('balance')
+      .eq('user_id', session.user.id)
+      .single();
     
-    if (balanceError || !balanceData || balanceData.balance < CREDITS_PER_COVER) {
+    if (!balanceData || balanceData.balance < CREDITS_PER_COVER) {
       return NextResponse.json({ 
         error: "Crédits insuffisants pour générer un cover/remix",
         required: CREDITS_PER_COVER,
         available: balanceData?.balance || 0
       }, { status: 429 });
     }
+
+    // Utiliser le modèle demandé ou V4_5 par défaut
+    const effectiveModel = model || "V4_5";
 
     // Construire le payload pour Suno
     const payload: any = {
@@ -189,20 +176,17 @@ export async function POST(req: NextRequest) {
     console.log("✅ Génération cover créée:", generation.id);
 
     // Déduire les crédits
-    try {
-      await deductCredits(session.user.id, CREDITS_PER_COVER, `Cover/Remix - ${taskId}`);
-      console.log(`✅ ${CREDITS_PER_COVER} crédits déduits`);
-    } catch (error) {
-      console.error("❌ Erreur déduction crédits:", error);
-      // Ne pas bloquer la génération si la déduction échoue
-    }
+    await supabaseAdmin
+      .from('ai_credit_balances')
+      .update({ balance: balanceData.balance - CREDITS_PER_COVER })
+      .eq('user_id', session.user.id);
+
+    console.log(`✅ ${CREDITS_PER_COVER} crédits déduits`);
 
     return NextResponse.json({
       taskId,
       generationId: generation.id,
-      message: modelAdjusted 
-        ? `Cover/Remix en cours avec ${effectiveModel} (${requestedModel} non disponible dans votre plan)`
-        : "Cover/Remix en cours de génération",
+      message: "Cover/Remix en cours de génération",
       creditsUsed: CREDITS_PER_COVER
     });
 
