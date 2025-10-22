@@ -50,12 +50,9 @@ export function useUploadCover(taskId?: string) {
       }
 
       try {
-        const apiUrl = `https://api.sunoapi.org/api/v1/generate/music/${taskId}`;
-        const response = await fetch(apiUrl, {
-          headers: {
-            "Authorization": `Bearer ${process.env.NEXT_PUBLIC_SUNO_API_KEY || ""}`,
-          },
-        });
+        // Pour les covers, utiliser l'endpoint de callback local
+        const apiUrl = `/api/suno/check-status?taskId=${taskId}`;
+        const response = await fetch(apiUrl);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}`);
