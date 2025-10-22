@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlements } from '@/lib/entitlements';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
-import { uploadAndCoverAudio, SunoUploadCoverRequest, uploadAudioByUrlToSuno } from '@/lib/suno';
+import { uploadAndCoverAudio, SunoUploadCoverRequest } from '@/lib/suno';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -63,13 +63,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Appel Suno upload-cover
-    // Étape 1: transmettre l'URL Cloudinary à Suno pour obtenir un uploadUrl interne Suno
-    const { uploadUrl } = await uploadAudioByUrlToSuno(body.uploadUrl);
-
-    // Étape 2: lancer upload-cover en utilisant l'uploadUrl de Suno
+    // Utiliser directement l'URL Cloudinary (publique) comme uploadUrl, conforme à la doc
     const payload: Body = {
       ...body,
-      uploadUrl,
       model: effectiveModel,
       callBackUrl: body.callBackUrl || `${process.env.NEXTAUTH_URL}/api/suno/callback`,
     };
