@@ -151,18 +151,12 @@ class AIGenerationService {
 
   // 🎵 Sauvegarder les tracks d'une génération
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
-    // Vérifier si des tracks existent déjà pour cette génération
+    // Récupérer les tracks existantes pour dédupliquer par suno_id
     const { data: existingTracks } = await supabaseAdmin
       .from('ai_tracks')
-      .select('id, suno_id')
+      .select('suno_id')
       .eq('generation_id', generationId);
-    
-    if (existingTracks && existingTracks.length > 0) {
-      console.log("⚠️ Des tracks existent déjà pour cette génération:", generationId);
-      console.log("📊 Tracks existantes:", existingTracks);
-      // Ne pas sauvegarder à nouveau pour éviter les doublons
-      return;
-    }
+    const existingIds = new Set((existingTracks || []).map((t: any) => t.suno_id).filter(Boolean));
     
     // Récupérer le titre, le style et le modèle de la génération pour les utiliser dans les tracks
     const { data: generation, error: genError } = await supabaseAdmin
@@ -189,7 +183,9 @@ class AIGenerationService {
       taskId: generation?.task_id
     });
     
-    const tracksData = tracks.map((track, index) => {
+    const tracksData = tracks
+      .filter((track) => !existingIds.has(track.id))
+      .map((track, index) => {
       // Suno renvoie les tags comme une chaîne séparée par des virgules
       const tagsString = track.raw?.tags || '';
       const tagsArray = typeof tagsString === 'string' 
@@ -216,7 +212,11 @@ class AIGenerationService {
       };
     });
 
-    console.log("📊 Données tracks formatées:", tracksData);
+    if (!tracksData.length) {
+      console.log("ℹ️ Aucune nouvelle track à insérer (dédup OK) pour", generationId);
+      return;
+    }
+    console.log("📊 Données tracks à insérer:", tracksData);
 
     const { error } = await supabaseAdmin
       .from('ai_tracks')
