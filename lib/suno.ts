@@ -84,6 +84,34 @@ export interface SunoUploadCoverRequest {
   callBackUrl?: string;
 }
 
+// Upload du fichier audio VERS Suno à partir d'une URL publique (Cloudinary)
+export async function uploadAudioByUrlToSuno(sourceUrl: string): Promise<{ uploadUrl: string }> {
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) {
+    throw new Error("SUNO_API_KEY manquant");
+  }
+
+  // Endpoint File Upload API (upload via URL)
+  const response = await fetch(`${BASE}/api/v1/file/upload/url`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ url: sourceUrl }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.msg || `Erreur upload fichier Suno: ${response.status}`);
+  }
+  const uploadUrl = data?.data?.uploadUrl || data?.data?.url || data?.data?.fileUrl;
+  if (!uploadUrl) {
+    throw new Error('uploadUrl manquant dans la réponse Suno');
+  }
+  return { uploadUrl };
+}
+
 // Génération simple (mode non-personnalisé)
 export async function generateMusic(request: SunoGenerateRequest): Promise<SunoGenerateResponse> {
   const apiKey = process.env.SUNO_API_KEY;
