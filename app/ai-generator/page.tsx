@@ -2228,7 +2228,7 @@ function RemixDropzone({
 
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('folder', 'ximam/remix');
+      formData.append('folder', 'ximam/audio');
       formData.append('public_id', publicId);
       formData.append('resource_type', 'video');
       formData.append('timestamp', String(timestamp));
