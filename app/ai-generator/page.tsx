@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink } from 'lucide-react';
@@ -13,7 +13,7 @@ import { useSunoWaiter } from '@/hooks/useSunoWaiter';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { useSession } from 'next-auth/react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
-import AIRemixSection from '@/components/AIRemixSection';
+import { useDropzone } from 'react-dropzone';
 
 interface GeneratedTrack {
   id: string;
@@ -84,8 +84,10 @@ export default function AIGenerator() {
   const [selectedTrack, setSelectedTrack] = useState<GeneratedTrack | null>(null);
   const [showTrackPanel, setShowTrackPanel] = useState(false);
   
-  // État pour les onglets (Générer / Remix)
-  const [activeTab, setActiveTab] = useState<'generate' | 'remix'>('generate');
+  // Remix (upload audio) pour upload-cover
+  const [remixFile, setRemixFile] = useState<File | null>(null);
+  const [remixUploadUrl, setRemixUploadUrl] = useState<string | null>(null);
+  const [remixUploading, setRemixUploading] = useState<boolean>(false);
   
   // Génération IA activée
   const isGenerationDisabled = false;
@@ -720,12 +722,32 @@ export default function AIGenerator() {
 
       console.log('🎵 Requête génération:', requestBody);
 
-      const response = await fetch('/api/suno/generate', {
+      // Si un audio remix est fourni, utiliser le flux upload-cover
+      const response = await fetch(remixUploadUrl ? '/api/suno/upload-cover' : '/api/suno/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(
+          remixUploadUrl
+            ? {
+                uploadUrl: remixUploadUrl,
+                customMode: true,
+                instrumental: isInstrumental,
+                model: modelVersion,
+                // En mode Custom: title/style requis; prompt=lyrics si non-instrumental
+                title: title.trim() ? title : 'Remix',
+                style: [style, ...selectedTags].filter(Boolean).join(', '),
+                prompt: isInstrumental ? undefined : (lyrics.trim() ? lyrics : undefined),
+                negativeTags: negativeTags || undefined,
+                vocalGender: vocalGender || undefined,
+                styleWeight: Number((Math.round(styleInfluence) / 100).toFixed(2)),
+                weirdnessConstraint: Number((Math.round(weirdness) / 100).toFixed(2)),
+                audioWeight: Number((Math.round(audioWeight) / 100).toFixed(2)),
+                callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined,
+              }
+            : requestBody
+        ),
       });
 
       if (!response.ok) {
@@ -858,40 +880,7 @@ export default function AIGenerator() {
           </div>
     </div>
 
-        {/* Onglets Générer / Remix */}
-        <div className="max-w-2xl mx-auto mb-6" style={{ position: 'relative', zIndex: 2 }}>
-          <div className="flex items-center gap-2 bg-white-upload backdrop-blur-upload border border-upload rounded-full p-1">
-            <button
-              onClick={() => setActiveTab('generate')}
-              className={`flex-1 px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                activeTab === 'generate' 
-                  ? 'bg-gradient-to-r from-accent-purple to-accent-blue text-white shadow-sm' 
-                  : 'text-foreground-primary hover:bg-white-upload backdrop-blur-upload'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                Générer
-              </div>
-            </button>
-            <button
-              onClick={() => setActiveTab('remix')}
-              className={`flex-1 px-6 py-2 rounded-full text-sm font-medium transition-all ${
-                activeTab === 'remix' 
-                  ? 'bg-gradient-to-r from-accent-purple to-accent-blue text-white shadow-sm' 
-                  : 'text-foreground-primary hover:bg-white-upload backdrop-blur-upload'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <Music className="w-4 h-4" />
-                Remix / Cover
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Segmented control Simple / Custom + Select modèle (seulement si onglet Générer) */}
-        {activeTab === 'generate' && (
+        {/* Segmented control Simple / Custom + Select modèle */}
         <div className="max-w-2xl mx-auto mb-8" style={{ position: 'relative', zIndex: 1 }}>
           <div className="flex items-center justify-between bg-white-upload backdrop-blur-upload border border-upload rounded-full p-1">
             <div className="relative inline-flex items-center gap-0 h-10 p-1">
@@ -1003,7 +992,6 @@ export default function AIGenerator() {
             </div>
           </div>
         </div>
-        )}
 
         {/* Layout 3 colonnes (desktop) */}
         <div
@@ -1019,11 +1007,11 @@ export default function AIGenerator() {
               : undefined,
           }}
         >
-          {/* Colonne gauche: Formulaire ou Remix */}
+          {/* Colonne gauche: Formulaire existant */}
           <div className={`${isDesktop ? '' : 'w-full'}`}>
-            {activeTab === 'generate' ? (
-              /* Formulaire de génération */
-              <div className="space-y-6">
+            {/* Formulaire actif */}
+            <div className="space-y-6">
+          {/* le formulaire existant reste visible mais inactif */}
           {customMode ? (
             // Mode personnalisé
             <>
@@ -1072,6 +1060,23 @@ export default function AIGenerator() {
                     );
                   })}
                 </div>
+
+            {/* Remix: Drag & Drop d'un audio (upload-cover) */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium mb-2 text-foreground-primary">Ajouter un audio source (optionnel, Remix)</label>
+              <RemixDropzone
+                remixFile={remixFile}
+                remixUploading={remixUploading}
+                onUploadStart={() => setRemixUploading(true)}
+                onUploadSuccess={(url) => { setRemixUploading(false); setRemixUploadUrl(url); }}
+                onUploadError={(msg) => { setRemixUploading(false); notify.error('Upload audio', msg); }}
+                onFileSelected={(f) => setRemixFile(f)}
+                disabled={isGenerationDisabled}
+              />
+              {remixUploadUrl && (
+                <p className="text-xs text-foreground-tertiary mt-2">Audio uploadé ✓ (prêt pour Remix)</p>
+              )}
+            </div>
               </div>
 
               {/* Instrumental Toggle */}
@@ -1229,11 +1234,7 @@ export default function AIGenerator() {
               </div>
             </div>
           )}
-          </div>
-            ) : (
-              /* Section Remix/Cover */
-              <AIRemixSection onRemixComplete={loadLibrary} />
-            )}
+            </div>
           </div>
 
           {/* Handle entre gauche et centre */}
@@ -2182,6 +2183,91 @@ export default function AIGenerator() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+// Sous-composant: Dropzone pour Remix (upload audio -> Cloudinary -> url)
+function RemixDropzone({
+  remixFile,
+  remixUploading,
+  onUploadStart,
+  onUploadSuccess,
+  onUploadError,
+  onFileSelected,
+  disabled,
+}: {
+  remixFile: File | null;
+  remixUploading: boolean;
+  onUploadStart: () => void;
+  onUploadSuccess: (url: string) => void;
+  onUploadError: (message: string) => void;
+  onFileSelected: (file: File | null) => void;
+  disabled?: boolean;
+}) {
+  const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    if (!file) return;
+    if (!file.type.startsWith('audio/')) {
+      onUploadError('Veuillez déposer un fichier audio valide');
+      return;
+    }
+    onFileSelected(file);
+    try {
+      onUploadStart();
+      // Signature Cloudinary
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const publicId = `remix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const sigRes = await fetch('/api/upload/signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp, publicId, resourceType: 'video' })
+      });
+      if (!sigRes.ok) throw new Error('Erreur signature Cloudinary');
+      const { signature, apiKey, cloudName } = await sigRes.json();
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'ximam/remix');
+      formData.append('public_id', publicId);
+      formData.append('resource_type', 'video');
+      formData.append('timestamp', String(timestamp));
+      formData.append('api_key', apiKey);
+      formData.append('signature', signature);
+
+      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      if (!uploadResponse.ok) throw new Error("Erreur upload Cloudinary");
+      const uploaded = await uploadResponse.json();
+      const secureUrl = uploaded?.secure_url as string;
+      if (!secureUrl) throw new Error('URL de fichier manquante');
+      onUploadSuccess(secureUrl);
+    } catch (e: any) {
+      onUploadError(e?.message || 'Erreur upload');
+    }
+  }, [onUploadStart, onUploadSuccess, onUploadError, onFileSelected]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'audio/*': [] }, maxFiles: 1, disabled });
+
+  return (
+    <div
+      {...getRootProps()}
+      className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors cursor-pointer ${
+        disabled ? 'opacity-50 cursor-not-allowed' : isDragActive ? 'border-accent-brand bg-accent-brand/10' : 'border-upload hover:border-accent-brand/50'
+      }`}
+    >
+      <input {...getInputProps()} />
+      {remixUploading ? (
+        <div className="text-sm">Upload en cours...</div>
+      ) : remixFile ? (
+        <div className="text-sm">
+          {remixFile.name} • {Math.round(remixFile.size / 1024 / 1024)} MB
+        </div>
+      ) : (
+        <div className="text-sm text-foreground-tertiary">Glissez-déposez un fichier audio, ou cliquez pour sélectionner</div>
+      )}
     </div>
   );
 }
