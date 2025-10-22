@@ -27,6 +27,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Vérifier si la génération existe, sinon la créer
+    let generationId: string;
+    
     try {
       // D'abord essayer de trouver la génération existante
       const { data: existingGeneration } = await supabaseAdmin
@@ -36,9 +38,8 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (existingGeneration) {
-        // Passer le taskId au lieu de l'id
-        await aiGenerationService.updateGenerationStatus(taskId, status, tracks);
-        console.log("✅ Génération mise à jour avec succès");
+        generationId = existingGeneration.id;
+        console.log("✅ Génération existante trouvée:", generationId);
       } else {
         throw new Error("Génération non trouvée");
       }
@@ -60,21 +61,17 @@ export async function POST(req: NextRequest) {
         inferredModel,
         { duration: 120 }
       );
-      console.log("✅ Génération créée:", generation.id);
-      // Puis sauvegarder les tracks et mettre à jour le statut (avec taskId)
-      await aiGenerationService.updateGenerationStatus(taskId, status, tracks);
+      generationId = generation.id;
+      console.log("✅ Génération créée:", generationId);
     }
 
+    // Sauvegarder les tracks UNE SEULE FOIS
+    await aiGenerationService.saveTracks(generationId, tracks);
     console.log("✅ Tracks sauvegardées avec succès");
 
-    // Mettre à jour le statut de la génération comme "completed"
-    try {
-      // Passer directement le taskId
-      await aiGenerationService.updateGenerationStatus(taskId, 'completed');
-      console.log("✅ Statut de génération mis à jour vers 'completed'");
-    } catch (error) {
-      console.error("⚠️ Erreur mise à jour statut final:", error);
-    }
+    // Mettre à jour UNIQUEMENT le statut (sans re-sauvegarder les tracks)
+    await aiGenerationService.updateGenerationStatus(taskId, 'completed');
+    console.log("✅ Statut de génération mis à jour vers 'completed'");
 
     return NextResponse.json({ 
       success: true, 

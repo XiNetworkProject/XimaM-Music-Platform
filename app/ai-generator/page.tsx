@@ -13,6 +13,7 @@ import { useSunoWaiter } from '@/hooks/useSunoWaiter';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { useSession } from 'next-auth/react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
+import AIRemixSection from '@/components/AIRemixSection';
 
 interface GeneratedTrack {
   id: string;
@@ -82,6 +83,9 @@ export default function AIGenerator() {
   // États pour le panneau de track sélectionnée
   const [selectedTrack, setSelectedTrack] = useState<GeneratedTrack | null>(null);
   const [showTrackPanel, setShowTrackPanel] = useState(false);
+  
+  // État pour les onglets (Générer / Remix)
+  const [activeTab, setActiveTab] = useState<'generate' | 'remix'>('generate');
   
   // Génération IA activée
   const isGenerationDisabled = false;
@@ -854,7 +858,40 @@ export default function AIGenerator() {
           </div>
     </div>
 
-        {/* Segmented control Simple / Custom + Select modèle */}
+        {/* Onglets Générer / Remix */}
+        <div className="max-w-2xl mx-auto mb-6" style={{ position: 'relative', zIndex: 2 }}>
+          <div className="flex items-center gap-2 bg-white-upload backdrop-blur-upload border border-upload rounded-full p-1">
+            <button
+              onClick={() => setActiveTab('generate')}
+              className={`flex-1 px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'generate' 
+                  ? 'bg-gradient-to-r from-accent-purple to-accent-blue text-white shadow-sm' 
+                  : 'text-foreground-primary hover:bg-white-upload backdrop-blur-upload'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Générer
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('remix')}
+              className={`flex-1 px-6 py-2 rounded-full text-sm font-medium transition-all ${
+                activeTab === 'remix' 
+                  ? 'bg-gradient-to-r from-accent-purple to-accent-blue text-white shadow-sm' 
+                  : 'text-foreground-primary hover:bg-white-upload backdrop-blur-upload'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Music className="w-4 h-4" />
+                Remix / Cover
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Segmented control Simple / Custom + Select modèle (seulement si onglet Générer) */}
+        {activeTab === 'generate' && (
         <div className="max-w-2xl mx-auto mb-8" style={{ position: 'relative', zIndex: 1 }}>
           <div className="flex items-center justify-between bg-white-upload backdrop-blur-upload border border-upload rounded-full p-1">
             <div className="relative inline-flex items-center gap-0 h-10 p-1">
@@ -966,6 +1003,7 @@ export default function AIGenerator() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Layout 3 colonnes (desktop) */}
         <div
@@ -981,11 +1019,11 @@ export default function AIGenerator() {
               : undefined,
           }}
         >
-          {/* Colonne gauche: Formulaire existant */}
+          {/* Colonne gauche: Formulaire ou Remix */}
           <div className={`${isDesktop ? '' : 'w-full'}`}>
-            {/* Formulaire actif */}
-            <div className="space-y-6">
-          {/* le formulaire existant reste visible mais inactif */}
+            {activeTab === 'generate' ? (
+              /* Formulaire de génération */
+              <div className="space-y-6">
           {customMode ? (
             // Mode personnalisé
             <>
@@ -1191,7 +1229,11 @@ export default function AIGenerator() {
               </div>
             </div>
           )}
-            </div>
+          </div>
+            ) : (
+              /* Section Remix/Cover */
+              <AIRemixSection onRemixComplete={loadLibrary} />
+            )}
           </div>
 
           {/* Handle entre gauche et centre */}

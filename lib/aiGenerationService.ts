@@ -151,6 +151,19 @@ class AIGenerationService {
 
   // 🎵 Sauvegarder les tracks d'une génération
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
+    // Vérifier si des tracks existent déjà pour cette génération
+    const { data: existingTracks } = await supabaseAdmin
+      .from('ai_tracks')
+      .select('id, suno_id')
+      .eq('generation_id', generationId);
+    
+    if (existingTracks && existingTracks.length > 0) {
+      console.log("⚠️ Des tracks existent déjà pour cette génération:", generationId);
+      console.log("📊 Tracks existantes:", existingTracks);
+      // Ne pas sauvegarder à nouveau pour éviter les doublons
+      return;
+    }
+    
     // Récupérer le titre, le style et le modèle de la génération pour les utiliser dans les tracks
     const { data: generation, error: genError } = await supabaseAdmin
       .from('ai_generations')
