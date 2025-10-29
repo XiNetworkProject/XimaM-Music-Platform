@@ -139,9 +139,8 @@ export default function TestSynauraPage() {
       {/* Écran de chargement plein */}
       {showFullScreen && (
         <LoadingScreen 
-          text="Test écran plein..." 
-          size="xl"
-          fullScreen={true}
+          message="Test écran plein..." 
+          isPreloading={true}
         />
       )}
 
