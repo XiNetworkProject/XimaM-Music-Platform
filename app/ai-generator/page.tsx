@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -291,7 +290,7 @@ export default function AIGenerator() {
         setTimeout(async () => {
           const refreshed = await fetchCreditsBalance();
           if (refreshed && typeof refreshed.balance === 'number') setCreditsBalance(refreshed.balance);
-          // Si pas d’effet, tente une vérification côté serveur (secours)
+          // Si pas d'effet, tente une vérification côté serveur (secours)
           try {
             const res = await fetch('/api/billing/credits/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId: sid }) });
             if (res.ok) {
@@ -751,7 +750,7 @@ export default function AIGenerator() {
       });
 
       if (!response.ok) {
-        // Crédit insuffisant → ouvrir le modal d’achat
+        // Crédit insuffisant → ouvrir le modal d'achat
         if (response.status === 402) {
           setShowBuyCredits(true);
         }
@@ -1068,7 +1067,20 @@ export default function AIGenerator() {
                 remixFile={remixFile}
                 remixUploading={remixUploading}
                 onUploadStart={() => setRemixUploading(true)}
-                onUploadSuccess={(url) => { setRemixUploading(false); setRemixUploadUrl(url); }}
+                onUploadSuccess={async ({ url, publicId, duration }) => { 
+                  setRemixUploading(false); 
+                  setRemixUploadUrl(url);
+                  try {
+                    const res = await fetch('/api/ai/upload-source', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ audioUrl: url, publicId, title, duration })
+                    });
+                    if (res.ok) {
+                      window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+                    }
+                  } catch {}
+                }}
                 onUploadError={(msg) => { setRemixUploading(false); notify.error('Upload audio', msg); }}
                 onFileSelected={(f) => setRemixFile(f)}
                 disabled={isGenerationDisabled}
@@ -1577,6 +1589,42 @@ export default function AIGenerator() {
                                >
                                  <Download className="w-4 h-4" />
                                </button>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      setCustomMode(true);
+                                      setRemixUploadUrl(track.audio_url || track.stream_audio_url || '');
+                                      setTitle(track.title || title);
+                                      setStyle((track as any).style || style);
+                                      notify.info('Remix prêt', 'Paramètres préremplis, lancez la génération');
+                                    } catch {}
+                                  }}
+                                  className="p-2 bg-white-upload backdrop-blur-upload hover:bg-white-upload/80 rounded-lg transition-colors"
+                                  title="Remixer"
+                                >
+                                  <Repeat className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    try {
+                                      const res = await fetch(`/api/ai/tracks/${encodeURIComponent(String((track as any).id))}`, { method: 'DELETE' });
+                                      if (res.ok) {
+                                        notify.success('Supprimé', 'Piste supprimée définitivement');
+                                        window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+                                      } else {
+                                        notify.error('Erreur', await res.text());
+                                      }
+                                    } catch (err: any) {
+                                      notify.error('Erreur suppression', err?.message || '');
+                                    }
+                                  }}
+                                  className="p-2 bg-white-upload backdrop-blur-upload hover:bg-white-upload/80 rounded-lg transition-colors"
+                                  title="Supprimer"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                              </div>
                            </div>
                          ))}
@@ -2200,7 +2248,7 @@ function RemixDropzone({
   remixFile: File | null;
   remixUploading: boolean;
   onUploadStart: () => void;
-  onUploadSuccess: (url: string) => void;
+  onUploadSuccess: (params: { url: string; publicId?: string; duration?: number }) => void;
   onUploadError: (message: string) => void;
   onFileSelected: (file: File | null) => void;
   disabled?: boolean;
@@ -2242,8 +2290,10 @@ function RemixDropzone({
       if (!uploadResponse.ok) throw new Error("Erreur upload Cloudinary");
       const uploaded = await uploadResponse.json();
       const secureUrl = uploaded?.secure_url as string;
+      const uploadedPublicId = uploaded?.public_id as string | undefined;
+      const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
       if (!secureUrl) throw new Error('URL de fichier manquante');
-      onUploadSuccess(secureUrl);
+      onUploadSuccess({ url: secureUrl, publicId: uploadedPublicId, duration: uploadedDuration });
     } catch (e: any) {
       onUploadError(e?.message || 'Erreur upload');
     }

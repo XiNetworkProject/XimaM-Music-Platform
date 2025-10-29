@@ -98,6 +98,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Synaura" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
+        {/* Précharger le DNS et la connexion au CDN Bunny */}
+        <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />
+        <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
       </head>
           <body className={`theme-suno ${inter.className} overflow-x-hidden max-w-full`}>
         <Providers>

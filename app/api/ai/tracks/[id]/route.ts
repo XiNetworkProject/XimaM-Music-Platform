@@ -1,5 +1,51 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { deleteFile } from '@/lib/cloudinary';
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
+    }
+
+    const trackId = params.id;
+    const { data: track, error } = await supabaseAdmin
+      .from('ai_tracks')
+      .select('id, generation_id, source_links')
+      .eq('id', trackId)
+      .single();
+    if (error || !track) {
+      return NextResponse.json({ error: 'Track introuvable' }, { status: 404 });
+    }
+
+    // Supprimer du Cloudinary si on a un public_id
+    try {
+      if (track.source_links) {
+        const links = JSON.parse(track.source_links);
+        if (links?.cloudinary_public_id) {
+          await deleteFile(links.cloudinary_public_id, 'video');
+        }
+      }
+    } catch (e) {
+      console.warn('⚠️ Suppression Cloudinary échouée (continuation):', (e as any)?.message);
+    }
+
+    await supabaseAdmin.from('ai_tracks').delete().eq('id', trackId);
+
+    return NextResponse.json({ success: true });
+  } catch (e: any) {
+    console.error('❌ Erreur suppression track:', e);
+    return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });
+  }
+}
+
+// (imports dupliqués supprimés)
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

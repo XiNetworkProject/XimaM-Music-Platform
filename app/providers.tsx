@@ -12,6 +12,7 @@ import { useAudioService } from '@/hooks/useAudioService';
 import { LikeProvider } from '@/contexts/LikeContext';
 import { PlaysProvider } from '@/contexts/PlaysContext';
 import { usePlaysSync } from '@/hooks/usePlaysSync';
+import { PreloadProvider } from '@/contexts/PreloadContext';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -723,7 +724,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       refetchInterval={5 * 60} // Refetch toutes les 5 minutes
       refetchOnWindowFocus={true} // Refetch quand la fenêtre reprend le focus
     >
-      <QueryClientProvider client={queryClient}>
+      <PreloadProvider>
+        <QueryClientProvider client={queryClient}>
         <LikeProvider>
           <PlaysProvider>
             <PlaysSyncWrapper>
@@ -740,6 +742,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           </PlaysProvider>
         </LikeProvider>
       </QueryClientProvider>
+      </PreloadProvider>
     </SessionProvider>
   );
 } 
