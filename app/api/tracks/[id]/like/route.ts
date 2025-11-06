@@ -73,14 +73,18 @@ export async function GET(
   }
 }
 
-// POST /api/tracks/[id]/like - Basculer le like (version simplifiée)
+// POST /api/tracks/[id]/like - Ajouter le like
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    const userId = (session?.user as any)?.id || null;
+    
+    console.log('POST like - Session:', { hasSession: !!session, userId, trackId: params.id });
+    
+    if (!userId) {
       return NextResponse.json(
         { error: 'Non autorisé' },
         { status: 401 }
@@ -88,7 +92,6 @@ export async function POST(
     }
 
     const trackId = params.id;
-    const userId = session.user.id;
 
     // Gestion spéciale pour la radio
     if (trackId === 'radio-mixx-party') {
@@ -100,64 +103,37 @@ export async function POST(
       });
     }
 
-    // Toggle like: si existe -> delete, sinon -> insert
-    const { data: existing, error: exErr } = await supabaseAdmin
+    // Ajouter le like
+    console.log('POST like - Tentative d\'insertion:', { trackId, userId });
+    
+    const { data: insertedData, error: insErr } = await supabaseAdmin
       .from('track_likes')
-      .select('id')
-      .eq('track_id', trackId)
-      .eq('user_id', userId)
-      .maybeSingle();
-
-    if (exErr) {
-      console.error('likes POST: erreur lecture existing', exErr);
-    }
-
-    if (existing) {
-      const { error: delErr } = await supabaseAdmin
-        .from('track_likes')
-        .delete()
-        .eq('id', existing.id);
-      if (delErr) {
-        console.error('likes POST: erreur suppression like', delErr);
-        return NextResponse.json({ error: 'Erreur suppression like' }, { status: 500 });
-      }
-    // Log event unlike
-    {
-      const { error: evErr } = await supabaseAdmin.from('track_events').insert({
-        track_id: trackId,
-        user_id: userId,
-        event_type: 'unlike',
-        platform: 'web',
-        is_ai_track: trackId?.startsWith('ai-') || false,
-      });
-      if (evErr) {
-        console.warn('like unlike: log event error', evErr);
+      .insert({ track_id: trackId, user_id: userId })
+      .select();
+    
+    console.log('POST like - Résultat insertion:', { insertedData, insErr });
+    
+    if (insErr) {
+      // Conflit unique = déjà liké (ignore silencieusement)
+      if (insErr.code !== '23505') {
+        console.error('likes POST: erreur insertion like', insErr);
+        return NextResponse.json({ error: 'Erreur ajout like' }, { status: 500 });
+      } else {
+        console.log('POST like - Like déjà existant (conflit ignoré)');
       }
     }
-    } else {
-      const { error: insErr } = await supabaseAdmin
-        .from('track_likes')
-        .insert({ track_id: trackId, user_id: userId });
-      if (insErr) {
-        // Conflit unique = déjà liké ailleurs en concurrence
-        if (insErr.code !== '23505') {
-          console.error('likes POST: erreur insertion like', insErr);
-          return NextResponse.json({ error: 'Erreur ajout like' }, { status: 500 });
-        }
-      }
+
     // Log event like
-    {
-      const { error: evErr } = await supabaseAdmin.from('track_events').insert({
-        track_id: trackId,
-        user_id: userId,
-        event_type: 'like',
-        platform: 'web',
-        is_ai_track: trackId?.startsWith('ai-') || false,
-      });
-      if (evErr) {
-        console.warn('like insert: log event error', evErr);
-      }
-    }
+    const { error: evErr } = await supabaseAdmin.from('track_events').insert({
+      track_id: trackId,
+      user_id: userId,
+      event_type: 'like',
+      platform: 'web',
+      is_ai_track: trackId?.startsWith('ai-') || false,
+    });
+    
+    if (evErr) {
+      console.warn('like insert: log event error', evErr);
     }
 
     // Lire état final
@@ -191,10 +167,102 @@ export async function POST(
       likesCount = typeof count === 'number' ? count : likesCount;
     }
 
+    console.log('POST like - Succès:', { isLiked: !!likeRow, likesCount });
     return NextResponse.json({ success: true, isLiked: !!likeRow, likesCount });
 
   } catch (error) {
-    console.error('❌ Erreur toggle like:', error);
+    console.error('❌ Erreur ajout like:', error);
+    return NextResponse.json(
+      { error: 'Erreur serveur interne' },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE /api/tracks/[id]/like - Retirer le like
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const session = await getServerSession(authOptions);
+    const userId = (session?.user as any)?.id || null;
+    
+    console.log('DELETE like - Session:', { hasSession: !!session, userId, trackId: params.id });
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Non autorisé' },
+        { status: 401 }
+      );
+    }
+
+    const trackId = params.id;
+
+    // Gestion spéciale pour la radio
+    if (trackId === 'radio-mixx-party') {
+      return NextResponse.json({
+        success: false,
+        isLiked: false,
+        likesCount: 0,
+        message: 'Radio - pas de likes'
+      });
+    }
+
+    // Supprimer le like s'il existe
+    console.log('DELETE like - Tentative de suppression:', { trackId, userId });
+    
+    const { data: deletedData, error: delErr } = await supabaseAdmin
+      .from('track_likes')
+      .delete()
+      .eq('track_id', trackId)
+      .eq('user_id', userId)
+      .select();
+
+    console.log('DELETE like - Résultat:', { deletedData, delErr });
+
+    if (delErr) {
+      console.error('likes DELETE: erreur suppression like', delErr);
+      return NextResponse.json({ error: 'Erreur suppression like' }, { status: 500 });
+    }
+
+    // Log event unlike
+    const { error: evErr } = await supabaseAdmin.from('track_events').insert({
+      track_id: trackId,
+      user_id: userId,
+      event_type: 'unlike',
+      platform: 'web',
+      is_ai_track: trackId?.startsWith('ai-') || false,
+    });
+    
+    if (evErr) {
+      console.warn('like unlike: log event error', evErr);
+    }
+
+    // Récupérer le compteur mis à jour
+    const { data: stats, error: statsErr } = await supabaseAdmin
+      .from('track_stats')
+      .select('likes_count')
+      .eq('track_id', trackId)
+      .maybeSingle();
+
+    let likesCount = stats?.likes_count ?? 0;
+    if (statsErr || stats == null) {
+      const { count, error: countErr } = await supabaseAdmin
+        .from('track_likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('track_id', trackId);
+      if (countErr) {
+        console.error('likes DELETE: erreur fallback count', countErr);
+      }
+      likesCount = typeof count === 'number' ? count : 0;
+    }
+
+    console.log('DELETE like - Succès:', { likesCount, isLiked: false });
+    return NextResponse.json({ success: true, isLiked: false, likesCount });
+
+  } catch (error) {
+    console.error('❌ Erreur suppression like:', error);
     return NextResponse.json(
       { error: 'Erreur serveur interne' },
       { status: 500 }

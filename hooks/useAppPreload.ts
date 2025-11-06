@@ -359,10 +359,10 @@ export function useAppPreload() {
       if (session?.user?.id) {
         const [libraryRes, creditsRes, playlistsRes, statsRes, favoritesRes, userStatsRes] = await Promise.allSettled([
           fetch('/api/ai/library?limit=15', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch('/api/billing/credits', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch('/api/ai/credits', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
           fetch(`/api/playlists?user=${session.user.id}&limit=15`, { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
           fetch('/api/stats/community', { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch(`/api/tracks/favorites?user=${session.user.id}&limit=20`, { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`/api/tracks?liked=true&limit=20`, { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
           fetch(`/api/users/${session.user.username}`, { headers: { 'Cache-Control': 'max-age=300' } }).then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
 

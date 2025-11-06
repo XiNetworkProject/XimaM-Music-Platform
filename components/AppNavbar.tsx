@@ -207,7 +207,7 @@ export default function AppNavbar() {
 
   return (
     <header className="sticky top-0 z-40">
-      <div className="mx-auto max-w-[2000px] px-2 sm:px-4 md:px-6 py-2">
+      <div className="mx-auto max-w-[2000px] px-2 py-2">
         <div className="panel-suno rounded-xl sm:rounded-2xl px-3 sm:px-4 md:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-4 border border-[var(--border)]/50 bg-[var(--surface)]/95 backdrop-blur-md shadow-lg">
           {/* Toggle sidebar (mobile + desktop) */}
           <button

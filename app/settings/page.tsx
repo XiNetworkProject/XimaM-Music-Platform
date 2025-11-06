@@ -436,7 +436,7 @@ export default function SettingsPage() {
                   <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
                     Premium
                   </div>
-                </div>
+              </div>
             </div>
           </div>
           </motion.div>

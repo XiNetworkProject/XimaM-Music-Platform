@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { getCdnUrl } from '@/lib/cdn';
 
 interface AvatarProps {
@@ -38,6 +39,7 @@ function getColorFromName(name: string): string {
 }
 
 export default function Avatar({ src, name, username, size = 'md', className = '' }: AvatarProps) {
+  const [imageError, setImageError] = React.useState(false);
   const displayName = name || username || '?';
   const initial = displayName.charAt(0).toUpperCase();
   const bgColor = getColorFromName(displayName);
@@ -51,31 +53,28 @@ export default function Avatar({ src, name, username, size = 'md', className = '
     '2xl': 'w-20 h-20 text-2xl',
   };
   
-  if (src) {
+  // Si pas de src ou erreur de chargement, afficher le fallback
+  if (!src || imageError) {
     return (
-      <img
-        src={getCdnUrl(src) || src}
-        alt={displayName}
-        className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
-        onError={(e) => {
-          // Si l'image échoue, afficher le fallback
-          const target = e.currentTarget as HTMLImageElement;
-          target.style.display = 'none';
-          if (target.nextElementSibling) {
-            (target.nextElementSibling as HTMLElement).style.display = 'flex';
-          }
-        }}
-      />
+      <div
+        className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold text-white ${className}`}
+        style={{ backgroundColor: bgColor }}
+      >
+        {initial}
+      </div>
     );
   }
   
+  // Ne pas appliquer le CDN aux URLs locales (commençant par /)
+  const imageUrl = src.startsWith('/') ? src : (getCdnUrl(src) || src);
+  
   return (
-    <div
-      className={`${sizeClasses[size]} rounded-full flex items-center justify-center font-semibold text-white ${className}`}
-      style={{ backgroundColor: bgColor }}
-    >
-      {initial}
-    </div>
+    <img
+      src={imageUrl}
+      alt={displayName}
+      className={`${sizeClasses[size]} rounded-full object-cover ${className}`}
+      onError={() => setImageError(true)}
+    />
   );
 }
 

@@ -43,15 +43,6 @@ export function useLikeSystem({
     error: null
   });
 
-  // Synchroniser avec les props initiales
-  useEffect(() => {
-    setState(prev => ({
-      ...prev,
-      isLiked: initialIsLiked,
-      likesCount: initialLikesCount
-    }));
-  }, [initialIsLiked, initialLikesCount]);
-
   // Vérifier l'état initial depuis le serveur
   useEffect(() => {
     if (session?.user?.id && trackId) {
@@ -119,8 +110,9 @@ export function useLikeSystem({
     updateLike(trackId, optimisticState.isLiked, optimisticState.likesCount);
 
     try {
+      // Utiliser POST pour ajouter, DELETE pour retirer
       const response = await fetch(`/api/tracks/${trackId}/like`, {
-        method: 'POST',
+        method: optimisticState.isLiked ? 'POST' : 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },

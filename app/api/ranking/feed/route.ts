@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { computeRankingScore } from '@/lib/ranking';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -10,6 +12,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10), 100);
     const includeAi = searchParams.get('ai') === '1';
+    
+    // Récupérer l'utilisateur connecté
+    const session = await getServerSession(authOptions).catch(() => null);
+    const userId = (session?.user as any)?.id || null;
 
     // Récupérer dernières 30j stats + infos track minimales
     const { data: statsRows, error: statsErr } = await supabaseAdmin
@@ -293,6 +299,30 @@ export async function GET(request: NextRequest) {
           };
         });
 
+        // Récupérer les likes de l'utilisateur pour les tracks normales
+        let likedTrackIds = new Set<string>();
+        if (userId && normalIds.length) {
+          const { data: likes } = await supabaseAdmin
+            .from('track_likes')
+            .select('track_id')
+            .eq('user_id', userId)
+            .in('track_id', normalIds);
+          
+          if (likes) {
+            likes.forEach((like: any) => likedTrackIds.add(like.track_id));
+          }
+        }
+
+        // Ajouter isLiked aux tracks normales
+        scoredNormal.forEach((track: any) => {
+          track.isLiked = likedTrackIds.has(track._id);
+        });
+
+        // Pour les tracks IA, on ne gère pas les likes pour le moment
+        scoredAI.forEach((track: any) => {
+          track.isLiked = false;
+        });
+
         const combined = [...scoredNormal, ...(includeAi ? scoredAI : [])]
           .sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0))
           .slice(0, limit);
@@ -413,6 +443,20 @@ export async function GET(request: NextRequest) {
       // Ne pas bloquer le feed si l'appel échoue
     }
 
+    // Récupérer les likes de l'utilisateur pour les tracks normales
+    let likedTrackIds = new Set<string>();
+    if (userId && normalIds.length) {
+      const { data: likes } = await supabaseAdmin
+        .from('track_likes')
+        .select('track_id')
+        .eq('user_id', userId)
+        .in('track_id', normalIds);
+      
+      if (likes) {
+        likes.forEach((like: any) => likedTrackIds.add(like.track_id));
+      }
+    }
+
     // Scoring + formatage pour pistes normales
     const scoredNormal = normalTracks.map((t) => {
       const r = statsMap.get(t.id);
@@ -456,6 +500,7 @@ export async function GET(request: NextRequest) {
         isVerified: t.profiles?.is_verified || false,
         rankingScore: score,
         isAI: false,
+        isLiked: likedTrackIds.has(t.id),
       };
     });
 
@@ -487,6 +532,7 @@ export async function GET(request: NextRequest) {
           artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
         },
         duration: t.duration || 0,
+        isLiked: false,
         coverUrl: t.image_url || '/default-cover.jpg',
         audioUrl: t.audio_url,
         genre: Array.isArray(t.tags) ? t.tags : [],

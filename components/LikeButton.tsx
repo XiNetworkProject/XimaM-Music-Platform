@@ -76,7 +76,6 @@ export default function LikeButton({
   });
 
   const config = sizeConfig[size];
-  const variantStyle = variantConfig[variant];
 
   const formatCount = (num: number) => {
     if (num >= 1000000) {
@@ -93,113 +92,29 @@ export default function LikeButton({
     toggleLike();
   };
 
+  // Style simple : juste le cœur blanc
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      <motion.button
+    <div className={`flex items-center gap-1 ${className}`}>
+      <button
         onClick={handleClick}
         disabled={isLoading}
-        className={`
-          ${config.button} 
-          ${variantStyle.border}
-          rounded-full 
-          flex items-center justify-center 
-          transition-all duration-200 
-          ${isLiked ? variantStyle.active : variantStyle.base}
-          ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
-          ${error ? 'ring-2 ring-red-500' : ''}
-        `}
-        whileHover={!isLoading ? { scale: 1.05 } : {}}
-        whileTap={!isLoading ? { scale: 0.95 } : {}}
+        className="hover:scale-110 transition disabled:opacity-50"
         title={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
       >
-        {/* Icône avec animation */}
-        <motion.div
-          animate={isLiked ? {
-            scale: [1, 1.2, 1],
-            rotate: [0, 10, -10, 0]
-          } : {}}
-          transition={{ duration: 0.3 }}
-        >
-          <Heart 
-            size={config.icon} 
-            className={`transition-all duration-200 ${
-              isLiked ? 'fill-current' : ''
-            }`}
-          />
-        </motion.div>
-
-        {/* Indicateur de chargement */}
-        <AnimatePresence>
-          {isLoading && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0 }}
-              className="absolute w-2 h-2 rounded-full border-2 border-current border-t-transparent animate-spin"
-            />
-          )}
-        </AnimatePresence>
-
-        {/* Effet de particules pour les likes */}
-        <AnimatePresence>
-          {isLiked && (
-            <div className="absolute inset-0 pointer-events-none">
-              {[...Array(3)].map((_, i) => (
-                <motion.div
-                  key={i}
-                  className="absolute w-1 h-1 bg-red-500 rounded-full"
-                  initial={{ 
-                    x: 0, 
-                    y: 0, 
-                    opacity: 1,
-                    scale: 0
-                  }}
-                  animate={{
-                    x: [0, Math.random() * 20 - 10],
-                    y: [0, -20 - Math.random() * 10],
-                    opacity: [1, 0],
-                    scale: [0, 1, 0]
-                  }}
-                  transition={{
-                    duration: 0.8,
-                    delay: i * 0.1,
-                    ease: "easeOut"
-                  }}
-                  style={{
-                    left: '50%',
-                    top: '50%'
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </AnimatePresence>
-      </motion.button>
-
-      {/* Compteur animé */}
-      {showCount && (
-        <AnimatedLikeCounter
-          value={likesCount}
-          isLiked={isLiked}
-          size={size}
-          variant={variant}
-          className={config.text}
+        <Heart 
+          size={config.icon} 
+          className={`transition-all ${
+            isLiked ? 'fill-white text-white' : 'text-white/50'
+          }`}
         />
-      )}
+      </button>
 
-      {/* Message d'erreur */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap"
-          >
-            {error}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Compteur de likes */}
+      {showCount && (
+        <span className={`${config.text} text-white/50`}>
+          {formatCount(likesCount)}
+        </span>
+      )}
     </div>
   );
 } 

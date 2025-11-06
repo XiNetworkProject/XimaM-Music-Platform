@@ -19,6 +19,11 @@ const CLOUDINARY_DOMAINS = [
 export function getCdnUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   
+  // Ignorer les chemins locaux (commençant par /)
+  if (typeof url === 'string' && url.startsWith('/')) {
+    return url;
+  }
+  
   // Vérifier si le CDN est activé
   if (process.env.NEXT_PUBLIC_CDN_ENABLED === 'false') {
     return url;

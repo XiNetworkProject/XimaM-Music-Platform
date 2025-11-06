@@ -54,7 +54,7 @@ export default function AppSidebar() {
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   return (
-    <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 ${isSidebarOpen ? 'lg:w-72' : 'lg:w-24'} transition-[width] duration-200 ease-in-out z-30 p-4 overflow-hidden`}>
+    <aside className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 ${isSidebarOpen ? 'lg:w-72' : 'lg:w-24'} transition-[width] duration-200 ease-in-out z-30 p-2 overflow-hidden`}>
       <div className="panel-suno border border-[var(--border)] rounded-2xl h-full flex flex-col overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <Image src="/synaura_symbol.svg" alt="Synaura" width={28} height={28} />

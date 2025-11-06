@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const limit = parseInt(searchParams.get('limit') || '5');
+    
+    // Récupérer l'utilisateur connecté
+    const session = await getServerSession(authOptions).catch(() => null);
+    const userId = (session?.user as any)?.id || null;
 
     // Récupérer les pistes en vedette depuis Supabase
     const { data: tracks, error } = await supabase
@@ -32,6 +38,21 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Récupérer les likes de l'utilisateur
+    const trackIds = (tracks || []).map(t => t.id);
+    let likedTrackIds = new Set<string>();
+    if (userId && trackIds.length) {
+      const { data: likes } = await supabaseAdmin
+        .from('track_likes')
+        .select('track_id')
+        .eq('user_id', userId)
+        .in('track_id', trackIds);
+      
+      if (likes) {
+        likes.forEach((like: any) => likedTrackIds.add(like.track_id));
+      }
+    }
+
     // Transformer les données pour correspondre au format attendu
     const formattedTracks = tracks?.map(track => ({
       _id: track.id,
@@ -52,7 +73,8 @@ export async function GET(request: NextRequest) {
       plays: track.plays || 0,
       createdAt: track.created_at,
       isFeatured: track.is_featured,
-      isVerified: track.profiles?.is_verified || false
+      isVerified: track.profiles?.is_verified || false,
+      isLiked: likedTrackIds.has(track.id)
     })) || [];
 
     console.log(`✅ ${formattedTracks.length} pistes en vedette récupérées`);

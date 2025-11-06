@@ -205,13 +205,13 @@ export default function FullScreenPlayer() {
 
       {/* Mini-player - Suno-like playbar - masqué en mode TikTok */}
       {!showTikTok && (
-        <motion.div
+      <motion.div
           className="glass-player relative w-full"
           style={{ display: showFull ? 'none' : 'flex' }}
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 100, opacity: 0 }}
+        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
           onClick={() => setShowTikTok(true)}
         >
           <FloatingParticles isPlaying={audioState.isPlaying && !audioState.isLoading} />
@@ -256,7 +256,7 @@ export default function FullScreenPlayer() {
                   </AudioQualityTooltip>
                 </div>
               </span>
-            </div>
+          </div>
 
             {/* Mobile controls (always visible on mobile) */}
             <div className="flex items-center gap-1 md:hidden ml-2" onClick={(e)=>e.stopPropagation()}>
@@ -269,7 +269,7 @@ export default function FullScreenPlayer() {
               <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Next">
                 <SkipForward size={18} />
               </button>
-            </div>
+        </div>
         
             {/* Center controls (md and up) */}
             <div className="hidden flex-1 flex-row items-center justify-center gap-1 w-8 md:flex" onClick={(e)=>e.stopPropagation()}>
@@ -323,8 +323,8 @@ export default function FullScreenPlayer() {
                       </div>
                       <div className="popover-arrow" />
                     </div>
-                  </div>
-                )}
+          </div>
+        )}
               </div>
             </div>
           </div>
