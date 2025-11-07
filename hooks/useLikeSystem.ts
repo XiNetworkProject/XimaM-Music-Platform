@@ -208,8 +208,9 @@ export function useBatchLikeSystem() {
     setBatchLoading(prev => new Set(prev).add(trackId));
 
     try {
+      const nextIsLiked = !currentState.isLiked;
       const response = await fetch(`/api/tracks/${trackId}/like`, {
-        method: 'POST',
+        method: nextIsLiked ? 'POST' : 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },

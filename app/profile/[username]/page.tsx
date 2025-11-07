@@ -1,118 +1,69 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Pause, Heart, Upload, MoreHorizontal, Headphones, Edit, BarChart3, Rocket, Music2, Clock, ChevronRight, X, Loader2, Camera, Check, UserPlus, Sparkles } from "lucide-react";
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { motion, AnimatePresence } from 'framer-motion';
-import BoosterOpenModal from '@/components/BoosterOpenModal';
-import { useBoosters } from '@/hooks/useBoosters';
-import { User, Edit3, Check, Heart, Users, Music, Plus, Image, Camera, Loader2, LogOut, Link2, Instagram, Twitter, Youtube, Globe, ChevronDown, ChevronUp, UserPlus, Trash2, Star, Play, Pause, MoreVertical, Crown, MessageCircle, TrendingUp, Sparkles } from 'lucide-react';
-import dynamic from 'next/dynamic';
-const OnboardingChecklist = dynamic(() => import('@/components/OnboardingChecklist'), { ssr: false });
-import Avatar from '@/components/Avatar';
 import { useAudioPlayer } from '@/app/providers';
 import { useBatchLikeSystem } from '@/hooks/useLikeSystem';
-import { useBatchPlaysSystem } from '@/hooks/usePlaysSystem';
-import InteractiveCounter from '@/components/InteractiveCounter';
-import SocialStats from '@/components/SocialStats';
-import UserProfileCard from '@/components/UserProfileCard';
-import { AnimatedPlaysCounter } from '@/components/AnimatedCounter';
+import { useBoosters } from '@/hooks/useBoosters';
+import Avatar from '@/components/Avatar';
+import LikeButton from '@/components/LikeButton';
 import { notify } from '@/components/NotificationCenter';
+import dynamic from 'next/dynamic';
+import { AnimatePresence, motion } from 'framer-motion';
 
-const socialIcons = {
-  instagram: Instagram,
-  twitter: Twitter,
-  youtube: Youtube,
-  website: Globe,
-};
+const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
-function formatDuration(duration: number | undefined): string {
-  if (!duration || isNaN(duration)) return '--:--';
-  const totalSeconds = Math.round(duration);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
+/**
+ * Synaura — Page Profil (même style que la Home) — HYBRID GRID + DRAWER
+ * - Connexion aux vraies données API
+ * - Bannière héro + avatar superposé
+ * - Stats & bio en cartes
+ * - Grille compacte de tracks (cards carrées)
+ * - CLIC sur une card => ouvre un DRAWER latéral
+ */
 
-// Ajout d'une fonction utilitaire pour obtenir le username à partir de l'id
-async function getUsernameFromId(userId: string): Promise<string | null> {
-  try {
-    const res = await fetch(`/api/users/${userId}`);
-    if (!res.ok) return null;
-    const user = await res.json();
-    return user.username;
-  } catch {
-    return null;
-  }
-}
+// ---- Utils ----
+const fmt = new Intl.NumberFormat();
+const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
 
-export default function ProfileUserPage() {
+// ---- Page ----
+export default function SynauraProfile(){
   const { username } = useParams();
   const { data: session } = useSession();
   const router = useRouter();
   const { playTrack, audioState } = useAudioPlayer();
-  
-  // Utiliser les nouveaux systèmes de likes et écoutes pour la synchronisation temps réel
-  const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
-  const { incrementPlaysBatch, isBatchLoading: isPlaysLoading } = useBatchPlaysSystem();
+  const { toggleLikeBatch } = useBatchLikeSystem();
+  const { canOpen, openDaily, lastOpened, remainingMs, loading: boostersLoading, inventory } = useBoosters();
 
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [editMode, setEditMode] = useState(false);
-  const [editData, setEditData] = useState<any>({});
-  const [uploading, setUploading] = useState(false);
-  const [showFullBio, setShowFullBio] = useState(false);
   const [error, setError] = useState('');
+  const [userTracks, setUserTracks] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  
+  const [query, setQuery] = useState("");
+  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [drawerId, setDrawerId] = useState<string | null>(null);
+  const [showBoosterModal, setShowBoosterModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditTrackModal, setShowEditTrackModal] = useState(false);
+  const [editData, setEditData] = useState<any>({});
+  const [editingTrack, setEditingTrack] = useState<any>(null);
+  const [trackEditData, setTrackEditData] = useState<any>({});
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-  const [activeTab, setActiveTab] = useState<'tracks' | 'playlists'>('tracks');
-  const [trackPage, setTrackPage] = useState(1);
-  const [trackLoading, setTrackLoading] = useState(false);
-  const [hasMoreTracks, setHasMoreTracks] = useState(true);
-  const tracksPerPage = 12;
-  const trackListRef = useRef<HTMLDivElement>(null);
-  const [playlistPage, setPlaylistPage] = useState(1);
-  const [playlistLoading, setPlaylistLoading] = useState(false);
-  const [hasMorePlaylists, setHasMorePlaylists] = useState(true);
-  const playlistsPerPage = 9;
-  const playlistListRef = useRef<HTMLDivElement>(null);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [showCreatePlaylistModal, setShowCreatePlaylistModal] = useState(false);
-  const [newPlaylistData, setNewPlaylistData] = useState({ name: '', description: '', isPublic: true });
-  const [followLoading, setFollowLoading] = useState<string | null>(null);
-  
-  // Nouvelles fonctionnalités pour les tracks
-  const [showTrackOptions, setShowTrackOptions] = useState<string | null>(null);
-  const [showEditTrackModal, setShowEditTrackModal] = useState(false);
-  const [showFeatureTrackModal, setShowFeatureTrackModal] = useState(false);
-  const [editingTrack, setEditingTrack] = useState<any>(null);
-  const [featuringTrack, setFeaturingTrack] = useState<any>(null);
-  const [trackEditData, setTrackEditData] = useState<any>({});
-  const [featuredBanner, setFeaturedBanner] = useState('');
-  const [likeLoading, setLikeLoading] = useState<string | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
 
-  // Boosters
-  const { inventory, remainingMs, canOpen, openDaily, useOnTrack, lastOpened, loading: boostersLoading } = useBoosters();
-  const [artistBoost, setArtistBoost] = useState<{ multiplier: number; expires_at: string } | null>(null);
-  const [nowTs, setNowTs] = useState<number>(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNowTs(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const formatRemainingMs = (ms: number) => {
-    if (!ms || ms <= 0) return '0s';
-    const h = Math.floor(ms / 3_600_000);
-    const m = Math.floor((ms % 3_600_000) / 60_000);
-    const s = Math.floor((ms % 60_000) / 1000);
-    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m ${s.toString().padStart(2,'0')}s`;
-    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-  };
-  const [showBoosterModal, setShowBoosterModal] = useState(false);
+  const isOwnProfile = session?.user?.username === username;
+
+  // Auto-ouvrir le modal booster après ouverture
   useEffect(() => {
     if (lastOpened) setShowBoosterModal(true);
   }, [lastOpened]);
 
+  // Formater le temps restant
   const formatRemaining = (ms: number) => {
     if (!ms || ms <= 0) return 'Disponible';
     const h = Math.floor(ms / 3_600_000);
@@ -122,14 +73,7 @@ export default function ProfileUserPage() {
     return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
   };
 
-  // État pour l'affichage des tracks
-  const [trackViewMode, setTrackViewMode] = useState<'grid' | 'list'>('grid');
-  
-  // État pour les tracks de l'utilisateur avec synchronisation temps réel
-  const [userTracks, setUserTracks] = useState<any[]>([]);
-  const [activeBoosts, setActiveBoosts] = useState<Record<string, { multiplier: number; expires_at: string }>>({});
-
-  // Charger le profil utilisateur
+  // Charger le profil
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
@@ -139,16 +83,10 @@ export default function ProfileUserPage() {
         const data = await res.json();
         
         if (!res.ok) {
-          if (res.status === 404) {
-            throw new Error('Ce profil n\'existe pas');
-          } else if (res.status === 500) {
-            throw new Error('Erreur serveur - profil temporairement indisponible');
-          } else {
-            throw new Error(data.error || 'Erreur lors du chargement du profil');
-          }
+          throw new Error(data.error || 'Erreur chargement profil');
         }
         
-        // Vérifier l'état de suivi si l'utilisateur est connecté
+        // Vérifier l'état de suivi
         let isFollowing = false;
         if (session?.user?.id && data.id !== session.user.id) {
           try {
@@ -164,51 +102,126 @@ export default function ProfileUserPage() {
         
         setProfile({ ...data, isFollowing });
         setEditData({ ...data, isFollowing });
-        // Mettre à jour les tracks avec synchronisation temps réel
-        const tracks = data.tracks || [];
-        setUserTracks(tracks);
-        // Charger boosts actifs
-        try {
-          const ids = tracks.map((t: any) => t.id).filter(Boolean);
-          if (ids.length) {
-            const res = await fetch(`/api/boosters/active?trackIds=${encodeURIComponent(ids.join(','))}`);
-            if (res.ok) {
-              const j = await res.json();
-              const map: Record<string, { multiplier: number; expires_at: string }> = {};
-              (j.boosts || []).forEach((b: any) => {
-                if (!map[b.track_id]) map[b.track_id] = { multiplier: Number(b.multiplier) || 1, expires_at: b.expires_at };
-                else map[b.track_id].multiplier = Math.max(map[b.track_id].multiplier, Number(b.multiplier) || 1);
-              });
-              setActiveBoosts(map);
-            }
-          }
-        } catch {}
-        // Charger boost artiste si profil propriétaire
-        try {
-          if (session?.user?.id && data.id === session.user.id) {
-            const r = await fetch('/api/boosters/my-active', { cache: 'no-store' });
-            if (r.ok) {
-              const jj = await r.json();
-              const ab = (jj.artistBoosts || [])[0];
-              if (ab) setArtistBoost({ multiplier: Number(ab.multiplier) || 1, expires_at: ab.expires_at });
-            }
-          }
-        } catch {}
+        setUserTracks(data.tracks || []);
       } catch (e: any) {
-        setError(e.message || 'Erreur lors du chargement du profil');
+        setError(e.message || 'Erreur chargement profil');
       } finally {
         setLoading(false);
       }
     };
     if (username) fetchProfile();
-  }, [username]);
+  }, [username, session?.user?.id]);
 
-  // Gestion upload avatar/bannière
+  const filtered = useMemo(() =>
+    userTracks.filter(t => t.title.toLowerCase().includes(query.toLowerCase()))
+  , [query, userTracks]);
+
+  // Click-outside pour fermer les menus
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      const open = document.querySelector('[data-menu-root="true"]');
+      if (open && !open.contains(e.target as Node)) setMenuOpenId(null);
+    };
+    document.addEventListener('click', onClick);
+    return () => document.removeEventListener('click', onClick);
+  }, []);
+
+  // ESC pour fermer le drawer
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerId(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Style no-scrollbar (si besoin)
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`;
+    document.head.appendChild(style);
+    return () => { try { document.head.removeChild(style); } catch (e) {} };
+  }, []);
+
+  const selected = useMemo(() => userTracks.find(t => t.id === drawerId) || null, [drawerId, userTracks]);
+
+  // Gestion play track
+  const handlePlayTrack = async (track: any) => {
+    try {
+      const trackToPlay = {
+        _id: track.id,
+        title: track.title,
+        artist: track.artist || track.artist_name || profile?.name || 'Artiste inconnu',
+        audioUrl: track.audioUrl || track.audio_url,
+        coverUrl: track.coverUrl || track.cover_url,
+        duration: track.duration,
+        album: track.album || null,
+        likes: track.likes || 0,
+        comments: track.comments || [],
+        plays: track.plays || 0,
+        genre: track.genre || [],
+        isLiked: track.isLiked || false
+      };
+      await playTrack(trackToPlay);
+    } catch (error) {
+      console.error('Erreur lecture:', error);
+      notify.error('Erreur', 'Impossible de lire la piste');
+    }
+  };
+
+  // Gestion like avec mise à jour de l'état local
+  const handleLikeUpdate = (trackId: string, isLiked: boolean, likesCount: number) => {
+    setUserTracks(prev => prev.map(track => 
+      track.id === trackId 
+        ? { ...track, isLiked, likes: likesCount }
+        : track
+    ));
+    
+    setProfile((prev: any) => ({
+      ...prev,
+      tracks: prev.tracks?.map((track: any) => 
+        track.id === trackId ? { ...track, isLiked, likes: likesCount } : track
+      )
+    }));
+  };
+
+  // Gestion delete track
+  const handleDeleteTrack = async (trackId: string) => {
+    if (!confirm('Supprimer cette piste définitivement ?')) return;
+    try {
+      const res = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Erreur suppression');
+      }
+      
+      setUserTracks(prev => prev.filter(track => track.id !== trackId));
+      setDrawerId(null);
+      notify.success('Track supprimée', 'Track supprimée avec succès');
+    } catch (e: any) {
+      notify.error('Erreur', e.message || 'Erreur suppression');
+    }
+  };
+
+  // Gestion follow
+  const handleFollow = async () => {
+    if (!session?.user) return;
+    try {
+      const res = await fetch(`/api/users/${username}/follow`, { method: 'POST' });
+      if (!res.ok) throw new Error('Erreur follow');
+      const data = await res.json();
+      setProfile((prev: any) => ({
+        ...prev,
+        isFollowing: data.action === 'followed',
+        followerCount: prev.followerCount + (data.action === 'followed' ? 1 : -1),
+      }));
+    } catch (e) {
+      notify.error('Erreur', 'Impossible de suivre cet utilisateur');
+    }
+  };
+
+  // Upload image
   const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => {
     setUploading(true);
-    setError('');
     try {
-      // Étape 1: Obtenir la signature Cloudinary
       const timestamp = Math.round(Date.now() / 1000);
       const publicId = `${username}_${type}_${timestamp}`;
       
@@ -218,14 +231,9 @@ export default function ProfileUserPage() {
         body: JSON.stringify({ timestamp, publicId, type })
       });
       
-      if (!sigRes.ok) {
-        const errorData = await sigRes.json().catch(() => ({ error: 'Erreur signature' }));
-        throw new Error(errorData.error || 'Erreur signature');
-      }
-      
+      if (!sigRes.ok) throw new Error('Erreur signature');
       const { signature, apiKey, cloudName } = await sigRes.json();
       
-      // Étape 2: Upload vers Cloudinary
       const formData = new FormData();
       formData.append('file', file);
       formData.append('timestamp', String(timestamp));
@@ -240,104 +248,28 @@ export default function ProfileUserPage() {
         body: formData
       });
       
-      console.log('Cloudinary upload response status:', uploadRes.status);
-      if (!uploadRes.ok) {
-        const errorText = await uploadRes.text();
-        console.error('Cloudinary upload error:', errorText);
-        throw new Error(`Erreur upload Cloudinary: ${uploadRes.status} - ${errorText}`);
-      }
-      
+      if (!uploadRes.ok) throw new Error('Erreur upload');
       const uploadData = await uploadRes.json();
       
-      // Étape 3: Sauvegarder l'URL dans la base de données
       const saveRes = await fetch(`/api/users/${username}/save-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: uploadData.secure_url, type, publicId })
       });
       
-      if (!saveRes.ok) {
-        const errorData = await saveRes.json().catch(() => ({ error: 'Erreur sauvegarde' }));
-        throw new Error(errorData.error || 'Erreur sauvegarde');
-      }
-      
+      if (!saveRes.ok) throw new Error('Erreur sauvegarde');
       const saveData = await saveRes.json();
       setProfile((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
       setEditData((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
-      
-      // Message de confirmation
-      if (saveData.oldImageDeleted) {
-        console.log(`✅ Ancienne image ${type} supprimée automatiquement`);
-      }
+      notify.success('Succès', 'Image mise à jour');
     } catch (e: any) {
-      setError(e.message || 'Erreur upload image');
+      notify.error('Erreur', e.message || 'Erreur upload image');
     } finally {
       setUploading(false);
     }
   };
 
-  // Gestion follow/unfollow
-  const handleFollow = async () => {
-    if (!session?.user) return;
-    try {
-      const res = await fetch(`/api/users/${username}/follow`, { method: 'POST' });
-      if (!res.ok) throw new Error('Erreur follow');
-      // Refresh profil
-      const data = await res.json();
-      setProfile((prev: any) => ({
-        ...prev,
-        isFollowing: data.action === 'followed',
-        followerCount: prev.followerCount + (data.action === 'followed' ? 1 : -1),
-      }));
-    } catch (e) {}
-  };
-
-  // Écouter les changements dans l'état du lecteur pour mettre à jour les statistiques
-  useEffect(() => {
-    const handlePlaysUpdated = (event: CustomEvent) => {
-      const { trackId, plays } = event.detail || {};
-      setUserTracks(prev => prev.map(track => 
-        (track._id || track.id) === trackId 
-          ? { ...track, plays: typeof plays === 'number' ? plays : (track.plays || 0) + 1 }
-          : track
-      ));
-    };
-
-    window.addEventListener('playsUpdated', handlePlaysUpdated as EventListener);
-    return () => window.removeEventListener('playsUpdated', handlePlaysUpdated as EventListener);
-  }, []);
-
-  // Gestion demande de messagerie
-  const handleMessageRequest = async () => {
-    if (!session?.user) {
-      router.push('/auth/signin');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/messages/request', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId: profile._id }),
-      });
-
-      if (res.ok) {
-        notify.success('Demande envoyée', 'Demande de conversation envoyée');
-      } else {
-        const data = await res.json();
-        if (data.error === 'Conversation déjà existante') {
-          // Rediriger vers la conversation existante
-          router.push(`/messages/${data.conversationId}`);
-        } else {
-          notify.error('Erreur envoi', data.error || 'Erreur lors de l\'envoi de la demande');
-        }
-      }
-    } catch (error) {
-      notify.error('Erreur connexion', 'Erreur de connexion');
-    }
-  };
-
-  // Gestion édition profil
+  // Édition profil
   const handleEdit = () => setShowEditModal(true);
   const handleCancelEdit = () => {
     setShowEditModal(false);
@@ -355,342 +287,29 @@ export default function ProfileUserPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Erreur modification profil');
       setProfile(data);
+      setEditData(data);
       setShowEditModal(false);
+      notify.success('Succès', 'Profil mis à jour');
     } catch (e: any) {
       setError(e.message || 'Erreur modification profil');
+      notify.error('Erreur', e.message || 'Erreur modification profil');
     } finally {
       setUploading(false);
     }
   };
 
-  // Prévisualisation image
-  const handlePreviewImage = (type: 'avatar' | 'banner', file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setEditData((prev: any) => ({ ...prev, [type]: e.target?.result }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Responsive : collapse bio
-  const bioMaxLength = 180;
-  const isOwnProfile = session?.user?.username === username;
-
-  // Fermer les menus d'options quand on clique ailleurs
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (showTrackOptions) {
-        setShowTrackOptions(null);
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => {
-      document.removeEventListener('click', handleClickOutside);
-    };
-  }, [showTrackOptions]);
-
-  // Scroll infini pour les musiques
-  useEffect(() => {
-    if (activeTab !== 'tracks' || !profile) return;
-    const handleScroll = () => {
-      if (!trackListRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = trackListRef.current;
-      if (scrollTop + clientHeight >= scrollHeight - 100 && hasMoreTracks && !trackLoading) {
-        setTrackLoading(true);
-        setTimeout(() => {
-          setTrackPage((prev) => prev + 1);
-          setTrackLoading(false);
-        }, 500);
-      }
-    };
-    const ref = trackListRef.current;
-    if (ref) ref.addEventListener('scroll', handleScroll);
-    return () => { if (ref) ref.removeEventListener('scroll', handleScroll); };
-  }, [activeTab, hasMoreTracks, trackLoading, profile]);
-
-  // Récupérer les musiques paginées
-  const paginatedTracks = profile?.tracks?.slice(0, trackPage * tracksPerPage) || [];
-  useEffect(() => {
-    setHasMoreTracks(paginatedTracks.length < (profile?.tracks?.length || 0));
-  }, [paginatedTracks.length, profile?.tracks?.length]);
-
-  // Scroll infini pour les playlists
-  useEffect(() => {
-    if (activeTab !== 'playlists' || !profile) return;
-    const handleScroll = () => {
-      if (!playlistListRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = playlistListRef.current;
-      if (scrollTop + clientHeight >= scrollHeight - 100 && hasMorePlaylists && !playlistLoading) {
-        setPlaylistLoading(true);
-        setTimeout(() => {
-          setPlaylistPage((prev) => prev + 1);
-          setPlaylistLoading(false);
-        }, 500);
-      }
-    };
-    const ref = playlistListRef.current;
-    if (ref) ref.addEventListener('scroll', handleScroll);
-    return () => { if (ref) ref.removeEventListener('scroll', handleScroll); };
-  }, [activeTab, hasMorePlaylists, playlistLoading, profile]);
-
-  // Récupérer les playlists paginées
-  const paginatedPlaylists = profile?.playlists?.slice(0, playlistPage * playlistsPerPage) || [];
-  useEffect(() => {
-    setHasMorePlaylists(paginatedPlaylists.length < (profile?.playlists?.length || 0));
-  }, [paginatedPlaylists.length, profile?.playlists?.length]);
-
-  // Définir les onglets
-  const tabs = [
-    {
-      id: 'tracks' as const,
-      label: 'Tracks',
-      icon: <Music size={20} />,
-      count: profile?.tracks?.length || 0
-    },
-    {
-      id: 'playlists' as const,
-      label: 'Playlists',
-      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-      </svg>,
-      count: profile?.playlists?.length || 0
-    },
-    {
-      id: 'followers' as const,
-      label: 'Followers',
-      icon: <Users size={20} />,
-      count: profile?.followerCount || 0
-    },
-    {
-      id: 'following' as const,
-      label: 'Following',
-      icon: <UserPlus size={20} />,
-      count: profile?.followingCount || 0
-    },
-    {
-      id: 'stats' as const,
-      label: 'Stats',
-      icon: <TrendingUp size={20} />,
-      count: 0
-    }
-  ];
-
-  // Données pour les onglets (simulées pour l'instant)
-  const userPlaylists = profile?.playlists || [];
-  const followers = profile?.followers || [];
-  const following = profile?.following || [];
-
-  // Gestion création playlist
-  const handleCreatePlaylist = async () => {
-    if (!newPlaylistData.name.trim()) return;
-    setUploading(true);
-    setError('');
-    try {
-      const res = await fetch('/api/playlists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPlaylistData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur création playlist');
-      setShowCreatePlaylistModal(false);
-      setNewPlaylistData({ name: '', description: '', isPublic: true });
-      // Refresh profil pour inclure la nouvelle playlist
-      const profileRes = await fetch(`/api/users/${username}`);
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setProfile(profileData);
-      }
-    } catch (e: any) {
-      setError(e.message || 'Erreur création playlist');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Gestion play track
-  const handlePlayTrack = async (track: any) => {
-    try {
-      // Normaliser les propriétés de la track (compatibilité API)
-      const normalizedTrack = {
-        ...track,
-        audioUrl: track.audioUrl || track.audio_url,
-        coverUrl: track.coverUrl || track.cover_url,
-        artist: track.artist || track.artist_name || profile?.name || 'Artiste inconnu'
-      };
-
-      // Vérifier si la track a une URL audio
-      if (!normalizedTrack.audioUrl) {
-        console.warn('Track sans audioUrl, récupération des données complètes:', track.id);
-        // Récupérer les détails complets de la track depuis l'API
-        const trackResponse = await fetch(`/api/tracks/${track.id}`);
-        if (trackResponse.ok) {
-          const trackData = await trackResponse.json();
-          if (trackData.audioUrl) {
-            await playTrack(trackData);
-            return;
-          } else {
-            setError('Fichier audio non disponible pour cette piste');
-            return;
-          }
-        } else {
-          setError('Impossible de récupérer les détails de la piste');
-          return;
-        }
-      }
-
-      // S'assurer que la track a tous les champs nécessaires
-      const trackToPlay = {
-        _id: track.id,
-        title: track.title,
-        artist: normalizedTrack.artist,
-        audioUrl: normalizedTrack.audioUrl,
-        coverUrl: normalizedTrack.coverUrl,
-        duration: track.duration,
-        album: (track as any).album || null,
-        likes: track.likes || [],
-        comments: track.comments || [],
-        plays: track.plays || 0,
-        genre: track.genre || [],
-        isLiked: track.isLiked || false
-      };
-
-      // Ajouter la track à la liste si elle n'y est pas déjà
-      if (!audioState.tracks.find(t => t._id === track.id)) {
-        // Récupérer les détails complets de la track depuis l'API
-        const trackResponse = await fetch(`/api/tracks/${track.id}`);
-        if (trackResponse.ok) {
-          const trackData = await trackResponse.json();
-          const fullTrack = {
-            ...trackToPlay,
-            ...trackData.track
-          };
-          await playTrack(fullTrack);
-        } else {
-          // Fallback : utiliser les données disponibles
-          await playTrack(trackToPlay);
-        }
-      } else {
-        // La track est déjà dans la liste, la jouer directement
-        await playTrack(trackToPlay);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la lecture:', error);
-      // Fallback : essayer de jouer avec les données de base
-      try {
-        await playTrack(track);
-      } catch (fallbackError) {
-        console.error('Erreur fallback:', fallbackError);
-        setError('Erreur lors de la lecture de la musique');
-      }
-    }
-  };
-
-  // Nouvelles fonctions pour la gestion des tracks
-  const handleLikeTrack = async (trackId: string) => {
-    if (!session?.user) return;
-    setLikeLoading(trackId);
-    try {
-      // Utiliser le système batch pour la synchronisation temps réel
-      const result = await toggleLikeBatch(trackId, { isLiked: false, likesCount: 0 });
-      
-      if (result) {
-        // Mettre à jour l'état local avec les vraies données de l'API
-      setUserTracks(prev => prev.map(track => 
-        track.id === trackId 
-            ? { 
-                ...track, 
-                isLiked: result.isLiked, 
-                likes: typeof result.likes === 'number' ? result.likes : track.likes 
-              }
-          : track
-      ));
-        
-        setProfile((prev: any) => ({
-          ...prev,
-          tracks: prev.tracks.map((track: any) => 
-            track.id === trackId 
-              ? { 
-                  ...track, 
-                  isLiked: result.isLiked, 
-                  likes: typeof result.likes === 'number' ? result.likes : track.likes 
-                }
-              : track
-          )
-        }));
-        
-        notify.success(result.isLiked ? 'Ajouté aux favoris' : 'Retiré des favoris', result.isLiked ? 'Track ajoutée aux favoris' : 'Track retirée des favoris');
-      }
-    } catch (e: any) {
-      setError(e.message || 'Erreur like');
-      notify.error('Erreur like', e.message || 'Erreur like');
-    } finally {
-      setLikeLoading(null);
-    }
-  };
-
-  const handleDeleteTrack = async (trackId: string) => {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette piste ? Cette action est irréversible.')) return;
-    setDeleteLoading(trackId);
-    setError('');
-    try {
-      const res = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erreur suppression');
-      }
-      
-      // Mettre à jour l'état local - supprimer de toutes les listes
-      setUserTracks(prev => prev.filter(track => track.id !== trackId));
-      
-      setProfile((prev: any) => ({
-        ...prev,
-        tracks: prev.tracks.filter((track: any) => track.id !== trackId),
-        trackCount: Math.max(0, (prev.trackCount || 0) - 1)
-      }));
-      
-      setShowTrackOptions(null);
-      notify.success('Track supprimée', 'Track supprimée avec succès');
-      
-      // Rafraîchir les données d'usage pour mettre à jour le stockage
-      try {
-        const usageRes = await fetch('/api/subscriptions/usage', { 
-          headers: { 'Cache-Control': 'no-store' } 
-        });
-        if (usageRes.ok) {
-          console.log('💾 Stockage mis à jour après suppression');
-        }
-      } catch (e) {
-        console.warn('⚠️ Impossible de rafraîchir l\'usage');
-      }
-      
-    } catch (e: any) {
-      setError(e.message || 'Erreur suppression');
-      notify.error('Erreur suppression', e.message || 'Erreur suppression');
-    } finally {
-      setDeleteLoading(null);
-    }
-  };
-
+  // Édition track
   const handleEditTrack = (track: any) => {
-    console.log('🎵 Édition track:', { 
-      trackId: track.id, 
-      trackData: track,
-      allIds: userTracks.map(t => ({ id: t.id, title: t.title }))
-    });
-    
     setEditingTrack(track);
     setTrackEditData({
       title: track.title,
       description: track.description || '',
       genre: Array.isArray(track.genre) ? track.genre.join(', ') : (track.genre || ''),
       tags: track.tags?.join(', ') || '',
-      isPublic: track.is_public !== false // Par défaut true si undefined
+      isPublic: track.is_public !== false
     });
     setShowEditTrackModal(true);
-    setShowTrackOptions(null); // Fermer le tiroir
+    setMenuOpenId(null);
   };
 
   const handleSaveTrackEdit = async () => {
@@ -716,7 +335,6 @@ export default function ProfileUserPage() {
       
       const updatedTrack = await res.json();
       
-      // Mettre à jour l'état local avec les nouvelles données
       setUserTracks(prev => prev.map(track => 
         track.id === trackId ? { ...track, ...updatedTrack } : track
       ));
@@ -730,98 +348,14 @@ export default function ProfileUserPage() {
       
       setShowEditTrackModal(false);
       setEditingTrack(null);
-      setShowTrackOptions(null);
-      notify.success('Track modifiée', 'Track modifiée avec succès');
+      notify.success('Succès', 'Track modifiée');
     } catch (e: any) {
       setError(e.message || 'Erreur modification');
-      notify.error('Erreur modification', e.message || 'Erreur modification');
+      notify.error('Erreur', e.message || 'Erreur modification');
     } finally {
       setUploading(false);
     }
   };
-
-  const handleFeatureTrack = (track: any) => {
-    setFeaturingTrack(track);
-    setFeaturedBanner(track.featuredBanner || track.featured_banner || '');
-    setShowFeatureTrackModal(true);
-    setShowTrackOptions(null); // Fermer le tiroir
-  };
-
-  const handleSaveFeatureTrack = async () => {
-    if (!featuringTrack) return;
-    setUploading(true);
-    setError('');
-    try {
-      const trackId = featuringTrack.id || featuringTrack._id;
-      const res = await fetch(`/api/tracks/${trackId}/featured`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          isFeatured: !featuringTrack.is_featured,
-          featuredBanner: featuredBanner
-        }),
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erreur mise en avant');
-      }
-      
-      const data = await res.json();
-      
-      // Mettre à jour l'état local
-      setUserTracks(prev => prev.map(track => 
-        track.id === trackId ? { 
-          ...track, 
-          is_featured: data.track.is_featured,
-          featuredBanner: data.track.featuredBanner,
-          featured_banner: data.track.featured_banner
-        } : track
-      ));
-      
-      setProfile((prev: any) => ({
-        ...prev,
-        tracks: prev.tracks.map((track: any) => 
-          track.id === trackId ? { 
-            ...track, 
-            is_featured: data.track.is_featured,
-            featuredBanner: data.track.featuredBanner,
-            featured_banner: data.track.featured_banner
-          } : track
-        )
-      }));
-      
-      setShowFeatureTrackModal(false);
-      setFeaturingTrack(null);
-      setShowTrackOptions(null);
-      notify.success(data.track.is_featured ? 'Track mise en vedette' : 'Track retirée de la vedette', data.track.is_featured ? 'Track mise en vedette' : 'Track retirée de la vedette');
-    } catch (e: any) {
-      setError(e.message || 'Erreur mise en avant');
-      notify.error('Erreur mise en avant', e.message || 'Erreur mise en avant');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Suivre/Ne plus suivre un utilisateur depuis les modals
-  const handleFollowUser = async (userId: string) => {
-    const username = await getUsernameFromId(userId);
-    if (!username) return;
-    setFollowLoading(userId);
-    try {
-      const res = await fetch(`/api/users/${username}/follow`, { method: 'POST' });
-      await res.json();
-      // Refresh profil pour mettre à jour les listes
-      const profileRes = await fetch(`/api/users/${username}`);
-      if (profileRes.ok) {
-        const profileData = await profileRes.json();
-        setProfile(profileData);
-      }
-    } catch (e) {}
-    setFollowLoading(null);
-  };
-
-  // Menu d'options: tiroir accolé à la carte
 
   if (loading) {
   return (
@@ -830,11 +364,11 @@ export default function ProfileUserPage() {
       </div>
     );
   }
+
   if (error || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center text-white">
         <div className="text-center">
-          <User size={40} className="mx-auto mb-4 text-purple-400" />
           <p className="text-lg font-bold mb-2">Profil introuvable</p>
           <p className="text-white/60">{error}</p>
         </div>
@@ -844,23 +378,14 @@ export default function ProfileUserPage() {
 
   return (
     <div className="min-h-screen text-white bg-transparent">
-      <main className="max-w-4xl mx-auto px-2 sm:px-4 md:px-6 pt-0 pb-32">
-        {/* Onboarding (affiché tant que non complété) */}
-        <OnboardingChecklist />
-        {/* Bannière moderne style Suno */}
-        <div className="relative h-48 md:h-64 rounded-2xl overflow-hidden mb-8 panel-suno border border-[var(--border)]">
-          <img
-            src={editData.banner || profile.banner || '/default-cover.jpg'}
-            alt="Bannière"
-            className="w-full h-full object-cover object-center"
-          />
-          {/* Overlay gradient moderne */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-black/30"></div>
-          
+      {/* Hero Banner + Avatar */}
+      <section className="mx-auto max-w-7xl px-2 sm:px-4 pt-2 sm:pt-4">
+        <div className="relative w-full h-[180px] sm:h-[220px] md:h-[280px] rounded-2xl sm:rounded-3xl overflow-hidden border border-white/10">
+          <img src={profile.banner || '/default-cover.jpg'} alt="banner" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           {isOwnProfile && (
             <button
-              className="absolute top-4 right-4 bg-[var(--surface-2)]/80 backdrop-blur-md hover:bg-[var(--surface-3)]/80 text-white p-2.5 rounded-full border border-[var(--border)] transition-all duration-200 hover:scale-105"
+              className="absolute top-4 right-4 bg-black/50 backdrop-blur-md hover:bg-black/70 text-white p-2.5 rounded-full border border-white/10 transition"
               onClick={() => bannerInputRef.current?.click()}
               title="Changer la bannière"
             >
@@ -874,37 +399,28 @@ export default function ProfileUserPage() {
             ref={bannerInputRef}
             onChange={e => {
               const file = e.target.files?.[0];
-              if (file) {
-                handlePreviewImage('banner', file);
-                handleImageUpload('banner', file);
-              }
+              if (file) handleImageUpload('banner', file);
             }}
           />
-        </div>
-        {/* Avatar + infos modernes */}
-        <div className="relative flex flex-col items-center -mt-24 mb-8">
-          <div className="relative mb-6">
+          <div className="absolute bottom-2 sm:bottom-4 left-2 sm:left-4 right-2 sm:right-4 md:left-6 md:right-6 flex items-end justify-between">
+            <div className="flex items-end gap-2 sm:gap-4">
           <div className="relative">
-            <Avatar
-              src={editData.avatar || profile.avatar}
-              name={profile.name}
-              username={profile.username}
-              size="2xl"
-              className="w-36 h-36 border-4 border-[var(--border)] shadow-2xl ring-4 ring-[var(--surface-1)]/50"
+                <Avatar
+                  src={profile.avatar}
+                  name={profile.name}
+                  username={profile.username}
+                  size="2xl"
+                  className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-xl sm:rounded-2xl border-2 sm:border-4 border-white/10 shadow-lg"
             />
-              {/* Effet de lueur autour de l'avatar */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-purple-500/20 to-pink-500/20 blur-xl -z-10"></div>
-              
             {isOwnProfile && (
               <button
-                  className="absolute bottom-2 right-2 bg-[var(--surface-2)]/90 backdrop-blur-md hover:bg-[var(--surface-3)]/90 text-white p-2.5 rounded-full border border-[var(--border)] transition-all duration-200 hover:scale-105 shadow-lg"
+                    className="absolute bottom-0 right-0 bg-black/50 backdrop-blur-md hover:bg-black/70 text-white p-2 rounded-full border border-white/10 transition"
                 onClick={() => fileInputRef.current?.click()}
                 title="Changer l'avatar"
               >
-                  <Camera size={16} />
+                    <Camera size={14} />
               </button>
             )}
-            </div>
             <input
               type="file"
               accept="image/*"
@@ -912,680 +428,185 @@ export default function ProfileUserPage() {
               ref={fileInputRef}
               onChange={e => {
                 const file = e.target.files?.[0];
-                if (file) {
-                  handlePreviewImage('avatar', file);
-                  handleImageUpload('avatar', file);
-                }
+                    if (file) handleImageUpload('avatar', file);
               }}
             />
           </div>
-          {/* Informations utilisateur modernes */}
-          <div className="text-center space-y-4">
-            <div className="space-y-2">
-              <div className="flex items-center justify-center gap-3">
-                <h1 className="text-3xl md:text-4xl font-bold text-[var(--text)] bg-gradient-to-r from-purple-400 via-pink-400 to-cyan-400 bg-clip-text text-transparent">
-                  {profile.name}
-                </h1>
+              <div className="pb-1">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <h1 className="text-base sm:text-xl md:text-2xl font-bold leading-tight drop-shadow">{profile.name}</h1>
               {profile.isVerified && (
-                  <div className="w-7 h-7 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
-                  <Check className="text-white w-4 h-4" />
+                    <div className="w-4 h-4 sm:w-5 sm:h-5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full flex items-center justify-center">
+                      <Check className="text-white w-2 h-2 sm:w-3 sm:h-3" />
                 </div>
               )}
             </div>
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-[var(--text-muted)] text-lg">@{profile.username}</span>
-            {profile.isArtist && profile.artistName && (
-                  <span className="px-3 py-1 bg-gradient-to-r from-pink-500/20 to-purple-500/20 border border-pink-500/30 rounded-full text-pink-400 text-sm font-medium">
-                    {profile.artistName}
-                  </span>
-                )}
-              </div>
+                <p className="text-white/80 text-[10px] sm:text-xs md:text-sm">@{profile.username}</p>
             </div>
-            
-            {/* Statistiques modernes en cartes */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6 max-w-2xl mx-auto">
-              <div className="panel-suno border border-[var(--border)] rounded-xl p-4 text-center hover:scale-105 transition-all duration-200">
-                <div className="flex items-center justify-center mb-2">
-                  <Users className="w-5 h-5 text-purple-400" />
             </div>
-                <div className="text-xl font-bold text-[var(--text)]">{profile.followerCount || 0}</div>
-                <div className="text-xs text-[var(--text-muted)]">Abonnés</div>
-              </div>
-              <div className="panel-suno border border-[var(--border)] rounded-xl p-4 text-center hover:scale-105 transition-all duration-200">
-                <div className="flex items-center justify-center mb-2">
-                  <UserPlus className="w-5 h-5 text-cyan-400" />
-                </div>
-                <div className="text-xl font-bold text-[var(--text)]">{profile.followingCount || 0}</div>
-                <div className="text-xs text-[var(--text-muted)]">Abonnements</div>
-              </div>
-              <div className="panel-suno border border-[var(--border)] rounded-xl p-4 text-center hover:scale-105 transition-all duration-200">
-                <div className="flex items-center justify-center mb-2">
-                  <Music className="w-5 h-5 text-pink-400" />
-                </div>
-                <div className="text-xl font-bold text-[var(--text)]">{profile.trackCount || 0}</div>
-                <div className="text-xs text-[var(--text-muted)]">Tracks</div>
-              </div>
-              <div className="panel-suno border border-[var(--border)] rounded-xl p-4 text-center hover:scale-105 transition-all duration-200">
-                <div className="flex items-center justify-center mb-2">
-                  <TrendingUp className="w-5 h-5 text-green-400" />
-                </div>
-                <div className="text-xl font-bold text-[var(--text)]">{profile.totalPlays || 0}</div>
-                <div className="text-xs text-[var(--text-muted)]">Écoutes</div>
-              </div>
-            </div>
-            {/* Bio moderne */}
-            {profile.bio && (
-              <div className="mt-6 max-w-2xl mx-auto">
-                <div className="panel-suno border border-[var(--border)] rounded-xl p-4">
-                  <div className="text-[var(--text)] text-sm leading-relaxed">
-                {profile.bio.length > bioMaxLength && !showFullBio ? (
-                  <>
-                    {profile.bio.slice(0, bioMaxLength)}...{' '}
-                        <button className="text-purple-400 hover:text-purple-300 underline font-medium transition-colors" onClick={() => setShowFullBio(true)}>Voir plus</button>
-                  </>
-                ) : (
-                  <>
-                    {profile.bio}
-                    {profile.bio.length > bioMaxLength && (
-                          <button className="text-purple-400 hover:text-purple-300 underline font-medium ml-2 transition-colors" onClick={() => setShowFullBio(false)}>Réduire</button>
-                    )}
-                  </>
-                )}
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* Réseaux sociaux modernes */}
-            {profile.socialLinks && Object.entries(profile.socialLinks).some(([_, value]) => value) && (
-              <div className="flex flex-wrap justify-center gap-3 mt-6">
-                {Object.entries(profile.socialLinks).map(([key, value]) => {
-                const IconComponent = socialIcons[key as keyof typeof socialIcons];
-                  return value ? (
-                  <a
-                    key={key}
-                    href={value as string}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 text-[var(--text)] hover:text-purple-400 px-4 py-2 panel-suno border border-[var(--border)] rounded-full hover:scale-105 transition-all duration-200 hover:border-purple-500/50"
-                  >
-                    {IconComponent ? (
-                        <IconComponent size={16} />
-                    ) : (
-                        <Link2 size={16} />
-                    )}
-                      <span className="text-sm font-medium">
-                    {key.charAt(0).toUpperCase() + key.slice(1)}
-                      </span>
-                  </a>
-                  ) : null;
-              })}
-            </div>
-            )}
-            {/* Boutons actions modernes */}
-            <div className="flex flex-wrap justify-center gap-4 mt-8">
+            <div className="flex items-center gap-2">
               {isOwnProfile ? (
                 <>
-                <button
-                    className="flex items-center gap-2 bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white px-6 py-3 rounded-xl font-semibold hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 transition-all duration-300 shadow-lg hover:shadow-purple-500/25 hover:scale-105 active:scale-95"
-                  onClick={handleEdit}
-                  disabled={editMode || uploading}
-                >
-                    <Edit3 size={18} /> Modifier le profil
-                </button>
+                  <button onClick={handleEdit} className="hidden md:flex px-3 py-1.5 text-sm rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 items-center gap-2 transition"><Edit className="w-4 h-4"/> <span className="hidden lg:inline">Modifier</span></button>
+                  <button onClick={() => router.push('/stats')} className="hidden md:flex px-3 py-1.5 text-sm rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 items-center gap-2 transition"><BarChart3 className="w-4 h-4"/> <span className="hidden lg:inline">Stats</span></button>
                   <button
-                    className="flex items-center gap-2 bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] px-6 py-3 rounded-xl font-semibold hover:bg-[var(--surface-3)] transition-all duration-300 hover:scale-105 active:scale-95"
-                    onClick={() => router.push('/stats')}
-                  >
-                    <TrendingUp size={18} /> Statistiques
-                  </button>
-                  <button
-                    className={`flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-violet-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:shadow-violet-500/25 hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed`}
                     onClick={() => setShowBoosterModal(true)}
                     disabled={!canOpen || boostersLoading}
                     title={canOpen ? 'Ouvrir un booster quotidien' : `Disponible dans ${formatRemaining(remainingMs)}`}
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v8m4-4H8"/></svg>
-                    {canOpen ? 'Ouvrir un booster' : `Boost dans ${formatRemaining(remainingMs)}`}
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    className={`flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 hover:scale-105 active:scale-95 shadow-lg ${
-                      profile.isFollowing 
-                        ? 'bg-gradient-to-r from-pink-600 to-red-600 text-white hover:from-pink-700 hover:to-red-700 hover:shadow-pink-500/25' 
-                        : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 hover:shadow-purple-500/25'
+                    className={`px-3 py-1.5 text-sm rounded-xl border border-white/10 flex items-center gap-2 transition ${
+                      canOpen 
+                        ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg' 
+                        : 'bg-white/10 opacity-60 cursor-not-allowed'
                     }`}
-                    onClick={handleFollow}
-                    disabled={uploading}
                   >
-                    {profile.isFollowing ? (
-                      <>
-                        <Check size={18} /> Abonné
+                    <Sparkles className="w-4 h-4"/>
+                    <span className="hidden md:inline">{canOpen ? 'Ouvrir Booster' : formatRemaining(remainingMs)}</span>
+                  </button>
                       </>
                     ) : (
-                      <>
-                        <UserPlus size={18} /> Suivre
-                      </>
-                    )}
-                  </button>
                   <button
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-700 hover:to-blue-700 hover:scale-105 active:scale-95 shadow-lg hover:shadow-cyan-500/25"
-                    onClick={handleMessageRequest}
+                  onClick={handleFollow}
                     disabled={uploading}
+                  className={`px-3 py-1.5 text-sm rounded-xl border border-white/10 flex items-center gap-2 transition ${
+                    profile.isFollowing 
+                      ? 'bg-white/10 hover:bg-white/15' 
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700'
+                  }`}
                   >
-                    <MessageCircle size={18} /> Message
+                  {profile.isFollowing ? <Check className="w-4 h-4"/> : <UserPlus className="w-4 h-4"/>}
+                  {profile.isFollowing ? 'Abonné' : 'Suivre'}
                   </button>
-                </>
               )}
             </div>
-            {error && (
-              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm text-center">
-                {error}
-              </div>
-            )}
           </div>
         </div>
+      </section>
 
-        {/* Navigation moderne style Suno */}
-        <div className="panel-suno border border-[var(--border)] rounded-2xl p-1 mb-8">
-          <div className="flex gap-2">
-              <button
-                onClick={() => setActiveTab('tracks')}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === 'tracks'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-                }`}
-              >
-                  <Music size={20} />
-                  <span className="hidden sm:inline">Tracks</span>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                activeTab === 'tracks' 
-                  ? 'bg-white/20 text-white' 
-                  : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
-              }`}>
-                    {profile?.tracks?.length || 0}
-                  </span>
-              </button>
-              <button
-                onClick={() => setActiveTab('playlists')}
-              className={`flex-1 flex items-center justify-center gap-3 py-4 px-6 rounded-xl font-semibold transition-all duration-300 ${
-                  activeTab === 'playlists'
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-2)]'
-                }`}
-              >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                  </svg>
-                  <span className="hidden sm:inline">Playlists</span>
-              <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                activeTab === 'playlists' 
-                  ? 'bg-white/20 text-white' 
-                  : 'bg-[var(--surface-2)] text-[var(--text-muted)]'
-              }`}>
-                    {profile?.playlists?.length || 0}
-                  </span>
-              </button>
-          </div>
-        </div>
-
-        {/* Contenu des onglets moderne */}
-        <div className="flex-1">
-          <div className="space-y-6">
-            {activeTab === 'tracks' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between panel-suno border border-[var(--border)] rounded-xl p-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-r from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                      <Music className="w-5 h-5 text-white" />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-[var(--text)]">Mes Tracks</h3>
-                      <p className="text-[var(--text-muted)] text-sm">{userTracks.length} piste{userTracks.length !== 1 ? 's' : ''} publié{userTracks.length !== 1 ? 's' : 'e'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {artistBoost && (
-                      <div className="hidden sm:inline-flex items-center gap-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-xs px-3 py-1 rounded-full font-semibold shadow mr-2">
-                        <Sparkles className="w-4 h-4" />
-                        Boost artiste x{artistBoost.multiplier.toFixed(2)} · {formatRemainingMs(new Date(artistBoost.expires_at).getTime() - nowTs)}
-                      </div>
-                    )}
-                    <button 
-                      className={`p-3 rounded-xl transition-all duration-200 ${
-                        trackViewMode === 'list' 
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' 
-                          : 'bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)]'
-                      }`}
-                      onClick={() => setTrackViewMode('list')}
-                      title="Vue liste"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                      </svg>
-                    </button>
-                    <button 
-                      className={`p-3 rounded-xl transition-all duration-200 ${
-                        trackViewMode === 'grid' 
-                          ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-lg' 
-                          : 'bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)]'
-                      }`}
-                      onClick={() => setTrackViewMode('grid')}
-                      title="Vue grille"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                      </svg>
-                    </button>
-                  </div>
+      {/* Stats + Bio + Actions */}
+      <section className="mx-auto max-w-7xl px-2 sm:px-4 mt-2 sm:mt-4 grid grid-cols-1 md:grid-cols-4 gap-2 sm:gap-4">
+        <div className="md:col-span-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <StatTile label="Abonnés" value={fmt.format(profile.followerCount || 0)} />
+            <StatTile label="Abonnements" value={fmt.format(profile.followingCount || 0)} />
+            <StatTile label="Écoutes" value={fmt.format(profile.totalPlays || 0)} />
                 </div>
-                
-                {userTracks.length === 0 ? (
-                  <div className="panel-suno border border-[var(--border)] rounded-xl p-6 text-center text-[var(--text-muted)]">
-                    Aucune piste encore — dépose un MP3/WAV/FLAC (≤ 50 MB) pour commencer
-                  </div>
-                ) : trackViewMode === 'grid' ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {userTracks.map((track: any) => (
-                      <div key={track.id} className="group cursor-pointer animate-fade-in hover:-translate-y-1 hover:scale-[1.02] transition-all duration-300 relative">
-                        <div className="relative panel-suno rounded-xl p-4 border border-[var(--border)] hover:shadow-xl hover:border-purple-500/30 transition-all duration-300 overflow-hidden">
-                        {/* Banderole de mise en avant */}
-                        {track.is_featured && (
-                          <div className="absolute -top-2 -left-2 z-10">
-                              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1 shadow-lg">
-                              <Crown size={12} />
-                              {track.featuredBanner || 'En vedette'}
+          {profile.bio && (
+            <div className="mt-3 sm:mt-4">
+              <h3 className="text-xs sm:text-sm font-semibold mb-1">Bio</h3>
+              <p className="text-xs sm:text-sm text-white/80 leading-relaxed">{profile.bio}</p>
+                </div>
+          )}
+            </div>
+        {isOwnProfile && (
+          <div className="bg-gradient-to-br from-indigo-600/20 via-fuchsia-600/10 to-cyan-600/10 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4">
+            <h3 className="text-xs sm:text-sm font-semibold mb-2">Actions rapides</h3>
+            <div className="space-y-2">
+              <QuickAction onClick={() => router.push('/upload')} icon={<Upload className="w-3 h-3 sm:w-4 sm:h-4"/>} label="Uploader" />
+              <QuickAction onClick={() => router.push('/stats')} icon={<BarChart3 className="w-3 h-3 sm:w-4 sm:h-4"/>} label="Stats" />
+              <QuickAction onClick={() => router.push('/library')} icon={<Music2 className="w-3 h-3 sm:w-4 sm:h-4"/>} label="Bibliothèque" />
                             </div>
                           </div>
                         )}
-                        
-                          {/* Cover avec overlay play */}
-                          <div className="relative mb-4 group/cover">
-                            <div className="aspect-square w-full rounded-xl overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                              <img 
-                                src={track.cover_url || track.coverUrl || '/default-cover.jpg'} 
-                                alt={track.title} 
-                                className="w-full h-full object-cover" 
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                                }}
-                              />
+      </section>
+
+      {/* Tracks publiés — GRID + DRAWER */}
+      <main className="mx-auto max-w-7xl px-2 sm:px-4 pb-24 sm:pb-12">
+        <section className="mt-4 sm:mt-8">
+          <div className="flex items-center justify-between mb-2 sm:mb-3">
+            <h2 className="text-base sm:text-lg font-semibold">Titres publiés</h2>
+            <p className="text-[10px] sm:text-xs text-white/60">{filtered.length} titres</p>
                             </div>
-                            {/* Bouton play overlay */}
-                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/cover:opacity-100 transition-opacity duration-200 flex items-center justify-center rounded-xl">
-                            <button 
-                                className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-200 shadow-lg hover:scale-110 active:scale-95" 
-                              onClick={() => handlePlayTrack(track)}
-                              title="Lire"
-                            >
-                              {audioState.currentTrackIndex !== -1 && 
-                               audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
-                               audioState.isPlaying ? (
-                                  <Pause className="w-6 h-6 text-white ml-0" />
-                              ) : (
-                                  <Play className="w-6 h-6 text-white ml-1" />
-                              )}
-                            </button>
-                            </div>
-                            {/* Badges */}
-                            <div className="absolute top-2 right-2 flex gap-1">
-                              {activeBoosts[track.id] && (
-                                <div className="bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-[10px] px-2 py-1 rounded-full font-semibold shadow">
-                                  Boost x{(activeBoosts[track.id].multiplier || 1).toFixed(2)}
-                                </div>
-                              )}
-                              <div className="bg-black/70 text-white text-xs px-2 py-1 rounded-full font-medium">
-                                {formatDuration(track.duration)}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Informations track */}
-                          <div className="space-y-3">
-                            <div>
-                              <h4 className="font-semibold text-[var(--text)] text-base mb-1 line-clamp-1 title-suno">{track.title}</h4>
-                              <p className="text-[var(--text-muted)] text-sm line-clamp-1">
-                              {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
-                            </p>
-                            </div>
-                            
-                            {/* Stats */}
-                            <div className="flex items-center justify-between pt-2 border-t border-[var(--border)] text-xs text-[var(--text-muted)]">
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-1">
-                                  <TrendingUp size={12} className="text-blue-400" />
-                                  <AnimatedPlaysCounter
-                                    value={track.plays}
-                                    size="sm"
-                                    variant="minimal"
-                                    showIcon={false}
-                                    animation="slide"
-                                    className="text-[var(--text-muted)] font-medium"
-                                  />
-                                </div>
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={track.likes}
-                                isActive={track.isLiked}
-                                onToggle={async (newState) => {
-                                  await handleLikeTrack(track.id);
-                                }}
-                                size="sm"
-                                showIcon={true}
-                                disabled={likeLoading === track.id}
-                                className="hover:text-pink-400 transition-colors"
-                              />
-                              <button
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
-                                title="Voir les stats"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  router.push(`/stats?track_id=${encodeURIComponent(track.id)}`);
-                                }}
-                              >
-                                <TrendingUp size={12} className="text-green-400" />
-                                <span className="hidden sm:inline text-xs">Stats</span>
-                              </button>
-                          </div>
-                          
-                          {/* Menu d'options pour le propriétaire */}
-                          {isOwnProfile && (
-                              <button 
-                                  className="p-1.5 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] hover:bg-[var(--surface-3)] transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                                }}
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                              )}
-                                </div>
-                            </div>
-                        </div>
-                      </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
+            {filtered.map(t => (
+              <TrackTile
+                key={t.id}
+                track={t}
+                isPlaying={audioState.currentTrackIndex !== -1 && audioState.tracks[audioState.currentTrackIndex]?._id === t.id && audioState.isPlaying}
+                onPlay={(e: React.MouseEvent) => { e.stopPropagation(); handlePlayTrack(t); }}
+                onOpenDetails={() => setDrawerId(t.id)}
+                menuOpen={menuOpenId === t.id}
+                onToggleMenu={(e: React.MouseEvent) => { e.stopPropagation(); setMenuOpenId(id => id === t.id ? null : t.id); }}
+                onAction={(action: string) => {
+                  if (action === "delete") handleDeleteTrack(t.id);
+                  else if (action === "edit") handleEditTrack(t);
+                  else if (action === "stats") router.push(`/stats?track_id=${encodeURIComponent(t.id)}`);
+                }}
+                isOwnProfile={isOwnProfile}
+                onLikeUpdate={handleLikeUpdate}
+              />
                     ))}
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {userTracks.map((track: any) => (
-                      <div key={track.id} className={`panel-suno rounded-xl p-4 border border-[var(--border)] transition-all duration-200 group relative ${showTrackOptions === track.id ? 'pr-52' : ''}`}> 
-                        {/* Banderole de mise en avant */}
-                        {track.is_featured && (
-                          <div className="absolute -top-2 -left-2 z-10">
-                            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-xs px-2 py-1 rounded-full font-bold flex items-center gap-1">
-                              <Crown size={12} />
-                              {track.featuredBanner || 'En vedette'}
-                            </div>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className="relative flex-shrink-0">
-                            <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-                              {track.cover_url || track.cover_url || track.coverUrl ? (
-                                <img src={track.cover_url || track.cover_url || track.coverUrl} alt={track.title} className="w-full h-full object-cover rounded-lg" />
-                              ) : (
-                                <svg className="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                            </div>
-                            <button 
-                              className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center" 
-                              onClick={() => handlePlayTrack(track)}
-                              title="Lire"
-                            >
-                              {audioState.currentTrackIndex !== -1 && 
-                               audioState.tracks[audioState.currentTrackIndex]?._id === track.id && 
-                               audioState.isPlaying ? (
-                                <Pause className="w-6 h-6 text-white" />
-                              ) : (
-                                <Play className="w-6 h-6 text-white" />
-                              )}
-                            </button>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-medium text-white text-lg">{track.title}</h4>
-                            <p className="text-sm text-gray-400">
-                              {Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}
-                            </p>
-                            <div className="flex items-center space-x-6 mt-2 text-sm text-gray-500">
-                              <InteractiveCounter
-                                type="likes"
-                                initialCount={track.likes}
-                                isActive={track.isLiked}
-                                onToggle={async (newState) => {
-                                  await handleLikeTrack(track.id);
-                                }}
-                                size="sm"
-                                showIcon={true}
-                                disabled={likeLoading === track.id}
-                                className="hover:text-pink-400 transition-colors"
-                              />
-                              <AnimatedPlaysCounter
-                                value={track.plays}
-                                size="sm"
-                                variant="minimal"
-                                showIcon={false}
-                                animation="slide"
-                                className="text-gray-500"
-                              />
-                              <span>{formatDuration(track.duration)}</span>
-                            <button
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)] hover:bg-[var(--surface-3)] transition-colors"
-                              title="Voir les stats"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/stats?track_id=${encodeURIComponent(track.id)}`);
-                              }}
-                            >
-                              <TrendingUp size={12} className="text-green-400" />
-                              <span className="hidden sm:inline text-xs">Stats</span>
-                            </button>
-                            </div>
-                          </div>
-                          
-                          {/* Menu d'options pour le propriétaire */}
-                          {isOwnProfile && (
-                              <button 
-                              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setShowTrackOptions(showTrackOptions === track.id ? null : track.id);
-                                }}
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+        </section>
 
-            {/* Tiroir d'options global pour toutes les vues */}
-            {isOwnProfile && showTrackOptions && (
-              <div className="fixed inset-0 z-50" onClick={() => setShowTrackOptions(null)}>
-                <div className="absolute inset-0 bg-black/30 backdrop-blur-sm"></div>
-                <div 
-                  className="absolute bg-[var(--surface-2)] border border-[var(--border)] rounded-xl shadow-2xl p-1 min-w-[220px] animate-fade-in"
-                                  style={{
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)'
-                  }}
-                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                >
-                  {userTracks.find(t => t.id === showTrackOptions) && (
-                    <>
-                      <div className="p-4 border-b border-[var(--border)]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden bg-gradient-to-br from-purple-500/20 to-pink-500/20">
-                            <img 
-                              src={userTracks.find(t => t.id === showTrackOptions)?.cover_url || userTracks.find(t => t.id === showTrackOptions)?.coverUrl || '/default-cover.jpg'} 
-                              alt={userTracks.find(t => t.id === showTrackOptions)?.title} 
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                              }}
-                            />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-[var(--text)] text-sm line-clamp-1">
-                              {userTracks.find(t => t.id === showTrackOptions)?.title}
-                            </h4>
-                            <p className="text-[var(--text-muted)] text-xs">
-                              {formatDuration(userTracks.find(t => t.id === showTrackOptions)?.duration)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="p-2 space-y-1">
-                                  <button
-                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
-                          onClick={() => {
-                            const track = userTracks.find(t => t.id === showTrackOptions);
-                            if (track) router.push(`/stats?track_id=${encodeURIComponent(track.id)}`);
-                          }}
-                        >
-                          <TrendingUp className="w-4 h-4 text-green-400" />
-                          <span>Voir les stats</span>
-                                  </button>
-                        {isOwnProfile && inventory.some(it => it.status==='owned' && it.booster.type==='track') && (
-                                  <button
-                            className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
-                            onClick={async () => {
-                              const owned = inventory.find(it => it.status==='owned' && it.booster.type==='track');
-                              if (owned && showTrackOptions) {
-                                await useOnTrack(owned.id, showTrackOptions);
-                                notify.success('Booster activé', 'Booster activé sur la piste');
-                                setShowTrackOptions(null);
-                              }
-                            }}
-                          >
-                            <svg className="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                            <span>Activer un booster</span>
-                                  </button>
-                        )}
-                                  <button
-                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
-                          onClick={() => {
-                            const track = userTracks.find(t => t.id === showTrackOptions);
-                            if (track) handleEditTrack(track);
-                          }}
-                        >
-                          <Edit3 className="w-4 h-4 text-blue-400" />
-                          <span>Modifier</span>
-                                  </button>
-                                  <button
-                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-[var(--surface-3)] flex items-center gap-3 text-[var(--text)] rounded-lg transition-colors"
-                          onClick={() => {
-                            const track = userTracks.find(t => t.id === showTrackOptions);
-                            if (track) handleFeatureTrack(track);
-                          }}
-                        >
-                          <Star className={`w-4 h-4 ${userTracks.find(t => t.id === showTrackOptions)?.is_featured ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`} />
-                          <span>{userTracks.find(t => t.id === showTrackOptions)?.is_featured ? 'Retirer de la vedette' : 'Mettre en vedette'}</span>
-                                  </button>
-                        <div className="border-t border-[var(--border)] my-2"></div>
-                                  <button
-                          className="w-full px-3 py-2.5 text-left text-sm hover:bg-red-500/10 text-red-400 flex items-center gap-3 rounded-lg transition-colors"
-                          onClick={() => {
-                            if (showTrackOptions) handleDeleteTrack(showTrackOptions);
-                          }}
-                          disabled={deleteLoading === showTrackOptions}
-                        >
-                          {deleteLoading === showTrackOptions ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <Trash2 className="w-4 h-4" />
-                                    )}
-                          <span>Supprimer</span>
-                                  </button>
-                                </div>
-                    </>
-                              )}
-                            </div>
-              </div>
-            )}
+        {/* DRAWER latéral */}
+        <Drawer open={!!drawerId} onClose={() => setDrawerId(null)}>
+          {selected && (
+            <DrawerContent
+              track={selected}
+              isPlaying={audioState.currentTrackIndex !== -1 && audioState.tracks[audioState.currentTrackIndex]?._id === selected.id && audioState.isPlaying}
+              onPlay={() => handlePlayTrack(selected)}
+              onEdit={() => handleEditTrack(selected)}
+              onDuplicate={() => notify.info('Bientôt disponible', 'Fonctionnalité en développement')}
+              onDelete={() => handleDeleteTrack(selected.id)}
+              isOwnProfile={isOwnProfile}
+              onLikeUpdate={handleLikeUpdate}
+              onClose={() => setDrawerId(null)}
+            />
+          )}
+        </Drawer>
 
-            {activeTab === 'playlists' && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">Playlists</h3>
-                  <button
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
-                    onClick={async () => {
-                      // Vérifier quota playlists avant d'ouvrir la modale
-                      try {
-                        const [u, c] = await Promise.all([
-                          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-                          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(r => r.ok ? r.json() : null).catch(() => null),
-                        ]);
-                        const limit = u?.playlists?.limit ?? -1;
-                        const used = u?.playlists?.used ?? 0;
-                        if (limit >= 0 && used >= limit) {
-                          // Bloquer + CTA upgrade
-                          if (typeof window !== 'undefined') {
-                            // Info compacte
-                            alert("Limite de playlists atteinte. Rendez-vous sur Abonnements pour améliorer votre plan.");
-                            window.location.href = '/subscriptions';
-                            return;
-                          }
-                        }
-                        setShowCreatePlaylistModal(true);
-                      } catch {
-                        setShowCreatePlaylistModal(true);
-                      }
-                    }}
-                  >
-                    Créer une playlist
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {userPlaylists.map((playlist: any) => (
-                    <div key={playlist.id} className="bg-white/5 rounded-xl p-4 hover:bg-white/10 transition-all duration-200 group">
-                      <div className="flex items-start space-x-3">
-                        <div className="relative flex-shrink-0">
-                          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-lg flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                              <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3v3a2 2 0 01-2 2H3a1 1 0 110-2h1V5zM8 11a2 2 0 012-2h1a1 1 0 110 2H9a2 2 0 00-2 2v1a1 1 0 11-2 0v-1z" clipRule="evenodd" />
-                              <path d="M13 7a1 1 0 011 1v1h1a1 1 0 110 2h-1v1a1 1 0 11-2 0v-1h-1a1 1 0 110-2h1V8a1 1 0 011-1z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-white truncate">{playlist.name}</h4>
-                          <p className="text-sm text-gray-400 truncate">{playlist.tracks.length} tracks</p>
-                          <div className="flex items-center space-x-4 mt-2 text-xs text-gray-500">
-                            <span>{playlist.likes} likes</span>
-                            <span>{playlist.isPublic ? 'Public' : 'Privé'}</span>
-                          </div>
-                        </div>
-                        <button className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors opacity-0 group-hover:opacity-100">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-
-          </div>
-        </div>
+        <DevTests tracks={userTracks} />
       </main>
+
+      {/* Background FX */}
+      <div className="pointer-events-none fixed -z-10 inset-0 overflow-hidden">
+        <div className="absolute -top-24 -left-24 w-[420px] h-[420px] rounded-full bg-fuchsia-600/10 blur-3xl" />
+        <div className="absolute -bottom-24 -right-24 w-[420px] h-[420px] rounded-full bg-indigo-600/10 blur-3xl" />
+                          </div>
+                          
+      {/* Modal Booster */}
+      <AnimatePresence>
+        {showBoosterModal && (
+          <BoosterOpenModal
+            isOpen={showBoosterModal}
+            onClose={() => setShowBoosterModal(false)}
+            onOpenBooster={openDaily}
+            isOpening={boostersLoading}
+            openedBooster={lastOpened ? { 
+              id: lastOpened.inventoryId, 
+              status: 'owned', 
+              obtained_at: new Date().toISOString(), 
+              booster: lastOpened.booster 
+            } : null}
+            item={lastOpened || null}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Boutons flottants mobile - z-index élevé */}
+      {isOwnProfile && (
+        <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-3 z-[100]">
+          <button 
+            onClick={() => setShowBoosterModal(true)}
+            disabled={!canOpen || boostersLoading}
+            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition backdrop-blur-md ${
+              canOpen 
+                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700' 
+                : 'bg-white/10 opacity-60'
+            }`}
+            title={canOpen ? 'Ouvrir un booster' : `Booster dans ${formatRemaining(remainingMs)}`}
+          >
+            <Sparkles className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={handleEdit}
+            className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full border border-white/10 shadow-2xl flex items-center justify-center hover:bg-white/15 transition"
+            title="Modifier le profil"
+          >
+            <Edit className="w-5 h-5" />
+          </button>
+        </div>
+      )}
 
       {/* Modal Édition Profil */}
       <AnimatePresence>
@@ -1594,252 +615,81 @@ export default function ProfileUserPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
             onClick={() => setShowEditModal(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="bg-gray-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Modifier le profil</h3>
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-white">Modifier le profil</h3>
+                <button onClick={() => setShowEditModal(false)} className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Nom</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Nom</label>
                   <input
                     type="text"
                     value={editData.name || ''}
                     onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Votre nom"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Bio</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Bio</label>
                   <textarea
                     value={editData.bio || ''}
                     onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                     placeholder="Parlez-nous de vous..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Nom d'artiste (optionnel)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Nom d'artiste (optionnel)</label>
                   <input
                     type="text"
                     value={editData.artistName || ''}
                     onChange={(e) => setEditData({ ...editData, artistName: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Nom d'artiste"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Instagram</label>
-                  <input
-                    type="url"
-                    value={editData.socialLinks?.instagram || ''}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      socialLinks: { ...editData.socialLinks, instagram: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="https://instagram.com/votre-compte"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Twitter</label>
-                  <input
-                    type="url"
-                    value={editData.socialLinks?.twitter || ''}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      socialLinks: { ...editData.socialLinks, twitter: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="https://twitter.com/votre-compte"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">YouTube</label>
-                  <input
-                    type="url"
-                    value={editData.socialLinks?.youtube || ''}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      socialLinks: { ...editData.socialLinks, youtube: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="https://youtube.com/votre-chaine"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Site web</label>
-                  <input
-                    type="url"
-                    value={editData.socialLinks?.website || ''}
-                    onChange={(e) => setEditData({
-                      ...editData,
-                      socialLinks: { ...editData.socialLinks, website: e.target.value }
-                    })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="https://votre-site.com"
-                  />
-                </div>
-              </div>
-
-              {isOwnProfile && (
-                <div className="panel-suno border border-[var(--border)] rounded-xl p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-semibold text-[var(--text)]">Inventaire boosters</h3>
-                    <span className="text-xs text-[var(--text-muted)]">{inventory.filter(i=>i.status==='owned').length} disponible(s)</span>
-                  </div>
+                <div className="bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4">
+                  <h4 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3">Inventaire boosters</h4>
+                  <p className="text-[10px] sm:text-xs text-white/60 mb-2">{inventory.filter(i=>i.status==='owned').length} disponible(s)</p>
                   {inventory.length === 0 ? (
-                    <div className="text-xs text-[var(--text-muted)]">Aucun booster pour le moment. Ouvre un booster quotidien.</div>
+                    <div className="text-[10px] sm:text-xs text-white/50">Aucun booster. Ouvre ton booster quotidien.</div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {inventory.map((it) => (
-                        <div key={it.id} className="border border-[var(--border)] rounded-lg p-3 bg-white/5">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-[var(--text)] text-sm font-medium line-clamp-1">{it.booster.name}</div>
-                              <div className="text-[var(--text-muted)] text-xs">x{it.booster.multiplier.toFixed(2)} • {it.booster.duration_hours}h</div>
-                            </div>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full ${it.status==='owned' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-zinc-500/20 text-zinc-300'}`}>{it.status}</span>
-                          </div>
-                        </div>
+                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-h-32 overflow-y-auto">
+                      {inventory.filter(i=>i.status==='owned').slice(0, 6).map((it) => (
+                        <div key={it.id} className="border border-white/10 rounded-md sm:rounded-lg p-1.5 sm:p-2 bg-white/5">
+                          <div className="text-[10px] sm:text-xs font-medium line-clamp-1">{it.booster.name}</div>
+                          <div className="text-[9px] sm:text-[10px] text-white/60">x{it.booster.multiplier.toFixed(2)}</div>
+                </div>
                       ))}
-                    </div>
-                  )}
                 </div>
-              )}
+                  )}
+              </div>
+              </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={handleCancelEdit}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
-                >
+              <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                <button onClick={handleCancelEdit} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors">
                   Annuler
                 </button>
-                <button
-                  onClick={handleSaveEdit}
-                  disabled={uploading}
-                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
-                  {uploading ? (
-                    <div className="flex items-center justify-center w-4 h-4 min-h-[16px] mx-auto">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    </div>
-                  ) : (
-                    'Sauvegarder'
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-
-
-      {/* Modal Création Playlist */}
-      <AnimatePresence>
-        {showCreatePlaylistModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowCreatePlaylistModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Créer une playlist</h3>
-                <button
-                  onClick={() => setShowCreatePlaylistModal(false)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Nom de la playlist</label>
-                  <input
-                    type="text"
-                    value={newPlaylistData.name}
-                    onChange={(e) => setNewPlaylistData({ ...newPlaylistData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Ma nouvelle playlist"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (optionnel)</label>
-                  <textarea
-                    value={newPlaylistData.description}
-                    onChange={(e) => setNewPlaylistData({ ...newPlaylistData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="Décrivez votre playlist..."
-                  />
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <input
-                    type="checkbox"
-                    id="isPublic"
-                    checked={newPlaylistData.isPublic}
-                    onChange={(e) => setNewPlaylistData({ ...newPlaylistData, isPublic: e.target.checked })}
-                    className="w-4 h-4 text-purple-600 bg-white/10 border-gray-600 rounded focus:ring-purple-500"
-                  />
-                  <label htmlFor="isPublic" className="text-sm text-gray-300">
-                    Rendre cette playlist publique
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowCreatePlaylistModal(false)}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleCreatePlaylist}
-                  disabled={uploading || !newPlaylistData.name.trim()}
-                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Créer'}
+                <button onClick={handleSaveEdit} disabled={uploading} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50">
+                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}
                 </button>
               </div>
             </motion.div>
@@ -1854,74 +704,69 @@ export default function ProfileUserPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
             onClick={() => setShowEditTrackModal(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="bg-gray-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white">Modifier la piste</h3>
-                <button
-                  onClick={() => setShowEditTrackModal(false)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <h3 className="text-lg sm:text-xl font-bold text-white">Modifier la piste</h3>
+                <button onClick={() => setShowEditTrackModal(false)} className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
+                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Titre</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Titre</label>
                   <input
                     type="text"
                     value={trackEditData.title || ''}
                     onChange={(e) => setTrackEditData({ ...trackEditData, title: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Titre de la piste"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Description</label>
                   <textarea
                     value={trackEditData.description || ''}
                     onChange={(e) => setTrackEditData({ ...trackEditData, description: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
                     placeholder="Description de la piste..."
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Genres (séparés par des virgules)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Genres (séparés par des virgules)</label>
                   <input
                     type="text"
                     value={trackEditData.genre || ''}
                     onChange={(e) => setTrackEditData({ ...trackEditData, genre: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Rock, Pop, Électronique"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">Tags (séparés par des virgules)</label>
+                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Tags (séparés par des virgules)</label>
                   <input
                     type="text"
                     value={trackEditData.tags || ''}
                     onChange={(e) => setTrackEditData({ ...trackEditData, tags: e.target.value })}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="chill, instrumental, ambient"
                   />
                 </div>
 
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 sm:space-x-3">
                   <input
                     type="checkbox"
                     id="isPublic"
@@ -1929,24 +774,17 @@ export default function ProfileUserPage() {
                     onChange={(e) => setTrackEditData({ ...trackEditData, isPublic: e.target.checked })}
                     className="w-4 h-4 text-purple-600 bg-white/10 border-gray-600 rounded focus:ring-purple-500"
                   />
-                  <label htmlFor="isPublic" className="text-sm text-gray-300">
+                  <label htmlFor="isPublic" className="text-xs sm:text-sm text-gray-300">
                     Rendre cette piste publique
                   </label>
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowEditTrackModal(false)}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
-                >
+              <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
+                <button onClick={() => setShowEditTrackModal(false)} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors">
                   Annuler
                 </button>
-                <button
-                  onClick={handleSaveTrackEdit}
-                  disabled={uploading || !trackEditData.title?.trim()}
-                  className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
+                <button onClick={handleSaveTrackEdit} disabled={uploading || !trackEditData.title?.trim()} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50">
                   {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}
                 </button>
               </div>
@@ -1954,108 +792,230 @@ export default function ProfileUserPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Modal Mise en avant Track */}
-      <AnimatePresence>
-        {showFeatureTrackModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-            onClick={() => setShowFeatureTrackModal(false)}
+      {!isOwnProfile && (
+        <div className="md:hidden fixed bottom-24 right-4 z-[100]">
+          <button 
+            onClick={handleFollow}
+            disabled={uploading}
+            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition backdrop-blur-md ${
+              profile.isFollowing 
+                ? 'bg-white/10 border border-white/10' 
+                : 'bg-gradient-to-r from-purple-600 to-blue-600'
+            }`}
+            title={profile.isFollowing ? 'Se désabonner' : 'Suivre'}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-2xl p-6 w-full max-w-md"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                  <Star className="w-6 h-6 text-yellow-400" />
-                  {featuringTrack?.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
-                </h3>
-                <button
-                  onClick={() => setShowFeatureTrackModal(false)}
-                  className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+            {profile.isFollowing ? <Check className="w-6 h-6"/> : <UserPlus className="w-6 h-6"/>}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
-              <div className="space-y-4">
-                <div className="bg-white/5 rounded-lg p-4">
-                  <h4 className="font-medium text-white mb-2">{featuringTrack?.title}</h4>
-                  <p className="text-sm text-gray-400">
-                    {Array.isArray(featuringTrack?.genre) ? featuringTrack.genre.join(', ') : featuringTrack?.genre}
-                  </p>
+// ---- Subcomponents ----
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg sm:rounded-xl bg-white/5 border border-white/10 p-2 sm:p-3 text-center">
+      <p className="text-sm sm:text-lg font-bold">{value}</p>
+      <p className="text-[10px] sm:text-xs text-white/60">{label}</p>
+                </div>
+  );
+}
+
+function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }){
+  return (
+    <button onClick={onClick} className="w-full text-xs sm:text-sm px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 flex items-center justify-between transition">
+      <span className="flex items-center gap-1.5 sm:gap-2">{icon}<span className="truncate">{label}</span></span>
+      <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4 opacity-70 flex-shrink-0"/>
+    </button>
+  );
+}
+
+function TrackTile({ track, isPlaying, onPlay, onOpenDetails, menuOpen, onToggleMenu, onAction, isOwnProfile, onLikeUpdate }: { track: any; isPlaying: boolean; onPlay: (e: React.MouseEvent) => void; onOpenDetails: () => void; menuOpen: boolean; onToggleMenu: (e: React.MouseEvent) => void; onAction: (action: string) => void; isOwnProfile: boolean; onLikeUpdate: (trackId: string, isLiked: boolean, likesCount: number) => void }){
+  return (
+    <div onClick={onOpenDetails} className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 hover:bg-white/10 transition relative cursor-pointer group">
+      <div className="relative">
+        <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} alt={track.title} className="w-full aspect-square object-cover rounded-lg sm:rounded-xl" />
+        
+        {/* Bouton like en haut à gauche */}
+        <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10" onClick={(e) => e.stopPropagation()}>
+          <LikeButton
+            trackId={track.id}
+            initialIsLiked={track.isLiked || false}
+            initialLikesCount={track.likes || 0}
+            onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
+            showCount={false}
+            size="sm"
+          />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Banderole personnalisée (optionnel)
-                  </label>
-                  <input
-                    type="text"
-                    value={featuredBanner}
-                    onChange={(e) => setFeaturedBanner(e.target.value)}
-                    className="w-full px-3 py-2 bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Ex: Nouveau single, Hit de l'été, etc."
-                    maxLength={30}
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Laissez vide pour utiliser "En vedette" par défaut
-                  </p>
-                </div>
-
-                <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-black text-sm px-3 py-2 rounded-lg">
+        {isOwnProfile && (
+          <button onClick={onToggleMenu} aria-haspopup="menu" aria-expanded={menuOpen} className="absolute top-1 right-1 p-1 sm:p-1.5 rounded-md sm:rounded-lg bg-black/50 hover:bg-black/70 border border-white/10">
+            <MoreHorizontal className="w-3 h-3 sm:w-4 sm:h-4" />
+          </button>
+        )}
+        {/* overlay on hover - hidden on mobile */}
+        <div className="hidden sm:flex absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-black/50 rounded-xl flex-col items-center justify-center gap-2">
+          <div className="text-[11px] flex items-center gap-3">
+            <span className="flex items-center gap-1"><Headphones className="w-4 h-4"/>{fmt.format(track.plays || 0)}</span>
+            <span className="flex items-center gap-1"><Heart className="w-4 h-4"/>{fmt.format(track.likes || 0)}</span>
+          </div>
                   <div className="flex items-center gap-2">
-                    <Crown size={16} />
-                    <span className="font-medium">
-                      {featuredBanner || 'En vedette'}
-                    </span>
+            <button onClick={onPlay} className="px-2 py-1 text-[11px] rounded-md bg-white/10 hover:bg-white/20 border border-white/20">{isPlaying? 'Pause':'Play'}</button>
+            <button onClick={(e)=>{e.stopPropagation(); onAction("stats");}} className="px-2 py-1 text-[11px] rounded-md bg-white/10 hover:bg-white/20 border border-white/20">Stats</button>
                   </div>
                 </div>
               </div>
+      <div className="mt-1.5 sm:mt-2">
+        <p className="text-xs sm:text-sm font-medium line-clamp-1">{track.title}</p>
+        <p className="text-[10px] sm:text-xs text-white/60 line-clamp-1">{mmss(track.duration || 0)}</p>
+              </div>
 
-              <div className="flex gap-3 mt-6">
-                <button
-                  onClick={() => setShowFeatureTrackModal(false)}
-                  className="flex-1 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors"
-                >
-                  Annuler
+      {/* Mini modal menu */}
+      {menuOpen && isOwnProfile && (
+        <div data-menu-root="true" role="menu" className="absolute right-2 top-20 z-20 w-44 rounded-xl border border-white/10 bg-black/80 backdrop-blur-xl shadow-lg">
+          <MenuBtn onClick={() => onAction("edit")} label="Modifier" danger={false} />
+          <MenuBtn onClick={() => onAction("stats")} label="Statistiques" danger={false} />
+          <div className="h-px bg-white/10" />
+          <MenuBtn onClick={() => onAction("delete")} label="Supprimer" danger />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MenuBtn({ label, onClick, danger }: { label: string; onClick: () => void; danger: boolean }){
+  return (
+    <button onClick={onClick} className={`w-full text-left text-sm px-3 py-2 hover:bg-white/10 flex items-center gap-2 ${danger? 'text-rose-400':''}`}>
+      <span>{label}</span>
                 </button>
-                <button
-                  onClick={handleSaveFeatureTrack}
-                  disabled={uploading}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-black rounded-lg font-medium transition-colors disabled:opacity-50"
-                >
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 
-                   featuringTrack?.isFeatured ? 'Retirer de la vedette' : 'Mettre en vedette'}
+  );
+}
+
+// ---- Drawer ----
+function Drawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }){
+  return (
+    <>
+      <div className={`fixed inset-0 z-50 transition ${open? 'pointer-events-auto opacity-100':'pointer-events-none opacity-0'}`}>
+        {/* overlay */}
+        <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition ${open? 'opacity-100':'opacity-0'}`} />
+        {/* panel - pleine largeur sur mobile */}
+        <div className={`absolute right-0 top-0 h-full w-full sm:w-[480px] bg-[#0c0c16] sm:border-l border-white/10 shadow-2xl transform transition ${open? 'translate-x-0':'translate-x-full'}`}>
+          {children}
+        </div>
+      </div>
+    </>
+  );
+}
+
+function DrawerContent({ track, isPlaying, onPlay, onEdit, onDuplicate, onDelete, isOwnProfile, onLikeUpdate, onClose }: { track: any; isPlaying: boolean; onPlay: () => void; onEdit: () => void; onDuplicate: () => void; onDelete: () => void; isOwnProfile: boolean; onLikeUpdate: (trackId: string, isLiked: boolean, likesCount: number) => void; onClose: () => void }){
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-3 sm:p-4 border-b border-white/10">
+        <div className="flex items-center gap-2 sm:gap-3 mb-3">
+          <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl object-cover" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm sm:text-base font-semibold line-clamp-1">{track.title}</p>
+            <p className="text-[10px] sm:text-xs text-white/60">{mmss(track.duration || 0)} • {fmt.format(track.plays || 0)} écoutes</p>
+            {track.genre && (
+              <p className="text-[10px] sm:text-xs text-white/50 mt-1 line-clamp-1">{Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}</p>
+            )}
+          </div>
+          {/* Bouton fermer pour mobile */}
+          <button onClick={onClose} className="sm:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors flex-shrink-0">
+            <X className="w-5 h-5" />
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal ouverture booster (3D) */}
-      <AnimatePresence>
-        {showBoosterModal && (
-          <BoosterOpenModal
-            isOpen={showBoosterModal}
-            onClose={() => setShowBoosterModal(false)}
-            onOpenBooster={openDaily}
-            isOpening={boostersLoading}
-            openedBooster={lastOpened ? { id: lastOpened.inventoryId, status: 'owned', obtained_at: new Date().toISOString(), booster: lastOpened.booster } : null}
-            item={lastOpened || null}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <button onClick={onPlay} className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border border-white/10 flex items-center justify-center gap-1.5 sm:gap-2">
+            {isPlaying? <Pause className="w-3 h-3 sm:w-4 sm:h-4"/> : <Play className="w-3 h-3 sm:w-4 sm:h-4"/>}
+            <span className="hidden xs:inline">{isPlaying? 'Pause':'Play'}</span>
+                </button>
+          <LikeButton
+            trackId={track.id}
+            initialIsLiked={track.isLiked || false}
+            initialLikesCount={track.likes || 0}
+            onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
+            showCount={false}
+            size="md"
           />
+          {isOwnProfile && (
+            <>
+              <button onClick={onEdit} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10">
+                <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
+              <button onClick={onDelete} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400">
+                <X className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
+            </>
+          )}
+              </div>
+      </div>
+
+      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
+        <div className="bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-2.5 sm:p-3">
+          <h4 className="text-xs sm:text-sm font-semibold mb-2">Statistiques</h4>
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
+            <StatSmall label="Écoutes" value={fmt.format(track.plays || 0)} />
+            <StatSmall label="Likes" value={fmt.format(track.likes || 0)} />
+            <StatSmall label="Durée" value={mmss(track.duration || 0)} />
+          </div>
+        </div>
+
+        {track.description && (
+          <div className="bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-2.5 sm:p-3">
+            <h4 className="text-xs sm:text-sm font-semibold mb-1">Description</h4>
+            <p className="text-xs sm:text-sm text-white/80 leading-relaxed">{track.description}</p>
+          </div>
         )}
-      </AnimatePresence>
+
+        {track.tags && track.tags.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-2.5 sm:p-3">
+            <h4 className="text-xs sm:text-sm font-semibold mb-2">Tags</h4>
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {track.tags.map((t: string, i: number)=> (
+                <span key={i} className="px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full bg-white/10 border border-white/10">{t}</span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 } 
+
+function StatSmall({ label, value }: { label: string; value: string }){
+  return (
+    <div className="rounded-md sm:rounded-lg bg-white/5 border border-white/10 p-2 sm:p-3">
+      <p className="text-sm sm:text-base font-bold leading-none">{value}</p>
+      <p className="text-[10px] sm:text-[11px] text-white/60 mt-1">{label}</p>
+    </div>
+  );
+}
+
+function SearchIcon(){
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 opacity-70">
+      <path fillRule="evenodd" d="M10 2a8 8 0 105.293 14.293l4.207 4.207a1 1 0 001.414-1.414l-4.207-4.207A8 8 0 0010 2zm-6 8a6 6 0 1110.392 4.242A6 6 0 014 10z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+/** Dev tests — simples checks au runtime (console) */
+function DevTests({ tracks }: { tracks: any[] }){
+  useEffect(() => {
+    try {
+      if (tracks.length > 0) {
+        console.assert(Array.isArray(tracks), "Tracks should be an array");
+        console.assert(typeof tracks[0].title === 'string', "Track has title");
+        console.assert(typeof tracks[0].plays !== 'undefined' || typeof tracks[0].listens !== 'undefined', "Track has plays or listens");
+        console.assert(typeof tracks[0].id === 'string', "Track has id");
+        console.log(`[DevTests] Profile - ${tracks.length} tracks loaded OK`);
+      }
+    } catch (e) {
+      console.error("[DevTests] FAILED", e);
+    }
+  }, [tracks]);
+  return <div className="sr-only" aria-hidden />
+}
+

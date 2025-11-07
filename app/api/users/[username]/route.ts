@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 
 export async function GET(
   request: NextRequest,
@@ -16,6 +18,10 @@ export async function GET(
     }
 
     console.log(`🔍 Récupération du profil pour: ${username}`);
+
+    // Récupérer la session pour vérifier si l'utilisateur connecté a liké les tracks
+    const session = await getServerSession(authOptions);
+    const currentUserId = session?.user?.id;
 
     // Récupérer le profil utilisateur depuis Supabase
     const { data: profile, error: profileError } = await supabaseAdmin
@@ -41,6 +47,33 @@ export async function GET(
       .eq('creator_id', profile.id)
       .order('created_at', { ascending: false });
 
+    // Si un utilisateur est connecté, récupérer l'état de like pour chaque track
+    let tracksWithLikes = tracks || [];
+    if (currentUserId && tracks && tracks.length > 0) {
+      const trackIds = tracks.map(t => t.id);
+      
+      const { data: likes } = await supabaseAdmin
+        .from('track_likes')
+        .select('track_id')
+        .eq('user_id', currentUserId)
+        .in('track_id', trackIds);
+
+      const likedTrackIds = new Set(likes?.map(l => l.track_id) || []);
+      
+      tracksWithLikes = tracks.map(track => ({
+        ...track,
+        isLiked: likedTrackIds.has(track.id)
+      }));
+    } else {
+      tracksWithLikes = tracks?.map(track => ({
+        ...track,
+        isLiked: false
+      })) || [];
+    }
+
+    // Remplacer tracks par tracksWithLikes dans la suite du code
+    const tracks_final = tracksWithLikes;
+
     // Récupérer les playlists de l'utilisateur
     const { data: playlists, error: playlistsError } = await supabaseAdmin
       .from('playlists')
@@ -49,9 +82,9 @@ export async function GET(
       .order('created_at', { ascending: false });
 
     // Calculer les statistiques
-    const totalPlays = tracks?.reduce((sum, track) => sum + (track.plays || 0), 0) || 0;
-    const totalLikes = tracks?.reduce((sum, track) => sum + (track.likes || 0), 0) || 0;
-    const tracksCount = tracks?.length || 0;
+    const totalPlays = tracks_final?.reduce((sum, track) => sum + (track.plays || 0), 0) || 0;
+    const totalLikes = tracks_final?.reduce((sum, track) => sum + (track.likes || 0), 0) || 0;
+    const tracksCount = tracks_final?.length || 0;
     const playlistsCount = playlists?.length || 0;
 
     // Construire la réponse
@@ -76,7 +109,7 @@ export async function GET(
       playlistsCount,
       followerCount: profile.follower_count || 0,
       followingCount: profile.following_count || 0,
-      tracks: tracks || [],
+      tracks: tracks_final || [],
       playlists: playlists || [],
       lastSeen: profile.last_seen,
       createdAt: profile.created_at,
