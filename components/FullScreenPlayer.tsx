@@ -1,201 +1,112 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, Radio, AlertTriangle, ChevronDown } from "lucide-react";
 import { useAudioPlayer } from '@/app/providers';
-import { useTrackLike } from '@/contexts/LikeContext';
-import { useTrackPlays } from '@/contexts/PlaysContext';
 import LikeButton from './LikeButton';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Heart, X, AlertCircle, Loader2, MessageCircle, Users, Headphones, ChevronDown, Disc3, ListMusic } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
-import FloatingParticles from './FloatingParticles';
-import InteractiveCounter from './InteractiveCounter';
-import CommentDialog from './CommentDialog';
-import CommentButton from './CommentButton';
 import TikTokPlayer from './TikTokPlayer';
-import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
 
-export default function FullScreenPlayer() {
+/**
+ * SynauraMiniPlayer v3 — Minimal, clean, accessible
+ *
+ * Goals:
+ *  - Simple, calm visuals (no neon/glow/rotation)
+ *  - Clear hierarchy, subtle borders, soft hover
+ *  - Safe HLS strategy (no dynamic import)
+ *  - Integration with existing useAudioPlayer context
+ */
+
+export default function SynauraMiniPlayer() {
   const { 
     audioState, 
     setIsPlaying, 
-    setCurrentTrackIndex, 
-    setShowPlayer, 
-    setIsMinimized, 
-    setTracks,
-    handleLike, 
-    setShuffle, 
-    setRepeat,
+    setShowPlayer,
     play,
     pause,
+    nextTrack,
+    previousTrack,
     seek,
     setVolume,
     toggleMute,
-    nextTrack,
-    previousTrack,
-    toggleShuffle,
-    cycleRepeat,
-    requestNotificationPermission
+    setRepeat
   } = useAudioPlayer();
-  
-  const [showFull, setShowFull] = useState(false);
+
+  const progressRef = useRef<HTMLDivElement>(null);
+
   const [showTikTok, setShowTikTok] = useState(false);
-  const [showVolumeSlider, setShowVolumeSlider] = useState(false);
-  const [showError, setShowError] = useState(false);
-  const [isNotificationRequested, setIsNotificationRequested] = useState(false);
-  const [albumOpen, setAlbumOpen] = useState(false);
-  const [albumLoading, setAlbumLoading] = useState(false);
-  const [albumPlaylist, setAlbumPlaylist] = useState<any | null>(null);
+  const [hlsUnsupported, setHlsUnsupported] = useState(false);
 
-  const volumeSliderRef = useRef<HTMLDivElement>(null);
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
-  const openAlbumPanel = useCallback(async (e?: React.MouseEvent<HTMLButtonElement>) => {
-    try {
-      e?.stopPropagation?.();
-      const albumName = (currentTrack as any)?.album as string | undefined;
-      if (!albumName || !currentTrack?.artist?._id) return;
-      setAlbumOpen(true);
-      setAlbumLoading(true);
-      setAlbumPlaylist(null);
-      const res = await fetch(`/api/playlists?user=${encodeURIComponent(currentTrack.artist._id)}`, { cache: 'no-store' });
-      if (!res.ok) { setAlbumLoading(false); return; }
-      const json = await res.json();
-      const name = String(albumName || '').toLowerCase();
-      const pl = Array.isArray(json?.playlists) ? json.playlists.find((p: any) => String(p.name || '').toLowerCase() === name) : null;
-      setAlbumPlaylist(pl || null);
-    } catch {
-      setAlbumPlaylist(null);
-    } finally {
-      setAlbumLoading(false);
-    }
-  }, [currentTrack?.album, currentTrack?.artist?._id]);
+  const track = useMemo(() => ({
+    id: currentTrack?._id || '',
+    title: currentTrack?.title || 'Titre inconnu',
+    artist: currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu',
+    cover: currentTrack?.coverUrl || '/default-cover.jpg',
+    src: currentTrack?.audioUrl || '',
+  }), [currentTrack]);
 
-  const playAlbumAll = useCallback(async () => {
-    try {
-      if (!albumPlaylist?.tracks || albumPlaylist.tracks.length === 0) return;
-      const list = albumPlaylist.tracks;
-      setTracks(list);
-      setCurrentTrackIndex(0);
-      await play();
-      setAlbumOpen(false);
-    } catch {}
-  }, [albumPlaylist, setTracks, setCurrentTrackIndex, play]);
+  // Detect HLS by extension
+  const isHls = useMemo(() => Boolean(track?.src?.toLowerCase?.().endsWith?.(".m3u8")), [track?.src]);
+  const isLive = useMemo(() => isHls || /\blive\b|radio|stream/i.test(track?.title || ''), [isHls, track?.title]);
 
-
-  const formatTime = useCallback((seconds: number) => {
-    if (!seconds || isNaN(seconds) || seconds < 0) return '--:--';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }, []);
-
-  // Gestion de la lecture/pause optimisée
-  const togglePlay = useCallback(async () => {
-    try {
-      if (audioState.isLoading) return;
-      
-      if (audioState.isPlaying) {
-        pause();
-      } else {
-        await play();
-      }
-    } catch (error) {
-      // Erreur silencieuse
-    }
-  }, [audioState.isPlaying, audioState.isLoading, play, pause]);
-
-  // Gestion du changement de piste optimisée
-  const handleNextTrack = useCallback(() => {
-    try {
-      if (audioState.isLoading) return;
-      nextTrack();
-    } catch (error) {
-      // Erreur silencieuse
-    }
-  }, [nextTrack, audioState.isLoading]);
-
-  const handlePreviousTrack = useCallback(() => {
-    try {
-      if (audioState.isLoading) return;
-      previousTrack();
-    } catch (error) {
-      // Erreur silencieuse
-    }
-  }, [previousTrack, audioState.isLoading]);
-
-  // Gestion du seek optimisée
-  const handleSeek = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (audioState.isLoading || !audioState.duration) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const newTime = percent * audioState.duration;
-    seek(newTime);
-  }, [audioState.duration, audioState.isLoading, seek]);
-
-  // Gestion du volume
-  const handleVolumeChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const volume = parseFloat(e.target.value);
-    setVolume(volume);
-  }, [setVolume]);
-
-  // Fermer le slider de volume quand on clique ailleurs
+  // Keyboard shortcuts (skip when typing)
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (volumeSliderRef.current && !volumeSliderRef.current.contains(event.target as Node)) {
-        setShowVolumeSlider(false);
-      }
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+      if (e.code === 'ArrowRight') { seekBy(5); }
+      if (e.code === 'ArrowLeft') { seekBy(-5); }
     };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [audioState.isPlaying, audioState.duration]);
 
-    if (showVolumeSlider) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [showVolumeSlider]);
-
-  // Demande de permission pour les notifications
-  useEffect(() => {
-    if (audioState.showPlayer && currentTrack && !isNotificationRequested) {
-      setIsNotificationRequested(true);
-      requestNotificationPermission().then((granted) => {
-        if (granted) {
-          // Notifications activées
-        }
-      });
-    }
-  }, [audioState.showPlayer, currentTrack, isNotificationRequested, requestNotificationPermission]);
-
-  // Gestion des erreurs
-  useEffect(() => {
-    if (audioState.error) {
-      setShowError(true);
-      toast.error(audioState.error);
+  const togglePlay = async () => {
+    if (audioState.isPlaying) {
+      pause();
     } else {
-      setShowError(false);
+      await play();
     }
-  }, [audioState.error]);
+  };
 
-  // Calculs optimisés
-  const progressPercentage = useMemo(() => {
-    if (!audioState.duration || audioState.duration <= 0 || currentTrack?._id === 'radio-mixx-party') return 0;
-    return Math.min(100, (audioState.currentTime / audioState.duration) * 100);
-  }, [audioState.currentTime, audioState.duration, currentTrack?._id]);
+  const toTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const ss = Math.floor(s % 60);
+    return `${m}:${String(ss).padStart(2, '0')}`;
+  };
 
-  const isCurrentTrack = useMemo(() => {
-    return currentTrack?._id === audioState.tracks[audioState.currentTrackIndex]?._id;
-  }, [currentTrack?._id, audioState.tracks, audioState.currentTrackIndex]);
+  const seekTo = (fraction: number) => {
+    if (!audioState.duration) return;
+    const newTime = Math.max(0, Math.min(audioState.duration, fraction * audioState.duration));
+    seek(newTime);
+  };
 
-  // Mini-player (toujours visible en bas) - masqué en mode TikTok
-  if (!audioState.showPlayer || !currentTrack || !currentTrack.title) {
-    return null;
-  }
+  const seekBy = (deltaSec: number) => {
+    const newTime = Math.max(0, Math.min((audioState.currentTime || 0) + deltaSec, audioState.duration));
+    seek(newTime);
+  };
+
+  const onProgressClick = (e: React.MouseEvent) => {
+    const bar = progressRef.current;
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    const frac = (e.clientX - rect.left) / rect.width;
+    seekTo(frac);
+  };
+
+  const handleRepeat = () => {
+    const modes: ('none' | 'all' | 'one')[] = ['none', 'all', 'one'];
+    const currentIndex = modes.indexOf(audioState.repeat);
+    const nextMode = modes[(currentIndex + 1) % modes.length];
+    setRepeat(nextMode);
+  };
+
+  if (!currentTrack || !audioState.showPlayer) return null;
 
   return (
     <>
-      {/* Player TikTok */}
+      {/* TikTok Player Modal */}
       {showTikTok && (
         <TikTokPlayer
           isOpen={showTikTok}
@@ -203,427 +114,149 @@ export default function FullScreenPlayer() {
         />
       )}
 
-      {/* Mini-player - Suno-like playbar - masqué en mode TikTok */}
+      {/* Mini Player Bar */}
       {!showTikTok && (
-      <motion.div
-          className="glass-player relative w-full"
-          style={{ display: showFull ? 'none' : 'flex' }}
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          onClick={() => setShowTikTok(true)}
-        >
-          <FloatingParticles isPlaying={audioState.isPlaying && !audioState.isLoading} />
-
-          <div className="flex flex-1 flex-row content-between items-center p-2 w-full">
-            {/* Left: cover */}
-            <div className="md:w-8 relative flex items-center">
-              <a className="mr-2 h-16 w-10 shrink-0 overflow-clip rounded-md md:h-14" onClick={(e) => { e.stopPropagation(); }} href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>
-            <img src={(currentTrack?.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} alt={`Cover image for ${currentTrack?.title || 'Track'}`} className="h-full w-full object-cover" loading="lazy" decoding="async" />
-              </a>
-            </div>
-
-            {/* Middle: title/artist (mobile au-dessus des boutons) */}
-            <div className="flex flex-col flex-1 min-w-0 pr-2">
-              {/* Title marquee */}
-              <div className="relative flex w-fit cursor-pointer overflow-x-hidden text-sm font-medium hover:underline" onClick={(e)=>{e.stopPropagation();}}>
-                <div className="animate-marquee md:animate-none">
-                  <a className="mr-24 whitespace-nowrap" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
-                </div>
-                <div className="absolute top-0 animate-marquee2 md:animate-none">
-                  <a className="mr-24 whitespace-nowrap md:hidden" href={currentTrack?._id ? `/song/${currentTrack._id}` : '#'} aria-label={`Playbar: Title for ${currentTrack?.title || 'Track'}`}>{currentTrack?.title || 'Titre inconnu'}</a>
-                </div>
-                <div className="absolute right-0 h-full w-full bg-gradient-to-r from-transparent to-black/20 md:hidden"></div>
+        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 w-[96%] sm:w-[760px] lg:w-[980px]">
+          <div className="rounded-xl border border-white/10 bg-[#0c0c14]/85 backdrop-blur-xl shadow-lg">
+            {/* top row */}
+            <div className="px-3 py-2 flex items-center gap-3">
+              <img 
+                src={track.cover} 
+                className="w-12 h-12 rounded-md object-cover border border-white/10 cursor-pointer hover:opacity-80 transition" 
+                alt={track.title}
+                onClick={() => setShowTikTok(true)}
+              />
+              <div className="min-w-0 flex-1" onClick={() => setShowTikTok(true)}>
+                <p className="text-sm font-semibold truncate flex items-center gap-2 cursor-pointer hover:underline">
+                  {track.title}
+                  {isLive && (
+                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-white/20 text-white/80">
+                      <Radio className="w-3 h-3"/> LIVE
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-white/60 truncate">{track.artist}</p>
               </div>
-              <span className="flex flex-col text-sm font-medium md:flex-row gap-0.5 md:items-center">
-                <a className="relative w-full flex md:w-fit hover:underline" onClick={(e)=>e.stopPropagation()} href={currentTrack?.artist?.username ? `/@${currentTrack.artist.username}` : '#'} aria-label={`Playbar: Artist for ${currentTrack?.title || 'Track'}`}>
-                  <span className="line-clamp-1 w-full lg:max-w-[220px] md:max-w-[180px]">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
-                </a>
-                {(currentTrack as any)?.album && (
-                  <button onClick={openAlbumPanel} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ml-0 md:ml-2 bg-white/10 hover:bg-white/15 border border-white/10">
-                    <Disc3 size={12} /> Album
+
+              <button onClick={previousTrack} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Previous">
+                <SkipBack className="w-5 h-5"/>
+              </button>
+              <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-md bg-white/10 hover:bg-white/15 border border-white/10 transition" aria-label={audioState.isPlaying? 'Pause':'Play'}>
+                {audioState.isPlaying ? <Pause className="w-5 h-5"/> : <Play className="w-5 h-5"/>}
+              </button>
+              <button onClick={nextTrack} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Next">
+                <SkipForward className="w-5 h-5"/>
+              </button>
+
+              {currentTrack && (
+                <LikeButton
+                  trackId={currentTrack._id}
+                  initialIsLiked={currentTrack.isLiked || false}
+                  initialLikesCount={typeof currentTrack.likes === 'number' ? currentTrack.likes : (Array.isArray(currentTrack.likes) ? currentTrack.likes.length : 0)}
+                  showCount={false}
+                  size="md"
+                />
+              )}
+              
+              <button 
+                onClick={handleRepeat} 
+                className={`hidden sm:inline-flex p-2 rounded-md border transition relative ${
+                  audioState.repeat !== 'none' ? 'bg-white/10 border-white/20' : 'hover:bg-white/5 border-transparent'
+                }`} 
+                title={audioState.repeat === 'one' ? 'Répéter un' : audioState.repeat === 'all' ? 'Répéter tout' : 'Répétition désactivée'} 
+                aria-pressed={audioState.repeat !== 'none'}
+              >
+                <Repeat className="w-5 h-5"/>
+                {audioState.repeat === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full text-[8px] flex items-center justify-center">1</span>}
+              </button>
+
+              <div className="hidden sm:flex items-center gap-2 ml-2">
+                {audioState.isMuted || audioState.volume === 0 ? (
+                  <button onClick={toggleMute} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Unmute">
+                    <VolumeX className="w-5 h-5"/>
+                  </button>
+                ) : (
+                  <button onClick={toggleMute} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Mute">
+                    <Volume2 className="w-5 h-5"/>
                   </button>
                 )}
-                {!(currentTrack as any)?.album && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ml-0 md:ml-2 bg-white/5 border border-white/10 opacity-70">
-                    <ListMusic size={12} /> Single
-                  </span>
-                )}
-                <div className="hidden md:block ml-2">
-                  <AudioQualityTooltip>
-                    <AudioQualityIndicator size="sm" />
-                  </AudioQualityTooltip>
-                </div>
-              </span>
-          </div>
+                <input
+                  type="range" min={0} max={1} step={0.01}
+                  value={audioState.isMuted ? 0 : audioState.volume}
+                  onChange={(e) => setVolume(parseFloat(e.target.value))}
+                  className="w-24 accent-white/90"
+                  aria-label="Volume"
+                />
+              </div>
 
-            {/* Mobile controls (always visible on mobile) */}
-            <div className="flex items-center gap-1 md:hidden ml-2" onClick={(e)=>e.stopPropagation()}>
-              <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Previous">
-                <SkipBack size={18} />
+              <button 
+                onClick={() => setShowTikTok(true)} 
+                className="hidden sm:flex p-2 rounded-md hover:bg-white/5 border border-transparent ml-1 transition" 
+                title="Ouvrir le player complet" 
+                aria-label="Player complet"
+              >
+                <ListMusic className="w-5 h-5"/>
               </button>
-              <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full bg-[var(--color-primary)]/85 hover:bg-[var(--color-primary)] text-white disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>
-                {audioState.isPlaying ? <Pause size={18}/> : <Play size={18}/>}
-              </button>
-              <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white/80 hover:bg-white/10 disabled:opacity-50" aria-label="Next">
-                <SkipForward size={18} />
-              </button>
-        </div>
-        
-            {/* Center controls (md and up) */}
-            <div className="hidden flex-1 flex-row items-center justify-center gap-1 w-8 md:flex" onClick={(e)=>e.stopPropagation()}>
-              <button onClick={toggleShuffle} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Shuffle"><Shuffle size={16} /></button>
-              <button onClick={handlePreviousTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Previous"><SkipBack size={20} /></button>
-              <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label={audioState.isPlaying? 'Pause':'Play'}>{audioState.isPlaying? <Pause size={24}/> : <Play size={24}/>}</button>
-              <button onClick={handleNextTrack} disabled={audioState.isLoading} className="p-2 rounded-full text-white hover:bg-white/10 disabled:opacity-50" aria-label="Next"><SkipForward size={20} /></button>
-              <button onClick={cycleRepeat} className="p-2 rounded-full text-white/60 hover:bg-white/10" aria-label="Repeat"><Repeat size={16} /></button>
-          </div>
 
-            {/* Right: volume + duration + hide button (md), minimal on mobile */}
-            <div className="items-left justify-right flex w-fit flex-row-reverse gap-2 md:flex-1" onClick={(e)=>e.stopPropagation()}>
-              {/* Hide button */}
               <button 
                 onClick={() => setShowPlayer(false)} 
-                className="p-2 text-white/70 hover:bg-white/10 rounded-full" 
-                aria-label="Masquer le player"
+                className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" 
+                aria-label="Fermer"
               >
-                <ChevronDown size={18} />
+                <ChevronDown className="w-5 h-5"/>
               </button>
-              {/* Duration */}
-              <span className="flex md:flex items-center whitespace-nowrap text-white/70 text-[11px] md:text-[12px]">
-                <span className="w-12 text-right">{formatTime(audioState.currentTime)}</span>
-                <span className="w-3 text-center">/</span>
-                <span className="w-12">{formatTime(audioState.duration)}</span>
-              </span>
-              {/* Volume */}
-              <div className="relative hidden md:block" ref={volumeSliderRef}>
-                <button className="p-2 text-white/70 hover:bg-white/10 rounded-full" onClick={()=>setShowVolumeSlider(!showVolumeSlider)} aria-label="Volume">
-                  {audioState.isMuted ? <VolumeX size={18}/> : <Volume2 size={18}/>}
-                </button>
-                {showVolumeSlider && (
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3">
-                    <div className="volume-popover">
-                      <div className="volume-vertical-wrapper">
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.01"
-                          value={audioState.volume}
-                          onChange={handleVolumeChange}
-                          className="volume-slider-vertical"
-                        />
-                        <div className="volume-tooltip">{Math.round((audioState.volume || 0) * 100)}%</div>
-                      </div>
-                      <div className="flex items-center justify-between gap-1 mt-2">
-                        <button className="volume-chip" onClick={() => setVolume(0)}>0%</button>
-                        <button className="volume-chip" onClick={() => setVolume(0.5)}>50%</button>
-                        <button className="volume-chip" onClick={() => setVolume(1)}>100%</button>
-                      </div>
-                      <div className="popover-arrow" />
-                    </div>
-          </div>
-        )}
-              </div>
             </div>
-          </div>
-        
-        {/* Mini progress bar: plus longue et plus fine */}
-        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-1 w-[92%] md:w-[94%]">
-          <div className="h-[2px] md:h-[3px] bg-white/15 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-[var(--color-primary)] to-pink-400 rounded-full transition-[width] duration-150 ease-linear"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
-        </div>
-      </motion.div>
-      )}
 
-
-      {/* Player plein écran (modal/dialog) */}
-      <AnimatePresence>
-        {showFull && (
-          <motion.div
-            className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--surface)]/80 backdrop-blur-lg"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {/* Contenu centré */}
-            <motion.div
-              className="flex flex-col items-center justify-center w-full h-full max-w-2xl mx-auto px-6"
-              style={{
-                paddingTop: 'env(safe-area-inset-top, 20px)',
-                paddingBottom: 'env(safe-area-inset-bottom, 20px)',
-                minHeight: '100vh',
-                justifyContent: 'space-between'
-              }}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {/* Header : jaquette grande + bouton fermer */}
-              <div className="relative w-full flex flex-col items-center mt-4">
-                <motion.img 
-                  src={currentTrack?.coverUrl || '/default-cover.jpg'} 
-                  alt={currentTrack?.title || 'Track'} 
-                  className="w-40 h-40 md:w-56 md:h-56 rounded-2xl object-cover shadow-2xl cover-float-animation border border-[var(--border)]" 
-                  loading="lazy"
-                />
-                <button
-                  className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
-                  style={{
-                    top: '-20px',
-                    right: '20px'
-                  }}
-                  onClick={() => setShowFull(false)}
+            {/* progress bar */}
+            <div className="px-3 pb-2">
+              <div className="flex items-center gap-2 text-[11px] text-white/70">
+                <span className="tabular-nums w-10 text-right">{toTime(audioState.currentTime || 0)}</span>
+                <div
+                  ref={progressRef}
+                  onClick={onProgressClick}
+                  className="flex-1 h-2 rounded-md bg-white/8 cursor-pointer relative overflow-hidden"
+                  title="Seek"
+                  role="progressbar"
+                  aria-valuemin={0}
+                  aria-valuemax={audioState.duration || 0}
+                  aria-valuenow={audioState.currentTime || 0}
                 >
-                  <X size={22} className="text-white" />
-                </button>
-                {/* Bouton TikTok */}
-                <button
-                  className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
-                  style={{
-                    top: '-20px',
-                    left: '20px'
-                  }}
-                  onClick={() => {
-                    setShowFull(false);
-                    setShowTikTok(true);
-                  }}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" className="text-white">
-                    <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                  </svg>
-                </button>
-                
-                {/* Bouton minimiser */}
-                <button
-                  className="absolute w-10 h-10 rounded-full bg-[var(--surface-2)]/80 flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors border border-[var(--border)]"
-                  style={{
-                    top: '-20px',
-                    left: '60px'
-                  }}
-                  onClick={() => setShowPlayer(false)}
-                >
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="feather feather-chevron-down text-white"><polyline points="6 9 12 15 18 9"></polyline></svg>
-                </button>
-              </div>
-              
-              {/* Centre : titre, artiste, animation d'onde/barre + statistiques */}
-              <div className="flex flex-col items-center flex-1 justify-center">
-                <span className="text-2xl md:text-3xl font-bold text-white mb-2 truncate max-w-[90vw] text-center title-suno">{currentTrack?.title || 'Titre inconnu'}</span>
-                <span className="text-lg text-gray-300 mb-1 text-center">{currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}</span>
-                {(currentTrack as any)?.album && (
-                  <button onClick={openAlbumPanel} className="inline-flex items-center gap-2 text-sm text-white/85 bg-white/10 hover:bg-white/15 border border-white/10 rounded-full px-3 py-1">
-                    <Disc3 size={14} /> {(currentTrack as any).album}
-                  </button>
-                )}
-                
-                {/* Statistiques de la piste */}
-                <div className="flex items-center space-x-6 mb-4 text-sm text-gray-400">
-                  <div className="flex items-center space-x-1">
-                    <Headphones size={16} />
-                    <span>{currentTrack?.plays || 0}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <Heart size={16} />
-                    <span>{currentTrack?.likes?.length || 0}</span>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <MessageCircle size={16} />
-                    <span>{currentTrack?.comments?.length || 0}</span>
-                  </div>
-                  <AudioQualityTooltip>
-                    <AudioQualityIndicator size="sm" showUpgrade={true} />
-                  </AudioQualityTooltip>
-                </div>
-                
-                {audioState.isPlaying && !audioState.isLoading && (
-                  <div className="flex space-x-1 mb-2">
-                    <div className="w-1 h-4 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0s' }}></div>
-                    <div className="w-1 h-4 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.2s' }}></div>
-                    <div className="w-1 h-4 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.4s' }}></div>
-                    <div className="w-1 h-4 bg-pink-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.6s' }}></div>
-                    <div className="w-1 h-4 bg-purple-400 rounded-full animate-pulse-wave" style={{ animationDelay: '0.8s' }}></div>
-                  </div>
-                )}
-              </div>
-              
-              {/* Bas : barre de progression + contrôles */}
-              <div className="w-full mt-auto">
-                {/* Barre de progression améliorée (plus longue et plus fine) */}
-                <div className="mb-4 mx-[-8px] md:mx-[-12px]">
-                  <div 
-                    className="w-full h-[4px] md:h-[6px] bg-white/10 rounded-full relative cursor-pointer border border-[var(--border)]"
-                    onClick={handleSeek}
-                  >
-                    <div 
-                      className="h-[4px] md:h-[6px] bg-gradient-to-r from-[var(--color-primary)] to-pink-400 rounded-full relative transition-all duration-100"
-                      style={{ width: `${progressPercentage}%` }}
-                    >
-                      <div className="progress-shimmer absolute inset-0 rounded-full"></div>
-                    </div>
-                    {/* Mobile knob (12px) */}
-                    <div 
-                      className="absolute md:hidden top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100 border border-[var(--border)]"
-                      style={{ left: `calc(${progressPercentage}% - 6px)` }}
-                    />
-                    {/* Desktop knob (16px) */}
-                    <div 
-                      className="absolute hidden md:block top-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full shadow-lg cursor-pointer transition-all duration-100 border border-[var(--border)]"
-                      style={{ left: `calc(${progressPercentage}% - 8px)` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-400 mt-1 px-2 md:px-3">
-                    <span>{formatTime(audioState.currentTime)}</span>
-                    <span>{formatTime(audioState.duration)}</span>
-                  </div>
-                </div>
-                
-                {/* Contrôles principaux */}
-                <div className="flex items-center justify-center space-x-4 mb-4">
-                  <button 
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                    onClick={handlePreviousTrack}
-                    disabled={audioState.isLoading}
-                  >
-                    <SkipBack size={28} className="text-white" />
-                  </button>
-                  <button 
-                    className="p-3 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed btn-suno" 
-                    onClick={togglePlay}
-                    disabled={audioState.isLoading}
-                  >
-                    {audioState.isLoading ? (
-                      <Loader2 size={32} className="text-white animate-spin" />
-                    ) : audioState.isPlaying ? (
-                      <Pause size={32} className="text-white" />
-                    ) : (
-                      <Play size={32} className="text-white" />
-                    )}
-                  </button>
-                  <button 
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                    onClick={handleNextTrack}
-                    disabled={audioState.isLoading}
-                  >
-                    <SkipForward size={28} className="text-white" />
-                  </button>
-                </div>
-                
-                {/* Contrôles secondaires */}
-                <div className="flex items-center justify-center space-x-4">
-                  <button 
-                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.shuffle ? 'text-[var(--color-accent)]' : 'text-white/60'}`} 
-                    onClick={toggleShuffle}
-                  >
-                    <Shuffle size={22} />
-                  </button>
-                  <button 
-                    className={`p-2 hover:bg-white/10 rounded-full transition-colors ${audioState.repeat !== 'none' ? 'text-[var(--color-accent)]' : 'text-white/60'}`} 
-                    onClick={cycleRepeat}
-                  >
-                    <Repeat size={22} />
-                  </button>
-                  <LikeButton
-                    trackId={currentTrack?._id || ''}
-                    initialLikesCount={currentTrack?.likes?.length || 0}
-                    initialIsLiked={currentTrack?.isLiked || false}
-                    size="sm"
-                    variant="card"
-                    showCount={false}
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                  {/* progress */}
+                  <div
+                    className="absolute left-0 top-0 h-2 bg-white/70 transition-all"
+                    style={{ width: `${audioState.duration ? ((audioState.currentTime || 0) / audioState.duration) * 100 : 0}%` }}
                   />
-                  <CommentButton
-                    trackId={currentTrack?._id || ''}
-                    trackTitle={currentTrack?.title || 'Titre inconnu'}
-                    trackArtist={currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
-                    commentCount={currentTrack?.comments?.length || 0}
-                    variant="minimal"
-                    size="sm"
-                    className="p-2 hover:bg-white/10 rounded-full transition-colors"
-                  />
-                  <div className="relative" ref={volumeSliderRef}>
-                    <button 
-                      className="p-2 text-white/60 hover:bg-white/10 rounded-full transition-colors"
-                      onClick={() => setShowVolumeSlider(!showVolumeSlider)}
-                    >
-                      {audioState.isMuted ? <VolumeX size={22} /> : <Volume2 size={22} />}
-                    </button>
-                    {showVolumeSlider && (
-                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 p-2 bg-black/80 rounded-lg">
-                        <input
-                          type="range"
-                          min="0"
-                          max="1"
-                          step="0.1"
-                          value={audioState.volume}
-                          onChange={handleVolumeChange}
-                          className="volume-slider w-32"
-                        />
-                      </div>
-                    )}
-                  </div>
                 </div>
+                <span className="tabular-nums w-10">{toTime(audioState.duration || 0)}</span>
               </div>
-              
 
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Album Panel */}
-      <AnimatePresence>
-        {albumOpen && (
-          <motion.div
-            className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setAlbumOpen(false)}
-          >
-            <motion.div
-              className="absolute bottom-0 left-0 right-0 bg-[var(--surface)] border-t border-[var(--border)] rounded-t-2xl p-3 sm:p-4 max-h-[70vh] overflow-y-auto"
-              initial={{ y: 40, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 40, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-white/10 border border-white/10"><Disc3 size={12}/> Album</span>
-                  <div className="text-sm font-semibold">{currentTrack?.album || 'Album'}</div>
-                </div>
-                <button className="px-3 py-1.5 text-sm rounded-full bg-white text-black" onClick={playAlbumAll} disabled={albumLoading || !albumPlaylist?.tracks?.length}>Lire l'album</button>
-              </div>
-              {albumLoading && <div className="text-white/70 text-sm p-2">Chargement de l'album…</div>}
-              {!albumLoading && !albumPlaylist && <div className="text-white/70 text-sm p-2">Album introuvable.</div>}
-              {!albumLoading && albumPlaylist?.tracks?.length > 0 && (
-                <div className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
-                  {albumPlaylist.tracks.map((t: any, i: number) => (
-                    <div key={t._id || i} className="flex items-center gap-3 p-2">
-                      <div className="w-6 text-center text-white/50 text-xs">{i+1}</div>
-                      <img src={(t.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')} alt="" className="w-10 h-10 rounded object-cover" />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm text-[var(--text)] truncate">{t.title}</div>
-                        <div className="text-xs text-white/50 truncate">{t.artist?.name || t.artist?.username || ''}</div>
-                      </div>
-                      <button className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20" onClick={async()=>{ setTracks(albumPlaylist.tracks); setCurrentTrackIndex(i); await play(); setAlbumOpen(false); }}>Lire</button>
-                    </div>
-                  ))}
+              {/* HLS hint (non-blocking) */}
+              {hlsUnsupported && (
+                <div className="mt-2 text-[11px] text-white/70 flex items-center gap-1">
+                  <AlertTriangle className="w-3.5 h-3.5"/>
+                  Lecture live non supportée. Utilise MP3/OGG ou charge Hls.js globalement.
                 </div>
               )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
-} 
+}
+
+/** Runtime tests (console) */
+if (typeof window !== 'undefined') {
+  (() => {
+    try {
+      const toTime = (s: number) => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
+      console.assert(toTime(0) === '0:00', 'toTime 0 OK');
+      console.assert(toTime(125) === '2:05', 'toTime 125 OK');
+      const frac = (x: number, left: number, width: number) => (x-left)/width;
+      console.assert(Math.abs(frac(25, 0, 100) - 0.25) < 1e-6, 'progress fraction 0.25 OK');
+      console.log('[DevTests] SynauraMiniPlayer v3 basic tests OK');
+    } catch (e) {
+      console.warn('[DevTests] Failed', e);
+    }
+  })();
+}
