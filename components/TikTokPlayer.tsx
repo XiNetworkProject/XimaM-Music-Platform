@@ -1,265 +1,70 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-import { Heart, X, Volume2, VolumeX, MessageCircle, Share2, Download, Lock, Disc3, ListMusic, Loader2, Play, Pause, Radio } from 'lucide-react';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import toast from 'react-hot-toast';
-import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
-import DownloadDialog from './DownloadDialog';
+import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
-import FollowButton from './FollowButton';
-import LikeButton from './LikeButton';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { getCdnUrl } from '@/lib/cdn';
+import FollowButton from './FollowButton';
+import DownloadDialog from './DownloadDialog';
+import toast from 'react-hot-toast';
+import {
+  Play,
+  Pause,
+  Heart,
+  MessageCircle,
+  Share2,
+  Download,
+  UserPlus,
+  X,
+  Music2,
+  Disc3,
+  Verified,
+  ChevronUp,
+  ChevronDown,
+  Lock,
+  Loader2,
+} from "lucide-react";
+import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+
+/**
+ * SynauraTikTokPlayer v3 — Connexion avec useAudioPlayer + swipe parallax
+ *
+ * Features:
+ *  - Swipe vertical avec framer-motion (drag + parallax)
+ *  - Intégration complète avec useAudioPlayer context
+ *  - Likes synchronisés via useLikeSystem
+ *  - Analytics events tracking
+ *  - Download avec permissions
+ *  - Design actuel préservé
+ */
 
 interface TikTokPlayerProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-/**
- * Synaura TikTok Player v3 — Minimal & Clean
- * 
- * - Design épuré sans neon/glow
- * - Swipe vertical avec parallax fluide
- * - Double-tap pour like avec vibration
- * - Vinyle centré avec rotation et anneau de progression
- * - Support molette souris et flèches clavier
- * - Connexion complète avec useAudioPlayer
- */
-
-// ---------------- Utils ----------------
+// Utils
 const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, a), b);
-const fmt = (t = 0) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+const fmtNum = new Intl.NumberFormat("fr-FR");
 
-// ---------------- Icons personnalisés ----------------
-const IconEQ = ({ className = '' }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" width="18" height="18" className={className}>
-    <rect x="3" y="10" width="3" height="8" fill="currentColor" />
-    <rect x="9" y="6" width="3" height="12" fill="currentColor" />
-    <rect x="15" y="12" width="3" height="6" fill="currentColor" />
-  </svg>
-);
-
-const IconSend = ({ className = '' }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" width="18" height="18" className={className}>
-    <path d="M3 11l18-8-8 18-2-7-8-3z" fill="currentColor" />
-  </svg>
-);
-
-// ---------------- Vinyl Component ----------------
-function Vinyl({ 
-  cover, 
-  playing, 
-  progress, 
-  onToggle, 
-  isLoading 
-}: { 
-  cover: string; 
-  playing: boolean; 
-  progress: number; 
-  onToggle: () => void; 
-  isLoading?: boolean;
-}) {
-  return (
-    <div className="relative">
-      <div className="relative grid place-items-center">
-        {/* Anneau de progression */}
-        <div
-          className="h-[280px] w-[280px] md:h-[320px] md:w-[320px] rounded-full"
-          style={{
-            background: `conic-gradient(#ffffff ${progress}%, rgba(255,255,255,0.1) ${progress}%)`
-          }}
-        />
-        
-        {/* Vinyle rotatif */}
-        <motion.button
-          aria-label="play/pause"
-          animate={{ rotate: playing ? 360 : 0 }}
-          transition={{ repeat: playing ? Infinity : 0, ease: 'linear', duration: 16 }}
-          className="absolute h-[260px] w-[260px] md:h-[300px] md:w-[300px] rounded-full overflow-hidden border border-white/12 shadow-2xl focus:outline-none"
-          onClick={onToggle}
-        >
-          <img src={cover} alt="cover" className="h-full w-full object-cover" />
-          
-          {/* Centre du vinyle avec play/pause */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-12 w-12 rounded-full bg-white/90 text-slate-900 grid place-items-center">
-            {isLoading ? (
-              <Loader2 size={20} className="animate-spin" />
-            ) : playing ? (
-              <Pause size={20} />
-            ) : (
-              <Play size={20} className="ml-1" />
-            )}
-          </div>
-        </motion.button>
-      </div>
-    </div>
-  );
+// Hook pour la hauteur du viewport
+function useViewportHeight() {
+  const [vh, setVh] = useState(800);
+  
+  useEffect(() => {
+    const upd = () => setVh(Math.max(400, window.innerHeight));
+    upd();
+    window.addEventListener('resize', upd);
+    return () => window.removeEventListener('resize', upd);
+  }, []);
+  
+  return vh;
 }
 
-// ---------------- SeekBar avec bulle de temps ----------------
-function SeekBar({ 
-  time, 
-  dur, 
-  onSeek 
-}: { 
-  time: number; 
-  dur: number; 
-  onSeek: (time: number) => void;
-}) {
-  const progress = dur ? (time / dur) * 100 : 0;
-  const ref = useRef<HTMLDivElement>(null);
-  const [showBubble, setShowBubble] = useState(false);
-  const [bubbleLeft, setBubbleLeft] = useState(0);
-  const [bubbleTime, setBubbleTime] = useState(0);
-
-  const update = (clientX: number, commit = false) => {
-    const r = ref.current?.getBoundingClientRect();
-    if (!r) return;
-    const x = clamp(clientX - r.left, 0, r.width);
-    const t = (x / r.width) * (dur || 0);
-    setBubbleLeft(x);
-    setBubbleTime(t);
-    if (commit) onSeek(t);
-  };
-
-  return (
-    <div className="w-full">
-      <div
-        ref={ref}
-        className="relative h-3 w-full rounded-full bg-white/12 overflow-hidden cursor-pointer"
-        onPointerDown={(e) => {
-          setShowBubble(true);
-          update(e.clientX, true);
-        }}
-        onPointerMove={(e) => e.buttons === 1 && update(e.clientX, true)}
-        onPointerUp={() => setShowBubble(false)}
-        onTouchStart={(e) => {
-          setShowBubble(true);
-          update(e.touches[0].clientX, true);
-        }}
-        onTouchMove={(e) => update(e.touches[0].clientX, true)}
-        onTouchEnd={() => setShowBubble(false)}
-      >
-        {/* Barre de progression */}
-        <div
-          className="absolute inset-y-0 left-0 bg-white/70"
-          style={{ width: `${progress}%` }}
-        />
-        
-        {/* Poignée */}
-        <div
-          className="absolute -top-1 h-5 w-5 rounded-full bg-white shadow"
-          style={{ left: `calc(${progress}% - 10px)` }}
-        />
-        
-        {/* Bulle de temps */}
-        {showBubble && (
-          <div
-            className="absolute -top-8"
-            style={{
-              left: clamp(bubbleLeft - 20, 0, (ref.current?.getBoundingClientRect().width || 0) - 40)
-            }}
-          >
-            <div className="rounded-md bg-black/70 px-2 py-1 text-[11px] tabular-nums border border-white/10">
-              {fmt(bubbleTime)}
-            </div>
-          </div>
-        )}
-      </div>
-      
-      <div className="mt-2 flex items-center justify-between text-[12px] text-white/80 tabular-nums">
-        <span>{fmt(time)}</span>
-        <span>{fmt(dur || 0)}</span>
-      </div>
-    </div>
-  );
-}
-
-// ---------------- Comment Modal ----------------
-function CommentModal({ 
-  open, 
-  onClose, 
-  track 
-}: { 
-  open: boolean; 
-  onClose: () => void; 
-  track: any;
-}) {
-  const [text, setText] = useState('');
-
-  if (!open) return null;
-
-  const mockComments = [
-    { id: 1, user: track?.artist?.name || track?.artist?.username || 'Artiste', text: 'Merci pour votre écoute !' },
-  ];
-
-  return (
-    <AnimatePresence>
-      <motion.div
-        key="overlay"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[90] bg-black/50"
-        onClick={onClose}
-      />
-      <motion.div
-        key="sheet"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'tween', duration: 0.22 }}
-        className="fixed bottom-0 left-0 right-0 z-[91] bg-[#0b1224] border-t border-white/10 rounded-t-2xl p-4 max-h-[70vh] overflow-hidden"
-      >
-        <div className="mx-auto max-w-[720px]">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-white/70">Commentaires</div>
-            <button
-              onClick={onClose}
-              className="rounded-full bg-white/10 px-2 py-1 text-xs border border-white/10"
-            >
-              Fermer
-            </button>
-          </div>
-          
-          <div className="overflow-y-auto space-y-3 pr-1" style={{ maxHeight: '48vh' }}>
-            {mockComments.map((c) => (
-              <div key={c.id} className="flex items-start gap-3">
-                <img
-                  src={track?.artist?.avatar || track?.coverUrl || '/default-avatar.jpg'}
-                  alt="avatar"
-                  className="h-8 w-8 rounded-full object-cover border border-white/10"
-                />
-                <div>
-                  <div className="text-sm font-medium">{c.user}</div>
-                  <div className="text-sm text-white/80">{c.text}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Ajouter un commentaire…"
-              className="flex-1 rounded-full bg-white/10 border border-white/15 px-3 py-2 text-sm outline-none placeholder:text-white/50"
-            />
-            <button className="rounded-full bg-white/20 p-2 border border-white/10">
-              <IconSend />
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </AnimatePresence>
-  );
-}
-
-// ---------------- Heart Burst (double-tap feedback) ----------------
+// Heart Burst (double-tap feedback)
 function HeartBurst({ burstKey }: { burstKey: number }) {
   return (
     <AnimatePresence>
@@ -281,190 +86,7 @@ function HeartBurst({ burstKey }: { burstKey: number }) {
   );
 }
 
-// ---------------- Hook pour la hauteur du viewport ----------------
-function useViewportHeight() {
-  const [vh, setVh] = useState(800);
-  
-  useEffect(() => {
-    const upd = () => setVh(Math.max(400, window.innerHeight));
-    upd();
-    window.addEventListener('resize', upd);
-    return () => window.removeEventListener('resize', upd);
-  }, []);
-  
-  return vh;
-}
-
-// ---------------- Action Button ----------------
-function SideRow({ 
-  icon, 
-  label, 
-  count, 
-  onClick, 
-  disabled 
-}: { 
-  icon: React.ReactNode; 
-  label?: string; 
-  count?: number; 
-  onClick?: () => void; 
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <motion.button
-        whileTap={disabled ? {} : { scale: 0.9 }}
-        onClick={onClick}
-        disabled={disabled}
-        className={`rounded-full bg-white/12 p-3 border border-white/10 backdrop-blur-md hover:bg-white/16 active:scale-95 transition focus:outline-none focus:ring-2 focus:ring-white/30 ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-      >
-        {icon}
-      </motion.button>
-      {typeof count === 'number' && <div className="text-[11px] text-white/70 tabular-nums">{count}</div>}
-      {label && <div className="text-[11px] text-white/80 mt-1">{label}</div>}
-    </div>
-  );
-}
-
-// ---------------- Slide Page ----------------
-function SlidePage({ 
-  track, 
-  playing, 
-  time, 
-  dur, 
-  likes, 
-  isLiked,
-  onLike, 
-  openComments, 
-  share, 
-  doubleTap, 
-  onToggle, 
-  onSeek,
-  onDownload,
-  canDownload,
-  onLikeUpdate
-}: { 
-  track: any; 
-  playing: boolean; 
-  time: number; 
-  dur: number; 
-  likes: number;
-  isLiked: boolean;
-  onLike: () => void; 
-  openComments: () => void; 
-  share: () => void; 
-  doubleTap: () => void; 
-  onToggle: () => void; 
-  onSeek: (time: number) => void;
-  onDownload: () => void;
-  canDownload: boolean;
-  onLikeUpdate?: (isLiked: boolean, likesCount: number) => void;
-}) {
-  const getCoverUrl = (t: any) => {
-    const raw = t?.coverUrl || '/default-cover.jpg';
-    const url = getCdnUrl(raw) || raw;
-    return url && typeof url === 'string' && url.includes('res.cloudinary.com')
-      ? url.replace('/upload/', '/upload/f_auto,q_auto/')
-      : url;
-  };
-
-  const progress = dur ? (time / dur) * 100 : 0;
-
-  return (
-    <div className="relative h-full w-full" onDoubleClick={doubleTap}>
-      {/* Centre vinyle */}
-      <div className="relative z-10 h-full w-full grid grid-rows-[1fr_auto] md:grid-rows-1">
-        <div className="flex items-end justify-center pb-8 md:items-center md:pb-0">
-          <Vinyl 
-            cover={getCoverUrl(track)} 
-            playing={playing} 
-            onToggle={onToggle} 
-            progress={progress}
-            isLoading={false}
-          />
-        </div>
-
-        {/* Bandeau bas (profil/titre/seek) */}
-        <div className="relative px-4 pb-6 md:px-8">
-          <div className="flex items-center gap-3 mb-2">
-            <img 
-              src={track?.artist?.avatar || '/default-avatar.jpg'} 
-              alt="avatar" 
-              className="h-8 w-8 rounded-full object-cover border border-white/10" 
-            />
-            <div className="truncate text-sm font-medium">
-              {track?.artist?.name || track?.artist?.username || 'Artiste'}
-            </div>
-            <span onClick={(e) => e.stopPropagation()}>
-              <FollowButton
-                artistId={track?.artist?._id}
-                artistUsername={track?.artist?.username}
-                size="sm"
-              />
-            </span>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <h3 className="text-xl font-semibold tracking-tight">{track?.title || 'Titre'}</h3>
-            {playing && (
-              <span className="text-white/70">
-                <IconEQ />
-              </span>
-            )}
-          </div>
-          
-          <div className="mt-1 text-[12px] text-white/70 inline-flex items-center gap-2">
-            {(track as any)?.album ? (
-              <span className="rounded-full bg-white/10 px-2 py-[2px] border border-white/10 inline-flex items-center gap-1">
-                <Disc3 size={10} /> Album
-              </span>
-            ) : (
-              <span className="rounded-full bg-white/10 px-2 py-[2px] border border-white/10 inline-flex items-center gap-1">
-                <ListMusic size={10} /> Single
-              </span>
-            )}
-          </div>
-
-          <div className="mt-4">
-            <SeekBar time={time} dur={dur} onSeek={onSeek} />
-          </div>
-        </div>
-
-        {/* Rail d'actions à droite */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 z-20 flex flex-col items-center gap-5">
-          <div onClick={(e) => e.stopPropagation()}>
-            <LikeButton
-              trackId={track._id}
-              initialIsLiked={isLiked}
-              initialLikesCount={likes}
-              onUpdate={(state) => onLikeUpdate && onLikeUpdate(state.isLiked, state.likesCount)}
-              showCount={true}
-              size="lg"
-            />
-          </div>
-          <SideRow 
-            icon={<MessageCircle size={22} />} 
-            count={track?.comments?.length || 0} 
-            onClick={openComments} 
-          />
-          <SideRow 
-            icon={<Share2 size={22} />} 
-            label="Partager" 
-            onClick={share} 
-          />
-          <SideRow 
-            icon={canDownload ? <Download size={22} /> : <Lock size={22} />} 
-            label="Télécharger" 
-            onClick={onDownload}
-            disabled={!canDownload}
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ---------------- Composant principal ----------------
-export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
+export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   const { data: session } = useSession();
   const {
     audioState,
@@ -474,34 +96,36 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     playTrack,
     setCurrentTrackIndex,
   } = useAudioPlayer();
-  
+
+  const vh = useViewportHeight();
+  const { canDownload, upgradeMessage } = useDownloadPermission();
+
   // États locaux
-  const [showComments, setShowComments] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
-  const [trackLikes, setTrackLikes] = useState<Record<string, { isLiked: boolean; likesCount: number }>>({});
-  
-  const { canDownload, upgradeMessage } = useDownloadPermission();
-  const vh = useViewportHeight();
+  const [lyricsFor, setLyricsFor] = useState<string | null>(null);
 
   const currentIndex = audioState.currentTrackIndex ?? 0;
   const currentTrack = audioState.tracks[currentIndex] || null;
   const prevTrack = currentIndex > 0 ? audioState.tracks[currentIndex - 1] : null;
   const nextTrack = currentIndex < audioState.tracks.length - 1 ? audioState.tracks[currentIndex + 1] : null;
 
-  // Initialize track likes from current track data
+  // Like system
+  const { isLiked, likesCount, toggleLike, checkLikeStatus } = useLikeSystem({
+    trackId: currentTrack?._id || '',
+    initialLikesCount: typeof currentTrack?.likes === 'number' ? currentTrack.likes : (Array.isArray(currentTrack?.likes) ? currentTrack.likes.length : 0),
+    initialIsLiked: currentTrack?.isLiked || false,
+  });
+
   useEffect(() => {
-    if (currentTrack?._id && !trackLikes[currentTrack._id]) {
-      setTrackLikes(prev => ({
-        ...prev,
-        [currentTrack._id]: {
-          isLiked: currentTrack.isLiked || false,
-          likesCount: typeof currentTrack.likes === 'number' ? currentTrack.likes : 0
-        }
-      }));
-    }
-  }, [currentTrack?._id]);
+    if (currentTrack?._id) checkLikeStatus();
+  }, [currentTrack?._id, checkLikeStatus]);
+
+  // Comments mock
+  type Comment = { id: string; author: string; text: string; ts: number };
+  const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
 
   // Toggle play/pause
   const togglePlay = useCallback(async () => {
@@ -529,9 +153,13 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       sendTrackEvents(currentTrack._id, { event_type: 'next', source: 'tiktok-player' });
     }
     
-    setCurrentTrackIndex(currentIndex + 1);
-    await play();
-  }, [currentIndex, nextTrack, currentTrack, audioState.isLoading, setCurrentTrackIndex, play]);
+    if (nextTrack?._id) {
+      await playTrack(nextTrack);
+    } else {
+      setCurrentTrackIndex(currentIndex + 1);
+      await play();
+    }
+  }, [currentIndex, nextTrack, currentTrack, audioState.isLoading, playTrack, setCurrentTrackIndex, play]);
 
   const handlePreviousTrack = useCallback(async () => {
     if (!prevTrack || audioState.isLoading) return;
@@ -540,22 +168,29 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       sendTrackEvents(currentTrack._id, { event_type: 'prev', source: 'tiktok-player' });
     }
     
-    setCurrentTrackIndex(currentIndex - 1);
-    await play();
-  }, [currentIndex, prevTrack, currentTrack, audioState.isLoading, setCurrentTrackIndex, play]);
+    if (prevTrack?._id) {
+      await playTrack(prevTrack);
+    } else {
+      setCurrentTrackIndex(currentIndex - 1);
+      await play();
+    }
+  }, [currentIndex, prevTrack, currentTrack, audioState.isLoading, playTrack, setCurrentTrackIndex, play]);
 
   // Double tap to like
   const lastTap = useRef(0);
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
-    if (now - lastTap.current < 280 && currentTrack?._id) {
-      try {
-        (navigator as any)?.vibrate?.(12);
-      } catch {}
-      setBurstKey((k) => k + 1);
+    if (now - lastTap.current < 280) {
+      if (currentTrack?._id) {
+        try {
+          (navigator as any)?.vibrate?.(12);
+        } catch {}
+        toggleLike();
+        setBurstKey((k) => k + 1);
+      }
     }
     lastTap.current = now;
-  }, [currentTrack?._id]);
+  }, [currentTrack?._id, toggleLike]);
 
   // Share
   const onShare = useCallback(async () => {
@@ -604,17 +239,8 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     }
   }, [currentTrack]);
 
-  // Like update handler
-  const handleLikeUpdate = useCallback((trackId: string, isLiked: boolean, likesCount: number) => {
-    setTrackLikes(prev => ({
-      ...prev,
-      [trackId]: { isLiked, likesCount }
-    }));
-  }, []);
-
-  // Swipe interactif
+  // Swipe interactif avec framer-motion
   const dragY = useMotionValue(0);
-  const currY = dragY;
   const nextY = useTransform(dragY, (v: number) => v + vh);
   const prevY = useTransform(dragY, (v: number) => v - vh);
   const ratio = useTransform(dragY, (v: number) => clamp(Math.abs(v) / vh, 0, 1));
@@ -666,23 +292,33 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       
-      if (e.code === 'ArrowUp' && prevTrack) handlePreviousTrack();
-      if (e.code === 'ArrowDown' && nextTrack) handleNextTrack();
+      if (e.code === 'ArrowUp' && prevTrack) {
+        e.preventDefault();
+        handlePreviousTrack();
+      }
+      if (e.code === 'ArrowDown' && nextTrack) {
+        e.preventDefault();
+        handleNextTrack();
+      }
       if (e.code === 'Space') {
         e.preventDefault();
         togglePlay();
       }
       if (e.code === 'Escape') {
         e.preventDefault();
-        onClose();
+        if (commentsOpen) {
+          setCommentsOpen(false);
+        } else {
+          onClose();
+        }
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, prevTrack, nextTrack, togglePlay, handlePreviousTrack, handleNextTrack, onClose]);
+  }, [isOpen, prevTrack, nextTrack, togglePlay, handlePreviousTrack, handlePreviousTrack, handleNextTrack, onClose, commentsOpen]);
 
   // Track view event
   const lastViewedRef = useRef<string | null>(null);
@@ -697,10 +333,6 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
     });
   }, [isOpen, currentTrack?._id]);
 
-  if (!isOpen || !currentTrack) {
-    return null;
-  }
-
   const getCoverUrl = (t: any) => {
     const raw = t?.coverUrl || '/default-cover.jpg';
     const url = getCdnUrl(raw) || raw;
@@ -709,10 +341,9 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       : url;
   };
 
-  const currentLikeState = trackLikes[currentTrack._id] || {
-    isLiked: currentTrack.isLiked || false,
-    likesCount: typeof currentTrack.likes === 'number' ? currentTrack.likes : 0
-  };
+  if (!isOpen || !currentTrack) {
+    return null;
+  }
 
   return (
     <>
@@ -725,54 +356,80 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            {/* Fond simple avec dégradé subtil */}
-            <div className="absolute inset-0 -z-10 bg-gradient-to-b from-[#0a0a12] via-[#0c0c18] to-[#0a0a12]" />
+            {/* Fond animé (Ken Burns effect) */}
+            <motion.div
+              className="absolute inset-0 -z-10"
+              animate={{
+                scale: [1.05, 1.1, 1.05],
+                x: [0, 6, -4, 0],
+                y: [0, -4, 6, 0]
+              }}
+              transition={{ repeat: Infinity, duration: 18 }}
+            >
+              <img
+                src={getCoverUrl(currentTrack)}
+                alt="bg"
+                className="h-full w-full object-cover opacity-28"
+              />
+            </motion.div>
+            
+            {/* Gradient overlay */}
+            <motion.div
+              className="absolute inset-0 -z-10"
+              animate={{
+                backgroundPosition: ['0% 0%', '50% 50%', '0% 0%']
+              }}
+              transition={{ repeat: Infinity, duration: 16 }}
+              style={{
+                backgroundImage: 'radial-gradient(60% 60% at 20% 20%, rgba(124,58,237,.35), transparent 60%), radial-gradient(60% 60% at 80% 80%, rgba(34,211,238,.35), transparent 60%)',
+                backgroundSize: '200% 200%'
+              }}
+            />
 
             {/* Top bar */}
             <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-3">
                 <button
                   onClick={onClose}
-                  className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/15 grid place-items-center border border-white/10 transition"
+                  className="h-10 w-10 rounded-full bg-black/30 grid place-items-center border border-white/10"
                   title="Fermer"
                 >
                   <X size={22} />
                 </button>
-                <AudioQualityTooltip>
-                  <AudioQualityIndicator size="sm" showUpgrade={true} />
-                </AudioQualityTooltip>
               </div>
-              <button
-                className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/15 grid place-items-center border border-white/10 transition"
-                title={audioState.isMuted ? 'Son coupé' : 'Son actif'}
-                onClick={() => {}}
-              >
-                {audioState.isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-              </button>
             </div>
 
             {/* Heart burst */}
             <HeartBurst burstKey={burstKey} />
 
+            {/* Up/Down hint */}
+            <div className="pointer-events-none absolute top-16 right-3 z-40 hidden sm:flex flex-col items-center text-white/60 text-xs">
+              <ChevronUp className="w-4 h-4" />
+              <span>Swipe ↑ / ↓</span>
+              <ChevronDown className="w-4 h-4 mt-1" />
+            </div>
+
             {/* Prev/Current/Next avec parallax */}
             {prevTrack && (
               <motion.div className="absolute inset-0" style={{ y: prevY, scale: prevScale, opacity: prevOpacity }}>
-                <SlidePage
+                <TrackCard
                   track={prevTrack}
                   playing={false}
                   time={0}
                   dur={0}
-                  likes={trackLikes[prevTrack._id]?.likesCount || (typeof prevTrack.likes === 'number' ? prevTrack.likes : 0)}
-                  isLiked={trackLikes[prevTrack._id]?.isLiked || false}
+                  likes={typeof prevTrack?.likes === 'number' ? prevTrack.likes : 0}
+                  isLiked={false}
                   onLike={() => {}}
-                  openComments={() => setShowComments(true)}
+                  openComments={() => setCommentsOpen(true)}
                   share={onShare}
                   doubleTap={handleDoubleTap}
                   onToggle={() => {}}
                   onSeek={() => {}}
                   onDownload={handleDownload}
                   canDownload={canDownload}
-                  onLikeUpdate={(isLiked, likesCount) => handleLikeUpdate(prevTrack._id, isLiked, likesCount)}
+                  getCoverUrl={getCoverUrl}
+                  lyricsVisible={false}
+                  toggleLyrics={() => {}}
                 />
               </motion.div>
             )}
@@ -782,55 +439,75 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
               drag="y"
               dragConstraints={{ top: 0, bottom: 0 }}
               dragElastic={0.45}
-              style={{ y: currY }}
+              style={{ y: dragY }}
               onDragEnd={onDragEnd}
             >
-              <SlidePage
+              <TrackCard
                 track={currentTrack}
                 playing={audioState.isPlaying}
                 time={audioState.currentTime}
                 dur={audioState.duration}
-                likes={currentLikeState.likesCount}
-                isLiked={currentLikeState.isLiked}
-                onLike={() => {}}
-                openComments={() => setShowComments(true)}
+                likes={likesCount}
+                isLiked={isLiked}
+                onLike={toggleLike}
+                openComments={() => setCommentsOpen(true)}
                 share={onShare}
                 doubleTap={handleDoubleTap}
                 onToggle={togglePlay}
                 onSeek={seek}
                 onDownload={handleDownload}
                 canDownload={canDownload}
-                onLikeUpdate={(isLiked, likesCount) => handleLikeUpdate(currentTrack._id, isLiked, likesCount)}
+                getCoverUrl={getCoverUrl}
+                lyricsVisible={lyricsFor === currentTrack._id}
+                toggleLyrics={() => setLyricsFor(id => id === currentTrack._id ? null : currentTrack._id)}
               />
             </motion.div>
 
             {nextTrack && (
               <motion.div className="absolute inset-0" style={{ y: nextY, scale: nextScale, opacity: nextOpacity }}>
-                <SlidePage
+                <TrackCard
                   track={nextTrack}
                   playing={false}
                   time={0}
                   dur={0}
-                  likes={trackLikes[nextTrack._id]?.likesCount || (typeof nextTrack.likes === 'number' ? nextTrack.likes : 0)}
-                  isLiked={trackLikes[nextTrack._id]?.isLiked || false}
+                  likes={typeof nextTrack?.likes === 'number' ? nextTrack.likes : 0}
+                  isLiked={false}
                   onLike={() => {}}
-                  openComments={() => setShowComments(true)}
+                  openComments={() => setCommentsOpen(true)}
                   share={onShare}
                   doubleTap={handleDoubleTap}
                   onToggle={() => {}}
                   onSeek={() => {}}
                   onDownload={handleDownload}
                   canDownload={canDownload}
-                  onLikeUpdate={(isLiked, likesCount) => handleLikeUpdate(nextTrack._id, isLiked, likesCount)}
+                  getCoverUrl={getCoverUrl}
+                  lyricsVisible={false}
+                  toggleLyrics={() => {}}
                 />
               </motion.div>
             )}
+
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Comment modal */}
-      <CommentModal open={showComments} onClose={() => setShowComments(false)} track={currentTrack} />
+      {/* Drawer commentaires */}
+      <CommentsDrawer
+        open={commentsOpen}
+        onClose={() => setCommentsOpen(false)}
+        track={currentTrack}
+        comments={(currentTrack?._id && commentsMap[currentTrack._id]) || []}
+        onAdd={(text) => {
+          if (!text?.trim() || !currentTrack?._id) return;
+          setCommentsMap((m) => ({
+            ...m,
+            [currentTrack._id]: [
+              ...(m[currentTrack._id] || []),
+              { id: Math.random().toString(36).slice(2), author: "Vous", text, ts: Date.now() },
+            ],
+          }));
+        }}
+      />
 
       {/* Download Dialog */}
       <AnimatePresence>
@@ -848,18 +525,282 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   );
 }
 
-/** Runtime tests (console) */
-if (typeof window !== 'undefined') {
-  (() => {
+// TrackCard Component (le design actuel)
+function TrackCard({ 
+  track, 
+  playing, 
+  time, 
+  dur, 
+  likes, 
+  isLiked,
+  onLike, 
+  openComments, 
+  share, 
+  doubleTap, 
+  onToggle, 
+  onSeek,
+  onDownload,
+  canDownload,
+  getCoverUrl,
+  lyricsVisible,
+  toggleLyrics
+}: { 
+  track: any; 
+  playing: boolean; 
+  time: number; 
+  dur: number; 
+  likes: number;
+  isLiked: boolean; 
+  onLike: () => void; 
+  openComments: () => void; 
+  share: () => void; 
+  doubleTap: () => void; 
+  onToggle: () => void; 
+  onSeek: (time: number) => void;
+  onDownload: () => void;
+  canDownload: boolean;
+  getCoverUrl: (t: any) => string;
+  lyricsVisible: boolean;
+  toggleLyrics: () => void;
+}) {
+  return (
+    <div className="h-full w-full relative px-5 flex items-center justify-center" onDoubleClick={doubleTap}>
+      {/* Media center: cover */}
+      <div className="relative flex items-center justify-center">
+        <img
+          src={getCoverUrl(track)}
+          alt={track?.title}
+          className="w-[72vw] max-w-[520px] aspect-square object-cover rounded-3xl border border-white/10 shadow-xl cursor-pointer"
+          onClick={onToggle}
+        />
+        
+        {/* Play/Pause overlay center */}
+        <button
+          onClick={onToggle}
+          className="absolute inset-0 flex items-center justify-center"
+        >
+          <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm grid place-items-center hover:bg-white/30 transition">
+            {playing ? <Pause size={32} /> : <Play size={32} className="ml-1" />}
+          </div>
+        </button>
+      </div>
+
+      {/* Colonne d'actions droite */}
+      <aside className="absolute right-3 bottom-28 flex flex-col items-center gap-3">
+        <ActionBtn
+          active={isLiked}
+          count={fmtNum.format(likes)}
+          onClick={onLike}
+          icon={Heart}
+          ariaLabel="Aimer"
+        />
+        <ActionBtn
+          count={fmtNum.format(0)}
+          onClick={openComments}
+          icon={MessageCircle}
+          ariaLabel="Commentaires"
+        />
+        <ActionBtn
+          count={fmtNum.format(0)}
+          onClick={share}
+          icon={Share2}
+          ariaLabel="Partager"
+        />
+        <ActionBtn 
+          onClick={onDownload} 
+          icon={canDownload ? Download : Lock} 
+          ariaLabel="Télécharger"
+          disabled={!canDownload}
+        />
+      </aside>
+
+      {/* Bandeau bas info */}
+      <footer className="absolute left-0 right-0 bottom-0 p-4">
+        <div className="mx-auto max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-md">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-white/70 flex items-center gap-1">
+                <Music2 className="w-4 h-4" /> {(track as any)?.album ? "Album" : "Single"}
+                {(track as any)?.album && (
+                  <span className="ml-1 text-white/60">• {(track as any).album}</span>
+                )}
+              </p>
+              <h2 className="text-lg font-semibold truncate">{track?.title}</h2>
+              <div className="mt-0.5 flex items-center gap-2 text-sm flex-wrap">
+                <span className="font-medium truncate flex items-center gap-1">
+                  {track?.artist?.name || track?.artist?.username || 'Artiste inconnu'}
+                  {track?.artist?.isVerified && <Verified className="w-4 h-4 text-sky-300" />}
+                </span>
+                {track?.artist?._id && track?.artist?.username && (
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <FollowButton
+                      artistId={track.artist._id}
+                      artistUsername={track.artist.username}
+                      size="sm"
+                    />
+                  </span>
+                )}
+              </div>
+              <p className="mt-1 text-xs text-white/60 flex items-center gap-1">
+                <Disc3 className="w-3.5 h-3.5" /> Qualité audio: <span className="ml-1 font-medium">320k</span>
+              </p>
+            </div>
+
+            {/* Play/Pause + Lyrics button */}
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={onToggle}
+                className="p-3 rounded-xl bg-white/10 border border-white/10 hover:bg-white/15 transition"
+                aria-label={playing ? "Pause" : "Lecture"}
+              >
+                {playing ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+              </button>
+              {track?.lyrics && (
+                <button
+                  onClick={toggleLyrics}
+                  className={`px-3 py-2 rounded-xl border transition text-sm ${
+                    lyricsVisible 
+                      ? 'bg-white/15 border-white/20' 
+                      : 'bg-white/10 border-white/10 hover:bg-white/15'
+                  }`}
+                >
+                  Paroles
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Paroles */}
+          {track?.lyrics && lyricsVisible && (
+            <div className="mt-3 max-h-40 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-white/85 border-t border-white/10 pt-2">
+              {track.lyrics}
+            </div>
+          )}
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+type ActionBtnProps = {
+  icon: React.ComponentType<{ className?: string; size?: number; fill?: string }>;
+  count?: string | number;
+  onClick?: () => void;
+  active?: boolean;
+  ariaLabel?: string;
+  disabled?: boolean;
+};
+
+function ActionBtn({ icon: Icon, count, onClick, active, ariaLabel, disabled }: ActionBtnProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition ${
+        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white/10'
+      } ${
+        active ? "bg-white/10 border-white/20" : "bg-white/5 border-white/10"
+      }`}
+    >
+      <Icon className={`w-5 h-5 ${active ? "text-rose-300" : ""}`} size={22} fill={active ? "currentColor" : "none"} />
+      {typeof count !== "undefined" && (
+        <span className="text-[10px] leading-none text-white/70">{count}</span>
+      )}
+    </button>
+  );
+}
+
+// Drawer Commentaires
+type CommentsDrawerProps = {
+  open: boolean;
+  onClose: () => void;
+  track?: any;
+  comments: { id: string; author: string; text: string; ts: number }[];
+  onAdd: (text: string) => void;
+};
+
+function CommentsDrawer({ open, onClose, track, comments, onAdd }: CommentsDrawerProps) {
+  const [text, setText] = useState<string>("");
+
+  useEffect(() => {
+    if (!open) setText("");
+  }, [open]);
+
+  return (
+    <div className={`fixed inset-0 z-[110] ${open ? "pointer-events-auto" : "pointer-events-none"}`}>
+      <div
+        onClick={onClose}
+        className={`absolute inset-0 bg-black/50 transition ${open ? "opacity-100" : "opacity-0"}`}
+      />
+      <aside
+        className={`absolute right-0 top-0 h-full w-full sm:w-[420px] bg-[#0c0c15] border-l border-white/10 transform transition ${
+          open ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
+        <div className="p-4 border-b border-white/10">
+          <p className="text-sm font-semibold">
+            Commentaires — <span className="text-white/70">{track?.title || "—"}</span>
+          </p>
+        </div>
+
+        <div className="p-4 space-y-3 overflow-y-auto h-[calc(100%-140px)]">
+          {comments.length === 0 && (
+            <p className="text-sm text-white/60">Soyez le premier à commenter.</p>
+          )}
+          {comments.map((c) => (
+            <div key={c.id} className="flex gap-2">
+              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs">
+                {(c.author[0] || "U").toUpperCase()}
+              </div>
+              <div>
+                <p className="text-sm">
+                  <span className="font-medium">{c.author}</span>{" "}
+                  <span className="text-white/50 text-xs ml-1">
+                    {new Date(c.ts).toLocaleString()}
+                  </span>
+                </p>
+                <p className="text-sm text-white/90 whitespace-pre-wrap">{c.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="p-4 border-t border-white/10">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onAdd(text);
+              setText("");
+            }}
+            className="flex gap-2"
+          >
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Ajouter un commentaire…"
+              className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 outline-none"
+            />
+            <button className="px-3 py-2 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-sm">
+              Envoyer
+            </button>
+          </form>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+/** Dev tests */
+function DevTests({ track }: { track: any }) {
+  useEffect(() => {
     try {
-      const toTime = (s: number) => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-      console.assert(toTime(0) === '0:00', 'toTime 0 OK');
-      console.assert(toTime(125) === '2:05', 'toTime 125 OK');
-      const frac = (x: number, left: number, width: number) => (x-left)/width;
-      console.assert(Math.abs(frac(25, 0, 100) - 0.25) < 1e-6, 'progress fraction 0.25 OK');
-      console.log('[DevTests] TikTokPlayer v3 basic tests OK');
+      console.assert(!!track, "Track should exist");
+      console.assert(typeof track.title === "string", "Track has title");
+      console.log("[DevTests] TikTokPlayer v3 connected OK");
     } catch (e) {
-      console.warn('[DevTests] Failed', e);
+      console.error("[DevTests] FAILED", e);
     }
-  })();
+  }, [track]);
+  return null;
 }

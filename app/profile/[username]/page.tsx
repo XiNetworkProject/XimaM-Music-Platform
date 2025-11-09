@@ -584,9 +584,9 @@ export default function SynauraProfile(){
       </AnimatePresence>
 
       {/* Boutons flottants mobile - z-index élevé */}
-      {isOwnProfile && (
+                          {isOwnProfile && (
         <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-3 z-[100]">
-          <button 
+                              <button 
             onClick={() => setShowBoosterModal(true)}
             disabled={!canOpen || boostersLoading}
             className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition backdrop-blur-md ${
@@ -597,16 +597,16 @@ export default function SynauraProfile(){
             title={canOpen ? 'Ouvrir un booster' : `Booster dans ${formatRemaining(remainingMs)}`}
           >
             <Sparkles className="w-6 h-6" />
-          </button>
-          <button 
+                              </button>
+                                  <button
             onClick={handleEdit}
             className="w-14 h-14 bg-white/10 backdrop-blur-md rounded-full border border-white/10 shadow-2xl flex items-center justify-center hover:bg-white/15 transition"
             title="Modifier le profil"
-          >
+                                  >
             <Edit className="w-5 h-5" />
-          </button>
-        </div>
-      )}
+                                  </button>
+              </div>
+            )}
 
       {/* Modal Édition Profil */}
       <AnimatePresence>
@@ -794,7 +794,7 @@ export default function SynauraProfile(){
       </AnimatePresence>
       {!isOwnProfile && (
         <div className="md:hidden fixed bottom-24 right-4 z-[100]">
-          <button 
+                <button
             onClick={handleFollow}
             disabled={uploading}
             className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition backdrop-blur-md ${
@@ -805,8 +805,8 @@ export default function SynauraProfile(){
             title={profile.isFollowing ? 'Se désabonner' : 'Suivre'}
           >
             {profile.isFollowing ? <Check className="w-6 h-6"/> : <UserPlus className="w-6 h-6"/>}
-          </button>
-        </div>
+                </button>
+              </div>
       )}
     </div>
   );

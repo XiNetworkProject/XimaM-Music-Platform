@@ -27,24 +27,24 @@ function ParticlesEffect() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none" suppressHydrationWarning>
       {particles.map((particle, i) => (
-        <motion.div
-          key={i}
+          <motion.div
+            key={i}
           className="absolute w-1 h-1 bg-accent-brand/30 rounded-full"
           initial={{ x: particle.initialX, y: particle.initialY, opacity: 0 }}
-          animate={{ 
+            animate={{
             y: [particle.initialY, particle.targetY], 
             opacity: [0, 1, 0], 
             scale: [1, 1.5, 1] 
-          }}
-          transition={{ 
+            }}
+            transition={{
             duration: particle.duration, 
-            repeat: Infinity, 
+              repeat: Infinity,
             delay: particle.delay,
             ease: "easeInOut"
-          }}
-        />
-      ))}
-    </div>
+            }}
+          />
+        ))}
+      </div>
   );
 }
 
@@ -116,7 +116,7 @@ export default function LoadingScreen({ progress = 0, message, isPreloading = tr
         {isMounted && (
           <AnimatePresence>
             {logoVisible && (
-              <motion.div
+        <motion.div
                 initial={{ opacity: 0, scale: 0.8, y: -30 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8 }}
@@ -143,7 +143,7 @@ export default function LoadingScreen({ progress = 0, message, isPreloading = tr
                 />
                 
                 {/* Logo principal */}
-                <motion.div
+        <motion.div
                   animate={{
                     rotate: [0, 2, -2, 0],
                     scale: [1, 1.02, 1],
@@ -170,12 +170,12 @@ export default function LoadingScreen({ progress = 0, message, isPreloading = tr
                       setLogoSrc('/synaura_symbol.svg');
                       setLogoSize({ width: 200, height: 200 });
                     }}
-                  />
-                </motion.div>
+          />
+        </motion.div>
 
                 {/* Ripple effect amélioré */}
                 {[...Array(2)].map((_, i) => (
-                  <motion.div
+        <motion.div
                     key={i}
                     className="absolute inset-0 border-2 border-accent-brand/15 rounded-full"
                     animate={{
@@ -190,7 +190,7 @@ export default function LoadingScreen({ progress = 0, message, isPreloading = tr
                     }}
                   />
                 ))}
-              </motion.div>
+        </motion.div>
             )}
           </AnimatePresence>
         )}
@@ -205,16 +205,16 @@ export default function LoadingScreen({ progress = 0, message, isPreloading = tr
           >
             {/* Message */}
             <div className="text-center space-y-1">
-              <motion.p 
+        <motion.p
                 key={message}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
                 className="text-lg md:text-xl font-semibold text-white tracking-tight"
-              >
+        >
                 {message || (isPreloading ? 'Chargement...' : 'Initialisation...')}
-              </motion.p>
-            </div>
-            
+        </motion.p>
+      </div>
+
             {/* Barre de progression */}
             {isPreloading && (
               <div className="w-full space-y-3">
@@ -293,7 +293,7 @@ export default function LoadingScreen({ progress = 0, message, isPreloading = tr
                 Plateforme de partage musical
               </p>
             </div>
-          </motion.div>
+    </motion.div>
         )}
       </div>
     </div>
