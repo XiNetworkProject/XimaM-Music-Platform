@@ -32,9 +32,13 @@ export default function SynauraMiniPlayer() {
   } = useAudioPlayer();
 
   const progressRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLParagraphElement>(null);
+  const artistRef = useRef<HTMLParagraphElement>(null);
 
   const [showTikTok, setShowTikTok] = useState(false);
   const [hlsUnsupported, setHlsUnsupported] = useState(false);
+  const [titleOverflows, setTitleOverflows] = useState(false);
+  const [artistOverflows, setArtistOverflows] = useState(false);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
   const track = useMemo(() => ({
@@ -48,6 +52,22 @@ export default function SynauraMiniPlayer() {
   // Detect HLS by extension
   const isHls = useMemo(() => Boolean(track?.src?.toLowerCase?.().endsWith?.(".m3u8")), [track?.src]);
   const isLive = useMemo(() => isHls || /\blive\b|radio|stream/i.test(track?.title || ''), [isHls, track?.title]);
+
+  // Check if text overflows
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (titleRef.current) {
+        setTitleOverflows(titleRef.current.scrollWidth > titleRef.current.offsetWidth);
+      }
+      if (artistRef.current) {
+        setArtistOverflows(artistRef.current.scrollWidth > artistRef.current.offsetWidth);
+      }
+    };
+    
+    checkOverflow();
+    window.addEventListener('resize', checkOverflow);
+    return () => window.removeEventListener('resize', checkOverflow);
+  }, [track.title, track.artist]);
 
   // Keyboard shortcuts (skip when typing)
   useEffect(() => {
@@ -116,7 +136,7 @@ export default function SynauraMiniPlayer() {
 
       {/* Mini Player Bar */}
       {!showTikTok && (
-        <div className="fixed bottom-3 left-1/2 -translate-x-1/2 z-50 w-[96%] sm:w-[760px] lg:w-[980px]">
+        <div className="fixed bottom-20 lg:bottom-3 left-0 lg:left-1/2 lg:-translate-x-1/2 z-[60] lg:z-50 w-full sm:w-[760px] lg:w-[980px]">
           <div className="rounded-xl border border-white/10 bg-[#0c0c14]/85 backdrop-blur-xl shadow-lg">
             {/* top row */}
             <div className="px-3 py-2 flex items-center gap-3">
@@ -126,16 +146,39 @@ export default function SynauraMiniPlayer() {
                 alt={track.title}
                 onClick={() => setShowTikTok(true)}
               />
-              <div className="min-w-0 flex-1" onClick={() => setShowTikTok(true)}>
-                <p className="text-sm font-semibold truncate flex items-center gap-2 cursor-pointer hover:underline">
-                  {track.title}
-                  {isLive && (
-                    <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-white/20 text-white/80">
-                      <Radio className="w-3 h-3"/> LIVE
-                    </span>
-                  )}
-                </p>
-                <p className="text-xs text-white/60 truncate">{track.artist}</p>
+              <div className="min-w-0 flex-1 overflow-hidden" onClick={() => setShowTikTok(true)}>
+                <div className="relative w-full overflow-hidden">
+                  <div 
+                    ref={titleRef}
+                    className={`text-sm font-semibold flex items-center gap-2 cursor-pointer hover:underline whitespace-nowrap ${titleOverflows ? 'animate-marquee' : ''}`}
+                  >
+                    <span>{track.title}</span>
+                    {isLive && (
+                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-white/20 text-white/80 flex-shrink-0">
+                        <Radio className="w-3 h-3"/> LIVE
+                      </span>
+                    )}
+                    {titleOverflows && (
+                      <>
+                        <span className="ml-4">{track.title}</span>
+                        {isLive && (
+                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-white/20 text-white/80 flex-shrink-0">
+                            <Radio className="w-3 h-3"/> LIVE
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+                <div className="relative w-full overflow-hidden">
+                  <div 
+                    ref={artistRef}
+                    className={`text-xs text-white/60 whitespace-nowrap ${artistOverflows ? 'animate-marquee' : ''}`}
+                  >
+                    <span>{track.artist}</span>
+                    {artistOverflows && <span className="ml-4">{track.artist}</span>}
+                  </div>
+                </div>
               </div>
 
               <button onClick={previousTrack} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Previous">

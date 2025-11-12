@@ -209,10 +209,10 @@ export default function AppNavbar() {
     <header className="sticky top-0 z-40">
       <div className="mx-auto max-w-[2000px] px-2 py-2">
         <div className="panel-suno rounded-xl sm:rounded-2xl px-3 sm:px-4 md:px-6 h-14 sm:h-16 flex items-center gap-2 sm:gap-4 border border-[var(--border)]/50 bg-[var(--surface)]/95 backdrop-blur-md shadow-lg">
-          {/* Toggle sidebar (mobile + desktop) */}
+          {/* Toggle sidebar (desktop only) */}
           <button
             onClick={toggleSidebar}
-            className="inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-[var(--surface-2)] transition-colors"
+            className="hidden lg:inline-flex items-center justify-center w-10 h-10 rounded-full hover:bg-[var(--surface-2)] transition-colors"
             aria-label="Basculer la barre latérale"
           >
             <Menu className="w-5 h-5" />
