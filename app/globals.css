@@ -1365,3 +1365,13 @@ a {
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+/* Masquer la scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

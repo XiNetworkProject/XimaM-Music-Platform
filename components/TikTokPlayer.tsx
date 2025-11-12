@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useAudioPlayer } from '@/app/providers';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
+import { useVerticalSwipe } from '@/hooks/useVerticalSwipe';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { getCdnUrl } from '@/lib/cdn';
 import FollowButton from './FollowButton';
@@ -26,11 +27,12 @@ import {
   Lock,
   Loader2,
 } from "lucide-react";
-import { motion, AnimatePresence, useMotionValue, useTransform, animate } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTrackId?: string;
 }
 
 type Comment = { id: string; author: string; text: string; ts: number };
@@ -38,6 +40,9 @@ type Comment = { id: string; author: string; text: string; ts: number };
 const fmtNum = new Intl.NumberFormat('fr-FR');
 
 const clamp = (v: number, a: number, b: number) => Math.min(Math.max(v, a), b);
+
+// Normalisation de l'ID (supporte id et _id)
+const getTrackId = (t: any): string => t?.id ?? t?._id ?? '';
 
 const fmtTime = (t = 0) => {
   const minutes = Math.floor(t / 60);
@@ -212,7 +217,12 @@ function TrackCard({
   toggleLyrics
 }: TrackCardProps) {
   return (
-    <div className="h-full w-full relative px-5 flex items-center justify-center" onDoubleClick={doubleTap}>
+    <div 
+      className="h-screen w-full relative px-5 flex items-center justify-center snap-center snap-always" 
+      data-card
+      data-id={getTrackId(track)}
+      onDoubleClick={doubleTap}
+    >
       <div className="relative flex items-center justify-center">
         <img
           src={getCoverUrl(track)}
@@ -386,7 +396,7 @@ function DevTests({ track }: { track: any }) {
   return null;
 }
 
-export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
+export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }: TikTokPlayerProps) {
   const {
     audioState,
     play,
@@ -405,164 +415,233 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
   const [burstKey, setBurstKey] = useState(0);
   const [lyricsFor, setLyricsFor] = useState<string | null>(null);
   const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
-  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [activeTrackId, setActiveTrackId] = useState<string | undefined>(undefined);
 
-  const dragY = useMotionValue(0);
-  const nextY = useTransform(dragY, (v: number) => v + vh);
-  const prevY = useTransform(dragY, (v: number) => v - vh);
-  const ratio = useTransform(dragY, (v: number) => clamp(Math.abs(v) / vh, 0, 1));
-  const prevScale = useTransform(ratio, [0, 1], [1, 0.96]);
-  const nextScale = useTransform(ratio, [0, 1], [1, 0.96]);
-  const prevOpacity = useTransform(ratio, [0, 1], [1, 0.85]);
-  const nextOpacity = useTransform(ratio, [0, 1], [1, 0.85]);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const currentIndexRef = useRef(0);
+  const rafRef = useRef<number | null>(null);
+  const isBootingRef = useRef(true);
+  const isProgrammaticScrollRef = useRef(false);
 
+  const tracks = audioState.tracks || [];
+  const ids = useMemo(() => tracks.map(getTrackId).filter(Boolean), [tracks]);
+  
   const currentIndex = audioState.currentTrackIndex ?? 0;
-  const currentTrack = audioState.tracks[currentIndex] || null;
-  const prevTrack = currentIndex > 0 ? audioState.tracks[currentIndex - 1] : null;
-  const nextTrack = currentIndex < audioState.tracks.length - 1 ? audioState.tracks[currentIndex + 1] : null;
+  const currentTrack = tracks[currentIndex] || null;
 
+  const activeTrack = tracks.find(t => getTrackId(t) === activeTrackId) || currentTrack;
+
+  // Debounce pour activeId (raf-safe)
+  const setActiveDebounced = useCallback((id: string) => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => setActiveTrackId(id));
+  }, []);
+  
   const { isLiked, likesCount, toggleLike, checkLikeStatus } = useLikeSystem({
-    trackId: currentTrack?._id || '',
-    initialLikesCount: typeof currentTrack?.likes === 'number'
-      ? currentTrack.likes
-      : Array.isArray(currentTrack?.likes)
-        ? currentTrack.likes.length
+    trackId: getTrackId(activeTrack),
+    initialLikesCount: typeof activeTrack?.likes === 'number'
+      ? activeTrack.likes
+      : Array.isArray(activeTrack?.likes)
+        ? activeTrack.likes.length
         : 0,
-    initialIsLiked: currentTrack?.isLiked || false,
+    initialIsLiked: activeTrack?.isLiked || false,
   });
 
   useEffect(() => {
-    if (currentTrack?._id) {
+    const trackId = getTrackId(activeTrack);
+    if (trackId) {
       checkLikeStatus();
       setCommentsMap((prev) => {
-        if (prev[currentTrack._id]) return prev;
-        const initial: Comment[] = Array.isArray(currentTrack.comments)
-          ? currentTrack.comments.map((text: string, idx: number) => ({
+        if (prev[trackId]) return prev;
+        const initial: Comment[] = Array.isArray(activeTrack.comments)
+          ? activeTrack.comments.map((text: string, idx: number) => ({
               id: `init-${idx}`,
-              author: currentTrack.artist?.name || currentTrack.artist?.username || 'Fan',
+              author: activeTrack.artist?.name || activeTrack.artist?.username || 'Fan',
               text,
               ts: Date.now() - idx * 60000,
             }))
           : [];
-        return { ...prev, [currentTrack._id]: initial };
+        return { ...prev, [trackId]: initial };
       });
     }
-  }, [currentTrack?._id, currentTrack?.comments, currentTrack?.artist?.name, currentTrack?.artist?.username, checkLikeStatus]);
+  }, [activeTrack, checkLikeStatus]);
+
+  // Synchroniser currentIndexRef avec activeId
+  useEffect(() => {
+    if (activeTrackId) {
+      const idx = tracks.findIndex(t => getTrackId(t) === activeTrackId);
+      if (idx >= 0) currentIndexRef.current = idx;
+    }
+  }, [activeTrackId, tracks]);
+
+  const scrollToIdx = useCallback((i: number) => {
+    const id = getTrackId(tracks[i]);
+    if (!id) return;
+    const pane = containerRef.current?.querySelector<HTMLElement>(`[data-id="${id}"]`);
+    if (pane) {
+      isProgrammaticScrollRef.current = true;
+      pane.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => { isProgrammaticScrollRef.current = false; }, 240);
+    }
+  }, [tracks]);
+
+  // Séquence de boot/sync
+  useEffect(() => {
+    if (!isOpen || !containerRef.current) {
+      isBootingRef.current = true; // Réinitialiser pour la prochaine ouverture
+      return;
+    }
+    
+    isBootingRef.current = true; // Commencer le boot
+    const startId = initialTrackId ?? ids[0];
+    if (!startId) {
+      isBootingRef.current = false;
+      return;
+    }
+
+    setActiveTrackId(startId);
+    const pane = containerRef.current.querySelector<HTMLElement>(`[data-id="${startId}"]`);
+    if (pane) {
+      isProgrammaticScrollRef.current = true;
+      pane.scrollIntoView({ behavior: 'instant' as any, block: 'center' });
+      setTimeout(() => {
+        isProgrammaticScrollRef.current = false;
+        isBootingRef.current = false;
+      }, 220);
+    } else {
+      isBootingRef.current = false;
+    }
+  }, [isOpen, ids, initialTrackId]); // au montage/ouverture
 
   const handleNextTrack = useCallback(async () => {
-    if (!nextTrack || audioState.isLoading) return;
-    if (currentTrack?._id) {
-      sendTrackEvents(currentTrack._id, { event_type: 'next', source: 'tiktok-player' });
+    if (isBootingRef.current) return;
+    const i = currentIndexRef.current;
+    if (i < tracks.length - 1) {
+      const currentId = getTrackId(tracks[i]);
+      if (currentId) {
+        sendTrackEvents(currentId, { event_type: 'next', source: 'tiktok-player' });
+      }
+      scrollToIdx(i + 1);
     }
-    if (nextTrack?._id) {
-      await playTrack(nextTrack);
-    } else {
-      setCurrentTrackIndex(currentIndex + 1);
-      await play();
-    }
-  }, [nextTrack, audioState.isLoading, currentTrack?._id, playTrack, setCurrentTrackIndex, currentIndex, play]);
+  }, [tracks, scrollToIdx]);
 
   const handlePreviousTrack = useCallback(async () => {
-    if (!prevTrack || audioState.isLoading) return;
-    if (currentTrack?._id) {
-      sendTrackEvents(currentTrack._id, { event_type: 'prev', source: 'tiktok-player' });
+    if (isBootingRef.current) return;
+    const i = currentIndexRef.current;
+    if (i > 0) {
+      const currentId = getTrackId(tracks[i]);
+      if (currentId) {
+        sendTrackEvents(currentId, { event_type: 'prev', source: 'tiktok-player' });
+      }
+      scrollToIdx(i - 1);
     }
-    if (prevTrack?._id) {
-      await playTrack(prevTrack);
-    } else {
-      setCurrentTrackIndex(currentIndex - 1);
-      await play();
-    }
-  }, [prevTrack, audioState.isLoading, currentTrack?._id, playTrack, setCurrentTrackIndex, currentIndex, play]);
+  }, [tracks, scrollToIdx]);
 
   const togglePlay = useCallback(async () => {
     try {
       if (audioState.isLoading) return;
+      const trackId = getTrackId(activeTrack);
       if (audioState.isPlaying) {
         pause();
       } else {
         await play();
-        if (currentTrack?._id) {
-          sendTrackEvents(currentTrack._id, { event_type: 'play_start', source: 'tiktok-player' });
+        if (trackId) {
+          sendTrackEvents(trackId, { event_type: 'play_start', source: 'tiktok-player' });
         }
       }
     } catch {}
-  }, [audioState.isLoading, audioState.isPlaying, pause, play, currentTrack?._id]);
+  }, [audioState.isLoading, audioState.isPlaying, pause, play, activeTrack]);
 
-  const changeTrack = useCallback((direction: 'next' | 'prev') => {
-    if (isTransitioning || audioState.isLoading) return false;
-    const hasTarget = direction === 'next' ? Boolean(nextTrack) : Boolean(prevTrack);
-    if (!hasTarget) {
-      animate(dragY, 0, { type: 'spring', stiffness: 260, damping: 30 });
-      return false;
-    }
-
-    setIsTransitioning(true);
-    const target = direction === 'next' ? -vh : vh;
-
-    animate(dragY, target, {
-      type: 'spring',
-      stiffness: 320,
-      damping: 32,
-      onComplete: () => {
-        (async () => {
-          if (direction === 'next') {
-            await handleNextTrack();
-            dragY.set(vh);
-          } else {
-            await handlePreviousTrack();
-            dragY.set(-vh);
-          }
-          requestAnimationFrame(() => {
-            animate(dragY, 0, {
-              type: 'spring',
-              stiffness: 320,
-              damping: 32,
-              onComplete: () => setIsTransitioning(false)
-            });
-          });
-        })().catch(() => {
-          setIsTransitioning(false);
-          animate(dragY, 0, { type: 'spring', stiffness: 260, damping: 30 });
-        });
+  const swipe = useVerticalSwipe({
+    onSwipeUp: () => {
+      if (isBootingRef.current) return;
+      const i = currentIndexRef.current;
+      if (i < tracks.length - 1) {
+        scrollToIdx(i + 1);
       }
-    });
+    },
+    onSwipeDown: () => {
+      if (isBootingRef.current) return;
+      const i = currentIndexRef.current;
+      if (i > 0) {
+        scrollToIdx(i - 1);
+      }
+    },
+    minDistance: 60,
+    minVelocity: 0.6,
+    lockDistance: 8,
+    maxFlickDuration: 350,
+    cooldownMs: 260,
+  });
 
-    return true;
-  }, [isTransitioning, audioState.isLoading, nextTrack, prevTrack, dragY, vh, handleNextTrack, handlePreviousTrack]);
+  // IntersectionObserver pour détecter la carte visible et auto-play
+  useEffect(() => {
+    if (!containerRef.current || !isOpen) return;
 
-  const onDragEnd = useCallback((_: any, info: any) => {
-    const dy = info.offset.y + info.velocity.y * 0.18;
-    const threshold = 140;
-    if (dy < -threshold) {
-      changeTrack('next');
-    } else if (dy > threshold) {
-      changeTrack('prev');
-    } else {
-      animate(dragY, 0, { type: 'spring', stiffness: 260, damping: 30 });
-    }
-  }, [changeTrack, dragY]);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isBootingRef.current || isProgrammaticScrollRef.current) return;
+
+        let best: IntersectionObserverEntry | null = null;
+        let bestRatio = 0;
+        
+        for (const e of entries) {
+          if (e.intersectionRatio > bestRatio) {
+            bestRatio = e.intersectionRatio;
+            best = e;
+          }
+        }
+        
+        if (!best || !best.isIntersecting || best.intersectionRatio < 0.6) return;
+
+        const id = (best.target as Element).getAttribute('data-id');
+        if (!id) return;
+        if (id === activeTrackId) return;
+
+        setActiveDebounced(id);
+        const idx = tracks.findIndex(t => getTrackId(t) === id);
+        const track = idx >= 0 ? tracks[idx] : undefined;
+        if (!track) return;
+
+        isProgrammaticScrollRef.current = true;
+        playTrack(track).finally(() => {
+          requestAnimationFrame(() => { isProgrammaticScrollRef.current = false; });
+        });
+      },
+      { threshold: [0.25, 0.5, 0.75, 0.9], root: containerRef.current }
+    );
+
+    const cards = containerRef.current.querySelectorAll('[data-card]');
+    cards.forEach((card) => observer.observe(card));
+
+    return () => {
+      cards.forEach((card) => observer.unobserve(card));
+    };
+  }, [isOpen, tracks, activeTrackId, playTrack, setActiveDebounced]);
+
 
   const lastTap = useRef(0);
   const handleDoubleTap = useCallback(() => {
     const now = Date.now();
     if (now - lastTap.current < 280) {
-      if (currentTrack?._id) {
+      const trackId = getTrackId(activeTrack);
+      if (trackId) {
         try { (navigator as any)?.vibrate?.(12); } catch {}
         toggleLike();
         setBurstKey((key) => key + 1);
       }
     }
     lastTap.current = now;
-  }, [currentTrack?._id, toggleLike]);
+  }, [activeTrack, toggleLike]);
 
   const onShare = useCallback(async () => {
     try {
-      const id = currentTrack?._id || '';
+      const id = getTrackId(activeTrack);
+      if (!id) return;
       const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/track/${id}?autoplay=1` : '';
       const data = {
-        title: currentTrack?.title || 'Musique',
-        text: `Écoutez ${currentTrack?.title || 'ma musique'}`,
+        title: activeTrack?.title || 'Musique',
+        text: `Écoutez ${activeTrack?.title || 'ma musique'}`,
         url: shareUrl
       };
       if ((navigator as any).share) {
@@ -571,11 +650,9 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
         await navigator.clipboard.writeText(data.url);
         toast.success('Lien copié');
       }
-      if (id) {
-        sendTrackEvents(id, { event_type: 'share', source: 'tiktok-player' });
-      }
+      sendTrackEvents(id, { event_type: 'share', source: 'tiktok-player' });
     } catch {}
-  }, [currentTrack]);
+  }, [activeTrack]);
 
   const handleDownload = useCallback(() => {
     if (!canDownload) {
@@ -588,8 +665,8 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
   const confirmDownload = useCallback(async () => {
     try {
       setIsDownloading(true);
-      const filename = `${currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste'}-${currentTrack?.title || 'Titre'}.wav`.replace(/\s+/g, '_');
-      await downloadAudioFile(currentTrack?.audioUrl || '', filename, () => {});
+      const filename = `${activeTrack?.artist?.name || activeTrack?.artist?.username || 'Artiste'}-${activeTrack?.title || 'Titre'}.wav`.replace(/\s+/g, '_');
+      await downloadAudioFile(activeTrack?.audioUrl || '', filename, () => {});
       toast.success('Téléchargement terminé !');
     } catch {
       toast.error('Échec du téléchargement');
@@ -597,7 +674,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
       setIsDownloading(false);
       setShowDownloadDialog(false);
     }
-  }, [currentTrack]);
+  }, [activeTrack]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -606,15 +683,17 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
       if (block) return;
       const y = e.deltaY;
       if (Math.abs(y) < 40) return;
-      const success = y > 0 ? changeTrack('next') : changeTrack('prev');
-      if (success) {
-        block = true;
-        setTimeout(() => { block = false; }, 420);
+      if (y > 0) {
+        handleNextTrack();
+      } else {
+        handlePreviousTrack();
       }
+      block = true;
+      setTimeout(() => { block = false; }, 420);
     };
     window.addEventListener('wheel', handler, { passive: true });
     return () => window.removeEventListener('wheel', handler);
-  }, [isOpen, changeTrack]);
+  }, [isOpen, handleNextTrack, handlePreviousTrack]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -623,11 +702,11 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       if (e.code === 'ArrowDown') {
         e.preventDefault();
-        changeTrack('next');
+        handleNextTrack();
       }
       if (e.code === 'ArrowUp') {
         e.preventDefault();
-        changeTrack('prev');
+        handlePreviousTrack();
       }
       if (e.code === 'Space') {
         e.preventDefault();
@@ -644,7 +723,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
     };
     window.addEventListener('keydown', keyHandler);
     return () => window.removeEventListener('keydown', keyHandler);
-  }, [isOpen, changeTrack, togglePlay, commentsOpen, onClose]);
+  }, [isOpen, handleNextTrack, handlePreviousTrack, togglePlay, commentsOpen, onClose]);
 
   const getCoverUrl = useCallback((track: any) => {
     const raw = track?.coverUrl || '/default-cover.jpg';
@@ -654,11 +733,11 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
       : url;
   }, []);
 
-  const currentCommentsCount = currentTrack?._id
-    ? commentsMap[currentTrack._id]?.length || 0
+  const currentCommentsCount = activeTrackId
+    ? commentsMap[activeTrackId]?.length || 0
     : 0;
 
-  if (!isOpen || !currentTrack) {
+  if (!isOpen || tracks.length === 0) {
     return null;
   }
 
@@ -683,7 +762,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
             transition={{ repeat: Infinity, duration: 18 }}
           >
             <img
-              src={getCoverUrl(currentTrack)}
+              src={getCoverUrl(activeTrack || tracks[0])}
               alt="bg"
               className="h-full w-full object-cover opacity-25"
             />
@@ -716,99 +795,62 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
 
           <HeartBurst burstKey={burstKey} />
 
-          {prevTrack && (
-            <motion.div className="absolute inset-0" style={{ y: prevY, scale: prevScale, opacity: prevOpacity }}>
-              <TrackCard
-                track={prevTrack}
-                playing={false}
-                time={0}
-                dur={0}
-                likes={typeof prevTrack.likes === 'number' ? prevTrack.likes : 0}
-                isLiked={false}
-                commentsCount={0}
-                onLike={() => {}}
-                openComments={() => setCommentsOpen(true)}
-                share={onShare}
-                doubleTap={handleDoubleTap}
-                onToggle={() => {}}
-                onSeek={() => {}}
-                onDownload={handleDownload}
-                canDownload={canDownload}
-                getCoverUrl={getCoverUrl}
-                lyricsVisible={false}
-                toggleLyrics={() => {}}
-              />
-            </motion.div>
-          )}
-
-          <motion.div
-            className="absolute inset-0"
-            drag="y"
-            dragConstraints={{ top: 0, bottom: 0 }}
-            dragElastic={0.45}
-            style={{ y: dragY }}
-            onDragEnd={onDragEnd}
+          <div
+            ref={containerRef}
+            {...swipe}
+            className="h-full w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-contain touch-none scroll-smooth"
           >
-            <TrackCard
-              track={currentTrack}
-              playing={audioState.isPlaying}
-              time={audioState.currentTime}
-              dur={audioState.duration}
-              likes={likesCount}
-              isLiked={isLiked}
-              commentsCount={currentCommentsCount}
-              onLike={toggleLike}
-              openComments={() => setCommentsOpen(true)}
-              share={onShare}
-              doubleTap={handleDoubleTap}
-              onToggle={togglePlay}
-              onSeek={seek}
-              onDownload={handleDownload}
-              canDownload={canDownload}
-              getCoverUrl={getCoverUrl}
-              lyricsVisible={lyricsFor === currentTrack._id}
-              toggleLyrics={() => setLyricsFor((id) => (id === currentTrack._id ? null : currentTrack._id))}
-            />
-          </motion.div>
-
-          {nextTrack && (
-            <motion.div className="absolute inset-0" style={{ y: nextY, scale: nextScale, opacity: nextOpacity }}>
-              <TrackCard
-                track={nextTrack}
-                playing={false}
-                time={0}
-                dur={0}
-                likes={typeof nextTrack.likes === 'number' ? nextTrack.likes : 0}
-                isLiked={false}
-                commentsCount={0}
-                onLike={() => {}}
-                openComments={() => setCommentsOpen(true)}
-                share={onShare}
-                doubleTap={handleDoubleTap}
-                onToggle={() => {}}
-                onSeek={() => {}}
-                onDownload={handleDownload}
-                canDownload={canDownload}
-                getCoverUrl={getCoverUrl}
-                lyricsVisible={false}
-                toggleLyrics={() => {}}
-              />
-            </motion.div>
-          )}
+            {tracks.map((track, idx) => {
+              const trackId = getTrackId(track);
+              const isActive = trackId === activeTrackId;
+              const trackLikes = typeof track.likes === 'number' ? track.likes : (Array.isArray(track.likes) ? track.likes.length : 0);
+              const trackComments = trackId ? (commentsMap[trackId]?.length || 0) : 0;
+              
+              return (
+                <TrackCard
+                  key={trackId || idx}
+                  track={track}
+                  playing={isActive && audioState.isPlaying}
+                  time={isActive ? audioState.currentTime : 0}
+                  dur={isActive ? audioState.duration : 0}
+                  likes={trackLikes}
+                  isLiked={isActive ? isLiked : false}
+                  commentsCount={trackComments}
+                  onLike={isActive ? toggleLike : () => {}}
+                  openComments={() => {
+                    if (trackId) setActiveTrackId(trackId);
+                    setCommentsOpen(true);
+                  }}
+                  share={onShare}
+                  doubleTap={handleDoubleTap}
+                  onToggle={isActive ? togglePlay : () => {
+                    if (trackId) setActiveTrackId(trackId);
+                    playTrack(track).catch(() => {});
+                  }}
+                  onSeek={isActive ? seek : () => {}}
+                  onDownload={handleDownload}
+                  canDownload={canDownload}
+                  getCoverUrl={getCoverUrl}
+                  lyricsVisible={lyricsFor === trackId}
+                  toggleLyrics={() => setLyricsFor((id) => (id === trackId ? null : trackId))}
+                />
+              );
+            })}
+          </div>
         </motion.div>
       </AnimatePresence>
 
       <CommentsDrawer
         open={commentsOpen}
         onClose={() => setCommentsOpen(false)}
-        track={currentTrack}
-        comments={(currentTrack?._id && commentsMap[currentTrack._id]) || []}
+        track={activeTrack}
+        comments={(activeTrackId && commentsMap[activeTrackId]) || []}
         onAdd={(text) => {
-          if (!currentTrack?._id) return;
+          if (!activeTrackId) return;
           setCommentsMap((prev) => ({
             ...prev,
-            [currentTrack._id]: [
-              ...(prev[currentTrack._id] || []),
+            [activeTrackId]: [
+              ...(prev[activeTrackId] || []),
               {
                 id: Math.random().toString(36).slice(2),
                 author: 'Vous',
@@ -824,12 +866,12 @@ export default function SynauraTikTokPlayer({ isOpen, onClose }: TikTokPlayerPro
         isOpen={showDownloadDialog}
         onClose={() => setShowDownloadDialog(false)}
         onConfirm={confirmDownload}
-        trackTitle={currentTrack?.title || 'Titre inconnu'}
-        artistName={currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu'}
+        trackTitle={activeTrack?.title || 'Titre inconnu'}
+        artistName={activeTrack?.artist?.name || activeTrack?.artist?.username || 'Artiste inconnu'}
         isDownloading={isDownloading}
       />
 
-      <DevTests track={currentTrack} />
+      <DevTests track={activeTrack} />
     </>
   );
 }

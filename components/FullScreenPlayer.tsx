@@ -69,19 +69,6 @@ export default function SynauraMiniPlayer() {
     return () => window.removeEventListener('resize', checkOverflow);
   }, [track.title, track.artist]);
 
-  // Keyboard shortcuts (skip when typing)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
-      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      if (e.code === 'ArrowRight') { seekBy(5); }
-      if (e.code === 'ArrowLeft') { seekBy(-5); }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [audioState.isPlaying, audioState.duration]);
-
   const togglePlay = async () => {
     if (audioState.isPlaying) {
       pause();
@@ -107,6 +94,21 @@ export default function SynauraMiniPlayer() {
     seek(newTime);
   };
 
+  // Keyboard shortcuts (skip when typing or when TikTok is open)
+  useEffect(() => {
+    if (showTikTok) return; // ❗️ Ne rien attacher si TikTok est ouvert
+    
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+      if (e.code === 'ArrowRight') { seekBy(5); }
+      if (e.code === 'ArrowLeft') { seekBy(-5); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showTikTok, togglePlay, seekBy]);
+
   const onProgressClick = (e: React.MouseEvent) => {
     const bar = progressRef.current;
     if (!bar) return;
@@ -131,12 +133,13 @@ export default function SynauraMiniPlayer() {
         <TikTokPlayer
           isOpen={showTikTok}
           onClose={() => setShowTikTok(false)}
+          initialTrackId={currentTrack?._id || (currentTrack as any)?.id}
         />
       )}
 
       {/* Mini Player Bar */}
       {!showTikTok && (
-        <div className="fixed bottom-20 lg:bottom-3 left-0 lg:left-1/2 lg:-translate-x-1/2 z-[60] lg:z-50 w-full sm:w-[760px] lg:w-[980px]">
+        <div className={`fixed bottom-20 lg:bottom-3 left-0 lg:left-1/2 lg:-translate-x-1/2 z-[60] lg:z-50 w-full sm:w-[760px] lg:w-[980px] ${showTikTok ? 'pointer-events-none' : ''}`}>
           <div className="rounded-xl border border-white/10 bg-[#0c0c14]/85 backdrop-blur-xl shadow-lg">
             {/* top row */}
             <div className="px-3 py-2 flex items-center gap-3">
