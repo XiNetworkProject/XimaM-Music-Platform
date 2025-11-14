@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { MessageSquare, HelpCircle, Users, TrendingUp, Star, Clock, ArrowRight, ChevronRight, ThumbsUp, Reply } from 'lucide-react';
+import {
+  MessageSquare,
+  HelpCircle,
+  Users,
+  TrendingUp,
+  Clock,
+  ArrowRight,
+  ChevronRight,
+  ThumbsUp,
+  Reply,
+  Star,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -24,21 +35,20 @@ export default function CommunityPage() {
     const fetchCommunityData = async () => {
       try {
         setLoading(true);
-        
-        // Charger les statistiques
+
+        // Stats
         const statsResponse = await fetch('/api/community/stats');
         if (statsResponse.ok) {
           const statsData = await statsResponse.json();
           setStats(statsData);
         }
 
-        // Charger les posts récents
+        // Posts récents
         const postsResponse = await fetch('/api/community/posts?limit=3&sort=recent');
         if (postsResponse.ok) {
           const postsData = await postsResponse.json();
           const posts = postsData.posts || [];
-          
-          // Récupérer les informations utilisateur pour chaque post
+
           const postsWithAuthors = await Promise.all(
             posts.map(async (post: any) => {
               try {
@@ -51,34 +61,33 @@ export default function CommunityPage() {
                     author: {
                       name: userData.name,
                       username: userData.username,
-                    }
+                    },
                   };
                 }
               } catch (error) {
-                console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+                console.error("Erreur lors de la récupération de l'utilisateur:", error);
               }
-              
+
               return {
                 ...post,
                 createdAt: post.created_at,
                 author: {
                   name: 'Utilisateur inconnu',
                   username: 'unknown',
-                }
+                },
               };
-            })
+            }),
           );
-          
+
           setRecentPosts(postsWithAuthors);
         }
 
-        // Charger les FAQ populaires
+        // FAQ populaires
         const faqResponse = await fetch('/api/community/faq?limit=8&sort=popular');
         if (faqResponse.ok) {
           const faqData = await faqResponse.json();
           setPopularFaqs(faqData.faqs || []);
         }
-
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
         toast.error('Erreur lors du chargement des données de la communauté');
@@ -96,8 +105,8 @@ export default function CommunityPage() {
     const diff = now.getTime() - date.getTime();
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (hours < 1) return 'À l\'instant';
+
+    if (hours < 1) return "À l'instant";
     if (hours < 24) return `Il y a ${hours}h`;
     if (days < 7) return `Il y a ${days}j`;
     return date.toLocaleDateString('fr-FR');
@@ -105,171 +114,309 @@ export default function CommunityPage() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'question': return <HelpCircle size={16} className="text-blue-400" />;
-      case 'suggestion': return <TrendingUp size={16} className="text-yellow-400" />;
-      case 'bug': return <MessageSquare size={16} className="text-red-400" />;
-      default: return <MessageSquare size={16} className="text-purple-400" />;
+      case 'question':
+        return <HelpCircle size={16} className="text-blue-400" />;
+      case 'suggestion':
+        return <TrendingUp size={16} className="text-yellow-400" />;
+      case 'bug':
+        return <MessageSquare size={16} className="text-red-400" />;
+      default:
+        return <MessageSquare size={16} className="text-purple-400" />;
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
+      <div className="relative min-h-screen text-white flex items-center justify-center">
+        <div className="relative z-10 flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
+          <p className="text-sm text-white/70">Chargement de la communauté Synaura...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen w-full text-[var(--text)] pb-20">
-      <div className="w-full p-2 sm:p-3">
-        <div className="flex flex-col gap-6 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-6xl mx-auto">
-          
-      {/* Header */}
-          <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
+    <div className="relative min-h-screen text-white pb-20">
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-4 md:px-8 py-6 md:py-10">
+        {/* HERO */}
+        <section className="flex flex-col md:flex-row items-start justify-between gap-6 mb-8">
+          <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border border-purple-500/20">
-                <Users size={24} className="text-purple-400" />
+              <div className="relative">
+                <div className="absolute inset-0 rounded-2xl bg-violet-500/80 blur-xl opacity-70" />
+                <div className="relative w-11 h-11 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
+                  <Users className="w-5 h-5 text-violet-300" />
+                </div>
               </div>
               <div>
-                <h1 className="text-2xl max-md:text-lg font-bold">Communauté Synaura</h1>
-                <p className="text-[var(--text-muted)] text-sm">Entraide, questions et suggestions</p>
-          </div>
+                <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
+                  Synaura
+                </p>
+                <h1 className="text-2xl md:text-3xl font-semibold">
+                  Communauté Synaura
+                </h1>
+                <p className="text-sm text-white/65 max-w-xl mt-1">
+                  Entraide, questions, idées de fonctionnalités et discussions autour
+                  de la plateforme. Ici, tout le monde peut contribuer à faire évoluer Synaura.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/60">
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+                Forum d&apos;entraide
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+                FAQ & support
+              </span>
+              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
+                Suggestions & roadmap
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/community/forum"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 text-white shadow-[0_0_24px_rgba(129,140,248,0.9)] hover:scale-[1.02] active:scale-100 transition-transform"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Accéder au forum</span>
+              </Link>
+              <Link
+                href="/community/faq"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Consulter la FAQ</span>
+              </Link>
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="p-4">
-            <h2 className="text-lg font-semibold mb-4">Communauté en chiffres</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
-              >
-                <HelpCircle size={24} className="mx-auto mb-2 text-green-400" />
-                <div className="text-2xl font-bold text-[var(--text)]">{stats.resolvedQuestions}</div>
-                <div className="text-sm text-[var(--text-muted)]">Questions résolues</div>
-              </motion.div>
-              
-                <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
-              >
-                <MessageSquare size={24} className="mx-auto mb-2 text-blue-400" />
-                <div className="text-2xl font-bold text-[var(--text)]">{stats.forumPosts}</div>
-                <div className="text-sm text-[var(--text-muted)]">Posts du forum</div>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
-              >
-                <Users size={24} className="mx-auto mb-2 text-purple-400" />
-                <div className="text-2xl font-bold text-[var(--text)]">{stats.activeMembers}</div>
-                <div className="text-sm text-[var(--text-muted)]">Membres actifs</div>
-              </motion.div>
-              
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 text-center"
-              >
-                <TrendingUp size={24} className="mx-auto mb-2 text-orange-400" />
-                <div className="text-2xl font-bold text-[var(--text)]">{stats.implementedSuggestions}</div>
-                <div className="text-sm text-[var(--text-muted)]">Suggestions implémentées</div>
-              </motion.div>
+          {/* Petit résumé stats / user */}
+          <div className="w-full md:w-72">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-[0.22em] text-white/55">
+                  En un coup d&apos;œil
+                </p>
+                <div className="flex items-center gap-1 text-xs text-emerald-300">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+                  <span>Actif</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="space-y-1">
+                  <p className="text-[11px] text-white/60">Questions résolues</p>
+                  <p className="text-lg font-semibold">
+                    {stats.resolvedQuestions}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-white/60">Membres actifs</p>
+                  <p className="text-lg font-semibold">
+                    {stats.activeMembers}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-white/60">Posts forum</p>
+                  <p className="text-lg font-semibold">
+                    {stats.forumPosts}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[11px] text-white/60">Idées appliquées</p>
+                  <p className="text-lg font-semibold flex items-center gap-1">
+                    {stats.implementedSuggestions}
+                    <Star className="w-3 h-3 text-yellow-300" />
+                  </p>
+                </div>
+              </div>
+              {session && (
+                <p className="text-[11px] text-white/60">
+                  Bienvenue,{' '}
+                  <span className="font-medium text-white">
+                    {(session.user as any)?.name ||
+                      (session.user as any)?.username ||
+                      'membre'}
+                  </span>
+                  . Merci de faire partie de la communauté ✨
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        </section>
 
-          {/* Navigation rapide */}
-          <div className="p-4 border-t border-[var(--border)]">
-            <h2 className="text-lg font-semibold mb-4">Accès rapide</h2>
+        {/* Accès rapide + stats détaillées */}
+        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] mb-8">
+          {/* Accès rapide */}
+          <div className="space-y-4">
+            <h2 className="text-sm font-semibold text-white/90">
+              Accès rapide
+            </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Forum */}
               <Link
                 href="/community/forum"
-                className="group bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-xl p-6 hover:from-blue-500/20 hover:to-purple-500/20 transition-all duration-200"
+                className="group bg-gradient-to-r from-blue-500/15 via-purple-500/10 to-transparent border border-blue-500/35 rounded-2xl p-5 hover:from-blue-500/30 hover:via-purple-500/20 hover:to-transparent transition-all duration-200 backdrop-blur-md"
               >
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500">
-                    <MessageSquare size={24} className="text-white" />
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 shadow-[0_0_20px_rgba(59,130,246,0.6)]">
+                    <MessageSquare className="w-5 h-5 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-1">Forum Communauté</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-3">
-                      Posez vos questions, partagez vos idées et discutez avec la communauté
+                    <h3 className="text-sm font-semibold mb-1">
+                      Forum Communauté
+                    </h3>
+                    <p className="text-xs text-white/70 mb-3">
+                      Posez vos questions, partagez vos idées et discutez avec les
+                      autres créateurs.
                     </p>
-                    <div className="flex items-center text-blue-400 text-sm font-medium group-hover:text-blue-300">
+                    <div className="flex items-center text-blue-300 text-xs font-medium group-hover:text-blue-200">
                       <span>Accéder au forum</span>
-                      <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
+                      <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
                     </div>
-                            </div>
-                          </div>
+                  </div>
+                </div>
               </Link>
 
               {/* FAQ */}
               <Link
                 href="/community/faq"
-                className="group bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-xl p-6 hover:from-green-500/20 hover:to-blue-500/20 transition-all duration-200"
+                className="group bg-gradient-to-r from-emerald-500/15 via-blue-500/10 to-transparent border border-emerald-500/35 rounded-2xl p-5 hover:from-emerald-500/30 hover:via-blue-500/20 hover:to-transparent transition-all duration-200 backdrop-blur-md"
               >
                 <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-blue-500">
-                    <HelpCircle size={24} className="text-white" />
-                        </div>
+                  <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-500 shadow-[0_0_20px_rgba(16,185,129,0.6)]">
+                    <HelpCircle className="w-5 h-5 text-white" />
+                  </div>
                   <div className="flex-1">
-                    <h3 className="text-lg font-semibold mb-1">FAQ</h3>
-                    <p className="text-[var(--text-muted)] text-sm mb-3">
-                      Trouvez rapidement les réponses aux questions les plus fréquentes
+                    <h3 className="text-sm font-semibold mb-1">
+                      FAQ & aide rapide
+                    </h3>
+                    <p className="text-xs text-white/70 mb-3">
+                      Trouvez immédiatement les réponses aux questions les plus fréquentes.
                     </p>
-                    <div className="flex items-center text-green-400 text-sm font-medium group-hover:text-green-300">
+                    <div className="flex items-center text-emerald-300 text-xs font-medium group-hover:text-emerald-200">
                       <span>Consulter la FAQ</span>
-                      <ChevronRight size={16} className="ml-1 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                          </div>
-                            </div>
+                      <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </div>
               </Link>
-                          </div>
-                        </div>
+            </div>
+          </div>
 
-          {/* Posts récents */}
-          <div className="p-4 border-t border-[var(--border)]">
+          {/* Stats détaillées */}
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-white/90">
+              Communauté en chiffres
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
+              >
+                <HelpCircle className="mx-auto mb-2 text-emerald-300" />
+                <div className="text-xl font-bold">{stats.resolvedQuestions}</div>
+                <div className="text-[11px] text-white/65">
+                  Questions résolues
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
+              >
+                <MessageSquare className="mx-auto mb-2 text-blue-300" />
+                <div className="text-xl font-bold">{stats.forumPosts}</div>
+                <div className="text-[11px] text-white/65">Posts du forum</div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
+              >
+                <Users className="mx-auto mb-2 text-purple-300" />
+                <div className="text-xl font-bold">{stats.activeMembers}</div>
+                <div className="text-[11px] text-white/65">
+                  Membres actifs
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
+              >
+                <TrendingUp className="mx-auto mb-2 text-orange-300" />
+                <div className="text-xl font-bold">
+                  {stats.implementedSuggestions}
+                </div>
+                <div className="text-[11px] text-white/65">
+                  Suggestions implémentées
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </section>
+
+        {/* Discussions récentes + FAQ populaire */}
+        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] mb-10">
+          {/* Discussions récentes */}
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Discussions récentes</h2>
+              <div>
+                <h2 className="text-sm md:text-base font-semibold">
+                  Discussions récentes
+                </h2>
+                <p className="text-xs text-white/60">
+                  Un aperçu des derniers sujets de la communauté
+                </p>
+              </div>
               <Link
                 href="/community/forum"
-                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-sm font-medium"
+                className="flex items-center gap-1 text-xs md:text-sm text-blue-300 hover:text-blue-200 font-medium"
               >
                 <span>Voir tout</span>
                 <ArrowRight size={14} />
               </Link>
-                  </div>
+            </div>
+
             <div className="space-y-3">
               {recentPosts.length > 0 ? (
                 recentPosts.map((post, index) => (
-                    <motion.div
-                    key={post.id}
+                  <motion.div
+                    key={post.id || post._id || index}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-colors"
+                    transition={{ delay: index * 0.06 }}
+                    className="group bg-black/20 border border-white/8 rounded-xl p-3.5 hover:bg-white/5 hover:border-white/20 transition-colors cursor-default"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold mb-1 hover:text-blue-400 cursor-pointer">
-                          {post.title}
-                        </h3>
-                        <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                          <div className="flex items-center gap-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 text-[11px] text-white/70">
                             {getCategoryIcon(post.category)}
                             <span className="capitalize">{post.category}</span>
-                          </div>
+                          </span>
+                          {post.is_resolved && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-[11px] text-emerald-200">
+                              <ThumbsUp size={12} />
+                              <span>Résolu</span>
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="text-sm font-semibold mb-1 text-white group-hover:text-blue-300 line-clamp-2">
+                          {post.title}
+                        </h3>
+                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/55">
                           <span>par {post.author.name}</span>
                           <div className="flex items-center gap-1">
                             <Clock size={12} />
@@ -277,99 +424,123 @@ export default function CommunityPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-[var(--text-muted)]">
+                      <div className="flex flex-col items-end gap-2 text-[11px] text-white/60">
                         <div className="flex items-center gap-1">
-                          <ThumbsUp size={14} />
+                          <ThumbsUp size={13} />
                           <span>{post.likes_count || 0}</span>
-                  </div>
+                        </div>
                         <div className="flex items-center gap-1">
-                          <Reply size={14} />
+                          <Reply size={13} />
                           <span>{post.replies_count || 0}</span>
                         </div>
                       </div>
                     </div>
-                    </motion.div>
-                  ))
+                  </motion.div>
+                ))
               ) : (
-                <div className="text-center py-8 text-[var(--text-muted)]">
-                  <MessageSquare size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>Aucune discussion récente pour le moment.</p>
-                          </div>
-                      )}
-                    </div>
-                  </div>
+                <div className="text-center py-8 text-white/55">
+                  <MessageSquare size={40} className="mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">
+                    Aucune discussion récente pour le moment.
+                  </p>
+                  <p className="text-xs mt-1">
+                    Soyez le premier à lancer un sujet dans le forum !
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* FAQ populaire */}
-          <div className="p-4 border-t border-[var(--border)]">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold">Questions populaires</h2>
+              <div>
+                <h2 className="text-sm md:text-base font-semibold">
+                  Questions populaires
+                </h2>
+                <p className="text-xs text-white/60">
+                  Les réponses les plus consultées par la communauté
+                </p>
+              </div>
               <Link
                 href="/community/faq"
-                className="flex items-center gap-1 text-green-400 hover:text-green-300 text-sm font-medium"
+                className="flex items-center gap-1 text-xs md:text-sm text-emerald-300 hover:text-emerald-200 font-medium"
               >
                 <span>Voir toutes les FAQ</span>
                 <ArrowRight size={14} />
               </Link>
-                            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            </div>
+
+            <div className="grid grid-cols-1 gap-3">
               {popularFaqs.length > 0 ? (
                 popularFaqs.map((faq, index) => (
                   <motion.div
-                    key={faq.id}
+                    key={faq.id || index}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-colors cursor-pointer"
+                    transition={{ delay: index * 0.06 }}
+                    className="bg-black/20 border border-white/8 rounded-xl p-3.5 hover:bg-white/5 hover:border-white/20 transition-colors cursor-default"
                   >
-                    <h3 className="font-medium mb-2 hover:text-green-400">
+                    <h3 className="text-sm font-medium mb-1.5 text-white hover:text-emerald-300 line-clamp-2">
                       {faq.question}
                     </h3>
-                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                      <span className="px-2 py-1 bg-[var(--surface-3)] rounded-lg capitalize">
+                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/60">
+                      <span className="px-2 py-0.5 rounded-full bg-white/5 capitalize">
                         {faq.category}
                       </span>
                       {faq.helpful_count > 0 && (
-                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-lg">
-                          {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200">
+                          {faq.helpful_count} utile
+                          {faq.helpful_count > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
                   </motion.div>
                 ))
               ) : (
-                <div className="col-span-2 text-center py-8 text-[var(--text-muted)]">
-                  <HelpCircle size={48} className="mx-auto mb-4 opacity-50" />
-                  <p>Aucune FAQ populaire pour le moment.</p>
-                  </div>
+                <div className="text-center py-8 text-white/55">
+                  <HelpCircle size={40} className="mx-auto mb-3 opacity-50" />
+                  <p className="text-sm">
+                    Aucune FAQ populaire pour le moment.
+                  </p>
+                  <p className="text-xs mt-1">
+                    Les questions fréquentes apparaîtront ici automatiquement.
+                  </p>
+                </div>
               )}
             </div>
           </div>
+        </section>
 
-          {/* Call to action */}
-          <div className="p-4 border-t border-[var(--border)]">
-            <div className="bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20 rounded-xl p-6 text-center">
-              <h3 className="text-lg font-semibold mb-2">Rejoignez la conversation</h3>
-              <p className="text-[var(--text-muted)] mb-4">
-                Vous avez une question ou une suggestion ? La communauté Synaura est là pour vous aider !
-              </p>
-              <div className="flex gap-3 justify-center">
-                <Link
-                  href="/community/forum"
-                  className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200"
-                >
-                  Poser une question
-                </Link>
-                <Link
-                  href="/community/faq"
-                  className="px-6 py-2 bg-[var(--surface-3)] text-[var(--text)] rounded-xl hover:bg-[var(--surface-4)] transition-colors"
-                >
-                  Consulter la FAQ
-                </Link>
-              </div>
+        {/* Call to action */}
+        <section>
+          <div className="bg-gradient-to-r from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 border border-violet-400/40 rounded-2xl p-6 md:p-7 text-center backdrop-blur-md">
+            <h3 className="text-lg font-semibold mb-2">
+              Rejoignez la conversation
+            </h3>
+            <p className="text-sm text-white/70 mb-4 max-w-2xl mx-auto">
+              Une idée de fonctionnalité, un bug à signaler, ou une simple question ?
+              La communauté Synaura et l&apos;équipe sont là pour vous répondre.
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link
+                href="/community/forum"
+                className="px-6 py-2.5 bg-white text-black rounded-full text-sm font-semibold hover:scale-[1.03] active:scale-100 shadow-lg transition-transform inline-flex items-center gap-2"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Poser une question</span>
+              </Link>
+              <Link
+                href="/community/faq"
+                className="px-6 py-2.5 bg-black/30 border border-white/20 text-white rounded-full text-sm font-medium hover:bg-black/50 transition-colors inline-flex items-center gap-2"
+              >
+                <HelpCircle className="w-4 h-4" />
+                <span>Consulter la FAQ</span>
+              </Link>
             </div>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   );
-} 
+}

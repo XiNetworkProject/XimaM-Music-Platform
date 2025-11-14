@@ -2,7 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
-import { MessageSquare, Plus, Search, Filter, ThumbsUp, Reply, Clock, User, Tag, AlertCircle, Lightbulb, HelpCircle, Bug, Wand2 } from 'lucide-react';
+import {
+  MessageSquare,
+  Plus,
+  Search,
+  ThumbsUp,
+  Reply,
+  Clock,
+  HelpCircle,
+  Bug,
+  Lightbulb,
+  Wand2,
+  Filter,
+  Tag,
+  AlertCircle,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { categorizePost, suggestTags } from '@/lib/postCategorization';
@@ -41,7 +55,7 @@ export default function CommunityForumPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNewPost, setShowNewPost] = useState(false);
   const [showComments, setShowComments] = useState<string | null>(null);
-  const [comments, setComments] = useState<{[postId: string]: any[]}>({});
+  const [comments, setComments] = useState<{ [postId: string]: any[] }>({});
   const [newComment, setNewComment] = useState('');
   const [newPost, setNewPost] = useState({
     title: '',
@@ -54,19 +68,19 @@ export default function CommunityForumPage() {
   // Catégorisation automatique en temps réel
   useEffect(() => {
     if (!autoCategorizeEnabled) return;
-    
+
     const timeoutId = setTimeout(() => {
       if (newPost.title.trim() || newPost.content.trim()) {
         const suggestedCategory = categorizePost(newPost.title, newPost.content);
         const suggestedTags = suggestTags(newPost.title, newPost.content);
-        
-        setNewPost(prev => ({
+
+        setNewPost((prev) => ({
           ...prev,
           category: suggestedCategory,
-          tags: suggestedTags
+          tags: suggestedTags,
         }));
       }
-    }, 1000); // Délai de 1 seconde après la dernière frappe
+    }, 1000);
 
     return () => clearTimeout(timeoutId);
   }, [newPost.title, newPost.content, autoCategorizeEnabled]);
@@ -79,13 +93,13 @@ export default function CommunityForumPage() {
         const params = new URLSearchParams();
         if (selectedCategory !== 'all') params.append('category', selectedCategory);
         if (searchQuery) params.append('search', searchQuery);
-        
+
         const response = await fetch(`/api/community/posts?${params.toString()}`);
         if (!response.ok) throw new Error('Erreur lors du chargement des posts');
-        
+
         const data = await response.json();
         const postsData = data.posts || [];
-        
+
         // Récupérer les informations utilisateur pour chaque post
         const postsWithAuthors = await Promise.all(
           postsData.map(async (post: any) => {
@@ -93,15 +107,19 @@ export default function CommunityForumPage() {
               const userResponse = await fetch(`/api/users/by-id/${post.user_id}`);
               if (userResponse.ok) {
                 const userData = await userResponse.json();
-                
+
                 // Vérifier si l'utilisateur a liké ce post
                 let isLiked = false;
                 if (session?.user?.id) {
                   try {
-                    const likesResponse = await fetch(`/api/community/posts/likes?post_id=${post.id}`);
+                    const likesResponse = await fetch(
+                      `/api/community/posts/likes?post_id=${post.id}`,
+                    );
                     if (likesResponse.ok) {
                       const likes = await likesResponse.json();
-                      isLiked = likes.some((like: any) => like.user_id === session.user.id);
+                      isLiked = likes.some(
+                        (like: any) => like.user_id === session.user.id,
+                      );
                       console.log(`Post ${post.id} - isLiked: ${isLiked}`);
                     }
                   } catch (error) {
@@ -119,15 +137,17 @@ export default function CommunityForumPage() {
                     id: userData.id,
                     name: userData.name,
                     username: userData.username,
-                    avatar: userData.avatar
-                  }
+                    avatar: userData.avatar,
+                  },
                 };
               }
             } catch (error) {
-              console.error('Erreur lors de la récupération de l\'utilisateur:', error);
+              console.error(
+                "Erreur lors de la récupération de l'utilisateur:",
+                error,
+              );
             }
-            
-            // Fallback si l'utilisateur n'est pas trouvé
+
             return {
               ...post,
               createdAt: post.created_at,
@@ -137,12 +157,12 @@ export default function CommunityForumPage() {
                 id: post.user_id,
                 name: 'Utilisateur inconnu',
                 username: 'unknown',
-                avatar: null
-              }
+                avatar: null,
+              },
             };
-          })
+          }),
         );
-        
+
         setPosts(postsWithAuthors);
       } catch (error) {
         console.error('Erreur:', error);
@@ -153,14 +173,18 @@ export default function CommunityForumPage() {
     };
 
     fetchPosts();
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, searchQuery, session?.user?.id]);
 
-  const filteredPosts = posts.filter(post => {
-    const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
-    const matchesSearch = searchQuery === '' || 
+  const filteredPosts = posts.filter((post) => {
+    const matchesCategory =
+      selectedCategory === 'all' || post.category === selectedCategory;
+    const matchesSearch =
+      searchQuery === '' ||
       post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      post.tags.some((tag) =>
+        tag.toLowerCase().includes(searchQuery.toLowerCase()),
+      );
     return matchesCategory && matchesSearch;
   });
 
@@ -171,55 +195,59 @@ export default function CommunityForumPage() {
     }
 
     try {
-      const post = posts.find(p => p.id === postId);
+      const post = posts.find((p) => p.id === postId);
       if (!post) return;
 
-      console.log(`Tentative de like pour le post ${postId}, statut actuel: ${post.isLiked}`);
+      console.log(
+        `Tentative de like pour le post ${postId}, statut actuel: ${post.isLiked}`,
+      );
 
       if (post.isLiked) {
-        // Supprimer le like
-        const response = await fetch(`/api/community/posts/likes?post_id=${postId}`, {
-          method: 'DELETE'
-        });
+        const response = await fetch(
+          `/api/community/posts/likes?post_id=${postId}`,
+          {
+            method: 'DELETE',
+          },
+        );
         if (response.ok) {
-          setPosts(prev => prev.map(p => 
-            p.id === postId 
-              ? { ...p, isLiked: false, likes: p.likes - 1 }
-              : p
-          ));
+          setPosts((prev) =>
+            prev.map((p) =>
+              p.id === postId ? { ...p, isLiked: false, likes: p.likes - 1 } : p,
+            ),
+          );
         }
       } else {
-        // Ajouter le like
         const response = await fetch('/api/community/posts/likes', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ post_id: postId })
+          body: JSON.stringify({ post_id: postId }),
         });
-        
+
         console.log('Like response status:', response.status);
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Like error:', errorData);
-          
-          // Ne pas afficher d'erreur si le post est déjà liké
+
           if (errorData.error === 'Post déjà liké') {
             console.log('Post déjà liké - mise à jour du statut');
-            setPosts(prev => prev.map(p => 
-              p.id === postId 
-                ? { ...p, isLiked: true, likes: p.likes + 1 }
-                : p
-            ));
+            setPosts((prev) =>
+              prev.map((p) =>
+                p.id === postId
+                  ? { ...p, isLiked: true, likes: p.likes + 1 }
+                  : p,
+              ),
+            );
             return;
           }
-          
+
           throw new Error(errorData.error || 'Erreur lors du like');
         }
-        
-        setPosts(prev => prev.map(p => 
-          p.id === postId 
-            ? { ...p, isLiked: true, likes: p.likes + 1 }
-            : p
-        ));
+
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId ? { ...p, isLiked: true, likes: p.likes + 1 } : p,
+          ),
+        );
       }
     } catch (error) {
       console.error('Erreur lors du like:', error);
@@ -232,13 +260,14 @@ export default function CommunityForumPage() {
       setShowComments(null);
     } else {
       setShowComments(postId);
-      // Charger les commentaires si pas encore chargés
       if (!comments[postId]) {
         try {
-          const response = await fetch(`/api/community/posts/replies?post_id=${postId}`);
+          const response = await fetch(
+            `/api/community/posts/replies?post_id=${postId}`,
+          );
           if (response.ok) {
             const replies = await response.json();
-            setComments(prev => ({ ...prev, [postId]: replies }));
+            setComments((prev) => ({ ...prev, [postId]: replies }));
           }
         } catch (error) {
           console.error('Erreur lors du chargement des commentaires:', error);
@@ -262,7 +291,7 @@ export default function CommunityForumPage() {
       const response = await fetch('/api/community/posts/replies', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ post_id: postId, content: newComment.trim() })
+        body: JSON.stringify({ post_id: postId, content: newComment.trim() }),
       });
 
       if (!response.ok) {
@@ -270,25 +299,23 @@ export default function CommunityForumPage() {
       }
 
       const reply = await response.json();
-      
-      // Ajouter le commentaire à la liste
-      setComments(prev => ({
+
+      setComments((prev) => ({
         ...prev,
-        [postId]: [...(prev[postId] || []), reply]
+        [postId]: [...(prev[postId] || []), reply],
       }));
 
-      // Mettre à jour le compteur de réponses
-      setPosts(prev => prev.map(p => 
-        p.id === postId 
-          ? { ...p, replies: p.replies + 1 }
-          : p
-      ));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId ? { ...p, replies: p.replies + 1 } : p,
+        ),
+      );
 
       setNewComment('');
       toast.success('Commentaire ajouté !');
     } catch (error) {
       console.error('Erreur:', error);
-      toast.error('Erreur lors de l\'ajout du commentaire');
+      toast.error("Erreur lors de l'ajout du commentaire");
     }
   };
 
@@ -307,7 +334,7 @@ export default function CommunityForumPage() {
       const response = await fetch('/api/community/posts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newPost)
+        body: JSON.stringify(newPost),
       });
 
       if (!response.ok) {
@@ -316,8 +343,7 @@ export default function CommunityForumPage() {
       }
 
       const post = await response.json();
-      
-      // Ajouter les informations utilisateur au nouveau post
+
       const postWithAuthor = {
         ...post,
         createdAt: post.created_at,
@@ -327,11 +353,14 @@ export default function CommunityForumPage() {
           id: session.user.id,
           name: (session.user as any).name || 'Utilisateur',
           username: (session.user as any).username || 'user',
-          avatar: (session.user as any).avatar || '/default-avatar.png'
-        }
+          avatar:
+            (session.user as any).avatar ||
+            (session.user as any).image ||
+            '/default-avatar.png',
+        },
       };
-      
-      setPosts(prev => [postWithAuthor, ...prev]);
+
+      setPosts((prev) => [postWithAuthor, ...prev]);
       setNewPost({ title: '', content: '', category: 'question', tags: [] });
       setShowNewPost(false);
       toast.success('Post publié avec succès !');
@@ -343,20 +372,26 @@ export default function CommunityForumPage() {
 
   const handleAutoCategorize = () => {
     if (!newPost.title.trim() && !newPost.content.trim()) {
-      toast.error('Veuillez saisir un titre ou un contenu pour la catégorisation automatique');
+      toast.error(
+        'Veuillez saisir un titre ou un contenu pour la catégorisation automatique',
+      );
       return;
     }
 
     const suggestedCategory = categorizePost(newPost.title, newPost.content);
     const suggestedTags = suggestTags(newPost.title, newPost.content);
-    
-    setNewPost(prev => ({
+
+    setNewPost((prev) => ({
       ...prev,
       category: suggestedCategory,
-      tags: suggestedTags
+      tags: suggestedTags,
     }));
-    
-    toast.success(`Catégorie suggérée: ${categories.find(c => c.id === suggestedCategory)?.label}`);
+
+    toast.success(
+      `Catégorie suggérée : ${
+        categories.find((c) => c.id === suggestedCategory)?.label
+      }`,
+    );
   };
 
   const formatDate = (dateString: string) => {
@@ -364,71 +399,102 @@ export default function CommunityForumPage() {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
-    if (days === 0) return 'Aujourd\'hui';
+
+    if (days === 0) return "Aujourd'hui";
     if (days === 1) return 'Hier';
     if (days < 7) return `Il y a ${days} jours`;
     return date.toLocaleDateString('fr-FR');
   };
 
   return (
-    <div className="min-h-screen w-full text-[var(--text)] pb-20">
-      <div className="w-full p-2 sm:p-3">
-        <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-6xl mx-auto">
-          
-          {/* Header */}
-          <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-500 bg-blue-500/10 border border-blue-500/20">
-                <MessageSquare size={24} className="text-blue-400" />
+    <div className="relative min-h-screen text-white pb-20">
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-4 md:px-8 py-6 md:py-10">
+        {/* Card principale */}
+        <div className="rounded-3xl border border-white/10 bg-transparent backdrop-blur-xl overflow-hidden">
+          {/* HEADER */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-4 md:px-6 py-4 border-b border-white/10">
+            <div className="flex items-start gap-3">
+              <div className="relative mt-1">
+                <div className="absolute inset-0 rounded-2xl bg-blue-500/80 blur-xl opacity-70" />
+                <div className="relative w-10 h-10 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5 text-blue-300" />
+                </div>
               </div>
               <div>
-                <h1 className="text-2xl max-md:text-lg font-bold">Forum Communauté</h1>
-                <p className="text-[var(--text-muted)] text-sm">Posez vos questions, partagez vos idées</p>
+                <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
+                  Synaura
+                </p>
+                <h1 className="text-xl md:text-2xl font-semibold">
+                  Forum Communauté
+                </h1>
+                <p className="text-xs md:text-sm text-white/65 mt-1 max-w-xl">
+                  Posez vos questions, partagez vos idées, signalez les bugs et
+                  aidez à construire l&apos;avenir de Synaura.
+                </p>
               </div>
             </div>
-            {session?.user && (
-              <button
-                onClick={() => setShowNewPost(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200"
-              >
-                <Plus size={16} />
-                <span className="hidden sm:inline">Nouveau post</span>
-              </button>
-            )}
+
+            <div className="flex items-center gap-2">
+              {session?.user ? (
+                <button
+                  onClick={() => setShowNewPost(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-blue-500 via-fuchsia-500 to-cyan-400 text-white shadow-[0_0_24px_rgba(59,130,246,0.8)] hover:scale-[1.02] active:scale-100 transition-transform"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nouveau post</span>
+                </button>
+              ) : (
+                <p className="text-[11px] text-white/55">
+                  Connectez-vous pour participer aux discussions.
+                </p>
+              )}
+            </div>
           </div>
 
-          {/* Filtres et recherche */}
-          <div className="p-4 border-b border-[var(--border)]">
-            <div className="flex flex-col sm:flex-row gap-4">
+          {/* Bandeau info */}
+          <div className="px-4 md:px-6 py-3 border-b border-white/10 bg-white/5 flex items-center gap-2 text-[11px] text-white/70">
+            <AlertCircle className="w-4 h-4 text-amber-300 shrink-0" />
+            <p>
+              Merci de rester respectueux et constructif. Pour les bugs
+              critiques, utilisez de préférence la catégorie <span className="font-semibold text-red-300">Bug</span>.
+            </p>
+          </div>
+
+          {/* FILTRES + RECHERCHE */}
+          <div className="px-4 md:px-6 py-4 border-b border-white/10 space-y-3">
+            <div className="flex flex-col md:flex-row gap-3 md:gap-4">
               {/* Recherche */}
               <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" />
+                <Search className="w-4 h-4 text-white/60 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
-                  placeholder="Rechercher dans le forum..."
+                  placeholder="Rechercher un post (titre, contenu, tags)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-blue-400/60 focus:border-blue-300/70"
                 />
               </div>
-              
+
               {/* Catégories */}
-              <div className="flex gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-white/60 px-2">
+                  <Filter className="w-3 h-3" /> Catégories :
+                </span>
                 {categories.map((category) => {
                   const Icon = category.icon;
+                  const active = selectedCategory === category.id;
                   return (
                     <button
                       key={category.id}
                       onClick={() => setSelectedCategory(category.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-200 ${
-                        selectedCategory === category.id
-                          ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                          : 'bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)]'
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all ${
+                        active
+                          ? 'bg-blue-500/30 text-blue-50 border border-blue-400/70 shadow-[0_0_18px_rgba(59,130,246,0.7)]'
+                          : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
                       }`}
                     >
-                      <Icon size={14} />
-                      <span className="text-sm">{category.label}</span>
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{category.label}</span>
                     </button>
                   );
                 })}
@@ -436,45 +502,62 @@ export default function CommunityForumPage() {
             </div>
           </div>
 
-          {/* Liste des posts */}
-          <div className="p-4">
+          {/* LISTE DES POSTS */}
+          <div className="px-4 md:px-6 py-4">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-blue-400 border-t-transparent animate-spin" />
+                <p className="text-sm text-white/70">
+                  Chargement des discussions...
+                </p>
               </div>
             ) : filteredPosts.length === 0 ? (
               <div className="text-center py-12">
-                <MessageSquare size={48} className="mx-auto text-[var(--text-muted)] mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Aucun post trouvé</h3>
-                <p className="text-[var(--text-muted)]">Essayez de modifier vos filtres ou créez le premier post !</p>
+                <MessageSquare className="w-10 h-10 mx-auto text-white/25 mb-3" />
+                <h3 className="text-sm font-semibold mb-1">
+                  Aucun post trouvé
+                </h3>
+                <p className="text-xs text-white/60">
+                  Ajustez vos filtres ou soyez le premier à lancer une
+                  discussion !
+                </p>
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3.5">
                 {filteredPosts.map((post) => {
-                  const CategoryIcon = categories.find(c => c.id === post.category)?.icon || MessageSquare;
+                  const CategoryIcon =
+                    categories.find((c) => c.id === post.category)?.icon ||
+                    MessageSquare;
+
                   return (
                     <motion.div
                       key={post.id}
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4 hover:bg-[var(--surface-3)] transition-all duration-200"
+                      className="rounded-2xl bg-white/5 border border-white/10 p-3.5 md:p-4 hover:bg-white/8 hover:border-white/20 transition-colors"
                     >
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div className="p-2 rounded-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30">
-                            <CategoryIcon size={16} className="text-blue-400" />
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          <div className="p-2 rounded-xl bg-gradient-to-br from-blue-500/35 to-purple-500/35 border border-blue-400/50 shadow-[0_0_16px_rgba(59,130,246,0.7)]">
+                            <CategoryIcon className="w-4 h-4 text-blue-50" />
                           </div>
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold mb-1 hover:text-blue-400 cursor-pointer">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm md:text-base font-semibold mb-1 text-white hover:text-blue-300 cursor-pointer line-clamp-2">
                               {post.title}
                             </h3>
-                            <p className="text-[var(--text-muted)] text-sm mb-2 line-clamp-2">
+                            <p className="text-xs md:text-sm text-white/65 mb-2 line-clamp-2">
                               {post.content}
                             </p>
-                            <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
-                              <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/60">
+                              <div className="flex items-center gap-1.5">
                                 <Avatar
-                                  src={(post.author.avatar || '').replace('/upload/','/upload/f_auto,q_auto/') || null}
+                                  src={
+                                    (post.author.avatar || '')
+                                      .replace(
+                                        '/upload/',
+                                        '/upload/f_auto,q_auto/',
+                                      ) || null
+                                  }
                                   name={post.author.name}
                                   username={post.author.username}
                                   size="xs"
@@ -482,112 +565,125 @@ export default function CommunityForumPage() {
                                 <span>{post.author.name}</span>
                               </div>
                               <div className="flex items-center gap-1">
-                                <Clock size={12} />
+                                <Clock className="w-3 h-3" />
                                 <span>{formatDate(post.createdAt)}</span>
                               </div>
                             </div>
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Tags */}
                       {post.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mb-3">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-white/55">
+                            <Tag className="w-3 h-3" /> Tags :
+                          </span>
                           {post.tags.map((tag) => (
                             <span
                               key={tag}
-                              className="px-2 py-1 bg-[var(--surface-3)] text-[var(--text-muted)] text-xs rounded-lg border border-[var(--border)]"
+                              className="px-2 py-0.5 rounded-full bg-black/40 border border-white/15 text-[11px] text-white/70"
                             >
                               #{tag}
                             </span>
                           ))}
                         </div>
                       )}
-                      
+
                       {/* Actions */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleLike(post.id)}
-                            className={`flex items-center gap-1 px-3 py-1 rounded-lg transition-all duration-200 ${
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs transition-all ${
                               post.isLiked
-                                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                : 'bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-red-400 hover:bg-red-500/10'
+                                ? 'bg-red-500/25 text-red-100 border border-red-400/70 shadow-[0_0_14px_rgba(248,113,113,0.7)]'
+                                : 'bg-black/40 text-white/60 border border-white/15 hover:bg-red-500/15 hover:text-red-200 hover:border-red-400/60'
                             }`}
                           >
-                            <ThumbsUp size={14} />
-                            <span className="text-sm">{post.likes || 0}</span>
+                            <ThumbsUp className="w-3.5 h-3.5" />
+                            <span>{post.likes || 0}</span>
                           </button>
-                          <button 
+                          <button
                             onClick={() => handleToggleComments(post.id)}
-                            className="flex items-center gap-1 px-3 py-1 rounded-lg bg-[var(--surface-3)] text-[var(--text-muted)] hover:text-blue-400 hover:bg-blue-500/10 transition-all duration-200"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-black/40 text-white/60 border border-white/15 hover:bg-blue-500/20 hover:text-blue-100 hover:border-blue-400/70 transition-all"
                           >
-                            <Reply size={14} />
-                            <span className="text-sm">{post.replies || 0}</span>
+                            <Reply className="w-3.5 h-3.5" />
+                            <span>{post.replies || 0} réponses</span>
                           </button>
                         </div>
                       </div>
-                      
-                      {/* Section commentaires */}
+
+                      {/* Commentaires */}
                       {showComments === post.id && (
                         <motion.div
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mt-4 border-t border-[var(--border)] pt-4"
+                          className="mt-3 border-t border-white/10 pt-3 space-y-3"
                         >
-                          {/* Formulaire nouveau commentaire */}
+                          {/* Formulaire commentaire */}
                           {session?.user && (
-                            <div className="mb-4">
-                              <div className="flex gap-2">
-                                <input
-                                  type="text"
-                                  value={newComment}
-                                  onChange={(e) => setNewComment(e.target.value)}
-                                  placeholder="Ajouter un commentaire..."
-                                  className="flex-1 px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                                  onKeyPress={(e) => {
-                                    if (e.key === 'Enter') {
-                                      handleSubmitComment(post.id);
-                                    }
-                                  }}
-                                />
-                                <button
-                                  onClick={() => handleSubmitComment(post.id)}
-                                  className="px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200"
-                                >
-                                  Envoyer
-                                </button>
-                              </div>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                placeholder="Ajouter un commentaire..."
+                                className="flex-1 px-3 py-2 text-sm rounded-2xl bg-black/40 border border-white/15 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-blue-400/60"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleSubmitComment(post.id);
+                                  }
+                                }}
+                              />
+                              <button
+                                onClick={() => handleSubmitComment(post.id)}
+                                className="px-4 py-2 rounded-2xl text-xs font-semibold bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-[0_0_18px_rgba(59,130,246,0.7)] hover:scale-[1.01] active:scale-100 transition-transform"
+                              >
+                                Envoyer
+                              </button>
                             </div>
                           )}
-                          
-                          {/* Liste des commentaires */}
-                          <div className="space-y-3">
-                            {comments[post.id]?.map((comment: any) => (
-                              <div key={comment.id} className="flex gap-3 p-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)]">
-                                <Avatar
-                                  src={(comment.profiles?.avatar || '').replace('/upload/','/upload/f_auto,q_auto/') || null}
-                                  name={comment.profiles?.name}
-                                  username={comment.profiles?.username}
-                                  size="sm"
-                                />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-sm font-medium text-[var(--text)]">
-                                      {comment.profiles?.name || 'Utilisateur inconnu'}
-                                    </span>
-                                    <span className="text-xs text-[var(--text-muted)]">
-                                      {formatDate(comment.created_at)}
-                                    </span>
+
+                          {/* Liste commentaires */}
+                          <div className="space-y-2.5">
+                            {comments[post.id]?.length ? (
+                              comments[post.id].map((comment: any) => (
+                                <div
+                                  key={comment.id}
+                                  className="flex gap-3 p-2.5 rounded-2xl bg-black/40 border border-white/10"
+                                >
+                                  <Avatar
+                                    src={
+                                      (comment.profiles?.avatar || '')
+                                        .replace(
+                                          '/upload/',
+                                          '/upload/f_auto,q_auto/',
+                                        ) || null
+                                    }
+                                    name={comment.profiles?.name}
+                                    username={comment.profiles?.username}
+                                    size="sm"
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-0.5">
+                                      <span className="text-xs font-medium text-white">
+                                        {comment.profiles?.name ||
+                                          'Utilisateur inconnu'}
+                                      </span>
+                                      <span className="text-[10px] text-white/50">
+                                        {formatDate(comment.created_at)}
+                                      </span>
+                                    </div>
+                                    <p className="text-xs text-white/70">
+                                      {comment.content}
+                                    </p>
                                   </div>
-                                  <p className="text-sm text-[var(--text-muted)]">
-                                    {comment.content}
-                                  </p>
                                 </div>
-                              </div>
-                            )) || (
-                              <p className="text-center text-[var(--text-muted)] py-4">
+                              ))
+                            ) : (
+                              <p className="text-center text-[11px] text-white/55 py-3">
                                 Aucun commentaire pour le moment
                               </p>
                             )}
@@ -603,111 +699,152 @@ export default function CommunityForumPage() {
         </div>
       </div>
 
-      {/* Modal nouveau post */}
+      {/* MODAL NOUVEAU POST */}
       <AnimatePresence>
         {showNewPost && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
             onClick={() => setShowNewPost(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-[var(--surface-1)] border border-[var(--border)] rounded-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-3xl bg-transparent border border-white/10 backdrop-blur-xl p-5 md:p-6"
+              onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
             >
-              <h2 className="text-xl font-bold mb-4">Nouveau post</h2>
-              
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Nouveau post
+                  </h2>
+                  <p className="text-xs text-white/60">
+                    Explique clairement ton problème, idée ou question pour
+                    obtenir de meilleures réponses.
+                  </p>
+                </div>
+              </div>
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Titre</label>
+                  <label className="block text-xs font-medium mb-1.5 text-white/80">
+                    Titre
+                  </label>
                   <input
                     type="text"
                     value={newPost.title}
-                    onChange={(e) => setNewPost(prev => ({ ...prev, title: e.target.value }))}
+                    onChange={(e) =>
+                      setNewPost((prev) => ({
+                        ...prev,
+                        title: e.target.value,
+                      }))
+                    }
                     placeholder="Titre de votre post..."
-                    className="w-full px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    className="w-full px-3 py-2 text-sm rounded-2xl bg-black/40 border border-white/15 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-blue-400/60"
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium mb-2">Catégorie</label>
-                  <select
-                    value={newPost.category}
-                    onChange={(e) => setNewPost(prev => ({ ...prev, category: e.target.value as any }))}
-                    className="w-full px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  >
-                    <option value="question">Question</option>
-                    <option value="suggestion">Suggestion</option>
-                    <option value="bug">Bug</option>
-                    <option value="general">Général</option>
-                  </select>
-                </div>
-                
-                {/* Tags suggérés */}
-                {newPost.tags.length > 0 && (
+
+                <div className="grid grid-cols-1 sm:grid-cols-[1.1fr_minmax(0,1fr)] gap-3">
                   <div>
-                    <label className="block text-sm font-medium mb-2">Tags suggérés</label>
-                    <div className="flex flex-wrap gap-2">
-                      {newPost.tags.map((tag, index) => (
-                        <span
-                          key={index}
-                          className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-lg border border-blue-500/30"
-                        >
-                          #{tag}
+                    <label className="block text-xs font-medium mb-1.5 text-white/80">
+                      Catégorie
+                    </label>
+                    <select
+                      value={newPost.category}
+                      onChange={(e) =>
+                        setNewPost((prev) => ({
+                          ...prev,
+                          category: e.target.value as any,
+                        }))
+                      }
+                      className="w-full px-3 py-2 text-sm rounded-2xl bg-black/40 border border-white/15 text-white outline-none focus:ring-2 focus:ring-blue-400/60"
+                    >
+                      <option value="question">Question</option>
+                      <option value="suggestion">Suggestion</option>
+                      <option value="bug">Bug</option>
+                      <option value="general">Général</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5 text-white/80 flex items-center gap-1">
+                      <Tag className="w-3 h-3" /> Tags suggérés
+                    </label>
+                    <div className="min-h-[40px] rounded-2xl bg-black/40 border border-white/15 px-2 py-1.5 flex flex-wrap gap-1.5">
+                      {newPost.tags.length > 0 ? (
+                        newPost.tags.map((tag, index) => (
+                          <span
+                            key={index}
+                            className="px-2 py-0.5 rounded-full bg-blue-500/25 border border-blue-400/70 text-[11px] text-blue-50"
+                          >
+                            #{tag}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[11px] text-white/40">
+                          Les tags apparaîtront ici après la
+                          catégorisation automatique.
                         </span>
-                      ))}
+                      )}
                     </div>
                   </div>
-                )}
-                
+                </div>
+
                 <div>
-                  <label className="block text-sm font-medium mb-2">Contenu</label>
+                  <label className="block text-xs font-medium mb-1.5 text-white/80">
+                    Contenu
+                  </label>
                   <textarea
                     value={newPost.content}
-                    onChange={(e) => setNewPost(prev => ({ ...prev, content: e.target.value }))}
-                    placeholder="Décrivez votre question, suggestion ou problème..."
+                    onChange={(e) =>
+                      setNewPost((prev) => ({
+                        ...prev,
+                        content: e.target.value,
+                      }))
+                    }
+                    placeholder="Décrivez votre question, suggestion ou problème avec le plus de détails possible..."
                     rows={6}
-                    className="w-full px-3 py-2 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-blue-500/50 resize-none"
+                    className="w-full px-3 py-2 text-sm rounded-2xl bg-black/40 border border-white/15 text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-blue-400/60 resize-none"
                   />
                 </div>
-                
-                {/* Bouton de catégorisation automatique */}
-                <div className="flex justify-center items-center gap-4">
-                  <button
-                    onClick={handleAutoCategorize}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-200"
-                  >
-                    <Wand2 size={16} />
-                    Catégoriser automatiquement
-                  </button>
-                  
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={autoCategorizeEnabled}
-                      onChange={(e) => setAutoCategorizeEnabled(e.target.checked)}
-                      className="rounded"
-                    />
-                    Auto-catégorisation
-                  </label>
+
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={handleAutoCategorize}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-[0_0_18px_rgba(168,85,247,0.8)] hover:scale-[1.02] active:scale-100 transition-transform"
+                    >
+                      <Wand2 className="w-4 h-4" />
+                      Catégoriser automatiquement
+                    </button>
+                    <label className="inline-flex items-center gap-2 text-[11px] text-white/70">
+                      <input
+                        type="checkbox"
+                        checked={autoCategorizeEnabled}
+                        onChange={(e) =>
+                          setAutoCategorizeEnabled(e.target.checked)
+                        }
+                        className="rounded border-white/30 bg-black/60"
+                      />
+                      Auto-catégorisation en temps réel
+                    </label>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex gap-3 mt-6">
+
+              <div className="flex gap-2 mt-5">
                 <button
                   onClick={() => setShowNewPost(false)}
-                  className="flex-1 px-4 py-2 bg-[var(--surface-3)] text-[var(--text)] rounded-xl hover:bg-[var(--surface-4)] transition-colors"
+                  className="flex-1 px-4 py-2 rounded-2xl text-sm font-medium bg-black/40 border border-white/15 text-white hover:bg-black/60 transition-colors"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleSubmitPost}
-                  className="flex-1 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl hover:from-blue-600 hover:to-purple-600 transition-all duration-200"
+                  className="flex-1 px-4 py-2 rounded-2xl text-sm font-semibold bg-gradient-to-r from-blue-500 via-fuchsia-500 to-cyan-400 text-white shadow-[0_0_24px_rgba(59,130,246,0.9)] hover:scale-[1.01] active:scale-100 transition-transform"
                 >
                   Publier
                 </button>

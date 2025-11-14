@@ -1,7 +1,19 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, HelpCircle, Search, MessageSquare, Lightbulb, Bug, Settings } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Search,
+  MessageSquare,
+  Lightbulb,
+  Bug,
+  Settings,
+  Sparkles,
+  ArrowRight,
+  Tag,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 
@@ -21,7 +33,7 @@ const categories = [
   { id: 'player', label: 'Player', icon: Settings },
   { id: 'upload', label: 'Upload', icon: Lightbulb },
   { id: 'abonnement', label: 'Abonnements', icon: Settings },
-  { id: 'ia', label: 'IA', icon: Lightbulb },
+  { id: 'ia', label: 'IA', icon: Sparkles },
   { id: 'technique', label: 'Technique', icon: Bug },
 ] as const;
 
@@ -55,158 +67,233 @@ export default function FAQPage() {
     fetchFAQs();
   }, []);
 
-  const filteredFAQs = faqs.filter(faq => {
-    const matchesCategory = selectedCategory === 'all' || faq.category === selectedCategory;
-    const matchesSearch = searchQuery === '' || 
-      faq.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.answer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      faq.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+  const filteredFAQs = faqs.filter((faq) => {
+    const matchesCategory =
+      selectedCategory === 'all' || faq.category === selectedCategory;
+    const q = searchQuery.toLowerCase();
+    const matchesSearch =
+      searchQuery === '' ||
+      faq.question.toLowerCase().includes(q) ||
+      faq.answer.toLowerCase().includes(q) ||
+      faq.tags.some((tag) => tag.toLowerCase().includes(q));
     return matchesCategory && matchesSearch;
   });
 
   const toggleExpanded = (id: string) => {
-    setExpandedItems(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
+    setExpandedItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
     });
   };
 
   return (
-    <div className="min-h-screen w-full text-[var(--text)] pb-20">
-      <div className="w-full p-2 sm:p-3">
-        <div className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-white/[0.02] backdrop-blur-xl max-w-4xl mx-auto">
-          
-          {/* Header */}
-          <div className="flex h-fit w-full flex-row items-center justify-between p-4 text-[var(--text)] max-md:p-2 border-b border-[var(--border)]">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-r from-green-500 to-blue-500 bg-green-500/10 border border-green-500/20">
-                <HelpCircle size={24} className="text-green-400" />
+    <div className="relative min-h-screen text-white pb-20">
+      <div className="relative z-10 max-w-5xl mx-auto px-3 sm:px-4 md:px-8 py-6 md:py-10">
+        {/* Carte globale */}
+        <div className="rounded-3xl border border-white/10 bg-transparent backdrop-blur-xl overflow-hidden">
+          {/* HEADER */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-4 md:px-6 py-4 border-b border-white/10">
+            <div className="flex items-start gap-3">
+              <div className="relative mt-1">
+                <div className="absolute inset-0 rounded-2xl bg-emerald-500/75 blur-xl opacity-70" />
+                <div className="relative w-10 h-10 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-emerald-300" />
+                </div>
               </div>
               <div>
-                <h1 className="text-2xl max-md:text-lg font-bold">FAQ</h1>
-                <p className="text-[var(--text-muted)] text-sm">Questions fréquemment posées</p>
+                <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
+                  Synaura
+                </p>
+                <h1 className="text-xl md:text-2xl font-semibold">Centre d&apos;aide</h1>
+                <p className="text-xs md:text-sm text-white/65 mt-1 max-w-xl">
+                  FAQ officielle de Synaura : lecture, upload, IA, abonnements et
+                  questions techniques. Commencez par une recherche ou naviguez par
+                  catégorie.
+                </p>
               </div>
             </div>
-          </div>
 
-          {/* Recherche */}
-          <div className="p-4 border-b border-[var(--border)]">
-            <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
-                type="text"
-                placeholder="Rechercher dans la FAQ..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-green-500/50"
-              />
+            <div className="flex flex-col md:items-end gap-2 text-[11px] text-white/60">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+                <span>
+                  {faqs.length > 0
+                    ? `${faqs.length} article${faqs.length > 1 ? 's' : ''} d’aide`
+                    : 'FAQ en cours de construction'}
+                </span>
+              </div>
+              <span className="hidden md:inline">
+                Pour des échanges plus détaillés, utilisez le forum communauté.
+              </span>
             </div>
           </div>
 
-          {/* Catégories */}
-          <div className="p-4 border-b border-[var(--border)]">
-            <div className="flex gap-2 overflow-x-auto">
+          {/* RECHERCHE */}
+          <div className="px-4 md:px-6 py-4 border-b border-white/10">
+            <div className="relative">
+              <Search className="w-4 h-4 text-white/60 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Rechercher une question (lecture, upload, IA, abonnements, bugs...)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-300/70"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-white/60 hover:text-white"
+                >
+                  Effacer
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <p className="mt-2 text-[11px] text-white/50">
+                Résultats pour : <span className="text-white/80">{searchQuery}</span>
+              </p>
+            )}
+          </div>
+
+          {/* CATÉGORIES */}
+          <div className="px-4 md:px-6 py-3 border-b border-white/10">
+            <div className="flex flex-wrap gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {categories.map((category) => {
                 const Icon = category.icon;
+                const active = selectedCategory === category.id;
                 return (
                   <button
                     key={category.id}
                     onClick={() => setSelectedCategory(category.id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-200 ${
-                      selectedCategory === category.id
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : 'bg-[var(--surface-2)] text-[var(--text-muted)] hover:text-[var(--text)] hover:bg-[var(--surface-3)]'
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all ${
+                      active
+                        ? 'bg-emerald-500/30 text-emerald-50 border border-emerald-400/70 shadow-[0_0_18px_rgba(16,185,129,0.7)]'
+                        : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    <Icon size={14} />
-                    <span className="text-sm">{category.label}</span>
+                    <Icon className="w-3.5 h-3.5" />
+                    <span>{category.label}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Liste des FAQ */}
-          <div className="p-4">
+          {/* CONTENU FAQ */}
+          <div className="px-4 md:px-6 py-4">
             {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+                <p className="text-sm text-white/70">
+                  Chargement des questions fréquentes...
+                </p>
               </div>
             ) : filteredFAQs.length === 0 ? (
-              <div className="text-center py-12">
-                <HelpCircle size={48} className="mx-auto text-[var(--text-muted)] mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Aucune question trouvée</h3>
-                <p className="text-[var(--text-muted)]">Essayez de modifier vos filtres ou votre recherche.</p>
+              <div className="text-center py-10">
+                <HelpCircle className="w-10 h-10 mx-auto text-white/30 mb-3" />
+                <h3 className="text-sm font-semibold mb-1">
+                  Aucune question trouvée
+                </h3>
+                <p className="text-xs text-white/60 mb-3">
+                  Essaye de modifier tes filtres ou ta recherche.
+                </p>
+                <a
+                  href="/community/forum"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-xs font-semibold hover:scale-[1.03] active:scale-100 transition-transform shadow-lg"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Poser la question sur le forum</span>
+                </a>
               </div>
             ) : (
               <div className="space-y-3">
-                {filteredFAQs.map((faq) => {
+                {filteredFAQs.map((faq, index) => {
                   const isExpanded = expandedItems.has(faq.id);
-                  const CategoryIcon = categories.find(c => c.id === faq.category)?.icon || HelpCircle;
-                  
+                  const CategoryIcon =
+                    categories.find((c) => c.id === faq.category)?.icon ||
+                    HelpCircle;
+
                   return (
                     <motion.div
                       key={faq.id}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: 15 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl overflow-hidden"
+                      transition={{ delay: index * 0.02 }}
+                      className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
                     >
                       <button
                         onClick={() => toggleExpanded(faq.id)}
-                        className="w-full p-4 text-left hover:bg-[var(--surface-3)] transition-colors"
+                        className="w-full px-3.5 md:px-4 py-3 text-left hover:bg-white/8 transition-colors"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-start gap-3 flex-1">
-                            <div className="p-1.5 rounded-lg bg-gradient-to-r from-green-500/20 to-blue-500/20 border border-green-500/30 mt-0.5">
-                              <CategoryIcon size={14} className="text-green-400" />
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/25 to-blue-500/25 border border-emerald-400/60 mt-0.5">
+                              <CategoryIcon className="w-3.5 h-3.5 text-emerald-100" />
                             </div>
-                            <div className="flex-1">
-                              <h3 className="text-base font-semibold mb-1 pr-4">
-                                {faq.question}
-                              </h3>
-                              <div className="flex flex-wrap gap-1 items-center">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <h3 className="text-sm md:text-[15px] font-semibold text-white pr-4">
+                                  {faq.question}
+                                </h3>
+                              </div>
+                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-white/55">
                                 {faq.tags.map((tag) => (
                                   <span
                                     key={tag}
-                                    className="px-2 py-0.5 bg-[var(--surface-3)] text-[var(--text-muted)] text-xs rounded-md"
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/15"
                                   >
-                                    #{tag}
+                                    <Tag className="w-2.5 h-2.5" />
+                                    <span>#{tag}</span>
                                   </span>
                                 ))}
                                 {faq.helpful_count > 0 && (
-                                  <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-md">
-                                    {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
+                                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/60 text-emerald-100">
+                                    {faq.helpful_count} utile
+                                    {faq.helpful_count > 1 ? 's' : ''}
+                                  </span>
+                                )}
+                                {faq.created_at && (
+                                  <span className="ml-auto text-[10px] text-white/40">
+                                    Maj : {formatDate(faq.created_at)}
                                   </span>
                                 )}
                               </div>
                             </div>
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="flex-shrink-0 mt-1">
                             {isExpanded ? (
-                              <ChevronUp size={20} className="text-[var(--text-muted)]" />
+                              <ChevronUp className="w-4 h-4 text-white/60" />
                             ) : (
-                              <ChevronDown size={20} className="text-[var(--text-muted)]" />
+                              <ChevronDown className="w-4 h-4 text-white/60" />
                             )}
                           </div>
                         </div>
                       </button>
-                      
-                      <AnimatePresence>
+
+                      <AnimatePresence initial={false}>
                         {isExpanded && (
                           <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
+                            transition={{ duration: 0.18 }}
                             className="overflow-hidden"
                           >
-                            <div className="px-4 pb-4 pt-2 border-t border-[var(--border)]">
-                              <p className="text-[var(--text-muted)] leading-relaxed">
+                            <div className="px-3.5 md:px-4 pb-4 pt-2 border-t border-white/10">
+                              <p className="text-xs md:text-sm text-white/75 leading-relaxed">
                                 {faq.answer}
                               </p>
                             </div>
@@ -220,33 +307,41 @@ export default function FAQPage() {
             )}
           </div>
 
-          {/* Contact support */}
-          <div className="p-4 border-t border-[var(--border)]">
-            <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-xl p-4">
-              <h3 className="font-semibold mb-2">Vous ne trouvez pas votre réponse ?</h3>
-              <p className="text-[var(--text-muted)] text-sm mb-3">
-                Notre équipe support est là pour vous aider. Contactez-nous et nous vous répondrons rapidement.
-              </p>
-              <div className="flex gap-3">
-                <a
-                  href="mailto:support@synaura.fr"
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-xl hover:from-green-600 hover:to-blue-600 transition-all duration-200 text-sm"
-                >
-                  <MessageSquare size={14} />
-                  Contacter le support
-                </a>
-                <a
-                  href="/community/forum"
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--surface-3)] text-[var(--text)] rounded-xl hover:bg-[var(--surface-4)] transition-colors text-sm"
-                >
-                  <MessageSquare size={14} />
-                  Forum communautaire
-                </a>
+          {/* CTA SUPPORT / FORUM */}
+          <div className="px-4 md:px-6 py-4 border-t border-white/10 bg-white/5">
+            <div className="rounded-2xl bg-gradient-to-r from-emerald-500/15 via-blue-500/15 to-purple-500/15 border border-emerald-400/40 p-4 md:p-5">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-sm md:text-base font-semibold text-white mb-1">
+                    Tu ne trouves toujours pas ta réponse ?
+                  </h3>
+                  <p className="text-xs md:text-sm text-white/70 max-w-xl">
+                    Pas de stress : contacte le support ou ouvre un sujet sur le forum.
+                    Ça nous aide aussi à améliorer la FAQ.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <a
+                    href="mailto:support@synaura.fr"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-xs md:text-sm font-semibold shadow-lg hover:scale-[1.03] active:scale-100 transition-transform"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Contacter le support</span>
+                  </a>
+                  <a
+                    href="/community/forum"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 border border-white/25 text-xs md:text-sm text-white hover:bg-black/60 transition-colors"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Aller sur le forum</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </div>  
     </div>
   );
 }
