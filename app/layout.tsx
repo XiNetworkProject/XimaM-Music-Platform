@@ -8,6 +8,7 @@ import AppNavbar from '@/components/AppNavbar';
 import AppSidebar from '@/components/AppSidebar';
 import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
+import StudioBackground from '@/components/StudioBackground';
 import { Analytics } from '@vercel/analytics/next';
 
 // Déclaration des types pour les fonctions globales
@@ -104,6 +105,9 @@ export default function RootLayout({
       </head>
           <body className={`theme-suno ${inter.className} overflow-x-hidden max-w-full`}>
         <Providers>
+          {/* Studio Background (fond global de l'app) */}
+          <StudioBackground />
+          
           {/* Aurora background (fixed layers) */}
           <div className="aurora-bg" aria-hidden>
             <div className="aurora-layer aurora-1"></div>
@@ -112,7 +116,7 @@ export default function RootLayout({
             <div className="aurora-vignette"></div>
           </div>
 
-          <div className="flex min-h-screen overflow-x-hidden max-w-full">
+          <div className="flex min-h-screen overflow-x-hidden max-w-full relative z-10">
             <AppSidebar />
             <LayoutContent>
               <AppNavbar />
