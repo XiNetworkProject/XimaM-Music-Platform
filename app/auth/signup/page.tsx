@@ -1,10 +1,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import type React from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Eye, EyeOff, Mail, User, Lock, Music, Users, AlertCircle, Check } from 'lucide-react';
+import {
+  Eye,
+  EyeOff,
+  Mail,
+  User,
+  Lock,
+  Music,
+  Users,
+  AlertCircle,
+  ArrowLeft,
+  Sparkles,
+} from 'lucide-react';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -13,13 +25,18 @@ export default function SignUpPage() {
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [userCount, setUserCount] = useState<{userCount: number, maxUsers: number, canRegister: boolean, remainingSlots: number} | null>(null);
+  const [userCount, setUserCount] = useState<{
+    userCount: number;
+    maxUsers: number;
+    canRegister: boolean;
+    remainingSlots: number;
+  } | null>(null);
 
   // Charger le nombre d'utilisateurs
   useEffect(() => {
@@ -29,7 +46,10 @@ export default function SignUpPage() {
         const data = await response.json();
         setUserCount(data);
       } catch (error) {
-        console.error('Erreur lors du chargement du nombre d\'utilisateurs:', error);
+        console.error(
+          "Erreur lors du chargement du nombre d'utilisateurs:",
+          error,
+        );
       }
     };
     fetchUserCount();
@@ -37,11 +57,10 @@ export default function SignUpPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    // Effacer l'erreur quand l'utilisateur tape
     if (error) setError('');
   };
 
@@ -51,23 +70,27 @@ export default function SignUpPage() {
       return false;
     }
     if (!formData.username.trim()) {
-      setError('Le nom d\'utilisateur est requis');
+      setError("Le nom d'utilisateur est requis");
       return false;
     }
     if (formData.username.length < 3) {
-      setError('Le nom d\'utilisateur doit contenir au moins 3 caractères');
+      setError(
+        "Le nom d'utilisateur doit contenir au moins 3 caractères",
+      );
       return false;
     }
     if (!formData.email.trim()) {
-      setError('L\'email est requis');
+      setError("L'email est requis");
       return false;
     }
     if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      setError('Format d\'email invalide');
+      setError("Format d'email invalide");
       return false;
     }
     if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+      setError(
+        'Le mot de passe doit contenir au moins 6 caractères',
+      );
       return false;
     }
     if (formData.password !== formData.confirmPassword) {
@@ -79,13 +102,15 @@ export default function SignUpPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Vérifier si l'inscription est encore possible
     if (userCount && !userCount.canRegister) {
-      setError('Les inscriptions sont fermées. La limite de 50 comptes a été atteinte.');
+      setError(
+        'Les inscriptions sont fermées. La limite de comptes a été atteinte.',
+      );
       return;
     }
-    
+
     if (!validateForm()) return;
 
     setIsLoading(true);
@@ -101,250 +126,388 @@ export default function SignUpPage() {
           name: formData.name.trim(),
           username: formData.username.trim().toLowerCase(),
           email: formData.email.trim().toLowerCase(),
-          password: formData.password
+          password: formData.password,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de l\'inscription');
+        throw new Error(
+          data.error || "Erreur lors de l'inscription",
+        );
       }
 
       // Rediriger vers la page de connexion avec un message de succès
-      router.push('/auth/signin?message=Inscription réussie ! Vous pouvez maintenant vous connecter.');
+      router.push(
+        '/auth/signin?message=Inscription réussie ! Vous pouvez maintenant vous connecter.',
+      );
     } catch (error) {
       console.error('Erreur inscription:', error);
-      setError(error instanceof Error ? error.message : 'Erreur lors de l\'inscription');
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Erreur lors de l'inscription",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-transparent text-white">
-      <main className="container mx-auto px-4 pt-8 pb-20">
-        <div className="max-w-md mx-auto">
-          {/* Header moderne */}
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mb-8 text-center"
+    <div className="relative min-h-screen text-white">
+      <main className="relative z-10 min-h-screen flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-5xl grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] items-stretch">
+          {/* Colonne gauche : Pitch Synaura / Infos inscription */}
+          <motion.section
+            initial={{ opacity: 0, x: -18 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.55 }}
+            className="hidden md:flex flex-col justify-between rounded-3xl border border-white/10 bg-transparent backdrop-blur-xl p-6 md:p-7"
           >
-            <div className="flex items-center justify-center mb-6">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
-                <Music className="w-8 h-8 text-white" />
+            <div className="space-y-5">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-2xl bg-accent-brand/70 blur-xl opacity-70" />
+                  <div className="relative w-11 h-11 rounded-2xl bg-black/30 border border-white/20 flex items-center justify-center backdrop-blur-sm">
+                    <Music className="w-6 h-6 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
+                    Synaura
+                  </p>
+                  <h1 className="text-2xl font-semibold text-white leading-tight">
+                    Crée ton compte<br />
+                    et rejoins le studio
+                  </h1>
+                </div>
+              </div>
+
+              <p className="text-sm text-white/70 max-w-md">
+                Un compte unique pour accéder au lecteur, au Studio IA, à
+                ta bibliothèque, aux stats et à toute la communauté
+                Synaura.
+              </p>
+
+              <div className="grid grid-cols-2 gap-3 mt-4 text-[13px]">
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Sparkles className="w-4 h-4 text-violet-300" />
+                    <span className="font-semibold text-white">
+                      Créations IA
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/65">
+                    Garde une trace de toutes tes générations IA, projets,
+                    presets et remixes.
+                  </p>
+                </div>
+                <div className="rounded-2xl bg-white/5 border border-white/10 p-3">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <Users className="w-4 h-4 text-cyan-300" />
+                    <span className="font-semibold text-white">
+                      Profil public
+                    </span>
+                  </div>
+                  <p className="text-xs text-white/65">
+                    Partage tes morceaux, gagne des abonnés et discute avec
+                    d&apos;autres créateurs.
+                  </p>
+                </div>
               </div>
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">Synaura</h1>
-            <h2 className="text-xl font-semibold text-white/80 mb-2">Inscription</h2>
-            <p className="text-white/60">Rejoignez la communauté musicale</p>
-          </motion.div>
 
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="panel-suno border border-[var(--border)] rounded-2xl p-6"
+            {userCount && (
+              <div className="mt-4 rounded-2xl bg-white/5 border border-white/10 p-3 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2 text-white/70">
+                  <Users className="w-4 h-4 text-emerald-300" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">
+                      {userCount.userCount}/{userCount.maxUsers} comptes créés
+                    </span>
+                    {userCount.remainingSlots > 0 && (
+                      <span className="text-emerald-300">
+                        {userCount.remainingSlots} places restantes
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {!userCount.canRegister && (
+                  <span className="text-[11px] text-red-300 text-right">
+                    Inscriptions temporairement fermées
+                  </span>
+                )}
+              </div>
+            )}
+          </motion.section>
+
+          {/* Colonne droite : Carte d'inscription */}
+          <motion.section
+            initial={{ opacity: 0, x: 18 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.55, delay: 0.05 }}
+            className="rounded-3xl border border-white/10 bg-transparent backdrop-blur-xl p-6 md:p-7"
           >
-            <AnimatePresence>
-              {/* Bannière limite atteinte */}
-              {userCount && !userCount.canRegister && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="mb-6 p-4 bg-red-500/20 border border-red-400/50 text-red-200 rounded-xl"
+            {/* Bouton retour / lien connexion */}
+            <div className="mb-4 flex justify-between items-center gap-2">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-1.5 text-[11px] text-white/60 hover:text-white/90 transition-colors"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Retour à l&apos;accueil</span>
+              </Link>
+              <p className="text-[11px] text-white/70">
+                Déjà un compte ?{' '}
+                <Link
+                  href="/auth/signin"
+                  className="text-violet-300 hover:text-violet-200 font-medium"
                 >
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="w-5 h-5 text-red-400" />
-                    <div>
-                      <p className="font-medium">Inscriptions fermées</p>
-                      <p className="text-sm">La limite de {userCount.maxUsers} comptes a été atteinte.</p>
-                    </div>
+                  Se connecter
+                </Link>
+              </p>
+            </div>
+
+            {/* Header form */}
+            <div className="mb-6 text-left">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-2 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 border border-white/20">
+                  <Music className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-[11px] uppercase tracking-[0.24em] text-white/60">
+                  Inscription
+                </span>
+              </div>
+              <h2 className="text-xl md:text-2xl font-semibold text-white mb-1">
+                Crée ton compte Synaura
+              </h2>
+              <p className="text-xs md:text-sm text-white/65">
+                Choisis ton pseudo, ton email et ton mot de passe pour
+                commencer.
+              </p>
+            </div>
+
+            {/* Bannières & erreurs */}
+            <AnimatePresence>
+              {userCount && !userCount.canRegister && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  className="mb-4 p-3.5 bg-red-500/18 border border-red-400/70 text-red-100 rounded-2xl flex items-center gap-3 text-sm"
+                >
+                  <AlertCircle className="w-5 h-5 text-red-300" />
+                  <div>
+                    <p className="font-medium">Inscriptions fermées</p>
+                    <p className="text-xs text-red-100/80">
+                      La limite de {userCount.maxUsers} comptes a été atteinte
+                      pour le moment.
+                    </p>
                   </div>
                 </motion.div>
               )}
 
-              {/* Compteur d'utilisateurs */}
               {userCount && (
-                <motion.div 
-                  initial={{ opacity: 0, y: -10 }}
+                <motion.div
+                  initial={{ opacity: 0, y: -6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-6 p-3 bg-white/5 rounded-xl border border-[var(--border)]"
+                  exit={{ opacity: 0, y: -6 }}
+                  className="mb-4 p-3 bg-white/5 rounded-2xl border border-white/12 text-xs flex items-center justify-between gap-3 text-white/75"
                 >
-                  <div className="flex items-center justify-center gap-2 text-sm text-white/70">
+                  <div className="flex items-center gap-2">
                     <Users className="w-4 h-4" />
-                    <span>{userCount.userCount}/{userCount.maxUsers} comptes créés</span>
+                    <span>
+                      {userCount.userCount}/{userCount.maxUsers} comptes
+                      créés
+                    </span>
                     {userCount.remainingSlots > 0 && (
-                      <span className="text-green-400">({userCount.remainingSlots} places restantes)</span>
+                      <span className="text-emerald-300">
+                        ({userCount.remainingSlots} places restantes)
+                      </span>
                     )}
                   </div>
                 </motion.div>
               )}
 
               {error && (
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0.95 }}
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.97 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="mb-6 p-4 bg-red-500/20 border border-red-400/50 text-red-200 rounded-xl flex items-center gap-3"
+                  exit={{ opacity: 0, scale: 0.97 }}
+                  className="mb-4 p-3.5 bg-red-500/18 border border-red-400/70 text-red-100 rounded-2xl flex items-center gap-3 text-sm"
                 >
-                  <AlertCircle className="w-5 h-5 text-red-400" />
+                  <AlertCircle className="w-5 h-5 text-red-300" />
                   <span>{error}</span>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Nom */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.3 }}
-              >
-                <label htmlFor="name" className="block text-sm font-medium text-white/90 mb-2">
+            {/* Formulaire */}
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Nom complet */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-white/90 mb-1.5"
+                >
                   Nom complet
                 </label>
                 <div className="relative group">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-purple-400 transition-colors" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-violet-300 transition-colors" />
                   <input
                     type="text"
                     id="name"
                     name="name"
                     value={formData.name}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-[var(--border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/15 rounded-xl text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-400/60 focus:border-violet-300/70 transition-all duration-200"
                     placeholder="Votre nom complet"
                     disabled={isLoading}
                   />
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Nom d'utilisateur */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.4 }}
-              >
-                <label htmlFor="username" className="block text-sm font-medium text-white/90 mb-2">
-                  Nom d'utilisateur
+              {/* Username */}
+              <div>
+                <label
+                  htmlFor="username"
+                  className="block text-sm font-medium text-white/90 mb-1.5"
+                >
+                  Nom d&apos;utilisateur
                 </label>
                 <div className="relative group">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-purple-400 transition-colors" />
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-violet-300 transition-colors" />
                   <input
                     type="text"
                     id="username"
                     name="username"
                     value={formData.username}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-[var(--border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-200"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/15 rounded-xl text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-400/60 focus:border-violet-300/70 transition-all duration-200"
                     placeholder="nom_utilisateur"
                     disabled={isLoading}
                   />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Email */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.5 }}
-              >
-                <label htmlFor="email" className="block text-sm font-medium text-white/90 mb-2">
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-white/90 mb-1.5"
+                >
                   Email
                 </label>
                 <div className="relative group">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-purple-400 transition-colors" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-violet-300 transition-colors" />
                   <input
                     type="email"
                     id="email"
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-4 py-3 bg-white/5 border border-[var(--border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-200"
-                    placeholder="votre@email.com"
+                    className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/15 rounded-xl text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-400/60 focus:border-violet-300/70 transition-all duration-200"
+                    placeholder="vous@example.com"
                     disabled={isLoading}
                   />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Mot de passe */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.6 }}
-              >
-                <label htmlFor="password" className="block text-sm font-medium text-white/90 mb-2">
+              <div>
+                <label
+                  htmlFor="password"
+                  className="block text-sm font-medium text-white/90 mb-1.5"
+                >
                   Mot de passe
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-purple-400 transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-violet-300 transition-colors" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     id="password"
                     name="password"
                     value={formData.password}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 bg-white/5 border border-[var(--border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-200"
+                    className="w-full pl-10 pr-11 py-2.5 bg-white/5 border border-white/15 rounded-xl text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-400/60 focus:border-violet-300/70 transition-all duration-200"
                     placeholder="••••••••"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 transition-colors"
+                    aria-label={
+                      showPassword
+                        ? 'Masquer le mot de passe'
+                        : 'Afficher le mot de passe'
+                    }
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Confirmation mot de passe */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.7 }}
-              >
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-white/90 mb-2">
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-white/90 mb-1.5"
+                >
                   Confirmer le mot de passe
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-purple-400 transition-colors" />
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-white/50 w-5 h-5 group-focus-within:text-violet-300 transition-colors" />
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     id="confirmPassword"
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleInputChange}
-                    className="w-full pl-10 pr-12 py-3 bg-white/5 border border-[var(--border)] rounded-xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400/50 transition-all duration-200"
+                    className="w-full pl-10 pr-11 py-2.5 bg-white/5 border border-white/15 rounded-xl text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-violet-400/60 focus:border-violet-300/70 transition-all duration-200"
                     placeholder="••••••••"
                     disabled={isLoading}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                    onClick={() =>
+                      setShowConfirmPassword(!showConfirmPassword)
+                    }
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/60 hover:text-white/90 transition-colors"
+                    aria-label={
+                      showConfirmPassword
+                        ? 'Masquer la confirmation'
+                        : 'Afficher la confirmation'
+                    }
                   >
-                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-5 h-5" />
+                    ) : (
+                      <Eye className="w-5 h-5" />
+                    )}
                   </button>
                 </div>
-              </motion.div>
+              </div>
 
-              {/* Bouton d'inscription */}
+              {/* Bouton inscription */}
               <motion.button
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.8 }}
                 type="submit"
                 disabled={isLoading || (userCount?.canRegister === false)}
-                className="w-full bg-gradient-to-r from-purple-600 via-pink-600 to-purple-700 text-white py-3 px-4 rounded-xl font-semibold hover:from-purple-700 hover:via-pink-700 hover:to-purple-800 focus:outline-none focus:ring-2 focus:ring-purple-400/50 focus:ring-offset-2 focus:ring-offset-transparent disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-purple-500/25"
+                whileTap={{
+                  scale:
+                    isLoading || userCount?.canRegister === false ? 1 : 0.98,
+                }}
+                className="w-full mt-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 text-white py-2.5 px-4 rounded-xl text-sm font-semibold shadow-[0_0_24px_rgba(129,140,248,0.9)] hover:shadow-[0_0_32px_rgba(129,140,248,1)] hover:brightness-110 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-                    Création du compte...
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    <span>Création du compte...</span>
                   </div>
                 ) : userCount && !userCount.canRegister ? (
                   'Inscriptions fermées'
@@ -354,41 +517,29 @@ export default function SignUpPage() {
               </motion.button>
             </form>
 
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 0.9 }}
-              className="mt-6 text-center"
-            >
-              <p className="text-white/70">
-                Déjà un compte ?{' '}
-                <Link href="/auth/signin" className="text-purple-400 hover:text-purple-300 font-medium transition-colors">
-                  Se connecter
-                </Link>
-              </p>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, delay: 1.0 }}
-              className="mt-4 text-center"
-            >
-              <p className="text-xs text-white/50">
+            {/* Texte legal */}
+            <div className="mt-5 text-center">
+              <p className="text-[11px] text-white/50 leading-relaxed">
                 En créant un compte, vous acceptez nos{' '}
-                <a href="#" className="text-purple-400 hover:underline transition-colors">
-                  conditions d'utilisation
+                <a
+                  href="#"
+                  className="text-violet-300 hover:underline transition-colors"
+                >
+                  conditions d&apos;utilisation
                 </a>{' '}
                 et notre{' '}
-                <a href="#" className="text-purple-400 hover:underline transition-colors">
+                <a
+                  href="#"
+                  className="text-violet-300 hover:underline transition-colors"
+                >
                   politique de confidentialité
                 </a>
                 .
               </p>
-            </motion.div>
-          </motion.div>
+            </div>
+          </motion.section>
         </div>
       </main>
     </div>
   );
-} 
+}
