@@ -12,21 +12,14 @@ import { useSunoWaiter } from '@/hooks/useSunoWaiter';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { useSession } from 'next-auth/react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
-import { useDropzone } from 'react-dropzone';
+import { PresetStrip } from '@/components/ai-studio/PresetStrip';
+import { GenerationTimeline } from '@/components/ai-studio/GenerationTimeline';
+import { TrackInspector } from '@/components/ai-studio/TrackInspector';
+import { RecentGenerations } from '@/components/ai-studio/RecentGenerations';
+import { RemixDropzone } from '@/components/ai-studio/RemixDropzone';
+import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
-
-interface GeneratedTrack {
-  id: string;
-  audioUrl: string;
-  prompt: string;
-  title: string;
-  style: string;
-  lyrics: string;
-  isInstrumental: boolean;
-  duration: number;
-  createdAt: string;
-  imageUrl?: string; // Cover image généré par Suno
-}
+import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
 
 // Interface Track compatible avec le lecteur principal
 interface PlayerTrack {
@@ -156,6 +149,7 @@ export default function AIGenerator() {
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'pending' | 'completed' | 'failed'>('idle');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [generatedTracks, setGeneratedTracks] = useState<GeneratedTrack[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   
   // Utiliser le nouveau hook Suno
   const { state: sunoState, tracks: sunoTracks, error: sunoError } = useSunoWaiter(currentTaskId || undefined);
@@ -167,7 +161,6 @@ export default function AIGenerator() {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [filterBy, setFilterBy] = useState<'all' | 'instrumental' | 'with-lyrics'>('all');
-  const [showRightPanel, setShowRightPanel] = useState(false);
   const [selectedGeneration, setSelectedGeneration] = useState<AIGeneration | null>(null);
   
   // États pour le panneau de track sélectionnée
@@ -210,6 +203,7 @@ export default function AIGenerator() {
         if (trRes.ok) {
           const trJson = await trRes.json();
           console.log('🔍 AI Generator: Tracks reçues:', trJson.tracks?.length || 0);
+          console.log('🔍 AI Generator: Première track (structure):', trJson.tracks?.[0]);
           setAllTracks(trJson.tracks || []);
         }
       } else {
@@ -268,6 +262,78 @@ export default function AIGenerator() {
     console.log('🔍 AI Generator: Générations finales après tri:', filtered.length);
     return filtered;
   }, [generations, searchQuery, sortBy, filterBy]);
+
+  // Convertir les tracks individuelles en générations groupées par generation_id
+  const generationsFromTracks = React.useMemo(() => {
+    if (allTracks.length === 0) {
+      console.log('[generationsFromTracks] allTracks est vide');
+      return [];
+    }
+    
+    console.log('[generationsFromTracks] Traitement de', allTracks.length, 'tracks');
+    
+    // Grouper les tracks par generation_id
+    const tracksByGeneration = new Map<string, AITrack[]>();
+    const generationMap = new Map<string, Partial<AIGeneration>>();
+    
+    allTracks.forEach((track: any) => {
+      // L'API retourne peut-être generation_id directement ou via generation.id
+      const genId = track.generation_id || track.generation?.id;
+      if (!genId) {
+        console.warn('[generationsFromTracks] Track sans generation_id:', track.id);
+        return;
+      }
+      
+      // Ajouter la track au groupe
+      if (!tracksByGeneration.has(genId)) {
+        tracksByGeneration.set(genId, []);
+      }
+      tracksByGeneration.get(genId)!.push(track);
+      
+      // Créer une génération virtuelle si elle n'existe pas
+      if (!generationMap.has(genId)) {
+        // Utiliser les infos de génération si disponibles (via JOIN), sinon utiliser la track
+        const genInfo = track.generation || {};
+        const firstTrack = track;
+        generationMap.set(genId, {
+          id: genId,
+          user_id: genInfo.user_id || session?.user?.id || '',
+          task_id: genInfo.task_id || '',
+          prompt: genInfo.prompt || firstTrack.prompt || '',
+          model: genInfo.model || firstTrack.model_name || 'V4_5',
+          status: (genInfo.status || 'completed') as 'pending' | 'completed' | 'failed',
+          created_at: genInfo.created_at || firstTrack.created_at,
+          is_favorite: firstTrack.is_favorite || false,
+          is_public: false,
+          play_count: firstTrack.play_count || 0,
+          like_count: firstTrack.like_count || 0,
+          share_count: 0,
+          metadata: {
+            title: firstTrack.title,
+            style: firstTrack.style || '',
+          },
+        });
+      }
+    });
+    
+    // Créer les générations complètes avec leurs tracks
+    const result: AIGeneration[] = Array.from(generationMap.entries()).map(([genId, gen]) => ({
+      ...gen as AIGeneration,
+      tracks: tracksByGeneration.get(genId) || [],
+    }));
+    
+    console.log('[generationsFromTracks] Créé', result.length, 'générations à partir des tracks');
+    return result;
+  }, [allTracks, session?.user?.id]);
+
+  // Générations triées par date (plus récentes en premier) pour RecentGenerations
+  // Utiliser les générations de l'API si disponibles, sinon utiliser celles créées à partir des tracks
+  const recentGenerationsSorted = React.useMemo(() => {
+    const allGenerations = generations.length > 0 ? generations : generationsFromTracks;
+    return [...allGenerations].sort((a, b) => {
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [generations, generationsFromTracks]);
 
   // Jouer une track IA (même logique que ai-library)
   const playAITrack = (track: AITrack, generation: AIGeneration) => {
@@ -406,100 +472,6 @@ export default function AIGenerator() {
   const [styleSuggestions, setStyleSuggestions] = useState<string[]>(['rock','hip hop','electronic','pop','lo-fi','house','afrobeat','ambient']);
   const [vibeSuggestions, setVibeSuggestions] = useState<string[]>(['dramatic builds','catchy beats','emotional','fast guitar','breathy vocals']);
 
-  // Mise en page 3 colonnes (desktop)
-  const [isDesktop, setIsDesktop] = useState(false);
-  React.useEffect(() => {
-    const onResize = () => setIsDesktop(window.innerWidth >= 768);
-    onResize();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
-  const [leftWidth, setLeftWidth] = useState<number>(36);
-  const [centerWidth, setCenterWidth] = useState<number>(28);
-  const [rightWidth, setRightWidth] = useState<number>(36);
-  const columnsRef = React.useRef<HTMLDivElement>(null);
-  const [drag, setDrag] = useState<{active: boolean; which: 'lc' | 'cr' | null; startX: number; startLeft: number; startCenter: number; startRight: number}>({
-    active: false,
-    which: null,
-    startX: 0,
-    startLeft: 36,
-    startCenter: 28,
-    startRight: 36,
-  });
-
-  React.useEffect(() => {
-    if (!drag.active) return;
-    const onMove = (e: MouseEvent) => {
-      const container = columnsRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const totalPx = rect.width;
-      const deltaPx = e.clientX - drag.startX;
-      const deltaPct = (deltaPx / totalPx) * 100;
-      const minPct = 20;
-      const maxPct = 60;
-      if (drag.which === 'lc') {
-        let newLeft = Math.max(minPct, Math.min(maxPct, drag.startLeft + deltaPct));
-        let newCenter = drag.startCenter - deltaPct;
-        let clampedCenter = Math.max(minPct, Math.min(maxPct, newCenter));
-        const adjust = clampedCenter - newCenter;
-        newLeft -= adjust;
-        if (newLeft < minPct) {
-          const adj = minPct - newLeft;
-          newLeft = minPct;
-          clampedCenter -= adj;
-        }
-        setLeftWidth(newLeft);
-        setCenterWidth(clampedCenter);
-      } else if (drag.which === 'cr') {
-        let newCenter = Math.max(minPct, Math.min(maxPct, drag.startCenter + deltaPct));
-        let newRight = drag.startRight - deltaPct;
-        let clampedRight = Math.max(minPct, Math.min(maxPct, newRight));
-        const adjust = clampedRight - newRight;
-        newCenter -= adjust;
-        if (newCenter < minPct) {
-          const adj = minPct - newCenter;
-          newCenter = minPct;
-          clampedRight -= adj;
-        }
-        setCenterWidth(newCenter);
-        setRightWidth(clampedRight);
-      }
-    };
-    const onUp = () => setDrag(prev => ({ ...prev, active: false, which: null }));
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-    return () => {
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-  }, [drag]);
-
-
-  // Charger largeurs et visibilité depuis localStorage
-  React.useEffect(() => {
-    try {
-      const sL = Number(localStorage.getItem('ai3.left') || '36');
-      const sC = Number(localStorage.getItem('ai3.center') || '28');
-      const sR = Number(localStorage.getItem('ai3.right') || '36');
-      const sShow = localStorage.getItem('ai3.showRight');
-      if (Number.isFinite(sL) && sL > 0 && sL < 100) setLeftWidth(sL);
-      if (Number.isFinite(sC) && sC > 0 && sC < 100) setCenterWidth(sC);
-      if (Number.isFinite(sR) && sR >= 0 && sR < 100) setRightWidth(sR);
-      if (sShow === '1') setShowRightPanel(true);
-    } catch {}
-  }, []);
-
-  // Persister paramètres
-  React.useEffect(() => {
-    try {
-      localStorage.setItem('ai3.left', String(leftWidth));
-      localStorage.setItem('ai3.center', String(centerWidth));
-      localStorage.setItem('ai3.right', String(rightWidth));
-      localStorage.setItem('ai3.showRight', showRightPanel ? '1' : '0');
-    } catch {}
-  }, [leftWidth, centerWidth, rightWidth, showRightPanel]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -582,6 +554,21 @@ export default function AIGenerator() {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const handleApplyPreset = (preset: AIStudioPreset) => {
+    const d = preset.defaults;
+
+    setActivePresetId(preset.id);
+
+    if (d.title !== undefined) setTitle(d.title);
+    if (d.description !== undefined) setDescription(d.description);
+    if (d.style !== undefined) setStyle(d.style);
+    if (d.isInstrumental !== undefined) setIsInstrumental(d.isInstrumental);
+    if (typeof d.weirdness === 'number') setWeirdness(d.weirdness);
+    if (typeof d.styleInfluence === 'number') setStyleInfluence(d.styleInfluence);
+    if (typeof d.audioWeight === 'number') setAudioWeight(d.audioWeight);
+    if (d.tags && d.tags.length) setSelectedTags(d.tags);
   };
 
   const playGenerated = (gt: GeneratedTrack) => {
@@ -952,17 +939,18 @@ export default function AIGenerator() {
             <Music className="w-16 h-16 mx-auto mb-4 text-green-400" />
             <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
             <p className="text-gray-400">Connectez-vous pour accéder à votre générateur IA</p>
-          </div>
         </div>
-      </div>
-    );
-  }
+          </div>
+    </div>
+  );
+}
 
   return (
-    <div className="relative min-h-screen text-white" suppressHydrationWarning>
-      <div className="relative z-10">
+    <div className="relative min-h-screen text-white overflow-hidden">
+      <StudioBackground />
+      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-6 md:py-8">
         {/* HEADER STUDIO */}
-        <header className="max-w-6xl mx-auto px-4 md:px-8 pt-8 pb-6 flex flex-col md:flex-row gap-4 md:gap-6 items-start md:items-center justify-between">
+        <header className="mb-4 sm:mb-6 flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-6 items-start md:items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="absolute inset-0 rounded-2xl blur-xl bg-accent-brand/70 opacity-60" />
@@ -973,7 +961,7 @@ export default function AIGenerator() {
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-white/45">Synaura</p>
               <h1 className="text-xl md:text-2xl font-semibold text-white">AI Studio</h1>
-              <p className="text-xs text-white/55 max-w-sm">Créez, remixeZ et expérimentez avec la génération musicale par IA.</p>
+              <p className="text-[10px] sm:text-xs text-white/55 max-w-sm hidden sm:block">Créez, remixeZ et expérimentez avec la génération musicale par IA.</p>
             </div>
           </div>
           <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
@@ -1114,65 +1102,58 @@ export default function AIGenerator() {
             </div>
           </div>
         </header>
-        <main className="max-w-6xl mx-auto px-4 md:px-8 pb-10">
 
-        {/* Layout 3 colonnes (desktop) */}
-        <div
-          ref={columnsRef}
-          className={`w-full ${isDesktop ? 'grid gap-3' : ''}`}
-          style={{
-            position: 'relative',
-            zIndex: 0,
-            gridTemplateColumns: isDesktop
-              ? (showRightPanel
-                  ? `${leftWidth}% 6px ${centerWidth}% 6px ${rightWidth}%`
-                  : `${leftWidth}% 6px calc(${100 - leftWidth}% - 6px)`)
-              : undefined,
-          }}
-        >
-          {/* Colonne gauche: Formulaire existant */}
-          <div className={`${isDesktop ? '' : 'w-full'}`}>
+        {/* Grid 3 colonnes */}
+        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start">
+          {/* Colonne 1 : création / presets */}
+          <div className="space-y-4">
             {/* Formulaire actif */}
             <div className="space-y-6">
+              {/* Bandeau de presets */}
+              <PresetStrip
+                presets={aiStudioPresets}
+                activePresetId={activePresetId}
+                onPresetClick={handleApplyPreset}
+              />
               {/* le formulaire existant reste visible mais inactif */}
               {customMode ? (
                 // Mode personnalisé
                 <>
                   {/* Titre */}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
-                    <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                      <Mic className="w-4 h-4 text-accent-brand" />
+                  <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md">
+                    <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                      <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                       <span>Projet & sortie</span>
                     </h2>
-                    <p className="text-[11px] text-white/55 mb-3">
+                    <p className="text-[10px] sm:text-[11px] text-white/55 mb-2 sm:mb-3 hidden sm:block">
                       Configurez le titre, le style et la durée de votre prochaine génération.
                     </p>
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-xs font-medium mb-2 text-white/80">Titre</label>
+                        <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Titre</label>
                         <input
                           type="text"
                           value={title}
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="Entrez un titre"
                           disabled={isGenerationDisabled}
-                          className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Style de musique */}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
-                    <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-accent-brand" />
+                  <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md">
+                    <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                       <span>Style & ambiance</span>
                     </h2>
-                    <p className="text-[11px] text-white/55 mb-3">
+                    <p className="text-[10px] sm:text-[11px] text-white/55 mb-2 sm:mb-3 hidden sm:block">
                       Définissez l'ambiance et les tags musicaux.
                     </p>
                     <div>
-                      <label className="block text-xs font-medium mb-2 text-white/80">Style de musique</label>
+                      <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Style de musique</label>
                       <textarea
                         value={style}
                         onChange={(e) => setStyle(e.target.value)}
@@ -1180,7 +1161,7 @@ export default function AIGenerator() {
                         rows={3}
                         maxLength={1000}
                         disabled={isGenerationDisabled}
-                        className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                       />
                       <div className="text-[10px] text-white/40 mt-1 text-right">
                         {style.length}/1000
@@ -1206,28 +1187,62 @@ export default function AIGenerator() {
 
                     {/* Remix: Drag & Drop d'un audio (upload-cover) */}
                     <div className="mt-3">
-                      <label className="block text-xs font-medium mb-2 text-white/80">Ajouter un audio source (optionnel, Remix)</label>
+                      <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Ajouter un audio source (optionnel, Remix)</label>
                       <RemixDropzone
-                        remixFile={remixFile}
-                        remixUploading={remixUploading}
-                        onUploadStart={() => setRemixUploading(true)}
-                        onUploadSuccess={async ({ url, publicId, duration }) => { 
-                          setRemixUploading(false); 
-                          setRemixUploadUrl(url);
+                        file={remixFile}
+                        uploading={remixUploading}
+                        onFileSelected={async (file: File) => {
+                          setRemixFile(file);
                           try {
-                            const res = await fetch('/api/ai/upload-source', {
+                            setRemixUploading(true);
+                            // Signature Cloudinary
+                            const timestamp = Math.round(new Date().getTime() / 1000);
+                            const publicId = `remix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+                            const sigRes = await fetch('/api/upload/signature', {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ audioUrl: url, publicId, title, duration })
+                              body: JSON.stringify({ timestamp, publicId, resourceType: 'video' })
                             });
-                            if (res.ok) {
-                              window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
-                            }
-                          } catch {}
+                            if (!sigRes.ok) throw new Error('Erreur signature Cloudinary');
+                            const { signature, apiKey, cloudName } = await sigRes.json();
+
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('folder', 'ximam/audio');
+                            formData.append('public_id', publicId);
+                            formData.append('resource_type', 'video');
+                            formData.append('timestamp', String(timestamp));
+                            formData.append('api_key', apiKey);
+                            formData.append('signature', signature);
+
+                            const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+                              method: 'POST',
+                              body: formData,
+                            });
+                            if (!uploadResponse.ok) throw new Error("Erreur upload Cloudinary");
+                            const uploaded = await uploadResponse.json();
+                            const secureUrl = uploaded?.secure_url as string;
+                            const uploadedPublicId = uploaded?.public_id as string | undefined;
+                            const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
+                            if (!secureUrl) throw new Error('URL de fichier manquante');
+                            
+                            setRemixUploading(false);
+                            setRemixUploadUrl(secureUrl);
+                            try {
+                              const res = await fetch('/api/ai/upload-source', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ audioUrl: secureUrl, publicId: uploadedPublicId, title, duration: uploadedDuration })
+                              });
+                              if (res.ok) {
+                                window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+                              }
+                            } catch {}
+                          } catch (e: any) {
+                            setRemixUploading(false);
+                            notify.error('Upload audio', e?.message || 'Erreur upload');
+                          }
                         }}
-                        onUploadError={(msg) => { setRemixUploading(false); notify.error('Upload audio', msg); }}
-                        onFileSelected={(f) => setRemixFile(f)}
-                        disabled={isGenerationDisabled}
                       />
                       {remixUploadUrl && (
                         <p className="text-[10px] text-white/40 mt-2">Audio uploadé ✓ (prêt pour Remix)</p>
@@ -1236,12 +1251,12 @@ export default function AIGenerator() {
                   </div>
 
                   {/* Paroles ou Description */}
-                  <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md space-y-4">
-                    <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-accent-brand" />
+                  <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md space-y-3 sm:space-y-4">
+                    <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                       <span>Paroles ou Description</span>
                     </h2>
-                    <p className="text-[11px] text-white/55">
+                    <p className="text-[10px] sm:text-[11px] text-white/55 hidden sm:block">
                       Saisissez les paroles exactes ou décrivez simplement l'ambiance souhaitée.
                     </p>
                     {customMode ? (
@@ -1268,7 +1283,7 @@ export default function AIGenerator() {
                         </div>
                         {/* Paroles */}
                         <div>
-                          <label className="block text-xs font-medium mb-2 text-white/80">Paroles</label>
+                          <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Paroles</label>
                           <textarea
                             value={lyrics}
                             onChange={(e) => setLyrics(e.target.value)}
@@ -1276,7 +1291,7 @@ export default function AIGenerator() {
                             rows={6}
                             maxLength={5000}
                             disabled={isGenerationDisabled}
-                            className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                           />
                           <div className="text-[10px] text-white/40 mt-1 text-right">
                             {lyrics.length}/5000
@@ -1285,7 +1300,7 @@ export default function AIGenerator() {
                       </>
                     ) : (
                       <div>
-                        <label className="block text-xs font-medium mb-2 text-white/80">Description de la chanson</label>
+                        <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Description de la chanson</label>
                         <textarea
                           value={description}
                           onChange={(e) => setDescription(e.target.value)}
@@ -1293,7 +1308,7 @@ export default function AIGenerator() {
                           rows={4}
                           maxLength={199}
                           disabled={isGenerationDisabled}
-                          className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                         />
                         <div className="text-[10px] text-white/40 mt-1 text-right">
                           {description.length}/199
@@ -1322,12 +1337,12 @@ export default function AIGenerator() {
                   </div>
                   {/* Options avancées */}
                   {customMode && (
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md space-y-4">
-                      <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                        <Settings className="w-4 h-4 text-accent-brand" />
+                    <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md space-y-3 sm:space-y-4">
+                      <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                        <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                         <span>Options avancées</span>
                       </h2>
-                      <p className="text-[11px] text-white/55">
+                      <p className="text-[10px] sm:text-[11px] text-white/55 hidden sm:block">
                         Ajustez le weirdness, le poids du style, les tags négatifs, etc.
                       </p>
                       <div className="space-y-4">
@@ -1411,19 +1426,8 @@ export default function AIGenerator() {
             </div>
           </div>
 
-          {/* Handle entre gauche et centre */}
-          {isDesktop && (
-            <div
-              onMouseDown={(e) => setDrag({ active: true, which: 'lc', startX: e.clientX, startLeft: leftWidth, startCenter: centerWidth, startRight: rightWidth })}
-              className="hidden md:block cursor-col-resize relative"
-              aria-hidden
-            >
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1.5 bg-border-primary rounded" />
-            </div>
-          )}
-
-          {/* COLONNE CENTRE : orbe + génération en cours */}
-          <section className={`space-y-4 ${isDesktop ? '' : 'w-full mt-4'}`}>
+          {/* Colonne 2 : orbe + timeline */}
+          <div className="space-y-4">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6 backdrop-blur-md flex flex-col items-center gap-4">
               <StudioStatusOrb
                 isGenerating={isGenerating}
@@ -1439,7 +1443,7 @@ export default function AIGenerator() {
                 type="button"
                 onClick={generateMusic}
                 disabled={isGenerationDisabled || isGenerating}
-                className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-semibold transition-all ${
+                className={`inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-all w-full sm:w-auto justify-center ${
                   isGenerationDisabled || isGenerating
                     ? 'bg-white/10 text-white/40 cursor-not-allowed'
                     : 'bg-accent-brand text-white shadow-[0_0_30px_rgba(129,140,248,0.8)] hover:scale-[1.01]'
@@ -1447,13 +1451,15 @@ export default function AIGenerator() {
               >
                 {isGenerating ? (
                   <>
-                    <span className="w-3 h-3 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
-                    <span>Génération en cours...</span>
+                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
+                    <span className="hidden sm:inline">Génération en cours...</span>
+                    <span className="sm:hidden">En cours...</span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-4 h-4" />
-                    <span>Lancer la génération</span>
+                    <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Lancer la génération</span>
+                    <span className="sm:hidden">Générer</span>
                   </>
                 )}
               </button>
@@ -1484,908 +1490,53 @@ export default function AIGenerator() {
               </div>
             )}
             {/* Generated Tracks Display */}
-            {generatedTracks.length > 0 && (
-              <div className="space-y-3">
-                {generatedTracks.map((track, index) => (
-                  <motion.div
-                    key={track.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-white/5 border border-white/10 rounded-xl p-4 backdrop-blur-md hover:bg-white/10 transition-colors cursor-pointer"
-                    onClick={() => openTrackPanel(track)}
-                  >
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-12 h-12 bg-gradient-to-r from-accent-purple to-accent-blue rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                        {track.imageUrl ? (
-                          <img src={track.imageUrl} alt={track.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <Music className="w-6 h-6 text-white" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-sm font-semibold text-white truncate">{track.title}</h3>
-                        <p className="text-[10px] text-white/50 truncate">{track.style || '—'} • {formatSec(track.duration || 0)}</p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          playGenerated(track);
-                        }}
-                        className="flex-1 py-1.5 px-3 rounded-lg bg-accent-brand/20 border border-accent-brand/50 text-white text-xs hover:bg-accent-brand/30 transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <Play className="w-3 h-3" />
-                        Écouter
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          downloadGenerated(track);
-                        }}
-                        className="py-1.5 px-3 rounded-lg bg-white/5 border border-white/10 text-white text-xs hover:bg-white/10 transition-colors"
-                      >
-                        <Download className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </section>
-
-          {/* Handle entre centre et droite */}
-          {isDesktop && showRightPanel && (
-            <div
-              onMouseDown={(e) => setDrag({ active: true, which: 'cr', startX: e.clientX, startLeft: leftWidth, startCenter: centerWidth, startRight: rightWidth })}
-              className="hidden md:block cursor-col-resize relative"
-              aria-hidden
-            >
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1.5 bg-border-primary rounded" />
-            </div>
-          )}
-
-          {/* COLONNE DROITE : bibliothèque IA */}
-          <section className="space-y-4">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
-              <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                <Music className="w-4 h-4 text-accent-brand" />
-                <span>Bibliothèque IA</span>
-              </h2>
-              <p className="text-[11px] text-white/55 mb-3">
-                Retrouvez vos anciennes générations, filtrez par titre, date ou style.
-              </p>
-              <div className="space-y-3">
-                {/* Barre de recherche */}
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-2 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3 text-white/40">
-                      <g><path d="M10.417 17.834q-3.11 0-5.263-2.154T3 10.417t2.154-5.263T10.417 3q3.11 0 5.263 2.154t2.154 5.263a6.95 6.95 0 0 1-1.484 4.336l4.336 4.336q.315.313.314.799 0 .485-.314.798-.313.315-.799.314-.485 0-.798-.314l-4.336-4.336a6.954 6.954 0 0 1-4.336 1.483m0-2.282q2.14 0 3.637-1.498t1.498-3.637-1.498-3.637q-1.497-1.498-3.637-1.498T6.78 6.78q-1.498 1.497-1.498 3.637t1.498 3.637 3.637 1.498"></path></g>
-                    </svg>
-                  </div>
-                  <input
-                    placeholder="Rechercher..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-2 bg-black/30 border border-white/10 rounded-lg text-xs text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50"
-                  />
-                </div>
-                {/* Filtres rapides */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <button
-                    onClick={() => setFilterBy('all')}
-                    className={`px-2 py-1 rounded-full text-[10px] border transition-colors ${
-                      filterBy === 'all' ? 'bg-accent-brand/20 border-accent-brand/50 text-white' : 'bg-transparent border-white/20 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    Toutes
-                  </button>
-                  <button
-                    onClick={() => setFilterBy('instrumental')}
-                    className={`px-2 py-1 rounded-full text-[10px] border transition-colors ${
-                      filterBy === 'instrumental' ? 'bg-accent-brand/20 border-accent-brand/50 text-white' : 'bg-transparent border-white/20 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    Instrumentales
-                  </button>
-                  <button
-                    onClick={() => setFilterBy('with-lyrics')}
-                    className={`px-2 py-1 rounded-full text-[10px] border transition-colors ${
-                      filterBy === 'with-lyrics' ? 'bg-accent-brand/20 border-accent-brand/50 text-white' : 'bg-transparent border-white/20 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    Avec paroles
-                  </button>
-                </div>
-                <button
-                  onClick={() => setSortBy(sortBy === 'newest' ? 'oldest' : 'newest')}
-                  className="w-full px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-[10px] text-white/60 hover:bg-white/10 transition-colors flex items-center justify-between"
-                >
-                  <span>{sortBy === 'newest' ? 'Plus récent' : 'Plus ancien'}</span>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-3 w-3">
-                    <g><path d="M4 18a.97.97 0 0 1-.712-.288A.97.97 0 0 1 3 17q0-.424.288-.712A.97.97 0 0 1 4 16h4q.424 0 .713.288Q9 16.575 9 17q0 .424-.287.712A.97.97 0 0 1 8 18zm0-5a.97.97 0 0 1-.712-.287A.97.97 0 0 1 3 12q0-.424.288-.713A.97.97 0 0 1 4 11h10q.424 0 .713.287.287.288.287.713 0 .424-.287.713A.97.97 0 0 1 14 13zm0-5a.97.97 0 0 1-.712-.287A.97.97 0 0 1 3 7q0-.424.288-.713A.97.97 0 0 1 4 6h16q.424 0 .712.287Q21 6.576 21 7q0 .424-.288.713A.97.97 0 0 1 20 8z"></path></g>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            {/* Liste des générations */}
-            <div className="flex-1 overflow-y-auto max-h-[600px] space-y-2">
-              {generationsLoading && (
-                <div className="flex items-center justify-center py-8">
-                  <div className="text-xs text-white/50">Chargement...</div>
-                </div>
-              )}
-              {generationsError && (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="text-white mb-2 text-sm">Erreur lors du chargement</div>
-                  <div className="text-xs text-white/50 mb-3">{generationsError}</div>
-                  <button
-                    onClick={refreshGenerations}
-                    className="px-3 py-1.5 rounded-lg bg-accent-brand text-white text-xs hover:bg-accent-brand/90 transition-colors"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              )}
-              {!generationsLoading && !generationsError && filteredAndSortedGenerations.length === 0 && allTracks.length === 0 && (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="text-white/60 text-sm mb-2">
-                    {generations.length === 0 && allTracks.length === 0 ? 'Aucune génération trouvée' : 'Aucun résultat pour cette recherche'}
-                  </div>
-                </div>
-              )}
-
-              {/* Afficher les tracks individuelles */}
-              {!generationsLoading && !generationsError && filteredAndSortedGenerations.length === 0 && allTracks.length > 0 && (
-                <div className="space-y-2">
-                  {allTracks.map((track) => (
-                    <div
-                      key={track.id}
-                      className="bg-white/5 border border-white/10 rounded-lg p-2 hover:bg-white/10 transition-colors cursor-pointer"
-                      onClick={() => {
-                        const generatedTrack = convertAITrackToGenerated(track);
-                        openTrackPanel(generatedTrack);
-                      }}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-10 h-10 rounded overflow-hidden flex-shrink-0 bg-gradient-to-br from-accent-purple to-accent-blue">
-                          {track.image_url ? (
-                            <img src={track.image_url} alt={track.title} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Music className="w-4 h-4 text-white" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-medium text-white truncate">{track.title}</div>
-                          <div className="text-[10px] text-white/50 truncate">
-                            {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
-                          </div>
-                        </div>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const fakeGen: AIGeneration = {
-                              id: track.generation_id || track.id,
-                              user_id: session?.user?.id || '',
-                              task_id: '',
-                              prompt: track.prompt || '',
-                              model: track.model_name || 'V4_5',
-                              status: 'completed',
-                              created_at: track.created_at,
-                              is_favorite: track.is_favorite,
-                              is_public: false,
-                              play_count: track.play_count,
-                              like_count: track.like_count,
-                              share_count: 0,
-                              metadata: {},
-                              tracks: [track]
-                            };
-                            playAITrack(track, fakeGen);
-                          }}
-                          className="p-1.5 rounded-lg bg-accent-brand/20 border border-accent-brand/50 text-white hover:bg-accent-brand/30 transition-colors"
-                        >
-                          <Play className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Afficher les générations */}
-              {!generationsLoading && !generationsError && filteredAndSortedGenerations.length > 0 && (
-                <div className="space-y-2">
-                  {filteredAndSortedGenerations.map((generation) => (
-                    <div
-                      key={generation.id}
-                      className="bg-white/5 border border-white/10 rounded-lg p-3 hover:bg-white/10 transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-xs font-semibold text-white truncate mb-1">
-                            {generation.tracks?.[0]?.title || 'Musique générée'}
-                          </h3>
-                          <p className="text-[10px] text-white/50 line-clamp-2">{generation.prompt}</p>
-                        </div>
-                        <button
-                          onClick={() => toggleFavorite(generation.id)}
-                          className={`p-1 rounded-full transition-colors flex-shrink-0 ${
-                            generation.is_favorite ? 'text-red-400' : 'text-white/40 hover:text-red-400'
-                          }`}
-                        >
-                          <Heart className={`w-3 h-3 ${generation.is_favorite ? 'fill-current' : ''}`} />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-                        <button
-                          onClick={() => handlePlayGeneration(generation)}
-                          className="flex-1 py-1 px-2 rounded-lg bg-accent-brand/20 border border-accent-brand/50 text-white text-[10px] hover:bg-accent-brand/30 transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Play className="w-2.5 h-2.5" />
-                          Écouter
-                        </button>
-                        <button
-                          onClick={() => {
-                            const firstTrack = generation.tracks?.[0];
-                            if (firstTrack) downloadTrack(firstTrack);
-                          }}
-                          className="p-1.5 rounded-lg bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-colors"
-                        >
-                          <Download className="w-2.5 h-2.5" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* Handle entre centre et droite */}
-          {isDesktop && showRightPanel && (
-            <div
-              onMouseDown={(e) => setDrag({ active: true, which: 'cr', startX: e.clientX, startLeft: leftWidth, startCenter: centerWidth, startRight: rightWidth })}
-              className="hidden md:block cursor-col-resize relative"
-              aria-hidden
-            >
-              <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-1.5 bg-border-primary rounded" />
-            </div>
-          )}
-
-          {/* Colonne droite: Détails */}
-          {showRightPanel && selectedGeneration && (
-          <div className={`${isDesktop ? '' : 'w-full'} ${isDesktop ? '' : 'mt-4'}`}>
-            <div className="bg-white-upload backdrop-blur-upload border border-upload rounded-xl p-4 h-full min-h-[300px]">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground-primary">Détails de la génération</h3>
-                <button 
-                  onClick={() => setShowRightPanel(false)}
-                  className="p-1 rounded-full hover:bg-white-upload backdrop-blur-upload transition-colors"
-                >
-                  <svg className="w-4 h-4 text-foreground-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div className="space-y-4">
-                {/* Informations principales */}
-                <div>
-                  <h4 className="text-sm font-semibold text-foreground-primary mb-2">
-                    {selectedGeneration.tracks?.[0]?.title || 'Musique générée'}
-                  </h4>
-                  <p className="text-xs text-foreground-tertiary mb-2">{selectedGeneration.prompt}</p>
-                  <div className="flex items-center gap-2">
-                    <span className={`text-[10px] px-2 py-1 rounded-full ${
-                      selectedGeneration.status === 'completed' 
-                        ? 'bg-accent-success/15 text-accent-success border border-accent-success/30'
-                        : selectedGeneration.status === 'pending'
-                        ? 'bg-accent-warning/15 text-accent-warning border border-accent-warning/30'
-                        : 'bg-accent-error/15 text-accent-error border border-accent-error/30'
-                    }`}>
-                      {selectedGeneration.status === 'completed' ? 'Terminé' : selectedGeneration.status === 'pending' ? 'En cours' : 'Échec'}
-                    </span>
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-white-upload backdrop-blur-upload text-foreground-tertiary border border-upload">
-                      {new Date(selectedGeneration.created_at).toLocaleDateString('fr-FR')}
-                    </span>
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-accent-blue/15 text-accent-blue border border-accent-blue/30">
-                      {selectedGeneration.model}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Boutons d'action */}
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => handlePlayGeneration(selectedGeneration)}
-                    disabled={selectedGeneration.status !== 'completed'}
-                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-accent-brand text-white rounded-lg hover:bg-accent-brand/90 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Play className="w-4 h-4" />
-                    Lire
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const firstTrack = selectedGeneration.tracks?.[0];
-                      if (firstTrack) {
-                        downloadTrack(firstTrack);
-                      }
-                    }}
-                    disabled={selectedGeneration.status !== 'completed'}
-                    className="flex items-center justify-center gap-2 px-3 py-2 bg-white-upload backdrop-blur-upload border border-upload text-foreground-primary rounded-lg hover:bg-white-upload/80 transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Download className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* Prompt utilisé */}
-                <div>
-                  <h5 className="text-xs font-medium text-foreground-primary mb-1">Prompt utilisé</h5>
-                  <p className="text-xs text-foreground-tertiary bg-white-upload backdrop-blur-upload border border-upload rounded-lg p-2">
-                    {selectedGeneration.prompt}
-                  </p>
-                </div>
-
-                {/* Liste des pistes */}
-                {selectedGeneration.tracks && selectedGeneration.tracks.length > 0 && (
-                  <div>
-                    <h5 className="text-xs font-medium text-foreground-primary mb-2">Pistes générées</h5>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {selectedGeneration.tracks.map((track, index) => (
-                        <div key={track.id} className="flex items-center gap-2 p-2 rounded-lg bg-white-upload backdrop-blur-upload border border-upload">
-                          <div className="w-8 h-8 rounded bg-background-primary flex items-center justify-center">
-                            <Music className="w-4 h-4 text-foreground-primary" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="text-sm truncate text-foreground-primary">{track.title}</div>
-                            <div className="text-[10px] text-foreground-tertiary">
-                              {Math.floor(track.duration / 60)}:{(track.duration % 60).toString().padStart(2, '0')}
-                            </div>
-                          </div>
-                          <button 
-                            onClick={() => playAITrack(track, selectedGeneration)}
-                            disabled={selectedGeneration.status !== 'completed'}
-                            className="text-xs border border-upload rounded px-2 py-1 hover:bg-white-upload backdrop-blur-upload text-foreground-primary disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            Lire
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
+            <GenerationTimeline
+              generatedTracks={generatedTracks}
+              generationStatus={generationStatus}
+              currentTaskId={currentTaskId}
+              sunoState={sunoState}
+              sunoError={sunoError}
+              onOpenTrack={openTrackPanel}
+              onPlayTrack={playGenerated}
+              onDownloadTrack={downloadGenerated}
+              onShareTrack={shareGenerated}
+            />
           </div>
-          )}
+
+          {/* Colonne 3 : bibliothèque / historique */}
+          <div className="space-y-4">
+            <RecentGenerations
+              generations={recentGenerationsSorted}
+              loading={generationsLoading}
+              error={generationsError}
+              onReload={refreshGenerations}
+              onUseGeneration={(gen) => {
+                const convertedTracks: GeneratedTrack[] = (gen.tracks || []).map(convertAITrackToGenerated);
+                setGeneratedTracks(convertedTracks);
+                if (convertedTracks[0]) {
+                  setSelectedTrack(convertedTracks[0]);
+                }
+                setSelectedGeneration(gen);
+              }}
+              onPlayGeneration={handlePlayGeneration}
+            />
+          </div>
         </div>
-
-        {/* Générations en arrière-plan */}
-        {generations.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mb-8"
-          >
-            <div className="text-center mb-6">
-              <h3 className="text-xl font-semibold text-accent-blue mb-2">
-                🎵 Générations récentes
-              </h3>
-              <p className="text-foreground-tertiary">
-                Retrouvez vos dernières créations
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {generations.slice(0, 3).map((gen) => (
-              <motion.div
-                  key={gen.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="bg-white-upload backdrop-blur-upload rounded-lg p-4 border border-upload hover:border-accent-brand/30 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <h4 className="text-lg font-semibold text-foreground-primary">{gen.tracks?.[0]?.title || 'Musique générée'}</h4>
-                      <p className="text-foreground-tertiary text-sm">{gen.metadata?.style || 'Custom'}</p>
-                      <p className="text-xs text-foreground-tertiary">
-                        {new Date(gen.created_at).toLocaleDateString('fr-FR')} - 
-                        {gen.tracks?.length || 0} track{(gen.tracks?.length || 0) > 1 ? 's' : ''}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          const convertedTracks: GeneratedTrack[] = (gen.tracks || []).map((track: any, index) => ({
-                            id: track.id,
-                            audioUrl: track.audio_url || track.stream_audio_url || '',
-                            prompt: '',
-                            title: track.title,
-                            style: gen.metadata?.style || 'Custom',
-                            lyrics: '',
-                            isInstrumental: false,
-                            duration: track.duration,
-                            createdAt: new Date().toISOString()
-                          }));
-                          setGeneratedTracks(convertedTracks);
-                          setGeneratedTrack(convertedTracks[0]);
-                        }}
-                        className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer py-2 px-4 text-[15px] leading-[24px] rounded-lg text-foreground-primary bg-accent-success enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 flex items-center gap-2"
-                      >
-                        <Play className="w-4 h-4" />
-                        Écouter
-                      </button>
-                      <a
-                        href="/ai-library"
-                        className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer py-2 px-4 text-[15px] leading-[24px] rounded-lg text-foreground-primary bg-accent-blue enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 flex items-center gap-2"
-                      >
-                        <Music className="w-4 h-4" />
-                        Voir tout
-                      </a>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-          </motion.div>
-        )}
-
-        {/* Generated Tracks Display */}
-        {(() => {
-          console.log('🎵 Rendu - generatedTracks:', {
-            length: generatedTracks.length,
-            tracks: generatedTracks.map(t => ({ id: t.id, title: t.title, audioUrl: t.audioUrl }))
-          });
-          console.log('🎵 Condition d\'affichage:', generatedTracks.length > 0);
-          return generatedTracks.length > 0;
-        })() && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mt-8"
-          >
-            <div className="text-center mb-6">
-              {generationStatus === 'completed' ? (
-                <>
-                  <h3 className="text-xl font-semibold text-accent-success mb-2">
-                    🎵 Génération terminée !
-                  </h3>
-                  <p className="text-foreground-tertiary">
-                    Suno a généré {generatedTracks.length} version{generatedTracks.length > 1 ? 's' : ''} de votre musique
-                  </p>
-                </>
-              ) : (
-                <>
-                  <h3 className="text-xl font-semibold text-accent-blue mb-2 flex items-center justify-center gap-2">
-                    <div className="animate-pulse">🎵</div> Streaming disponible !
-                  </h3>
-                  <p className="text-foreground-tertiary">
-                    {generatedTracks.length} piste{generatedTracks.length > 1 ? 's' : ''} en cours de génération • Vous pouvez déjà écouter
-                  </p>
-                </>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {generatedTracks.map((track, index) => (
-              <motion.div
-                  key={track.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-white-upload backdrop-blur-upload rounded-xl p-6 border border-upload hover:bg-white-upload backdrop-blur-upload transition-colors cursor-pointer"
-                  onClick={() => {
-                    console.log('🖱️ Clic sur la carte de track:', track.title);
-                    console.log('🖱️ Track complète:', track);
-                    openTrackPanel(track);
-                  }}
-                >
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-gradient-to-r from-accent-purple to-accent-blue rounded-xl flex items-center justify-center overflow-hidden">
-                      {track.imageUrl ? (
-                        <img 
-                          src={track.imageUrl} 
-                          alt={track.title} 
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            // Fallback si l'image ne charge pas
-                            e.currentTarget.style.display = 'none';
-                            e.currentTarget.parentElement!.innerHTML = '<svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path></svg>';
-                          }}
-                        />
-                      ) : (
-                        <Music className="w-8 h-8 text-foreground-primary" />
-                      )}
-                </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-foreground-primary truncate">{track.title}</h3>
-                      <p className="text-foreground-tertiary text-sm truncate">{track.style || '—'} • {formatSec(track.duration || 0)}</p>
-                      <div className="flex gap-2 mt-1">
-                        {track.isInstrumental && (
-                          <span className="inline-block bg-accent-purple/20 text-accent-purple text-xs px-2 py-1 rounded-full border border-accent-purple/30">
-                            Instrumental
-                          </span>
-                        )}
-                        {generationStatus === 'pending' && currentTaskId && (
-                          <span className="inline-flex items-center gap-1 bg-accent-blue/20 text-accent-blue text-xs px-2 py-1 rounded-full border border-accent-blue/30 animate-pulse">
-                            <div className="w-1.5 h-1.5 bg-accent-blue rounded-full animate-ping"></div>
-                            Streaming
-                          </span>
-                        )}
-                      </div>
-                  </div>
-                </div>
-
-                  {track.lyrics && (
-                    <div className="mb-4 p-4 bg-background-primary/50 rounded-lg border border-upload">
-                      <h4 className="text-sm font-medium mb-2 text-foreground-primary">Paroles générées :</h4>
-                      <p className="text-sm text-foreground-primary whitespace-pre-line">{track.lyrics}</p>
-                  </div>
-                )}
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        playGenerated(track);
-                      }}
-                      className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer flex-1 py-2 px-4 text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-upload enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 flex items-center justify-center gap-2"
-                    >
-                      <Play className="w-4 h-4" />
-                      Écouter
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        downloadGenerated(track);
-                      }}
-                      className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer py-2 px-4 text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-upload enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 flex items-center gap-2"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        shareGenerated(track);
-                      }}
-                      className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer py-2 px-4 text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-upload enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 flex items-center gap-2"
-                    >
-                      <Share2 className="w-4 h-4" />
-                    </button>
-                  </div>
-              </motion.div>
-            ))}
-          </div>
-          </motion.div>
-        )}
-
-        {/* Single Generated Track Display (fallback) */}
-        {generatedTrack && generatedTracks.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-2xl mx-auto mt-8"
-          >
-            <div className="bg-white-upload backdrop-blur-upload rounded-lg p-6">
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-16 h-16 bg-gradient-to-r from-accent-purple to-accent-blue rounded-lg flex items-center justify-center">
-                  <Music className="w-8 h-8 text-foreground-primary" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-foreground-primary">{generatedTrack.title}</h3>
-                  <p className="text-foreground-tertiary text-sm">{generatedTrack.style}</p>
-                  {generatedTrack.isInstrumental && (
-                    <span className="inline-block bg-accent-purple text-foreground-primary text-xs px-2 py-1 rounded-full mt-1">
-                      Instrumental
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {generatedTrack.lyrics && (
-                <div className="mb-4 p-4 bg-background-primary/50 rounded-lg">
-                  <h4 className="text-sm font-medium mb-2 text-foreground-primary">Paroles générées :</h4>
-                  <p className="text-sm text-foreground-primary whitespace-pre-line">{generatedTrack.lyrics}</p>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                    <button
-                  onClick={() => {
-                    const aiTrack: AITrack = {
-                      id: generatedTrack.id,
-                      generation_id: '',
-                      title: generatedTrack.title,
-                      audio_url: generatedTrack.audioUrl,
-                      stream_audio_url: '',
-                      image_url: '',
-                      duration: generatedTrack.duration,
-                      prompt: generatedTrack.prompt,
-                      model_name: '',
-                      tags: [],
-                      style: generatedTrack.style,
-                      lyrics: generatedTrack.lyrics,
-                      source_links: null,
-                      created_at: generatedTrack.createdAt,
-                      is_favorite: false,
-                      play_count: 0,
-                      like_count: 0
-                    };
-                    const aiGeneration: AIGeneration = {
-                      id: '',
-                      user_id: '',
-                      task_id: '',
-                      prompt: generatedTrack.prompt,
-                      model: '',
-                      status: 'completed',
-                      created_at: generatedTrack.createdAt,
-                      is_favorite: false,
-                      is_public: false,
-                      play_count: 0,
-                      like_count: 0,
-                      share_count: 0,
-                      metadata: { title: generatedTrack.title, style: generatedTrack.style },
-                      tracks: [aiTrack]
-                    };
-                    playAITrack(aiTrack, aiGeneration);
-                  }}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                >
-                  <Play className="w-4 h-4" />
-                  Écouter
-                    </button>
-                    <button
-                  onClick={() => {
-                    const aiTrack: AITrack = {
-                      id: generatedTrack.id,
-                      generation_id: '',
-                      title: generatedTrack.title,
-                      audio_url: generatedTrack.audioUrl,
-                      stream_audio_url: '',
-                      image_url: '',
-                      duration: generatedTrack.duration,
-                      prompt: generatedTrack.prompt,
-                      model_name: '',
-                      tags: [],
-                      style: generatedTrack.style,
-                      lyrics: generatedTrack.lyrics,
-                      source_links: null,
-                      created_at: generatedTrack.createdAt,
-                      is_favorite: false,
-                      play_count: 0,
-                      like_count: 0
-                    };
-                    downloadTrack(aiTrack);
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                    </button>
-                <button
-                  onClick={() => shareTrack(generatedTrack)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-        </main>
 
         {/* Modale d'achat de crédits */}
         <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
 
         {/* Panneau latéral pour les détails de la track */}
-        <AnimatePresence>
-        {(() => {
-          console.log('🔍 État du panneau:', { showTrackPanel, selectedTrack: !!selectedTrack });
-          return showTrackPanel && selectedTrack;
-        })() && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-50 flex justify-end"
-            onClick={closeTrackPanel}
-          >
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="w-full max-w-sm bg-white-upload backdrop-blur-upload border border-upload h-full overflow-hidden flex flex-col"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              {/* Header du panneau */}
-              <div className="flex items-center justify-between p-4 border-b border-upload">
-                <h2 className="text-sm font-semibold text-foreground-primary">Détails de la track</h2>
-                <button
-                  onClick={closeTrackPanel}
-                  className="p-2 hover:bg-background-secondary rounded-full transition-colors"
-                >
-                  <X className="w-4 h-4 text-foreground-primary" />
-                </button>
-              </div>
-
-              {/* Contenu du panneau */}
-              <div className="flex-1 overflow-y-auto">
-                {/* Image de couverture */}
-                <div className="relative aspect-square bg-gradient-to-br from-accent-purple to-accent-blue">
-                  {selectedTrack?.imageUrl ? (
-                    <img 
-                      src={selectedTrack.imageUrl} 
-                      alt={selectedTrack.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Music className="w-12 h-12 text-white" />
-                    </div>
-                  )}
-                </div>
-
-                {/* Informations principales */}
-                <div className="p-4">
-                  <h3 className="text-lg font-bold text-foreground-primary mb-1">{selectedTrack?.title}</h3>
-                  <p className="text-foreground-secondary text-sm mb-3">{selectedTrack?.style || '—'} • {formatSec(selectedTrack?.duration || 0)}</p>
-                  
-                  {/* Tags */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {selectedTrack?.isInstrumental && (
-                      <span className="inline-block bg-accent-purple/20 text-accent-purple text-xs px-2 py-1 rounded-full border border-accent-purple/30">
-                        Instrumental
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => selectedTrack && playGenerated(selectedTrack)}
-                      className="flex-1 bg-accent-purple text-white py-2 px-3 rounded-full font-medium hover:bg-accent-purple/90 transition-colors flex items-center justify-center gap-2 text-sm"
-                    >
-                      <Play className="w-3 h-3" />
-                      Écouter
-                    </button>
-                    <button
-                      onClick={() => selectedTrack && downloadGenerated(selectedTrack)}
-                      className="p-2 bg-background-secondary text-foreground-primary rounded-full hover:bg-background-tertiary transition-colors"
-                    >
-                      <Download className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => selectedTrack && shareGenerated(selectedTrack)}
-                      className="p-2 bg-background-secondary text-foreground-primary rounded-full hover:bg-background-tertiary transition-colors"
-                    >
-                      <Share2 className="w-3 h-3" />
-                    </button>
-                  </div>
-
-                  {/* Paroles */}
-                  {selectedTrack?.lyrics && (
-                    <div className="mb-4">
-                      <h4 className="text-xs font-medium text-foreground-primary mb-2">Paroles :</h4>
-                      <div className="text-xs text-foreground-primary bg-background-secondary p-3 rounded-lg whitespace-pre-line max-h-40 overflow-y-auto">
-                        {selectedTrack.lyrics}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Informations techniques */}
-                  <div className="border-t border-upload pt-3">
-                    <h4 className="text-xs font-medium text-foreground-primary mb-2">Informations :</h4>
-                    <div className="space-y-1 text-xs text-foreground-secondary">
-                      <div className="flex justify-between">
-                        <span>Durée :</span>
-                        <span>{formatSec(selectedTrack?.duration || 0)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Créé le :</span>
-                        <span>{selectedTrack?.createdAt ? new Date(selectedTrack.createdAt).toLocaleDateString('fr-FR') : '—'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Type :</span>
-                        <span>{selectedTrack?.isInstrumental ? 'Instrumental' : 'Avec paroles'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-        </AnimatePresence>
+        <TrackInspector
+          track={selectedTrack}
+          isOpen={showTrackPanel}
+          onClose={closeTrackPanel}
+          onPlay={playGenerated}
+          onDownload={downloadGenerated}
+          onShare={shareGenerated}
+        />
       </div>
     </div>
   );
 }
 
-// Sous-composant: Dropzone pour Remix (upload audio -> Cloudinary -> url)
-function RemixDropzone({
-  remixFile,
-  remixUploading,
-  onUploadStart,
-  onUploadSuccess,
-  onUploadError,
-  onFileSelected,
-  disabled,
-}: {
-  remixFile: File | null;
-  remixUploading: boolean;
-  onUploadStart: () => void;
-  onUploadSuccess: (params: { url: string; publicId?: string; duration?: number }) => void;
-  onUploadError: (message: string) => void;
-  onFileSelected: (file: File | null) => void;
-  disabled?: boolean;
-}) {
-  const onDrop = useCallback(async (acceptedFiles: File[]) => {
-    const file = acceptedFiles[0];
-    if (!file) return;
-    if (!file.type.startsWith('audio/')) {
-      onUploadError('Veuillez déposer un fichier audio valide');
-      return;
-    }
-    onFileSelected(file);
-    try {
-      onUploadStart();
-      // Signature Cloudinary
-      const timestamp = Math.round(new Date().getTime() / 1000);
-      const publicId = `remix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const sigRes = await fetch('/api/upload/signature', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp, publicId, resourceType: 'video' })
-      });
-      if (!sigRes.ok) throw new Error('Erreur signature Cloudinary');
-      const { signature, apiKey, cloudName } = await sigRes.json();
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'ximam/audio');
-      formData.append('public_id', publicId);
-      formData.append('resource_type', 'video');
-      formData.append('timestamp', String(timestamp));
-      formData.append('api_key', apiKey);
-      formData.append('signature', signature);
-
-      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!uploadResponse.ok) throw new Error("Erreur upload Cloudinary");
-      const uploaded = await uploadResponse.json();
-      const secureUrl = uploaded?.secure_url as string;
-      const uploadedPublicId = uploaded?.public_id as string | undefined;
-      const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
-      if (!secureUrl) throw new Error('URL de fichier manquante');
-      onUploadSuccess({ url: secureUrl, publicId: uploadedPublicId, duration: uploadedDuration });
-    } catch (e: any) {
-      onUploadError(e?.message || 'Erreur upload');
-    }
-  }, [onUploadStart, onUploadSuccess, onUploadError, onFileSelected]);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'audio/*': [] }, maxFiles: 1, disabled });
-
-  return (
-    <div
-      {...getRootProps()}
-      className={`border-2 border-dashed rounded-xl p-4 text-center transition-colors cursor-pointer ${
-        disabled ? 'opacity-50 cursor-not-allowed' : isDragActive ? 'border-accent-brand bg-accent-brand/10' : 'border-upload hover:border-accent-brand/50'
-      }`}
-    >
-      <input {...getInputProps()} />
-      {remixUploading ? (
-        <div className="text-sm">Upload en cours...</div>
-      ) : remixFile ? (
-        <div className="text-sm">
-          {remixFile.name} • {Math.round(remixFile.size / 1024 / 1024)} MB
-        </div>
-      ) : (
-        <div className="text-sm text-foreground-tertiary">Glissez-déposez un fichier audio, ou cliquez pour sélectionner</div>
-      )}
-    </div>
-  );
-}
