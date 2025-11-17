@@ -17,13 +17,38 @@ export async function POST(request: NextRequest) {
     }
 
     // Récupérer les données du formulaire
+    // @ts-ignore - FormData type issue in Next.js (false positive)
     const formData = await request.formData();
-    const title = formData.get('title') as string;
-    const content = formData.get('content') as string;
-    const imageFile = formData.get('image') as File;
+    // @ts-ignore
+    const title = (formData.get('title') as string | null) || '';
+    // @ts-ignore
+    const content = (formData.get('content') as string | null) || '';
+    // @ts-ignore
+    const imageFile = formData.get('image') as File | null;
+    // @ts-ignore
+    const mode = (formData.get('mode') as string | null) || 'publish'; // 'publish', 'draft' ou 'schedule'
+    // @ts-ignore
+    const scheduledAtStr = formData.get('scheduledAt') as string | null;
 
+    // Validation backend
     if (!imageFile) {
-      return NextResponse.json({ error: 'Image requise' }, { status: 400 });
+      return NextResponse.json({ 
+        error: "Aucune image reçue pour ce bulletin. Veuillez sélectionner une image." 
+      }, { status: 400 });
+    }
+
+    // Vérifier que le contenu n'est pas vide
+    if (!content.trim()) {
+      return NextResponse.json({ 
+        error: "La description du bulletin est vide. Veuillez ajouter quelques lignes de description." 
+      }, { status: 400 });
+    }
+
+    // Vérifier que le contenu n'est pas trop court (optionnel mais recommandé)
+    if (content.trim().length < 10) {
+      return NextResponse.json({ 
+        error: "La description est trop courte. Veuillez ajouter plus de détails." 
+      }, { status: 400 });
     }
 
     // Vérifier le type de fichier
@@ -58,54 +83,76 @@ export async function POST(request: NextRequest) {
 
     const { secure_url, public_id } = uploadResult;
 
-    // Récupérer l'ancien bulletin courant pour le supprimer complètement
-    const { data: currentBulletin, error: fetchError } = await supabaseAdmin
-      .from('meteo_bulletins')
-      .select('id, image_public_id')
-      .eq('author_id', session.user.id)
-      .eq('is_current', true)
-      .single();
+    const isPublish = mode === 'publish';
+    const isDraft = mode === 'draft';
+    const isSchedule = mode === 'schedule';
 
-    if (fetchError && fetchError.code !== 'PGRST116') {
-      console.error('Erreur récupération bulletin courant:', fetchError);
-    }
-
-    // Si un bulletin existe, supprimer son image Cloudinary AVANT de le supprimer de la base
-    if (currentBulletin?.image_public_id) {
-      try {
-        console.log('🗑️ Suppression ancienne image Cloudinary:', currentBulletin.image_public_id);
-        const { deleteFile } = await import('@/lib/cloudinary');
-        await deleteFile(currentBulletin.image_public_id, 'image');
-        console.log('✅ Ancienne image supprimée');
-      } catch (deleteError) {
-        console.error('❌ Erreur suppression ancienne image:', deleteError);
-        // On continue même si la suppression échoue
+    // Validation pour le mode schedule
+    if (isSchedule) {
+      if (!scheduledAtStr) {
+        return NextResponse.json({ 
+          error: 'Date de programmation requise pour le mode schedule' 
+        }, { status: 400 });
       }
 
-      // Supprimer complètement l'ancien bulletin de la base de données
-      const { error: deleteError } = await supabaseAdmin
-        .from('meteo_bulletins')
-        .delete()
-        .eq('id', currentBulletin.id);
+      const scheduledAt = new Date(scheduledAtStr);
+      const now = new Date();
 
-      if (deleteError) {
-        console.error('❌ Erreur suppression ancien bulletin:', deleteError);
-      } else {
-        console.log('✅ Ancien bulletin supprimé de la base');
+      // Vérifier que la date est valide
+      if (isNaN(scheduledAt.getTime())) {
+        return NextResponse.json({ 
+          error: 'Date de programmation invalide' 
+        }, { status: 400 });
+      }
+
+      // Vérifier que la date est dans le futur (au moins 1 minute)
+      const minFuture = new Date(now.getTime() + 60000); // 1 minute
+      if (scheduledAt < minFuture) {
+        return NextResponse.json({ 
+          error: 'La date de programmation doit être au moins 1 minute dans le futur' 
+        }, { status: 400 });
+      }
+    }
+
+    // Si mode = 'publish' : mettre tous les bulletins publiés existants à is_current = false
+    if (isPublish) {
+      const { error: updateError } = await supabaseAdmin
+        .from('meteo_bulletins')
+        .update({ is_current: false })
+        .eq('author_id', session.user.id)
+        .eq('is_current', true)
+        .eq('status', 'published');
+
+      if (updateError) {
+        console.error('Erreur mise à jour bulletins existants:', updateError);
+        // On continue quand même pour créer le nouveau bulletin
       }
     }
 
     // Créer le nouveau bulletin
+    const insertData: any = {
+      title: title || null,
+      content: content || null,
+      image_url: secure_url,
+      image_public_id: public_id,
+      author_id: session.user.id,
+    };
+
+    if (isPublish) {
+      insertData.status = 'published';
+      insertData.is_current = true;
+    } else if (isDraft) {
+      insertData.status = 'draft';
+      insertData.is_current = false;
+    } else if (isSchedule) {
+      insertData.status = 'scheduled';
+      insertData.scheduled_at = scheduledAtStr;
+      insertData.is_current = false;
+    }
+
     const { data: newBulletin, error: insertError } = await supabaseAdmin
       .from('meteo_bulletins')
-      .insert({
-        title: title || null,
-        content: content || null,
-        image_url: secure_url,
-        image_public_id: public_id,
-        author_id: session.user.id,
-        is_current: true
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -119,7 +166,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ 
       success: true,
       bulletin: newBulletin,
-      message: 'Bulletin publié avec succès'
+      message: isPublish 
+        ? 'Bulletin publié avec succès' 
+        : isSchedule
+        ? 'Bulletin programmé avec succès'
+        : 'Bulletin enregistré en brouillon'
     });
 
   } catch (error) {
@@ -140,12 +191,13 @@ export async function GET() {
       return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
     }
 
-    // Récupérer le bulletin courant
+    // Récupérer le bulletin courant (uniquement publié)
     const { data: bulletin, error } = await supabaseAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('author_id', session.user.id)
       .eq('is_current', true)
+      .eq('status', 'published')
       .single();
 
     if (error && error.code !== 'PGRST116') {

@@ -191,7 +191,7 @@ export default function MeteoStyledPage() {
     (async () => {
       setLoadingBulletin(true);
       try {
-        const res = await fetch(`/api/meteo/public?_ts=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`/api/meteo/public?source=meteo_page&_ts=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
         if (!alive) return;
         if (res.ok && data.bulletin) setBulletin(data.bulletin);

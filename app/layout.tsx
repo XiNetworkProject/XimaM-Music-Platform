@@ -3,9 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import './suno.css';
 import Providers from './providers';
-import BottomNav from '@/components/BottomNav';
-import AppNavbar from '@/components/AppNavbar';
-import AppSidebar from '@/components/AppSidebar';
+import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/components/ConditionalNav';
 import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 import StudioBackground from '@/components/StudioBackground';
@@ -117,15 +115,16 @@ export default function RootLayout({
           </div>
 
           <div className="flex min-h-screen overflow-x-hidden max-w-full relative z-10">
-            <AppSidebar />
-            <LayoutContent>
-              <AppNavbar />
-              <main className="flex-1 overflow-x-hidden max-w-full">
-                {children}
-              </main>
-              <BottomNav />
-              <FullScreenPlayer />
-            </LayoutContent>
+            <ConditionalNav>
+              <LayoutContent>
+                <ConditionalNavbar />
+                <main className="flex-1 overflow-x-hidden max-w-full">
+                  {children}
+                </main>
+                <ConditionalBottomNav />
+                <FullScreenPlayer />
+              </LayoutContent>
+            </ConditionalNav>
           </div>
           <Analytics />
         </Providers>

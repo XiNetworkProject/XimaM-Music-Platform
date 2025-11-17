@@ -953,7 +953,7 @@ export default function SynauraHome() {
   // Fonction pour récupérer le bulletin Alertemps
   const fetchAlertempsBulletin = useCallback(async () => {
     try {
-      const response = await fetch(`/api/meteo/public?_ts=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`/api/meteo/public?source=home&_ts=${Date.now()}`, { cache: 'no-store' });
       const data = await response.json();
       
       if (response.ok && data.bulletin?.image_url) {

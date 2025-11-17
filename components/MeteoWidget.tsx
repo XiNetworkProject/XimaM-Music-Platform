@@ -20,7 +20,7 @@ export default function MeteoWidget() {
   useEffect(() => {
     const fetchBulletin = async () => {
       try {
-        const response = await fetch(`/api/meteo/public?_ts=${Date.now()}` , { cache: 'no-store' });
+        const response = await fetch(`/api/meteo/public?source=widget&_ts=${Date.now()}` , { cache: 'no-store' });
         const data = await response.json();
         
         if (response.ok && data.bulletin) {
