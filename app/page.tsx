@@ -32,6 +32,123 @@ interface Track {
   createdAt?: string;
 }
 
+interface PreferenceProfile {
+  artistScores: Record<string, number>;
+  genreScores: Record<string, number>;
+  recencyPreference: number;
+  trackCount: number;
+}
+
+const normalizeScoresMap = (map: Map<string, number>) => {
+  const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+  const total = entries.reduce((sum, [, value]) => sum + value, 0) || 1;
+  const record: Record<string, number> = {};
+  entries.forEach(([key, value]) => {
+    record[key] = value / total;
+  });
+  return record;
+};
+
+const buildPreferenceProfile = (tracks: Track[]): PreferenceProfile | null => {
+  if (!tracks || tracks.length === 0) return null;
+
+  const artistWeights = new Map<string, number>();
+  const genreWeights = new Map<string, number>();
+  const now = Date.now();
+  let recencyAccumulator = 0;
+
+  tracks.forEach((track, index) => {
+    const weight = 1 + (tracks.length - index) / tracks.length;
+    if (track.artist?._id) {
+      artistWeights.set(
+        track.artist._id,
+        (artistWeights.get(track.artist._id) || 0) + weight,
+      );
+    }
+    const genres = Array.isArray(track.genre)
+      ? track.genre
+      : track.genre
+      ? [track.genre]
+      : [];
+    genres.forEach((genre) => {
+      const key = genre?.trim()?.toLowerCase();
+      if (!key) return;
+      genreWeights.set(key, (genreWeights.get(key) || 0) + weight);
+    });
+    if (track.createdAt) {
+      const release = new Date(track.createdAt).getTime();
+      const recency = Math.max(
+        0,
+        1 - (now - release) / (1000 * 60 * 60 * 24 * 365),
+      );
+      recencyAccumulator += recency;
+    }
+  });
+
+  return {
+    artistScores: normalizeScoresMap(artistWeights),
+    genreScores: normalizeScoresMap(genreWeights),
+    recencyPreference: recencyAccumulator / tracks.length,
+    trackCount: tracks.length,
+  };
+};
+
+const scoreTrackForProfile = (
+  track: Track,
+  profile?: PreferenceProfile | null,
+) => {
+  const basePopularity =
+    Math.log10((track.plays || 0) + 1) * 0.6 +
+    ((track.likes?.length || 0) * 0.002);
+  if (!profile) return basePopularity;
+
+  let personalization = 0;
+  if (track.artist?._id && profile.artistScores[track.artist._id]) {
+    personalization += 2 * profile.artistScores[track.artist._id];
+  }
+
+  const genres = Array.isArray(track.genre)
+    ? track.genre
+    : track.genre
+    ? [track.genre]
+    : [];
+  genres.forEach((genre) => {
+    const key = genre?.trim()?.toLowerCase();
+    if (key && profile.genreScores[key]) {
+      personalization += 1.3 * profile.genreScores[key];
+    }
+  });
+
+  if (track.createdAt) {
+    const now = Date.now();
+    const days = (now - new Date(track.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    const recencyBoost = Math.max(0, 1 - days / 180);
+    personalization += recencyBoost * profile.recencyPreference;
+  }
+
+  return basePopularity + personalization;
+};
+
+const scoreCreatorForProfile = (
+  creator: any,
+  profile?: PreferenceProfile | null,
+) => {
+  if (!profile) {
+    return (creator.totalPlays || 0) * 0.001 + (creator.followerCount || 0) * 0.01;
+  }
+  const trackScores = (creator.tracks || []).map((t: Track) =>
+    scoreTrackForProfile(t, profile),
+  );
+  const avgScore =
+    trackScores.reduce((sum: number, value: number) => sum + value, 0) /
+      (trackScores.length || 1) || 0;
+  return (
+    avgScore +
+    (creator.totalPlays || 0) * 0.001 +
+    (creator.followerCount || 0) * 0.01
+  );
+};
+
 // Cache pour les données
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
 const CACHE_DURATION = 30 * 1000;
@@ -402,6 +519,7 @@ export default function SynauraHome() {
   const [forYouTracks, setForYouTracks] = useState<Track[]>([]);
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
   const [suggestedCreators, setSuggestedCreators] = useState<any[]>([]);
+  const [preferenceProfile, setPreferenceProfile] = useState<PreferenceProfile | null>(null);
   
   // États pour la bibliothèque
   const [libraryStats, setLibraryStats] = useState({
@@ -542,6 +660,31 @@ export default function SynauraHome() {
     }
   }, []);
 
+  const fetchUserPreferenceProfile = useCallback(async () => {
+    if (!session?.user?.id) {
+      setPreferenceProfile(null);
+      return;
+    }
+
+    try {
+      const likedRes = await fetch('/api/tracks?liked=true&limit=150', { cache: 'no-store' });
+      let likedTracks: Track[] = [];
+      if (likedRes.ok) {
+        const likedJson = await likedRes.json();
+        likedTracks = likedJson?.tracks || [];
+      }
+
+      const seedPool = likedTracks.length
+        ? likedTracks
+        : [...forYouTracks.slice(0, 60), ...recentTracks.slice(0, 60)];
+
+      const profile = buildPreferenceProfile(seedPool);
+      setPreferenceProfile(profile);
+    } catch (error) {
+      console.error('Erreur profil préférences:', error);
+    }
+  }, [session?.user?.id, forYouTracks, recentTracks]);
+
   // Charger toutes les données au montage
   useEffect(() => {
     const loadData = async () => {
@@ -569,6 +712,10 @@ export default function SynauraHome() {
     loadData();
   }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators]);
 
+  useEffect(() => {
+    fetchUserPreferenceProfile();
+  }, [fetchUserPreferenceProfile]);
+
   // Listes For You et Trending uniques (sans doublons)
   const forYouList = useMemo(() => {
     if (forYouTracks.length > 0) return forYouTracks;
@@ -586,18 +733,26 @@ export default function SynauraHome() {
     return filtered.length > 0 ? filtered : trendingTracks;
   }, [trendingTracks, forYouList]);
   
-  // Convertir les vraies données en format attendu par les composants
-  const mockTracks = useMemo(() => trendingTracks.map(t => ({
-    id: t._id,
-    title: t.title,
-    artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
-    cover: t.coverUrl || '/default-cover.jpg',
-    duration: t.duration || 0,
-    liked: false,
-    _original: t
-  })), [trendingTracks]);
+  const personalizedForYouList = useMemo(() => {
+    if (!preferenceProfile) return forYouList;
+    return [...forYouList].sort(
+      (a, b) =>
+        scoreTrackForProfile(b, preferenceProfile) -
+        scoreTrackForProfile(a, preferenceProfile),
+    );
+  }, [forYouList, preferenceProfile]);
+
+  const trendingList = useMemo(() => {
+    if (!preferenceProfile) return trendingUnique;
+    return [...trendingUnique].sort(
+      (a, b) =>
+        scoreTrackForProfile(b, preferenceProfile) -
+        scoreTrackForProfile(a, preferenceProfile),
+    );
+  }, [trendingUnique, preferenceProfile]);
   
-  const forYouCards = useMemo(() => forYouList.slice(0, 12).map(t => ({
+  // Convertir les vraies données en format attendu par les composants
+  const mockTracks = useMemo(() => trendingList.map(t => ({
     id: t._id,
     title: t.title,
     artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
@@ -605,7 +760,26 @@ export default function SynauraHome() {
     duration: t.duration || 0,
     liked: false,
     _original: t
-  })), [forYouList]);
+  })), [trendingList]);
+  
+  const forYouCards = useMemo(() => personalizedForYouList.slice(0, 12).map(t => ({
+    id: t._id,
+    title: t.title,
+    artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
+    cover: t.coverUrl || '/default-cover.jpg',
+    duration: t.duration || 0,
+    liked: false,
+    _original: t
+  })), [personalizedForYouList]);
+
+  const personalizedCreators = useMemo(() => {
+    if (!preferenceProfile) return suggestedCreators;
+    return [...suggestedCreators].sort(
+      (a, b) =>
+        scoreCreatorForProfile(b, preferenceProfile) -
+        scoreCreatorForProfile(a, preferenceProfile),
+    );
+  }, [suggestedCreators, preferenceProfile]);
   
   const recentCards = useMemo(() => recentTracks.map(t => ({
     id: t._id,
@@ -1039,11 +1213,11 @@ export default function SynauraHome() {
         )}
 
         {/* Trending */}
-        {!loading && trendingUnique.length > 0 && (
+        {!loading && trendingList.length > 0 && (
           <section>
             <SectionTitle icon={TrendingUp} title="Les plus écoutées" actionLabel="Voir le top 50" onAction={() => router.push('/trending', { scroll: false })} />
             <HorizontalScroller>
-              {trendingUnique.slice(0, 10).map((track, i) => (
+              {trendingList.slice(0, 10).map((track, i) => (
                 <div key={track._id} className="min-w-[180px] md:min-w-[220px] bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-2.5 md:p-3 hover:bg-white/10 transition" style={{ scrollSnapAlign: "start" }}>
                   <div className="relative">
                     <img src={track.coverUrl || '/default-cover.jpg'} className="w-full h-32 md:h-36 object-cover rounded-lg md:rounded-xl" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
@@ -1152,11 +1326,11 @@ export default function SynauraHome() {
         )}
 
         {/* Créateurs suggérés */}
-        {!loading && suggestedCreators.length > 0 && (
+        {!loading && personalizedCreators.length > 0 && (
           <section>
             <SectionTitle icon={Star} title="Créateurs suggérés" actionLabel="Actualiser" onAction={fetchSuggestedCreators} />
             <HorizontalScroller>
-              {suggestedCreators.map(creator => (
+              {personalizedCreators.map(creator => (
                 <div 
                   key={creator._id} 
                   onClick={() => router.push(`/profile/${creator.username}`, { scroll: false })}
