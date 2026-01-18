@@ -1,4 +1,4 @@
-import { useRef, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 export type VerticalSwipeOptions = {
   minDistance?: number;        // px — swipe lent
@@ -36,10 +36,40 @@ export function useVerticalSwipe(opts?: VerticalSwipeOptions): Handlers {
     locked: false,
     moved: false,
     lastFire: 0,
+    ignore: false,
   });
 
+  const onSwipeUpRef = useRef<VerticalSwipeOptions["onSwipeUp"]>();
+  const onSwipeDownRef = useRef<VerticalSwipeOptions["onSwipeDown"]>();
+
+  useEffect(() => {
+    onSwipeUpRef.current = onSwipeUp;
+    onSwipeDownRef.current = onSwipeDown;
+  }, [onSwipeUp, onSwipeDown]);
+
   return useMemo<Handlers>(() => {
+    const shouldIgnoreTarget = (target: EventTarget | null) => {
+      const el = target as HTMLElement | null;
+      if (!el || typeof (el as any).closest !== 'function') return false;
+
+      // Permet d'ignorer explicitement des zones (lyrics, seekbar, drawers, etc.)
+      if (el.closest('[data-swipe-ignore]')) return true;
+
+      // Éviter de swiper quand on interagit avec des éléments UI
+      if (
+        el.closest(
+          'input,textarea,select,button,a,[role="button"],[role="link"],[role="slider"],[contenteditable="true"]',
+        )
+      ) {
+        return true;
+      }
+
+      return false;
+    };
+
     const onTouchStart = (e: React.TouchEvent) => {
+      st.current.ignore = shouldIgnoreTarget(e.target);
+      if (st.current.ignore) return;
       const y = e.touches?.[0]?.clientY ?? 0;
       st.current.y0 = y;
       st.current.yLast = y;
@@ -49,6 +79,7 @@ export function useVerticalSwipe(opts?: VerticalSwipeOptions): Handlers {
     };
 
     const onTouchMove = (e: React.TouchEvent) => {
+      if (st.current.ignore) return;
       const y = e.touches?.[0]?.clientY ?? st.current.yLast;
       st.current.yLast = y;
       const dy = y - st.current.y0;
@@ -64,6 +95,7 @@ export function useVerticalSwipe(opts?: VerticalSwipeOptions): Handlers {
     };
 
     const onTouchEnd = () => {
+      if (st.current.ignore) return;
       const dy = st.current.yLast - st.current.y0; // + = vers le bas
       const dt = Math.max(1, performance.now() - st.current.t0);
       const velocity = dy / dt; // px/ms
@@ -76,8 +108,8 @@ export function useVerticalSwipe(opts?: VerticalSwipeOptions): Handlers {
 
       if ((isFlick || isLong) && st.current.moved) {
         st.current.lastFire = now;
-        if (dy < 0) onSwipeUp?.();
-        else if (dy > 0) onSwipeDown?.();
+        if (dy < 0) onSwipeUpRef.current?.();
+        else if (dy > 0) onSwipeDownRef.current?.();
       }
     };
 

@@ -889,10 +889,10 @@ export default function HomePage() {
   const fetchStreamUrl = async () => {
     try {
       // URL de streaming directe HTTPS
-      const streamUrl = 'https://rocket.streamradio.fr/stream/mixxparty';
+      const streamUrl = 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3';
       return streamUrl;
     } catch (error) {
-      return 'https://rocket.streamradio.fr/stream/mixxparty'; // URL de fallback
+      return 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'; // URL de fallback
     }
   };
 

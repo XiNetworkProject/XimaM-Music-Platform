@@ -451,26 +451,128 @@ const AlertempsCard = ({ onClick, bulletinImage }: { onClick: () => void; bullet
   </div>
 );
 
-const HeroCarousel = ({ slides, onAction }: { slides: any[]; onAction?: (action: string, data?: any) => void }) => {
+const HeroCarousel = ({
+  slides,
+  onAction,
+}: {
+  slides: any[];
+  onAction?: (action: string, data?: any) => void;
+}) => {
   const [index, setIndex] = useState(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const next = () => setIndex((i) => (i + 1) % slides.length);
-  const prev = () => setIndex((i) => (i - 1 + slides.length) % slides.length);
+  const [progress, setProgress] = useState(0);
+  const [isAuto, setIsAuto] = useState(true);
+  const [isHovered, setIsHovered] = useState(false);
+  const startX = useRef<number | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastTs = useRef<number | null>(null);
+  const DURATION = 5000;
+
+  const next = () => {
+    if (!slides?.length) return;
+    setIndex((i) => (i + 1) % slides.length);
+    setProgress(0);
+    lastTs.current = null;
+  };
+  const prev = () => {
+    if (!slides?.length) return;
+    setIndex((i) => (i - 1 + slides.length) % slides.length);
+    setProgress(0);
+    lastTs.current = null;
+  };
 
   useEffect(() => {
-    timeoutRef.current = setTimeout(next, 5000);
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, [index, slides.length]);
+    if (!slides?.length) return;
+    const tick = (ts: number) => {
+      if (!isAuto || isHovered) {
+        lastTs.current = ts;
+        rafRef.current = window.requestAnimationFrame(tick);
+        return;
+      }
 
-  const currentSlide = slides[index];
+      if (lastTs.current == null) lastTs.current = ts;
+      const delta = ts - lastTs.current;
+      lastTs.current = ts;
+
+      setProgress((p) => {
+        const nextP = p + delta / DURATION;
+        if (nextP >= 1) {
+          setIndex((i) => (i + 1) % slides.length);
+          return 0;
+        }
+        return nextP;
+      });
+
+      rafRef.current = window.requestAnimationFrame(tick);
+    };
+
+    rafRef.current = window.requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) window.cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      lastTs.current = null;
+    };
+  }, [isAuto, isHovered, slides.length]);
+
+  useEffect(() => {
+    setProgress(0);
+    lastTs.current = null;
+  }, [index]);
+
+  if (!slides?.length) return null;
 
   return (
-    <div className="relative w-full h-[240px] md:h-[300px] rounded-3xl overflow-hidden border border-white/10">
+    <div
+      className="relative w-full h-[240px] md:h-[300px] rounded-3xl overflow-hidden border border-white/10"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={(e) => (startX.current = e.touches[0]?.clientX ?? null)}
+      onTouchEnd={(e) => {
+        if (startX.current == null) return;
+        const end = e.changedTouches[0]?.clientX ?? startX.current;
+        const dx = end - startX.current;
+        startX.current = null;
+        if (Math.abs(dx) < 50) return;
+        if (dx > 0) prev();
+        else next();
+      }}
+    >
+      {/* Progress bars type "stories" */}
+      <div className="absolute top-2 left-2 right-2 flex gap-1 z-10">
+        {slides.map((_: any, i: number) => (
+          <div
+            key={i}
+            className="h-1 flex-1 rounded-full bg-white/20 overflow-hidden"
+          >
+            <div
+              className="h-full bg-white/90"
+              style={{
+                width:
+                  i < index
+                    ? "100%"
+                    : i > index
+                    ? "0%"
+                    : `${Math.round(progress * 100)}%`,
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Toggle auto/pause */}
+      <button
+        onClick={() => setIsAuto((v) => !v)}
+        className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10 text-xs flex items-center gap-2"
+      >
+        <Repeat className="w-4 h-4" />
+        {isAuto ? "Auto" : "Pause"}
+      </button>
+
       {slides.map((s: any, i: number) => (
         <div key={s.id}
-          className={`absolute inset-0 transition-opacity duration-700 ${i === index ? "opacity-100" : "opacity-0"}`}>
+          className={`absolute inset-0 transition-opacity duration-700 ${
+            i === index ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
+        >
           <img src={s.image} alt={s.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4 md:left-6 md:right-6">
@@ -484,7 +586,7 @@ const HeroCarousel = ({ slides, onAction }: { slides: any[]; onAction?: (action:
             <p className="text-sm text-white/80">{s.subtitle}</p>
             {s.actionLabel && onAction && (
               <button 
-                onClick={() => onAction(s.actionType, s.track)} 
+                onClick={() => onAction(s.actionType, s.actionData ?? s.track)} 
                 className="mt-3 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition flex items-center gap-2"
               >
                 {s.actionIcon && <s.actionIcon className="w-4 h-4" />}
@@ -496,7 +598,17 @@ const HeroCarousel = ({ slides, onAction }: { slides: any[]; onAction?: (action:
       ))}
       <div className="absolute inset-x-0 bottom-2 flex items-center justify-center gap-2">
         {slides.map((_: any, i: number) => (
-          <button key={i} onClick={() => setIndex(i)} className={`w-2 h-2 rounded-full ${i === index ? "bg-white" : "bg-white/40"}`} />
+          <button
+            key={i}
+            onClick={() => {
+              setIndex(i);
+              setProgress(0);
+              lastTs.current = null;
+            }}
+            className={`w-2 h-2 rounded-full ${
+              i === index ? "bg-white" : "bg-white/40"
+            }`}
+          />
         ))}
       </div>
       <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10"><ChevronLeft className="w-4 h-4" /></button>
@@ -508,9 +620,148 @@ const HeroCarousel = ({ slides, onAction }: { slides: any[]; onAction?: (action:
 // Icons used in the Library section (kept outside render for stability)
 const LIB_ICONS = [Heart, Disc3, Clock, Library, Mic2, Repeat];
 
+const Skeleton = ({ className = "" }: { className?: string }) => (
+  <div
+    className={`animate-pulse rounded-2xl bg-white/5 border border-white/10 ${className}`}
+  />
+);
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 6) return "Bonne nuit";
+  if (h < 12) return "Bonjour";
+  if (h < 18) return "Bon après-midi";
+  return "Bonsoir";
+};
+
+const ActionPill = ({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: any;
+  label: string;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm whitespace-nowrap transition"
+  >
+    <Icon className="w-4 h-4" />
+    <span className="font-medium">{label}</span>
+  </button>
+);
+
+const WelcomeHeader = ({
+  session,
+  onGo,
+}: {
+  session: any;
+  onGo: (path: string) => void;
+}) => {
+  const name =
+    session?.user?.name ||
+    session?.user?.username ||
+    session?.user?.email?.split?.("@")?.[0] ||
+    "sur Synaura";
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 via-white/4 to-white/5 p-4 md:p-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-white/70 text-xs md:text-sm">{getGreeting()}</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight line-clamp-1">
+            {session ? `Bienvenue, ${name}` : "Bienvenue sur Synaura"}
+          </h1>
+          <p className="text-white/60 text-xs md:text-sm mt-1">
+            Découvre, écoute, et crée ta prochaine musique préférée.
+          </p>
+        </div>
+
+        <button
+          onClick={() => onGo("/subscriptions")}
+          className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition"
+        >
+          <Crown className="w-4 h-4" />
+          <span className="text-sm font-semibold">Premium</span>
+        </button>
+      </div>
+
+      <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <ActionPill
+          icon={TrendingUp}
+          label="Explorer"
+          onClick={() => onGo("/trending")}
+        />
+        <ActionPill
+          icon={Sparkles}
+          label="Générer IA"
+          onClick={() => onGo("/ai-generator")}
+        />
+        <ActionPill icon={Cloud} label="Météo" onClick={() => onGo("/meteo")} />
+        <ActionPill
+          icon={Crown}
+          label="Abonnements"
+          onClick={() => onGo("/subscriptions")}
+        />
+        {session && (
+          <ActionPill
+            icon={Library}
+            label="Bibliothèque"
+            onClick={() => onGo("/library")}
+          />
+        )}
+        <ActionPill icon={Upload} label="Uploader" onClick={() => onGo("/upload")} />
+      </div>
+    </div>
+  );
+};
+
+const ContinueListening = ({
+  track,
+  isPlaying,
+  onToggle,
+}: {
+  track: any;
+  isPlaying: boolean;
+  onToggle: () => void;
+}) => {
+  if (!track?._id) return null;
+
+  return (
+    <div className="rounded-3xl border border-white/10 bg-white/5 p-3 md:p-4 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-3 min-w-0">
+        <img
+          src={track.coverUrl || "/default-cover.jpg"}
+          className="w-12 h-12 rounded-xl object-cover border border-white/10"
+          onError={(e) =>
+            ((e.currentTarget as HTMLImageElement).src = "/default-cover.jpg")
+          }
+          alt=""
+        />
+        <div className="min-w-0">
+          <p className="text-xs text-white/60">Reprendre l’écoute</p>
+          <p className="text-sm font-semibold line-clamp-1">{track.title}</p>
+          <p className="text-xs text-white/60 line-clamp-1">
+            {track.artist?.name || track.artist?.username}
+          </p>
+        </div>
+      </div>
+
+      <button
+        onClick={onToggle}
+        className="shrink-0 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center gap-2"
+      >
+        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+        <span className="text-sm font-medium">{isPlaying ? "Pause" : "Lire"}</span>
+      </button>
+    </div>
+  );
+};
+
 export default function SynauraHome() {
   const { data: session } = useSession();
-  const { audioState, playTrack, pause, setTracks } = useAudioPlayer();
+  const { audioState, playTrack, play, pause, setTracks } = useAudioPlayer();
   
   const [loading, setLoading] = useState(true);
   const [featuredTracks, setFeaturedTracks] = useState<Track[]>([]);
@@ -890,10 +1141,10 @@ export default function SynauraHome() {
   // Fonction pour récupérer l'URL de streaming
   const fetchStreamUrl = async () => {
     try {
-      const streamUrl = 'https://rocket.streamradio.fr/stream/mixxparty';
+      const streamUrl = 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3';
       return streamUrl;
     } catch (error) {
-      return 'https://rocket.streamradio.fr/stream/mixxparty';
+      return 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3';
     }
   };
 
@@ -1175,32 +1426,65 @@ export default function SynauraHome() {
     return () => { try { document.head.removeChild(style); } catch (e) {} };
   }, []);
 
+  const onGo = (path: string) => router.push(path, { scroll: false });
+
   if (loading) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
-                  </div>
+      <div className="min-h-screen text-white">
+        <main className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4 space-y-4 md:space-y-8">
+          <WelcomeHeader session={session} onGo={onGo} />
+
+          <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
+            <Skeleton className="lg:col-span-8 h-[240px] md:h-[300px]" />
+            <div className="lg:col-span-4 space-y-3">
+              <Skeleton className="h-[88px]" />
+              <Skeleton className="h-[88px]" />
+              <Skeleton className="h-[88px]" />
+            </div>
+          </div>
+
+          <Skeleton className="h-[160px]" />
+          <Skeleton className="h-[160px]" />
+        </main>
+      </div>
     );
   }
 
   return (
     <div className="min-h-screen text-white">
       <main className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4 space-y-4 md:space-y-8">
-        <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
+        {/* ✅ Nouveau header accueil */}
+        <WelcomeHeader session={session} onGo={onGo} />
 
-        {/* Quick widgets */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
-          <LiveRadioCard 
-            isPlaying={isRadioPlaying} 
-            currentTrack={radioInfo.currentTrack}
-            onToggle={handleRadioToggle}
-          />
-          <WeatherWidget weather={weatherData} weatherCode={weatherCode} />
-          <AlertempsCard 
-            onClick={() => router.push('/meteo', { scroll: false })} 
-            bulletinImage={alertempsBulletinImage}
-              />
-            </div>
+        {/* ✅ Reprendre l’écoute */}
+        <ContinueListening
+          track={currentTrack}
+          isPlaying={audioState.isPlaying}
+          onToggle={async () => {
+            if (!currentTrack?._id) return;
+            if (audioState.isPlaying) pause();
+            else await play(); // reprend sans restart
+          }}
+        />
+
+        {/* ✅ Hero + widgets mieux “composés” sur desktop */}
+        <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
+          <div className="lg:col-span-8">
+            <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
+          </div>
+          <div className="lg:col-span-4 space-y-3">
+            <LiveRadioCard
+              isPlaying={isRadioPlaying}
+              currentTrack={radioInfo.currentTrack}
+              onToggle={handleRadioToggle}
+            />
+            <WeatherWidget weather={weatherData} weatherCode={weatherCode} />
+            <AlertempsCard
+              onClick={() => router.push('/meteo', { scroll: false })}
+              bulletinImage={alertempsBulletinImage}
+            />
+          </div>
+        </div>
 
         {/* Pour toi */}
         {!loading && forYouCards.length > 0 && (
@@ -1400,8 +1684,8 @@ export default function SynauraHome() {
           </section>
         )}
 
-        {/* Tests (rendered but minimal footprint). Open console to see results. */}
-        <DevTests />
+        {/* Tests (dev only) */}
+        {process.env.NODE_ENV !== "production" && <DevTests />}
 
         {/* Footer mini-nav */}
           <footer className="pt-8 pb-10 text-xs text-white/60">

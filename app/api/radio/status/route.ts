@@ -143,7 +143,7 @@ export async function GET(req: NextRequest) {
         lastUpdate: new Date().toISOString(),
         
         // URL de streaming
-        streamUrl: 'https://rocket.streamradio.fr/stream/mixxparty'
+        streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'
       };
 
       console.log('📻 Données radio récupérées:', {
@@ -276,7 +276,7 @@ export async function GET(req: NextRequest) {
         },
         
         lastUpdate: new Date().toISOString(),
-        streamUrl: 'https://rocket.streamradio.fr/stream/mixxparty'
+        streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'
       };
 
       return NextResponse.json({
@@ -329,7 +329,7 @@ export async function GET(req: NextRequest) {
       },
       
       lastUpdate: new Date().toISOString(),
-      streamUrl: 'https://rocket.streamradio.fr/stream/mixxparty'
+      streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'
     };
 
     return NextResponse.json({

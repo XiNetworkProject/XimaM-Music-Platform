@@ -89,9 +89,13 @@ interface AudioPlayerContextType {
   setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
   requestNotificationPermission: () => Promise<boolean>;
   forceUpdateNotification: () => void;
+  getAudioElement: () => HTMLAudioElement | null;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
+
+type AudioTimeState = { currentTime: number; duration: number };
+const AudioTimeContext = createContext<AudioTimeState | undefined>(undefined);
 
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
@@ -114,14 +118,15 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     playbackRate: 1,
   });
 
+  // Time state séparé pour éviter de rerender toute l'app à chaque tick
+  const [audioTime, setAudioTime] = useState<AudioTimeState>({ currentTime: 0, duration: 0 });
+
   // Synchronisation optimisée avec le service audio
   useEffect(() => {
     setAudioState(prev => ({
       ...prev,
       isPlaying: audioService.state.isPlaying,
       volume: audioService.state.volume,
-      currentTime: audioService.state.currentTime,
-      duration: audioService.state.duration,
       isLoading: audioService.state.isLoading,
       error: audioService.state.error,
       isMuted: audioService.state.isMuted,
@@ -130,6 +135,55 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       repeat: audioService.repeat,
     }));
   }, [audioService.state, audioService.shuffle, audioService.repeat]);
+
+  // Temps (currentTime/duration): préférer les events natifs de l'élément audio
+  // Objectif: éviter des rerenders ultra fréquents dans toute l'app.
+  useEffect(() => {
+    const audioEl = ((audioService as any).audioElement ?? null) as HTMLAudioElement | null;
+    if (!audioEl) return;
+
+    let lastCommit = 0;
+    const THROTTLE_MS = 120; // suffisant pour une UI fluide sans spammer React
+
+    const commit = () => {
+      const now = performance.now();
+      if (now - lastCommit < THROTTLE_MS) return;
+      lastCommit = now;
+      const ct = Number.isFinite(audioEl.currentTime) ? audioEl.currentTime : 0;
+      const dur = Number.isFinite(audioEl.duration) ? audioEl.duration : 0;
+      setAudioTime(prev => {
+        if (Math.abs((prev.currentTime || 0) - ct) < 0.05 && Math.abs((prev.duration || 0) - dur) < 0.05) {
+          return prev;
+        }
+        return { currentTime: ct, duration: dur };
+      });
+    };
+
+    const onTime = () => commit();
+    const onMeta = () => commit();
+    const onSeeked = () => commit();
+
+    // Premier commit immédiat
+    commit();
+
+    audioEl.addEventListener('timeupdate', onTime);
+    audioEl.addEventListener('loadedmetadata', onMeta);
+    audioEl.addEventListener('durationchange', onMeta);
+    audioEl.addEventListener('seeking', onTime);
+    audioEl.addEventListener('seeked', onSeeked);
+
+    return () => {
+      audioEl.removeEventListener('timeupdate', onTime);
+      audioEl.removeEventListener('loadedmetadata', onMeta);
+      audioEl.removeEventListener('durationchange', onMeta);
+      audioEl.removeEventListener('seeking', onTime);
+      audioEl.removeEventListener('seeked', onSeeked);
+    };
+  }, [audioService]);
+
+  const getAudioElement = useCallback(() => {
+    return (((audioService as any).audioElement ?? null) as HTMLAudioElement | null);
+  }, [audioService]);
   // Media Session: mapping piste courante -> métadonnées Media Session
   const mediaSessionTrack: MSMediaTrack | null = useMemo(() => {
     const t = audioService.state.currentTrack as any;
@@ -503,6 +557,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setQueueAndPlay: audioService.actions.setQueueAndPlay,
     requestNotificationPermission: audioService.actions.requestNotificationPermission,
     forceUpdateNotification: audioService.actions.forceUpdateNotification,
+    getAudioElement,
   }), [
     audioState,
     setTracks,
@@ -516,7 +571,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     handleLike,
     updatePlayCount,
     closePlayer,
-    audioService.actions
+    audioService.actions,
+    getAudioElement,
   ]);
 
   // Tentative d'exposition du service audio
@@ -566,7 +622,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <AudioPlayerContext.Provider value={value}>
-      {children}
+      <AudioTimeContext.Provider value={audioTime}>
+        {children}
+      </AudioTimeContext.Provider>
     </AudioPlayerContext.Provider>
   );
 }
@@ -577,6 +635,12 @@ export function useAudioPlayer() {
     throw new Error('useAudioPlayer must be used within an AudioPlayerProvider');
   }
   return context;
+}
+
+export function useAudioTime() {
+  const ctx = useContext(AudioTimeContext);
+  if (!ctx) throw new Error('useAudioTime must be used within an AudioPlayerProvider');
+  return ctx;
 }
 
 // Sidebar context

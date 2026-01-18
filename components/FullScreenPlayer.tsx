@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, Radio, AlertTriangle, ChevronDown } from "lucide-react";
-import { useAudioPlayer } from '@/app/providers';
+import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import LikeButton from './LikeButton';
 import TikTokPlayer from './TikTokPlayer';
 
@@ -30,6 +30,7 @@ export default function SynauraMiniPlayer() {
     toggleMute,
     setRepeat
   } = useAudioPlayer();
+  const { currentTime, duration } = useAudioTime();
 
   const progressRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLParagraphElement>(null);
@@ -84,13 +85,13 @@ export default function SynauraMiniPlayer() {
   };
 
   const seekTo = (fraction: number) => {
-    if (!audioState.duration) return;
-    const newTime = Math.max(0, Math.min(audioState.duration, fraction * audioState.duration));
+    if (!duration) return;
+    const newTime = Math.max(0, Math.min(duration, fraction * duration));
     seek(newTime);
   };
 
   const seekBy = (deltaSec: number) => {
-    const newTime = Math.max(0, Math.min((audioState.currentTime || 0) + deltaSec, audioState.duration));
+    const newTime = Math.max(0, Math.min((currentTime || 0) + deltaSec, duration));
     seek(newTime);
   };
 
@@ -256,7 +257,7 @@ export default function SynauraMiniPlayer() {
             {/* progress bar */}
             <div className="px-3 pb-2">
               <div className="flex items-center gap-2 text-[11px] text-white/70">
-                <span className="tabular-nums w-10 text-right">{toTime(audioState.currentTime || 0)}</span>
+                <span className="tabular-nums w-10 text-right">{toTime(currentTime || 0)}</span>
                 <div
                   ref={progressRef}
                   onClick={onProgressClick}
@@ -264,16 +265,16 @@ export default function SynauraMiniPlayer() {
                   title="Seek"
                   role="progressbar"
                   aria-valuemin={0}
-                  aria-valuemax={audioState.duration || 0}
-                  aria-valuenow={audioState.currentTime || 0}
+                  aria-valuemax={duration || 0}
+                  aria-valuenow={currentTime || 0}
                 >
                   {/* progress */}
                   <div
                     className="absolute left-0 top-0 h-2 bg-white/70 transition-all"
-                    style={{ width: `${audioState.duration ? ((audioState.currentTime || 0) / audioState.duration) * 100 : 0}%` }}
+                    style={{ width: `${duration ? ((currentTime || 0) / duration) * 100 : 0}%` }}
                   />
                 </div>
-                <span className="tabular-nums w-10">{toTime(audioState.duration || 0)}</span>
+                <span className="tabular-nums w-10">{toTime(duration || 0)}</span>
               </div>
 
               {/* HLS hint (non-blocking) */}

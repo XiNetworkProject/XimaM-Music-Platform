@@ -27,7 +27,7 @@ import {
   Lock,
   Loader2,
 } from "lucide-react";
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 
 interface TikTokPlayerProps {
   isOpen: boolean;
@@ -112,18 +112,23 @@ function ActionBtn({ icon: Icon, count, onClick, active, ariaLabel, disabled }: 
 }
 
 type SeekBarProps = {
-  time: number;
-  dur: number;
   onSeek: (time: number) => void;
+  getAudioElement: () => HTMLAudioElement | null;
 };
 
-function SeekBar({ time, dur, onSeek }: SeekBarProps) {
+function SeekBar({ onSeek, getAudioElement }: SeekBarProps) {
   const ref = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLDivElement>(null);
+  const knobRef = useRef<HTMLDivElement>(null);
+  const timeRef = useRef<HTMLSpanElement>(null);
+  const durRef = useRef<HTMLSpanElement>(null);
   const [bubble, setBubble] = useState<{ shown: boolean; left: number; value: number }>({ shown: false, left: 0, value: 0 });
 
   const commit = (clientX: number) => {
     const rect = ref.current?.getBoundingClientRect();
     if (!rect) return;
+    const audioEl = getAudioElement();
+    const dur = audioEl && Number.isFinite(audioEl.duration) ? audioEl.duration : 0;
     const x = clamp(clientX - rect.left, 0, rect.width);
     const value = (x / rect.width) * (dur || 0);
     setBubble({ shown: true, left: x, value });
@@ -132,8 +137,42 @@ function SeekBar({ time, dur, onSeek }: SeekBarProps) {
 
   const hide = () => setBubble((prev) => ({ ...prev, shown: false }));
 
+  // RAF: mise à jour DOM-only (évite de rerender le player pendant la lecture)
+  useEffect(() => {
+    let raf = 0;
+    let lastTime = -1;
+    let lastDur = -1;
+
+    const tick = () => {
+      const a = getAudioElement();
+      const time = a && Number.isFinite(a.currentTime) ? a.currentTime : 0;
+      const dur = a && Number.isFinite(a.duration) ? a.duration : 0;
+
+      if (dur !== lastDur || time !== lastTime) {
+        const pct = dur > 0 ? Math.max(0, Math.min(100, (time / dur) * 100)) : 0;
+        if (fillRef.current) fillRef.current.style.width = `${pct}%`;
+        if (knobRef.current) knobRef.current.style.left = `calc(${pct}% - 10px)`;
+        if (timeRef.current) timeRef.current.textContent = fmtTime(time);
+        if (durRef.current) durRef.current.textContent = fmtTime(dur || 0);
+        lastTime = time;
+        lastDur = dur;
+      }
+      raf = requestAnimationFrame(tick);
+    };
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [getAudioElement]);
+
   return (
-    <div className="w-full">
+    <div
+      className="w-full"
+      data-swipe-ignore
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onWheel={(e) => e.stopPropagation()}
+    >
       <div
         ref={ref}
         className="relative h-3 w-full rounded-full bg-white/12 overflow-hidden cursor-pointer"
@@ -146,15 +185,14 @@ function SeekBar({ time, dur, onSeek }: SeekBarProps) {
         onTouchEnd={hide}
       >
         <div
+          ref={fillRef}
           className="absolute inset-y-0 left-0"
-          style={{
-            width: `${dur ? (time / dur) * 100 : 0}%`,
-            background: 'linear-gradient(90deg,#ff4bd1,#7aa8ff)'
-          }}
+          style={{ width: "0%", background: 'linear-gradient(90deg,#ff4bd1,#7aa8ff)' }}
         />
         <div
+          ref={knobRef}
           className="absolute -top-1 h-5 w-5 rounded-full bg-white shadow"
-          style={{ left: `calc(${dur ? (time / dur) * 100 : 0}% - 10px)` }}
+          style={{ left: "calc(0% - 10px)" }}
         />
         {bubble.shown && (
           <div
@@ -168,8 +206,8 @@ function SeekBar({ time, dur, onSeek }: SeekBarProps) {
         )}
       </div>
       <div className="mt-2 flex items-center justify-between text-[12px] text-white/80 tabular-nums">
-        <span>{fmtTime(time)}</span>
-        <span>{fmtTime(dur || 0)}</span>
+        <span ref={timeRef}>{fmtTime(0)}</span>
+        <span ref={durRef}>{fmtTime(0)}</span>
       </div>
     </div>
   );
@@ -177,9 +215,8 @@ function SeekBar({ time, dur, onSeek }: SeekBarProps) {
 
 type TrackCardProps = {
   track: any;
+  trackId: string;
   playing: boolean;
-  time: number;
-  dur: number;
   likes: number;
   isLiked: boolean;
   commentsCount: number;
@@ -192,15 +229,19 @@ type TrackCardProps = {
   onDownload: () => void;
   canDownload: boolean;
   getCoverUrl: (track: any) => string;
+  getAudioElement: () => HTMLAudioElement | null;
   lyricsVisible: boolean;
   toggleLyrics: () => void;
+  isActive?: boolean;
+  shouldRenderMedia?: boolean;
+  coverLoaded?: boolean;
+  onCoverLoad?: () => void;
 };
 
 function TrackCard({
   track,
+  trackId,
   playing,
-  time,
-  dur,
   likes,
   isLiked,
   commentsCount,
@@ -213,9 +254,15 @@ function TrackCard({
   onDownload,
   canDownload,
   getCoverUrl,
+  getAudioElement,
   lyricsVisible,
-  toggleLyrics
+  toggleLyrics,
+  isActive,
+  shouldRenderMedia,
+  coverLoaded,
+  onCoverLoad,
 }: TrackCardProps) {
+  const coverUrl = useMemo(() => getCoverUrl(track), [getCoverUrl, trackId, track?.coverUrl]);
   return (
     <div 
       className="h-screen w-full relative px-5 flex items-center justify-center snap-center snap-always" 
@@ -224,12 +271,27 @@ function TrackCard({
       onDoubleClick={doubleTap}
     >
       <div className="relative flex items-center justify-center">
-        <img
-          src={getCoverUrl(track)}
-          alt={track?.title}
-          className="w-[72vw] max-w-[520px] aspect-square object-cover rounded-3xl border border-white/10 shadow-xl cursor-pointer"
-          onClick={onToggle}
-        />
+        {shouldRenderMedia !== false ? (
+          <div className="relative w-[72vw] max-w-[520px] aspect-square rounded-3xl border border-white/10 shadow-xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-br from-white/6 via-white/3 to-white/6" />
+            <img
+              src={coverUrl}
+              alt={track?.title}
+              loading={isActive ? "eager" : "lazy"}
+              decoding="async"
+              onLoad={onCoverLoad}
+              className={`absolute inset-0 w-full h-full object-cover cursor-pointer transition-opacity duration-300 ${
+                coverLoaded ? "opacity-100" : "opacity-0"
+              }`}
+              onClick={onToggle}
+            />
+          </div>
+        ) : (
+          <div
+            className="w-[72vw] max-w-[520px] aspect-square rounded-3xl border border-white/10 shadow-xl bg-gradient-to-br from-white/5 via-white/3 to-white/5"
+            aria-hidden="true"
+          />
+        )}
         <button onClick={onToggle} className="absolute inset-0 flex items-center justify-center">
           <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm grid place-items-center hover:bg-white/30 transition">
             {playing ? <Pause size={32} /> : <Play size={32} className="ml-1" />}
@@ -298,11 +360,18 @@ function TrackCard({
           </div>
 
           <div className="mt-4">
-            <SeekBar time={time} dur={dur} onSeek={onSeek} />
+            <SeekBar onSeek={onSeek} getAudioElement={getAudioElement} />
           </div>
 
           {track?.lyrics && lyricsVisible && (
-            <div className="mt-3 max-h-40 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-white/85 border-t border-white/10 pt-2">
+            <div
+              className="mt-3 max-h-40 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-white/85 border-t border-white/10 pt-2"
+              data-swipe-ignore
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchMove={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+            >
               {track.lyrics}
             </div>
           )}
@@ -334,6 +403,10 @@ function CommentsDrawer({ open, onClose, track, comments, onAdd }: CommentsDrawe
         className={`absolute right-0 top-0 h-full w-full sm:w-[420px] bg-[#0c0c15] border-l border-white/10 transform transition ${
           open ? 'translate-x-0' : 'translate-x-full'
         }`}
+        data-swipe-ignore
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
       >
         <div className="p-4 border-b border-white/10">
           <p className="text-sm font-semibold">
@@ -403,10 +476,11 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     pause,
     seek,
     playTrack,
-    setCurrentTrackIndex,
+    getAudioElement,
   } = useAudioPlayer();
 
   const vh = useViewportHeight();
+  const reduceMotion = useReducedMotion();
   const { canDownload, upgradeMessage } = useDownloadPermission();
 
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -416,20 +490,26 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
   const [lyricsFor, setLyricsFor] = useState<string | null>(null);
   const [commentsMap, setCommentsMap] = useState<Record<string, Comment[]>>({});
   const [activeTrackId, setActiveTrackId] = useState<string | undefined>(undefined);
+  const [coverLoadedById, setCoverLoadedById] = useState<Record<string, boolean>>({});
+  const [navDir, setNavDir] = useState<1 | -1>(1);
 
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const currentIndexRef = useRef(0);
   const rafRef = useRef<number | null>(null);
   const isBootingRef = useRef(true);
   const isProgrammaticScrollRef = useRef(false);
+  const wheelBlockRef = useRef(false);
 
   const tracks = audioState.tracks || [];
   const ids = useMemo(() => tracks.map(getTrackId).filter(Boolean), [tracks]);
   
-  const currentIndex = audioState.currentTrackIndex ?? 0;
-  const currentTrack = tracks[currentIndex] || null;
+  const activeIndex = useMemo(() => {
+    if (activeTrackId) {
+      const idx = tracks.findIndex((t) => getTrackId(t) === activeTrackId);
+      if (idx >= 0) return idx;
+    }
+    return 0;
+  }, [activeTrackId, tracks]);
 
-  const activeTrack = tracks.find(t => getTrackId(t) === activeTrackId) || currentTrack;
+  const activeTrack = tracks[activeIndex] || null;
 
   // Debounce pour activeId (raf-safe)
   const setActiveDebounced = useCallback((id: string) => {
@@ -466,28 +546,33 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     }
   }, [activeTrack, checkLikeStatus]);
 
-  // Synchroniser currentIndexRef avec activeId
-  useEffect(() => {
-    if (activeTrackId) {
-      const idx = tracks.findIndex(t => getTrackId(t) === activeTrackId);
-      if (idx >= 0) currentIndexRef.current = idx;
-    }
-  }, [activeTrackId, tracks]);
+  const goToIndex = useCallback(
+    async (nextIndex: number, dir: 1 | -1) => {
+      if (!tracks.length) return;
+      const idx = clamp(nextIndex, 0, tracks.length - 1);
+      const t = tracks[idx];
+      const id = getTrackId(t);
+      if (!id) return;
+      if (isBootingRef.current || isProgrammaticScrollRef.current) return;
 
-  const scrollToIdx = useCallback((i: number) => {
-    const id = getTrackId(tracks[i]);
-    if (!id) return;
-    const pane = containerRef.current?.querySelector<HTMLElement>(`[data-id="${id}"]`);
-    if (pane) {
       isProgrammaticScrollRef.current = true;
-      pane.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => { isProgrammaticScrollRef.current = false; }, 240);
-    }
-  }, [tracks]);
+      setLyricsFor(null);
+      setNavDir(dir);
+      setActiveTrackId(id);
+      try {
+        await playTrack(t);
+      } finally {
+        requestAnimationFrame(() => {
+          isProgrammaticScrollRef.current = false;
+        });
+      }
+    },
+    [playTrack, tracks],
+  );
 
   // Séquence de boot/sync
   useEffect(() => {
-    if (!isOpen || !containerRef.current) {
+    if (!isOpen) {
       isBootingRef.current = true; // Réinitialiser pour la prochaine ouverture
       return;
     }
@@ -500,42 +585,32 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     }
 
     setActiveTrackId(startId);
-    const pane = containerRef.current.querySelector<HTMLElement>(`[data-id="${startId}"]`);
-    if (pane) {
+    const idx = tracks.findIndex((t) => getTrackId(t) === startId);
+    const t = idx >= 0 ? tracks[idx] : tracks[0];
+    if (t) {
       isProgrammaticScrollRef.current = true;
-      pane.scrollIntoView({ behavior: 'instant' as any, block: 'center' });
-      setTimeout(() => {
-        isProgrammaticScrollRef.current = false;
-        isBootingRef.current = false;
-      }, 220);
+      playTrack(t).finally(() => {
+        setTimeout(() => {
+          isProgrammaticScrollRef.current = false;
+          isBootingRef.current = false;
+        }, 120);
+      });
     } else {
       isBootingRef.current = false;
     }
   }, [isOpen, ids, initialTrackId]); // au montage/ouverture
 
   const handleNextTrack = useCallback(async () => {
-    if (isBootingRef.current) return;
-    const i = currentIndexRef.current;
-    if (i < tracks.length - 1) {
-      const currentId = getTrackId(tracks[i]);
-      if (currentId) {
-        sendTrackEvents(currentId, { event_type: 'next', source: 'tiktok-player' });
-      }
-      scrollToIdx(i + 1);
-    }
-  }, [tracks, scrollToIdx]);
+    const currentId = getTrackId(activeTrack);
+    if (currentId) sendTrackEvents(currentId, { event_type: 'next', source: 'tiktok-player' });
+    await goToIndex(activeIndex + 1, 1);
+  }, [activeIndex, activeTrack, goToIndex]);
 
   const handlePreviousTrack = useCallback(async () => {
-    if (isBootingRef.current) return;
-    const i = currentIndexRef.current;
-    if (i > 0) {
-      const currentId = getTrackId(tracks[i]);
-      if (currentId) {
-        sendTrackEvents(currentId, { event_type: 'prev', source: 'tiktok-player' });
-      }
-      scrollToIdx(i - 1);
-    }
-  }, [tracks, scrollToIdx]);
+    const currentId = getTrackId(activeTrack);
+    if (currentId) sendTrackEvents(currentId, { event_type: 'prev', source: 'tiktok-player' });
+    await goToIndex(activeIndex - 1, -1);
+  }, [activeIndex, activeTrack, goToIndex]);
 
   const togglePlay = useCallback(async () => {
     try {
@@ -554,18 +629,10 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
 
   const swipe = useVerticalSwipe({
     onSwipeUp: () => {
-      if (isBootingRef.current) return;
-      const i = currentIndexRef.current;
-      if (i < tracks.length - 1) {
-        scrollToIdx(i + 1);
-      }
+      handleNextTrack();
     },
     onSwipeDown: () => {
-      if (isBootingRef.current) return;
-      const i = currentIndexRef.current;
-      if (i > 0) {
-        scrollToIdx(i - 1);
-      }
+      handlePreviousTrack();
     },
     minDistance: 60,
     minVelocity: 0.6,
@@ -573,51 +640,6 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     maxFlickDuration: 350,
     cooldownMs: 260,
   });
-
-  // IntersectionObserver pour détecter la carte visible et auto-play
-  useEffect(() => {
-    if (!containerRef.current || !isOpen) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isBootingRef.current || isProgrammaticScrollRef.current) return;
-
-        let best: IntersectionObserverEntry | null = null;
-        let bestRatio = 0;
-        
-        for (const e of entries) {
-          if (e.intersectionRatio > bestRatio) {
-            bestRatio = e.intersectionRatio;
-            best = e;
-          }
-        }
-        
-        if (!best || !best.isIntersecting || best.intersectionRatio < 0.6) return;
-
-        const id = (best.target as Element).getAttribute('data-id');
-        if (!id) return;
-        if (id === activeTrackId) return;
-
-        setActiveDebounced(id);
-        const idx = tracks.findIndex(t => getTrackId(t) === id);
-        const track = idx >= 0 ? tracks[idx] : undefined;
-        if (!track) return;
-
-        isProgrammaticScrollRef.current = true;
-        playTrack(track).finally(() => {
-          requestAnimationFrame(() => { isProgrammaticScrollRef.current = false; });
-        });
-      },
-      { threshold: [0.25, 0.5, 0.75, 0.9], root: containerRef.current }
-    );
-
-    const cards = containerRef.current.querySelectorAll('[data-card]');
-    cards.forEach((card) => observer.observe(card));
-
-    return () => {
-      cards.forEach((card) => observer.unobserve(card));
-    };
-  }, [isOpen, tracks, activeTrackId, playTrack, setActiveDebounced]);
 
 
   const lastTap = useRef(0);
@@ -676,20 +698,19 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     }
   }, [activeTrack]);
 
+  // Wheel (desktop): next/prev avec petit cooldown (sans scroll)
   useEffect(() => {
     if (!isOpen) return;
-    let block = false;
     const handler = (e: WheelEvent) => {
-      if (block) return;
+      if (wheelBlockRef.current) return;
       const y = e.deltaY;
       if (Math.abs(y) < 40) return;
-      if (y > 0) {
-        handleNextTrack();
-      } else {
-        handlePreviousTrack();
-      }
-      block = true;
-      setTimeout(() => { block = false; }, 420);
+      wheelBlockRef.current = true;
+      setTimeout(() => {
+        wheelBlockRef.current = false;
+      }, 260);
+      if (y > 0) handleNextTrack();
+      else handlePreviousTrack();
     };
     window.addEventListener('wheel', handler, { passive: true });
     return () => window.removeEventListener('wheel', handler);
@@ -733,12 +754,74 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
       : url;
   }, []);
 
+  const markCoverLoaded = useCallback((id: string) => {
+    if (!id) return;
+    setCoverLoadedById((prev) => (prev[id] ? prev : { ...prev, [id]: true }));
+  }, []);
+
+  // Précharger les covers autour de la carte active pour éviter le "clignote"
+  useEffect(() => {
+    if (!isOpen) return;
+    if (tracks.length === 0) return;
+    const center = activeIndex;
+    const range = 4; // active ±4
+    const start = Math.max(0, center - range);
+    const end = Math.min(tracks.length - 1, center + range);
+
+    for (let i = start; i <= end; i++) {
+      const t = tracks[i];
+      const id = getTrackId(t);
+      if (!id || coverLoadedById[id]) continue;
+      const url = getCoverUrl(t);
+      if (!url) continue;
+      const img = new Image();
+      img.onload = () => markCoverLoaded(id);
+      img.src = url;
+    }
+  }, [activeIndex, coverLoadedById, getCoverUrl, isOpen, markCoverLoaded, tracks]);
+
+  const bgUrl = useMemo(
+    () => getCoverUrl(activeTrack || tracks[0]),
+    [activeTrack, tracks, getCoverUrl],
+  );
+
   const currentCommentsCount = activeTrackId
     ? commentsMap[activeTrackId]?.length || 0
     : 0;
 
-  if (!isOpen || tracks.length === 0) {
-    return null;
+  if (!isOpen) return null;
+
+  // Ouverture instantanée même si les tracks ne sont pas encore prêtes
+  if (tracks.length === 0) {
+    return (
+      <AnimatePresence>
+        <motion.div
+          key="tiktok-loading"
+          className="fixed inset-0 z-[100] bg-black text-white overflow-hidden select-none"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3">
+            <button
+              onClick={onClose}
+              className="h-10 w-10 rounded-full bg-black/30 grid place-items-center border border-white/10"
+              title="Fermer"
+            >
+              <X size={22} />
+            </button>
+          </div>
+
+          <div className="h-full w-full grid place-items-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-white/80" />
+              <p className="text-sm text-white/70">Chargement du player…</p>
+            </div>
+          </div>
+        </motion.div>
+      </AnimatePresence>
+    );
   }
 
   return (
@@ -752,29 +835,29 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <motion.div
-            className="absolute inset-0 -z-10"
-            animate={{
-              scale: [1.05, 1.1, 1.05],
-              x: [0, 6, -4, 0],
-              y: [0, -4, 6, 0]
-            }}
-            transition={{ repeat: Infinity, duration: 18 }}
-          >
-            <img
-              src={getCoverUrl(activeTrack || tracks[0])}
-              alt="bg"
-              className="h-full w-full object-cover opacity-25"
-            />
-          </motion.div>
+          <div className="absolute inset-0 -z-10">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={bgUrl}
+                src={bgUrl}
+                alt="bg"
+                loading="eager"
+                decoding="async"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.25 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.18 }}
+                className="h-full w-full object-cover"
+              />
+            </AnimatePresence>
+          </div>
 
-          <motion.div
+          {/* Overlay statique (évite une anim infinie GPU-costly) */}
+          <div
             className="absolute inset-0 -z-10"
-            animate={{ backgroundPosition: ['0% 0%', '50% 50%', '0% 0%'] }}
-            transition={{ repeat: Infinity, duration: 16 }}
             style={{
-              backgroundImage: 'radial-gradient(60% 60% at 20% 20%, rgba(124,58,237,.35), transparent 60%), radial-gradient(60% 60% at 80% 80%, rgba(34,211,238,.35), transparent 60%)',
-              backgroundSize: '200% 200%'
+              backgroundImage:
+                'radial-gradient(60% 60% at 20% 20%, rgba(124,58,237,.28), transparent 60%), radial-gradient(60% 60% at 80% 80%, rgba(34,211,238,.28), transparent 60%)',
             }}
           />
 
@@ -796,46 +879,67 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
           <HeartBurst burstKey={burstKey} />
 
           <div
-            ref={containerRef}
             {...swipe}
-            className="h-full w-full overflow-y-auto snap-y snap-mandatory no-scrollbar overscroll-contain touch-none scroll-smooth"
+            className="h-full w-full flex items-center justify-center"
+            style={{ height: vh }}
           >
-            {tracks.map((track, idx) => {
-              const trackId = getTrackId(track);
-              const isActive = trackId === activeTrackId;
-              const trackLikes = typeof track.likes === 'number' ? track.likes : (Array.isArray(track.likes) ? track.likes.length : 0);
-              const trackComments = trackId ? (commentsMap[trackId]?.length || 0) : 0;
-              
-              return (
-                <TrackCard
-                  key={trackId || idx}
-                  track={track}
-                  playing={isActive && audioState.isPlaying}
-                  time={isActive ? audioState.currentTime : 0}
-                  dur={isActive ? audioState.duration : 0}
-                  likes={trackLikes}
-                  isLiked={isActive ? isLiked : false}
-                  commentsCount={trackComments}
-                  onLike={isActive ? toggleLike : () => {}}
-                  openComments={() => {
-                    if (trackId) setActiveTrackId(trackId);
-                    setCommentsOpen(true);
-                  }}
-                  share={onShare}
-                  doubleTap={handleDoubleTap}
-                  onToggle={isActive ? togglePlay : () => {
-                    if (trackId) setActiveTrackId(trackId);
-                    playTrack(track).catch(() => {});
-                  }}
-                  onSeek={isActive ? seek : () => {}}
-                  onDownload={handleDownload}
-                  canDownload={canDownload}
-                  getCoverUrl={getCoverUrl}
-                  lyricsVisible={lyricsFor === trackId}
-                  toggleLyrics={() => setLyricsFor((id) => (id === trackId ? null : trackId))}
-                />
-              );
-            })}
+            <AnimatePresence mode="wait" custom={navDir}>
+              <motion.div
+                key={getTrackId(activeTrack) || String(activeIndex)}
+                custom={navDir}
+                initial={(dir: 1 | -1) => ({
+                  opacity: 0,
+                  y: dir === 1 ? 70 : -70,
+                  scale: 0.992,
+                })}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={(dir: 1 | -1) => ({
+                  opacity: 0,
+                  y: dir === 1 ? -70 : 70,
+                  scale: 0.992,
+                })}
+                transition={{ duration: 0.24, ease: [0.2, 0.9, 0.2, 1] }}
+                className="w-full h-full"
+              >
+                {(() => {
+                  const track = activeTrack;
+                  const trackId = getTrackId(track);
+                  const trackLikes =
+                    typeof track?.likes === 'number'
+                      ? track.likes
+                      : Array.isArray(track?.likes)
+                        ? track.likes.length
+                        : 0;
+                  const trackComments = trackId ? (commentsMap[trackId]?.length || 0) : 0;
+                  return (
+                    <TrackCard
+                      track={track}
+                      trackId={trackId || String(activeIndex)}
+                      playing={!!audioState.isPlaying}
+                      likes={trackLikes}
+                      isLiked={isLiked}
+                      commentsCount={trackComments}
+                      onLike={toggleLike}
+                      openComments={() => setCommentsOpen(true)}
+                      share={onShare}
+                      doubleTap={handleDoubleTap}
+                      onToggle={togglePlay}
+                      onSeek={seek}
+                      onDownload={handleDownload}
+                      canDownload={canDownload}
+                      getCoverUrl={getCoverUrl}
+                      getAudioElement={getAudioElement}
+                      lyricsVisible={lyricsFor === trackId}
+                      toggleLyrics={() => setLyricsFor((id) => (id === trackId ? null : trackId))}
+                      isActive={true}
+                      shouldRenderMedia={true}
+                      coverLoaded={!!coverLoadedById[trackId]}
+                      onCoverLoad={() => markCoverLoaded(trackId)}
+                    />
+                  );
+                })()}
+              </motion.div>
+            </AnimatePresence>
           </div>
         </motion.div>
       </AnimatePresence>
@@ -871,7 +975,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
         isDownloading={isDownloading}
       />
 
-      <DevTests track={activeTrack} />
+      {process.env.NODE_ENV !== "production" && <DevTests track={activeTrack} />}
     </>
   );
 }

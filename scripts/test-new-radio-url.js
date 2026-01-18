@@ -1,7 +1,7 @@
 const https = require('https');
 
 async function testNewRadioUrl() {
-  const newUrl = 'https://rocket.streamradio.fr/stream/mixxparty';
+  const newUrl = 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3';
   const metadataUrl = 'https://rocket.streamradio.fr/status-json.xsl';
   
   console.log('🔍 Test de la nouvelle URL de la radio Mixx Party...');
