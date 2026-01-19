@@ -21,6 +21,8 @@ import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
 import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO_PILL_SOLID, SUNO_PANEL } from '@/components/ui/sunoClasses';
+import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
+import { SunoSlider } from '@/components/ui/SunoSlider';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -178,6 +180,12 @@ export default function AIGenerator() {
   
   // Génération IA activée
   const isGenerationDisabled = false;
+
+  // Accordions (panneau gauche)
+  const [openProjectSection, setOpenProjectSection] = useState(true);
+  const [openStyleSection, setOpenStyleSection] = useState(true);
+  const [openLyricsSection, setOpenLyricsSection] = useState(true);
+  const [openAdvancedSection, setOpenAdvancedSection] = useState(false);
 
   // --- Layout resizable (desktop) ---
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -1234,74 +1242,71 @@ export default function AIGenerator() {
                 // Mode personnalisé
                 <>
                   {/* Titre */}
-                  <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5`}>
-                    <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                      <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
-                      <span>Projet & sortie</span>
-                    </h2>
-                    <p className="text-[10px] sm:text-[11px] text-white/55 mb-2 sm:mb-3 hidden sm:block">
-                      Configurez le titre, le style et la durée de votre prochaine génération.
-                    </p>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Titre</label>
-                        <input
-                          type="text"
-                          value={title}
-                          onChange={(e) => setTitle(e.target.value)}
-                          placeholder="Entrez un titre"
-                          disabled={isGenerationDisabled}
-                          className={`${SUNO_FIELD} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  <SunoAccordionSection
+                    title="Projet & sortie"
+                    description="Configure le titre et les infos de base."
+                    isOpen={openProjectSection}
+                    onToggle={() => setOpenProjectSection((v) => !v)}
+                  >
+                    <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
+                      Titre
+                    </label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Song Title (Optional)"
+                      disabled={isGenerationDisabled}
+                      className={`${SUNO_FIELD} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    />
+                  </SunoAccordionSection>
 
                   {/* Style de musique */}
-                  <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5`}>
-                    <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
-                      <span>Style & ambiance</span>
-                    </h2>
-                    <p className="text-[10px] sm:text-[11px] text-white/55 mb-2 sm:mb-3 hidden sm:block">
-                      Définissez l'ambiance et les tags musicaux.
-                    </p>
-                    <div>
-                      <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Style de musique</label>
-                      <textarea
-                        value={style}
-                        onChange={(e) => setStyle(e.target.value)}
-                        placeholder="Entrez le style de musique"
-                        rows={3}
-                        maxLength={1000}
-                        disabled={isGenerationDisabled}
-                        className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                      />
-                      <div className="text-[10px] text-white/40 mt-1 text-right">
-                        {style.length}/1000
-                      </div>
-                      {/* Tags suggestions */}
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
-                          const active = selectedTags.includes(tag);
-                          return (
-                            <button
-                              key={`style-${tag}-${index}`}
-                              type="button"
-                              onClick={() => handleTagClick(tag)}
-                              disabled={isGenerationDisabled}
-                              className={`px-2 py-0.5 rounded-full text-[10px] border transition-colors ${active ? 'bg-accent-brand/20 border-accent-brand/50 text-white' : 'bg-transparent border-white/20 text-white/60 hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              {tag}
-                            </button>
-                          );
-                        })}
-                      </div>
+                  <SunoAccordionSection
+                    title="Styles"
+                    description="Définis l'ambiance et les tags musicaux."
+                    isOpen={openStyleSection}
+                    onToggle={() => setOpenStyleSection((v) => !v)}
+                  >
+                    <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
+                      Styles
+                    </label>
+                    <textarea
+                      value={style}
+                      onChange={(e) => setStyle(e.target.value)}
+                      placeholder="indie, electronic, synths, 120bpm, distorted"
+                      rows={3}
+                      maxLength={1000}
+                      disabled={isGenerationDisabled}
+                      className={`${SUNO_TEXTAREA} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    />
+                    <div className="text-[10px] text-foreground-tertiary mt-1 text-right">
+                      {style.length}/1000
                     </div>
 
-                    {/* Remix: Drag & Drop d'un audio (upload-cover) */}
-                    <div className="mt-3">
-                      <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Ajouter un audio source (optionnel, Remix)</label>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
+                        const active = selectedTags.includes(tag);
+                        return (
+                          <button
+                            key={`style-${tag}-${index}`}
+                            type="button"
+                            onClick={() => handleTagClick(tag)}
+                            disabled={isGenerationDisabled}
+                            className={`${SUNO_BTN_BASE} cursor-pointer px-3 py-1 rounded-full text-[11px] before:border-border-primary enabled:hover:before:bg-overlay-on-primary ${
+                              active ? 'bg-background-tertiary' : 'bg-transparent'
+                            } ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          >
+                            <span className="relative">{tag}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
+                        Ajouter un audio source (Remix)
+                      </label>
                       <RemixDropzone
                         file={remixFile}
                         uploading={remixUploading}
@@ -1333,13 +1338,13 @@ export default function AIGenerator() {
                               method: 'POST',
                               body: formData,
                             });
-                            if (!uploadResponse.ok) throw new Error("Erreur upload Cloudinary");
+                            if (!uploadResponse.ok) throw new Error('Erreur upload Cloudinary');
                             const uploaded = await uploadResponse.json();
                             const secureUrl = uploaded?.secure_url as string;
                             const uploadedPublicId = uploaded?.public_id as string | undefined;
                             const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
                             if (!secureUrl) throw new Error('URL de fichier manquante');
-                            
+
                             setRemixUploading(false);
                             setRemixUploadUrl(secureUrl);
                             try {
@@ -1359,136 +1364,106 @@ export default function AIGenerator() {
                         }}
                       />
                       {remixUploadUrl && (
-                        <p className="text-[10px] text-white/40 mt-2">Audio uploadé ✓ (prêt pour Remix)</p>
+                        <p className="text-[10px] text-foreground-tertiary mt-2">Audio uploadé ✓</p>
                       )}
                     </div>
-                  </div>
+                  </SunoAccordionSection>
 
                   {/* Paroles ou Description */}
-                  <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4`}>
-                    <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
-                      <span>Paroles ou Description</span>
-                    </h2>
-                    <p className="text-[10px] sm:text-[11px] text-white/55 hidden sm:block">
-                      Saisissez les paroles exactes ou décrivez simplement l'ambiance souhaitée.
-                    </p>
-                    {customMode ? (
-                      <>
-                        {/* Instrumental Toggle */}
-                        <div>
-                          <label className="flex items-center gap-3 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={isInstrumental}
-                              onChange={(e) => setIsInstrumental(e.target.checked)}
-                              disabled={isGenerationDisabled}
-                              className="sr-only"
-                            />
-                            <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              isInstrumental ? 'bg-accent-brand' : 'bg-background-tertiary'
-                            }`}>
-                              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                isInstrumental ? 'translate-x-6' : 'translate-x-1'
-                              }`} />
-                            </div>
-                            <span className="text-xs font-medium text-white/80">Instrumental</span>
-                          </label>
-                        </div>
-                        {/* Paroles */}
-                        <div>
-                          <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Paroles</label>
-                          <textarea
-                            value={lyrics}
-                            onChange={(e) => setLyrics(e.target.value)}
-                            placeholder="Écrivez vos propres paroles, deux couplets (8 lignes) pour un meilleur résultat."
-                            rows={6}
-                            maxLength={5000}
-                            disabled={isGenerationDisabled}
-                            className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          />
-                          <div className="text-[10px] text-white/40 mt-1 text-right">
-                            {lyrics.length}/5000
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      <div>
-                        <label className="block text-[10px] sm:text-xs font-medium mb-1.5 sm:mb-2 text-white/80">Description de la chanson</label>
-                        <textarea
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          placeholder="Décrivez le style de musique et le sujet que vous souhaitez, l'IA générera les paroles pour vous."
-                          rows={4}
-                          maxLength={199}
-                          disabled={isGenerationDisabled}
-                          className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        />
-                        <div className="text-[10px] text-white/40 mt-1 text-right">
-                          {description.length}/199
-                        </div>
-                        <div className="mt-2">
-                          <div className="text-[10px] text-white/50 mb-2">Inspiration (tags)</div>
-                          <div className="flex flex-wrap gap-1.5">
-                            {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
-                              const active = selectedTags.includes(tag);
-                              return (
-                                <button
-                                  key={`vibe-${tag}-${index}`}
-                                  type="button"
-                                  onClick={() => handleTagClick(tag)}
-                                  disabled={isGenerationDisabled}
-                                  className={`px-2 py-0.5 rounded-full text-[10px] border transition-colors ${active ? 'bg-accent-brand/20 border-accent-brand/50 text-white' : 'bg-transparent border-white/20 text-white/60 hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                >
-                                  {tag}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                  <SunoAccordionSection
+                    title="Lyrics"
+                    description="Paroles exactes ou prompt."
+                    isOpen={openLyricsSection}
+                    onToggle={() => setOpenLyricsSection((v) => !v)}
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer mb-3">
+                      <input
+                        type="checkbox"
+                        checked={isInstrumental}
+                        onChange={(e) => setIsInstrumental(e.target.checked)}
+                        disabled={isGenerationDisabled}
+                        className="sr-only"
+                      />
+                      <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        isInstrumental ? 'bg-accent-brand' : 'bg-background-tertiary'
+                      }`}>
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          isInstrumental ? 'translate-x-6' : 'translate-x-1'
+                        }`} />
                       </div>
-                    )}
-                  </div>
+                      <span className="text-xs font-medium text-foreground-secondary">Instrumental</span>
+                    </label>
+
+                    <textarea
+                      value={lyrics}
+                      onChange={(e) => setLyrics(e.target.value)}
+                      placeholder="Write some lyrics — or leave blank for instrumental"
+                      rows={6}
+                      maxLength={5000}
+                      disabled={isGenerationDisabled}
+                      className={`${SUNO_TEXTAREA} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                    />
+                    <div className="text-[10px] text-foreground-tertiary mt-1 text-right">
+                      {lyrics.length}/5000
+                    </div>
+                  </SunoAccordionSection>
                   {/* Options avancées */}
-                  {customMode && (
-                    <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4`}>
-                      <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                        <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
-                        <span>Options avancées</span>
-                      </h2>
-                      <p className="text-[10px] sm:text-[11px] text-white/55 hidden sm:block">
-                        Ajustez le weirdness, le poids du style, les tags négatifs, etc.
-                      </p>
-                      <div className="space-y-4">
+                  <SunoAccordionSection
+                    title="Advanced Options"
+                    description="Weirdness, style influence, audio weight…"
+                    isOpen={openAdvancedSection}
+                    onToggle={() => setOpenAdvancedSection((v) => !v)}
+                  >
+                    <div className="space-y-4">
+                      <SunoSlider
+                        label="Weirdness"
+                        value={weirdness}
+                        onChange={setWeirdness}
+                        disabled={isGenerationDisabled}
+                        midLabel={weirdness < 35 ? 'Tame' : weirdness < 65 ? 'Expected results' : 'Wild'}
+                      />
+                      <SunoSlider
+                        label="Style Influence"
+                        value={styleInfluence}
+                        onChange={setStyleInfluence}
+                        disabled={isGenerationDisabled}
+                        midLabel={styleInfluence < 35 ? 'Low' : styleInfluence < 65 ? 'Moderate' : 'High'}
+                      />
+                      <SunoSlider
+                        label="Audio Weight"
+                        value={audioWeight}
+                        onChange={setAudioWeight}
+                        disabled={isGenerationDisabled}
+                        midLabel={audioWeight < 35 ? 'Low' : audioWeight < 65 ? 'Moderate' : 'High'}
+                      />
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
-                          <div className="flex items-center justify-between text-[10px] text-white/50 mb-1"><span>Weirdness</span><span>{weirdness}%</span></div>
-                          <input type="range" min={0} max={100} value={weirdness} onChange={(e) => setWeirdness(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
+                          <label className="block text-[10px] text-foreground-tertiary mb-1">Vocal gender</label>
+                          <select
+                            value={vocalGender}
+                            onChange={(e) => setVocalGender(e.target.value)}
+                            disabled={isGenerationDisabled}
+                            className={`${SUNO_SELECT} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          >
+                            <option value="">Auto</option>
+                            <option value="m">Male</option>
+                            <option value="f">Female</option>
+                          </select>
                         </div>
                         <div>
-                          <div className="flex items-center justify-between text-[10px] text-white/50 mb-1"><span>Style influence</span><span>{styleInfluence}%</span></div>
-                          <input type="range" min={0} max={100} value={styleInfluence} onChange={(e) => setStyleInfluence(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
-                        </div>
-                        <div>
-                          <div className="flex items-center justify-between text-[10px] text-white/50 mb-1"><span>Audio weight</span><span>{audioWeight}%</span></div>
-                          <input type="range" min={0} max={100} value={audioWeight} onChange={(e) => setAudioWeight(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div>
-                            <label className="block text-[10px] text-white/50 mb-1">Vocal gender</label>
-                            <select value={vocalGender} onChange={(e) => setVocalGender(e.target.value)} disabled={isGenerationDisabled} className={`${SUNO_SELECT} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
-                              <option value="">Auto</option>
-                              <option value="m">Male</option>
-                              <option value="f">Female</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] text-white/50 mb-1">Negative tags</label>
-                            <input value={negativeTags} onChange={(e) => setNegativeTags(e.target.value)} placeholder="Ex: Heavy Metal, Upbeat Drums" disabled={isGenerationDisabled} className={`${SUNO_FIELD} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
-                          </div>
+                          <label className="block text-[10px] text-foreground-tertiary mb-1">Exclude styles</label>
+                          <input
+                            value={negativeTags}
+                            onChange={(e) => setNegativeTags(e.target.value)}
+                            placeholder="Exclude styles"
+                            disabled={isGenerationDisabled}
+                            className={`${SUNO_FIELD} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                          />
                         </div>
                       </div>
                     </div>
-                  )}
+                  </SunoAccordionSection>
                 </>
               ) : (
                 // Mode description
