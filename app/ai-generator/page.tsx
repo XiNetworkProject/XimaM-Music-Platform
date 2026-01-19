@@ -15,8 +15,8 @@ import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
 import { PresetStrip } from '@/components/ai-studio/PresetStrip';
 import { GenerationTimeline } from '@/components/ai-studio/GenerationTimeline';
 import { TrackInspector } from '@/components/ai-studio/TrackInspector';
-import { RecentGenerations } from '@/components/ai-studio/RecentGenerations';
 import { RemixDropzone } from '@/components/ai-studio/RemixDropzone';
+import { LibraryClipsList } from '@/components/ai-studio/LibraryClipsList';
 import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
@@ -186,6 +186,7 @@ export default function AIGenerator() {
   const [openStyleSection, setOpenStyleSection] = useState(true);
   const [openLyricsSection, setOpenLyricsSection] = useState(true);
   const [openAdvancedSection, setOpenAdvancedSection] = useState(false);
+  const [openResultsSection, setOpenResultsSection] = useState(true);
 
   // --- Layout resizable (desktop) ---
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -375,13 +376,18 @@ export default function AIGenerator() {
     return result;
   }, [allTracks, session?.user?.id]);
 
-  // Générations triées par date (plus récentes en premier) pour RecentGenerations
-  // Utiliser les générations de l'API si disponibles, sinon utiliser celles créées à partir des tracks
+  const generationsById = React.useMemo(() => {
+    const m = new Map<string, AIGeneration>();
+    const source = generations.length > 0 ? generations : generationsFromTracks;
+    source.forEach((g) => m.set(String(g.id), g));
+    return m;
+  }, [generations, generationsFromTracks]);
+
+  // Générations triées par date (plus récentes en premier)
+  // (gardé pour logique interne; l'affichage principal de la Library se fait au niveau des tracks)
   const recentGenerationsSorted = React.useMemo(() => {
     const allGenerations = generations.length > 0 ? generations : generationsFromTracks;
-    return [...allGenerations].sort((a, b) => {
-      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-    });
+    return [...allGenerations].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [generations, generationsFromTracks]);
 
   // Jouer une track IA (même logique que ai-library)
@@ -1544,6 +1550,28 @@ export default function AIGenerator() {
                       </div>
                     </div>
                   </SunoAccordionSection>
+
+                  {/* Results (timeline) */}
+                  {generatedTracks.length > 0 && (
+                    <SunoAccordionSection
+                      title="Results"
+                      description="Pistes générées (timeline)"
+                      isOpen={openResultsSection}
+                      onToggle={() => setOpenResultsSection((v) => !v)}
+                    >
+                      <GenerationTimeline
+                        generatedTracks={generatedTracks}
+                        generationStatus={generationStatus}
+                        currentTaskId={currentTaskId}
+                        sunoState={sunoState}
+                        sunoError={sunoError}
+                        onOpenTrack={openTrackPanel}
+                        onPlayTrack={playGenerated}
+                        onDownloadTrack={downloadGenerated}
+                        onShareTrack={shareGenerated}
+                      />
+                    </SunoAccordionSection>
+                  )}
                 </>
               ) : (
                 // Mode description
@@ -1778,33 +1806,45 @@ export default function AIGenerator() {
                 </div>
               )}
 
-            <div className="flex-1 min-h-0">
-              <RecentGenerations
-              generations={filteredAndSortedGenerations}
+            <LibraryClipsList
+              tracks={allTracks}
+              generationsById={generationsById}
+              searchQuery={searchQuery}
+              sortBy={sortBy}
+              filterBy={filterBy}
               loading={generationsLoading}
               error={generationsError}
-              onReload={refreshGenerations}
-              onUseGeneration={(gen) => {
-                const convertedTracks: GeneratedTrack[] = (gen.tracks || []).map(convertAITrackToGenerated);
-                setGeneratedTracks(convertedTracks);
-                if (convertedTracks[0]) {
-                  setSelectedTrack(convertedTracks[0]);
-                  setGeneratedTrack(convertedTracks[0]);
-                }
-                setSelectedGeneration(gen);
-                setGenerationStatus(convertedTracks.length ? 'completed' : 'idle');
-                setCurrentTaskId(null);
-                setIsGenerating(false);
-                if (!convertedTracks.length) {
-                  notify.error('Bibliothèque', 'Cette génération n’a pas de pistes associées.');
-                } else {
-                  notify.success('Bibliothèque', 'Génération restaurée dans la timeline.');
-                }
+              onResetFilters={() => {
+                setSearchQuery('');
+                setFilterBy('all');
+                setSortBy('newest');
               }}
-              onPlayGeneration={handlePlayGeneration}
-              limit={8}
+              onPickTrack={(track, gen) => {
+                const converted = convertAITrackToGenerated(track as any);
+                setSelectedTrack(converted);
+                setGeneratedTrack(converted);
+                setShowTrackPanel(true);
+                if (gen) setSelectedGeneration(gen);
+              }}
+              onPlayTrack={(track, gen) => {
+                if (gen) {
+                  playAITrack(track as any, gen);
+                  return;
+                }
+                // fallback: play without generation context
+                const fakeGen = {
+                  id: (track as any).generation_id || (track as any).generation?.id || 'unknown',
+                  prompt: (track as any).prompt || '',
+                  created_at: (track as any).created_at || new Date().toISOString(),
+                  status: 'completed',
+                  model: (track as any).model_name || 'V4_5',
+                  user_id: (session?.user?.id as string) || '',
+                  task_id: '',
+                  tracks: [],
+                } as any as AIGeneration;
+                playAITrack(track as any, fakeGen);
+              }}
             />
-            </div>
           </aside>
 
           {/* Divider (draggable) avant l'inspector */}
