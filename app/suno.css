@@ -11,20 +11,30 @@
   --color-accent: #00d3a7;
 
   /* Tokens "Suno-like" (pour réutiliser des classes type example) */
-  --foreground-primary: var(--text);
-  --foreground-secondary: rgba(246,247,251,0.78);
-  --foreground-tertiary: rgba(246,247,251,0.62);
-  --foreground-inactive: rgba(246,247,251,0.52);
-  --background-primary: var(--bg);
-  --background-secondary: var(--bg-muted);
-  --background-tertiary: rgba(255,255,255,0.06);
-  --border-primary: rgba(255,255,255,0.14);
-  --border-secondary: var(--border);
-  --overlay-on-primary: rgba(255,255,255,0.06);
+  /* Si tu colles les tokens Suno (DevTools) dans :root, ces fallbacks prennent le relais */
+  --foreground-primary: var(--color-foreground-primary, var(--text));
+  --foreground-secondary: var(--color-foreground-secondary, rgba(246,247,251,0.78));
+  --foreground-tertiary: var(--color-foreground-tertiary, rgba(246,247,251,0.62));
+  --foreground-inactive: var(--color-foreground-inactive, rgba(246,247,251,0.52));
+
+  --background-primary: var(--color-background-primary, var(--bg));
+  --background-secondary: var(--color-background-secondary, var(--bg-muted));
+  --background-tertiary: var(--color-background-tertiary, rgba(255,255,255,0.06));
+
+  --border-primary: var(--color-border-primary, rgba(255,255,255,0.14));
+  --border-secondary: var(--color-border-secondary, var(--border));
+  --overlay-on-primary: var(--color-overlay-on-primary, rgba(255,255,255,0.06));
+
+  --accent-brand: var(--color-accent-brand, var(--color-primary));
+  --accent-blue: var(--color-accent-blue, #1f8bff);
+  --accent-purple: var(--color-accent-purple, #8b6efe);
+  --accent-success: var(--color-accent-success, #4aab04);
+  --accent-error: var(--color-accent-error, #f8441b);
+  --accent-yellow: var(--color-accent-yellow, #f5d907);
 
   /* Fog tokens (from the snippet vocabulary) */
-  --background-fog-thin: rgba(255,255,255,0.04);
-  --background-fog-dense: rgba(255,255,255,0.18);
+  --background-fog-thin: var(--color-background-fog-thin, rgba(255,255,255,0.04));
+  --background-fog-dense: var(--color-background-fog-dense, rgba(255,255,255,0.18));
 }
 
 .btn-suno {
