@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat, Search, SlidersHorizontal } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -20,6 +20,7 @@ import { RemixDropzone } from '@/components/ai-studio/RemixDropzone';
 import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
+import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO_PILL_SOLID, SUNO_PANEL } from '@/components/ui/sunoClasses';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -164,6 +165,7 @@ export default function AIGenerator() {
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [filterBy, setFilterBy] = useState<'all' | 'instrumental' | 'with-lyrics'>('all');
   const [selectedGeneration, setSelectedGeneration] = useState<AIGeneration | null>(null);
+  const [showLibrarySortDropdown, setShowLibrarySortDropdown] = useState(false);
   
   // États pour le panneau de track sélectionnée
   const [selectedTrack, setSelectedTrack] = useState<GeneratedTrack | null>(null);
@@ -176,6 +178,59 @@ export default function AIGenerator() {
   
   // Génération IA activée
   const isGenerationDisabled = false;
+
+  // --- Layout resizable (desktop) ---
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [leftPx, setLeftPx] = useState(450);
+  const [rightPx, setRightPx] = useState(420);
+  const dragRef = useRef<{ mode: 'left' | 'right' | null; startX: number; startLeft: number; startRight: number }>({
+    mode: null,
+    startX: 0,
+    startLeft: 450,
+    startRight: 420,
+  });
+
+  const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+
+  const beginDrag = (mode: 'left' | 'right') => (e: React.PointerEvent<HTMLDivElement>) => {
+    // Only meaningful on large screens; still safe otherwise.
+    (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId);
+    dragRef.current = { mode, startX: e.clientX, startLeft: leftPx, startRight: rightPx };
+  };
+
+  useEffect(() => {
+    const onMove = (e: PointerEvent) => {
+      const d = dragRef.current;
+      if (!d.mode) return;
+      const delta = e.clientX - d.startX;
+
+      if (d.mode === 'left') {
+        setLeftPx(clamp(d.startLeft + delta, 360, 620));
+      } else {
+        setRightPx(clamp(d.startRight - delta, 320, 520));
+      }
+    };
+    const onUp = () => {
+      dragRef.current.mode = null;
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [leftPx, rightPx]);
+
+  useEffect(() => {
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('.library-sort-dropdown-container')) return;
+      setShowLibrarySortDropdown(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   // Charger la bibliothèque (même logique que ai-library)
   const loadLibrary = useCallback(async () => {
@@ -961,144 +1016,178 @@ export default function AIGenerator() {
 }
 
   return (
-    <div className="relative min-h-screen text-white overflow-hidden">
+    <div className="relative min-h-svh text-white overflow-hidden">
       <StudioBackground />
-      <div className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-10 xl:px-16 py-6 md:py-8">
-        {/* HEADER STUDIO */}
-        <header className="mb-4 sm:mb-6 flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-6 items-start md:items-center justify-between">
+      <div className="relative z-10 w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-5">
+        {/* TOOLBAR (inspiré du layout @example : barres compactes + pills) */}
+        <header className="mb-3 sm:mb-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="absolute inset-0 rounded-2xl blur-xl bg-accent-brand/70 opacity-60" />
-              <div className="relative w-11 h-11 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
+              <div className="relative w-10 h-10 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-accent-brand" />
               </div>
             </div>
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.28em] text-white/45">Synaura</p>
-              <h1 className="text-xl md:text-2xl font-semibold text-white">AI Studio</h1>
-              <p className="text-[10px] sm:text-xs text-white/55 max-w-sm hidden sm:block">Créez, remixez et expérimentez avec la génération musicale par IA.</p>
+            <div className="leading-tight">
+              <p className="text-[10px] uppercase tracking-[0.28em] text-white/45">Synaura</p>
+              <h1 className="text-lg sm:text-xl font-semibold text-white title-suno">Studio IA</h1>
+              <p className="text-[11px] text-white/55 hidden sm:block">
+                Génère, remix et organise tes créations comme dans un vrai studio.
+              </p>
             </div>
           </div>
-          <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
-            {/* Crédits + modèle */}
-            <div className="flex flex-wrap items-center justify-end gap-2">
+
+          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+            {/* Credits pill */}
+            <button
+              type="button"
+              onClick={() => setShowBuyCredits(true)}
+              className={`${SUNO_BTN_BASE} cursor-pointer py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 px-3 transition-all duration-200`}
+              aria-label="Acheter des crédits"
+            >
+              <Coins className="w-4 h-4 text-accent-brand" />
+              <span className="text-xs font-medium">{creditsBalance}</span>
+              <span className="text-[11px] text-foreground-tertiary">crédits</span>
+            </button>
+
+            {/* Modèle */}
+            <div className="relative model-dropdown-container">
               <button
                 type="button"
-                onClick={() => setShowBuyCredits(true)}
-                className="relative inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/15 backdrop-blur-md text-xs md:text-sm hover:bg-white/10 transition-colors"
-                aria-label="Acheter des crédits"
+                onClick={() => setShowModelDropdown(!showModelDropdown)}
+                disabled={isGenerationDisabled}
+                className={SUNO_PILL_SOLID}
               >
-                <Coins className="w-4 h-4 text-accent-brand" />
-                <span className="font-medium">{creditsBalance} crédits</span>
-                <span className="text-white/60">(≈ {Math.floor(creditsBalance / 12)} gen)</span>
-              </button>
-              <div className="relative model-dropdown-container">
-                <button
-                  type="button"
-                  onClick={() => setShowModelDropdown(!showModelDropdown)}
-                  disabled={isGenerationDisabled}
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs md:text-sm backdrop-blur-md ${
-                    isGenerationDisabled
-                      ? 'opacity-50 cursor-not-allowed border-white/15 bg-white/0 text-white/40'
-                      : 'border-accent-brand/50 bg-accent-brand/10 hover:bg-accent-brand/20 text-white'
-                  }`}
+                <span className="text-foreground-tertiary">Modèle</span>
+                <span className="font-semibold">
+                  {modelVersion === 'V5'
+                    ? 'V5 (Beta)'
+                    : modelVersion === 'V4_5PLUS'
+                    ? 'V4.5+'
+                    : modelVersion.replace('_', '.')}
+                </span>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className={`w-3 h-3 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`}
+                  viewBox="0 0 24 24"
                 >
-                  <span className="text-white/70">Modèle</span>
-                  <span className="font-semibold">
-                    {modelVersion === 'V5'
-                      ? 'V5 (Beta)'
-                      : modelVersion === 'V4_5PLUS'
-                      ? 'V4.5+'
-                      : modelVersion.replace('_', '.')}
-                  </span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className={`w-3 h-3 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`}
-                    viewBox="0 0 24 24"
+                  <path fill="currentColor" d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              <AnimatePresence>
+                {showModelDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                    className="absolute right-0 top-full mt-2 w-56 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
                   >
-                    <path fill="currentColor" d="m6 9 6 6 6-6" />
-                  </svg>
-                </button>
-                <AnimatePresence>
-                  {showModelDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.18, ease: "easeOut" }}
-                      className="absolute right-0 top-full mt-2 w-56 bg-[#0a0812]/90 backdrop-blur-md border border-white/15 rounded-xl shadow-2xl overflow-hidden z-50"
-                    >
-                      <div className="py-1">
+                    <div className="py-1">
                       <button
                         type="button"
                         onClick={() => {
                           setModelVersion('V5');
                           setShowModelDropdown(false);
                         }}
-                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${modelVersion === 'V5' ? 'bg-accent-blue/20 text-accent-blue' : 'text-white'}`}
+                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${
+                          modelVersion === 'V5' ? 'bg-accent-blue/20 text-accent-blue' : 'text-white'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-medium">V5</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-blue/20 text-accent-blue border border-accent-blue/30">Beta</span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-blue/20 text-accent-blue border border-accent-blue/30">
+                            Beta
+                          </span>
                           {modelVersion === 'V5' && (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-accent-blue">
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="ml-auto text-accent-blue"
+                            >
+                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
                             </svg>
                           )}
                         </div>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => {
                           setModelVersion('V4_5PLUS');
                           setShowModelDropdown(false);
                         }}
-                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${modelVersion === 'V4_5PLUS' ? 'bg-accent-purple/20 text-accent-purple' : 'text-white'}`}
+                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${
+                          modelVersion === 'V4_5PLUS' ? 'bg-accent-purple/20 text-accent-purple' : 'text-white'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-medium">V4.5+</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-purple/20 text-accent-purple border border-accent-purple/30">Pro</span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-purple/20 text-accent-purple border border-accent-purple/30">
+                            Pro
+                          </span>
                           {modelVersion === 'V4_5PLUS' && (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-accent-purple">
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="ml-auto text-accent-purple"
+                            >
+                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
                             </svg>
                           )}
                         </div>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => {
                           setModelVersion('V4_5');
                           setShowModelDropdown(false);
                         }}
-                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${modelVersion === 'V4_5' ? 'bg-accent-success/20 text-accent-success' : 'text-white'}`}
+                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${
+                          modelVersion === 'V4_5' ? 'bg-accent-success/20 text-accent-success' : 'text-white'
+                        }`}
                       >
                         <div className="flex items-center gap-2">
                           <span className="font-medium">V4.5</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-success/20 text-accent-success border border-accent-success/30">Free</span>
+                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-success/20 text-accent-success border border-accent-success/30">
+                            Free
+                          </span>
                           {modelVersion === 'V4_5' && (
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="ml-auto text-accent-success">
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z"/>
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="currentColor"
+                              className="ml-auto text-accent-success"
+                            >
+                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
                             </svg>
                           )}
                         </div>
                       </button>
                     </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
+
             {/* Switch de mode Simple / Custom */}
-            <div className="inline-flex bg-white/5 border border-white/15 rounded-full p-1 backdrop-blur-md">
+            <div className="inline-flex bg-background-tertiary border border-border-primary rounded-full p-1">
               <button
                 type="button"
                 onClick={() => setCustomMode(false)}
                 disabled={isGenerationDisabled}
-                className={`px-3 py-1 rounded-full text-[11px] md:text-xs font-medium transition-all ${
-                  !customMode
-                    ? 'bg-white text-black shadow'
-                    : 'text-white/60 hover:text-white'
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  !customMode ? 'bg-white text-black shadow' : 'text-foreground-tertiary hover:text-foreground-primary'
                 } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Simple
@@ -1107,10 +1196,10 @@ export default function AIGenerator() {
                 type="button"
                 onClick={() => setCustomMode(true)}
                 disabled={isGenerationDisabled}
-                className={`px-3 py-1 rounded-full text-[11px] md:text-xs font-medium transition-all ${
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
                   customMode
                     ? 'bg-accent-brand text-white shadow-[0_0_25px_rgba(129,140,248,0.75)]'
-                    : 'text-white/60 hover:text-white'
+                    : 'text-foreground-tertiary hover:text-foreground-primary'
                 } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Custom
@@ -1119,10 +1208,19 @@ export default function AIGenerator() {
           </div>
         </header>
 
-        {/* Grid 3 colonnes */}
-        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start">
-          {/* Colonne 1 : création / presets */}
-          <div className="space-y-4 order-2 lg:order-1">
+        {/* LAYOUT 3 PANE (inspiré @example : colonnes + scroll internes) */}
+        <div
+          ref={containerRef}
+          className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-[var(--left)_8px_1fr_8px_var(--right)] items-start lg:items-stretch lg:h-[calc(100svh-150px)] lg:overflow-hidden"
+          style={
+            {
+              ['--left' as any]: `${leftPx}px`,
+              ['--right' as any]: `${rightPx}px`,
+            } as React.CSSProperties
+          }
+        >
+          {/* Panel gauche : création / presets */}
+          <section className="space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1">
             {/* Formulaire actif */}
             <div className="space-y-6">
               {/* Bandeau de presets */}
@@ -1136,7 +1234,7 @@ export default function AIGenerator() {
                 // Mode personnalisé
                 <>
                   {/* Titre */}
-                  <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md">
+                  <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5`}>
                     <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
                       <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                       <span>Projet & sortie</span>
@@ -1153,14 +1251,14 @@ export default function AIGenerator() {
                           onChange={(e) => setTitle(e.target.value)}
                           placeholder="Entrez un titre"
                           disabled={isGenerationDisabled}
-                          className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`${SUNO_FIELD} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Style de musique */}
-                  <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md">
+                  <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5`}>
                     <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
                       <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                       <span>Style & ambiance</span>
@@ -1177,7 +1275,7 @@ export default function AIGenerator() {
                         rows={3}
                         maxLength={1000}
                         disabled={isGenerationDisabled}
-                        className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                       />
                       <div className="text-[10px] text-white/40 mt-1 text-right">
                         {style.length}/1000
@@ -1267,7 +1365,7 @@ export default function AIGenerator() {
                   </div>
 
                   {/* Paroles ou Description */}
-                  <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md space-y-3 sm:space-y-4">
+                  <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4`}>
                     <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
                       <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                       <span>Paroles ou Description</span>
@@ -1288,7 +1386,7 @@ export default function AIGenerator() {
                               className="sr-only"
                             />
                             <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                              isInstrumental ? 'bg-accent-brand' : 'bg-white/10'
+                              isInstrumental ? 'bg-accent-brand' : 'bg-background-tertiary'
                             }`}>
                               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                                 isInstrumental ? 'translate-x-6' : 'translate-x-1'
@@ -1307,7 +1405,7 @@ export default function AIGenerator() {
                             rows={6}
                             maxLength={5000}
                             disabled={isGenerationDisabled}
-                            className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                           />
                           <div className="text-[10px] text-white/40 mt-1 text-right">
                             {lyrics.length}/5000
@@ -1324,7 +1422,7 @@ export default function AIGenerator() {
                           rows={4}
                           maxLength={199}
                           disabled={isGenerationDisabled}
-                          className={`w-full bg-black/30 border border-white/10 rounded-lg px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                         />
                         <div className="text-[10px] text-white/40 mt-1 text-right">
                           {description.length}/199
@@ -1353,7 +1451,7 @@ export default function AIGenerator() {
                   </div>
                   {/* Options avancées */}
                   {customMode && (
-                    <div className="bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 backdrop-blur-md space-y-3 sm:space-y-4">
+                    <div className={`${SUNO_PANEL} p-3 sm:p-4 md:p-5 space-y-3 sm:space-y-4`}>
                       <h2 className="text-xs sm:text-sm font-semibold text-white mb-1 flex items-center gap-2">
                         <Settings className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-brand" />
                         <span>Options avancées</span>
@@ -1364,20 +1462,20 @@ export default function AIGenerator() {
                       <div className="space-y-4">
                         <div>
                           <div className="flex items-center justify-between text-[10px] text-white/50 mb-1"><span>Weirdness</span><span>{weirdness}%</span></div>
-                          <input type="range" min={0} max={100} value={weirdness} onChange={(e) => setWeirdness(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                          <input type="range" min={0} max={100} value={weirdness} onChange={(e) => setWeirdness(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
                         </div>
                         <div>
                           <div className="flex items-center justify-between text-[10px] text-white/50 mb-1"><span>Style influence</span><span>{styleInfluence}%</span></div>
-                          <input type="range" min={0} max={100} value={styleInfluence} onChange={(e) => setStyleInfluence(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                          <input type="range" min={0} max={100} value={styleInfluence} onChange={(e) => setStyleInfluence(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
                         </div>
                         <div>
                           <div className="flex items-center justify-between text-[10px] text-white/50 mb-1"><span>Audio weight</span><span>{audioWeight}%</span></div>
-                          <input type="range" min={0} max={100} value={audioWeight} onChange={(e) => setAudioWeight(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                          <input type="range" min={0} max={100} value={audioWeight} onChange={(e) => setAudioWeight(parseInt(e.target.value))} disabled={isGenerationDisabled} className={`w-full ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                           <div>
                             <label className="block text-[10px] text-white/50 mb-1">Vocal gender</label>
-                            <select value={vocalGender} onChange={(e) => setVocalGender(e.target.value)} disabled={isGenerationDisabled} className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <select value={vocalGender} onChange={(e) => setVocalGender(e.target.value)} disabled={isGenerationDisabled} className={`${SUNO_SELECT} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}>
                               <option value="">Auto</option>
                               <option value="m">Male</option>
                               <option value="f">Female</option>
@@ -1385,7 +1483,7 @@ export default function AIGenerator() {
                           </div>
                           <div>
                             <label className="block text-[10px] text-white/50 mb-1">Negative tags</label>
-                            <input value={negativeTags} onChange={(e) => setNegativeTags(e.target.value)} placeholder="Ex: Heavy Metal, Upbeat Drums" disabled={isGenerationDisabled} className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`} />
+                            <input value={negativeTags} onChange={(e) => setNegativeTags(e.target.value)} placeholder="Ex: Heavy Metal, Upbeat Drums" disabled={isGenerationDisabled} className={`${SUNO_FIELD} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`} />
                           </div>
                         </div>
                       </div>
@@ -1394,7 +1492,7 @@ export default function AIGenerator() {
                 </>
               ) : (
                 // Mode description
-                <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md space-y-4">
+                <div className={`${SUNO_PANEL} p-4 md:p-5 space-y-4`}>
                   <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-accent-brand" />
                     <span>Paroles ou Description</span>
@@ -1411,7 +1509,7 @@ export default function AIGenerator() {
                       rows={4}
                       maxLength={199}
                       disabled={isGenerationDisabled}
-                      className={`w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:border-accent-brand/50 resize-none ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
                     />
                     <div className="text-[10px] text-white/40 mt-1 text-right">
                       {description.length}/199
@@ -1440,11 +1538,21 @@ export default function AIGenerator() {
                 </div>
               )}
             </div>
+          </section>
+
+          {/* Panel central : orb + timeline */}
+          {/* Divider (draggable) */}
+          <div
+            className="hidden lg:block h-full relative cursor-col-resize"
+            onPointerDown={beginDrag('left')}
+            title="Redimensionner"
+          >
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-border-primary/50" />
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-6" />
           </div>
 
-          {/* Colonne 2 : orbe + timeline */}
-          <div className="space-y-4 order-1 lg:order-2">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6 backdrop-blur-md flex flex-col items-center gap-4">
+          <main className="space-y-3 lg:h-full lg:overflow-y-hidden lg:px-1 flex flex-col min-h-0">
+            <div className="panel-suno p-4 md:p-5 flex flex-col items-center gap-3">
               <StudioStatusOrb
                 isGenerating={isGenerating}
                 generationStatus={generationStatus}
@@ -1459,30 +1567,30 @@ export default function AIGenerator() {
                 type="button"
                 onClick={generateMusic}
                 disabled={isGenerationDisabled || isGenerating}
-                className={`inline-flex items-center gap-1.5 sm:gap-2 px-4 sm:px-5 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold transition-all w-full sm:w-auto justify-center ${
-                  isGenerationDisabled || isGenerating
-                    ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                    : 'bg-accent-brand text-white shadow-[0_0_30px_rgba(129,140,248,0.8)] hover:scale-[1.01]'
+                className={`${SUNO_BTN_BASE} cursor-pointer px-4 sm:px-5 py-2 rounded-full text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary text-sm w-full sm:w-auto ${
+                  isGenerationDisabled || isGenerating ? 'opacity-60 cursor-not-allowed' : ''
                 }`}
               >
                 {isGenerating ? (
                   <>
-                    <span className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
-                    <span className="hidden sm:inline">Génération en cours...</span>
-                    <span className="sm:hidden">En cours...</span>
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      <span className="w-3 h-3 rounded-full border-2 border-foreground-tertiary border-t-transparent animate-spin" />
+                      <span>En cours…</span>
+                    </span>
                   </>
                 ) : (
                   <>
-                    <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Lancer la génération</span>
-                    <span className="sm:hidden">Générer</span>
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      <Play className="w-4 h-4" />
+                      <span>Créer</span>
+                    </span>
                   </>
                 )}
               </button>
             </div>
             {/* Status Display */}
             {currentTaskId && (
-              <div className="bg-accent-blue/15 border border-accent-blue/25 rounded-2xl p-4 backdrop-blur-md text-center">
+              <div className="panel-suno p-4 text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-blue"></div>
                   <span className="text-accent-blue font-medium text-sm">
@@ -1506,23 +1614,184 @@ export default function AIGenerator() {
               </div>
             )}
             {/* Generated Tracks Display */}
-            <GenerationTimeline
-              generatedTracks={generatedTracks}
-              generationStatus={generationStatus}
-              currentTaskId={currentTaskId}
-              sunoState={sunoState}
-              sunoError={sunoError}
-              onOpenTrack={openTrackPanel}
-              onPlayTrack={playGenerated}
-              onDownloadTrack={downloadGenerated}
-              onShareTrack={shareGenerated}
-            />
+            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
+              <GenerationTimeline
+                generatedTracks={generatedTracks}
+                generationStatus={generationStatus}
+                currentTaskId={currentTaskId}
+                sunoState={sunoState}
+                sunoError={sunoError}
+                onOpenTrack={openTrackPanel}
+                onPlayTrack={playGenerated}
+                onDownloadTrack={downloadGenerated}
+                onShareTrack={shareGenerated}
+              />
+            </div>
+          </main>
+
+          {/* Panel droit : bibliothèque / historique */}
+          {/* Divider (draggable) */}
+          <div
+            className="hidden lg:block h-full relative cursor-col-resize"
+            onPointerDown={beginDrag('right')}
+            title="Redimensionner"
+          >
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-border-primary/50" />
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-6" />
           </div>
 
-          {/* Colonne 3 : bibliothèque / historique */}
-          <div className="space-y-4 order-3 lg:order-3">
-            <RecentGenerations
-              generations={recentGenerationsSorted}
+          <aside className="space-y-3 lg:h-full lg:overflow-y-hidden lg:pl-1 flex flex-col min-h-0">
+            <div className="panel-suno p-3">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-1 px-4 py-2 rounded-full bg-background-tertiary">
+                  <Search className="w-4 h-4 text-foreground-tertiary" />
+                  <input
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search"
+                    aria-label="Search clips"
+                    className={SUNO_INPUT}
+                  />
+                  {searchQuery.trim().length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="p-1 rounded-full hover:bg-overlay-on-primary text-foreground-tertiary"
+                      aria-label="Effacer la recherche"
+                      title="Effacer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={refreshGenerations}
+                  className={SUNO_PILL_SOLID}
+                  title="Rafraîchir"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => setFilterBy('all')}
+                    className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
+                      filterBy === 'all' ? 'bg-background-tertiary' : ''
+                    }`}
+                  >
+                    <span className="relative">Tout</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterBy('instrumental')}
+                    className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
+                      filterBy === 'instrumental' ? 'bg-background-tertiary' : ''
+                    }`}
+                  >
+                    <span className="relative">Instrumental</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFilterBy('with-lyrics')}
+                    className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
+                      filterBy === 'with-lyrics' ? 'bg-background-tertiary' : ''
+                    }`}
+                  >
+                    <span className="relative">Voix</span>
+                  </button>
+                </div>
+
+                <div className="relative library-sort-dropdown-container">
+                  <button
+                    type="button"
+                    onClick={() => setShowLibrarySortDropdown((v) => !v)}
+                    className={`${SUNO_PILL_SOLID} px-4 py-2`}
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      <SlidersHorizontal className="h-4 w-4" />
+                      {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Title'}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-mx-1 h-5 w-5">
+                        <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
+                      </svg>
+                    </span>
+                  </button>
+
+                  <AnimatePresence>
+                    {showLibrarySortDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                        transition={{ duration: 0.16, ease: 'easeOut' }}
+                        className="absolute right-0 top-full mt-2 w-44 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
+                      >
+                        <div className="py-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSortBy('newest');
+                              setShowLibrarySortDropdown(false);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white"
+                          >
+                            Newest
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSortBy('oldest');
+                              setShowLibrarySortDropdown(false);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white"
+                          >
+                            Oldest
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSortBy('title');
+                              setShowLibrarySortDropdown(false);
+                            }}
+                            className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white"
+                          >
+                            Title
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
+            {generations.length > 0 &&
+              !generationsLoading &&
+              filteredAndSortedGenerations.length === 0 && (
+                <div className="panel-suno p-3">
+                  <p className="text-[12px] text-foreground-secondary">
+                    Aucune génération ne correspond à tes filtres.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterBy('all');
+                      setSortBy('newest');
+                    }}
+                    className={`${SUNO_PILL_SOLID} mt-3 w-full`}
+                  >
+                    <span className="relative">Réinitialiser les filtres</span>
+                  </button>
+                </div>
+              )}
+
+            <div className="flex-1 min-h-0">
+              <RecentGenerations
+              generations={filteredAndSortedGenerations}
               loading={generationsLoading}
               error={generationsError}
               onReload={refreshGenerations}
@@ -1544,8 +1813,10 @@ export default function AIGenerator() {
                 }
               }}
               onPlayGeneration={handlePlayGeneration}
+              limit={8}
             />
-          </div>
+            </div>
+          </aside>
         </div>
 
         {/* Modale d'achat de crédits */}

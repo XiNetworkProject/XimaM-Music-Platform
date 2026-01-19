@@ -9,6 +9,23 @@ module.exports = {
   theme: {
     extend: {
       colors: {
+        // Suno-like design tokens (used by the `example` snippet classes)
+        'foreground-primary': 'var(--foreground-primary)',
+        'foreground-secondary': 'var(--foreground-secondary)',
+        'foreground-tertiary': 'var(--foreground-tertiary)',
+        'foreground-inactive': 'var(--foreground-inactive)',
+        'foreground-primary-on-dark': 'rgba(255,255,255,0.92)',
+
+        'background-primary': 'var(--background-primary)',
+        'background-secondary': 'var(--background-secondary)',
+        'background-tertiary': 'var(--background-tertiary)',
+        'background-fog-thin': 'rgba(255,255,255,0.04)',
+        'background-fog-dense': 'rgba(255,255,255,0.18)',
+
+        'border-primary': 'var(--border-primary)',
+        'border-secondary': 'var(--border-secondary)',
+        'overlay-on-primary': 'var(--overlay-on-primary)',
+
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',

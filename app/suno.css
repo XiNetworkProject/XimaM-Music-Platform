@@ -21,6 +21,10 @@
   --border-primary: rgba(255,255,255,0.14);
   --border-secondary: var(--border);
   --overlay-on-primary: rgba(255,255,255,0.06);
+
+  /* Fog tokens (from the snippet vocabulary) */
+  --background-fog-thin: rgba(255,255,255,0.04);
+  --background-fog-dense: rgba(255,255,255,0.18);
 }
 
 .btn-suno {
@@ -54,11 +58,14 @@
 .bg-background-primary { background-color: var(--background-primary); }
 .bg-background-secondary { background-color: var(--background-secondary); }
 .bg-background-tertiary { background-color: var(--background-tertiary); }
+.bg-background-fog-thin { background-color: var(--background-fog-thin); }
+.bg-background-fog-dense { background-color: var(--background-fog-dense); }
 
 .text-foreground-primary { color: var(--foreground-primary); }
 .text-foreground-secondary { color: var(--foreground-secondary); }
 .text-foreground-tertiary { color: var(--foreground-tertiary); }
 .text-foreground-inactive { color: var(--foreground-inactive); }
+.text-foreground-primary-on-dark { color: rgba(255,255,255,0.92); }
 
 .border-border-primary { border-color: var(--border-primary); }
 .border-border-secondary { border-color: var(--border-secondary); }

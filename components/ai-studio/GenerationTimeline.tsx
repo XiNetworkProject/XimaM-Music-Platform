@@ -4,6 +4,7 @@
 import { motion } from 'framer-motion';
 import { Play, Download, Share2, Music, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
+import { SUNO_BTN_BASE, SUNO_CARD, SUNO_ICON_PILL } from '@/components/ui/sunoClasses';
 
 type GenerationStatus = 'idle' | 'pending' | 'completed' | 'failed';
 
@@ -44,7 +45,7 @@ export function GenerationTimeline({
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Header statut */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
+      <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-background-primary/80 backdrop-blur-md flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
           {isError ? (
             <span className="inline-flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full bg-red-500/10 text-red-400 border border-red-400/30">
@@ -86,7 +87,7 @@ export function GenerationTimeline({
 
       {/* Empty state */}
       {isEmpty && !isPending && (
-        <div className="rounded-xl border border-white/10 bg-black/30 backdrop-blur-sm px-4 py-6 text-center">
+        <div className={`${SUNO_CARD} px-4 py-6 text-center`}>
           <p className="text-sm text-foreground-secondary mb-1">
             Aucune piste générée pour l'instant.
           </p>
@@ -102,7 +103,7 @@ export function GenerationTimeline({
           {Array.from({ length: 2 }).map((_, index) => (
             <div
               key={index}
-              className="flex items-center gap-3 bg-white/5 rounded-xl border border-white/10 p-3 animate-pulse"
+              className={`${SUNO_CARD} flex items-center gap-3 p-3 animate-pulse`}
             >
               <div className="w-10 h-10 rounded-lg bg-white/10" />
               <div className="flex-1 space-y-2">
@@ -134,7 +135,7 @@ export function GenerationTimeline({
               </div>
 
               {/* Carte piste */}
-              <div className="flex-1 bg-white-upload backdrop-blur-upload border border-upload rounded-xl p-2.5 sm:p-3.5 flex flex-col gap-2">
+              <div className={`${SUNO_CARD} p-3 flex flex-col gap-2`}>
                 <div className="flex items-start gap-2 sm:gap-3">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center shrink-0 overflow-hidden">
                     {track.imageUrl ? (
@@ -183,18 +184,19 @@ export function GenerationTimeline({
                     <button
                       type="button"
                       onClick={() => onPlayTrack(track)}
-                      className="inline-flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-accent-brand text-[11px] sm:text-[12px] font-medium text-white hover:bg-accent-brand/90 transition-colors"
+                      className={`${SUNO_BTN_BASE} cursor-pointer px-4 py-2 rounded-full text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary text-xs leading-[24px]`}
                     >
-                      <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                      <span className="hidden sm:inline">Écouter</span>
-                      <span className="sm:hidden">Play</span>
+                      <span className="relative flex flex-row items-center justify-center gap-2">
+                        <Play className="w-4 h-4" />
+                        Écouter
+                      </span>
                     </button>
                     <button
                       type="button"
                       onClick={() => onOpenTrack(track)}
-                      className="text-[10px] sm:text-[11px] text-foreground-tertiary hover:text-foreground-secondary underline underline-offset-2"
+                      className={`${SUNO_BTN_BASE} cursor-pointer px-3 py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary text-xs leading-[24px]`}
                     >
-                      Détails
+                      <span className="relative">Détails</span>
                     </button>
                   </div>
 
@@ -202,14 +204,14 @@ export function GenerationTimeline({
                     <button
                       type="button"
                       onClick={() => onDownloadTrack(track)}
-                      className="p-1 sm:p-1.5 rounded-full border border-upload text-foreground-primary/80 hover:bg-overlay-on-primary"
+                      className={`${SUNO_ICON_PILL} p-1 sm:p-1.5`}
                     >
                       <Download className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </button>
                     <button
                       type="button"
                       onClick={() => onShareTrack(track)}
-                      className="p-1 sm:p-1.5 rounded-full border border-upload text-foreground-primary/80 hover:bg-overlay-on-primary"
+                      className={`${SUNO_ICON_PILL} p-1 sm:p-1.5`}
                     >
                       <Share2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                     </button>

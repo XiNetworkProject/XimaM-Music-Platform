@@ -4,6 +4,7 @@
 import { useRouter } from 'next/navigation';
 import { RefreshCw, Music2, Clock, Play } from 'lucide-react';
 import type { AIGeneration } from '@/lib/aiGenerationService';
+import { SUNO_BTN_BASE, SUNO_ICON_PILL, SUNO_PILL_OUTLINE } from '@/components/ui/sunoClasses';
 
 interface RecentGenerationsProps {
   generations: AIGeneration[];
@@ -27,8 +28,8 @@ export function RecentGenerations({
   const router = useRouter();
 
   return (
-    <div className="bg-white-upload backdrop-blur-upload rounded-xl border border-upload p-2.5 sm:p-3.5 space-y-2 sm:space-y-3">
-      <div className="flex items-center justify-between gap-2">
+    <div className="panel-suno flex flex-col min-h-0">
+      <div className="px-3.5 pt-3.5 pb-2 flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-[10px] sm:text-xs uppercase tracking-[0.22em] text-foreground-tertiary">
             Générations récentes
@@ -41,16 +42,16 @@ export function RecentGenerations({
           <button
             type="button"
             onClick={() => router.push('/ai-library', { scroll: false })}
-            className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-upload text-[10px] sm:text-[11px] text-foreground-secondary hover:bg-overlay-on-primary"
+            className={`${SUNO_PILL_OUTLINE} px-2 py-1 text-[10px] sm:text-[11px]`}
             title="Voir toute la bibliothèque IA"
           >
-            <span>Voir tout</span>
+            <span className="relative">Voir tout</span>
           </button>
           <button
             type="button"
             onClick={onReload}
             disabled={loading}
-            className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-upload text-[10px] sm:text-[11px] text-foreground-secondary hover:bg-overlay-on-primary disabled:opacity-60"
+            className={`${SUNO_PILL_OUTLINE} px-2 py-1 text-[10px] sm:text-[11px] disabled:opacity-60`}
             title="Rafraîchir"
           >
             <RefreshCw
@@ -58,19 +59,19 @@ export function RecentGenerations({
                 loading ? 'animate-spin' : ''
               }`}
             />
-            <span className="hidden sm:inline">Rafraîchir</span>
+            <span className="relative hidden sm:inline">Rafraîchir</span>
           </button>
         </div>
       </div>
 
       {error && (
-        <p className="text-[11px] text-red-300">
+        <p className="px-3.5 pb-2 text-[11px] text-red-300">
           Impossible de charger la bibliothèque : {error}
         </p>
       )}
 
       {loading && !generations.length && (
-        <div className="space-y-2">
+        <div className="px-3.5 pb-3 space-y-2">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
@@ -81,14 +82,14 @@ export function RecentGenerations({
       )}
 
       {!loading && !generations.length && (
-        <p className="text-[12px] text-foreground-tertiary">
+        <p className="px-3.5 pb-3 text-[12px] text-foreground-tertiary">
           Tu n'as pas encore de génération sauvegardée. Lance une génération, elle
           apparaîtra ici automatiquement.
         </p>
       )}
 
       {generations.length > 0 && (
-        <div className="space-y-1.5">
+        <div className="clip-browser-list-scroller flex-1 min-h-0 overflow-y-auto px-2.5 pb-2 space-y-0.5">
           {generations.slice(0, limit).map((gen) => {
             const firstTrack = gen.tracks?.[0];
             const hasAudio = firstTrack?.audio_url || firstTrack?.stream_audio_url;
@@ -96,21 +97,21 @@ export function RecentGenerations({
             return (
               <div
                 key={gen.id}
-                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg hover:bg-overlay-on-primary transition-colors group"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-overlay-on-primary transition-colors group"
               >
                 <button
                   type="button"
                   onClick={() => onUseGeneration(gen)}
                   className="flex-1 flex items-center gap-1.5 sm:gap-2 text-left min-w-0"
                 >
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-md bg-gradient-to-br from-accent-purple/70 to-accent-blue/70 flex items-center justify-center shrink-0">
-                    <Music2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+                  <div className="w-8 h-8 rounded-lg bg-background-tertiary border border-border-primary flex items-center justify-center shrink-0">
+                    <Music2 className="w-4 h-4 text-foreground-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[12px] sm:text-[13px] font-medium text-foreground-primary truncate">
+                    <p className="text-[13px] font-medium text-foreground-primary truncate">
                       {firstTrack?.title || gen.prompt || 'Génération IA'}
                     </p>
-                    <p className="text-[10px] sm:text-[11px] text-foreground-tertiary truncate">
+                    <p className="text-[11px] text-foreground-tertiary truncate">
                       {gen.model || 'Modèle IA'} ·{' '}
                       {new Date(gen.created_at).toLocaleString('fr-FR', {
                         hour: '2-digit',
@@ -120,8 +121,8 @@ export function RecentGenerations({
                       })}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-foreground-tertiary shrink-0 hidden sm:flex">
-                    <Clock className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  <div className="flex items-center gap-1 text-[10px] text-foreground-tertiary shrink-0 hidden sm:flex">
+                    <Clock className="w-3 h-3" />
                     <span>{gen.tracks?.length ?? 0} pistes</span>
                   </div>
                 </button>
@@ -132,7 +133,7 @@ export function RecentGenerations({
                       e.stopPropagation();
                       onPlayGeneration(gen);
                     }}
-                    className="p-1 sm:p-1.5 rounded-lg bg-accent-brand/20 border border-accent-brand/50 text-accent-brand hover:bg-accent-brand/30 transition-colors shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                    className={`${SUNO_ICON_PILL} p-2 shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity`}
                     title="Lire (playlist de la génération)"
                   >
                     <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />

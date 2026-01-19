@@ -3,6 +3,7 @@
 
 import { motion } from 'framer-motion';
 import type { AIStudioPreset } from '@/lib/aiStudioTypes';
+import { SUNO_PILL_OUTLINE } from '@/components/ui/sunoClasses';
 
 interface PresetStripProps {
   presets: AIStudioPreset[];
@@ -40,12 +41,8 @@ export function PresetStrip({
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
-              className={`group relative flex items-center gap-1.5 sm:gap-2 rounded-full px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[10px] sm:text-xs 
-              border backdrop-blur-sm whitespace-nowrap
-              ${
-                isActive
-                  ? 'border-accent-brand/80 bg-accent-brand/10 shadow-[0_0_18px_rgba(120,95,255,0.45)]'
-                  : 'border-white/10 bg-black/30 hover:bg-white/5'
+              className={`group flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${SUNO_PILL_OUTLINE} px-2.5 sm:px-3.5 py-1.5 sm:py-2 text-[10px] sm:text-xs ${
+                isActive ? 'border-accent-brand/80 bg-accent-brand/10' : ''
               }`}
             >
               <span className="text-sm sm:text-base">{preset.emoji}</span>

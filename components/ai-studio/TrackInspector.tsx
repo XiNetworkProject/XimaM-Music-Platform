@@ -4,6 +4,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Play, Download, Share2, Clock, Music } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
+import { SUNO_ICON_PILL, SUNO_PILL_SOLID } from '@/components/ui/sunoClasses';
 
 interface TrackInspectorProps {
   track: GeneratedTrack | null;
@@ -83,20 +84,20 @@ export function TrackInspector({
               <div className="flex gap-2 mb-4">
                 <button
                   onClick={() => onPlay(track)}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full bg-accent-brand text-sm font-medium text-white hover:bg-accent-brand/90 transition-colors"
+                  className={`flex-1 inline-flex items-center justify-center gap-1.5 ${SUNO_PILL_SOLID} bg-accent-brand text-white`}
                 >
                   <Play className="w-4 h-4" />
                   Lire dans le player
                 </button>
                 <button
                   onClick={() => onDownload(track)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-upload text-xs text-foreground-primary hover:bg-overlay-on-primary"
+                  className={`${SUNO_ICON_PILL} px-3 py-2`}
                 >
                   <Download className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onShare(track)}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-full border border-upload text-xs text-foreground-primary hover:bg-overlay-on-primary"
+                  className={`${SUNO_ICON_PILL} px-3 py-2`}
                 >
                   <Share2 className="w-4 h-4" />
                 </button>

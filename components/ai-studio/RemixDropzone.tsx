@@ -4,6 +4,7 @@
 import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Music, UploadCloud } from 'lucide-react';
+import { SUNO_CARD } from '@/components/ui/sunoClasses';
 
 interface RemixDropzoneProps {
   onFileSelected: (file: File) => void;
@@ -36,11 +37,8 @@ export function RemixDropzone({
   return (
     <div
       {...getRootProps()}
-      className={`border border-dashed rounded-xl px-3 py-3 flex items-center gap-3 cursor-pointer transition-colors
-      ${
-        isDragActive
-          ? 'border-accent-brand/70 bg-accent-brand/10'
-          : 'border-upload hover:bg-overlay-on-primary'
+      className={`${SUNO_CARD} border-dashed px-3 py-3 flex items-center gap-3 cursor-pointer transition-colors ${
+        isDragActive ? 'border-accent-brand/70 bg-accent-brand/10' : 'hover:bg-overlay-on-primary'
       }`}
     >
       <input {...getInputProps()} />
