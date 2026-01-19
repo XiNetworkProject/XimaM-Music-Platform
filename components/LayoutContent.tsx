@@ -12,7 +12,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   const isMeteoPage = pathname?.includes('/meteo/login') || pathname?.includes('/meteo/dashboard');
   
   return (
-    <div className={`flex-1 flex flex-col ${isMeteoPage ? '' : isSidebarOpen ? 'lg:pl-72' : 'lg:pl-24'} overflow-x-hidden max-w-full w-full`}>
+    <div className={`flex-1 flex flex-col ${isMeteoPage ? '' : isSidebarOpen ? 'lg:pl-[200px]' : 'lg:pl-[88px]'} overflow-x-hidden max-w-full w-full`}>
       {children}
     </div>
   );

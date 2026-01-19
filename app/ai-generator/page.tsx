@@ -21,6 +21,8 @@ import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
 
+const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
+
 // Interface Track compatible avec le lecteur principal
 interface PlayerTrack {
   _id: string;
@@ -134,7 +136,7 @@ function StudioStatusOrb({
 export default function AIGenerator() {
   const { data: session } = useSession();
   const { quota, loading: quotaLoading } = useAIQuota();
-  const { playTrack } = useAudioPlayer();
+  const { playTrack, setQueueAndPlay } = useAudioPlayer();
   // États pour la bibliothèque des générations (même logique que ai-library)
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
   const [allTracks, setAllTracks] = useState<AITrack[]>([]);
@@ -176,48 +178,42 @@ export default function AIGenerator() {
   const isGenerationDisabled = false;
 
   // Charger la bibliothèque (même logique que ai-library)
-  const loadLibrary = async () => {
+  const loadLibrary = useCallback(async () => {
     if (!session?.user?.id) {
-      console.log('🔍 AI Generator: Pas de session utilisateur');
       return;
     }
-
-    console.log('🔍 AI Generator: Chargement de la bibliothèque pour userId:', session.user.id);
 
     try {
       setGenerationsLoading(true);
       setGenerationsError(null);
-      const response = await fetch('/api/ai/library', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
-      console.log('🔍 AI Generator: Réponse API library:', response.status, response.statusText);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('🔍 AI Generator: Données reçues:', data);
-        console.log('🔍 AI Generator: Nombre de générations:', data.generations?.length || 0);
-        setGenerations(data.generations || []);
 
-        // Charger toutes les pistes de l'utilisateur
-        const trRes = await fetch('/api/ai/library/tracks', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
-        console.log('🔍 AI Generator: Réponse API tracks:', trRes.status, trRes.statusText);
-        
-        if (trRes.ok) {
-          const trJson = await trRes.json();
-          console.log('🔍 AI Generator: Tracks reçues:', trJson.tracks?.length || 0);
-          console.log('🔍 AI Generator: Première track (structure):', trJson.tracks?.[0]);
-          setAllTracks(trJson.tracks || []);
-        }
+      const [genRes, trRes] = await Promise.all([
+        fetch('/api/ai/library', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }),
+        fetch('/api/ai/library/tracks', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }),
+      ]);
+
+      if (!genRes.ok) {
+        const txt = await genRes.text().catch(() => '');
+        setGenerationsError(txt ? `Erreur chargement: ${txt}` : 'Erreur chargement de la bibliothèque');
+        return;
+      }
+
+      const data = await genRes.json().catch(() => ({}));
+      setGenerations(data.generations || []);
+
+      if (trRes.ok) {
+        const trJson = await trRes.json().catch(() => ({}));
+        setAllTracks(trJson.tracks || []);
       } else {
-        const txt = await response.text();
-        console.error('🔍 AI Generator: Erreur API:', txt);
-        setGenerationsError(`Erreur chargement: ${txt}`);
+        setAllTracks([]);
       }
     } catch (error) {
-      console.error('🔍 AI Generator: Erreur chargement bibliothèque:', error);
+      if (DEBUG_AI_STUDIO) console.error('[AI Studio] Erreur chargement bibliothèque:', error);
       setGenerationsError('Impossible de charger la bibliothèque');
     } finally {
       setGenerationsLoading(false);
     }
-  };
+  }, [session?.user?.id]);
 
   // Rafraîchir la bibliothèque
   const refreshGenerations = () => {
@@ -226,9 +222,6 @@ export default function AIGenerator() {
 
   // Filtrer les générations (même logique que ai-library)
   const filteredAndSortedGenerations = React.useMemo(() => {
-    console.log('🔍 AI Generator: Filtrage des générations. Total:', generations.length);
-    console.log('🔍 AI Generator: Recherche:', searchQuery, 'Filtre:', filterBy, 'Tri:', sortBy);
-    
     let filtered = generations.filter(generation => {
       const matchesSearch = searchQuery === '' || 
         generation.prompt.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -242,8 +235,6 @@ export default function AIGenerator() {
       
       return matchesSearch && matchesFilter;
     });
-
-    console.log('🔍 AI Generator: Générations après filtrage:', filtered.length);
 
     // Tri
     filtered.sort((a, b) => {
@@ -259,18 +250,14 @@ export default function AIGenerator() {
       }
     });
     
-    console.log('🔍 AI Generator: Générations finales après tri:', filtered.length);
     return filtered;
   }, [generations, searchQuery, sortBy, filterBy]);
 
   // Convertir les tracks individuelles en générations groupées par generation_id
   const generationsFromTracks = React.useMemo(() => {
     if (allTracks.length === 0) {
-      console.log('[generationsFromTracks] allTracks est vide');
       return [];
     }
-    
-    console.log('[generationsFromTracks] Traitement de', allTracks.length, 'tracks');
     
     // Grouper les tracks par generation_id
     const tracksByGeneration = new Map<string, AITrack[]>();
@@ -280,7 +267,7 @@ export default function AIGenerator() {
       // L'API retourne peut-être generation_id directement ou via generation.id
       const genId = track.generation_id || track.generation?.id;
       if (!genId) {
-        console.warn('[generationsFromTracks] Track sans generation_id:', track.id);
+        if (DEBUG_AI_STUDIO) console.warn('[AI Studio] Track sans generation_id:', track.id);
         return;
       }
       
@@ -322,7 +309,6 @@ export default function AIGenerator() {
       tracks: tracksByGeneration.get(genId) || [],
     }));
     
-    console.log('[generationsFromTracks] Créé', result.length, 'générations à partir des tracks');
     return result;
   }, [allTracks, session?.user?.id]);
 
@@ -336,8 +322,11 @@ export default function AIGenerator() {
   }, [generations, generationsFromTracks]);
 
   // Jouer une track IA (même logique que ai-library)
-  const playAITrack = (track: AITrack, generation: AIGeneration) => {
-    const aiTrack: PlayerTrack = {
+  const aiTrackToPlayerTrack = (track: AITrack, generation: AIGeneration): PlayerTrack | null => {
+    const playableUrl = track.audio_url || track.stream_audio_url || '';
+    if (!playableUrl) return null;
+
+    return {
       _id: `ai-${track.id}`,
       title: track.title,
       artist: {
@@ -347,7 +336,7 @@ export default function AIGenerator() {
         avatar: (session?.user as any)?.avatar || (session?.user as any)?.image || '/logo.png'
       },
       duration: track.duration,
-      audioUrl: track.audio_url,
+      audioUrl: playableUrl,
       coverUrl: track.image_url || '/synaura_symbol.svg',
       genre: ['IA', 'Généré'],
       plays: track.play_count || 0,
@@ -356,15 +345,41 @@ export default function AIGenerator() {
       // @ts-ignore - player Track accepte lyrics via providers
       lyrics: (track.prompt || generation.prompt || '').trim()
     };
+  };
 
-    playTrack(aiTrack as any);
+  const playAITrack = (track: AITrack, generation: AIGeneration) => {
+    const pt = aiTrackToPlayerTrack(track, generation);
+    if (!pt) {
+      notify.error('Lecture', 'Cette piste n’a pas d’URL audio disponible (audio/stream).');
+      return;
+    }
+    playTrack(pt as any);
+  };
+
+  const playGenerationQueue = (generation: AIGeneration) => {
+    const tracks = generation.tracks || [];
+    if (!tracks.length) {
+      notify.error('Lecture', 'Aucune piste trouvée pour cette génération.');
+      return;
+    }
+
+    const playable = tracks
+      .map((t) => aiTrackToPlayerTrack(t, generation))
+      .filter(Boolean) as PlayerTrack[];
+
+    if (!playable.length) {
+      notify.error('Lecture', 'Aucune piste jouable (audio/stream) dans cette génération.');
+      return;
+    }
+
+    // Queue + lecture (plus “bibliothèque” et plus pratique pour réécouter)
+    setQueueAndPlay(playable as any, 0);
+    notify.music('Lecture', `Lecture de ${playable.length} piste(s)`);
   };
 
   // Fonction pour jouer une génération
   const handlePlayGeneration = (generation: AIGeneration) => {
-    const firstTrack = generation.tracks?.[0];
-    if (!firstTrack) return;
-    playAITrack(firstTrack, generation);
+    playGenerationQueue(generation);
   };
 
   // Toggle favori (même logique que ai-library)
@@ -409,7 +424,7 @@ export default function AIGenerator() {
     const onUpdated = () => loadLibrary();
     window.addEventListener('aiLibraryUpdated', onUpdated as EventListener);
     return () => window.removeEventListener('aiLibraryUpdated', onUpdated as EventListener);
-  }, [session?.user?.id]);
+  }, [loadLibrary]);
 
   // Fermer le dropdown quand on clique ailleurs
   useEffect(() => {
@@ -615,7 +630,7 @@ export default function AIGenerator() {
         await (navigator as any).share(shareData);
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareData.url);
-        alert('Lien copié');
+        notify.success('Partage', 'Lien copié');
       }
     } catch {}
   };
@@ -643,7 +658,7 @@ export default function AIGenerator() {
       style: aiTrack.style || 'Custom',
       lyrics: aiTrack.lyrics || '',
       isInstrumental: aiTrack.prompt?.toLowerCase().includes('instrumental') || false,
-      duration: aiTrack.duration,
+      duration: aiTrack.duration || 120,
       createdAt: aiTrack.created_at,
       imageUrl: aiTrack.image_url
     };
@@ -747,7 +762,7 @@ export default function AIGenerator() {
       if (customMode) {
         // Mode personnalisé : le style est obligatoire, le titre est optionnel
         if (!style.trim()) {
-          alert('Veuillez remplir le style de musique');
+          notify.error('Style manquant', 'Veuillez remplir le style de musique');
           setIsGenerating(false);
           setGenerationStatus('idle');
           return;
@@ -764,7 +779,7 @@ export default function AIGenerator() {
       } else {
         // Mode description : utiliser la description
         if (!description.trim()) {
-          alert('Veuillez décrire la musique que vous souhaitez');
+          notify.error('Description manquante', 'Veuillez décrire la musique que vous souhaitez');
           setIsGenerating(false);
           setGenerationStatus('idle');
           return;
@@ -789,7 +804,7 @@ export default function AIGenerator() {
         // Mode Custom : title, style, prompt (lyrics)
         // Validation : si non-instrumental, les paroles sont requises
         if (!isInstrumental && !lyrics.trim()) {
-          alert('Veuillez remplir les paroles ou cocher "Instrumental"');
+          notify.error('Paroles manquantes', 'Veuillez remplir les paroles ou cocher "Instrumental"');
           setIsGenerating(false);
           setGenerationStatus('idle');
           return;
@@ -905,7 +920,7 @@ export default function AIGenerator() {
       }
     } catch (error) {
       console.error('Erreur:', error);
-      alert('Erreur lors de la génération');
+      notify.error('Génération', 'Erreur lors de la génération');
       setGenerationStatus('failed');
     } finally {
       setIsGenerating(false);
@@ -926,7 +941,7 @@ export default function AIGenerator() {
     } catch (error) {
       // Fallback: copy to clipboard
       navigator.clipboard.writeText(track.audioUrl);
-      alert('Lien copié dans le presse-papiers');
+      notify.success('Partage', 'Lien copié dans le presse-papiers');
     }
   };
 
@@ -948,7 +963,7 @@ export default function AIGenerator() {
   return (
     <div className="relative min-h-screen text-white overflow-hidden">
       <StudioBackground />
-      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-6 md:py-8">
+      <div className="relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-10 xl:px-16 py-6 md:py-8">
         {/* HEADER STUDIO */}
         <header className="mb-4 sm:mb-6 flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-6 items-start md:items-center justify-between">
           <div className="flex items-center gap-3">
@@ -961,7 +976,7 @@ export default function AIGenerator() {
             <div>
               <p className="text-[11px] uppercase tracking-[0.28em] text-white/45">Synaura</p>
               <h1 className="text-xl md:text-2xl font-semibold text-white">AI Studio</h1>
-              <p className="text-[10px] sm:text-xs text-white/55 max-w-sm hidden sm:block">Créez, remixeZ et expérimentez avec la génération musicale par IA.</p>
+              <p className="text-[10px] sm:text-xs text-white/55 max-w-sm hidden sm:block">Créez, remixez et expérimentez avec la génération musicale par IA.</p>
             </div>
           </div>
           <div className="flex flex-col md:items-end gap-3 w-full md:w-auto">
@@ -977,43 +992,43 @@ export default function AIGenerator() {
                 <span className="font-medium">{creditsBalance} crédits</span>
                 <span className="text-white/60">(≈ {Math.floor(creditsBalance / 12)} gen)</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setShowModelDropdown(!showModelDropdown)}
-                disabled={isGenerationDisabled}
-                className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs md:text-sm backdrop-blur-md ${
-                  isGenerationDisabled
-                    ? 'opacity-50 cursor-not-allowed border-white/15 bg-white/0 text-white/40'
-                    : 'border-accent-brand/50 bg-accent-brand/10 hover:bg-accent-brand/20 text-white'
-                }`}
-              >
-                <span className="text-white/70">Modèle</span>
-                <span className="font-semibold">
-                  {modelVersion === 'V5'
-                    ? 'V5 (Beta)'
-                    : modelVersion === 'V4_5PLUS'
-                    ? 'V4.5+'
-                    : modelVersion.replace('_', '.')}
-                </span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={`w-3 h-3 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`}
-                  viewBox="0 0 24 24"
+              <div className="relative model-dropdown-container">
+                <button
+                  type="button"
+                  onClick={() => setShowModelDropdown(!showModelDropdown)}
+                  disabled={isGenerationDisabled}
+                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs md:text-sm backdrop-blur-md ${
+                    isGenerationDisabled
+                      ? 'opacity-50 cursor-not-allowed border-white/15 bg-white/0 text-white/40'
+                      : 'border-accent-brand/50 bg-accent-brand/10 hover:bg-accent-brand/20 text-white'
+                  }`}
                 >
-                  <path fill="currentColor" d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-              <AnimatePresence>
-                {showModelDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.2, ease: "easeOut" }}
-                    className="absolute mt-2 w-48 bg-white/10 backdrop-blur-md border border-white/15 rounded-lg shadow-lg overflow-hidden z-50"
-                    style={{ marginTop: '2.5rem' }}
+                  <span className="text-white/70">Modèle</span>
+                  <span className="font-semibold">
+                    {modelVersion === 'V5'
+                      ? 'V5 (Beta)'
+                      : modelVersion === 'V4_5PLUS'
+                      ? 'V4.5+'
+                      : modelVersion.replace('_', '.')}
+                  </span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`w-3 h-3 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`}
+                    viewBox="0 0 24 24"
                   >
-                    <div className="py-1">
+                    <path fill="currentColor" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                <AnimatePresence>
+                  {showModelDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                      transition={{ duration: 0.18, ease: "easeOut" }}
+                      className="absolute right-0 top-full mt-2 w-56 bg-[#0a0812]/90 backdrop-blur-md border border-white/15 rounded-xl shadow-2xl overflow-hidden z-50"
+                    >
+                      <div className="py-1">
                       <button
                         type="button"
                         onClick={() => {
@@ -1069,9 +1084,10 @@ export default function AIGenerator() {
                         </div>
                       </button>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
             {/* Switch de mode Simple / Custom */}
             <div className="inline-flex bg-white/5 border border-white/15 rounded-full p-1 backdrop-blur-md">
@@ -1106,7 +1122,7 @@ export default function AIGenerator() {
         {/* Grid 3 colonnes */}
         <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 items-start">
           {/* Colonne 1 : création / presets */}
-          <div className="space-y-4">
+          <div className="space-y-4 order-2 lg:order-1">
             {/* Formulaire actif */}
             <div className="space-y-6">
               {/* Bandeau de presets */}
@@ -1427,7 +1443,7 @@ export default function AIGenerator() {
           </div>
 
           {/* Colonne 2 : orbe + timeline */}
-          <div className="space-y-4">
+          <div className="space-y-4 order-1 lg:order-2">
             <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6 backdrop-blur-md flex flex-col items-center gap-4">
               <StudioStatusOrb
                 isGenerating={isGenerating}
@@ -1466,7 +1482,7 @@ export default function AIGenerator() {
             </div>
             {/* Status Display */}
             {currentTaskId && (
-              <div className="bg-accent-blue/20 border border-accent-blue/30 rounded-lg p-4 text-center">
+              <div className="bg-accent-blue/15 border border-accent-blue/25 rounded-2xl p-4 backdrop-blur-md text-center">
                 <div className="flex items-center justify-center gap-2 mb-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-blue"></div>
                   <span className="text-accent-blue font-medium text-sm">
@@ -1504,7 +1520,7 @@ export default function AIGenerator() {
           </div>
 
           {/* Colonne 3 : bibliothèque / historique */}
-          <div className="space-y-4">
+          <div className="space-y-4 order-3 lg:order-3">
             <RecentGenerations
               generations={recentGenerationsSorted}
               loading={generationsLoading}
@@ -1515,8 +1531,17 @@ export default function AIGenerator() {
                 setGeneratedTracks(convertedTracks);
                 if (convertedTracks[0]) {
                   setSelectedTrack(convertedTracks[0]);
+                  setGeneratedTrack(convertedTracks[0]);
                 }
                 setSelectedGeneration(gen);
+                setGenerationStatus(convertedTracks.length ? 'completed' : 'idle');
+                setCurrentTaskId(null);
+                setIsGenerating(false);
+                if (!convertedTracks.length) {
+                  notify.error('Bibliothèque', 'Cette génération n’a pas de pistes associées.');
+                } else {
+                  notify.success('Bibliothèque', 'Génération restaurée dans la timeline.');
+                }
               }}
               onPlayGeneration={handlePlayGeneration}
             />

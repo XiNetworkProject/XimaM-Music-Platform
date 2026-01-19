@@ -1,6 +1,7 @@
 // components/ai-studio/RecentGenerations.tsx
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { RefreshCw, Music2, Clock, Play } from 'lucide-react';
 import type { AIGeneration } from '@/lib/aiGenerationService';
 
@@ -23,8 +24,8 @@ export function RecentGenerations({
   onPlayGeneration,
   limit = 4,
 }: RecentGenerationsProps) {
-  console.log('[RecentGenerations] generations length =', generations?.length);
-  
+  const router = useRouter();
+
   return (
     <div className="bg-white-upload backdrop-blur-upload rounded-xl border border-upload p-2.5 sm:p-3.5 space-y-2 sm:space-y-3">
       <div className="flex items-center justify-between gap-2">
@@ -36,15 +37,30 @@ export function RecentGenerations({
             Historique des pistes créées avec Synaura IA
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onReload}
-          disabled={loading}
-          className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-upload text-[10px] sm:text-[11px] text-foreground-secondary hover:bg-overlay-on-primary disabled:opacity-60 shrink-0"
-        >
-          <RefreshCw className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${loading ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Rafraîchir</span>
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => router.push('/ai-library', { scroll: false })}
+            className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-upload text-[10px] sm:text-[11px] text-foreground-secondary hover:bg-overlay-on-primary"
+            title="Voir toute la bibliothèque IA"
+          >
+            <span>Voir tout</span>
+          </button>
+          <button
+            type="button"
+            onClick={onReload}
+            disabled={loading}
+            className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full border border-upload text-[10px] sm:text-[11px] text-foreground-secondary hover:bg-overlay-on-primary disabled:opacity-60"
+            title="Rafraîchir"
+          >
+            <RefreshCw
+              className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${
+                loading ? 'animate-spin' : ''
+              }`}
+            />
+            <span className="hidden sm:inline">Rafraîchir</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -117,7 +133,7 @@ export function RecentGenerations({
                       onPlayGeneration(gen);
                     }}
                     className="p-1 sm:p-1.5 rounded-lg bg-accent-brand/20 border border-accent-brand/50 text-accent-brand hover:bg-accent-brand/30 transition-colors shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
-                    title="Lire depuis la BDD"
+                    title="Lire (playlist de la génération)"
                   >
                     <Play className="w-3 h-3 sm:w-3.5 sm:h-3.5 fill-current" />
                   </button>

@@ -1,9 +1,9 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import AppNavbar from '@/components/AppNavbar';
 import AppSidebar from '@/components/AppSidebar';
 import BottomNav from '@/components/BottomNav';
+import TopSearchBar from '@/components/TopSearchBar';
 
 export function ConditionalNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -22,9 +22,11 @@ export function ConditionalNav({ children }: { children: React.ReactNode }) {
 export function ConditionalNavbar() {
   const pathname = usePathname();
   const isMeteoPage = pathname?.includes('/meteo/login') || pathname?.includes('/meteo/dashboard');
+  const isAIStudio = pathname?.startsWith('/ai-generator');
   
   if (isMeteoPage) return null;
-  return <AppNavbar />;
+  if (isAIStudio) return null; // pas de barre en haut dans le studio IA
+  return <TopSearchBar />;
 }
 
 export function ConditionalBottomNav() {

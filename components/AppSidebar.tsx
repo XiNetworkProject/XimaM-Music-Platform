@@ -1,5 +1,6 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
@@ -11,20 +12,23 @@ import {
   Plus,
   TrendingUp,
   Users,
-  HelpCircle,
   Cloud,
   Sparkles,
+  ChevronDown,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
 import { useSidebar } from '@/app/providers';
+import { ChevronRight } from 'lucide-react';
+import { fetchCreditsBalance } from '@/lib/credits';
 
 export default function AppSidebar() {
-  const { isSidebarOpen } = useSidebar();
+  const { isSidebarOpen, toggleSidebar } = useSidebar();
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [creditsBalance, setCreditsBalance] = useState<number>(0);
 
   const getSafeAvatar = () => {
     const candidate =
@@ -61,266 +65,185 @@ export default function AppSidebar() {
     load();
   }, [session?.user]);
 
-  const nav = [
-    { icon: Home, label: 'Accueil', desc: 'Nouveautés', href: '/' },
-    { icon: Compass, label: 'Découvrir', desc: 'Explorer', href: '/discover' },
-    { icon: BookOpen, label: 'Bibliothèque', desc: 'Vos favoris', href: '/library' },
-    { icon: Users, label: 'Communauté', desc: 'Forum & FAQ', href: '/community' },
-    { icon: TrendingUp, label: 'Stats', desc: 'Vos statistiques', href: '/stats' },
-    {
-      icon: Settings,
-      label: 'Abonnements',
-      desc: 'Plans & facturation',
-      href: '/subscriptions',
-      isNew: true,
-    },
-    {
-      icon: Cloud,
-      label: 'Météo',
-      desc: 'Alertemps',
-      href: '/meteo',
-      isPartner: true,
-      isNew: true,
-    },
-  ];
+  useEffect(() => {
+    const loadCredits = async () => {
+      if (!session?.user?.id) return;
+      const res = await fetchCreditsBalance();
+      if (res && typeof res.balance === 'number') {
+        setCreditsBalance(res.balance);
+      }
+    };
+    loadCredits();
+  }, [session?.user?.id]);
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
-  const onStudio = pathname.startsWith('/ai-generator');
-
   return (
     <aside
-      className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 ${
-        isSidebarOpen ? 'lg:w-72' : 'lg:w-24'
-      } transition-[width] duration-200 ease-in-out z-30 p-3`}
+      className="group/sidebar fixed inset-y-0 left-0 hidden lg:flex lg:flex-col bg-background-primary text-foreground-primary border-r border-border-secondary overflow-hidden z-40"
+      data-collapsed={!isSidebarOpen}
+      data-show-content={isSidebarOpen}
+      style={
+        {
+          ['--sidebar-width' as any]: `${isSidebarOpen ? 200 : 88}px`,
+          minWidth: 'var(--sidebar-width)',
+          maxWidth: 'var(--sidebar-width)',
+        } as CSSProperties
+      }
     >
-      <div className="h-full flex flex-col overflow-hidden rounded-3xl bg-transparent border border-white/10 backdrop-blur-xl">
-        {/* Header logo */}
-        <div className="px-3 pt-4 pb-3 flex items-center gap-3">
-          <div className="relative">
-            <div className="absolute inset-0 rounded-2xl bg-accent-brand/60 blur-xl opacity-60" />
-            <div className="relative w-9 h-9 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center overflow-hidden">
-              <Image
-                src="/synaura_symbol.svg"
-                alt="Synaura"
-                width={24}
-                height={24}
-                className="w-5 h-5"
-              />
-            </div>
+      {/* Toggle (copie style snippet) */}
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        aria-label="Toggle sidebar"
+        className="inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[15px] leading-[24px] rounded-md aspect-square bg-transparent enabled:hover:before:bg-overlay-on-primary text-foreground-inactive disabled:after:bg-background-primary disabled:after:opacity-50 absolute top-[35px] right-4 z-10 h-8 w-8 p-1 transition-none group-data-[collapsed=true]/sidebar:left-1/2 group-data-[collapsed=true]/sidebar:-translate-x-1/2"
+      >
+        <span className="relative flex flex-row items-center justify-center gap-2">
+          <ChevronRight
+            className={`text-current shrink-0 m-1 w-[18px] h-[18px] transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`}
+          />
+        </span>
+      </button>
+
+      {/* Logo zone (adapté Synaura) */}
+      <div className="flex h-[88px] flex-row justify-start p-4 pt-8">
+        <Link
+          className="relative inline-block h-auto w-full max-w-28 p-2 group-data-[show-content=false]/sidebar:invisible"
+          href="/"
+        >
+          <div className="flex items-center gap-2">
+            <Image
+              src="/synaura_symbol.svg"
+              alt="Synaura"
+              width={36}
+              height={36}
+              className="h-9 w-9 object-contain drop-shadow-logo"
+            />
+            <span className="text-[16px] font-semibold tracking-tight title-suno">Synaura</span>
           </div>
-          {isSidebarOpen && (
-            <div className="flex flex-col">
-              <div className="flex items-center gap-1.5">
-                <span className="text-sm font-semibold tracking-tight text-white">
-                  Synaura
-                </span>
-                {onStudio && (
-                  <span className="inline-flex items-center gap-1 px-2 py-[2px] rounded-full bg-accent-brand/15 border border-accent-brand/60 text-[10px] uppercase tracking-[0.18em] text-accent-brand">
-                    <Sparkles className="w-3 h-3" />
-                    Studio
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] uppercase tracking-[0.24em] text-white/45">
-                {onStudio ? 'AI Music Studio' : 'Plateforme musicale'}
+        </Link>
+      </div>
+
+      {/* Profile (copie structure snippet, adapté données) */}
+      <div className="flex min-h-14 flex-col items-stretch justify-center gap-1 px-4">
+        <div className="mt-2">
+          <button
+            type="button"
+            onClick={() => {
+              const username = (session?.user as any)?.username;
+              if (username) router.push(`/profile/${username}`, { scroll: false });
+              else router.push('/auth/signin', { scroll: false });
+            }}
+            aria-label="Profile menu button"
+            className="group w-full"
+          >
+            <div className="relative font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none rounded-md bg-transparent enabled:hover:before:bg-transparent hover:before:bg-transparent hover:text-foreground-primary focus-visible:text-foreground-primary text-[16px] leading-[16px] block w-full px-0.5 py-0 cursor-pointer text-foreground-secondary">
+              <span className="relative flex flex-row items-center gap-2 justify-start">
+                <div className="w-max shrink-0">
+                  <div className="relative before:absolute before:-inset-[6px] before:rounded-full before:border-2 before:border-transparent before:transition-all before:duration-150 group-hover:before:border-white/70 group-focus-within:before:border-white/70 group-hover:before:shadow-[0_0_22px_rgba(255,255,255,0.25)] group-focus-within:before:shadow-[0_0_22px_rgba(255,255,255,0.25)]">
+                    <img
+                      alt={(session?.user as any)?.username || (session?.user as any)?.name || 'profil'}
+                      className="rounded-full h-9 w-9"
+                      src={getSafeAvatar()}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-0.5 group-data-[show-content=false]/sidebar:invisible">
+                  <p className="max-w-full text-left text-[14px] leading-[16px] font-medium group-hover:text-foreground-primary group-focus:text-foreground-primary line-clamp-1">
+                    {(session?.user as any)?.username || (session?.user as any)?.name || 'Invité'}
+                  </p>
+                  <p className="max-w-full line-clamp-1 text-left text-[13px] leading-[16px] text-foreground-inactive group-hover:text-foreground-tertiary group-focus:text-foreground-tertiary">
+                    {creditsBalance} credits
+                  </p>
+                </div>
+                <ChevronDown className="shrink-0 m-0 my-1 w-2 h-2 text-foreground-inactive group-data-[show-content=false]/sidebar:invisible" />
               </span>
             </div>
-          )}
-        </div>
-
-        {/* Nav */}
-        <nav className="px-2 pb-2 pt-1 space-y-1 flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-          {nav.map((item) => {
-            const active = isActive(item.href);
-            const isPartner = (item as any).isPartner;
-            const isNew = (() => {
-              const raw = (item as any).isNew;
-              if (!raw) return false;
-              try {
-                const version =
-                  (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v1';
-                const ts = Number(
-                  window.localStorage.getItem(`whatsnew.${version}.date`) || 0,
-                );
-                if (!ts) return true;
-                const sevenDays = 7 * 24 * 60 * 60 * 1000;
-                return Date.now() - ts < sevenDays;
-              } catch {
-                return true;
-              }
-            })();
-
-            return (
-              <button
-                key={item.href}
-                onClick={() => router.push(item.href, { scroll: false })}
-                className={`w-full text-left group flex items-center ${
-                  isSidebarOpen ? 'justify-between' : 'justify-center'
-                } gap-3 px-3 py-2.5 rounded-2xl border transition-all duration-200 ${
-                  active
-                    ? isPartner
-                      ? 'bg-gradient-to-r from-cyan-500/25 to-blue-500/10 border-cyan-400/70 text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.55)]'
-                      : 'bg-gradient-to-r from-violet-500/35 via-fuchsia-500/20 to-transparent border-violet-400/80 text-white shadow-[0_0_30px_rgba(139,92,246,0.7)]'
-                    : 'border-white/10 bg-white/0 hover:bg-white/5 text-white/55 hover:text-white'
-                }`}
-                title={`${item.label} — ${item.desc}`}
-              >
-                <div
-                  className={`flex items-center ${
-                    isSidebarOpen ? 'gap-3' : ''
-                  }`}
-                >
-                  <item.icon
-                    className={`${
-                      isSidebarOpen ? 'w-5 h-5' : 'w-6 h-6'
-                    } opacity-90`}
-                  />
-                  {isSidebarOpen && (
-                    <div className="flex flex-col">
-                      <span className="text-sm font-semibold leading-4">
-                        {item.label}
-                      </span>
-                      <span className="text-xs text-white/45 leading-3">
-                        {item.desc}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {isSidebarOpen && isNew && (
-                  <span className="ml-auto inline-flex items-center justify-center px-2 h-5 text-[10px] rounded-full bg-gradient-to-r from-emerald-400/20 to-emerald-500/40 text-emerald-100 border border-emerald-300/60 shadow-[0_0_14px_rgba(52,211,153,0.6)]">
-                    Nouveau
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Bottom actions */}
-        <div className="px-3 pb-3 pt-2 space-y-2 border-t border-white/5">
-          {isSidebarOpen ? (
-            <>
-              <button
-                onClick={() => router.push('/upload', { scroll: false })}
-                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 text-white shadow-[0_0_28px_rgba(129,140,248,0.8)] hover:scale-[1.02] active:scale-100 transition-transform"
-                title="Uploader — Partager votre musique"
-              >
-                <Plus className="w-4 h-4" /> Uploader
-              </button>
-
-              <button
-                onClick={() =>
-                  router.push('/settings', { scroll: false })
-                }
-                className={`w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-sm ${
-                  pathname.startsWith('/settings')
-                    ? 'bg-gradient-to-r from-violet-500/25 to-fuchsia-500/20 border-violet-400/70 text-white'
-                    : 'border-white/10 bg-white/0 hover:bg-white/5 text-white/70 hover:text-white'
-                }`}
-                title="Paramètres"
-              >
-                <Settings className="w-4 h-4" /> Paramètres
-              </button>
-
-              <button
-                onClick={() =>
-                  router.push(
-                    (session?.user as any)?.username
-                      ? `/profile/${(session?.user as any).username}`
-                      : '/auth/signin',
-                    { scroll: false },
-                  )
-                }
-                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-white/0 hover:bg-white/5 text-white/80 hover:text-white text-sm"
-                title="Profil"
-              >
-                <img
-                  src={getSafeAvatar()}
-                  alt="Profile"
-                  className="w-5 h-5 rounded-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      '/default-avatar.png';
-                  }}
-                />
-                {session?.user?.name ||
-                  (session?.user as any)?.username ||
-                  'Profil'}
-              </button>
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-3">
-              <button
-                onClick={() => router.push('/upload', { scroll: false })}
-                className="w-12 h-12 inline-flex items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 via-fuchsia-500 to-cyan-400 text-white shadow-[0_0_22px_rgba(129,140,248,0.9)] hover:scale-105 active:scale-95 transition-transform"
-                title="Uploader"
-              >
-                <Plus className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={() =>
-                  router.push('/settings', { scroll: false })
-                }
-                className={`w-12 h-12 inline-flex items-center justify-center rounded-2xl border text-white/80 ${
-                  pathname.startsWith('/settings')
-                    ? 'bg-gradient-to-r from-violet-500/25 to-fuchsia-500/20 border-violet-400/70'
-                    : 'border-white/10 bg-white/0 hover:bg-white/5'
-                }`}
-                title="Paramètres"
-              >
-                <Settings className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={() =>
-                  router.push(
-                    (session?.user as any)?.username
-                      ? `/profile/${(session?.user as any).username}`
-                      : '/auth/signin',
-                    { scroll: false },
-                  )
-                }
-                className="w-12 h-12 inline-flex items-center justify-center rounded-2xl border border-white/10 bg-white/0 hover:bg-white/5"
-                title="Profil"
-              >
-                <img
-                  src={getSafeAvatar()}
-                  alt="Profile"
-                  className="w-6 h-6 rounded-full object-cover"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src =
-                      '/default-avatar.png';
-                  }}
-                />
-              </button>
-            </div>
-          )}
+          </button>
         </div>
       </div>
 
-      {/* Crédit Partenaire */}
-      {isSidebarOpen && (
-        <div className="mt-3 px-1.5">
-          <div className="rounded-2xl px-3 py-2.5 flex items-center gap-3 bg-white/5 border border-white/10 backdrop-blur-lg">
-            <img
-              src="/channels4_profile%20(2).jpg"
-              alt="CIEUX INSTABLES"
-              className="w-8 h-8 rounded-full object-cover"
-            />
-            <div className="flex flex-col leading-tight">
-              <span className="text-[10px] uppercase tracking-[0.24em] text-white/45">
-                Partenaire
+      {/* Zone scrollable (liens) */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col gap-1 px-4">
+          {([
+          { href: '/', label: 'Accueil', icon: Home },
+          { href: '/discover', label: 'Découvrir', icon: Compass },
+          { href: '/library', label: 'Bibliothèque', icon: BookOpen },
+          { href: '/community', label: 'Communauté', icon: Users },
+          { href: '/stats', label: 'Stats', icon: TrendingUp },
+          { href: '/meteo', label: 'Météo', icon: Cloud },
+          // CTA mis en valeur (comme sur @example: "Create" est plus visible)
+          { href: '/ai-generator', label: 'Studio IA', icon: Sparkles, emphasis: true, emphasisClass: 'btn-cta-studio' },
+          { href: '/upload', label: 'Uploader', icon: Plus, emphasis: true, emphasisClass: 'btn-cta-upload' },
+        ] as Array<{ href: string; label: string; icon: any; emphasis?: boolean }>).map((item) => {
+          const active = isActive(item.href);
+          const Icon = item.icon;
+          const emphasis = !!(item as any).emphasis;
+          const emphasisClass = (item as any).emphasisClass as string | undefined;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer rounded-md bg-transparent ${
+                emphasis
+                  ? 'text-foreground-primary'
+                  : active
+                  ? 'text-foreground-primary'
+                  : 'text-foreground-inactive'
+              } ${emphasis ? `${emphasisClass || 'bg-background-tertiary'} shadow-[0_10px_24px_rgba(0,0,0,0.28)]` : ''} enabled:hover:before:bg-overlay-on-primary enabled:hover:before:border-border-primary hover:text-foreground-primary focus-visible:text-foreground-primary w-full px-2 py-1 text-[16px] leading-[16px] transition-colors hover:scale-[1.01] active:scale-[0.99]`}
+            >
+              <span className="relative flex flex-row items-center gap-2 justify-start">
+                <Icon className="text-current shrink-0 m-0 my-1 w-[18px] h-[18px] transition-colors" />
+                <span className="group-data-[show-content=false]/sidebar:hidden">{item.label}</span>
               </span>
-              <span className="text-sm font-semibold text-white">
-                CIEUX INSTABLES
-              </span>
-            </div>
-          </div>
+            </Link>
+          );
+        })}
         </div>
-      )}
+      </div>
+
+      {/* Zone bottom (toujours visible, pas dans le scroll) */}
+      <div className="shrink-0 border-t border-border-secondary/60 bg-background-primary">
+        {/* Abonnements (bottom) */}
+        <div className="h-[156px] px-4 pt-4">
+          <Link
+            className="btn-cta-subscriptions relative inline-block font-sans font-semibold text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-foreground-primary hover:before:bg-overlay-on-primary w-full group-data-[show-content=false]/sidebar:invisible hover:scale-[1.01] active:scale-[0.99] shadow-[0_10px_28px_rgba(0,0,0,0.35)]"
+            href="/subscriptions"
+          >
+            <span className="relative flex flex-row items-center justify-center gap-2">
+              <Sparkles className="h-4 w-4" />
+              Abonnements
+            </span>
+          </Link>
+        </div>
+
+        {/* Links bas */}
+        <div className="flex flex-col gap-1 px-4 pb-4">
+          <Link
+            href="/settings"
+            className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer rounded-md bg-transparent text-foreground-inactive enabled:hover:before:bg-transparent hover:before:bg-transparent hover:text-foreground-primary focus-visible:text-foreground-primary w-full px-2 py-1 text-[16px] leading-[16px]"
+          >
+            <span className="relative flex flex-row items-center gap-2 justify-start">
+              <Settings className="text-current shrink-0 m-0 my-1 w-[18px] h-[18px]" />
+              <span className="group-data-[show-content=false]/sidebar:hidden">Settings</span>
+            </span>
+          </Link>
+          <Link
+            href="/meteo"
+            className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer rounded-md bg-transparent text-foreground-inactive enabled:hover:before:bg-transparent hover:before:bg-transparent hover:text-foreground-primary focus-visible:text-foreground-primary w-full px-2 py-1 text-[16px] leading-[16px]"
+          >
+            <span className="relative flex flex-row items-center gap-2 justify-start">
+              <Cloud className="text-current shrink-0 m-0 my-1 w-[18px] h-[18px]" />
+              <span className="group-data-[show-content=false]/sidebar:hidden">Météo</span>
+            </span>
+          </Link>
+        </div>
+      </div>
     </aside>
   );
 }

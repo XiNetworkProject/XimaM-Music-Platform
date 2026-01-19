@@ -9,6 +9,18 @@
   --color-primary: #6e56cf;
   --color-primary-hover: #5b45be;
   --color-accent: #00d3a7;
+
+  /* Tokens "Suno-like" (pour réutiliser des classes type example) */
+  --foreground-primary: var(--text);
+  --foreground-secondary: rgba(246,247,251,0.78);
+  --foreground-tertiary: rgba(246,247,251,0.62);
+  --foreground-inactive: rgba(246,247,251,0.52);
+  --background-primary: var(--bg);
+  --background-secondary: var(--bg-muted);
+  --background-tertiary: rgba(255,255,255,0.06);
+  --border-primary: rgba(255,255,255,0.14);
+  --border-secondary: var(--border);
+  --overlay-on-primary: rgba(255,255,255,0.06);
 }
 
 .btn-suno {
@@ -36,6 +48,37 @@
   border: 1px solid var(--border);
   backdrop-filter: blur(10px);
   border-radius: 16px;
+}
+
+/* Classes utilitaires (pour coller au snippet @example) */
+.bg-background-primary { background-color: var(--background-primary); }
+.bg-background-secondary { background-color: var(--background-secondary); }
+.bg-background-tertiary { background-color: var(--background-tertiary); }
+
+.text-foreground-primary { color: var(--foreground-primary); }
+.text-foreground-secondary { color: var(--foreground-secondary); }
+.text-foreground-tertiary { color: var(--foreground-tertiary); }
+.text-foreground-inactive { color: var(--foreground-inactive); }
+
+.border-border-primary { border-color: var(--border-primary); }
+.border-border-secondary { border-color: var(--border-secondary); }
+
+.bg-overlay-on-primary { background-color: var(--overlay-on-primary); }
+
+.drop-shadow-logo { filter: drop-shadow(0 14px 32px rgba(0,0,0,0.55)); }
+
+/* CTA buttons (couleurs) */
+.btn-cta-studio {
+  background: linear-gradient(135deg, rgba(110,86,207,0.35) 0%, rgba(240,147,251,0.22) 55%, rgba(255,255,255,0.06) 100%);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+.btn-cta-upload {
+  background: linear-gradient(135deg, rgba(0,211,167,0.22) 0%, rgba(110,86,207,0.20) 60%, rgba(255,255,255,0.06) 100%);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+.btn-cta-subscriptions {
+  background: linear-gradient(135deg, rgba(110,86,207,0.28) 0%, rgba(255,255,255,0.08) 100%);
+  border: 1px solid rgba(255,255,255,0.18);
 }
 
 .title-suno {
