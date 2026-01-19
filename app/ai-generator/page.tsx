@@ -187,6 +187,10 @@ export default function AIGenerator() {
   const [openLyricsSection, setOpenLyricsSection] = useState(true);
   const [openAdvancedSection, setOpenAdvancedSection] = useState(false);
   const [openResultsSection, setOpenResultsSection] = useState(true);
+  const [showInspo, setShowInspo] = useState(true);
+
+  const remixSectionRef = useRef<HTMLDivElement | null>(null);
+  const presetStripRef = useRef<HTMLDivElement | null>(null);
 
   // --- Layout resizable (desktop) ---
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -214,7 +218,7 @@ export default function AIGenerator() {
       const delta = e.clientX - d.startX;
 
       if (d.mode === 'left') {
-        setLeftPx(clamp(d.startLeft + delta, 360, 620));
+        setLeftPx(clamp(d.startLeft + delta, 368, 620));
       } else {
         setRightPx(clamp(d.startRight - delta, 320, 520));
       }
@@ -638,6 +642,15 @@ export default function AIGenerator() {
     const m = Math.floor(sec / 60);
     const s = Math.floor(sec % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  const formatCreditsCompact = (n: number) => {
+    if (!Number.isFinite(n)) return String((n as any) ?? 0);
+    if (n >= 1000) {
+      const k = n / 1000;
+      return `${k.toFixed(1)}k`;
+    }
+    return String(n);
   };
 
   const handleApplyPreset = (preset: AIStudioPreset) => {
@@ -1251,7 +1264,9 @@ export default function AIGenerator() {
               >
                 <span className="relative flex flex-row items-center justify-center gap-2">
                   <Coins className="w-4 h-4" />
-                  <span className="text-[12px] font-medium w-[2ch] text-center">{creditsBalance}</span>
+                  <span className="text-[12px] font-medium tracking-[0.5px] w-[4ch] inline-block text-center transition-[width] duration-200">
+                    {formatCreditsCompact(creditsBalance)}
+                  </span>
                 </span>
               </button>
 
@@ -1317,12 +1332,67 @@ export default function AIGenerator() {
 
             {/* Formulaire actif */}
             <div className="space-y-6">
-              {/* Bandeau de presets */}
-              <PresetStrip
-                presets={aiStudioPresets}
-                activePresetId={activePresetId}
-                onPresetClick={handleApplyPreset}
-              />
+              {/* Bandeau de presets (Persona) */}
+              <div ref={presetStripRef}>
+                <PresetStrip
+                  presets={aiStudioPresets}
+                  activePresetId={activePresetId}
+                  onPresetClick={handleApplyPreset}
+                />
+              </div>
+
+              {/* Rangée segmentée Audio / Persona / Inspo (structure Suno) */}
+              <div className="panel-suno p-0 overflow-hidden">
+                <div className="grid grid-cols-3 h-[48px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      remixSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      setOpenStyleSection(true);
+                    }}
+                    className={`${SUNO_BTN_BASE} rounded-none rounded-l-full h-full w-full bg-background-fog-thin p-3 text-[14px]`}
+                    aria-label="Add audio - upload or record"
+                    title="Audio"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-0 my-1">
+                        <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
+                      </svg>
+                      Audio
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => presetStripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    className={`${SUNO_BTN_BASE} rounded-none h-full w-full bg-background-fog-thin p-3 text-[14px]`}
+                    aria-label="Persona (presets)"
+                    title="Persona"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-0 my-1">
+                        <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
+                      </svg>
+                      Persona
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowInspo((v) => !v)}
+                    className={`${SUNO_BTN_BASE} rounded-none rounded-r-full h-full w-full bg-background-fog-thin p-3 text-[14px]`}
+                    aria-label="Inspo"
+                    title="Inspo"
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-0 my-1">
+                        <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
+                      </svg>
+                      Inspo
+                    </span>
+                  </button>
+                </div>
+              </div>
               {/* le formulaire existant reste visible mais inactif */}
               {customMode ? (
                 // Mode personnalisé
@@ -1390,26 +1460,28 @@ export default function AIGenerator() {
                       {style.length}/1000
                     </div>
 
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
-                        const active = selectedTags.includes(tag);
-                        return (
-                          <button
-                            key={`style-${tag}-${index}`}
-                            type="button"
-                            onClick={() => handleTagClick(tag)}
-                            disabled={isGenerationDisabled}
-                            className={`${SUNO_BTN_BASE} cursor-pointer px-3 py-1 rounded-full text-[11px] before:border-border-primary enabled:hover:before:bg-overlay-on-primary ${
-                              active ? 'bg-background-tertiary' : 'bg-transparent'
-                            } ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                          >
-                            <span className="relative">{tag}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    {showInspo && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
+                          const active = selectedTags.includes(tag);
+                          return (
+                            <button
+                              key={`style-${tag}-${index}`}
+                              type="button"
+                              onClick={() => handleTagClick(tag)}
+                              disabled={isGenerationDisabled}
+                              className={`${SUNO_BTN_BASE} cursor-pointer px-3 py-1 rounded-full text-[11px] before:border-border-primary enabled:hover:before:bg-overlay-on-primary ${
+                                active ? 'bg-background-tertiary' : 'bg-transparent'
+                              } ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            >
+                              <span className="relative">{tag}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
 
-                    <div className="mt-4">
+                    <div className="mt-4" ref={remixSectionRef}>
                       <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
                         Ajouter un audio source (Remix)
                       </label>
