@@ -1027,8 +1027,8 @@ export default function AIGenerator() {
     <div className="relative min-h-svh text-white overflow-hidden">
       <StudioBackground />
       <div className="relative z-10 w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-5">
-        {/* TOOLBAR (inspiré du layout @example : barres compactes + pills) */}
-        <header className="mb-3 sm:mb-4 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+        {/* Pas de header global sur /ai-generator (structure Suno : toolbar dans le builder) */}
+        <header className="sr-only">
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="absolute inset-0 rounded-2xl blur-xl bg-accent-brand/70 opacity-60" />
@@ -1216,19 +1216,99 @@ export default function AIGenerator() {
           </div>
         </header>
 
-        {/* LAYOUT 3 PANE (inspiré @example : colonnes + scroll internes) */}
+        {/* LAYOUT type Suno @example : 0px | builder (~450px) | library (1fr) | inspector (0px) */}
         <div
           ref={containerRef}
-          className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-[var(--left)_8px_1fr_8px_var(--right)] items-start lg:items-stretch lg:h-[calc(100svh-150px)] lg:overflow-hidden"
+          className="grid gap-3 sm:gap-4 grid-cols-1 lg:grid-cols-[0px_8px_var(--builder)_8px_1fr_8px_var(--inspector)] items-start lg:items-stretch lg:h-[calc(100svh-120px)] lg:overflow-hidden"
           style={
             {
-              ['--left' as any]: `${leftPx}px`,
-              ['--right' as any]: `${rightPx}px`,
+              ['--builder' as any]: `${leftPx}px`,
+              ['--inspector' as any]: `${showTrackPanel ? rightPx : 0}px`,
             } as React.CSSProperties
           }
         >
-          {/* Panel gauche : création / presets */}
-          <section className="space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1">
+          {/* Panel 0px (placeholder structure @example) */}
+          <div className="hidden lg:block" />
+          <div className="hidden lg:block h-full relative">
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-border-primary/50" />
+          </div>
+
+          {/* Builder : création / presets */}
+          <section className="space-y-4 lg:h-full lg:overflow-y-auto lg:pr-1 flex flex-col min-h-0">
+            {/* Toolbar interne (comme @example) */}
+            <div className="panel-suno p-3 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setShowBuyCredits(true)}
+                className={`${SUNO_BTN_BASE} cursor-pointer py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 transition-all duration-200`}
+                aria-label={`Credits remaining: ${creditsBalance}`}
+              >
+                <span className="relative flex flex-row items-center justify-center gap-2">
+                  <Coins className="w-4 h-4" />
+                  <span className="text-[12px] font-medium w-[2ch] text-center">{creditsBalance}</span>
+                </span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-border-primary h-[40px] p-[3px]">
+                  <span className="relative flex flex-row items-center justify-center gap-2">
+                    <span className="flex flex-1 items-center justify-stretch gap-0">
+                      <button
+                        type="button"
+                        onClick={() => setCustomMode(false)}
+                        disabled={isGenerationDisabled}
+                        className={`px-3 h-[34px] rounded-full text-[12px] ${!customMode ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Simple
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCustomMode(true)}
+                        disabled={isGenerationDisabled}
+                        className={`px-3 h-[34px] rounded-full text-[12px] ${customMode ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        Custom
+                      </button>
+                    </span>
+                  </span>
+                </div>
+
+                <div className="relative model-dropdown-container">
+                  <button
+                    type="button"
+                    onClick={() => setShowModelDropdown(!showModelDropdown)}
+                    disabled={isGenerationDisabled}
+                    className={SUNO_PILL_SOLID}
+                  >
+                    <span className="relative flex flex-row items-center justify-center gap-2">
+                      {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-ml-1 h-4 w-4">
+                        <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
+                      </svg>
+                    </span>
+                  </button>
+
+                  <AnimatePresence>
+                    {showModelDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        className="absolute right-0 top-full mt-2 w-44 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
+                      >
+                        <div className="py-1">
+                          <button type="button" onClick={() => { setModelVersion('V5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V5</button>
+                          <button type="button" onClick={() => { setModelVersion('V4_5PLUS'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5+</button>
+                          <button type="button" onClick={() => { setModelVersion('V4_5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5</button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </div>
+            </div>
+
             {/* Formulaire actif */}
             <div className="space-y-6">
               {/* Bandeau de presets */}
@@ -1513,102 +1593,36 @@ export default function AIGenerator() {
                 </div>
               )}
             </div>
+
+            {/* Bottom create bar (structure Suno @example) */}
+            <div className="sticky bottom-0 pt-3">
+              <div className="panel-suno p-3 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={generateMusic}
+                  disabled={isGenerationDisabled || isGenerating}
+                  className={`${SUNO_BTN_BASE} cursor-pointer flex-1 px-4 py-3 rounded-full text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary text-[15px] ${
+                    isGenerationDisabled || isGenerating ? 'opacity-60 cursor-not-allowed' : ''
+                  }`}
+                  aria-label="Create song"
+                >
+                  <span className="relative flex items-center justify-center gap-2">
+                    {isGenerating ? (
+                      <span className="w-4 h-4 rounded-full border-2 border-foreground-tertiary border-t-transparent animate-spin" />
+                    ) : (
+                      <Sparkles className="w-5 h-5" />
+                    )}
+                    Create
+                  </span>
+                </button>
+              </div>
+            </div>
           </section>
 
-          {/* Panel central : orb + timeline */}
-          {/* Divider (draggable) */}
+          {/* Divider (draggable) entre builder et library */}
           <div
             className="hidden lg:block h-full relative cursor-col-resize"
             onPointerDown={beginDrag('left')}
-            title="Redimensionner"
-          >
-            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-border-primary/50" />
-            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-6" />
-          </div>
-
-          <main className="space-y-3 lg:h-full lg:overflow-y-hidden lg:px-1 flex flex-col min-h-0">
-            <div className="panel-suno p-4 md:p-5 flex flex-col items-center gap-3">
-              <StudioStatusOrb
-                isGenerating={isGenerating}
-                generationStatus={generationStatus}
-              />
-              <div className="text-center text-[12px] text-white/60 max-w-xs">
-                {isGenerating || generationStatus === 'pending'
-                  ? 'Nous générons votre musique. Vous pouvez déjà voir les pistes se remplir ci-dessous dès que le streaming est disponible.'
-                  : 'Cliquez sur "Générer" pour lancer une nouvelle création IA. Les résultats apparaîtront ici.'}
-              </div>
-              {/* Bouton principal de génération */}
-              <button
-                type="button"
-                onClick={generateMusic}
-                disabled={isGenerationDisabled || isGenerating}
-                className={`${SUNO_BTN_BASE} cursor-pointer px-4 sm:px-5 py-2 rounded-full text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary text-sm w-full sm:w-auto ${
-                  isGenerationDisabled || isGenerating ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              >
-                {isGenerating ? (
-                  <>
-                    <span className="relative flex flex-row items-center justify-center gap-2">
-                      <span className="w-3 h-3 rounded-full border-2 border-foreground-tertiary border-t-transparent animate-spin" />
-                      <span>En cours…</span>
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="relative flex flex-row items-center justify-center gap-2">
-                      <Play className="w-4 h-4" />
-                      <span>Créer</span>
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* Status Display */}
-            {currentTaskId && (
-              <div className="panel-suno p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-blue"></div>
-                  <span className="text-accent-blue font-medium text-sm">
-                    {sunoState === 'pending' && 'Génération Suno en cours...'}
-                    {sunoState === 'first' && 'Première piste terminée !'}
-                    {sunoState === 'success' && 'Génération terminée !'}
-                    {sunoState === 'error' && 'Erreur de génération'}
-                  </span>
-                </div>
-                <p className="text-xs text-white/50">
-                  Task ID: {currentTaskId.substring(0, 8)}... | Statut: {sunoState}
-                </p>
-                {sunoError && (
-                  <p className="text-xs text-red-400 mt-2">Erreur: {sunoError}</p>
-                )}
-                <div className="mt-2 text-[10px] text-white/40">
-                  <p>Génération de 2 musiques en parallèle</p>
-                  <p>Streaming disponible en 30-40 secondes</p>
-                  <p>Téléchargement en 2-3 minutes</p>
-                </div>
-              </div>
-            )}
-            {/* Generated Tracks Display */}
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1">
-              <GenerationTimeline
-                generatedTracks={generatedTracks}
-                generationStatus={generationStatus}
-                currentTaskId={currentTaskId}
-                sunoState={sunoState}
-                sunoError={sunoError}
-                onOpenTrack={openTrackPanel}
-                onPlayTrack={playGenerated}
-                onDownloadTrack={downloadGenerated}
-                onShareTrack={shareGenerated}
-              />
-            </div>
-          </main>
-
-          {/* Panel droit : bibliothèque / historique */}
-          {/* Divider (draggable) */}
-          <div
-            className="hidden lg:block h-full relative cursor-col-resize"
-            onPointerDown={beginDrag('right')}
             title="Redimensionner"
           >
             <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-border-primary/50" />
@@ -1792,20 +1806,46 @@ export default function AIGenerator() {
             />
             </div>
           </aside>
+
+          {/* Divider (draggable) avant l'inspector */}
+          <div
+            className={`hidden lg:block h-full relative ${showTrackPanel ? 'cursor-col-resize' : ''}`}
+            onPointerDown={showTrackPanel ? beginDrag('right') : undefined}
+            title="Redimensionner"
+          >
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-[1px] bg-border-primary/50" />
+            <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-6" />
+          </div>
+
+          {/* Inspector (docké) */}
+          <div className="hidden lg:block h-full overflow-hidden">
+            <TrackInspector
+              track={selectedTrack}
+              isOpen={showTrackPanel}
+              onClose={closeTrackPanel}
+              onPlay={playGenerated}
+              onDownload={downloadGenerated}
+              onShare={shareGenerated}
+              variant="docked"
+            />
+          </div>
         </div>
 
         {/* Modale d'achat de crédits */}
         <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
 
-        {/* Panneau latéral pour les détails de la track */}
-        <TrackInspector
-          track={selectedTrack}
-          isOpen={showTrackPanel}
-          onClose={closeTrackPanel}
-          onPlay={playGenerated}
-          onDownload={downloadGenerated}
-          onShare={shareGenerated}
-        />
+        {/* TrackInspector overlay (mobile) */}
+        <div className="lg:hidden">
+          <TrackInspector
+            track={selectedTrack}
+            isOpen={showTrackPanel}
+            onClose={closeTrackPanel}
+            onPlay={playGenerated}
+            onDownload={downloadGenerated}
+            onShare={shareGenerated}
+            variant="overlay"
+          />
+        </div>
       </div>
     </div>
   );
