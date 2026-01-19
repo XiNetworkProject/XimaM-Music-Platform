@@ -6,8 +6,9 @@ import type { ReactNode } from 'react';
 interface SunoAccordionSectionProps {
   title: string;
   description?: string;
-  rightSlot?: ReactNode;
-  defaultOpen?: boolean;
+  leftIcon?: ReactNode;
+  rightActions?: ReactNode;
+  variant?: 'panel' | 'bare';
   isOpen: boolean;
   onToggle: () => void;
   children: ReactNode;
@@ -16,18 +17,38 @@ interface SunoAccordionSectionProps {
 export function SunoAccordionSection({
   title,
   description,
-  rightSlot,
+  leftIcon,
+  rightActions,
+  variant = 'panel',
   isOpen,
   onToggle,
   children,
 }: SunoAccordionSectionProps) {
   return (
-    <div className="panel-suno">
+    <div className={variant === 'panel' ? 'panel-suno' : ''}>
       <button
         type="button"
         onClick={onToggle}
         className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-overlay-on-primary transition-colors"
+        aria-expanded={isOpen}
       >
+        <span className="text-foreground-tertiary shrink-0">
+          {leftIcon ? (
+            leftIcon
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
+            >
+              <path d="m12 12.604 3.9-3.9a.99.99 0 1 1 1.4 1.4l-4.593 4.593a1 1 0 0 1-1.414 0L6.7 10.104a.99.99 0 0 1 1.4-1.4z" />
+            </svg>
+          )}
+        </span>
+
         <span className="text-foreground-primary font-semibold text-sm flex-1">
           {title}
           {description ? (
@@ -37,20 +58,7 @@ export function SunoAccordionSection({
           ) : null}
         </span>
 
-        {rightSlot ? <span onClick={(e) => e.stopPropagation()}>{rightSlot}</span> : null}
-
-        <span className="text-foreground-tertiary shrink-0">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="currentColor"
-            className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}
-          >
-            <path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z" />
-          </svg>
-        </span>
+        {rightActions ? <span onClick={(e) => e.stopPropagation()}>{rightActions}</span> : null}
       </button>
 
       <AnimatePresence initial={false}>

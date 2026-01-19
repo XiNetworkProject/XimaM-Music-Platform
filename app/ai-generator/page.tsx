@@ -1353,6 +1353,26 @@ export default function AIGenerator() {
                     description="Définis l'ambiance et les tags musicaux."
                     isOpen={openStyleSection}
                     onToggle={() => setOpenStyleSection((v) => !v)}
+                    rightActions={
+                      <button
+                        type="button"
+                        className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[15px] leading-[24px] rounded-full aspect-square text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary p-3"
+                        aria-label="Clear styles"
+                        title="Clear"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setStyle('');
+                        }}
+                      >
+                        <span className="relative flex flex-row items-center justify-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
+                            <g>
+                              <path d="m9.4 16.5 2.6-2.6 2.6 2.6 1.4-1.4-2.6-2.6L16 9.9l-1.4-1.4-2.6 2.6-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.824 0-1.412-.587A1.93 1.93 0 0 1 5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .824-.587 1.413A1.93 1.93 0 0 1 17 21zM17 6H7v13h10z" />
+                            </g>
+                          </svg>
+                        </span>
+                      </button>
+                    }
                   >
                     <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
                       Styles
@@ -1461,6 +1481,26 @@ export default function AIGenerator() {
                     description="Paroles exactes ou prompt."
                     isOpen={openLyricsSection}
                     onToggle={() => setOpenLyricsSection((v) => !v)}
+                    rightActions={
+                      <button
+                        type="button"
+                        className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[15px] leading-[24px] rounded-full aspect-square text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary p-3"
+                        aria-label="Clear lyrics"
+                        title="Clear"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setLyrics('');
+                        }}
+                      >
+                        <span className="relative flex flex-row items-center justify-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
+                            <g>
+                              <path d="m9.4 16.5 2.6-2.6 2.6 2.6 1.4-1.4-2.6-2.6L16 9.9l-1.4-1.4-2.6 2.6-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.824 0-1.412-.587A1.93 1.93 0 0 1 5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .824-.587 1.413A1.93 1.93 0 0 1 17 21zM17 6H7v13h10z" />
+                            </g>
+                          </svg>
+                        </span>
+                      </button>
+                    }
                   >
                     <label className="flex items-center gap-3 cursor-pointer mb-3">
                       <input
