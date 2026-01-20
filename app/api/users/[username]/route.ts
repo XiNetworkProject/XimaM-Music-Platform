@@ -132,6 +132,11 @@ export async function PUT(
   { params }: { params: { username: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+    }
+
     const { username } = params;
     const body = await request.json();
 
@@ -147,7 +152,7 @@ export async function PUT(
     // Vérifier que l'utilisateur existe
     const { data: existingProfile, error: profileError } = await supabaseAdmin
       .from('profiles')
-      .select('id')
+      .select('id, username')
       .eq('username', username)
       .single();
 
@@ -156,6 +161,11 @@ export async function PUT(
         { error: 'Utilisateur non trouvé' },
         { status: 404 }
       );
+    }
+
+    // Vérifier que l'utilisateur modifie son propre profil
+    if (existingProfile.id !== session.user.id) {
+      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
     // Mettre à jour le profil
@@ -171,7 +181,7 @@ export async function PUT(
         genre: body.genre,
         updated_at: new Date().toISOString()
       })
-      .eq('id', existingProfile.id)
+      .eq('id', session.user.id)
       .select()
       .single();
 
