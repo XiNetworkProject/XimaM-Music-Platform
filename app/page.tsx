@@ -1369,7 +1369,7 @@ export default function SynauraHome() {
             avatar: '/default-avatar.png'
           },
           audioUrl: streamUrl,
-          coverUrl: '/default-cover.jpg',
+          coverUrl: '/ximam-radio-x.svg',
           duration: -1,
           likes: [],
           comments: [],
@@ -1643,6 +1643,7 @@ export default function SynauraHome() {
             />
             <LiveRadioCard
               title="XimaM — Radio en direct"
+              logoSrc="/ximam-radio-x.svg"
               isPlaying={isXimamRadioPlaying}
               currentTrack={ximamRadioInfo.currentTrack}
               onToggle={handleXimamRadioToggle}

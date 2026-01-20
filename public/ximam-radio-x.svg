@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Fond noir -->
+  <rect width="512" height="512" fill="#000000"/>
+
+  <!-- X blanc style "bande" (approximation fidèle) -->
+  <g fill="#FFFFFF">
+    <!-- Diagonale 1 -->
+    <path d="M138 96
+             C126 84 126 64 142 54
+             L176 32
+             C188 24 204 28 214 40
+             L408 258
+             C418 270 416 288 404 298
+             L372 324
+             C360 334 344 332 334 320
+             Z"/>
+
+    <!-- Diagonale 2 -->
+    <path d="M372 96
+             C384 84 404 84 414 98
+             L440 132
+             C450 146 448 164 436 174
+             L214 408
+             C202 420 184 420 172 408
+             L140 376
+             C128 364 128 346 140 334
+             Z"/>
+
+    <!-- Petites "déchirures" (effet bords irréguliers, léger) -->
+    <path d="M196 52 L222 44 L230 66 L206 74 Z" opacity="0.9"/>
+    <path d="M322 336 L348 328 L356 352 L330 360 Z" opacity="0.9"/>
+    <path d="M152 360 L174 346 L184 370 L162 384 Z" opacity="0.9"/>
+    <path d="M358 140 L380 126 L392 148 L370 162 Z" opacity="0.9"/>
+  </g>
+</svg>
+
