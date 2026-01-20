@@ -395,15 +395,31 @@ const WeatherWidget = ({ weather, weatherCode }: { weather: { city: string; temp
   );
 };
 
-const LiveRadioCard = ({ isPlaying, currentTrack, onToggle }: { isPlaying: boolean; currentTrack: string; onToggle: () => void }) => {
+const LiveRadioCard = ({
+  title,
+  logoSrc,
+  isPlaying,
+  currentTrack,
+  onToggle,
+}: {
+  title: string;
+  logoSrc?: string;
+  isPlaying: boolean;
+  currentTrack: string;
+  onToggle: () => void;
+}) => {
   return (
     <div className="bg-gradient-to-r from-indigo-600/20 via-fuchsia-600/20 to-cyan-600/20 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
         <div className="p-2 rounded-xl bg-black/40 border border-white/10">
-          <img src="/mixxpartywhitelog.png" alt="Mixx Party" className="w-12 h-8 object-contain" />
+          {logoSrc ? (
+            <img src={logoSrc} alt={title} className="w-12 h-8 object-contain" />
+          ) : (
+            <Radio className="w-8 h-8 text-white/90" />
+          )}
         </div>
         <div>
-          <p className="text-sm font-semibold">Mixx Party — Radio en direct</p>
+          <p className="text-sm font-semibold">{title}</p>
           <p className="text-xs text-white/60 line-clamp-1">{currentTrack}</p>
         </div>
       </div>
@@ -762,7 +778,6 @@ const ContinueListening = ({
 export default function SynauraHome() {
   const { data: session } = useSession();
   const { audioState, playTrack, play, pause, setTracks } = useAudioPlayer();
-  
   const [loading, setLoading] = useState(true);
   const [featuredTracks, setFeaturedTracks] = useState<Track[]>([]);
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
@@ -795,6 +810,19 @@ export default function SynauraHome() {
     name: 'Mixx Party Radio',
     description: 'Radio tous styles musicaux en continu 24h/24',
     currentTrack: 'Mixx Party Radio',
+    listeners: 0,
+    bitrate: 128,
+    quality: 'Standard',
+    isLive: true,
+    lastUpdate: new Date().toISOString()
+  });
+
+  // États pour la nouvelle radio XimaM
+  const [isXimamRadioPlaying, setIsXimamRadioPlaying] = useState(false);
+  const [ximamRadioInfo, setXimamRadioInfo] = useState({
+    name: 'XimaM Radio',
+    description: 'Radio XimaM en continu 24h/24',
+    currentTrack: 'XimaM Radio',
     listeners: 0,
     bitrate: 128,
     quality: 'Standard',
@@ -1148,6 +1176,16 @@ export default function SynauraHome() {
     }
   };
 
+  // Fonction pour récupérer l'URL de streaming (XimaM)
+  const fetchXimamStreamUrl = async () => {
+    try {
+      const streamUrl = 'https://stream.mixx-party.fr/listen/ximam/radio.mp3';
+      return streamUrl;
+    } catch (error) {
+      return 'https://stream.mixx-party.fr/listen/ximam/radio.mp3';
+    }
+  };
+
   // Fonction pour récupérer les métadonnées du flux radio
   const fetchRadioMetadata = useCallback(async () => {
     try {
@@ -1210,6 +1248,68 @@ export default function SynauraHome() {
     }
   }, [currentTrack, audioState.isPlaying, audioState.tracks, setTracks]);
 
+  // Fonction pour récupérer les métadonnées du flux radio (XimaM)
+  const fetchXimamRadioMetadata = useCallback(async () => {
+    try {
+      const response = await fetch('/api/radio/status?station=ximam', {
+        method: 'GET',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          const radioData = result.data;
+
+          setXimamRadioInfo(prev => ({
+            ...prev,
+            name: radioData.name,
+            description: radioData.description,
+            currentTrack: radioData.currentTrack.title,
+            listeners: radioData.stats.listeners,
+            bitrate: radioData.stats.bitrate,
+            quality: radioData.stats.quality,
+            isLive: radioData.isOnline,
+            lastUpdate: radioData.lastUpdate
+          }));
+
+          // Mettre à jour le titre dans le player si la radio joue
+          if (currentTrack?._id === 'radio-ximam' && audioState.isPlaying) {
+            const updatedTracks = audioState.tracks.map(track =>
+              track._id === 'radio-ximam'
+                ? {
+                    ...track,
+                    title: radioData.currentTrack.title,
+                    artist: {
+                      ...track.artist,
+                      name: radioData.currentTrack.artist
+                    }
+                  }
+                : track
+            );
+            setTracks(updatedTracks);
+          }
+        }
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      setXimamRadioInfo(prev => ({
+        ...prev,
+        currentTrack: 'XimaM Radio',
+        listeners: 0,
+        bitrate: 128,
+        quality: 'Standard',
+        isLive: true,
+        lastUpdate: new Date().toISOString()
+      }));
+    }
+  }, [currentTrack, audioState.isPlaying, audioState.tracks, setTracks]);
+
   // Fonction pour gérer la lecture/arrêt de la radio
   const handleRadioToggle = useCallback(async () => {
     if (isRadioPlaying) {
@@ -1247,6 +1347,44 @@ export default function SynauraHome() {
     }
     }
   }, [isRadioPlaying, audioState.isPlaying, currentTrack, radioInfo.currentTrack, pause, playTrack]);
+
+  // Fonction pour gérer la lecture/arrêt de la radio XimaM
+  const handleXimamRadioToggle = useCallback(async () => {
+    if (isXimamRadioPlaying) {
+      if (audioState.isPlaying && currentTrack?._id === 'radio-ximam') {
+        pause();
+      }
+      setIsXimamRadioPlaying(false);
+    } else {
+      try {
+        const streamUrl = await fetchXimamStreamUrl();
+
+        const radioTrack = {
+          _id: 'radio-ximam',
+          title: ximamRadioInfo.currentTrack,
+          artist: {
+            _id: 'radio',
+            name: 'XimaM',
+            username: 'ximam',
+            avatar: '/default-avatar.png'
+          },
+          audioUrl: streamUrl,
+          coverUrl: '/default-cover.jpg',
+          duration: -1,
+          likes: [],
+          comments: [],
+          plays: 0,
+          isLiked: false,
+          genre: ['Radio']
+        };
+
+        playTrack(radioTrack);
+        setIsXimamRadioPlaying(true);
+      } catch (error) {
+        // Erreur silencieuse
+      }
+    }
+  }, [isXimamRadioPlaying, audioState.isPlaying, currentTrack, ximamRadioInfo.currentTrack, pause, playTrack]);
   
   // Gérer les actions du carrousel
   const handleCarouselAction = useCallback((action: string, data?: any) => {
@@ -1409,6 +1547,20 @@ export default function SynauraHome() {
     return () => clearInterval(interval);
   }, [fetchRadioMetadata]);
 
+  // Charger les métadonnées radio XimaM au démarrage
+  useEffect(() => {
+    fetchXimamRadioMetadata();
+  }, [fetchXimamRadioMetadata]);
+
+  // Mettre à jour les métadonnées radio XimaM périodiquement
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchXimamRadioMetadata();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [fetchXimamRadioMetadata]);
+
   // Synchroniser l'état de la radio avec le player principal
   useEffect(() => {
     if (currentTrack?._id === 'radio-mixx-party') {
@@ -1417,6 +1569,15 @@ export default function SynauraHome() {
       setIsRadioPlaying(false);
     }
   }, [audioState.isPlaying, currentTrack?._id, isRadioPlaying]);
+
+  // Synchroniser l'état de la radio XimaM avec le player principal
+  useEffect(() => {
+    if (currentTrack?._id === 'radio-ximam') {
+      setIsXimamRadioPlaying(audioState.isPlaying);
+    } else if (isXimamRadioPlaying) {
+      setIsXimamRadioPlaying(false);
+    }
+  }, [audioState.isPlaying, currentTrack?._id, isXimamRadioPlaying]);
 
   // Inject small style for hiding scrollbars, safely on client only
   useEffect(() => {
@@ -1474,9 +1635,17 @@ export default function SynauraHome() {
           </div>
           <div className="lg:col-span-4 space-y-3">
             <LiveRadioCard
+              title="Mixx Party — Radio en direct"
+              logoSrc="/mixxpartywhitelog.png"
               isPlaying={isRadioPlaying}
               currentTrack={radioInfo.currentTrack}
               onToggle={handleRadioToggle}
+            />
+            <LiveRadioCard
+              title="XimaM — Radio en direct"
+              isPlaying={isXimamRadioPlaying}
+              currentTrack={ximamRadioInfo.currentTrack}
+              onToggle={handleXimamRadioToggle}
             />
             <WeatherWidget weather={weatherData} weatherCode={weatherCode} />
             <AlertempsCard

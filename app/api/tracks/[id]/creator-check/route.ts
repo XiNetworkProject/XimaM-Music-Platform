@@ -21,7 +21,7 @@ export async function GET(
     const userId = session.user.id;
 
     // Gestion spéciale pour la radio
-    if (trackId === 'radio-mixx-party') {
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
       return NextResponse.json({
         isCreator: false,
         trackId,

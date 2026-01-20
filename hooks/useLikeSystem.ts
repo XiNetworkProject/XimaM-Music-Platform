@@ -47,7 +47,7 @@ export function useLikeSystem({
   useEffect(() => {
     if (session?.user?.id && trackId) {
       // Ne pas vérifier le statut de like pour la radio
-      if (trackId === 'radio-mixx-party') {
+      if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
         return;
       }
       checkLikeStatus();
@@ -58,7 +58,7 @@ export function useLikeSystem({
     if (!session?.user?.id || !trackId) return;
     
     // Ne pas vérifier le statut de like pour la radio ou les pistes IA
-    if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) return;
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) return;
 
     try {
       const response = await fetch(`/api/tracks/${trackId}/like`, {
@@ -88,7 +88,7 @@ export function useLikeSystem({
     }
     
     // Ne pas permettre de liker la radio ou les pistes IA
-    if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
       notify.error('Like impossible', `Impossible de liker ${trackId.startsWith('ai-') ? 'une piste IA' : 'la radio'}`);
       return;
     }

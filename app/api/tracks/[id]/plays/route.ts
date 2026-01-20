@@ -41,7 +41,7 @@ export async function GET(
     }
 
     // Gestion spéciale pour la radio
-    if (trackId === 'radio-mixx-party') {
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
       return NextResponse.json({ 
         plays: 0, 
         message: 'Radio - pas de lectures à compter' 
@@ -134,7 +134,7 @@ export async function POST(
     }
 
     // Gestion spéciale pour la radio
-    if (trackId === 'radio-mixx-party') {
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
       return NextResponse.json({ 
         plays: 0, 
         message: 'Radio - pas de mise à jour des lectures' 

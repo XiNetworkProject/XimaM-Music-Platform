@@ -12,7 +12,7 @@ export function usePlaysSync() {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
         // Ne pas synchroniser les écoutes pour la radio uniquement
-        if (trackId === 'radio-mixx-party') {
+        if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
           return;
         }
         
@@ -44,7 +44,7 @@ export function usePlaysSync() {
       const { trackId } = event.detail;
       if (trackId && session?.user?.id) {
         // Ne pas synchroniser les écoutes pour la radio uniquement
-        if (trackId === 'radio-mixx-party') {
+        if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
           return;
         }
         
@@ -83,7 +83,7 @@ export function usePlaysSync() {
   const triggerPlaysSync = useCallback((trackId: string) => {
     if (trackId && session?.user?.id) {
       // Ne pas déclencher la synchronisation pour la radio uniquement
-      if (trackId === 'radio-mixx-party') {
+      if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
         return;
       }
       

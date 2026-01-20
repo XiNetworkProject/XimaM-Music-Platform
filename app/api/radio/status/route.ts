@@ -13,7 +13,42 @@ export async function OPTIONS(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const stationParamRaw = req.nextUrl.searchParams.get('station') || 'mixx_party';
+  const stationParam = stationParamRaw.toLowerCase();
+
+  const STATIONS: Record<string, { name: string; description: string; streamUrl: string; metadataUrls: string[] }> = {
+    mixx_party: {
+      name: 'Mixx Party Radio',
+      description: 'Radio électronique en continu 24h/24',
+      streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3',
+      metadataUrls: [
+        'https://rocket.streamradio.fr/status-json.xsl',
+        'https://rocket.streamradio.fr/status.xsl',
+        'https://rocket.streamradio.fr/7.html',
+        'https://rocket.streamradio.fr/status.xsl?mount=/stream/mixxparty'
+      ]
+    },
+    ximam: {
+      name: 'XimaM Radio',
+      description: 'Radio XimaM en continu 24h/24',
+      streamUrl: 'https://stream.mixx-party.fr/listen/ximam/radio.mp3',
+      metadataUrls: [
+        'https://stream.mixx-party.fr/status-json.xsl',
+        'https://stream.mixx-party.fr/status.xsl',
+        'https://stream.mixx-party.fr/7.html',
+        // fallback générique si le serveur ne fournit pas ces endpoints
+        'https://rocket.streamradio.fr/status-json.xsl',
+        'https://rocket.streamradio.fr/status.xsl',
+        'https://rocket.streamradio.fr/7.html'
+      ]
+    }
+  };
+
+  const station = STATIONS[stationParam] ? stationParam : 'mixx_party';
+  const stationCfg = STATIONS[station];
+
   try {
+
     // Récupérer les statistiques locales
     let localStats = null;
     try {
@@ -30,12 +65,7 @@ export async function GET(req: NextRequest) {
       console.log('⚠️ Impossible de récupérer les stats locales:', error);
     }
     // URLs alternatives pour récupérer les métadonnées radio
-    const streamRadioUrls = [
-      'https://rocket.streamradio.fr/status-json.xsl',
-      'https://rocket.streamradio.fr/status.xsl',
-      'https://rocket.streamradio.fr/7.html',
-      'https://rocket.streamradio.fr/status.xsl?mount=/stream/mixxparty'
-    ];
+    const streamRadioUrls = stationCfg.metadataUrls;
     
     let data: any = null;
     let source: any = null;
@@ -80,10 +110,10 @@ export async function GET(req: NextRequest) {
                 icestats: {
                   source: {
                     listeners: listenersMatch ? parseInt(listenersMatch[1]) : 0,
-                    title: titleMatch ? titleMatch[1].trim() : 'Mixx Party Radio',
+                    title: titleMatch ? titleMatch[1].trim() : stationCfg.name,
                     artist: 'En boucle continue',
                     bitrate: 128,
-                    server_name: 'Mixx Party Server'
+                    server_name: `${stationCfg.name} Server`
                   }
                 }
               };
@@ -104,19 +134,27 @@ export async function GET(req: NextRequest) {
     
     // Analyser les données StreamRadio
     if (data && data.icestats && data.icestats.source) {
-      const source = data.icestats.source;
+      const sources = Array.isArray(data.icestats.source) ? data.icestats.source : [data.icestats.source];
+      const pickByStation = (src: any) => {
+        const needle = station.toLowerCase();
+        const title = String(src?.title || '').toLowerCase();
+        const serverName = String(src?.server_name || '').toLowerCase();
+        const listenurl = String(src?.listenurl || src?.listenUrl || '').toLowerCase();
+        return title.includes(needle) || serverName.includes(needle) || listenurl.includes(needle);
+      };
+      const source = sources.find(pickByStation) || sources[0];
       
       // Extraire les informations en temps réel
       const radioData = {
         // Informations de base
-        name: 'Mixx Party Radio',
-        description: 'Radio électronique en continu 24h/24',
+        name: stationCfg.name,
+        description: stationCfg.description,
         status: 'LIVE',
         isOnline: true,
         
         // Métadonnées de la piste actuelle
         currentTrack: {
-          title: source.title || 'Mixx Party Radio',
+          title: source.title || stationCfg.name,
           artist: source.artist || 'En boucle continue',
           genre: source.genre || 'Electronic',
           album: source.album || 'Mixx Party Collection'
@@ -127,12 +165,12 @@ export async function GET(req: NextRequest) {
           listeners: parseInt(source.listeners) || 0,
           bitrate: parseInt(source.bitrate) || 128,
           uptime: source.uptime || '24h/24',
-          quality: source.bitrate >= 192 ? 'HD' : 'Standard'
+          quality: (parseInt(source.bitrate) || 0) >= 192 ? 'HD' : 'Standard'
         },
         
         // Informations techniques
         technical: {
-          serverName: source.server_name || 'Mixx Party Server',
+          serverName: source.server_name || `${stationCfg.name} Server`,
           serverDescription: source.server_description || 'Radio en boucle continue',
           contentType: source.content_type || 'audio/mpeg',
           serverType: source.server_type || 'Icecast',
@@ -143,7 +181,7 @@ export async function GET(req: NextRequest) {
         lastUpdate: new Date().toISOString(),
         
         // URL de streaming
-        streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'
+        streamUrl: stationCfg.streamUrl
       };
 
       console.log('📻 Données radio récupérées:', {
@@ -248,8 +286,8 @@ export async function GET(req: NextRequest) {
       const randomTrack = tracks[trackCategory][Math.floor(Math.random() * tracks[trackCategory].length)];
       
       const defaultData = {
-        name: 'Mixx Party Radio',
-        description: 'Radio électronique en continu 24h/24',
+        name: stationCfg.name,
+        description: stationCfg.description,
         status: 'LIVE',
         isOnline: true,
         
@@ -257,7 +295,7 @@ export async function GET(req: NextRequest) {
           title: randomTrack.title,
           artist: randomTrack.artist,
           genre: randomTrack.genre,
-          album: 'Mixx Party Collection'
+          album: `${stationCfg.name} Collection`
         },
         
         stats: {
@@ -268,7 +306,7 @@ export async function GET(req: NextRequest) {
         },
         
         technical: {
-          serverName: 'Mixx Party Server',
+          serverName: `${stationCfg.name} Server`,
           serverDescription: 'Radio en boucle continue',
           contentType: 'audio/mpeg',
           serverType: 'Icecast',
@@ -276,7 +314,7 @@ export async function GET(req: NextRequest) {
         },
         
         lastUpdate: new Date().toISOString(),
-        streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'
+        streamUrl: stationCfg.streamUrl
       };
 
       return NextResponse.json({
@@ -301,16 +339,16 @@ export async function GET(req: NextRequest) {
     
     // Données de fallback en cas d'erreur
     const fallbackData = {
-      name: 'Mixx Party Radio',
-      description: 'Radio électronique en continu 24h/24',
+      name: stationCfg.name,
+      description: stationCfg.description,
       status: 'LIVE',
       isOnline: true,
       
       currentTrack: {
-        title: 'Mixx Party Radio',
+        title: stationCfg.name,
         artist: 'En boucle continue',
         genre: 'Electronic',
-        album: 'Mixx Party Collection'
+        album: `${stationCfg.name} Collection`
       },
       
       stats: {
@@ -321,7 +359,7 @@ export async function GET(req: NextRequest) {
       },
       
       technical: {
-        serverName: 'Mixx Party Server',
+        serverName: `${stationCfg.name} Server`,
         serverDescription: 'Radio en boucle continue',
         contentType: 'audio/mpeg',
         serverType: 'Icecast',
@@ -329,7 +367,7 @@ export async function GET(req: NextRequest) {
       },
       
       lastUpdate: new Date().toISOString(),
-      streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3'
+      streamUrl: stationCfg.streamUrl
     };
 
     return NextResponse.json({

@@ -20,7 +20,7 @@ export async function GET(
     const trackId = params.id;
 
     // Gestion spéciale pour la radio
-    if (trackId === 'radio-mixx-party') {
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam') {
       return NextResponse.json({
         comments: [],
         total: 0,

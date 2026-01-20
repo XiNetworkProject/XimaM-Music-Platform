@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     if (!inventoryId) {
       return NextResponse.json({ error: 'inventoryId requis' }, { status: 400 });
     }
-    if (targetTrackId === 'radio-mixx-party') {
+    if (targetTrackId === 'radio-mixx-party' || targetTrackId === 'radio-ximam') {
       return NextResponse.json({ error: 'La radio ne peut pas être boostée' }, { status: 400 });
     }
 

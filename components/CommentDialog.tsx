@@ -72,7 +72,7 @@ export default function CommentDialog({
   useEffect(() => {
     if (session?.user?.id && trackId) {
       // Ne pas vérifier le statut de créateur pour la radio ou les pistes IA
-      if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+      if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
         setIsCreator(false);
         return;
       }
@@ -99,7 +99,7 @@ export default function CommentDialog({
   const loadComments = async () => {
     try {
       // Ne pas charger les commentaires pour la radio ou les pistes IA
-      if (trackId === 'radio-mixx-party' || trackId.startsWith('ai-')) {
+      if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
         setComments([]);
         setModerationStats(null);
         setPermissions(null);
