@@ -476,6 +476,8 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     pause,
     seek,
     playTrack,
+    setTracks,
+    setCurrentTrackIndex,
     getAudioElement,
   } = useAudioPlayer();
 
@@ -492,11 +494,15 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
   const [activeTrackId, setActiveTrackId] = useState<string | undefined>(undefined);
   const [coverLoadedById, setCoverLoadedById] = useState<Record<string, boolean>>({});
   const [navDir, setNavDir] = useState<1 | -1>(1);
+  const [feedLoading, setFeedLoading] = useState(false);
+  const [feedError, setFeedError] = useState<string | null>(null);
 
   const rafRef = useRef<number | null>(null);
   const isBootingRef = useRef(true);
   const isProgrammaticScrollRef = useRef(false);
   const wheelBlockRef = useRef(false);
+  const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
+  const hasLoadedFeedRef = useRef(false);
 
   const tracks = audioState.tracks || [];
   const ids = useMemo(() => tracks.map(getTrackId).filter(Boolean), [tracks]);
@@ -510,6 +516,148 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
   }, [activeTrackId, tracks]);
 
   const activeTrack = tracks[activeIndex] || null;
+
+  const isExcluded = useCallback((id: string) => {
+    if (!id) return true;
+    // Exclure pistes IA + radios
+    if (id.startsWith('ai-')) return true;
+    if (id.startsWith('radio-')) return true;
+    return false;
+  }, []);
+
+  const normalizeTrack = useCallback((t: any) => {
+    const id = getTrackId(t);
+    const coverUrl = t?.coverUrl || t?.cover_url || t?.image_url || '/default-cover.jpg';
+    const audioUrl = t?.audioUrl || t?.audio_url || '';
+    return {
+      _id: id,
+      title: t?.title || 'Titre',
+      artist: {
+        _id: t?.artist?._id || t?.creator_id || 'unknown',
+        username: t?.artist?.username || t?.profiles?.username || 'unknown',
+        name: t?.artist?.name || t?.profiles?.name || t?.profiles?.username || 'Unknown',
+        avatar: t?.artist?.avatar || t?.profiles?.avatar || undefined,
+        isArtist: !!(t?.artist?.isArtist || t?.profiles?.is_artist),
+        artistName: t?.artist?.artistName || t?.profiles?.artist_name || undefined,
+        isVerified: !!(t?.artist?.isVerified || t?.profiles?.is_verified || t?.isVerified),
+      },
+      duration: typeof t?.duration === 'number' ? t.duration : 0,
+      coverUrl,
+      audioUrl,
+      album: t?.album ?? null,
+      genre: Array.isArray(t?.genre) ? t.genre : [],
+      lyrics: t?.lyrics || null,
+      likes: Array.isArray(t?.likes) ? t.likes : [],
+      comments: Array.isArray(t?.comments) ? t.comments : [],
+      plays: typeof t?.plays === 'number' ? t.plays : 0,
+      isLiked: !!t?.isLiked,
+      shares: typeof t?.shares === 'number' ? t.shares : 0,
+    };
+  }, []);
+
+  const loadFeedTracks = useCallback(async () => {
+    if (hasLoadedFeedRef.current) return;
+    hasLoadedFeedRef.current = true;
+    setFeedError(null);
+    setFeedLoading(true);
+
+    // On vide la queue pour afficher l'écran "Chargement du player…" (sans casser la queue précédente, déjà sauvée)
+    try { setTracks([] as any); } catch {}
+
+    const endpoints = [
+      '/api/tracks/trending?limit=120',
+      '/api/tracks/popular?limit=120',
+      '/api/tracks/recommended?limit=120',
+      '/api/tracks/featured?limit=60',
+      // fallback global
+      '/api/tracks?sort=trending&limit=200',
+    ];
+
+    const results = await Promise.allSettled(
+      endpoints.map(async (url) => {
+        const res = await fetch(url, { cache: 'no-store' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data?.error || `Erreur ${res.status}`);
+        const list = Array.isArray(data) ? data : Array.isArray(data?.tracks) ? data.tracks : [];
+        return list as any[];
+      })
+    );
+
+    const seen = new Set<string>();
+    const merged: any[] = [];
+    for (const r of results) {
+      if (r.status !== 'fulfilled') continue;
+      for (const t of r.value) {
+        const id = getTrackId(t);
+        if (!id || isExcluded(id)) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        merged.push(normalizeTrack(t));
+      }
+    }
+
+    if (!merged.length) {
+      throw new Error('Aucune piste disponible (hors IA)');
+    }
+
+    setTracks(merged as any);
+    setCurrentTrackIndex(0);
+    setFeedLoading(false);
+  }, [isExcluded, normalizeTrack, setCurrentTrackIndex, setTracks]);
+
+  const handleClose = useCallback(() => {
+    try { pause(); } catch {}
+    // Restore queue précédente si on l'a sauvegardée
+    if (prevQueueRef.current) {
+      try {
+        setTracks(prevQueueRef.current.tracks as any);
+        setCurrentTrackIndex(prevQueueRef.current.currentTrackIndex);
+      } catch {}
+      prevQueueRef.current = null;
+    }
+    hasLoadedFeedRef.current = false;
+    setFeedError(null);
+    setFeedLoading(false);
+    onClose();
+  }, [onClose, pause, setCurrentTrackIndex, setTracks]);
+
+  // Sauvegarder la queue actuelle à l'ouverture (pour restoration)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!prevQueueRef.current) {
+      prevQueueRef.current = {
+        tracks: audioState.tracks || [],
+        currentTrackIndex: audioState.currentTrackIndex || 0,
+      };
+    }
+  }, [audioState.currentTrackIndex, audioState.tracks, isOpen]);
+
+  // Si on ferme sans passer par handleClose (close externe), on restaure aussi
+  useEffect(() => {
+    if (isOpen) return;
+    if (prevQueueRef.current) {
+      try {
+        setTracks(prevQueueRef.current.tracks as any);
+        setCurrentTrackIndex(prevQueueRef.current.currentTrackIndex);
+      } catch {}
+      prevQueueRef.current = null;
+    }
+    hasLoadedFeedRef.current = false;
+    setFeedError(null);
+    setFeedLoading(false);
+  }, [isOpen, setCurrentTrackIndex, setTracks]);
+
+  // Charger le feed quand on ouvre
+  useEffect(() => {
+    if (!isOpen) return;
+    loadFeedTracks().catch((e: any) => {
+      setFeedLoading(false);
+      setFeedError(e?.message || 'Erreur chargement');
+      toast.error(e?.message || 'Erreur chargement');
+      // Permettre retentative à la prochaine ouverture
+      hasLoadedFeedRef.current = false;
+    });
+  }, [isOpen, loadFeedTracks]);
 
   // Debounce pour activeId (raf-safe)
   const setActiveDebounced = useCallback((id: string) => {
@@ -738,13 +886,13 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
         if (commentsOpen) {
           setCommentsOpen(false);
         } else {
-          onClose();
+          handleClose();
         }
       }
     };
     window.addEventListener('keydown', keyHandler);
     return () => window.removeEventListener('keydown', keyHandler);
-  }, [isOpen, handleNextTrack, handlePreviousTrack, togglePlay, commentsOpen, onClose]);
+  }, [isOpen, handleNextTrack, handlePreviousTrack, togglePlay, commentsOpen, handleClose]);
 
   const getCoverUrl = useCallback((track: any) => {
     const raw = track?.coverUrl || '/default-cover.jpg';
@@ -805,7 +953,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
         >
           <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="h-10 w-10 rounded-full bg-black/30 grid place-items-center border border-white/10"
               title="Fermer"
             >
@@ -816,7 +964,20 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
           <div className="h-full w-full grid place-items-center">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="w-8 h-8 animate-spin text-white/80" />
-              <p className="text-sm text-white/70">Chargement du player…</p>
+              <p className="text-sm text-white/70">
+                {feedError ? `Erreur: ${feedError}` : feedLoading ? 'Chargement du feed…' : 'Chargement du player…'}
+              </p>
+              {feedError && (
+                <button
+                  onClick={() => {
+                    hasLoadedFeedRef.current = false;
+                    loadFeedTracks().catch(() => {});
+                  }}
+                  className="mt-1 px-3 py-2 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-sm"
+                >
+                  Réessayer
+                </button>
+              )}
             </div>
           </div>
         </motion.div>
@@ -863,7 +1024,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
 
           <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="h-10 w-10 rounded-full bg-black/30 grid place-items-center border border-white/10"
               title="Fermer"
             >
