@@ -6,7 +6,7 @@ create extension if not exists pgcrypto;
 
 create table if not exists public.comments (
   id uuid primary key default gen_random_uuid(),
-  track_id uuid not null,
+  track_id text not null,
   user_id uuid not null,
   content text not null,
   parent_id uuid null,
@@ -15,12 +15,32 @@ create table if not exists public.comments (
 );
 
 -- If the table already existed (old schema), ensure required columns exist
-alter table public.comments add column if not exists track_id uuid;
+alter table public.comments add column if not exists track_id text;
 alter table public.comments add column if not exists user_id uuid;
 alter table public.comments add column if not exists content text;
 alter table public.comments add column if not exists parent_id uuid;
 alter table public.comments add column if not exists created_at timestamptz;
 alter table public.comments add column if not exists updated_at timestamptz;
+
+-- Ensure track_id is TEXT (many tracks ids are like "track_..." and are not UUIDs)
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'comments'
+      and column_name = 'track_id'
+      and data_type <> 'text'
+  ) then
+    alter table public.comments
+      alter column track_id type text
+      using track_id::text;
+  end if;
+exception when others then
+  -- keep script resilient; you can inspect errors manually if needed
+  null;
+end $$;
 
 -- Backfill defaults for older rows (safe for existing data)
 update public.comments set content = '' where content is null;
@@ -53,7 +73,7 @@ create index if not exists comment_likes_user_id_idx on public.comment_likes(use
 -- 2) Creator moderation state per comment (per track creator)
 create table if not exists public.comment_moderation (
   comment_id uuid not null,
-  track_id uuid not null,
+  track_id text not null,
   creator_id uuid not null,
   is_deleted boolean not null default false,
   deleted_at timestamptz null,
@@ -69,6 +89,25 @@ create table if not exists public.comment_moderation (
 
 create index if not exists comment_moderation_track_id_idx on public.comment_moderation(track_id);
 create index if not exists comment_moderation_creator_id_idx on public.comment_moderation(creator_id);
+
+-- Ensure moderation.track_id is TEXT too (migration from older schema)
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'comment_moderation'
+      and column_name = 'track_id'
+      and data_type <> 'text'
+  ) then
+    alter table public.comment_moderation
+      alter column track_id type text
+      using track_id::text;
+  end if;
+exception when others then
+  null;
+end $$;
 
 -- 3) Creator custom filters (words/phrases)
 create table if not exists public.creator_comment_filters (
