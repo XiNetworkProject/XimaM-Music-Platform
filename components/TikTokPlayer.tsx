@@ -251,6 +251,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const openedTrackIdRef = useRef<string | null>(null);
   const changedTrackRef = useRef(false);
   const audioPreloadLinksRef = useRef<HTMLLinkElement[]>([]);
+  const feedLoadedRef = useRef(false);
+  const openSeedIdRef = useRef<string | null>(null);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -312,6 +314,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }
     openedTrackIdRef.current = null;
     changedTrackRef.current = false;
+    feedLoadedRef.current = false;
+    openSeedIdRef.current = null;
     onClose();
   }, [onClose, pause, setCurrentTrackIndex, setTracks]);
 
@@ -338,12 +342,18 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (!openedTrackIdRef.current) {
       openedTrackIdRef.current = getTrackId(audioState.tracks?.[audioState.currentTrackIndex]) || null;
     }
+    // Seed figée pour cette ouverture (ne doit pas suivre les changements de piste pendant le player)
+    if (!openSeedIdRef.current) {
+      openSeedIdRef.current = initialTrackId || openedTrackIdRef.current || null;
+    }
     changedTrackRef.current = false;
   }, [audioState.currentTrackIndex, audioState.tracks, isOpen]);
 
   // Charge le feed à l'ouverture (même endpoint que l'accueil)
   useEffect(() => {
     if (!isOpen) return;
+    if (feedLoadedRef.current) return;
+    feedLoadedRef.current = true;
     let mounted = true;
     didBootRef.current = false;
     setCommentsOpen(false);
@@ -375,7 +385,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         setLocalTracks(merged);
         setTracks(merged as any);
 
-        const seedId = initialTrackId || openedTrackIdRef.current || prevId || getTrackId(merged[0]);
+        const seedId = openSeedIdRef.current || openedTrackIdRef.current || prevId || getTrackId(merged[0]);
         const idx = seedId ? merged.findIndex((t) => getTrackId(t) === seedId) : 0;
         const startIndex = idx >= 0 ? idx : 0;
 
@@ -398,22 +408,23 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return () => {
       mounted = false;
     };
-  }, [isOpen, setTracks, setCurrentTrackIndex, initialTrackId, scrollToIndex]);
+  }, [isOpen, setTracks, setCurrentTrackIndex, scrollToIndex]);
 
   // Sync initialTrackId -> activeIndex + scroll (une fois quand la liste est prête)
   useEffect(() => {
     if (!isOpen) return;
     if (!tracks.length) return;
-    if (!initialTrackId) return;
     if (didBootRef.current) return;
 
-    const idx = tracks.findIndex((t) => t?._id === initialTrackId);
+    const seed = openSeedIdRef.current;
+    if (!seed) return;
+    const idx = tracks.findIndex((t) => t?._id === seed);
     if (idx >= 0) {
       didBootRef.current = true;
       setActiveIndex(idx);
       requestAnimationFrame(() => scrollToIndex(idx, 'auto'));
     }
-  }, [isOpen, tracks, initialTrackId, scrollToIndex]);
+  }, [isOpen, tracks, scrollToIndex]);
 
   // Observer: détecte quel écran est “actif”
   useEffect(() => {
