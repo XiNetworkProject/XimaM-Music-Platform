@@ -501,11 +501,13 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [setShowPlayer, setIsPlaying, setIsMinimized, audioService.actions]);
 
   // Persister l'état dans localStorage
+  const savedTrackIdRef = useRef<string | null>(null);
   useEffect(() => {
     const savedState = localStorage.getItem('audioPlayerState');
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
+        savedTrackIdRef.current = typeof parsed?.currentTrackId === 'string' ? parsed.currentTrackId : null;
         setAudioState(prev => ({ ...prev, ...parsed }));
       } catch (error) {
         console.error('Erreur parsing audio state:', error);
@@ -514,8 +516,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const currentTrackId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
     localStorage.setItem('audioPlayerState', JSON.stringify({
       currentTrackIndex: audioState.currentTrackIndex,
+      currentTrackId,
       isPlaying: audioState.isPlaying,
       showPlayer: audioState.showPlayer,
       isMinimized: audioState.isMinimized,
@@ -524,6 +528,41 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       repeat: audioState.repeat,
     }));
   }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat]);
+
+  // Rehydration: si on a un currentTrackId sauvegardé, retrouver l'index quand les tracks sont dispo
+  useEffect(() => {
+    if (!savedTrackIdRef.current) return;
+    if (!audioState.tracks.length) return;
+    const idx = audioState.tracks.findIndex((t) => t._id === savedTrackIdRef.current);
+    if (idx !== -1 && idx !== audioState.currentTrackIndex) {
+      setCurrentTrackIndex(idx);
+    }
+    // On ne clear pas tout de suite: on laisse vivre au cas où tracks arrivent par vagues,
+    // mais on évite de reboucler.
+    savedTrackIdRef.current = null;
+  }, [audioState.tracks, audioState.currentTrackIndex, setCurrentTrackIndex]);
+
+  // Rehydration: préparer l'élément audio pour que Play fonctionne après refresh.
+  // On charge la piste courante (sans auto-play), dès que la queue est disponible.
+  useEffect(() => {
+    if (!audioState.showPlayer) return;
+    if (!audioState.tracks.length) return;
+    const idx = Math.max(0, Math.min(audioState.currentTrackIndex, audioState.tracks.length - 1));
+    const t = audioState.tracks[idx];
+    if (!t) return;
+    const current = audioService.state.currentTrack as any;
+    if (current?._id === t._id) return;
+    // Ne pas spam si l'audio est déjà en train de charger
+    if (audioService.state.isLoading) return;
+    audioService.actions.loadTrack(t).catch(() => {});
+  }, [
+    audioState.showPlayer,
+    audioState.tracks,
+    audioState.currentTrackIndex,
+    audioService.actions,
+    audioService.state.currentTrack,
+    audioService.state.isLoading,
+  ]);
 
   const value = useMemo(() => ({
     audioState,
