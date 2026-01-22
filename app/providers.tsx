@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
 import dynamic from 'next/dynamic';
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { useMediaSession, type MediaTrack as MSMediaTrack } from '@/hooks/useMediaSession';
 import { toArtworkList } from '@/lib/mediaArtwork';
 import { useSession } from 'next-auth/react';
