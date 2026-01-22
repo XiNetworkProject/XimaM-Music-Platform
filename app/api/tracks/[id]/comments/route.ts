@@ -140,11 +140,33 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
     }
 
-    const { data: inserted, error } = await supabaseAdmin
+    // Some older schemas still have a NOT NULL column named "text" instead of "content".
+    // We try a normal insert first, then retry with "text" if needed.
+    let inserted: any = null;
+    let error: any = null;
+
+    const attempt1 = await supabaseAdmin
       .from('comments')
       .insert({ track_id: trackId, user_id: userId, content })
-      .select('id, content, created_at, updated_at, user_id')
+      .select('*')
       .single();
+
+    inserted = attempt1.data;
+    error = attempt1.error;
+
+    const msg1 = (error as any)?.message || '';
+    const needsTextRetry =
+      msg1.includes('null value in column') && msg1.includes('relation "comments"') && msg1.includes('column "text"');
+
+    if (needsTextRetry) {
+      const attempt2 = await supabaseAdmin
+        .from('comments')
+        .insert({ track_id: trackId, user_id: userId, content, text: content } as any)
+        .select('*')
+        .single();
+      inserted = attempt2.data;
+      error = attempt2.error;
+    }
 
     if (error || !inserted) {
       const errAny = error as any;
@@ -185,7 +207,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({
       comment: {
         id: inserted.id,
-        content: inserted.content,
+        content: inserted.content ?? inserted.text ?? content,
         createdAt: inserted.created_at,
         updatedAt: inserted.updated_at,
         likes: [],

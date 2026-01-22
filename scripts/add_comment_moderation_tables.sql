@@ -44,6 +44,24 @@ exception when others then
   null;
 end $$;
 
+-- If "text" still exists (some schemas have both), ensure inserts won't fail
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'comments'
+      and column_name = 'text'
+  ) then
+    -- give it a default so inserts that omit "text" don't violate NOT NULL
+    alter table public.comments alter column "text" set default '';
+    update public.comments set "text" = '' where "text" is null;
+  end if;
+exception when others then
+  null;
+end $$;
+
 -- Ensure track_id is TEXT (many tracks ids are like "track_..." and are not UUIDs)
 do $$
 begin
