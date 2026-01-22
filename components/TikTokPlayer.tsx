@@ -672,6 +672,29 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   if (!isOpen) return null;
 
+  // Auto-next quand la piste se termine (TikTok-like)
+  // On se base sur l'event natif "ended" de l'élément audio du provider.
+  useEffect(() => {
+    if (!isOpen) return;
+    const a = getAudioElement();
+    if (!a) return;
+
+    const onEnded = () => {
+      // Si un modal est ouvert, ne pas auto-avancer
+      if (commentsOpen || showDownloadDialog || lyricsOpen) return;
+      const next = Math.min(tracks.length - 1, activeIndex + 1);
+      if (next === activeIndex) return;
+      // Scroll + play dans un frame (évite flicker)
+      requestAnimationFrame(() => {
+        scrollToIndex(next, 'auto');
+        playIndexFromGesture(next, 'tiktok-player-ended');
+      });
+    };
+
+    a.addEventListener('ended', onEnded);
+    return () => a.removeEventListener('ended', onEnded);
+  }, [activeIndex, commentsOpen, getAudioElement, isOpen, lyricsOpen, playIndexFromGesture, scrollToIndex, showDownloadDialog, tracks.length]);
+
   if (loading) {
     return (
       <div className="fixed inset-0 z-[100] bg-black text-white grid place-items-center">
@@ -783,9 +806,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                         alt={t.title}
                         loading={isThis ? 'eager' : 'lazy'}
                         decoding="async"
-                        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                          coverLoadedById[t._id] || !t._id ? 'opacity-100' : 'opacity-0'
-                        }`}
+                        // Toujours visible: éviter l'impression "page de chargement" entre les tracks.
+                        // Le préchargement autour de l'item actif réduit déjà le pop-in.
+                        className="absolute inset-0 w-full h-full object-cover"
                         onLoad={() => {
                           if (!t._id) return;
                           setCoverLoadedById((prev) => (prev[t._id] ? prev : { ...prev, [t._id]: true }));
