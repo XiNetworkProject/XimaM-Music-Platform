@@ -260,6 +260,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const snapTimerRef = useRef<number | null>(null);
   const isTouchingRef = useRef(false);
   const isCoarseRef = useRef(false);
+  const lastUserScrollAtRef = useRef<number>(0);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -288,27 +289,26 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return () => window.removeEventListener('resize', compute);
   }, []);
 
-  const getPageHeight = useCallback(() => {
+  const getItemTop = useCallback((idx: number) => {
+    const it = itemRefs.current[idx];
+    if (it) return it.offsetTop;
+    // fallback
     const el = containerRef.current;
-    return Math.max(1, el?.clientHeight || window.innerHeight || 1);
+    const h = Math.max(1, el?.clientHeight || window.innerHeight || 1);
+    return idx * h;
   }, []);
 
   const scrollToIndex = useCallback(
     (i: number, behavior: ScrollBehavior = 'auto') => {
-      const idx = clamp(i, 0, Math.max(0, tracks.length - 1));
-      // Mobile: laisser le scroll-snap natif, utiliser scrollIntoView (moins "jitter")
-      if (isCoarseRef.current) {
-        const item = itemRefs.current[idx];
-        item?.scrollIntoView({ behavior, block: 'start' });
-        return;
-      }
-      // Desktop: scroll déterministe par pages
       const el = containerRef.current;
       if (!el) return;
-      const h = getPageHeight();
-      el.scrollTo({ top: idx * h, behavior });
+      const idx = clamp(i, 0, Math.max(0, tracks.length - 1));
+      const top = getItemTop(idx);
+      // éviter micro-jitter: ne pas rescroller si déjà proche
+      if (Math.abs(el.scrollTop - top) < 2) return;
+      el.scrollTo({ top, behavior });
     },
-    [getPageHeight, tracks.length],
+    [getItemTop, tracks.length],
   );
 
   const snapToNearest = useCallback(
@@ -336,12 +336,25 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         }
         return best;
       }
-      const h = getPageHeight();
-      const idx = clamp(Math.round(el.scrollTop / h), 0, maxIdx);
-      el.scrollTo({ top: idx * h, behavior });
+      // Desktop: snap déterministe sur l'offsetTop le plus proche
+      const st = el.scrollTop;
+      const center = clamp(activeIndex, 0, maxIdx);
+      const start = Math.max(0, center - 6);
+      const end = Math.min(maxIdx, center + 6);
+      let best = center;
+      let bestDist = Number.POSITIVE_INFINITY;
+      for (let i = start; i <= end; i++) {
+        const top = getItemTop(i);
+        const d = Math.abs(top - st);
+        if (d < bestDist) {
+          bestDist = d;
+          best = i;
+        }
+      }
+      el.scrollTo({ top: getItemTop(best), behavior });
       return idx;
     },
-    [activeIndex, getPageHeight, tracks.length],
+    [activeIndex, getItemTop, tracks.length],
   );
 
   const playIndexFromGesture = useCallback(
@@ -542,29 +555,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }
   }, [isOpen, tracks, scrollToIndex]);
 
-  // Observer: détecte quel écran est “actif”
-  useEffect(() => {
-    if (!isOpen) return;
-    if (!tracks.length) return;
-
-    const els = itemRefs.current.filter(Boolean) as HTMLDivElement[];
-    if (!els.length) return;
-
-    const obs = new IntersectionObserver(
-      (entries) => {
-        const best = entries
-          .filter((e) => e.isIntersecting)
-          .sort((a, b) => (b.intersectionRatio ?? 0) - (a.intersectionRatio ?? 0))[0];
-        if (!best) return;
-        const idx = Number((best.target as HTMLElement).dataset.index);
-        if (Number.isFinite(idx)) setActiveIndex(idx);
-      },
-      { root: containerRef.current, threshold: [0.55, 0.7, 0.85] }
-    );
-
-    els.forEach((el) => obs.observe(el));
-    return () => obs.disconnect();
-  }, [isOpen, tracks.length]);
+  // Remplace IntersectionObserver par un calcul simple (plus stable cross-platform)
+  // On met à jour l'index actif sur scroll (sans forcer de scroll).
 
   // View analytics (à l'écran)
   useEffect(() => {
@@ -745,14 +737,20 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   // Auto-snap au "scroll end" (corrige les arrêts entre deux pages)
   const onScroll = useCallback(() => {
+    lastUserScrollAtRef.current = Date.now();
     // Mobile: ne pas auto-snap (ça provoque du scintillement avec le momentum)
-    if (isCoarseRef.current) return;
+    if (isCoarseRef.current) {
+      const idx = snapToNearest('auto');
+      if (idx !== undefined && idx !== activeIndex) setActiveIndex(idx);
+      return;
+    }
     if (wheelLockRef.current) return;
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
     if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
     snapTimerRef.current = window.setTimeout(() => {
-      snapToNearest('auto');
-    }, 180) as unknown as number;
+      const idx = snapToNearest('auto');
+      if (idx !== undefined && idx !== activeIndex) setActiveIndex(idx);
+    }, 160) as unknown as number;
   }, [commentsOpen, lyricsOpen, showDownloadDialog, snapToNearest]);
 
   useEffect(() => {
@@ -903,6 +901,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (!isOpen) return;
     if (!tracks.length) return;
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
+    // Ne pas forcer le scroll pendant que l'utilisateur scroll (ça fait scintiller)
+    if (Date.now() - (lastUserScrollAtRef.current || 0) < 350) return;
     const idx = audioState.currentTrackIndex;
     if (!Number.isFinite(idx) || idx < 0) return;
     if (idx === activeIndex) return;
