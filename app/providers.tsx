@@ -185,6 +185,41 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const getAudioElement = useCallback(() => {
     return (((audioService as any).audioElement ?? null) as HTMLAudioElement | null);
   }, [audioService]);
+
+  // IMPORTANT: keep AudioPlayerContext state (audioState.tracks/currentTrackIndex) in sync with audioService queue actions.
+  // Otherwise UI features (Library queue, "À suivre" bubble, etc.) won't reflect changes.
+  const setQueueOnly = useCallback(
+    (tracks: Track[], startIndex: number = 0) => {
+      const safeTracks = Array.isArray(tracks) ? tracks : [];
+      const nextIndex = Math.max(0, Math.min(startIndex, Math.max(0, safeTracks.length - 1)));
+      // Update UI state first (atomic), then update service
+      setAudioState((prev) => ({
+        ...prev,
+        tracks: safeTracks,
+        currentTrackIndex: safeTracks.length ? nextIndex : 0,
+      }));
+      try {
+        (audioService.actions as any).setQueueOnly?.(safeTracks, nextIndex);
+      } catch {}
+    },
+    [audioService.actions],
+  );
+
+  const setQueueAndPlay = useCallback(
+    (tracks: Track[], startIndex: number = 0) => {
+      const safeTracks = Array.isArray(tracks) ? tracks : [];
+      const nextIndex = Math.max(0, Math.min(startIndex, Math.max(0, safeTracks.length - 1)));
+      setAudioState((prev) => ({
+        ...prev,
+        tracks: safeTracks,
+        currentTrackIndex: safeTracks.length ? nextIndex : 0,
+        showPlayer: true,
+        isMinimized: false,
+      }));
+      audioService.actions.setQueueAndPlay(safeTracks, nextIndex);
+    },
+    [audioService.actions],
+  );
   // Media Session: mapping piste courante -> métadonnées Media Session
   const mediaSessionTrack: MSMediaTrack | null = useMemo(() => {
     const t = audioService.state.currentTrack as any;
@@ -599,8 +634,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     previousTrack: audioService.actions.previousTrack,
     toggleShuffle: audioService.actions.toggleShuffle,
     cycleRepeat: audioService.actions.cycleRepeat,
-    setQueueAndPlay: audioService.actions.setQueueAndPlay,
-    setQueueOnly: (audioService.actions as any).setQueueOnly,
+    setQueueAndPlay,
+    setQueueOnly,
     requestNotificationPermission: audioService.actions.requestNotificationPermission,
     forceUpdateNotification: audioService.actions.forceUpdateNotification,
     getAudioElement,
@@ -618,6 +653,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     updatePlayCount,
     closePlayer,
     audioService.actions,
+    setQueueAndPlay,
+    setQueueOnly,
     getAudioElement,
   ]);
 
