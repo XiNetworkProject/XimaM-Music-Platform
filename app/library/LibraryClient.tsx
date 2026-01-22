@@ -128,7 +128,7 @@ export default function LibraryClient() {
   const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
   const { incrementPlaysBatch } = useBatchPlaysSystem();
 
-  const [tab, setTab] = useState<TabKey>('playlists');
+  const [tab, setTab] = useState<TabKey | 'queue'>('playlists');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [search, setSearch] = useState('');
 
@@ -709,10 +709,13 @@ export default function LibraryClient() {
           <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
             Récents
           </TabButton>
+          <TabButton active={tab === 'queue'} onClick={() => { setTab('queue'); setSelectedPlaylistId(null); }}>
+            À suivre
+          </TabButton>
         </div>
 
         {/* Sort / Filter controls (tracks only) */}
-        {tab !== 'playlists' ? (
+        {tab !== 'playlists' && tab !== 'queue' ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-xs text-foreground-tertiary">
               <Clock3 className="h-4 w-4" />
@@ -1052,6 +1055,93 @@ export default function LibraryClient() {
                       Aucun favori pour l’instant.
                     </div>
                   )}
+                </div>
+              </motion.div>
+            ) : tab === 'queue' ? (
+              <motion.div
+                key="queue"
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                <SectionHeader
+                  title="À suivre"
+                  subtitle={`${Math.max(0, (audioState.tracks?.length || 0) - (audioState.currentTrackIndex || 0) - 1)} titre(s)`}
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const idx = Math.max(0, audioState.currentTrackIndex || 0);
+                        const tracks = Array.isArray(audioState.tracks) ? audioState.tracks.slice(0, idx + 1) : [];
+                        setQueueOnly(tracks as any, idx);
+                      }}
+                      className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                      disabled={Math.max(0, (audioState.tracks?.length || 0) - (audioState.currentTrackIndex || 0) - 1) === 0}
+                    >
+                      Vider
+                    </button>
+                  }
+                />
+
+                <div className="mt-4 rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden">
+                  <div className="px-4 py-3 text-sm text-foreground-secondary border-b border-border-secondary/60">
+                    Lecture en cours
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-sm font-semibold text-foreground-primary truncate">
+                      {audioState.tracks[audioState.currentTrackIndex]?.title || '—'}
+                    </div>
+                    <div className="text-xs text-foreground-tertiary truncate">
+                      {audioState.tracks[audioState.currentTrackIndex]?.artist?.name ||
+                        audioState.tracks[audioState.currentTrackIndex]?.artist?.username ||
+                        ''}
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-3 text-sm text-foreground-secondary border-t border-border-secondary/60 border-b border-border-secondary/60">
+                    Prochains titres
+                  </div>
+
+                  <div className="divide-y divide-border-secondary/40">
+                    {(audioState.tracks || []).slice(Math.max(0, (audioState.currentTrackIndex || 0) + 1)).length ? (
+                      (audioState.tracks || [])
+                        .slice(Math.max(0, (audioState.currentTrackIndex || 0) + 1))
+                        .map((t: any) => (
+                          <div key={t._id} className="px-3 py-2 flex items-center gap-3">
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm text-foreground-primary truncate">{t.title}</div>
+                              <div className="text-xs text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username || ''}</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => playTrack(t._id)}
+                              className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                              aria-label="Lire"
+                            >
+                              <Play className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const idx = Math.max(0, audioState.currentTrackIndex || 0);
+                                const tracks = Array.isArray(audioState.tracks) ? [...audioState.tracks] : [];
+                                const removeAt = tracks.findIndex((x) => x?._id === t._id);
+                                if (removeAt <= idx) return;
+                                tracks.splice(removeAt, 1);
+                                setQueueOnly(tracks as any, idx);
+                              }}
+                              className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-red-500/15 hover:border-red-500/30 transition grid place-items-center"
+                              aria-label="Retirer"
+                            >
+                              <Trash2 className="h-4 w-4 text-red-300" />
+                            </button>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="p-8 text-center text-sm text-foreground-secondary">Rien à suivre pour le moment.</div>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             ) : (

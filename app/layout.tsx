@@ -7,6 +7,7 @@ import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/compo
 import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 import StudioBackground from '@/components/StudioBackground';
+import GlobalQueueBubble from '@/components/GlobalQueueBubble';
 import { Analytics } from '@vercel/analytics/next';
 
 // Déclaration des types pour les fonctions globales
@@ -122,6 +123,7 @@ export default function RootLayout({
                   {children}
                 </main>
                 <ConditionalBottomNav />
+                <GlobalQueueBubble />
                 <FullScreenPlayer />
               </LayoutContent>
             </ConditionalNav>

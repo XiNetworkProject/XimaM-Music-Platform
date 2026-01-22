@@ -28,6 +28,8 @@ import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import FollowButton from '@/components/FollowButton';
 import CommentDialog from '@/components/CommentDialog';
 import DownloadDialog from '@/components/DownloadDialog';
+import QueueBubble from '@/components/QueueBubble';
+import QueueDialog from '@/components/QueueDialog';
 
 type Track = {
   _id: string;
@@ -236,6 +238,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
   const [burstVisible, setBurstVisible] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
@@ -975,12 +978,15 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
             >
               <X size={22} />
             </button>
+            <QueueBubble variant="pill" onClick={() => setShowQueue(true)} />
             <div className="hidden sm:flex flex-col items-center text-white/60 text-xs">
               <ChevronUp className="w-4 h-4" />
               <span>Swipe ↑ / ↓</span>
               <ChevronDown className="w-4 h-4 mt-1" />
             </div>
           </div>
+
+          <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
 
           <AnimatePresence>
             {burstVisible && <HeartBurst burstKey={burstKey} />}
