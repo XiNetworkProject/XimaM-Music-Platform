@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
+  Clock3,
   ChevronDown,
   FolderPlus,
   Globe,
@@ -20,6 +21,8 @@ import {
   ArrowUp,
   ArrowDown,
   FolderPlus as AddToFolderIcon,
+  Plus,
+  ListPlus,
   Share2,
   Shuffle,
   Sparkles,
@@ -97,6 +100,22 @@ function trackIsLiked(t: Track, userId: string | undefined) {
   return Array.isArray(t.likes) ? t.likes.includes(userId) : false;
 }
 
+function normalizeGenre(g: any) {
+  return String(g || '').trim();
+}
+
+function sortTracks(list: Track[], sort: 'recent' | 'title' | 'plays' | 'duration') {
+  const arr = [...(list || [])];
+  arr.sort((a, b) => {
+    if (sort === 'title') return (a.title || '').localeCompare(b.title || '');
+    if (sort === 'duration') return (b.duration || 0) - (a.duration || 0);
+    if (sort === 'plays') return (b.plays || 0) - (a.plays || 0);
+    // recent
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+  });
+  return arr;
+}
+
 export default function LibraryClient() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -105,13 +124,16 @@ export default function LibraryClient() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
-  const { audioState, setQueueAndPlay, playTrack } = useAudioPlayer();
+  const { audioState, setQueueAndPlay, setQueueOnly, playTrack } = useAudioPlayer();
   const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
   const { incrementPlaysBatch } = useBatchPlaysSystem();
 
   const [tab, setTab] = useState<TabKey>('playlists');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [search, setSearch] = useState('');
+
+  const [trackSort, setTrackSort] = useState<'recent' | 'title' | 'plays' | 'duration'>('recent');
+  const [genreFilter, setGenreFilter] = useState<string | 'all'>('all');
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -309,16 +331,28 @@ export default function LibraryClient() {
   const visibleRecent = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = recentTracks || [];
-    if (!q) return list;
-    return list.filter((t) => (t.title || '').toLowerCase().includes(q) || (t.artist?.name || '').toLowerCase().includes(q));
-  }, [recentTracks, search]);
+    const filtered = list.filter((t) => {
+      const matchesQ = !q || (t.title || '').toLowerCase().includes(q) || (t.artist?.name || '').toLowerCase().includes(q);
+      const matchesGenre =
+        genreFilter === 'all' ||
+        (Array.isArray(t.genre) && t.genre.map(normalizeGenre).filter(Boolean).includes(String(genreFilter)));
+      return matchesQ && matchesGenre;
+    });
+    return sortTracks(filtered, trackSort);
+  }, [genreFilter, recentTracks, search, trackSort]);
 
   const visibleFav = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = favoriteTracks || [];
-    if (!q) return list;
-    return list.filter((t) => (t.title || '').toLowerCase().includes(q) || (t.artist?.name || '').toLowerCase().includes(q));
-  }, [favoriteTracks, search]);
+    const filtered = list.filter((t) => {
+      const matchesQ = !q || (t.title || '').toLowerCase().includes(q) || (t.artist?.name || '').toLowerCase().includes(q);
+      const matchesGenre =
+        genreFilter === 'all' ||
+        (Array.isArray(t.genre) && t.genre.map(normalizeGenre).filter(Boolean).includes(String(genreFilter)));
+      return matchesQ && matchesGenre;
+    });
+    return sortTracks(filtered, trackSort);
+  }, [favoriteTracks, genreFilter, search, trackSort]);
 
   const playTracks = useCallback(
     async (tracks: Track[], index: number, source: string) => {
@@ -402,6 +436,43 @@ export default function LibraryClient() {
       }
     },
     [],
+  );
+
+  const queuePlayNext = useCallback(
+    (t: Track) => {
+      try {
+        if (!t?._id || !t.audioUrl || isDisabledTrackId(t._id)) return;
+        const curIdx = Math.max(0, audioState.currentTrackIndex || 0);
+        const cur = audioState.tracks[curIdx];
+        if (!cur?._id) {
+          setQueueAndPlay([t] as any, 0);
+          return;
+        }
+        const q = [...(audioState.tracks || [])];
+        const existingIdx = q.findIndex((x) => x?._id === t._id);
+        if (existingIdx !== -1) q.splice(existingIdx, 1);
+        const insertAt = Math.min(q.length, curIdx + 1);
+        q.splice(insertAt, 0, t as any);
+        setQueueOnly(q as any, curIdx);
+        notify.success('Ajouté en lecture suivante');
+      } catch {}
+    },
+    [audioState.currentTrackIndex, audioState.tracks, setQueueAndPlay, setQueueOnly],
+  );
+
+  const queueAdd = useCallback(
+    (t: Track) => {
+      try {
+        if (!t?._id || !t.audioUrl || isDisabledTrackId(t._id)) return;
+        const curIdx = Math.max(0, audioState.currentTrackIndex || 0);
+        const q = [...(audioState.tracks || [])];
+        const exists = q.some((x) => x?._id === t._id);
+        if (!exists) q.push(t as any);
+        setQueueOnly(q as any, curIdx);
+        notify.success('Ajouté à la file');
+      } catch {}
+    },
+    [audioState.currentTrackIndex, audioState.tracks, setQueueOnly],
   );
 
   const addTrackToPlaylist = useCallback(
@@ -639,6 +710,64 @@ export default function LibraryClient() {
             Récents
           </TabButton>
         </div>
+
+        {/* Sort / Filter controls (tracks only) */}
+        {tab !== 'playlists' ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-xs text-foreground-tertiary">
+              <Clock3 className="h-4 w-4" />
+              <select
+                value={trackSort}
+                onChange={(e) => setTrackSort(e.target.value as any)}
+                className="bg-transparent outline-none text-foreground-secondary"
+              >
+                <option value="recent">Récent</option>
+                <option value="title">Titre</option>
+                <option value="plays">Écoutes</option>
+                <option value="duration">Durée</option>
+              </select>
+            </div>
+
+            <div className="inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-xs text-foreground-tertiary">
+              <Grid className="h-4 w-4" />
+              <select
+                value={genreFilter}
+                onChange={(e) => setGenreFilter(e.target.value as any)}
+                className="bg-transparent outline-none text-foreground-secondary"
+              >
+                <option value="all">Tous les genres</option>
+                {Array.from(
+                  new Set(
+                    (tab === 'favorites' ? favoriteTracks : recentTracks)
+                      .flatMap((t) => (Array.isArray(t.genre) ? t.genre : []))
+                      .map(normalizeGenre)
+                      .filter(Boolean),
+                  ),
+                )
+                  .sort((a, b) => a.localeCompare(b))
+                  .slice(0, 25)
+                  .map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {(genreFilter !== 'all' || trackSort !== 'recent') ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setGenreFilter('all');
+                  setTrackSort('recent');
+                }}
+                className="h-9 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary"
+              >
+                Réinitialiser
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1103,6 +1232,30 @@ export default function LibraryClient() {
               </div>
 
               <div className="p-3 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    queuePlayNext(activeTrackMenu.track);
+                    setActiveTrackMenu(null);
+                  }}
+                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2"
+                >
+                  <ListPlus className="h-4 w-4" />
+                  Lire ensuite
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    queueAdd(activeTrackMenu.track);
+                    setActiveTrackMenu(null);
+                  }}
+                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Ajouter à la file
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
