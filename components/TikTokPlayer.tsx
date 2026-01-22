@@ -83,17 +83,16 @@ function HeartBurst({ burstKey }: { burstKey: number }) {
   return (
     <AnimatePresence>
       {burstKey > 0 && (
-        <motion.div
-          key={burstKey}
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 0.9 }}
-          exit={{ opacity: 0, y: -40 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 16 }}
-          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[140]"
-        >
-          <div className="h-24 w-24 rounded-full bg-white/10 grid place-items-center border border-white/30">
+        <motion.div key={burstKey} className="pointer-events-none fixed inset-0 z-[140] grid place-items-center">
+          <motion.div
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 0.95 }}
+            exit={{ opacity: 0, scale: 0.92, y: -30 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 18 }}
+            className="h-24 w-24 rounded-full bg-white/10 grid place-items-center border border-white/30"
+          >
             <Heart size={48} fill="currentColor" />
-          </div>
+          </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
@@ -236,6 +235,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
+  const [burstVisible, setBurstVisible] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [coverLoadedById, setCoverLoadedById] = useState<Record<string, boolean>>({});
   const [radioMeta, setRadioMeta] = useState<{ station: 'mixx_party' | 'ximam'; title: string; artist: string } | null>(null);
@@ -248,6 +248,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const lastGesturePlayAtRef = useRef<number>(0);
   const lastTap = useRef(0);
   const tapTimerRef = useRef<number | null>(null);
+  const burstTimerRef = useRef<number | null>(null);
   const lastViewedRef = useRef<string | null>(null);
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
   const openedTrackIdRef = useRef<string | null>(null);
@@ -668,6 +669,22 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     playIndexFromGesture(idx, 'tiktok-player-touchend');
   }, [activeIndex, commentsOpen, currentId, lyricsOpen, playIndexFromGesture, showDownloadDialog, tracks]);
 
+  const triggerLikeBurst = useCallback(() => {
+    if (burstTimerRef.current) window.clearTimeout(burstTimerRef.current);
+    setBurstVisible(true);
+    setBurstKey((k) => k + 1);
+    burstTimerRef.current = window.setTimeout(() => {
+      setBurstVisible(false);
+    }, 450) as unknown as number;
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (burstTimerRef.current) window.clearTimeout(burstTimerRef.current);
+      if (tapTimerRef.current) window.clearTimeout(tapTimerRef.current);
+    };
+  }, []);
+
   const handleCoverTap = useCallback(
     (t: Track) => {
       const id = getTrackId(t);
@@ -684,8 +701,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           try {
             (navigator as any)?.vibrate?.(12);
           } catch {}
+          const willLike = !isLiked;
           toggleLike();
-          setBurstKey((k) => k + 1);
+          if (willLike) triggerLikeBurst();
         }
         return;
       }
@@ -700,7 +718,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         else play();
       }, 260) as unknown as number;
     },
-    [activeTrackId, audioState.isPlaying, currentId, pause, play, playTrack, toggleLike]
+    [activeTrackId, audioState.isPlaying, currentId, isLiked, pause, play, playTrack, toggleLike, triggerLikeBurst]
   );
 
   const onShare = useCallback(async (t: Track) => {
@@ -875,7 +893,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
             </div>
           </div>
 
-          <HeartBurst burstKey={burstKey} />
+          <AnimatePresence>
+            {burstVisible && <HeartBurst burstKey={burstKey} />}
+          </AnimatePresence>
 
           {/* Scroll snap container */}
           <div
@@ -921,8 +941,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                         if (!isThis) return;
                         // desktop double click => like (hors radio)
                         if (isRadio) return;
+                        const willLike = !isLiked;
                         toggleLike();
-                        setBurstKey((k) => k + 1);
+                        if (willLike) triggerLikeBurst();
                       }}
                       className="relative w-[78vw] max-w-[520px] aspect-square rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
                     >
