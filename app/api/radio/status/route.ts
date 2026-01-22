@@ -143,6 +143,26 @@ export async function GET(req: NextRequest) {
         return title.includes(needle) || serverName.includes(needle) || listenurl.includes(needle);
       };
       const source = sources.find(pickByStation) || sources[0];
+
+      // Icecast met souvent "Artist - Title" dans source.title. On normalise ici.
+      const rawTitle = String(source?.title || '').trim();
+      const rawArtist = String(source?.artist || '').trim();
+      let parsedArtist = rawArtist;
+      let parsedTitle = rawTitle;
+      if (!parsedArtist && rawTitle) {
+        const parts =
+          rawTitle.includes(' - ') ? rawTitle.split(' - ') :
+          rawTitle.includes(' — ') ? rawTitle.split(' — ') :
+          rawTitle.includes(' – ') ? rawTitle.split(' – ') :
+          null;
+        if (parts && parts.length >= 2) {
+          parsedArtist = parts[0].trim();
+          parsedTitle = parts.slice(1).join(' - ').trim();
+        }
+      }
+      // Si on n'a toujours rien d'exploitable, fallback propre
+      if (!parsedTitle) parsedTitle = stationCfg.name;
+      if (!parsedArtist) parsedArtist = stationCfg.name;
       
       // Extraire les informations en temps réel
       const radioData = {
@@ -154,8 +174,8 @@ export async function GET(req: NextRequest) {
         
         // Métadonnées de la piste actuelle
         currentTrack: {
-          title: source.title || stationCfg.name,
-          artist: source.artist || 'En boucle continue',
+          title: parsedTitle,
+          artist: parsedArtist,
           genre: source.genre || 'Electronic',
           album: source.album || 'Mixx Party Collection'
         },

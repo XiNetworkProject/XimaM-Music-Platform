@@ -220,13 +220,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     isPlaying: !!audioService.state.isPlaying,
   });
 
-  // Synchronisation de la piste courante optimisée
-  useEffect(() => {
-    if (audioService.state.currentTrack) {
-      const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
-        setAudioState(prev => ({ ...prev, currentTrackIndex: trackIndex }));
-    }
-  }, [audioService.state.currentTrack, audioState.tracks]);
+  // Synchronisation de la piste courante (ne jamais pousser currentTrackIndex à -1)
+  // NOTE: on garde la version plus sûre plus bas (avec guard trackIndex !== -1).
+  // Cet ancien effet pouvait provoquer un clignotement (currentTrack undefined) lors de mises à jour fréquentes (ex: radios).
 
   // Synchronisation des pistes avec le service audio
   useEffect(() => {
