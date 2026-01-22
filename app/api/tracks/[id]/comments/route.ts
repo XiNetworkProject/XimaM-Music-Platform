@@ -146,13 +146,20 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .single();
 
   if (error || !inserted) {
-    const msg = (error as any)?.message || 'Impossible de publier';
+    const errAny = error as any;
+    const msg = errAny?.message || 'Impossible de publier';
     return NextResponse.json(
       {
         error:
           msg.includes('relation') && msg.includes('comments')
             ? 'Table public.comments manquante (exécute le script SQL de commentaires).'
             : msg,
+        supabase: {
+          code: errAny?.code || null,
+          details: errAny?.details || null,
+          hint: errAny?.hint || null,
+          message: errAny?.message || null,
+        },
       },
       { status: 500 },
     );
