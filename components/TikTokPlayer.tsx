@@ -352,7 +352,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         }
       }
       el.scrollTo({ top: getItemTop(best), behavior });
-      return idx;
+      return best;
     },
     [activeIndex, getItemTop, tracks.length],
   );
