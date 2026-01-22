@@ -244,6 +244,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const wheelLockRef = useRef(false);
   const didBootRef = useRef(false);
   const suppressAutoplayRef = useRef(false);
+  const lastGesturePlayAtRef = useRef<number>(0);
   const lastTap = useRef(0);
   const lastViewedRef = useRef<string | null>(null);
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
@@ -261,6 +262,30 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (!el) return;
     el.scrollIntoView({ behavior, block: 'start' });
   }, []);
+
+  const playIndexFromGesture = useCallback(
+    async (i: number, source: string) => {
+      const t = tracks[i];
+      if (!t?._id) return;
+      lastGesturePlayAtRef.current = Date.now();
+      suppressAutoplayRef.current = true; // éviter double-trigger par l'effet
+      setActiveIndex(i);
+      setCurrentTrackIndex(i);
+      try {
+        await playTrack(t as any);
+        if (openedTrackIdRef.current && t._id !== openedTrackIdRef.current) changedTrackRef.current = true;
+        try {
+          sendTrackEvents(t._id, { event_type: 'play_start', source });
+        } catch {}
+      } finally {
+        // relâcher juste après (même si play échoue)
+        requestAnimationFrame(() => {
+          suppressAutoplayRef.current = false;
+        });
+      }
+    },
+    [playTrack, setCurrentTrackIndex, tracks]
+  );
 
   const { isLiked, likesCount, toggleLike, checkLikeStatus } = useLikeSystem({
     trackId: activeTrackId,
@@ -432,6 +457,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   useEffect(() => {
     if (!isOpen) return;
     if (suppressAutoplayRef.current) return;
+    // Si on vient d'un geste (wheel/key/touchend), ne pas doubler
+    if (Date.now() - (lastGesturePlayAtRef.current || 0) < 500) return;
     const t = tracks[activeIndex];
     if (!t?._id) return;
     const timer = window.setTimeout(() => {
@@ -447,7 +474,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           } catch {}
         });
       }
-    }, 140);
+    }, 60);
     return () => window.clearTimeout(timer);
   }, [isOpen, activeIndex, tracks, playTrack, currentId]);
 
@@ -525,12 +552,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       if (next === activeIndex) return;
       wheelLockRef.current = true;
       e.preventDefault();
-      scrollToIndex(next, 'smooth');
+      // Scroll “instant” + play dans le geste (évite autoplay bloqué)
+      scrollToIndex(next, 'auto');
+      playIndexFromGesture(next, 'tiktok-player-wheel');
       window.setTimeout(() => {
         wheelLockRef.current = false;
-      }, 420);
+      }, 220);
     },
-    [activeIndex, tracks.length, scrollToIndex, commentsOpen, showDownloadDialog, lyricsOpen]
+    [activeIndex, tracks.length, scrollToIndex, commentsOpen, showDownloadDialog, lyricsOpen, playIndexFromGesture]
   );
 
   // Keyboard (↑ ↓ + espace + escape)
@@ -543,11 +572,15 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
       if (e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault();
-        scrollToIndex(Math.min(tracks.length - 1, activeIndex + 1));
+        const next = Math.min(tracks.length - 1, activeIndex + 1);
+        scrollToIndex(next, 'auto');
+        playIndexFromGesture(next, 'tiktok-player-key');
       }
       if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
-        scrollToIndex(Math.max(0, activeIndex - 1));
+        const next = Math.max(0, activeIndex - 1);
+        scrollToIndex(next, 'auto');
+        playIndexFromGesture(next, 'tiktok-player-key');
       }
       if (e.key === ' ' || e.key === 'Spacebar') {
         e.preventDefault();
@@ -562,7 +595,25 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, activeIndex, tracks.length, scrollToIndex, audioState.isPlaying, pause, play, close, commentsOpen, showDownloadDialog, lyricsOpen]);
+  }, [isOpen, activeIndex, tracks.length, scrollToIndex, audioState.isPlaying, pause, play, close, commentsOpen, showDownloadDialog, lyricsOpen, playIndexFromGesture]);
+
+  // Mobile: au relâchement du swipe scroll, jouer l'item le plus proche (geste utilisateur => autoplay OK)
+  const onTouchEnd = useCallback(() => {
+    if (commentsOpen || showDownloadDialog || lyricsOpen) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const h = el.clientHeight || window.innerHeight || 1;
+    const idx = clamp(Math.round(el.scrollTop / h), 0, Math.max(0, tracks.length - 1));
+    if (!Number.isFinite(idx)) return;
+    if (idx === activeIndex) {
+      // même écran: si pas la bonne piste, on force dans le gesteAF (geste utilisateur)
+      if (tracks[idx]?._id && currentId !== tracks[idx]._id) {
+        playIndexFromGesture(idx, 'tiktok-player-touchend');
+      }
+      return;
+    }
+    playIndexFromGesture(idx, 'tiktok-player-touchend');
+  }, [activeIndex, commentsOpen, currentId, lyricsOpen, playIndexFromGesture, showDownloadDialog, tracks]);
 
   const onDoubleTap = useCallback(() => {
     const now = Date.now();
@@ -692,6 +743,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           <div
             ref={containerRef}
             onWheel={onWheel}
+            onTouchEnd={onTouchEnd}
             className="h-full w-full overflow-y-auto snap-y snap-mandatory"
             style={{ scrollSnapType: 'y mandatory' }}
           >
