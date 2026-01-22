@@ -111,13 +111,13 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(true)}
-        className={`flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors ${className}`}
+        className={`flex items-center gap-2 px-3 py-2 rounded-full border border-border-secondary bg-background-fog-thin text-foreground-secondary hover:text-foreground-primary hover:bg-overlay-on-primary transition ${className}`}
         title="Gérer les filtres personnalisés"
       >
         <Filter className="w-4 h-4" />
         <span className="text-sm">Filtres</span>
         {filters.length > 0 && (
-          <span className="bg-white text-purple-600 text-xs rounded-full w-5 h-5 flex items-center justify-center">
+          <span className="bg-background-tertiary border border-border-secondary text-foreground-secondary text-xs rounded-full w-5 h-5 flex items-center justify-center">
             {filters.length}
           </span>
         )}
@@ -130,25 +130,25 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[230] p-4"
+            className="fixed inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center z-[230] p-4"
             onClick={() => setIsOpen(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden"
+              className="bg-background-tertiary rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] overflow-hidden border border-border-secondary"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between p-5 border-b border-border-secondary/60">
                 <div className="flex items-center gap-3">
-                  <Shield className="w-6 h-6 text-purple-500" />
-                  <h2 className="text-xl font-semibold">Filtres Personnalisés</h2>
+                  <Shield className="w-6 h-6 text-[var(--accent-brand)]" />
+                  <h2 className="text-lg font-semibold text-foreground-primary">Filtres</h2>
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+                  className="p-2 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -161,10 +161,10 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
                     initial={{ opacity: 0, y: -10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className={`mx-6 mt-4 p-3 rounded-lg flex items-center gap-2 ${
+                    className={`mx-5 mt-4 p-3 rounded-xl border flex items-center gap-2 ${
                       message.type === 'success' 
-                        ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400' 
-                        : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-400'
+                        ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200' 
+                        : 'bg-red-500/10 border-red-500/25 text-red-200'
                     }`}
                   >
                     {message.type === 'success' ? (
@@ -178,15 +178,15 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
               </AnimatePresence>
 
               {/* Contenu */}
-              <div className="p-6 space-y-4">
+              <div className="p-5 space-y-4">
                 {/* Description */}
-                <div className="text-sm text-gray-600 dark:text-gray-400">
+                <div className="text-sm text-foreground-secondary">
                   <p>Ajoutez des mots ou phrases que vous souhaitez filtrer automatiquement dans les commentaires de vos créations.</p>
                 </div>
 
                 {/* Ajout de filtre */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold text-foreground-primary">
                     Ajouter un filtre
                   </label>
                   <div className="flex gap-2">
@@ -195,7 +195,7 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
                       value={newFilter}
                       onChange={(e) => setNewFilter(e.target.value)}
                       placeholder="Mot ou phrase à filtrer..."
-                      className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      className="flex-1 px-3 py-2 border border-border-secondary rounded-xl bg-background-fog-thin text-foreground-primary outline-none focus:border-border-primary"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           addFilter();
@@ -205,7 +205,7 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
                     <button
                       onClick={addFilter}
                       disabled={!newFilter.trim() || isLoading}
-                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                      className="px-4 py-2 rounded-xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center gap-2 text-sm font-semibold"
                     >
                       <Plus className="w-4 h-4" />
                       {isLoading ? '...' : 'Ajouter'}
@@ -215,11 +215,11 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
 
                 {/* Liste des filtres */}
                 <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  <label className="block text-sm font-semibold text-foreground-primary">
                     Filtres actifs ({filters.length})
                   </label>
                   {filters.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <div className="text-center py-8 text-foreground-inactive">
                       <Filter className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       <p>Aucun filtre personnalisé</p>
                       <p className="text-xs">Ajoutez des mots pour commencer à filtrer</p>
@@ -232,16 +232,16 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
                           initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 20 }}
-                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg"
+                          className="flex items-center justify-between p-3 bg-background-fog-thin border border-border-secondary/60 rounded-xl"
                         >
                           <div className="flex items-center gap-2">
-                            <EyeOff className="w-4 h-4 text-gray-500" />
+                            <EyeOff className="w-4 h-4 text-foreground-inactive" />
                             <span className="text-sm font-medium">{filter}</span>
                           </div>
                           <button
                             onClick={() => removeFilter(filter)}
                             disabled={isLoading}
-                            className="p-1 hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 rounded transition-colors"
+                            className="p-1 rounded-lg hover:bg-red-500/10 text-red-300 transition"
                             title="Supprimer ce filtre"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -253,7 +253,7 @@ export default function CreatorFilterManager({ className = '' }: CreatorFilterMa
                 </div>
 
                 {/* Informations */}
-                <div className="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                <div className="text-xs text-foreground-inactive bg-background-fog-thin border border-border-secondary/60 p-3 rounded-xl">
                   <p><strong>Note :</strong> Ces filtres s'appliquent uniquement à vos créations et masquent automatiquement les commentaires contenant ces mots.</p>
                 </div>
               </div>

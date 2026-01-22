@@ -68,7 +68,7 @@ export default function CreatorModerationActions({
         whileTap={{ scale: 0.95 }}
         onClick={() => setIsOpen(!isOpen)}
         disabled={isLoading}
-        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+        className="p-2 rounded-full border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition"
         title="Actions de modération"
       >
         <Crown className="w-4 h-4 text-amber-500" />
@@ -81,7 +81,7 @@ export default function CreatorModerationActions({
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute right-0 top-full mt-2 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50"
+            className="absolute right-0 top-full mt-2 w-72 bg-background-tertiary rounded-2xl shadow-2xl border border-border-secondary z-[240]"
           >
             <div className="p-2 space-y-1">
               {/* Adorer le commentaire */}
@@ -90,12 +90,12 @@ export default function CreatorModerationActions({
                 disabled={isLoading}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
                   isCreatorFavorite
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    ? 'bg-rose-500/10 border border-rose-500/25 text-rose-200'
+                    : 'hover:bg-overlay-on-primary text-foreground-secondary'
                 }`}
               >
                 <Heart className={`w-4 h-4 ${isCreatorFavorite ? 'fill-current' : ''}`} />
-                <span className="text-sm">
+                <span className="text-sm font-medium">
                   {isCreatorFavorite ? 'Retirer l\'adoration' : 'Adorer ce commentaire'}
                 </span>
               </button>
@@ -106,12 +106,12 @@ export default function CreatorModerationActions({
                 disabled={isLoading || isFiltered}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
                   isFiltered
-                    ? 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-600 dark:text-yellow-400'
-                    : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300'
+                    ? 'bg-amber-500/10 border border-amber-500/25 text-amber-200'
+                    : 'hover:bg-overlay-on-primary text-foreground-secondary'
                 }`}
               >
                 <Filter className="w-4 h-4" />
-                <span className="text-sm">
+                <span className="text-sm font-medium">
                   {isFiltered ? 'Commentaire filtré' : 'Filtrer ce commentaire'}
                 </span>
               </button>
@@ -121,10 +121,10 @@ export default function CreatorModerationActions({
                 <button
                   onClick={() => handleAction('unfilter')}
                   disabled={isLoading}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 transition-colors"
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-overlay-on-primary text-foreground-secondary transition"
                 >
                   <Eye className="w-4 h-4" />
-                  <span className="text-sm">Défiltrer ce commentaire</span>
+                  <span className="text-sm font-medium">Défiltrer</span>
                 </button>
               )}
 
@@ -134,12 +134,12 @@ export default function CreatorModerationActions({
                 disabled={isLoading || isDeleted}
                 className={`w-full flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
                   isDeleted
-                    ? 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400'
-                    : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+                    ? 'bg-red-500/10 border border-red-500/25 text-red-200'
+                    : 'hover:bg-red-500/10 text-red-200'
                 }`}
               >
                 <Trash2 className="w-4 h-4" />
-                <span className="text-sm">
+                <span className="text-sm font-medium">
                   {isDeleted ? 'Commentaire supprimé' : 'Supprimer ce commentaire'}
                 </span>
               </button>
@@ -155,33 +155,33 @@ export default function CreatorModerationActions({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[230]"
+            className="fixed inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center z-[230]"
             onClick={() => setShowFilterModal(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4"
+              className="bg-background-tertiary rounded-2xl p-5 w-full max-w-md mx-4 border border-border-secondary shadow-2xl"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-4">
                 <AlertTriangle className="w-5 h-5 text-yellow-500" />
-                <h3 className="text-lg font-semibold">Filtrer le commentaire</h3>
+                <h3 className="text-lg font-semibold text-foreground-primary">Filtrer le commentaire</h3>
               </div>
 
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              <p className="text-sm text-foreground-secondary mb-4">
                 Ce commentaire sera masqué pour tous les utilisateurs. Seuls les créateurs pourront le voir.
               </p>
 
               <div className="space-y-3">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                <label className="block text-sm font-semibold text-foreground-primary">
                   Raison du filtrage
                 </label>
                 <select
                   value={filterReason}
                   onChange={(e) => setFilterReason(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-border-secondary rounded-xl bg-background-fog-thin text-foreground-primary outline-none focus:border-border-primary"
                 >
                   <option value="">Sélectionner une raison</option>
                   <option value="spam">Spam</option>
@@ -206,14 +206,14 @@ export default function CreatorModerationActions({
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => setShowFilterModal(false)}
-                  className="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="flex-1 px-4 py-2 rounded-xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-foreground-secondary"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleFilter}
                   disabled={!filterReason.trim() || isLoading}
-                  className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 px-4 py-2 rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-200 hover:bg-amber-500/15 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
                   {isLoading ? 'Filtrage...' : 'Filtrer'}
                 </button>

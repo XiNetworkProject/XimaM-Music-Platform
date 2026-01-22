@@ -30,16 +30,32 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const creatorId = (track as any).creator_id;
   const isCreator = Boolean(userId && creatorId && userId === creatorId);
 
-  // Comments
-  const { data: commentsRows, error: commentsErr } = await supabaseAdmin
+  // Top-level comments (pagination) + replies for these parents
+  const { data: topRows, error: topErr } = await supabaseAdmin
     .from('comments')
     .select('id, content, created_at, updated_at, user_id, parent_id')
     .eq('track_id', trackId)
+    .is('parent_id', null)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (commentsErr) return NextResponse.json({ comments: [], total: 0, limit, offset, message: 'Système de commentaires non disponible' });
-  const rows = commentsRows || [];
+  if (topErr) return NextResponse.json({ comments: [], total: 0, limit, offset, message: 'Système de commentaires non disponible' });
+  const parents = topRows || [];
+  const parentIds = parents.map((r: any) => r.id);
+
+  let replyRows: any[] = [];
+  if (parentIds.length) {
+    const { data: replies } = await supabaseAdmin
+      .from('comments')
+      .select('id, content, created_at, updated_at, user_id, parent_id')
+      .eq('track_id', trackId)
+      .in('parent_id', parentIds)
+      .order('created_at', { ascending: true })
+      .limit(400);
+    replyRows = replies || [];
+  }
+
+  const rows = [...parents, ...replyRows];
 
   const ids = rows.map((r: any) => r.id);
   const userIds = Array.from(new Set(rows.map((r: any) => r.user_id).filter(Boolean)));
@@ -115,21 +131,37 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     };
   });
 
-  // Public vs creator view filtering (top-level only here)
-  const topLevel = (c: any) => !c.parentId;
-  if (!isCreator || view === 'public') {
-    formatted = formatted.filter((c: any) => topLevel(c) && !c.isDeleted && !c.customFiltered);
-  } else {
-    formatted = formatted.filter((c: any) => topLevel(c));
-    if (!includeDeleted) formatted = formatted.filter((c: any) => !c.isDeleted);
-    if (!includeFiltered) formatted = formatted.filter((c: any) => !c.customFiltered);
+  // Build tree: attach replies + apply view filtering
+  const isVisible = (c: any) => {
+    if (!isCreator || view === 'public') return !c.isDeleted && !c.customFiltered;
+    if (!includeDeleted && c.isDeleted) return false;
+    if (!includeFiltered && c.customFiltered) return false;
+    return true;
+  };
+
+  const byParent = new Map<string, any[]>();
+  for (const c of formatted) {
+    if (c.parentId) {
+      const pid = String(c.parentId);
+      byParent.set(pid, [...(byParent.get(pid) || []), c]);
+    }
   }
+
+  let topLevel = formatted.filter((c: any) => !c.parentId);
+  topLevel = topLevel.filter(isVisible);
+  topLevel = topLevel.map((c: any) => {
+    const replies = (byParent.get(String(c.id)) || []).filter(isVisible);
+    return { ...c, replies };
+  });
+  formatted = topLevel;
 
   const response: any = {
     comments: formatted,
     total: formatted.length,
     limit,
     offset,
+    hasMore: parents.length === limit,
+    nextOffset: offset + limit,
     permissions: {
       canModerate: isCreator,
       canDelete: isCreator,

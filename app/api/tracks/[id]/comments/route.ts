@@ -19,23 +19,39 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
   const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
 
-  // Récupérer commentaires + replies (on ramène tout puis on reconstruit)
-  const { data: rows, error } = await supabaseAdmin
+  // Top-level only (pagination), puis replies pour ces parents
+  const { data: topRows, error: topErr } = await supabaseAdmin
     .from('comments')
     .select('id, content, created_at, updated_at, user_id, track_id, parent_id')
     .eq('track_id', trackId)
+    .is('parent_id', null)
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
-  if (error) return NextResponse.json({ comments: [] });
+  if (topErr) return NextResponse.json({ comments: [] });
 
-  const comments = rows || [];
-  const userIds = Array.from(new Set(comments.map((c: any) => c.user_id).filter(Boolean)));
+  const parents = topRows || [];
+  const parentIds = parents.map((c: any) => c.id);
+
+  let replyRows: any[] = [];
+  if (parentIds.length) {
+    const { data: replies } = await supabaseAdmin
+      .from('comments')
+      .select('id, content, created_at, updated_at, user_id, track_id, parent_id')
+      .eq('track_id', trackId)
+      .in('parent_id', parentIds)
+      .order('created_at', { ascending: true })
+      .limit(300);
+    replyRows = replies || [];
+  }
+
+  const all = [...parents, ...replyRows];
+  const userIds = Array.from(new Set(all.map((c: any) => c.user_id).filter(Boolean)));
   const { data: users } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
   const usersMap = new Map((users || []).map((u: any) => [u.id, u]));
 
   // Likes (best-effort)
-  const ids = comments.map((c: any) => c.id);
+  const ids = all.map((c: any) => c.id);
   let likesCountMap = new Map<string, number>();
   let likedByUser = new Set<string>();
   try {
@@ -52,29 +68,55 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // table absente: on laisse à 0
   }
 
-  const formatted = comments
-    .filter((c: any) => !c.parent_id) // top-level only for this endpoint
-    .map((c: any) => {
-      const u = usersMap.get(c.user_id);
-      return {
-        id: c.id,
-        content: c.content,
-        createdAt: c.created_at,
-        updatedAt: c.updated_at,
-        likes: [],
-        likesCount: likesCountMap.get(c.id) || 0,
-        isLiked: likedByUser.has(c.id),
-        user: {
-          id: c.user_id,
-          username: u?.username || 'Utilisateur',
-          name: u?.name || u?.username || 'Utilisateur',
-          avatar: u?.avatar || '',
-        },
-        replies: [],
-      };
-    });
+  const replyMap = new Map<string, any[]>();
+  for (const r of replyRows) {
+    const pid = String(r.parent_id || '');
+    if (!pid) continue;
+    const u = usersMap.get(r.user_id);
+    const formattedReply = {
+      id: r.id,
+      content: r.content,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at,
+      likes: [],
+      likesCount: likesCountMap.get(r.id) || 0,
+      isLiked: likedByUser.has(r.id),
+      user: {
+        id: r.user_id,
+        username: u?.username || 'Utilisateur',
+        name: u?.name || u?.username || 'Utilisateur',
+        avatar: u?.avatar || '',
+      },
+      replies: [],
+    };
+    replyMap.set(pid, [...(replyMap.get(pid) || []), formattedReply]);
+  }
 
-  return NextResponse.json({ comments: formatted });
+  const formatted = parents.map((c: any) => {
+    const u = usersMap.get(c.user_id);
+    return {
+      id: c.id,
+      content: c.content,
+      createdAt: c.created_at,
+      updatedAt: c.updated_at,
+      likes: [],
+      likesCount: likesCountMap.get(c.id) || 0,
+      isLiked: likedByUser.has(c.id),
+      user: {
+        id: c.user_id,
+        username: u?.username || 'Utilisateur',
+        name: u?.name || u?.username || 'Utilisateur',
+        avatar: u?.avatar || '',
+      },
+      replies: replyMap.get(String(c.id)) || [],
+    };
+  });
+
+  return NextResponse.json({
+    comments: formatted,
+    hasMore: parents.length === limit,
+    nextOffset: offset + limit,
+  });
 }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
