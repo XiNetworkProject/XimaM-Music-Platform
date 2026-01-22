@@ -22,6 +22,28 @@ alter table public.comments add column if not exists parent_id uuid;
 alter table public.comments add column if not exists created_at timestamptz;
 alter table public.comments add column if not exists updated_at timestamptz;
 
+-- If an older schema used a NOT NULL column named "text", rename it to "content"
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'comments'
+      and column_name = 'text'
+  ) and not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'comments'
+      and column_name = 'content'
+  ) then
+    alter table public.comments rename column "text" to content;
+  end if;
+exception when others then
+  null;
+end $$;
+
 -- Ensure track_id is TEXT (many tracks ids are like "track_..." and are not UUIDs)
 do $$
 begin

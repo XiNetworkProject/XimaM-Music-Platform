@@ -149,11 +149,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     if (error || !inserted) {
       const errAny = error as any;
       const msg = errAny?.message || 'Impossible de publier';
+      const isMissingCommentsTable =
+        (msg.includes('relation') && msg.includes('comments') && msg.includes('does not exist')) ||
+        (msg.includes('relation') && msg.includes('public.comments') && msg.includes('does not exist'));
+
       const normalized =
-        msg.includes('relation') && msg.includes('comments')
+        isMissingCommentsTable
           ? 'Table public.comments manquante (exécute le script SQL de commentaires).'
           : msg.includes('invalid input syntax for type uuid')
             ? 'Schéma DB incompatible: comments.track_id est en UUID mais tes tracks id sont en texte (track_...). Rejoue le script SQL (version track_id TEXT) puis reload schema.'
+            : msg.includes('null value in column') && msg.includes('relation "comments"') && msg.includes('column "text"')
+              ? 'Schéma DB incompatible: la table comments utilise une colonne NOT NULL nommée "text" au lieu de "content". Rejoue le script SQL (migration rename text→content) puis reload schema.'
             : msg;
 
       return NextResponse.json(
