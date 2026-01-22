@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -16,9 +16,14 @@ import {
   Pause,
   Play,
   Search,
+  ArrowUp,
+  ArrowDown,
+  FolderPlus as AddToFolderIcon,
+  Share2,
   Shuffle,
   Sparkles,
   Trash2,
+  X,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -96,7 +101,7 @@ export default function LibraryClient() {
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id as string | undefined;
 
-  const { audioState, setQueueAndPlay } = useAudioPlayer();
+  const { audioState, setQueueAndPlay, playTrack } = useAudioPlayer();
   const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
   const { incrementPlaysBatch } = useBatchPlaysSystem();
 
@@ -124,6 +129,24 @@ export default function LibraryClient() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [newPl, setNewPl] = useState({ name: '', description: '', isPublic: true });
+
+  const [activeTrackMenu, setActiveTrackMenu] = useState<{
+    track: Track;
+    context: 'playlist' | 'favorites' | 'recent';
+    playlistId?: string;
+    index?: number;
+    listIds?: string[];
+  } | null>(null);
+  const [showAddToPlaylistFor, setShowAddToPlaylistFor] = useState<Track | null>(null);
+  const [addingToPlaylistId, setAddingToPlaylistId] = useState<string | null>(null);
+
+  const [showEditPlaylist, setShowEditPlaylist] = useState(false);
+  const [editPl, setEditPl] = useState<{ name: string; description: string; isPublic: boolean }>({
+    name: '',
+    description: '',
+    isPublic: true,
+  });
+  const [savingPlaylist, setSavingPlaylist] = useState(false);
 
   const isPlayingId = audioState.tracks[audioState.currentTrackIndex]?._id;
   const isPlaying = audioState.isPlaying;
@@ -283,30 +306,195 @@ export default function LibraryClient() {
     const q = search.trim().toLowerCase();
     const list = recentTracks || [];
     if (!q) return list;
-    return list.filter((t) => t.title.toLowerCase().includes(q) || t.artist?.name?.toLowerCase().includes(q));
+    return list.filter((t) => (t.title || '').toLowerCase().includes(q) || (t.artist?.name || '').toLowerCase().includes(q));
   }, [recentTracks, search]);
 
   const visibleFav = useMemo(() => {
     const q = search.trim().toLowerCase();
     const list = favoriteTracks || [];
     if (!q) return list;
-    return list.filter((t) => t.title.toLowerCase().includes(q) || t.artist?.name?.toLowerCase().includes(q));
+    return list.filter((t) => (t.title || '').toLowerCase().includes(q) || (t.artist?.name || '').toLowerCase().includes(q));
   }, [favoriteTracks, search]);
 
   const playTracks = useCallback(
     async (tracks: Track[], index: number, source: string) => {
       const list = (tracks || []).filter((t) => t && t._id && t.audioUrl && !isDisabledTrackId(t._id));
       if (!list.length) return;
+      const clamped = Math.min(Math.max(0, index), list.length - 1);
+      const target = list[clamped];
+
+      const sameQueue =
+        audioState.tracks.length === list.length &&
+        audioState.tracks.every((t, i) => t?._id && list[i]?._id && t._id === list[i]._id);
+
       try {
-        setQueueAndPlay(list as any, Math.min(Math.max(0, index), list.length - 1));
-        const current = list[Math.min(Math.max(0, index), list.length - 1)];
-        if (current?._id) incrementPlaysBatch(current._id, current.plays || 0).catch(() => null);
+        const currentId = audioState.tracks[audioState.currentTrackIndex]?._id;
+        if (currentId && currentId === target._id) {
+          // Toggle play/pause sur la piste courante
+          await playTrack(target._id);
+          return;
+        }
+
+        if (sameQueue) {
+          await playTrack(target._id); // switch dans la queue courante
+        } else {
+          setQueueAndPlay(list as any, clamped); // remplace la queue (cas normal)
+        }
+
+        // Incrémenter les écoutes (best-effort)
+        if (target?._id) incrementPlaysBatch(target._id, target.plays || 0).catch(() => null);
       } catch {
         notify.error('Lecture', 'Impossible de lancer la lecture');
       }
     },
-    [incrementPlaysBatch, setQueueAndPlay],
+    [audioState.currentTrackIndex, audioState.isPlaying, audioState.tracks, incrementPlaysBatch, playTrack, setQueueAndPlay],
   );
+
+  // Keep edit form in sync when a playlist is loaded/opened
+  useEffect(() => {
+    if (!selectedPlaylist) return;
+    setEditPl({
+      name: selectedPlaylist.name || '',
+      description: selectedPlaylist.description || '',
+      isPublic: Boolean(selectedPlaylist.isPublic),
+    });
+  }, [selectedPlaylist]);
+
+  const shareTrack = useCallback(async (t: Track) => {
+    try {
+      const url = `${window.location.origin}/track/${encodeURIComponent(t._id)}?autoplay=1`;
+      const text = `Écoute "${t.title}" sur Synaura`;
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: t.title, text, url });
+      } else {
+        await navigator.clipboard.writeText(`${text} — ${url}`);
+        notify.success('Lien copié');
+      }
+    } catch {
+      // silent
+    }
+  }, []);
+
+  const removeFromPlaylist = useCallback(
+    async (playlistId: string, trackId: string) => {
+      try {
+        const res = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/tracks?trackId=${encodeURIComponent(trackId)}`, {
+          method: 'DELETE',
+        });
+        const json = await safeJson(res);
+        if (!res.ok) throw new Error(json?.error || 'Erreur');
+        setSelectedPlaylist((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            tracks: (prev.tracks || []).filter((t) => t._id !== trackId),
+            trackCount: Math.max(0, (prev.trackCount || (prev.tracks || []).length) - 1),
+          };
+        });
+        setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, trackCount: Math.max(0, (p.trackCount || 0) - 1) } : p)));
+        notify.success('Retiré du dossier');
+      } catch (e: any) {
+        notify.error('Bibliothèque', e?.message || 'Erreur');
+      }
+    },
+    [],
+  );
+
+  const addTrackToPlaylist = useCallback(
+    async (playlistId: string, trackId: string) => {
+      setAddingToPlaylistId(playlistId);
+      try {
+        const res = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/tracks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trackId }),
+        });
+        const json = await safeJson(res);
+        if (!res.ok) throw new Error(json?.error || 'Erreur');
+        notify.success('Ajouté au dossier');
+        setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, trackCount: (p.trackCount || 0) + 1 } : p)));
+        setShowAddToPlaylistFor(null);
+      } catch (e: any) {
+        notify.error('Bibliothèque', e?.message || 'Erreur');
+      } finally {
+        setAddingToPlaylistId(null);
+      }
+    },
+    [],
+  );
+
+  const openEditPlaylist = useCallback((p: Playlist) => {
+    setEditPl({ name: p.name || '', description: p.description || '', isPublic: Boolean(p.isPublic) });
+    setShowEditPlaylist(true);
+  }, []);
+
+  const saveEditPlaylist = useCallback(async () => {
+    if (!selectedPlaylistId) return;
+    setSavingPlaylist(true);
+    try {
+      const res = await fetch(`/api/playlists/${encodeURIComponent(selectedPlaylistId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...editPl }),
+      });
+      const json = await safeJson(res);
+      if (!res.ok) throw new Error(json?.error || 'Erreur');
+      setPlaylists((prev) =>
+        prev.map((p) => (p._id === selectedPlaylistId ? { ...p, name: editPl.name, description: editPl.description, isPublic: editPl.isPublic } : p)),
+      );
+      setSelectedPlaylist((prev) => (prev ? { ...prev, name: editPl.name, description: editPl.description, isPublic: editPl.isPublic } : prev));
+      setShowEditPlaylist(false);
+      notify.success('Dossier mis à jour');
+    } catch (e: any) {
+      notify.error('Bibliothèque', e?.message || 'Erreur');
+    } finally {
+      setSavingPlaylist(false);
+    }
+  }, [editPl, selectedPlaylistId]);
+
+  const togglePlaylistVisibility = useCallback(async (playlistId: string, nextPublic: boolean) => {
+    try {
+      const res = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: nextPublic }),
+      });
+      const json = await safeJson(res);
+      if (!res.ok) throw new Error(json?.error || 'Erreur');
+      setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, isPublic: nextPublic } : p)));
+      setSelectedPlaylist((prev) => (prev ? { ...prev, isPublic: nextPublic } : prev));
+      notify.success(nextPublic ? 'Dossier rendu public' : 'Dossier rendu privé');
+    } catch (e: any) {
+      notify.error('Bibliothèque', e?.message || 'Erreur');
+    }
+  }, []);
+
+  const setPlaylistCoverFromTrack = useCallback(async (playlistId: string, coverUrl?: string) => {
+    if (!coverUrl) return;
+    try {
+      const res = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coverUrl }),
+      });
+      const json = await safeJson(res);
+      if (!res.ok) throw new Error(json?.error || 'Erreur');
+      setPlaylists((prev) => prev.map((p) => (p._id === playlistId ? { ...p, coverUrl } : p)));
+      setSelectedPlaylist((prev) => (prev ? { ...prev, coverUrl } : prev));
+      notify.success('Cover mise à jour');
+    } catch (e: any) {
+      notify.error('Bibliothèque', e?.message || 'Erreur');
+    }
+  }, []);
+
+  const reorderInPlaylist = useCallback(async (playlistId: string, orderedIds: string[]) => {
+    if (!orderedIds.length) return;
+    await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/reorder`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderedTrackIds: orderedIds }),
+    }).catch(() => null);
+  }, []);
 
   const toggleLike = useCallback(
     async (t: Track) => {
@@ -416,28 +604,36 @@ export default function LibraryClient() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col sm:flex-row gap-3 sm:items-center">
+        <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-inactive" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un dossier ou une piste…"
-              className="w-full h-11 pl-10 pr-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
+              className="w-full h-11 pl-10 pr-10 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
             />
+            {search.trim() ? (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition grid place-items-center"
+                aria-label="Effacer la recherche"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            ) : null}
           </div>
 
-          <div className="flex items-center gap-2">
-            <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
-              Dossiers
-            </TabButton>
-            <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
-              Favoris
-            </TabButton>
-            <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
-              Récents
-            </TabButton>
-          </div>
+          <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
+            Dossiers
+          </TabButton>
+          <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
+            Favoris
+          </TabButton>
+          <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
+            Récents
+          </TabButton>
         </div>
       </div>
     </div>
@@ -569,6 +765,14 @@ export default function LibraryClient() {
                     >
                       <Trash2 className="h-4 w-4 text-red-300" />
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditPlaylist(selectedPlaylist)}
+                      className="h-11 w-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                      aria-label="Options du dossier"
+                    >
+                      <MoreVertical className="h-4 w-4 text-foreground-tertiary" />
+                    </button>
                   </div>
                 </div>
               </div>
@@ -594,6 +798,15 @@ export default function LibraryClient() {
                       onToggleLike={() => toggleLike(t)}
                       likeLoading={isBatchLoading(t._id)}
                       liked={trackIsLiked(t, userId)}
+                      onMore={() =>
+                        setActiveTrackMenu({
+                          track: t,
+                          context: 'playlist',
+                          playlistId: selectedPlaylist._id,
+                          index: idx,
+                          listIds: (selectedPlaylist.tracks || []).map((x) => x._id),
+                        })
+                      }
                     />
                   ))}
                 </div>
@@ -696,6 +909,7 @@ export default function LibraryClient() {
                           onToggleLike={() => toggleLike(t)}
                           likeLoading={isBatchLoading(t._id)}
                           liked={trackIsLiked(t, userId)}
+                          onMore={() => setActiveTrackMenu({ track: t, context: 'favorites' })}
                         />
                       ))}
                       <div ref={favSentinelRef} className="h-10" />
@@ -745,6 +959,7 @@ export default function LibraryClient() {
                           onToggleLike={() => toggleLike(t)}
                           likeLoading={isBatchLoading(t._id)}
                           liked={trackIsLiked(t, userId)}
+                          onMore={() => setActiveTrackMenu({ track: t, context: 'recent' })}
                         />
                       ))}
                       <div ref={recentSentinelRef} className="h-10" />
@@ -845,6 +1060,323 @@ export default function LibraryClient() {
                   className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition disabled:opacity-50"
                 >
                   {creating ? 'Création…' : 'Créer'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Track actions sheet */}
+      <AnimatePresence>
+        {activeTrackMenu ? (
+          <motion.div
+            className="fixed inset-0 z-[230] bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setActiveTrackMenu(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 22 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-x-0 bottom-0 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[460px] w-full rounded-t-3xl sm:rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            >
+              <div className="p-4 border-b border-border-secondary/60">
+                <div className="text-sm font-semibold text-foreground-primary truncate">{activeTrackMenu.track.title}</div>
+                <div className="mt-0.5 text-xs text-foreground-tertiary truncate">{activeTrackMenu.track.artist?.name}</div>
+              </div>
+
+              <div className="p-3 space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddToPlaylistFor(activeTrackMenu.track);
+                    setActiveTrackMenu(null);
+                  }}
+                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2"
+                >
+                  <AddToFolderIcon className="h-4 w-4" />
+                  Ajouter à un dossier
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    shareTrack(activeTrackMenu.track);
+                    setActiveTrackMenu(null);
+                  }}
+                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Partager
+                </button>
+
+                {activeTrackMenu.context === 'playlist' && activeTrackMenu.playlistId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      removeFromPlaylist(activeTrackMenu.playlistId!, activeTrackMenu.track._id);
+                      setActiveTrackMenu(null);
+                    }}
+                    className="w-full h-11 rounded-2xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/15 transition text-red-200 flex items-center justify-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Retirer du dossier
+                  </button>
+                ) : null}
+
+                {activeTrackMenu.context === 'playlist' && activeTrackMenu.playlistId && typeof activeTrackMenu.index === 'number' && Array.isArray(activeTrackMenu.listIds) ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      disabled={activeTrackMenu.index <= 0}
+                      onClick={() => {
+                        const ids = activeTrackMenu.listIds!.slice();
+                        const i = activeTrackMenu.index!;
+                        if (i <= 0) return;
+                        [ids[i - 1], ids[i]] = [ids[i], ids[i - 1]];
+                        setSelectedPlaylist((prev) => {
+                          if (!prev) return prev;
+                          const map = new Map((prev.tracks || []).map((t) => [t._id, t]));
+                          return { ...prev, tracks: ids.map((id) => map.get(id)!).filter(Boolean) };
+                        });
+                        reorderInPlaylist(activeTrackMenu.playlistId!, ids);
+                        setActiveTrackMenu((prev) => (prev ? { ...prev, index: i - 1, listIds: ids } : prev));
+                      }}
+                      className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                      Monter
+                    </button>
+                    <button
+                      type="button"
+                      disabled={activeTrackMenu.index >= (activeTrackMenu.listIds.length - 1)}
+                      onClick={() => {
+                        const ids = activeTrackMenu.listIds!.slice();
+                        const i = activeTrackMenu.index!;
+                        if (i >= ids.length - 1) return;
+                        [ids[i + 1], ids[i]] = [ids[i], ids[i + 1]];
+                        setSelectedPlaylist((prev) => {
+                          if (!prev) return prev;
+                          const map = new Map((prev.tracks || []).map((t) => [t._id, t]));
+                          return { ...prev, tracks: ids.map((id) => map.get(id)!).filter(Boolean) };
+                        });
+                        reorderInPlaylist(activeTrackMenu.playlistId!, ids);
+                        setActiveTrackMenu((prev) => (prev ? { ...prev, index: i + 1, listIds: ids } : prev));
+                      }}
+                      className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                      Descendre
+                    </button>
+                  </div>
+                ) : null}
+
+                {activeTrackMenu.context === 'playlist' && activeTrackMenu.playlistId ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPlaylistCoverFromTrack(activeTrackMenu.playlistId!, activeTrackMenu.track.coverUrl);
+                      setActiveTrackMenu(null);
+                    }}
+                    className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition flex items-center justify-center gap-2"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    Définir comme cover du dossier
+                  </button>
+                ) : null}
+              </div>
+
+              <div className="p-3 border-t border-border-secondary/60">
+                <button
+                  type="button"
+                  onClick={() => setActiveTrackMenu(null)}
+                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Add to playlist modal */}
+      <AnimatePresence>
+        {showAddToPlaylistFor ? (
+          <motion.div
+            className="fixed inset-0 z-[240] bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowAddToPlaylistFor(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 22 }}
+              transition={{ duration: 0.18 }}
+              className="absolute inset-x-0 bottom-0 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[520px] w-full rounded-t-3xl sm:rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            >
+              <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-foreground-primary">Ajouter à un dossier</div>
+                  <div className="text-xs text-foreground-tertiary truncate">{showAddToPlaylistFor.title}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddToPlaylistFor(null)}
+                  className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-3 space-y-2 max-h-[60vh] overflow-y-auto">
+                {visiblePlaylists.length ? (
+                  visiblePlaylists.map((p) => (
+                    <button
+                      key={p._id}
+                      type="button"
+                      disabled={addingToPlaylistId === p._id}
+                      onClick={() => addTrackToPlaylist(p._id, showAddToPlaylistFor._id)}
+                      className="w-full text-left rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition px-3 py-3 disabled:opacity-50"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate">{p.name}</div>
+                          <div className="text-xs text-foreground-tertiary truncate">
+                            {p.trackCount || 0} piste{(p.trackCount || 0) > 1 ? 's' : ''} • {p.isPublic ? 'Public' : 'Privé'}
+                          </div>
+                        </div>
+                        <div className="text-xs text-foreground-tertiary">{addingToPlaylistId === p._id ? 'Ajout…' : 'Ajouter'}</div>
+                      </div>
+                    </button>
+                  ))
+                ) : (
+                  <div className="p-6 text-center text-sm text-foreground-secondary">Aucun dossier disponible.</div>
+                )}
+              </div>
+
+              <div className="p-3 border-t border-border-secondary/60 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowAddToPlaylistFor(null); setShowCreate(true); }}
+                  className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                >
+                  Nouveau dossier
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAddToPlaylistFor(null)}
+                  className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition"
+                >
+                  OK
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Edit playlist modal */}
+      <AnimatePresence>
+        {showEditPlaylist && selectedPlaylist ? (
+          <motion.div
+            className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowEditPlaylist(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 22 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 22 }}
+              transition={{ duration: 0.18 }}
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
+                <div className="text-sm font-semibold text-foreground-primary">Options du dossier</div>
+                <button
+                  type="button"
+                  onClick={() => setShowEditPlaylist(false)}
+                  className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3">
+                <div>
+                  <div className="text-xs text-foreground-tertiary mb-1">Nom</div>
+                  <input
+                    value={editPl.name}
+                    onChange={(e) => setEditPl((p) => ({ ...p, name: e.target.value }))}
+                    className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 text-sm outline-none"
+                  />
+                </div>
+                <div>
+                  <div className="text-xs text-foreground-tertiary mb-1">Description</div>
+                  <textarea
+                    value={editPl.description}
+                    onChange={(e) => setEditPl((p) => ({ ...p, description: e.target.value }))}
+                    className="w-full min-h-[88px] rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none resize-none"
+                    maxLength={240}
+                  />
+                </div>
+                <div className="flex items-center justify-between rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-3">
+                  <div className="text-sm text-foreground-secondary">Dossier public</div>
+                  <button
+                    type="button"
+                    onClick={() => setEditPl((p) => ({ ...p, isPublic: !p.isPublic }))}
+                    className={cx(
+                      'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                      editPl.isPublic ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
+                    )}
+                    aria-label="Toggle public"
+                  >
+                    <span
+                      className={cx(
+                        'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                        editPl.isPublic ? 'left-6' : 'left-1',
+                      )}
+                    />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => togglePlaylistVisibility(selectedPlaylist._id, !selectedPlaylist.isPublic)}
+                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                >
+                  {selectedPlaylist.isPublic ? 'Rendre privé' : 'Rendre public'}
+                </button>
+              </div>
+
+              <div className="p-4 border-t border-border-secondary/60 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditPlaylist(false)}
+                  className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={savingPlaylist || !editPl.name.trim()}
+                  onClick={saveEditPlaylist}
+                  className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition disabled:opacity-50"
+                >
+                  {savingPlaylist ? 'Sauvegarde…' : 'Enregistrer'}
                 </button>
               </div>
             </motion.div>
@@ -1004,6 +1536,7 @@ function TrackRow({
   onToggleLike,
   likeLoading,
   liked,
+  onMore,
 }: {
   track: Track;
   index: number;
@@ -1014,6 +1547,7 @@ function TrackRow({
   onToggleLike: () => void;
   likeLoading: boolean;
   liked: boolean;
+  onMore?: () => void;
 }) {
   const cover = track.coverUrl || '/default-cover.jpg';
   return (
@@ -1060,7 +1594,7 @@ function TrackRow({
         type="button"
         className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
         aria-label="Plus"
-        onClick={() => {}}
+        onClick={onMore}
       >
         <MoreVertical className="h-4 w-4 text-foreground-tertiary" />
       </button>
