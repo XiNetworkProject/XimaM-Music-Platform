@@ -215,6 +215,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     audioState,
     setTracks,
     setCurrentTrackIndex,
+    setQueueAndPlay,
     playTrack,
     play,
     pause,
@@ -433,6 +434,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
         setActiveIndex(startIndex);
         setCurrentTrackIndex(startIndex);
+        // IMPORTANT: définir une vraie queue côté service audio pour éviter l'auto-play "random"
+        // (sinon, à la fin de piste, useAudioService peut piocher dans allTracks).
+        try {
+          setQueueAndPlay(merged as any, startIndex);
+        } catch {}
         requestAnimationFrame(() => {
           scrollToIndex(startIndex, 'auto');
           suppressAutoplayRef.current = false;
@@ -805,28 +811,18 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     };
   }, [activeIndex, isOpen, tracks]);
 
-  // Auto-next quand la piste se termine (TikTok-like)
-  // On se base sur l'event natif "ended" de l'élément audio du provider.
+  // Suivre la piste réellement jouée (service audio) et synchroniser le scroll.
+  // Ça permet aussi l'auto-next (géré par useAudioService) sans piste "random" et sans double-handlers.
   useEffect(() => {
     if (!isOpen) return;
-    const a = getAudioElement();
-    if (!a) return;
-
-    const onEnded = () => {
-      // Si un modal est ouvert, ne pas auto-avancer
-      if (commentsOpen || showDownloadDialog || lyricsOpen) return;
-      const next = Math.min(tracks.length - 1, activeIndex + 1);
-      if (next === activeIndex) return;
-      // Scroll + play dans un frame (évite flicker)
-      requestAnimationFrame(() => {
-        scrollToIndex(next, 'auto');
-        playIndexFromGesture(next, 'tiktok-player-ended');
-      });
-    };
-
-    a.addEventListener('ended', onEnded);
-    return () => a.removeEventListener('ended', onEnded);
-  }, [activeIndex, commentsOpen, getAudioElement, isOpen, lyricsOpen, playIndexFromGesture, scrollToIndex, showDownloadDialog, tracks.length]);
+    if (!tracks.length) return;
+    if (commentsOpen || showDownloadDialog || lyricsOpen) return;
+    const idx = audioState.currentTrackIndex;
+    if (!Number.isFinite(idx) || idx < 0) return;
+    if (idx === activeIndex) return;
+    setActiveIndex(idx);
+    requestAnimationFrame(() => scrollToIndex(idx, 'auto'));
+  }, [activeIndex, audioState.currentTrackIndex, commentsOpen, isOpen, lyricsOpen, scrollToIndex, showDownloadDialog, tracks.length]);
 
   if (loading) {
     return (
