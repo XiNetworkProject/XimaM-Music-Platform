@@ -1167,12 +1167,34 @@ export const useAudioService = () => {
 
     // Si on a une queue explicite (album/playlist), avancer si possible; sinon tomber en auto‑play global
     if (queue.length > 1) {
-      const isLastInQueue = currentIndex >= queue.length - 1;
-      if (!isLastInQueue || repeat === 'all') {
+      const effectiveQueue = shuffle && shuffledQueue.length ? shuffledQueue : queue;
+      const curId = state.currentTrack?._id || null;
+      const idxInQueue = curId ? effectiveQueue.findIndex((t) => t?._id === curId) : -1;
+
+      if (idxInQueue !== -1) {
+        const isLast = idxInQueue >= effectiveQueue.length - 1;
+        if (!isLast) {
+          const next = effectiveQueue[idxInQueue + 1];
+          if (next) {
+            setCurrentIndex(idxInQueue + 1);
+            loadTrack(next).then(() => play()).catch(() => {});
+            return;
+          }
+        }
+        if (isLast && repeat === 'all') {
+          const next = effectiveQueue[0];
+          if (next) {
+            setCurrentIndex(0);
+            loadTrack(next).then(() => play()).catch(() => {});
+            return;
+          }
+        }
+        // Fin de queue sans repeat: continuer vers auto‑play global ci‑dessous
+      } else {
+        // Piste courante pas trouvée dans la queue: fallback vers nextTrack (best-effort)
         nextTrack();
         return;
       }
-      // Fin de queue sans repeat: continuer vers auto‑play global ci‑dessous
     }
 
     {
@@ -1311,7 +1333,22 @@ export const useAudioService = () => {
         setState(prev => ({ ...prev, isPlaying: false }));
       }
     }
-  }, [repeat, queue.length, allTracks.length, state.currentTrack, session, allTracks, loadAllTracks, loadTrack, play, updatePlayCount, nextTrack]);
+  }, [
+    repeat,
+    queue,
+    shuffledQueue,
+    shuffle,
+    currentIndex,
+    allTracks.length,
+    state.currentTrack,
+    session,
+    allTracks,
+    loadAllTracks,
+    loadTrack,
+    play,
+    updatePlayCount,
+    nextTrack,
+  ]);
 
   // Watchdog: vérifier périodiquement que l'audio fonctionne
   useEffect(() => {
