@@ -1067,7 +1067,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   </div>
 
                   {/* Right actions */}
-                  <aside className="absolute right-3 bottom-28 z-20 flex flex-col items-center gap-3">
+                  <aside
+                    className="absolute right-3 z-20 flex flex-col items-center gap-3"
+                    style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 8.5rem)' }}
+                  >
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
