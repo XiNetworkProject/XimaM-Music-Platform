@@ -238,6 +238,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [burstKey, setBurstKey] = useState(0);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [coverLoadedById, setCoverLoadedById] = useState<Record<string, boolean>>({});
+  const [radioMeta, setRadioMeta] = useState<{ station: 'mixx_party' | 'ximam'; title: string; artist: string } | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -246,6 +247,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const suppressAutoplayRef = useRef(false);
   const lastGesturePlayAtRef = useRef<number>(0);
   const lastTap = useRef(0);
+  const tapTimerRef = useRef<number | null>(null);
   const lastViewedRef = useRef<string | null>(null);
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
   const openedTrackIdRef = useRef<string | null>(null);
@@ -259,6 +261,12 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   const activeTrack = tracks[activeIndex] || null;
   const activeTrackId = getTrackId(activeTrack);
+  const activeIsRadio = useMemo(() => String(activeTrackId || '').startsWith('radio-'), [activeTrackId]);
+  const activeRadioStation = useMemo<'mixx_party' | 'ximam' | null>(() => {
+    if (activeTrackId === 'radio-ximam') return 'ximam';
+    if (activeTrackId === 'radio-mixx-party') return 'mixx_party';
+    return null;
+  }, [activeTrackId]);
 
   const scrollToIndex = useCallback((i: number, behavior: ScrollBehavior = 'smooth') => {
     const el = itemRefs.current[i];
@@ -299,6 +307,42 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   useEffect(() => {
     if (activeTrackId) checkLikeStatus();
   }, [activeTrackId, checkLikeStatus]);
+
+  // Radio: récupérer now-playing quand la carte active est une radio (évite titres/artist incohérents et flapping)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!activeRadioStation) return;
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const url =
+          activeRadioStation === 'ximam'
+            ? '/api/radio/status?station=ximam'
+            : '/api/radio/status?station=mixx_party';
+        const res = await fetch(url, { cache: 'no-store' });
+        const json = await res.json().catch(() => null);
+        const title = String(json?.data?.currentTrack?.title || '').trim();
+        const artist = String(json?.data?.currentTrack?.artist || '').trim();
+        if (cancelled) return;
+        // Ne pas écraser par des placeholders vides
+        if (title && artist) {
+          setRadioMeta((prev) => {
+            // garder stable si pas de changement réel
+            if (prev && prev.station === activeRadioStation && prev.title === title && prev.artist === artist) return prev;
+            return { station: activeRadioStation, title, artist };
+          });
+        }
+      } catch {}
+    };
+
+    tick();
+    const id = window.setInterval(tick, 8000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [activeRadioStation, isOpen]);
 
   const close = useCallback(() => {
     // Restaurer l'ancienne queue uniquement si l'utilisateur n'a pas changé de piste dans le TikTokPlayer
@@ -624,19 +668,40 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     playIndexFromGesture(idx, 'tiktok-player-touchend');
   }, [activeIndex, commentsOpen, currentId, lyricsOpen, playIndexFromGesture, showDownloadDialog, tracks]);
 
-  const onDoubleTap = useCallback(() => {
-    const now = Date.now();
-    if (now - lastTap.current < 280) {
-      if (activeTrackId) {
-        try {
-          (navigator as any)?.vibrate?.(12);
-        } catch {}
-        toggleLike();
-        setBurstKey((k) => k + 1);
+  const handleCoverTap = useCallback(
+    (t: Track) => {
+      const id = getTrackId(t);
+      if (!id) return;
+      const isRadio = String(id).startsWith('radio-');
+      const now = Date.now();
+
+      // double tap => like (hors radio)
+      if (now - lastTap.current < 260) {
+        if (tapTimerRef.current) window.clearTimeout(tapTimerRef.current);
+        tapTimerRef.current = null;
+        lastTap.current = 0;
+        if (!isRadio && activeTrackId) {
+          try {
+            (navigator as any)?.vibrate?.(12);
+          } catch {}
+          toggleLike();
+          setBurstKey((k) => k + 1);
+        }
+        return;
       }
-    }
-    lastTap.current = now;
-  }, [activeTrackId, toggleLike]);
+
+      lastTap.current = now;
+      // single tap (différé) => play/pause (ne pas déclencher si un second tap arrive)
+      if (tapTimerRef.current) window.clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = window.setTimeout(() => {
+        tapTimerRef.current = null;
+        if (currentId !== id) playTrack(t as any);
+        else if (audioState.isPlaying) pause();
+        else play();
+      }, 260) as unknown as number;
+    },
+    [activeTrackId, audioState.isPlaying, currentId, pause, play, playTrack, toggleLike]
+  );
 
   const onShare = useCallback(async (t: Track) => {
     const url = `${window.location.origin}/track/${t._id}`;
@@ -827,6 +892,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
               const currentTime = isThis && currentId === t._id ? audioState.currentTime || 0 : 0;
               const rawLikes = getLikesCount(t.likes);
               const rawComments = getCommentsCount(t.comments);
+              const isRadio = String(t?._id || '').startsWith('radio-');
+              const displayTitle = isThis && isRadio && radioMeta ? radioMeta.title : (t?.title || 'Titre inconnu');
+              const displayArtist = isThis && isRadio && radioMeta
+                ? radioMeta.artist
+                : (t?.artist?.name || t?.artist?.username || 'Artiste inconnu');
 
               return (
                 <div
@@ -837,16 +907,22 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   data-index={i}
                   className="relative h-[100svh] w-full snap-start"
                   style={{ scrollSnapAlign: 'start' }}
-                  onClick={isThis ? onDoubleTap : undefined}
                 >
                   {/* Center cover */}
                   <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (currentId !== t._id) playTrack(t as any);
-                        else if (audioState.isPlaying) pause();
-                        else play();
+                        if (!isThis) return;
+                        handleCoverTap(t as any);
+                      }}
+                      onDoubleClick={(e) => {
+                        e.stopPropagation();
+                        if (!isThis) return;
+                        // desktop double click => like (hors radio)
+                        if (isRadio) return;
+                        toggleLike();
+                        setBurstKey((k) => k + 1);
                       }}
                       className="relative w-[78vw] max-w-[520px] aspect-square rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
                     >
@@ -880,6 +956,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!isThis) return;
+                        if (isRadio) return;
                         toggleLike();
                       }}
                       className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition ${
@@ -895,6 +972,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!isThis) return;
+                        if (isRadio) return;
                         setCommentsOpen(true);
                       }}
                       className="w-12 h-12 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition hover:bg-white/10 bg-white/5 border-white/10"
@@ -920,6 +998,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       onClick={(e) => {
                         e.stopPropagation();
                         if (!isThis) return;
+                        if (isRadio) return;
                         handleDownload();
                       }}
                       className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition ${
@@ -938,10 +1017,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <p className="text-sm text-white/70">♪ Single</p>
-                          <h2 className="text-lg font-semibold truncate">{t?.title || 'Titre inconnu'}</h2>
+                          <h2 className="text-lg font-semibold truncate">{displayTitle}</h2>
                           <div className="mt-0.5 flex items-center gap-2 text-sm flex-wrap">
                             <span className="font-medium truncate">
-                              {t?.artist?.name || t?.artist?.username || 'Artiste inconnu'}
+                              {displayArtist}
                             </span>
                             {t?.artist?._id && t?.artist?.username && (
                               <span onClick={(e) => e.stopPropagation()}>
@@ -1020,7 +1099,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       </AnimatePresence>
 
       {/* Commentaires (vrai système) */}
-      {activeTrackId && (
+      {activeTrackId && !activeIsRadio && (
         <CommentDialog
           trackId={activeTrackId}
           trackTitle={activeTrack?.title || 'Titre'}
