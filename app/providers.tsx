@@ -87,6 +87,7 @@ interface AudioPlayerContextType {
   toggleShuffle: () => void;
   cycleRepeat: () => void;
   setQueueAndPlay: (tracks: Track[], startIndex?: number) => void;
+  setQueueOnly: (tracks: Track[], startIndex?: number) => void;
   requestNotificationPermission: () => Promise<boolean>;
   forceUpdateNotification: () => void;
   getAudioElement: () => HTMLAudioElement | null;
@@ -599,6 +600,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     toggleShuffle: audioService.actions.toggleShuffle,
     cycleRepeat: audioService.actions.cycleRepeat,
     setQueueAndPlay: audioService.actions.setQueueAndPlay,
+    setQueueOnly: (audioService.actions as any).setQueueOnly,
     requestNotificationPermission: audioService.actions.requestNotificationPermission,
     forceUpdateNotification: audioService.actions.forceUpdateNotification,
     getAudioElement,

@@ -216,6 +216,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     setTracks,
     setCurrentTrackIndex,
     setQueueAndPlay,
+    setQueueOnly,
     playTrack,
     play,
     pause,
@@ -515,10 +516,16 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
         setActiveIndex(startIndex);
         setCurrentTrackIndex(startIndex);
-        // IMPORTANT: définir une vraie queue côté service audio pour éviter l'auto-play "random"
-        // (sinon, à la fin de piste, useAudioService peut piocher dans allTracks).
+        // IMPORTANT: définir une vraie queue côté service audio.
+        // Si on vient du mini player avec une piste déjà en lecture, ne pas interrompre: queue-only.
         try {
-          setQueueAndPlay(merged as any, startIndex);
+          const curr = audioState.tracks?.[audioState.currentTrackIndex];
+          const isAlreadyPlayingSeed = Boolean(audioState.isPlaying && curr?._id && curr._id === getTrackId(merged[startIndex]));
+          if (isAlreadyPlayingSeed) {
+            setQueueOnly(merged as any, startIndex);
+          } else {
+            setQueueAndPlay(merged as any, startIndex);
+          }
         } catch {}
         requestAnimationFrame(() => {
           scrollToIndex(startIndex, 'auto');

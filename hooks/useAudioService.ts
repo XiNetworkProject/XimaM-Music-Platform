@@ -956,6 +956,16 @@ export const useAudioService = () => {
   }, []);
 
   // Gestion de la file d'attente optimisée
+  // Variante "queue only" : ne recharge pas la piste (utile pour ouvrir un UI type TikTok sans interrompre la lecture)
+  const setQueueOnly = useCallback((tracks: Track[], startIndex: number = 0) => {
+    setQueue(tracks);
+    setCurrentIndex(startIndex);
+    if (shuffle) {
+      const shuffled = [...tracks].sort(() => Math.random() - 0.5);
+      setShuffledQueue(shuffled);
+    }
+  }, [shuffle]);
+
   const setQueueAndPlay = useCallback((tracks: Track[], startIndex: number = 0) => {
     setQueue(tracks);
     setCurrentIndex(startIndex);
@@ -1093,6 +1103,7 @@ export const useAudioService = () => {
       forceUpdateNotification,
       requestNotificationPermission,
       setQueueAndPlay,
+      setQueueOnly,
       toggleShuffle,
       cycleRepeat,
       autoPlayNext,
