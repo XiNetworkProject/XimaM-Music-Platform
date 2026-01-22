@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSession } from 'next-auth/react';
-import { motion } from 'framer-motion';
-import { Crown, Zap, Star, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import Link from 'next/link';
+import { AlertTriangle, ArrowRight, Crown, Loader2 } from 'lucide-react';
+import { PLAN_ENTITLEMENTS, type PlanKey } from '@/lib/entitlements';
 
 interface UsageInfo {
+  plan?: PlanKey;
   tracks: {
     used: number;
     limit: number;
@@ -19,53 +20,48 @@ interface UsageInfo {
   // stockage supprimé
 }
 
-interface SubscriptionData {
-  hasSubscription: boolean;
-  subscription: any;
-  limits: {
-    maxTracks: number;
-    maxPlaylists: number;
-  };
-}
+type CurrentSubscription = {
+  subscription?: { name?: string; interval?: string; currency?: string; price?: number } | null;
+  userSubscription?: { status?: string; currentPeriodEnd?: string | null } | null;
+} | null;
 
 export default function SubscriptionLimits() {
-  const { data: session } = useSession();
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
-  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
+  const [current, setCurrent] = useState<CurrentSubscription>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session?.user?.id) {
-      fetchSubscriptionData();
-      fetchUsageInfo();
-    }
-  }, [session]);
-
-  const fetchSubscriptionData = async () => {
-    try {
-      const response = await fetch('/api/subscriptions/my-subscription');
-      if (response.ok) {
-        const data = await response.json();
-        setSubscriptionData(data);
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [u, c] = await Promise.all([
+          fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(async (r) => {
+            if (!r.ok) throw new Error('usage');
+            return await r.json();
+          }),
+          fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } }).then(async (r) => {
+            if (!r.ok) throw new Error('subscription');
+            return await r.json();
+          }),
+        ]);
+        if (!mounted) return;
+        setUsageInfo(u);
+        setCurrent(c);
+      } catch (e: any) {
+        if (!mounted) return;
+        // Si l'utilisateur n'est pas connecté, l'API renvoie 401 -> on affiche un message propre.
+        setError('Impossible de récupérer votre abonnement. Connectez-vous puis réessayez.');
+      } finally {
+        if (mounted) setLoading(false);
       }
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'abonnement:', error);
-    }
-  };
-
-  const fetchUsageInfo = async () => {
-    try {
-      const response = await fetch('/api/subscriptions/usage');
-      if (response.ok) {
-        const data = await response.json();
-        setUsageInfo(data);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la récupération de l\'utilisation:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const getUsageColor = (percentage: number) => {
     if (percentage >= 90) return 'from-red-500 to-red-600';
@@ -81,174 +77,127 @@ export default function SubscriptionLimits() {
     return 'text-green-400';
   };
 
-  const getPlanIcon = () => {
-    if (subscriptionData?.hasSubscription) {
-      return <Crown className="w-5 h-5 text-purple-400" />;
-    }
-    return <Star className="w-5 h-5 text-gray-400" />;
-  };
+  const planKey: PlanKey = useMemo(() => {
+    const p = String((usageInfo as any)?.plan || '').toLowerCase();
+    if (p === 'starter' || p === 'pro' || p === 'enterprise' || p === 'free') return p;
+    const name = String(current?.subscription?.name || '').toLowerCase();
+    if (name.includes('starter')) return 'starter';
+    if (name.includes('pro')) return 'pro';
+    if (name.includes('enterprise')) return 'enterprise';
+    return 'free';
+  }, [current?.subscription?.name, usageInfo]);
 
-  const getPlanName = () => {
-    if (subscriptionData?.hasSubscription) {
-      return subscriptionData.subscription?.name || 'Premium';
-    }
-    return 'Gratuit';
-  };
+  const ent = PLAN_ENTITLEMENTS[planKey] || PLAN_ENTITLEMENTS.free;
 
-  const getPlanBadge = () => {
-    if (subscriptionData?.hasSubscription) {
-      return (
-        <div className="px-3 py-1 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30 text-xs font-medium text-purple-300">
-          Actif
-        </div>
-      );
-    }
-    return (
-      <div className="px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium text-white/60">
-        Gratuit
-      </div>
-    );
-  };
+  const planLabel = useMemo(() => {
+    if (planKey === 'free') return 'Free';
+    return planKey.charAt(0).toUpperCase() + planKey.slice(1);
+  }, [planKey]);
+
+  const statusLabel = useMemo(() => {
+    const s = String(current?.userSubscription?.status || '').toLowerCase();
+    if (planKey === 'free') return { text: 'Plan gratuit', tone: 'neutral' as const };
+    if (s === 'trial') return { text: 'Essai', tone: 'info' as const };
+    if (s === 'canceled') return { text: 'Annulé', tone: 'warn' as const };
+    if (s === 'expired') return { text: 'Expiré', tone: 'danger' as const };
+    return { text: 'Actif', tone: 'success' as const };
+  }, [current?.userSubscription?.status, planKey]);
+
+  const periodEndText = useMemo(() => {
+    const raw = current?.userSubscription?.currentPeriodEnd;
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (Number.isNaN(d.getTime())) return null;
+    return `Renouvellement: ${d.toLocaleDateString('fr-FR')}`;
+  }, [current?.userSubscription?.currentPeriodEnd]);
 
   if (loading) {
     return (
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-transparent to-pink-500/5 pointer-events-none" />
-        <div className="relative p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-6 bg-white/20 rounded w-1/3"></div>
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-4 bg-white/20 rounded"></div>
-              ))}
-            </div>
-          </div>
+      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-4">
+        <div className="flex items-center gap-2 text-sm text-foreground-inactive">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Chargement de l’abonnement…
         </div>
       </div>
     );
   }
 
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6 }}
-      className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl shadow-lg"
-    >
-      {/* Background gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-transparent to-pink-500/10 pointer-events-none" />
-      
-      <div className="relative p-6">
-        {/* Plan Header */}
-        <div className="mb-6 p-5 rounded-xl bg-gradient-to-r from-white/5 to-white/10 border border-[var(--border)]/50">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                {getPlanIcon()}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white/90 capitalize">
-                  Plan {getPlanName()}
-                </h3>
-                <div className="text-sm text-white/60">
-                  {subscriptionData?.hasSubscription ? 'Abonnement actif' : 'Accès limité aux fonctionnalités de base'}
-                </div>
-              </div>
-            </div>
-            {getPlanBadge()}
-          </div>
-
-          {/* Fonctionnalités incluses */}
-          {subscriptionData?.hasSubscription && (
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Upload illimité
-              </div>
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Qualité HD
-              </div>
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Sans publicités
-              </div>
-              <div className="flex items-center text-white/70">
-                <CheckCircle className="w-4 h-4 text-green-400 mr-2" />
-                Support prioritaire
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Limites */}
-        <div className="space-y-5">
-          <h3 className="text-lg font-semibold text-white/90 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-purple-400" />
-            {subscriptionData?.hasSubscription ? 'Limites d\'abonnement' : 'Limites gratuites'}
-          </h3>
-          
-          {usageInfo && (
-            <div className="space-y-4">
-              {(['tracks', 'playlists'] as const)
-                .filter((k) => {
-                  const section = (usageInfo as any)[k];
-                  return section && typeof section.used === 'number' && typeof section.limit === 'number';
-                })
-                .map((key, index) => {
-                  const data = (usageInfo as any)[key] as { used: number; limit: number; percentage: number };
-                  const label = key === 'tracks' ? 'Pistes' : 'Playlists';
-                  const formatValue = (value: number) => String(value);
-
-                  return (
-                    <motion.div 
-                      key={key} 
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="space-y-3"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="text-white/70 font-medium">{label}</span>
-                        <span className={`font-semibold ${getUsageText(data.percentage)}`}>
-                          {formatValue(data.used)} / {formatValue(data.limit)}
-                        </span>
-                      </div>
-                      
-                      <div className="w-full bg-white/10 rounded-full h-3 overflow-hidden">
-                        <motion.div 
-                          initial={{ width: 0 }}
-                          animate={{ width: `${Math.min(data.percentage, 100)}%` }}
-                          transition={{ duration: 0.8, delay: index * 0.1 }}
-                          className={`h-3 rounded-full bg-gradient-to-r ${getUsageColor(data.percentage)} shadow-sm`}
-                        />
-                      </div>
-                      
-                      {data.percentage >= 90 && (
-                        <div className="flex items-center gap-2 text-xs text-red-400">
-                          <AlertTriangle className="w-4 h-4" />
-                          Limite presque atteinte ({data.percentage.toFixed(0)}%)
-                        </div>
-                      )}
-                    </motion.div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
-
-        {/* Action Button */}
-        <div className="mt-6 pt-4 border-t border-[var(--border)]/30">
-          <motion.a 
-            href="/subscriptions"
-            className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 text-sm font-medium transition-colors group"
-            whileHover={{ x: 2 }}
-          >
-            {subscriptionData?.hasSubscription ? 'Gérer mon abonnement' : 'Voir tous les plans'}
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-          </motion.a>
-        </div>
+  if (error) {
+    return (
+      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-4">
+        <div className="text-sm text-foreground-secondary">{error}</div>
+        <Link href="/subscriptions" className="mt-3 inline-flex items-center gap-2 text-sm text-[var(--accent-brand)] hover:opacity-90">
+          Ouvrir la page abonnements <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
-    </motion.div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-border-secondary bg-background-tertiary">
+              <Crown className="h-4 w-4 text-[var(--accent-brand)]" />
+            </span>
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground-primary">Plan {planLabel}</div>
+              <div className="text-xs text-foreground-inactive">
+                {periodEndText ? periodEndText : `Qualité max: ${ent.audio.maxQualityKbps}kbps`}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <span
+          className={[
+            'shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
+            statusLabel.tone === 'success' ? 'bg-emerald-500/10 border-emerald-500/25 text-emerald-200' : '',
+            statusLabel.tone === 'info' ? 'bg-sky-500/10 border-sky-500/25 text-sky-200' : '',
+            statusLabel.tone === 'warn' ? 'bg-amber-500/10 border-amber-500/25 text-amber-200' : '',
+            statusLabel.tone === 'danger' ? 'bg-red-500/10 border-red-500/25 text-red-200' : '',
+            statusLabel.tone === 'neutral' ? 'bg-white/5 border-border-secondary text-foreground-secondary' : '',
+          ].join(' ')}
+        >
+          {statusLabel.text}
+        </span>
+      </div>
+
+      {usageInfo ? (
+        <div className="mt-4 space-y-4">
+          {(['tracks', 'playlists'] as const).map((key) => {
+            const d = (usageInfo as any)[key] as { used: number; limit: number; percentage: number };
+            const label = key === 'tracks' ? 'Pistes' : 'Playlists';
+            const pct = Math.min(100, Math.max(0, Number(d?.percentage || 0)));
+            return (
+              <div key={key} className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-foreground-secondary">{label}</span>
+                  <span className={['tabular-nums font-semibold', getUsageText(pct)].join(' ')}>
+                    {d?.used ?? 0} / {d?.limit ?? 0}
+                  </span>
+                </div>
+                <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                  <div className={['h-2 rounded-full bg-gradient-to-r', getUsageColor(pct)].join(' ')} style={{ width: `${pct}%` }} />
+                </div>
+                {pct >= 90 ? (
+                  <div className="flex items-center gap-2 text-[11px] text-red-300">
+                    <AlertTriangle className="h-4 w-4" />
+                    Limite bientôt atteinte
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      ) : null}
+
+      <div className="mt-4 pt-3 border-t border-border-secondary/60">
+        <Link href="/subscriptions" className="inline-flex items-center gap-2 text-sm text-[var(--accent-brand)] hover:opacity-90">
+          Voir / gérer mon abonnement <ArrowRight className="h-4 w-4" />
+        </Link>
+      </div>
+    </div>
   );
 } 
