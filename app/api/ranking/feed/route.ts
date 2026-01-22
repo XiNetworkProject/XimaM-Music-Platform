@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '30', 10), 100);
     const includeAi = searchParams.get('ai') === '1';
+    const cursor = Math.max(0, parseInt(searchParams.get('cursor') || '0', 10) || 0);
+    const strategy = (searchParams.get('strategy') || 'reco').toLowerCase(); // reco | trending
     
     // Récupérer l'utilisateur connecté
     const session = await getServerSession(authOptions).catch(() => null);
@@ -132,12 +134,14 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        const final = results.slice(0, limitFallback);
+        const finalAll = results;
+        const final = finalAll.slice(cursor, cursor + limitFallback);
         if (final.length) {
           // Diversifier l'ordre pour Trending (et éviter de mimer "nouveautés")
           final.sort(() => Math.random() - 0.5);
         }
-        return NextResponse.json({ tracks: final });
+        const nextCursor = cursor + final.length;
+        return NextResponse.json({ tracks: final, nextCursor, hasMore: nextCursor < finalAll.length });
       } catch (e) {
         console.error('ranking: fallback trending error (statsErr)', e);
         return NextResponse.json({ tracks: [] });
@@ -323,9 +327,10 @@ export async function GET(request: NextRequest) {
           track.isLiked = false;
         });
 
-        const combined = [...scoredNormal, ...(includeAi ? scoredAI : [])]
-          .sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0))
-          .slice(0, limit);
+        const combinedAll = [...scoredNormal, ...(includeAi ? scoredAI : [])].sort(
+          (a, b) => (b.rankingScore || 0) - (a.rankingScore || 0)
+        );
+        const combined = combinedAll.slice(cursor, cursor + limit);
 
         // Si toujours vide, fallback 2: récents publics
         if (!combined.length) {
@@ -347,7 +352,8 @@ export async function GET(request: NextRequest) {
           })) });
         }
 
-        return NextResponse.json({ tracks: combined });
+        const nextCursor = cursor + combined.length;
+        return NextResponse.json({ tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length });
       } catch (e) {
         console.error('ranking: fallback track_events error', e);
         // En dernier recours
@@ -458,7 +464,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Scoring + formatage pour pistes normales
-    const scoredNormal = normalTracks.map((t) => {
+    let scoredNormal = normalTracks.map((t) => {
       const r = statsMap.get(t.id);
       const created = t?.created_at ? new Date(t.created_at).getTime() : now;
       const ageHours = (now - created) / 3_600_000;
@@ -504,6 +510,84 @@ export async function GET(request: NextRequest) {
       };
     });
 
+    // Personnalisation simple (si user connecté + strategy=reco)
+    if (userId && strategy !== 'trending') {
+      try {
+        // 1) Suivis => boost des artistes suivis
+        const { data: follows } = await supabaseAdmin
+          .from('user_follows')
+          .select('following_id')
+          .eq('follower_id', userId)
+          .limit(500);
+        const followingIds = new Set<string>((follows || []).map((f: any) => f.following_id).filter(Boolean));
+
+        // 2) Historique récent => éviter la répétition immédiate + extra signaux
+        const sinceIso = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
+        const { data: recentEvents } = await supabaseAdmin
+          .from('track_events')
+          .select('track_id, event_type, created_at')
+          .eq('user_id', userId)
+          .gte('created_at', sinceIso)
+          .in('event_type', ['play_start', 'play_complete', 'favorite', 'like'])
+          .order('created_at', { ascending: false })
+          .limit(300);
+        const recentTrackIds = (recentEvents || []).map((e: any) => String(e.track_id)).filter(Boolean);
+        const avoid = new Set<string>(recentTrackIds.slice(0, 20)); // éviter les 20 derniers
+
+        // 3) Goûts (genres) à partir des pistes likées / terminées
+        const likedOrCompleted = Array.from(
+          new Set(
+            (recentEvents || [])
+              .filter((e: any) => e.event_type === 'like' || e.event_type === 'favorite' || e.event_type === 'play_complete')
+              .map((e: any) => String(e.track_id))
+          )
+        )
+          .filter((id) => id && !id.startsWith('ai-'))
+          .slice(0, 80);
+
+        let preferredGenres: string[] = [];
+        if (likedOrCompleted.length) {
+          const { data: tasteTracks } = await supabaseAdmin
+            .from('tracks')
+            .select('id, genre')
+            .in('id', likedOrCompleted as any)
+            .limit(80);
+          const freq = new Map<string, number>();
+          for (const t of tasteTracks || []) {
+            const g = (t as any)?.genre;
+            const arr = Array.isArray(g) ? g : typeof g === 'string' ? [g] : [];
+            for (const tag of arr) {
+              const k = String(tag || '').trim().toLowerCase();
+              if (!k) continue;
+              freq.set(k, (freq.get(k) || 0) + 1);
+            }
+          }
+          preferredGenres = Array.from(freq.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([k]) => k);
+        }
+
+        // Appliquer un boost multiplicatif (léger, stable)
+        scoredNormal = scoredNormal
+          .map((t: any) => {
+            let mult = 1;
+            if (followingIds.has(t.artist?._id)) mult *= 1.22;
+            if (avoid.has(String(t._id))) mult *= 0.55;
+            if (preferredGenres.length && Array.isArray(t.genre)) {
+              const gset = new Set((t.genre || []).map((x: any) => String(x || '').trim().toLowerCase()).filter(Boolean));
+              const overlap = preferredGenres.filter((g) => gset.has(g)).length;
+              if (overlap >= 2) mult *= 1.18;
+              else if (overlap === 1) mult *= 1.10;
+            }
+            return { ...t, rankingScore: (t.rankingScore || 0) * mult };
+          })
+          .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0));
+      } catch (e) {
+        // silencieux: on reste sur le ranking global si algo perso échoue
+      }
+    }
+
     // Scoring + formatage pour pistes IA
     const scoredAI = aiTracks.map((t) => {
       const trackId = t._aiPrefixedId as string;
@@ -546,11 +630,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const combined = [...scoredNormal, ...scoredAI]
-      .sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0))
-      .slice(0, limit);
-
-    return NextResponse.json({ tracks: combined });
+    const combinedAll = [...scoredNormal, ...scoredAI].sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+    const combined = combinedAll.slice(cursor, cursor + limit);
+    const nextCursor = cursor + combined.length;
+    return NextResponse.json({ tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length });
   } catch (error) {
     console.error('Erreur ranking feed:', error);
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });

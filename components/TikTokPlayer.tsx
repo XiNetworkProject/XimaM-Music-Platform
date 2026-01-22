@@ -228,6 +228,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [loading, setLoading] = useState(false);
   const [tracks, setLocalTracks] = useState<Track[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [nextCursor, setNextCursor] = useState<number>(0);
+  const [hasMore, setHasMore] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [showDownloadDialog, setShowDownloadDialog] = useState(false);
@@ -240,15 +243,24 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
   const wheelLockRef = useRef(false);
   const didBootRef = useRef(false);
+  const suppressAutoplayRef = useRef(false);
   const lastTap = useRef(0);
   const lastViewedRef = useRef<string | null>(null);
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
+  const openedTrackIdRef = useRef<string | null>(null);
+  const changedTrackRef = useRef(false);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
 
   const activeTrack = tracks[activeIndex] || null;
   const activeTrackId = getTrackId(activeTrack);
+
+  const scrollToIndex = useCallback((i: number, behavior: ScrollBehavior = 'smooth') => {
+    const el = itemRefs.current[i];
+    if (!el) return;
+    el.scrollIntoView({ behavior, block: 'start' });
+  }, []);
 
   const { isLiked, likesCount, toggleLike, checkLikeStatus } = useLikeSystem({
     trackId: activeTrackId,
@@ -264,13 +276,16 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     try {
       pause();
     } catch {}
-    if (prevQueueRef.current) {
+    // Restaurer l'ancienne queue uniquement si l'utilisateur n'a pas changé de piste dans le TikTokPlayer
+    if (prevQueueRef.current && !changedTrackRef.current) {
       try {
         setTracks(prevQueueRef.current.tracks as any);
         setCurrentTrackIndex(prevQueueRef.current.currentTrackIndex);
       } catch {}
       prevQueueRef.current = null;
     }
+    openedTrackIdRef.current = null;
+    changedTrackRef.current = false;
     onClose();
   }, [onClose, pause, setCurrentTrackIndex, setTracks]);
 
@@ -293,6 +308,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         currentTrackIndex: audioState.currentTrackIndex || 0,
       };
     }
+    // Piste au moment de l'ouverture: sert de "seed" pour démarrer au bon endroit
+    if (!openedTrackIdRef.current) {
+      openedTrackIdRef.current = getTrackId(audioState.tracks?.[audioState.currentTrackIndex]) || null;
+    }
+    changedTrackRef.current = false;
   }, [audioState.currentTrackIndex, audioState.tracks, isOpen]);
 
   // Charge le feed à l'ouverture (même endpoint que l'accueil)
@@ -302,19 +322,46 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     didBootRef.current = false;
     setCommentsOpen(false);
     setLyricsOpen(false);
+    suppressAutoplayRef.current = true;
+    setNextCursor(0);
+    setHasMore(true);
+    setLoadingMore(false);
 
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/ranking/feed?limit=50&ai=1', { cache: 'no-store' });
+        // Feed personnalisé par défaut. On exclut l'IA ici (demande "pas de générations IA").
+        const res = await fetch('/api/ranking/feed?limit=50&ai=0&strategy=reco&cursor=0', { cache: 'no-store' });
         const json = await res.json();
         const list: Track[] = Array.isArray(json?.tracks) ? json.tracks : [];
         const cdnTracks = applyCdnToTracks(list as any) as any;
         if (!mounted) return;
 
-        setLocalTracks(cdnTracks);
-        setTracks(cdnTracks as any);
-        setCurrentTrackIndex(0);
+        // Injecter la piste actuellement en cours si elle n'est pas dans le feed (ex: radio/playlist)
+        const prev = prevQueueRef.current;
+        const prevCurrent = prev?.tracks?.[prev.currentTrackIndex] || null;
+        const prevId = getTrackId(prevCurrent);
+        const merged: any[] = Array.isArray(cdnTracks) ? [...cdnTracks] : [];
+        if (prevCurrent && prevId && !prevId.startsWith('ai-') && !merged.some((t) => getTrackId(t) === prevId)) {
+          merged.unshift(prevCurrent);
+        }
+
+        setLocalTracks(merged);
+        setTracks(merged as any);
+
+        const seedId = initialTrackId || openedTrackIdRef.current || prevId || getTrackId(merged[0]);
+        const idx = seedId ? merged.findIndex((t) => getTrackId(t) === seedId) : 0;
+        const startIndex = idx >= 0 ? idx : 0;
+
+        setActiveIndex(startIndex);
+        setCurrentTrackIndex(startIndex);
+        requestAnimationFrame(() => {
+          scrollToIndex(startIndex, 'auto');
+          suppressAutoplayRef.current = false;
+        });
+
+        setNextCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : merged.length);
+        setHasMore(Boolean(json?.hasMore));
       } catch {
         // silencieux
       } finally {
@@ -325,13 +372,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return () => {
       mounted = false;
     };
-  }, [isOpen, setTracks, setCurrentTrackIndex]);
-
-  const scrollToIndex = useCallback((i: number, behavior: ScrollBehavior = 'smooth') => {
-    const el = itemRefs.current[i];
-    if (!el) return;
-    el.scrollIntoView({ behavior, block: 'start' });
-  }, []);
+  }, [isOpen, setTracks, setCurrentTrackIndex, initialTrackId, scrollToIndex]);
 
   // Sync initialTrackId -> activeIndex + scroll (une fois quand la liste est prête)
   useEffect(() => {
@@ -390,6 +431,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   // Auto-play quand on change d’écran (TikTok-like)
   useEffect(() => {
     if (!isOpen) return;
+    if (suppressAutoplayRef.current) return;
     const t = tracks[activeIndex];
     if (!t?._id) return;
     const timer = window.setTimeout(() => {
@@ -397,6 +439,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         // Important: laisser le setTracks/setCurrentTrackIndex se stabiliser
         requestAnimationFrame(() => {
           playTrack(t as any).catch?.(() => {});
+          if (openedTrackIdRef.current && t._id !== openedTrackIdRef.current) {
+            changedTrackRef.current = true;
+          }
           try {
             sendTrackEvents(t._id, { event_type: 'play_start', source: 'tiktok-player' });
           } catch {}
@@ -405,6 +450,46 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }, 140);
     return () => window.clearTimeout(timer);
   }, [isOpen, activeIndex, tracks, playTrack, currentId]);
+
+  // Infinite loading: quand on approche de la fin, charger la page suivante
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!hasMore) return;
+    if (loadingMore) return;
+    if (tracks.length === 0) return;
+    if (activeIndex < tracks.length - 6) return;
+
+    setLoadingMore(true);
+    (async () => {
+      try {
+        const res = await fetch(`/api/ranking/feed?limit=50&ai=0&strategy=reco&cursor=${nextCursor}`, { cache: 'no-store' });
+        const json = await res.json();
+        const list: Track[] = Array.isArray(json?.tracks) ? json.tracks : [];
+        const cdnTracks = applyCdnToTracks(list as any) as any;
+
+        setLocalTracks((prev) => {
+          const seen = new Set(prev.map((t) => getTrackId(t)).filter(Boolean));
+          const append = (cdnTracks || []).filter((t: any) => {
+            const id = getTrackId(t);
+            if (!id) return false;
+            if (id.startsWith('ai-')) return false;
+            if (seen.has(id)) return false;
+            return true;
+          });
+          const merged = [...prev, ...append];
+          setTracks(merged as any);
+          return merged as any;
+        });
+
+        setNextCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : nextCursor + list.length);
+        setHasMore(Boolean(json?.hasMore));
+      } catch {
+        setHasMore(false);
+      } finally {
+        setLoadingMore(false);
+      }
+    })();
+  }, [activeIndex, hasMore, isOpen, loadingMore, nextCursor, tracks.length, setTracks]);
 
   // Précharger les covers autour de la carte active (évite le clignote)
   useEffect(() => {
