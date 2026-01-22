@@ -39,11 +39,14 @@ interface AudioServiceState {
 
 interface AudioServiceActions {
   play: (track?: Track) => Promise<void>;
+  playImmediate?: (track: Track) => void;
   pause: () => void;
   stop: () => void;
   seek: (time: number) => void;
   setVolume: (volume: number) => void;
   toggleMute: () => void;
+  setShuffleMode?: (enabled: boolean) => void;
+  setRepeatMode?: (mode: 'none' | 'one' | 'all') => void;
   setPlaybackRate: (rate: number) => void;
   nextTrack: () => void;
   previousTrack: () => void;
@@ -1060,6 +1063,19 @@ export const useAudioService = () => {
     });
   }, []);
 
+  // Allow external UI (provider) to set exact modes (avoid desync between UI state and service state).
+  const setShuffleMode = useCallback((enabled: boolean) => {
+    setShuffle(!!enabled);
+    if (enabled && queue.length > 0) {
+      const shuffled = [...queue].sort(() => Math.random() - 0.5);
+      setShuffledQueue(shuffled);
+    }
+  }, [queue]);
+
+  const setRepeatMode = useCallback((mode: 'none' | 'one' | 'all') => {
+    setRepeat(mode);
+  }, []);
+
   // Auto-play intelligent amélioré
   const autoPlayNext = useCallback(() => {
     if (queue.length > 1 && repeat !== 'none') {
@@ -1149,11 +1165,14 @@ export const useAudioService = () => {
     get audioElement() { return audioRef.current; },
     actions: {
       play,
+      playImmediate,
       pause,
       stop,
       seek,
       setVolume,
       toggleMute,
+      setShuffleMode,
+      setRepeatMode,
       setPlaybackRate,
       nextTrack,
       previousTrack,
@@ -1185,11 +1204,14 @@ export const useAudioService = () => {
     notificationPermission,
     isFirstPlay,
     play,
+    playImmediate,
     pause,
     stop,
     seek,
     setVolume,
     toggleMute,
+    setShuffleMode,
+    setRepeatMode,
     setPlaybackRate,
     nextTrack,
     previousTrack,
