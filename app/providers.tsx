@@ -249,7 +249,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [session?.user?.id]);
 
   const setCurrentTrackIndex = useCallback((index: number) => {
-    setAudioState(prev => ({ ...prev, currentTrackIndex: index }));
+    setAudioState(prev => {
+      const max = Math.max(0, (prev.tracks?.length || 0) - 1);
+      const next = Math.max(0, Math.min(Number.isFinite(index) ? index : 0, max));
+      return { ...prev, currentTrackIndex: next };
+    });
   }, []);
 
   const setIsPlaying = useCallback((playing: boolean) => {
@@ -543,21 +547,26 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioState.tracks, audioState.currentTrackIndex, setCurrentTrackIndex]);
 
   // Rehydration: préparer l'élément audio pour que Play fonctionne après refresh.
-  // On charge la piste courante (sans auto-play), dès que la queue est disponible.
+  // IMPORTANT: ne doit pas interférer avec next/prev (sinon "flicker" et blocage).
+  const hasRehydratedAudioRef = useRef(false);
   useEffect(() => {
+    if (hasRehydratedAudioRef.current) return;
     if (!audioState.showPlayer) return;
     if (!audioState.tracks.length) return;
+    if (audioService.state.isLoading) return;
     const idx = Math.max(0, Math.min(audioState.currentTrackIndex, audioState.tracks.length - 1));
     const t = audioState.tracks[idx];
     if (!t) return;
     const current = audioService.state.currentTrack as any;
-    if (current?._id === t._id) return;
-    // Ne pas spam si l'audio est déjà en train de charger
-    if (audioService.state.isLoading) return;
+    if (current?._id === t._id) {
+      hasRehydratedAudioRef.current = true;
+      return;
+    }
+    hasRehydratedAudioRef.current = true;
     audioService.actions.loadTrack(t).catch(() => {});
   }, [
     audioState.showPlayer,
-    audioState.tracks,
+    audioState.tracks.length,
     audioState.currentTrackIndex,
     audioService.actions,
     audioService.state.currentTrack,
