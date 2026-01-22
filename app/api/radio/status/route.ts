@@ -22,10 +22,10 @@ export async function GET(req: NextRequest) {
       description: 'Radio électronique en continu 24h/24',
       streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3',
       metadataUrls: [
-        'https://rocket.streamradio.fr/status-json.xsl',
-        'https://rocket.streamradio.fr/status.xsl',
-        'https://rocket.streamradio.fr/7.html',
-        'https://rocket.streamradio.fr/status.xsl?mount=/stream/mixxparty'
+        // AzuraCast (now playing / listeners / bitrate)
+        'https://stream.mixx-party.fr/api/nowplaying/mixx_party',
+        // fallback global nowplaying (array de stations)
+        'https://stream.mixx-party.fr/api/nowplaying'
       ]
     },
     ximam: {
@@ -33,13 +33,8 @@ export async function GET(req: NextRequest) {
       description: 'Radio XimaM en continu 24h/24',
       streamUrl: 'https://stream.mixx-party.fr/listen/ximam/radio.mp3',
       metadataUrls: [
-        'https://stream.mixx-party.fr/status-json.xsl',
-        'https://stream.mixx-party.fr/status.xsl',
-        'https://stream.mixx-party.fr/7.html',
-        // fallback générique si le serveur ne fournit pas ces endpoints
-        'https://rocket.streamradio.fr/status-json.xsl',
-        'https://rocket.streamradio.fr/status.xsl',
-        'https://rocket.streamradio.fr/7.html'
+        'https://stream.mixx-party.fr/api/nowplaying/ximam',
+        'https://stream.mixx-party.fr/api/nowplaying'
       ]
     }
   };
@@ -98,7 +93,7 @@ export async function GET(req: NextRequest) {
     } catch (error) {
       console.log('⚠️ Impossible de récupérer les stats locales:', error);
     }
-    // URLs alternatives pour récupérer les métadonnées radio
+    // URLs alternatives pour récupérer les métadonnées radio (AzuraCast / fallback)
     const streamRadioUrls = stationCfg.metadataUrls;
     
     let data: any = null;
@@ -125,165 +120,113 @@ export async function GET(req: NextRequest) {
 
         clearTimeout(timeoutId);
 
-        if (response.ok) {
-          const contentType = response.headers.get('content-type');
-          
-          if (contentType?.includes('application/json')) {
-            data = await response.json();
-          } else {
-            // Essayer de parser comme HTML/XML
-            const text = await response.text();
-            console.log(`📄 Réponse HTML/XML reçue: ${text.substring(0, 200)}...`);
-            
-            // Parser les données HTML simples
-            const listenersMatch = text.match(/listeners[:\s]*(\d+)/i);
-            const titleMatch = text.match(/title[:\s]*([^<\n]+)/i);
-            
-            if (listenersMatch || titleMatch) {
-              data = {
-                icestats: {
-                  source: {
-                    listeners: listenersMatch ? parseInt(listenersMatch[1]) : 0,
-                    title: titleMatch ? titleMatch[1].trim() : stationCfg.name,
-                    artist: 'En boucle continue',
-                    bitrate: 128,
-                    server_name: `${stationCfg.name} Server`
-                  }
-                }
-              };
-            }
-          }
-          
-          if (data?.icestats?.source) {
-            source = data.icestats.source;
-            console.log(`✅ Données récupérées depuis: ${url}`);
-            break;
-          }
-        }
+        if (!response.ok) continue;
+
+        const contentType = response.headers.get('content-type');
+        if (!contentType?.includes('application/json')) continue;
+
+        data = await response.json();
+        console.log(`✅ Données JSON récupérées depuis: ${url}`);
+        break;
       } catch (error: any) {
         console.log(`❌ Erreur avec ${url}:`, error.message);
         continue;
       }
     }
     
-    // Analyser les données StreamRadio
-    if (data && data.icestats && data.icestats.source) {
-      const sources = Array.isArray(data.icestats.source) ? data.icestats.source : [data.icestats.source];
+    // AzuraCast: /api/nowplaying/<station> ou /api/nowplaying (array)
+    const azNowPlaying = (() => {
+      if (!data) return null;
+      // endpoint station => objet
+      if (data?.now_playing?.song) return data;
+      // endpoint global => array
+      if (Array.isArray(data)) {
+        const wanted = data.find((x: any) => String(x?.station?.shortcode || '').toLowerCase() === station);
+        return wanted || null;
+      }
+      return null;
+    })();
 
-      // Choisir la bonne "source" (Icecast peut exposer plusieurs mounts)
-      const scoreSource = (src: any) => {
-        const hay = norm(
-          [
-            src?.title,
-            src?.artist,
-            src?.server_name,
-            src?.server_description,
-            src?.listenurl || src?.listenUrl,
-            src?.mount,
-          ].filter(Boolean).join(' ')
-        );
-        let score = 0;
-        for (const tok of stationTokens) {
-          if (!tok) continue;
-          if (hay.includes(tok)) score += 10;
-        }
-        const listen = norm(src?.listenurl || src?.listenUrl || '');
-        for (const tok of stationTokens) {
-          if (!tok) continue;
-          if (listen.includes(tok)) score += 20;
-        }
-        // si c'est la seule source, éviter score 0
-        if (!score && sources.length === 1) score = 1;
-        return score;
-      };
+    if (azNowPlaying?.station && azNowPlaying?.now_playing?.song) {
+      const st = azNowPlaying.station;
+      const song = azNowPlaying.now_playing.song || {};
+      const listeners = azNowPlaying.listeners || {};
 
-      const scored = sources
-        .map((s: any) => ({ s, score: scoreSource(s) }))
-        .sort((a: any, b: any) => b.score - a.score);
-      const source = scored[0]?.s || sources[0];
+      // bitrate: mount par défaut ou mount qui matche streamUrl
+      const mounts = Array.isArray(st.mounts) ? st.mounts : [];
+      const byUrl = mounts.find((m: any) => String(m?.url || '') === stationCfg.streamUrl);
+      const byDefault = mounts.find((m: any) => m?.is_default);
+      const mount = byUrl || byDefault || mounts[0] || null;
 
-      // Icecast met souvent "Artist - Title" dans source.title. On normalise ici.
-      const rawTitle = String(source?.title || '').trim();
-      const rawArtist = String(source?.artist || '').trim();
+      const rawTitle = String(song?.title || '').trim();
+      const rawArtist = String(song?.artist || '').trim();
+      const rawText = String(song?.text || '').trim();
+
+      // Normalisation title/artist (AzuraCast met parfois tout dans text)
+      let parsedTitle = rawTitle || rawText;
       let parsedArtist = rawArtist;
-      let parsedTitle = rawTitle;
-      if (!parsedArtist && rawTitle) {
+      if (!parsedArtist && rawText) {
         const parts =
-          rawTitle.includes(' - ') ? rawTitle.split(' - ') :
-          rawTitle.includes(' — ') ? rawTitle.split(' — ') :
-          rawTitle.includes(' – ') ? rawTitle.split(' – ') :
+          rawText.includes(' - ') ? rawText.split(' - ') :
+          rawText.includes(' — ') ? rawText.split(' — ') :
+          rawText.includes(' – ') ? rawText.split(' – ') :
           null;
         if (parts && parts.length >= 2) {
           parsedArtist = parts[0].trim();
           parsedTitle = parts.slice(1).join(' - ').trim();
         }
       }
-      // Si on n'a toujours rien d'exploitable, fallback propre
       if (!parsedTitle) parsedTitle = stationCfg.name;
       if (!parsedArtist) parsedArtist = stationCfg.name;
-      
-      // Extraire les informations en temps réel
+
+      const bitrate = parseInt(mount?.bitrate) || 0;
+      const contentType = mount?.format ? `audio/${String(mount.format)}` : 'audio/mpeg';
+
       const radioData = {
-        // Informations de base
         name: stationCfg.name,
         description: stationCfg.description,
-        status: 'LIVE',
-        isOnline: true,
-        
-        // Métadonnées de la piste actuelle
+        status: azNowPlaying.is_online ? 'LIVE' : 'OFFLINE',
+        isOnline: !!azNowPlaying.is_online,
         currentTrack: {
           title: parsedTitle,
           artist: parsedArtist,
-          genre: source.genre || 'Electronic',
-          album: source.album || 'Mixx Party Collection'
+          genre: song?.genre || 'Electronic',
+          album: song?.album || `${stationCfg.name} Collection`,
         },
-        
-        // Statistiques en temps réel
         stats: {
-          listeners: parseInt(source.listeners) || 0,
-          bitrate: parseInt(source.bitrate) || 128,
-          uptime: source.uptime || '24h/24',
-          quality: (parseInt(source.bitrate) || 0) >= 192 ? 'HD' : 'Standard'
+          listeners: parseInt(listeners.current) || parseInt(listeners.total) || 0,
+          bitrate: bitrate || 192,
+          uptime: '24h/24',
+          quality: (bitrate || 0) >= 192 ? 'HD' : 'Standard',
         },
-        
-        // Informations techniques
         technical: {
-          serverName: source.server_name || `${stationCfg.name} Server`,
-          serverDescription: source.server_description || 'Radio en boucle continue',
-          contentType: source.content_type || 'audio/mpeg',
-          serverType: source.server_type || 'Icecast',
-          serverVersion: source.server_version || '2.4.0'
+          serverName: st.name || `${stationCfg.name} Server`,
+          serverDescription: st.description || 'Radio en boucle continue',
+          contentType,
+          serverType: 'AzuraCast/Icecast',
+          serverVersion: 'unknown',
         },
-        
-        // Timestamp de la dernière mise à jour
         lastUpdate: new Date().toISOString(),
-        
-        // URL de streaming
-        streamUrl: stationCfg.streamUrl
+        streamUrl: stationCfg.streamUrl,
       };
 
-      console.log('📻 Données radio récupérées:', {
-        listeners: radioData.stats.listeners,
-        currentTrack: radioData.currentTrack.title,
-        bitrate: radioData.stats.bitrate
-      });
+      return NextResponse.json(
+        { success: true, data: radioData, source: 'azuracast' },
+        {
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            Pragma: 'no-cache',
+            Expires: '0',
+          },
+        },
+      );
+    }
 
-      return NextResponse.json({
-        success: true,
-        data: radioData,
-        source: 'streamradio.fr'
-      }, {
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-
-    } else {
+    // Fallback: Simulation réaliste basée sur l'heure et les patterns d'écoute
+    {
       // Simulation réaliste basée sur l'heure et les patterns d'écoute
       const now = new Date();
       const hour = now.getHours();
