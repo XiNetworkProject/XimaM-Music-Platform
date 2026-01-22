@@ -58,6 +58,9 @@ export const useAudioService = () => {
   const recommendations = useAudioRecommendations();
   const isInitialized = useRef(false);
   const lastTrackId = useRef<string | null>(null);
+  // IMPORTANT: audio element listeners are registered once (effect with []),
+  // so callbacks they call must be routed through refs to avoid stale closures.
+  const handleTrackEndRef = useRef<() => void>(() => {});
   
   const [state, setState] = useState<AudioServiceState>({
     currentTrack: null,
@@ -216,7 +219,9 @@ export const useAudioService = () => {
 
     const handleEnded = () => {
       console.log('🎵 Événement ended déclenché');
-      handleTrackEnd();
+      try {
+        handleTrackEndRef.current?.();
+      } catch {}
     };
 
     const handleError = (e: Event) => {
@@ -1349,6 +1354,11 @@ export const useAudioService = () => {
     updatePlayCount,
     nextTrack,
   ]);
+
+  // Keep the ended handler pointing to the latest implementation (queue/repeat/current track etc.)
+  useEffect(() => {
+    handleTrackEndRef.current = handleTrackEnd;
+  }, [handleTrackEnd]);
 
   // Watchdog: vérifier périodiquement que l'audio fonctionne
   useEffect(() => {
