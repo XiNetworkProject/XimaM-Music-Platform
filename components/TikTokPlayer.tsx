@@ -258,6 +258,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const feedLoadedRef = useRef(false);
   const openSeedIdRef = useRef<string | null>(null);
   const snapTimerRef = useRef<number | null>(null);
+  const isTouchingRef = useRef(false);
+  const isCoarseRef = useRef(false);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -271,6 +273,21 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return null;
   }, [activeTrackId]);
 
+  // Détecter mobile/coarse pointer (pour éviter de casser le scroll inertiel)
+  useEffect(() => {
+    const compute = () => {
+      try {
+        const mq = window.matchMedia?.('(pointer: coarse)');
+        isCoarseRef.current = Boolean(mq?.matches) || 'ontouchstart' in window;
+      } catch {
+        isCoarseRef.current = 'ontouchstart' in window;
+      }
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, []);
+
   const getPageHeight = useCallback(() => {
     const el = containerRef.current;
     return Math.max(1, el?.clientHeight || window.innerHeight || 1);
@@ -278,10 +295,17 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   const scrollToIndex = useCallback(
     (i: number, behavior: ScrollBehavior = 'auto') => {
+      const idx = clamp(i, 0, Math.max(0, tracks.length - 1));
+      // Mobile: laisser le scroll-snap natif, utiliser scrollIntoView (moins "jitter")
+      if (isCoarseRef.current) {
+        const item = itemRefs.current[idx];
+        item?.scrollIntoView({ behavior, block: 'start' });
+        return;
+      }
+      // Desktop: scroll déterministe par pages
       const el = containerRef.current;
       if (!el) return;
       const h = getPageHeight();
-      const idx = clamp(i, 0, Math.max(0, tracks.length - 1));
       el.scrollTo({ top: idx * h, behavior });
     },
     [getPageHeight, tracks.length],
@@ -291,12 +315,33 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     (behavior: ScrollBehavior = 'auto') => {
       const el = containerRef.current;
       if (!el) return;
+      const maxIdx = Math.max(0, tracks.length - 1);
+      // Mobile: ne PAS forcer scrollTo (ça casse l'inertie). On calcule juste l'index.
+      if (isCoarseRef.current) {
+        // Chercher l'item le plus proche du scrollTop via offsetTop (stable)
+        const st = el.scrollTop;
+        const center = clamp(activeIndex, 0, maxIdx);
+        const start = Math.max(0, center - 4);
+        const end = Math.min(maxIdx, center + 4);
+        let best = center;
+        let bestDist = Number.POSITIVE_INFINITY;
+        for (let i = start; i <= end; i++) {
+          const it = itemRefs.current[i];
+          if (!it) continue;
+          const d = Math.abs(it.offsetTop - st);
+          if (d < bestDist) {
+            bestDist = d;
+            best = i;
+          }
+        }
+        return best;
+      }
       const h = getPageHeight();
-      const idx = clamp(Math.round(el.scrollTop / h), 0, Math.max(0, tracks.length - 1));
+      const idx = clamp(Math.round(el.scrollTop / h), 0, maxIdx);
       el.scrollTo({ top: idx * h, behavior });
       return idx;
     },
-    [getPageHeight, tracks.length],
+    [activeIndex, getPageHeight, tracks.length],
   );
 
   const playIndexFromGesture = useCallback(
@@ -683,6 +728,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   // Mobile: au relâchement du swipe scroll, jouer l'item le plus proche (geste utilisateur => autoplay OK)
   const onTouchEnd = useCallback(() => {
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
+    // Sur mobile, on laisse le snap natif finir puis on lit l'index proche
+    isTouchingRef.current = false;
     const idx = snapToNearest('auto');
     if (idx === undefined) return;
     if (!Number.isFinite(idx)) return;
@@ -698,12 +745,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   // Auto-snap au "scroll end" (corrige les arrêts entre deux pages)
   const onScroll = useCallback(() => {
+    // Mobile: ne pas auto-snap (ça provoque du scintillement avec le momentum)
+    if (isCoarseRef.current) return;
     if (wheelLockRef.current) return;
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
     if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
     snapTimerRef.current = window.setTimeout(() => {
       snapToNearest('auto');
-    }, 120) as unknown as number;
+    }, 180) as unknown as number;
   }, [commentsOpen, lyricsOpen, showDownloadDialog, snapToNearest]);
 
   useEffect(() => {
@@ -934,6 +983,11 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           <div
             ref={containerRef}
             onWheel={onWheel}
+            onTouchStart={() => {
+              isTouchingRef.current = true;
+              // éviter un snap programmatique en plein geste
+              if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
+            }}
             onTouchEnd={onTouchEnd}
             onScroll={onScroll}
             className="h-full w-full overflow-y-auto snap-y snap-mandatory"
