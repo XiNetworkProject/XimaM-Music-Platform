@@ -62,6 +62,24 @@ exception when others then
   null;
 end $$;
 
+-- Drop legacy CHECK constraint that can block inserts (old schema). Validation is handled in app.
+do $$
+begin
+  if exists (
+    select 1
+    from pg_constraint c
+    join pg_class t on t.oid = c.conrelid
+    join pg_namespace n on n.oid = t.relnamespace
+    where n.nspname = 'public'
+      and t.relname = 'comments'
+      and c.conname = 'comments_text_check'
+  ) then
+    alter table public.comments drop constraint comments_text_check;
+  end if;
+exception when others then
+  null;
+end $$;
+
 -- Ensure track_id is TEXT (many tracks ids are like "track_..." and are not UUIDs)
 do $$
 begin
