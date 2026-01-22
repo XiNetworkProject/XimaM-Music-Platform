@@ -15,15 +15,14 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 export default function QueueBubble({ onClick, className = '', variant = 'bubble' }: Props) {
-  const { audioState } = useAudioPlayer();
+  const { audioState, upNextTracks, upNextEnabled } = useAudioPlayer();
 
   const count = useMemo(() => {
-    const idx = Math.max(0, audioState.currentTrackIndex || 0);
-    const len = Array.isArray(audioState.tracks) ? audioState.tracks.length : 0;
-    return Math.max(0, len - idx - 1);
-  }, [audioState.currentTrackIndex, audioState.tracks]);
+    const len = Array.isArray(upNextTracks) ? upNextTracks.length : 0;
+    return Math.max(0, len);
+  }, [upNextTracks]);
 
-  if (count <= 0) return null;
+  if (!upNextEnabled && count <= 0) return null;
 
   if (variant === 'pill') {
     return (

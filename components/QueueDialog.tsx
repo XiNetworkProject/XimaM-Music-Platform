@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ListMusic, Play, Trash2, X } from 'lucide-react';
+import { ListMusic, Play, Plus, Trash2, X } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 
 type Props = {
@@ -16,15 +16,40 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 export default function QueueDialog({ isOpen, onClose }: Props) {
-  const { audioState, playTrack, setQueueOnly } = useAudioPlayer();
+  const { audioState, playTrack, upNextEnabled, upNextTracks, toggleUpNextEnabled, removeFromUpNext, clearUpNext, addToUpNext } =
+    useAudioPlayer();
 
-  const { current, upcoming, upcomingCount } = useMemo(() => {
+  const { current } = useMemo(() => {
     const idx = Math.max(0, audioState.currentTrackIndex || 0);
     const tracks = Array.isArray(audioState.tracks) ? audioState.tracks : [];
     const current = tracks[idx] || null;
-    const upcoming = tracks.slice(idx + 1);
-    return { current, upcoming, upcomingCount: Math.max(0, tracks.length - idx - 1) };
+    return { current };
   }, [audioState.currentTrackIndex, audioState.tracks]);
+
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [loadingSug, setLoadingSug] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (upNextTracks.length > 0) return;
+    let cancelled = false;
+    (async () => {
+      setLoadingSug(true);
+      try {
+        const res = await fetch('/api/ranking/feed?strategy=reco&ai=0&limit=20', { cache: 'no-store' });
+        const json = await res.json().catch(() => ({}));
+        if (cancelled) return;
+        setSuggestions(Array.isArray(json?.tracks) ? json.tracks : []);
+      } catch {
+        if (!cancelled) setSuggestions([]);
+      } finally {
+        if (!cancelled) setLoadingSug(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, upNextTracks.length]);
 
   if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
@@ -55,7 +80,7 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                 </div>
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-foreground-primary">À suivre</div>
-                  <div className="text-xs text-foreground-tertiary">{upcomingCount} titre(s)</div>
+                  <div className="text-xs text-foreground-tertiary">{upNextTracks.length} titre(s)</div>
                 </div>
               </div>
             </div>
@@ -70,6 +95,26 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
           </div>
 
           <div className="p-4 space-y-3 max-h-[65vh] overflow-y-auto">
+            <div className="flex items-center justify-between rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-3">
+              <div className="text-sm text-foreground-secondary">Activer “À suivre”</div>
+              <button
+                type="button"
+                onClick={toggleUpNextEnabled}
+                className={cx(
+                  'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                  upNextEnabled ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
+                )}
+                aria-label="Toggle à suivre"
+              >
+                <span
+                  className={cx(
+                    'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                    upNextEnabled ? 'left-6' : 'left-1',
+                  )}
+                />
+              </button>
+            </div>
+
             <div className="rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2">
               <div className="text-xs text-foreground-tertiary">Lecture en cours</div>
               <div className="mt-1 text-sm text-foreground-primary truncate">{current?.title || '—'}</div>
@@ -78,13 +123,13 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
               </div>
             </div>
 
-            {upcoming.length ? (
+            {upNextTracks.length ? (
               <div className="rounded-2xl border border-border-secondary bg-background-fog-thin overflow-hidden">
                 <div className="px-3 py-2 border-b border-border-secondary/60 text-xs text-foreground-tertiary">
                   Prochains titres
                 </div>
                 <div className="divide-y divide-border-secondary/40">
-                  {upcoming.map((t: any) => (
+                  {upNextTracks.map((t: any) => (
                     <div key={t._id} className="px-3 py-2 flex items-center gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-foreground-primary truncate">{t.title}</div>
@@ -103,13 +148,7 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                       <button
                         type="button"
                         onClick={() => {
-                          // remove from queue (upcoming only)
-                          const idx = Math.max(0, audioState.currentTrackIndex || 0);
-                          const tracks = Array.isArray(audioState.tracks) ? [...audioState.tracks] : [];
-                          const removeAt = tracks.findIndex((x) => x?._id === t._id);
-                          if (removeAt <= idx) return;
-                          tracks.splice(removeAt, 1);
-                          setQueueOnly(tracks as any, idx);
+                          removeFromUpNext(t._id);
                         }}
                         className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-red-500/15 hover:border-red-500/30 transition grid place-items-center"
                         aria-label="Retirer"
@@ -121,7 +160,42 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                 </div>
               </div>
             ) : (
-              <div className="text-sm text-foreground-secondary text-center py-6">Rien à suivre pour le moment.</div>
+              <div className="space-y-3">
+                <div className="text-sm text-foreground-secondary text-center py-2">
+                  Rien à suivre pour le moment.
+                </div>
+                <div className="rounded-2xl border border-border-secondary bg-background-fog-thin overflow-hidden">
+                  <div className="px-3 py-2 border-b border-border-secondary/60 text-xs text-foreground-tertiary">
+                    Suggestions
+                  </div>
+                  {loadingSug ? (
+                    <div className="p-4 text-sm text-foreground-tertiary">Chargement…</div>
+                  ) : suggestions.length ? (
+                    <div className="divide-y divide-border-secondary/40">
+                      {suggestions.slice(0, 10).map((t: any) => (
+                        <div key={t._id} className="px-3 py-2 flex items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm text-foreground-primary truncate">{t.title}</div>
+                            <div className="text-xs text-foreground-tertiary truncate">
+                              {t.artist?.name || t.artist?.username || ''}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => addToUpNext(t as any, 'end')}
+                            className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                            aria-label="Ajouter"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 text-sm text-foreground-tertiary">Aucune suggestion.</div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
@@ -129,14 +203,12 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
             <button
               type="button"
               onClick={() => {
-                const idx = Math.max(0, audioState.currentTrackIndex || 0);
-                const tracks = Array.isArray(audioState.tracks) ? audioState.tracks.slice(0, idx + 1) : [];
-                setQueueOnly(tracks as any, idx);
+                clearUpNext();
               }}
-              disabled={!upcoming.length}
+              disabled={!upNextTracks.length}
               className={cx(
                 'flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition',
-                !upcoming.length && 'opacity-50',
+                !upNextTracks.length && 'opacity-50',
               )}
             >
               Vider “à suivre”

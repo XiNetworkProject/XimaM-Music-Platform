@@ -124,7 +124,17 @@ export default function LibraryClient() {
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => setIsMounted(true), []);
 
-  const { audioState, setQueueAndPlay, setQueueOnly, playTrack } = useAudioPlayer();
+  const {
+    audioState,
+    setQueueAndPlay,
+    playTrack,
+    addToUpNext,
+    upNextEnabled,
+    upNextTracks,
+    toggleUpNextEnabled,
+    removeFromUpNext,
+    clearUpNext,
+  } = useAudioPlayer();
   const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
   const { incrementPlaysBatch } = useBatchPlaysSystem();
 
@@ -440,39 +450,20 @@ export default function LibraryClient() {
 
   const queuePlayNext = useCallback(
     (t: Track) => {
-      try {
-        if (!t?._id || !t.audioUrl || isDisabledTrackId(t._id)) return;
-        const curIdx = Math.max(0, audioState.currentTrackIndex || 0);
-        const cur = audioState.tracks[curIdx];
-        if (!cur?._id) {
-          setQueueAndPlay([t] as any, 0);
-          return;
-        }
-        const q = [...(audioState.tracks || [])];
-        const existingIdx = q.findIndex((x) => x?._id === t._id);
-        if (existingIdx !== -1) q.splice(existingIdx, 1);
-        const insertAt = Math.min(q.length, curIdx + 1);
-        q.splice(insertAt, 0, t as any);
-        setQueueOnly(q as any, curIdx);
-        notify.success('Ajouté en lecture suivante');
-      } catch {}
+      if (!t?._id || !t.audioUrl || isDisabledTrackId(t._id)) return;
+      addToUpNext(t as any, 'next');
+      notify.success('Ajouté à “À suivre” (lecture suivante)');
     },
-    [audioState.currentTrackIndex, audioState.tracks, setQueueAndPlay, setQueueOnly],
+    [addToUpNext],
   );
 
   const queueAdd = useCallback(
     (t: Track) => {
-      try {
-        if (!t?._id || !t.audioUrl || isDisabledTrackId(t._id)) return;
-        const curIdx = Math.max(0, audioState.currentTrackIndex || 0);
-        const q = [...(audioState.tracks || [])];
-        const exists = q.some((x) => x?._id === t._id);
-        if (!exists) q.push(t as any);
-        setQueueOnly(q as any, curIdx);
-        notify.success('Ajouté à la file');
-      } catch {}
+      if (!t?._id || !t.audioUrl || isDisabledTrackId(t._id)) return;
+      addToUpNext(t as any, 'end');
+      notify.success('Ajouté à “À suivre”');
     },
-    [audioState.currentTrackIndex, audioState.tracks, setQueueOnly],
+    [addToUpNext],
   );
 
   const addTrackToPlaylist = useCallback(
@@ -1067,17 +1058,15 @@ export default function LibraryClient() {
               >
                 <SectionHeader
                   title="À suivre"
-                  subtitle={`${Math.max(0, (audioState.tracks?.length || 0) - (audioState.currentTrackIndex || 0) - 1)} titre(s)`}
+                  subtitle={`${upNextTracks.length} titre(s)`}
                   action={
                     <button
                       type="button"
                       onClick={() => {
-                        const idx = Math.max(0, audioState.currentTrackIndex || 0);
-                        const tracks = Array.isArray(audioState.tracks) ? audioState.tracks.slice(0, idx + 1) : [];
-                        setQueueOnly(tracks as any, idx);
+                        clearUpNext();
                       }}
                       className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
-                      disabled={Math.max(0, (audioState.tracks?.length || 0) - (audioState.currentTrackIndex || 0) - 1) === 0}
+                      disabled={upNextTracks.length === 0}
                     >
                       Vider
                     </button>
@@ -1085,61 +1074,60 @@ export default function LibraryClient() {
                 />
 
                 <div className="mt-4 rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden">
-                  <div className="px-4 py-3 text-sm text-foreground-secondary border-b border-border-secondary/60">
-                    Lecture en cours
-                  </div>
-                  <div className="px-4 py-3">
-                    <div className="text-sm font-semibold text-foreground-primary truncate">
-                      {audioState.tracks[audioState.currentTrackIndex]?.title || '—'}
-                    </div>
-                    <div className="text-xs text-foreground-tertiary truncate">
-                      {audioState.tracks[audioState.currentTrackIndex]?.artist?.name ||
-                        audioState.tracks[audioState.currentTrackIndex]?.artist?.username ||
-                        ''}
-                    </div>
+                  <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
+                    <div className="text-sm text-foreground-secondary">Activer “À suivre”</div>
+                    <button
+                      type="button"
+                      onClick={toggleUpNextEnabled}
+                      className={cx(
+                        'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                        upNextEnabled ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
+                      )}
+                      aria-label="Toggle à suivre"
+                    >
+                      <span
+                        className={cx(
+                          'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                          upNextEnabled ? 'left-6' : 'left-1',
+                        )}
+                      />
+                    </button>
                   </div>
 
-                  <div className="px-4 py-3 text-sm text-foreground-secondary border-t border-border-secondary/60 border-b border-border-secondary/60">
+                  <div className="px-4 py-3 text-sm text-foreground-secondary border-b border-border-secondary/60">
                     Prochains titres
                   </div>
 
                   <div className="divide-y divide-border-secondary/40">
-                    {(audioState.tracks || []).slice(Math.max(0, (audioState.currentTrackIndex || 0) + 1)).length ? (
-                      (audioState.tracks || [])
-                        .slice(Math.max(0, (audioState.currentTrackIndex || 0) + 1))
-                        .map((t: any) => (
-                          <div key={t._id} className="px-3 py-2 flex items-center gap-3">
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm text-foreground-primary truncate">{t.title}</div>
-                              <div className="text-xs text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username || ''}</div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => playTrack(t._id)}
-                              className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
-                              aria-label="Lire"
-                            >
-                              <Play className="h-4 w-4" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const idx = Math.max(0, audioState.currentTrackIndex || 0);
-                                const tracks = Array.isArray(audioState.tracks) ? [...audioState.tracks] : [];
-                                const removeAt = tracks.findIndex((x) => x?._id === t._id);
-                                if (removeAt <= idx) return;
-                                tracks.splice(removeAt, 1);
-                                setQueueOnly(tracks as any, idx);
-                              }}
-                              className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-red-500/15 hover:border-red-500/30 transition grid place-items-center"
-                              aria-label="Retirer"
-                            >
-                              <Trash2 className="h-4 w-4 text-red-300" />
-                            </button>
+                    {upNextTracks.length ? (
+                      upNextTracks.map((t: any) => (
+                        <div key={t._id} className="px-3 py-2 flex items-center gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm text-foreground-primary truncate">{t.title}</div>
+                            <div className="text-xs text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username || ''}</div>
                           </div>
-                        ))
+                          <button
+                            type="button"
+                            onClick={() => playTrack(t._id)}
+                            className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                            aria-label="Lire"
+                          >
+                            <Play className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeFromUpNext(t._id)}
+                            className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-red-500/15 hover:border-red-500/30 transition grid place-items-center"
+                            aria-label="Retirer"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-300" />
+                          </button>
+                        </div>
+                      ))
                     ) : (
-                      <div className="p-8 text-center text-sm text-foreground-secondary">Rien à suivre pour le moment.</div>
+                      <div className="p-8 text-center text-sm text-foreground-secondary">
+                        Rien à suivre pour le moment. Ajoute des titres via “Lire ensuite” / “Ajouter à la file”.
+                      </div>
                     )}
                   </div>
                 </div>
