@@ -316,6 +316,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     [mergeQueueWithUpNext, rawSetQueueAndPlay],
   );
 
+  // Keep audioService internal queue aligned with the UI queue at all times.
+  // This is critical for "ended" auto-next to advance through the intended list (incl. À suivre injection),
+  // even when playback was started via playTrack() (which does not set the service queue).
+  useEffect(() => {
+    if (applyingUpNextRef.current) return;
+    const tracks = Array.isArray(audioState.tracks) ? audioState.tracks : [];
+    if (!tracks.length) return;
+    const idx = Math.max(0, Math.min(audioState.currentTrackIndex || 0, tracks.length - 1));
+    try {
+      (audioService.actions as any).setQueueOnly?.(tracks, idx);
+    } catch {}
+  }, [audioState.tracks, audioState.currentTrackIndex, audioService.actions]);
+
   const addToUpNext = useCallback(
     (track: Track, mode: 'next' | 'end' = 'end') => {
       if (!track?._id) return;
