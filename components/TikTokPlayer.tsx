@@ -503,6 +503,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
   const wheelBlockRef = useRef(false);
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
   const hasLoadedFeedRef = useRef(false);
+  const hasBootedRef = useRef(false);
 
   const tracks = audioState.tracks || [];
   const ids = useMemo(() => tracks.map(getTrackId).filter(Boolean), [tracks]);
@@ -521,7 +522,6 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     if (!id) return true;
     // Exclure pistes IA + radios
     if (id.startsWith('ai-')) return true;
-    if (id.startsWith('radio-')) return true;
     return false;
   }, []);
 
@@ -561,9 +561,6 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     setFeedError(null);
     setFeedLoading(true);
 
-    // On vide la queue pour afficher l'écran "Chargement du player…" (sans casser la queue précédente, déjà sauvée)
-    try { setTracks([] as any); } catch {}
-
     const endpoints = [
       '/api/tracks/trending?limit=120',
       '/api/tracks/popular?limit=120',
@@ -591,8 +588,22 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
         const id = getTrackId(t);
         if (!id || isExcluded(id)) continue;
         if (seen.has(id)) continue;
+        const nt = normalizeTrack(t);
+        if (!nt?.audioUrl || typeof nt.audioUrl !== 'string') continue;
         seen.add(id);
-        merged.push(normalizeTrack(t));
+        merged.push(nt);
+      }
+    }
+
+    // Si on arrive depuis une lecture en cours (radio ou musique), on la met en tête (hors IA) pour éviter un “switch” surprenant
+    const prev = prevQueueRef.current;
+    const prevCurrent = prev?.tracks?.[prev.currentTrackIndex] || null;
+    const prevId = getTrackId(prevCurrent);
+    if (prevCurrent && prevId && !isExcluded(prevId) && !seen.has(prevId)) {
+      const nt = normalizeTrack(prevCurrent);
+      if (nt?.audioUrl) {
+        merged.unshift(nt);
+        seen.add(prevId);
       }
     }
 
@@ -616,6 +627,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
       prevQueueRef.current = null;
     }
     hasLoadedFeedRef.current = false;
+    hasBootedRef.current = false;
     setFeedError(null);
     setFeedLoading(false);
     onClose();
@@ -643,6 +655,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
       prevQueueRef.current = null;
     }
     hasLoadedFeedRef.current = false;
+    hasBootedRef.current = false;
     setFeedError(null);
     setFeedLoading(false);
   }, [isOpen, setCurrentTrackIndex, setTracks]);
@@ -724,6 +737,10 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
       isBootingRef.current = true; // Réinitialiser pour la prochaine ouverture
       return;
     }
+    if (feedLoading) return;
+    if (feedError) return;
+    if (tracks.length === 0) return;
+    if (hasBootedRef.current) return;
     
     isBootingRef.current = true; // Commencer le boot
     const startId = initialTrackId ?? ids[0];
@@ -737,16 +754,21 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
     const t = idx >= 0 ? tracks[idx] : tracks[0];
     if (t) {
       isProgrammaticScrollRef.current = true;
-      playTrack(t).finally(() => {
+      // Important: attendre que le state (setTracks) soit réellement “commité” avant de lancer playTrack,
+      // sinon on peut tomber dans un état où playTrack ne trouve pas l'index => glitch audio.
+      requestAnimationFrame(() => {
+        playTrack(getTrackId(t) || t).finally(() => {
         setTimeout(() => {
           isProgrammaticScrollRef.current = false;
           isBootingRef.current = false;
+            hasBootedRef.current = true;
         }, 120);
+        });
       });
     } else {
       isBootingRef.current = false;
     }
-  }, [isOpen, ids, initialTrackId]); // au montage/ouverture
+  }, [isOpen, ids, initialTrackId, tracks, feedLoading, feedError, playTrack]); // au montage/ouverture
 
   const handleNextTrack = useCallback(async () => {
     const currentId = getTrackId(activeTrack);
@@ -939,8 +961,8 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
 
   if (!isOpen) return null;
 
-  // Ouverture instantanée même si les tracks ne sont pas encore prêtes
-  if (tracks.length === 0) {
+  // Loading overlay tant que le feed n'est pas prêt (sans vider la queue pour éviter les resyncs)
+  if (feedLoading || feedError || tracks.length === 0) {
     return (
       <AnimatePresence>
         <motion.div
@@ -971,6 +993,7 @@ export default function SynauraTikTokPlayer({ isOpen, onClose, initialTrackId }:
                 <button
                   onClick={() => {
                     hasLoadedFeedRef.current = false;
+                    hasBootedRef.current = false;
                     loadFeedTracks().catch(() => {});
                   }}
                   className="mt-1 px-3 py-2 rounded-lg bg-white/10 border border-white/10 hover:bg-white/15 text-sm"
