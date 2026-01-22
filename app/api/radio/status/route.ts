@@ -47,6 +47,40 @@ export async function GET(req: NextRequest) {
   const station = STATIONS[stationParam] ? stationParam : 'mixx_party';
   const stationCfg = STATIONS[station];
 
+  const norm = (s: any) =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/https?:\/\//g, '')
+      .replace(/[^a-z0-9]+/g, '');
+
+  const getStationTokens = (stationKey: string, streamUrl: string) => {
+    const tokens = new Set<string>();
+    const add = (v: string) => {
+      const n = norm(v);
+      if (n) tokens.add(n);
+    };
+    add(stationKey);
+    add(stationKey.replace(/[_-]/g, ''));
+    add(stationKey.replace(/_/g, '-'));
+
+    try {
+      const u = new URL(streamUrl);
+      add(u.hostname);
+      // pattern courant: /listen/<mount>/radio.mp3
+      const m = u.pathname.match(/\/listen\/([^/]+)\//i);
+      if (m?.[1]) {
+        add(m[1]);
+        add(m[1].replace(/[_-]/g, ''));
+      }
+    } catch {}
+
+    // Tokens "humains" utiles
+    add(stationCfg.name);
+    return Array.from(tokens);
+  };
+
+  const stationTokens = getStationTokens(station, stationCfg.streamUrl);
+
   try {
 
     // Récupérer les statistiques locales
@@ -135,14 +169,38 @@ export async function GET(req: NextRequest) {
     // Analyser les données StreamRadio
     if (data && data.icestats && data.icestats.source) {
       const sources = Array.isArray(data.icestats.source) ? data.icestats.source : [data.icestats.source];
-      const pickByStation = (src: any) => {
-        const needle = station.toLowerCase();
-        const title = String(src?.title || '').toLowerCase();
-        const serverName = String(src?.server_name || '').toLowerCase();
-        const listenurl = String(src?.listenurl || src?.listenUrl || '').toLowerCase();
-        return title.includes(needle) || serverName.includes(needle) || listenurl.includes(needle);
+
+      // Choisir la bonne "source" (Icecast peut exposer plusieurs mounts)
+      const scoreSource = (src: any) => {
+        const hay = norm(
+          [
+            src?.title,
+            src?.artist,
+            src?.server_name,
+            src?.server_description,
+            src?.listenurl || src?.listenUrl,
+            src?.mount,
+          ].filter(Boolean).join(' ')
+        );
+        let score = 0;
+        for (const tok of stationTokens) {
+          if (!tok) continue;
+          if (hay.includes(tok)) score += 10;
+        }
+        const listen = norm(src?.listenurl || src?.listenUrl || '');
+        for (const tok of stationTokens) {
+          if (!tok) continue;
+          if (listen.includes(tok)) score += 20;
+        }
+        // si c'est la seule source, éviter score 0
+        if (!score && sources.length === 1) score = 1;
+        return score;
       };
-      const source = sources.find(pickByStation) || sources[0];
+
+      const scored = sources
+        .map((s: any) => ({ s, score: scoreSource(s) }))
+        .sort((a: any, b: any) => b.score - a.score);
+      const source = scored[0]?.s || sources[0];
 
       // Icecast met souvent "Artist - Title" dans source.title. On normalise ici.
       const rawTitle = String(source?.title || '').trim();
