@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Heart, Loader2, Reply, Send, Trash2, X, Edit3, Crown } from 'lucide-react';
@@ -374,7 +375,7 @@ export default function CommentDialog({
           exit={{ y: 40, opacity: 0 }}
           transition={{ duration: 0.18 }}
           className="absolute inset-x-0 bottom-0 sm:inset-y-0 sm:right-0 sm:left-auto sm:bottom-auto sm:w-[420px] w-full h-[85svh] sm:h-full bg-background-tertiary border border-border-secondary/60 shadow-2xl rounded-t-3xl sm:rounded-none overflow-hidden flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           {/* Drag handle */}
