@@ -518,14 +518,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     try {
       (audioService.actions as any).setShuffleMode?.(shuffle);
     } catch {}
-  }, []);
+  }, [audioService.actions]);
 
   const setRepeat = useCallback((repeat: 'none' | 'one' | 'all') => {
     setAudioState(prev => ({ ...prev, repeat }));
     try {
       (audioService.actions as any).setRepeatMode?.(repeat);
     } catch {}
-  }, []);
+  }, [audioService.actions]);
 
   // Synchronisation de l'état du service audio avec le provider
   useEffect(() => {
