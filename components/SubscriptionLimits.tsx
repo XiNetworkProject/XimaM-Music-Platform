@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AlertTriangle, ArrowRight, Crown, Loader2 } from 'lucide-react';
 import { PLAN_ENTITLEMENTS, type PlanKey } from '@/lib/entitlements';
+import { fetchCreditsBalance, generationsApprox } from '@/lib/credits';
 
 interface UsageInfo {
   plan?: PlanKey;
@@ -28,6 +29,7 @@ type CurrentSubscription = {
 export default function SubscriptionLimits() {
   const [usageInfo, setUsageInfo] = useState<UsageInfo | null>(null);
   const [current, setCurrent] = useState<CurrentSubscription>(null);
+  const [credits, setCredits] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +39,7 @@ export default function SubscriptionLimits() {
       try {
         setLoading(true);
         setError(null);
-        const [u, c] = await Promise.all([
+        const [u, c, b] = await Promise.all([
           fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } }).then(async (r) => {
             if (!r.ok) throw new Error('usage');
             return await r.json();
@@ -46,10 +48,12 @@ export default function SubscriptionLimits() {
             if (!r.ok) throw new Error('subscription');
             return await r.json();
           }),
+          fetchCreditsBalance().catch(() => ({ balance: 0 })),
         ]);
         if (!mounted) return;
         setUsageInfo(u);
         setCurrent(c);
+        if (b && typeof (b as any).balance === 'number') setCredits((b as any).balance);
       } catch (e: any) {
         if (!mounted) return;
         // Si l'utilisateur n'est pas connecté, l'API renvoie 401 -> on affiche un message propre.
@@ -190,6 +194,17 @@ export default function SubscriptionLimits() {
               </div>
             );
           })}
+        </div>
+      ) : null}
+
+      {typeof credits === 'number' ? (
+        <div className="mt-4 rounded-xl border border-border-secondary bg-background-tertiary px-3 py-2">
+          <div className="flex items-center justify-between gap-3 text-xs">
+            <span className="text-foreground-secondary">Crédits IA</span>
+            <span className="font-semibold tabular-nums text-foreground-primary">
+              {credits} <span className="text-foreground-inactive font-normal">(~{generationsApprox(credits)} gén.)</span>
+            </span>
+          </div>
         </div>
       ) : null}
 
