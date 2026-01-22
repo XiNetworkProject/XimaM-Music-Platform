@@ -85,6 +85,7 @@ export default function CommentDialog({
   const [newComment, setNewComment] = useState('');
   const [moderationResult, setModerationResult] = useState<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
@@ -249,12 +250,19 @@ export default function CommentDialog({
   );
 
   const submitComment = useCallback(async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id) {
+      setSubmitError('Connecte-toi pour commenter.');
+      return;
+    }
     if (isSubmitting) return;
     const content = newComment.trim();
     if (!content) return;
-    if (moderationResult && !moderationResult.isClean) return;
+    if (moderationResult && !moderationResult.isClean) {
+      setSubmitError('Ton commentaire a été refusé par la modération.');
+      return;
+    }
     setIsSubmitting(true);
+    setSubmitError(null);
     try {
       const res = await fetch(`/api/tracks/${trackId}/comments`, {
         method: 'POST',
@@ -270,7 +278,7 @@ export default function CommentDialog({
         setModerationResult(null);
       }
     } catch (e: any) {
-      // on laisse ModerationWarning gérer les détails
+      setSubmitError(e?.message || 'Impossible de publier');
     } finally {
       setIsSubmitting(false);
     }
@@ -644,7 +652,10 @@ export default function CommentDialog({
               <div className="flex-1 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2">
                 <textarea
                   value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
+                  onChange={(e) => {
+                    setNewComment(e.target.value);
+                    if (submitError) setSubmitError(null);
+                  }}
                   placeholder={session?.user?.id ? 'Ajouter un commentaire…' : 'Connecte-toi pour commenter'}
                   disabled={!session?.user?.id || isDisabledTrack}
                   rows={2}
@@ -666,6 +677,7 @@ export default function CommentDialog({
               </button>
             </div>
 
+            {submitError ? <div className="mt-2 text-xs text-red-300">{submitError}</div> : null}
             <ModerationWarning content={newComment} onModerationChange={setModerationResult} className="mt-2" />
           </div>
         </motion.div>

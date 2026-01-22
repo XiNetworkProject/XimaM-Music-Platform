@@ -1,6 +1,23 @@
 -- Comment system: creator moderation + likes + creator word filters
 -- Run in Supabase SQL editor (service role).
 
+-- 0) Base comments table (required)
+create extension if not exists pgcrypto;
+
+create table if not exists public.comments (
+  id uuid primary key default gen_random_uuid(),
+  track_id uuid not null,
+  user_id uuid not null,
+  content text not null,
+  parent_id uuid null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists comments_track_id_created_at_idx on public.comments(track_id, created_at desc);
+create index if not exists comments_parent_id_idx on public.comments(parent_id);
+create index if not exists comments_user_id_idx on public.comments(user_id);
+
 -- 1) Comment likes (one row per (comment, user))
 create table if not exists public.comment_likes (
   id bigserial primary key,

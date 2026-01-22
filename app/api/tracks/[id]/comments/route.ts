@@ -145,7 +145,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     .select('id, content, created_at, updated_at, user_id')
     .single();
 
-  if (error || !inserted) return NextResponse.json({ error: 'Impossible de publier' }, { status: 500 });
+  if (error || !inserted) {
+    const msg = (error as any)?.message || 'Impossible de publier';
+    return NextResponse.json(
+      {
+        error:
+          msg.includes('relation') && msg.includes('comments')
+            ? 'Table public.comments manquante (exécute le script SQL de commentaires).'
+            : msg,
+      },
+      { status: 500 },
+    );
+  }
 
   const { data: user } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
 
