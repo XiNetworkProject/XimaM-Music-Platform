@@ -120,70 +120,88 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions).catch(() => null);
-  const userId = (session?.user as any)?.id;
-  if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions).catch(() => null);
+    const userId = (session?.user as any)?.id;
+    if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 
-  const trackId = params.id;
-  if (!trackId) return NextResponse.json({ error: 'TrackId manquant' }, { status: 400 });
-  if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
-    return NextResponse.json({ error: 'Commentaires non disponibles' }, { status: 400 });
-  }
+    const trackId = params.id;
+    if (!trackId) return NextResponse.json({ error: 'TrackId manquant' }, { status: 400 });
+    if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
+      return NextResponse.json({ error: 'Commentaires non disponibles' }, { status: 400 });
+    }
 
-  const body = await request.json().catch(() => ({}));
-  const content = String(body?.content || '').trim();
-  if (!content) return NextResponse.json({ error: 'Commentaire vide' }, { status: 400 });
+    const body = await request.json().catch(() => ({}));
+    const content = String(body?.content || '').trim();
+    if (!content) return NextResponse.json({ error: 'Commentaire vide' }, { status: 400 });
 
-  const mod = contentModerator.analyzeContent(content);
-  if (!mod.isClean) {
-    return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
-  }
+    const mod = contentModerator.analyzeContent(content);
+    if (!mod.isClean) {
+      return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
+    }
 
-  const { data: inserted, error } = await supabaseAdmin
-    .from('comments')
-    .insert({ track_id: trackId, user_id: userId, content })
-    .select('id, content, created_at, updated_at, user_id')
-    .single();
+    const { data: inserted, error } = await supabaseAdmin
+      .from('comments')
+      .insert({ track_id: trackId, user_id: userId, content })
+      .select('id, content, created_at, updated_at, user_id')
+      .single();
 
-  if (error || !inserted) {
-    const errAny = error as any;
-    const msg = errAny?.message || 'Impossible de publier';
+    if (error || !inserted) {
+      const errAny = error as any;
+      const msg = errAny?.message || 'Impossible de publier';
+      const normalized =
+        msg.includes('relation') && msg.includes('comments')
+          ? 'Table public.comments manquante (exécute le script SQL de commentaires).'
+          : msg.includes('invalid input syntax for type uuid')
+            ? 'Schéma DB incompatible: comments.track_id est en UUID mais tes tracks id sont en texte (track_...). Rejoue le script SQL (version track_id TEXT) puis reload schema.'
+            : msg;
+
+      return NextResponse.json(
+        {
+          error: normalized,
+          supabase: {
+            code: errAny?.code || null,
+            details: errAny?.details || null,
+            hint: errAny?.hint || null,
+            message: errAny?.message || null,
+          },
+        },
+        { status: 500 },
+      );
+    }
+
+    const { data: user } = await supabaseAdmin
+      .from('profiles')
+      .select('id, username, name, avatar')
+      .eq('id', userId)
+      .maybeSingle();
+
+    return NextResponse.json({
+      comment: {
+        id: inserted.id,
+        content: inserted.content,
+        createdAt: inserted.created_at,
+        updatedAt: inserted.updated_at,
+        likes: [],
+        likesCount: 0,
+        isLiked: false,
+        user: {
+          id: userId,
+          username: (user as any)?.username || 'Utilisateur',
+          name: (user as any)?.name || (user as any)?.username || 'Utilisateur',
+          avatar: (user as any)?.avatar || '',
+        },
+        replies: [],
+      },
+    });
+  } catch (e: any) {
     return NextResponse.json(
       {
-        error:
-          msg.includes('relation') && msg.includes('comments')
-            ? 'Table public.comments manquante (exécute le script SQL de commentaires).'
-            : msg,
-        supabase: {
-          code: errAny?.code || null,
-          details: errAny?.details || null,
-          hint: errAny?.hint || null,
-          message: errAny?.message || null,
-        },
+        error: 'Erreur interne (comments POST)',
+        message: e?.message || String(e),
       },
       { status: 500 },
     );
   }
-
-  const { data: user } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
-
-  return NextResponse.json({
-    comment: {
-      id: inserted.id,
-      content: inserted.content,
-      createdAt: inserted.created_at,
-      updatedAt: inserted.updated_at,
-      likes: [],
-      likesCount: 0,
-      isLiked: false,
-      user: {
-        id: userId,
-        username: (user as any)?.username || 'Utilisateur',
-        name: (user as any)?.name || (user as any)?.username || 'Utilisateur',
-        avatar: (user as any)?.avatar || '',
-      },
-      replies: [],
-    },
-  });
 }
 

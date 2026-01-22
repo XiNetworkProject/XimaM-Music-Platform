@@ -270,7 +270,11 @@ export default function CommentDialog({
         body: JSON.stringify({ content }),
       });
       const json = await res.json().catch(() => null);
-      if (!res.ok) throw new Error(json?.error || 'Impossible de publier');
+      if (!res.ok) {
+        const supa = json?.supabase;
+        const extra = supa?.code || supa?.message ? ` (${[supa?.code, supa?.message].filter(Boolean).join(' - ')})` : '';
+        throw new Error((json?.error || 'Impossible de publier') + extra);
+      }
       const comment = json?.comment as Comment | undefined;
       if (comment?.id) {
         setComments((prev) => [comment, ...prev]);
