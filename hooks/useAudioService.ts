@@ -675,6 +675,47 @@ export const useAudioService = () => {
     }
   }, [loadTrack, isFirstPlay, updatePlayCount]);
 
+  // Variant "immediate": used for auto-next (ended) to avoid autoplay restrictions caused by async awaits.
+  // It sets src and calls audio.play() immediately (without waiting for canplay).
+  const playImmediate = useCallback((track: Track) => {
+    const audio = audioRef.current;
+    if (!audio || !track?.audioUrl) return;
+    try {
+      try { audio.pause(); } catch {}
+      try { audio.currentTime = 0; } catch {}
+      lastMilestoneRef.current = 0;
+      hasStartedRef.current = false;
+
+      setState(prev => ({
+        ...prev,
+        currentTrack: track,
+        currentTime: 0,
+        error: null,
+        isLoading: true,
+        // keep isPlaying false until play succeeds (ended context)
+        isPlaying: false,
+      }));
+      lastTrackId.current = track._id;
+
+      audio.src = getCdnUrl(track.audioUrl) || track.audioUrl;
+      try { audio.load(); } catch {}
+      const p = audio.play();
+      if (p && typeof (p as any).catch === 'function') {
+        (p as Promise<void>).then(() => {
+          setState(prev => ({ ...prev, isPlaying: true, error: null }));
+        }).catch((err) => {
+          console.error('❌ playImmediate: play() refusé/échoué:', err);
+          setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+        });
+      } else {
+        setState(prev => ({ ...prev, isPlaying: true, error: null }));
+      }
+    } catch (e) {
+      console.error('❌ playImmediate error:', e);
+      setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+    }
+  }, []);
+
   const pause = useCallback(() => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -1197,8 +1238,8 @@ export const useAudioService = () => {
         const next = effectiveQueue[idx + 1];
         if (next) {
           setCurrentIndex(idx + 1);
-          // IMPORTANT: jouer via play(track) pour éviter les états stale (loadTrack + play séparés)
-          play(next).catch(() => {});
+          // IMPORTANT: ended -> éviter les awaits (autoplay policy). Play immédiatement.
+          playImmediate(next);
           return;
         }
       }
@@ -1206,8 +1247,8 @@ export const useAudioService = () => {
         const next = effectiveQueue[0];
         if (next) {
           setCurrentIndex(0);
-          // IMPORTANT: jouer via play(track) pour éviter les états stale
-          play(next).catch(() => {});
+          // IMPORTANT: ended -> éviter les awaits (autoplay policy). Play immédiatement.
+          playImmediate(next);
           return;
         }
       }
@@ -1224,9 +1265,7 @@ export const useAudioService = () => {
           if (loadedTracks && loadedTracks.length > 0) {
             const randomTrack = loadedTracks[Math.floor(Math.random() * loadedTracks.length)];
             console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
-            play(randomTrack).catch((error) => {
-              console.error('Erreur lors du chargement de la piste auto-play:', error);
-            });
+            playImmediate(randomTrack);
           } else {
             console.log('Aucune piste disponible après chargement');
             setState(prev => ({ ...prev, isPlaying: false }));
@@ -1316,24 +1355,7 @@ export const useAudioService = () => {
         const updatedHistory = [...recentlyPlayed, autoPlayNextTrack._id].slice(-10); // Garder les 10 dernières
         localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
         
-        play(autoPlayNextTrack).catch((error) => {
-          console.error('Erreur lors du chargement de la piste auto-play:', error);
-          // Essayer une autre piste en cas d'erreur
-          const availableTracks = allTracks.filter(track => 
-            track._id !== state.currentTrack?._id && 
-            track._id !== autoPlayNextTrack?._id
-          );
-          if (availableTracks.length > 0) {
-            const fallbackTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
-            console.log('🎵 Auto-play fallback:', fallbackTrack.title);
-            play(fallbackTrack).catch((fallbackError) => {
-              console.error('Erreur fallback auto-play:', fallbackError);
-              setState(prev => ({ ...prev, isPlaying: false }));
-            });
-          } else {
-            setState(prev => ({ ...prev, isPlaying: false }));
-          }
-        });
+        playImmediate(autoPlayNextTrack);
         setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
       } else {
         // Aucune piste disponible, arrêter la lecture
@@ -1356,6 +1378,7 @@ export const useAudioService = () => {
     play,
     updatePlayCount,
     nextTrack,
+    playImmediate,
   ]);
 
   // Keep the ended handler pointing to the latest implementation (queue/repeat/current track etc.)
