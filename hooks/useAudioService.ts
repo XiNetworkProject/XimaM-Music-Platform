@@ -90,6 +90,19 @@ export const useAudioService = () => {
   // Suivi des milestones de lecture (25%, 50%, 75%, 100%)
   const lastMilestoneRef = useRef<number>(0);
   const hasStartedRef = useRef<boolean>(false);
+
+  // Garder currentIndex synchronisé avec la piste réellement chargée.
+  // Sinon, next/ended peuvent repartir sur la même piste (index stale = -1 ou mauvais).
+  useEffect(() => {
+    const curId = state.currentTrack?._id;
+    if (!curId) return;
+    const effectiveQueue = shuffle && shuffledQueue.length ? shuffledQueue : queue;
+    if (!effectiveQueue.length) return;
+    const idx = effectiveQueue.findIndex((t) => t?._id === curId);
+    if (idx !== -1 && idx !== currentIndex) {
+      setCurrentIndex(idx);
+    }
+  }, [state.currentTrack?._id, queue, shuffledQueue, shuffle, currentIndex]);
   
   // Initialisation du service worker et des notifications
   useEffect(() => {
@@ -1174,32 +1187,29 @@ export const useAudioService = () => {
     if (queue.length > 1) {
       const effectiveQueue = shuffle && shuffledQueue.length ? shuffledQueue : queue;
       const curId = state.currentTrack?._id || null;
-      const idxInQueue = curId ? effectiveQueue.findIndex((t) => t?._id === curId) : -1;
+      const idxById = curId ? effectiveQueue.findIndex((t) => t?._id === curId) : -1;
+      const idxFallback =
+        currentIndex >= 0 && currentIndex < effectiveQueue.length ? currentIndex : 0;
+      const idx = idxById !== -1 ? idxById : idxFallback;
 
-      if (idxInQueue !== -1) {
-        const isLast = idxInQueue >= effectiveQueue.length - 1;
-        if (!isLast) {
-          const next = effectiveQueue[idxInQueue + 1];
-          if (next) {
-            setCurrentIndex(idxInQueue + 1);
-            loadTrack(next).then(() => play()).catch(() => {});
-            return;
-          }
+      const isLast = idx >= effectiveQueue.length - 1;
+      if (!isLast) {
+        const next = effectiveQueue[idx + 1];
+        if (next) {
+          setCurrentIndex(idx + 1);
+          loadTrack(next).then(() => play()).catch(() => {});
+          return;
         }
-        if (isLast && repeat === 'all') {
-          const next = effectiveQueue[0];
-          if (next) {
-            setCurrentIndex(0);
-            loadTrack(next).then(() => play()).catch(() => {});
-            return;
-          }
-        }
-        // Fin de queue sans repeat: continuer vers auto‑play global ci‑dessous
-      } else {
-        // Piste courante pas trouvée dans la queue: fallback vers nextTrack (best-effort)
-        nextTrack();
-        return;
       }
+      if (isLast && repeat === 'all') {
+        const next = effectiveQueue[0];
+        if (next) {
+          setCurrentIndex(0);
+          loadTrack(next).then(() => play()).catch(() => {});
+          return;
+        }
+      }
+      // Fin de queue sans repeat: continuer vers auto‑play global ci‑dessous
     }
 
     {
