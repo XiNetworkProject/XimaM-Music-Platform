@@ -232,6 +232,9 @@ export const useAudioService = () => {
 
     const handleEnded = () => {
       console.log('🎵 Événement ended déclenché');
+      // Important: quand "ended" arrive, l'élément audio est en pause.
+      // Si on laisse isPlaying=true, le watchdog peut relancer la même piste en boucle.
+      setState(prev => ({ ...prev, isPlaying: false }));
       try {
         handleTrackEndRef.current?.();
       } catch {}
@@ -1377,7 +1380,7 @@ export const useAudioService = () => {
       if (!audio || !state.currentTrack) return;
       
       // Vérifier si l'audio devrait jouer mais ne joue pas
-      if (state.isPlaying && audio.paused && !state.isLoading) {
+      if (state.isPlaying && audio.paused && !state.isLoading && !audio.ended) {
         console.warn('⚠️ Watchdog: Audio censé jouer mais en pause. Tentative de récupération...');
         
         // Vérifier que la source est toujours valide
