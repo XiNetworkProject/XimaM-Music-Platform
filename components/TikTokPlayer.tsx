@@ -250,6 +250,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const prevQueueRef = useRef<{ tracks: any[]; currentTrackIndex: number } | null>(null);
   const openedTrackIdRef = useRef<string | null>(null);
   const changedTrackRef = useRef(false);
+  const audioPreloadLinksRef = useRef<HTMLLinkElement[]>([]);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
   const currentId = currentTrack?._id;
@@ -671,6 +672,47 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const bgUrl = useMemo(() => getCoverUrl(activeTrack || tracks[0]), [activeTrack, tracks]);
 
   if (!isOpen) return null;
+
+  // Précharger audio des prochaines pistes (réduit le buffering perçu entre musiques)
+  useEffect(() => {
+    if (!isOpen) return;
+    if (!tracks.length) return;
+
+    // cleanup anciennes balises
+    for (const link of audioPreloadLinksRef.current) {
+      try {
+        link.parentNode?.removeChild(link);
+      } catch {}
+    }
+    audioPreloadLinksRef.current = [];
+
+    const nextTracks = tracks.slice(activeIndex + 1, activeIndex + 3);
+    const urls = nextTracks
+      .map((t) => t?.audioUrl)
+      .filter((u): u is string => typeof u === 'string' && u.length > 0)
+      // éviter de précharger des streams live (radio/hls)
+      .filter((u) => !u.toLowerCase().endsWith('.m3u8') && !/\/listen\//i.test(u));
+
+    for (const href of urls) {
+      const link = document.createElement('link');
+      link.rel = 'preload';
+      link.as = 'audio';
+      link.href = href;
+      // crossOrigin best-effort (ne casse pas si non supporté)
+      link.crossOrigin = 'anonymous';
+      document.head.appendChild(link);
+      audioPreloadLinksRef.current.push(link);
+    }
+
+    return () => {
+      for (const link of audioPreloadLinksRef.current) {
+        try {
+          link.parentNode?.removeChild(link);
+        } catch {}
+      }
+      audioPreloadLinksRef.current = [];
+    };
+  }, [activeIndex, isOpen, tracks]);
 
   // Auto-next quand la piste se termine (TikTok-like)
   // On se base sur l'event natif "ended" de l'élément audio du provider.
