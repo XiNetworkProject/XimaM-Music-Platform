@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -100,6 +101,9 @@ export default function LibraryClient() {
   const router = useRouter();
   const { data: session } = useSession();
   const userId = (session?.user as any)?.id as string | undefined;
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
 
   const { audioState, setQueueAndPlay, playTrack } = useAudioPlayer();
   const { toggleLikeBatch, isBatchLoading } = useBatchLikeSystem();
@@ -976,116 +980,123 @@ export default function LibraryClient() {
         )}
       </div>
 
-      {/* Create playlist modal */}
-      <AnimatePresence>
-        {showCreate ? (
-          <motion.div
-            className="fixed inset-0 z-[220] bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowCreate(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 18 }}
-              transition={{ duration: 0.18 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
-                <div className="text-sm font-semibold text-foreground-primary">Nouveau dossier</div>
-                <button
-                  type="button"
+      {/* Create playlist modal (portaled to body for true viewport centering) */}
+      {isMounted
+        ? createPortal(
+            <AnimatePresence>
+              {showCreate ? (
+                <motion.div
+                  className="fixed inset-0 z-[220] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
                   onClick={() => setShowCreate(false)}
-                  className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
                 >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </div>
-              <div className="p-4 space-y-3">
-                <div>
-                  <div className="text-xs text-foreground-tertiary mb-1">Nom</div>
-                  <input
-                    value={newPl.name}
-                    onChange={(e) => setNewPl((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 text-sm outline-none"
-                    placeholder="Mes coups de cœur"
-                    autoFocus
-                  />
-                </div>
-                <div>
-                  <div className="text-xs text-foreground-tertiary mb-1">Description</div>
-                  <textarea
-                    value={newPl.description}
-                    onChange={(e) => setNewPl((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full min-h-[88px] rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none resize-none"
-                    placeholder="Optionnel…"
-                    maxLength={240}
-                  />
-                </div>
-                <div className="flex items-center justify-between rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-3">
-                  <div className="text-sm text-foreground-secondary">Dossier public</div>
-                  <button
-                    type="button"
-                    onClick={() => setNewPl((p) => ({ ...p, isPublic: !p.isPublic }))}
-                    className={cx(
-                      'h-7 w-12 rounded-full border border-border-secondary transition relative',
-                      newPl.isPublic ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
-                    )}
-                    aria-label="Toggle public"
+                  <motion.div
+                    initial={{ opacity: 0, y: 18 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 18 }}
+                    transition={{ duration: 0.18 }}
+                    className="w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
                   >
-                    <span
-                      className={cx(
-                        'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
-                        newPl.isPublic ? 'left-6' : 'left-1',
-                      )}
-                    />
-                  </button>
-                </div>
-              </div>
-              <div className="p-4 border-t border-border-secondary/60 flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(false)}
-                  className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  disabled={creating || !newPl.name.trim()}
-                  onClick={createPlaylist}
-                  className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition disabled:opacity-50"
-                >
-                  {creating ? 'Création…' : 'Créer'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+                    <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
+                      <div className="text-sm font-semibold text-foreground-primary">Nouveau dossier</div>
+                      <button
+                        type="button"
+                        onClick={() => setShowCreate(false)}
+                        className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div className="p-4 space-y-3">
+                      <div>
+                        <div className="text-xs text-foreground-tertiary mb-1">Nom</div>
+                        <input
+                          value={newPl.name}
+                          onChange={(e) => setNewPl((p) => ({ ...p, name: e.target.value }))}
+                          className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 text-sm outline-none"
+                          placeholder="Mes coups de cœur"
+                          autoFocus
+                        />
+                      </div>
+                      <div>
+                        <div className="text-xs text-foreground-tertiary mb-1">Description</div>
+                        <textarea
+                          value={newPl.description}
+                          onChange={(e) => setNewPl((p) => ({ ...p, description: e.target.value }))}
+                          className="w-full min-h-[88px] rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none resize-none"
+                          placeholder="Optionnel…"
+                          maxLength={240}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-3">
+                        <div className="text-sm text-foreground-secondary">Dossier public</div>
+                        <button
+                          type="button"
+                          onClick={() => setNewPl((p) => ({ ...p, isPublic: !p.isPublic }))}
+                          className={cx(
+                            'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                            newPl.isPublic ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
+                          )}
+                          aria-label="Toggle public"
+                        >
+                          <span
+                            className={cx(
+                              'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                              newPl.isPublic ? 'left-6' : 'left-1',
+                            )}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="p-4 border-t border-border-secondary/60 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreate(false)}
+                        className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        type="button"
+                        disabled={creating || !newPl.name.trim()}
+                        onClick={createPlaylist}
+                        className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition disabled:opacity-50"
+                      >
+                        {creating ? 'Création…' : 'Créer'}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
 
-      {/* Track actions sheet */}
-      <AnimatePresence>
-        {activeTrackMenu ? (
-          <motion.div
-            className="fixed inset-0 z-[230] bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setActiveTrackMenu(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 22 }}
-              transition={{ duration: 0.18 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[460px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            >
+      {/* Track actions modal (portaled) */}
+      {isMounted
+        ? createPortal(
+            <AnimatePresence>
+              {activeTrackMenu ? (
+                <motion.div
+                  className="fixed inset-0 z-[230] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setActiveTrackMenu(null)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 22 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 22 }}
+                    transition={{ duration: 0.18 }}
+                    className="w-[92vw] max-w-[460px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                  >
               <div className="p-4 border-b border-border-secondary/60">
                 <div className="text-sm font-semibold text-foreground-primary truncate">{activeTrackMenu.track.title}</div>
                 <div className="mt-0.5 text-xs text-foreground-tertiary truncate">{activeTrackMenu.track.artist?.name}</div>
@@ -1201,30 +1212,35 @@ export default function LibraryClient() {
                   Fermer
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
 
-      {/* Add to playlist modal */}
-      <AnimatePresence>
-        {showAddToPlaylistFor ? (
-          <motion.div
-            className="fixed inset-0 z-[240] bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowAddToPlaylistFor(null)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 22 }}
-              transition={{ duration: 0.18 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-            >
+      {/* Add to playlist modal (portaled) */}
+      {isMounted
+        ? createPortal(
+            <AnimatePresence>
+              {showAddToPlaylistFor ? (
+                <motion.div
+                  className="fixed inset-0 z-[240] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowAddToPlaylistFor(null)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 22 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 22 }}
+                    transition={{ duration: 0.18 }}
+                    className="w-[92vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                  >
               <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-foreground-primary">Ajouter à un dossier</div>
@@ -1281,29 +1297,34 @@ export default function LibraryClient() {
                   OK
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
 
-      {/* Edit playlist modal */}
-      <AnimatePresence>
-        {showEditPlaylist && selectedPlaylist ? (
-          <motion.div
-            className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowEditPlaylist(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 22 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 22 }}
-              transition={{ duration: 0.18 }}
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
+      {/* Edit playlist modal (portaled) */}
+      {isMounted
+        ? createPortal(
+            <AnimatePresence>
+              {showEditPlaylist && selectedPlaylist ? (
+                <motion.div
+                  className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowEditPlaylist(false)}
+                >
+                  <motion.div
+                    initial={{ opacity: 0, y: 22 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 22 }}
+                    transition={{ duration: 0.18 }}
+                    className="w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  >
               <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
                 <div className="text-sm font-semibold text-foreground-primary">Options du dossier</div>
                 <button
@@ -1379,10 +1400,13 @@ export default function LibraryClient() {
                   {savingPlaylist ? 'Sauvegarde…' : 'Enregistrer'}
                 </button>
               </div>
-            </motion.div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+                  </motion.div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
