@@ -1,0 +1,129 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
+import { supabaseAdmin } from '@/lib/supabase';
+import contentModerator from '@/lib/contentModeration';
+
+// GET /api/tracks/[id]/comments - liste publique (filtrée) des commentaires
+// POST /api/tracks/[id]/comments - ajouter un commentaire (avec modération)
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  const trackId = params.id;
+  if (!trackId) return NextResponse.json({ comments: [] });
+  if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
+    return NextResponse.json({ comments: [] });
+  }
+
+  const session = await getServerSession(authOptions).catch(() => null);
+  const userId = (session?.user as any)?.id || null;
+  const { searchParams } = new URL(request.url);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 100);
+  const offset = Math.max(parseInt(searchParams.get('offset') || '0', 10) || 0, 0);
+
+  // Récupérer commentaires + replies (on ramène tout puis on reconstruit)
+  const { data: rows, error } = await supabaseAdmin
+    .from('comments')
+    .select('id, content, created_at, updated_at, user_id, track_id, parent_id')
+    .eq('track_id', trackId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+
+  if (error) return NextResponse.json({ comments: [] });
+
+  const comments = rows || [];
+  const userIds = Array.from(new Set(comments.map((c: any) => c.user_id).filter(Boolean)));
+  const { data: users } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').in('id', userIds);
+  const usersMap = new Map((users || []).map((u: any) => [u.id, u]));
+
+  // Likes (best-effort)
+  const ids = comments.map((c: any) => c.id);
+  let likesCountMap = new Map<string, number>();
+  let likedByUser = new Set<string>();
+  try {
+    const { data: likesRows } = await supabaseAdmin
+      .from('comment_likes')
+      .select('comment_id, user_id')
+      .in('comment_id', ids);
+    for (const r of likesRows || []) {
+      const cid = String((r as any).comment_id);
+      likesCountMap.set(cid, (likesCountMap.get(cid) || 0) + 1);
+      if (userId && (r as any).user_id === userId) likedByUser.add(cid);
+    }
+  } catch {
+    // table absente: on laisse à 0
+  }
+
+  const formatted = comments
+    .filter((c: any) => !c.parent_id) // top-level only for this endpoint
+    .map((c: any) => {
+      const u = usersMap.get(c.user_id);
+      return {
+        id: c.id,
+        content: c.content,
+        createdAt: c.created_at,
+        updatedAt: c.updated_at,
+        likes: [],
+        likesCount: likesCountMap.get(c.id) || 0,
+        isLiked: likedByUser.has(c.id),
+        user: {
+          id: c.user_id,
+          username: u?.username || 'Utilisateur',
+          name: u?.name || u?.username || 'Utilisateur',
+          avatar: u?.avatar || '',
+        },
+        replies: [],
+      };
+    });
+
+  return NextResponse.json({ comments: formatted });
+}
+
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions).catch(() => null);
+  const userId = (session?.user as any)?.id;
+  if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
+
+  const trackId = params.id;
+  if (!trackId) return NextResponse.json({ error: 'TrackId manquant' }, { status: 400 });
+  if (trackId === 'radio-mixx-party' || trackId === 'radio-ximam' || trackId.startsWith('ai-')) {
+    return NextResponse.json({ error: 'Commentaires non disponibles' }, { status: 400 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const content = String(body?.content || '').trim();
+  if (!content) return NextResponse.json({ error: 'Commentaire vide' }, { status: 400 });
+
+  const mod = contentModerator.analyzeContent(content);
+  if (!mod.isClean) {
+    return NextResponse.json({ error: 'Contenu refusé', details: mod }, { status: 400 });
+  }
+
+  const { data: inserted, error } = await supabaseAdmin
+    .from('comments')
+    .insert({ track_id: trackId, user_id: userId, content })
+    .select('id, content, created_at, updated_at, user_id')
+    .single();
+
+  if (error || !inserted) return NextResponse.json({ error: 'Impossible de publier' }, { status: 500 });
+
+  const { data: user } = await supabaseAdmin.from('profiles').select('id, username, name, avatar').eq('id', userId).maybeSingle();
+
+  return NextResponse.json({
+    comment: {
+      id: inserted.id,
+      content: inserted.content,
+      createdAt: inserted.created_at,
+      updatedAt: inserted.updated_at,
+      likes: [],
+      likesCount: 0,
+      isLiked: false,
+      user: {
+        id: userId,
+        username: (user as any)?.username || 'Utilisateur',
+        name: (user as any)?.name || (user as any)?.username || 'Utilisateur',
+        avatar: (user as any)?.avatar || '',
+      },
+      replies: [],
+    },
+  });
+}
+

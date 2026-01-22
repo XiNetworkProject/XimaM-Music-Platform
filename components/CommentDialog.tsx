@@ -22,6 +22,7 @@ interface Comment {
   content: string;
   likes: string[]; // Tableau vide pour compatibilité MongoDB
   likesCount: number; // Compteur réel des likes Supabase
+  isLiked?: boolean;
   replies?: Comment[];
   isDeleted?: boolean;
   isCreatorFavorite?: boolean;
@@ -304,6 +305,7 @@ export default function CommentDialog({
           comment.id === commentId 
             ? { 
                 ...comment, 
+                isLiked: !!isLiked,
                 likesCount: likesCount
               }
             : comment
@@ -541,12 +543,12 @@ export default function CommentDialog({
                         <button
                           onClick={() => handleLikeComment(comment.id)}
                           className={`flex items-center gap-1 px-2 py-1 rounded-full transition-colors ${
-                            false // Temporairement désactivé car likes est un tableau vide
+                            comment.isLiked
                               ? 'bg-red-500 text-white'
                               : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-400'
                           }`}
                         >
-                          <Heart className={`w-4 h-4 ${false ? 'fill-current' : ''}`} />
+                          <Heart className={`w-4 h-4 ${comment.isLiked ? 'fill-current' : ''}`} />
                           <span className="text-sm">{comment.likesCount || 0}</span>
                         </button>
 
