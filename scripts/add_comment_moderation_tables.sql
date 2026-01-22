@@ -14,6 +14,26 @@ create table if not exists public.comments (
   updated_at timestamptz not null default now()
 );
 
+-- If the table already existed (old schema), ensure required columns exist
+alter table public.comments add column if not exists track_id uuid;
+alter table public.comments add column if not exists user_id uuid;
+alter table public.comments add column if not exists content text;
+alter table public.comments add column if not exists parent_id uuid;
+alter table public.comments add column if not exists created_at timestamptz;
+alter table public.comments add column if not exists updated_at timestamptz;
+
+-- Backfill defaults for older rows (safe for existing data)
+update public.comments set content = '' where content is null;
+update public.comments set created_at = now() where created_at is null;
+update public.comments set updated_at = now() where updated_at is null;
+
+-- Enforce minimal constraints (content + timestamps)
+alter table public.comments alter column content set not null;
+alter table public.comments alter column created_at set not null;
+alter table public.comments alter column updated_at set not null;
+alter table public.comments alter column created_at set default now();
+alter table public.comments alter column updated_at set default now();
+
 create index if not exists comments_track_id_created_at_idx on public.comments(track_id, created_at desc);
 create index if not exists comments_parent_id_idx on public.comments(parent_id);
 create index if not exists comments_user_id_idx on public.comments(user_id);
