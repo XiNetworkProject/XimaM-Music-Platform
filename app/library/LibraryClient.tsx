@@ -1082,7 +1082,7 @@ export default function LibraryClient() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 22 }}
               transition={{ duration: 0.18 }}
-              className="absolute inset-x-0 bottom-0 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[460px] w-full rounded-t-3xl sm:rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[460px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
               style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
@@ -1221,7 +1221,7 @@ export default function LibraryClient() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 22 }}
               transition={{ duration: 0.18 }}
-              className="absolute inset-x-0 bottom-0 sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[520px] w-full rounded-t-3xl sm:rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden"
               onClick={(e: React.MouseEvent) => e.stopPropagation()}
               style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
