@@ -301,9 +301,6 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   }, [activeTrackId, checkLikeStatus]);
 
   const close = useCallback(() => {
-    try {
-      pause();
-    } catch {}
     // Restaurer l'ancienne queue uniquement si l'utilisateur n'a pas changé de piste dans le TikTokPlayer
     if (prevQueueRef.current && !changedTrackRef.current) {
       try {
@@ -317,7 +314,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     feedLoadedRef.current = false;
     openSeedIdRef.current = null;
     onClose();
-  }, [onClose, pause, setCurrentTrackIndex, setTracks]);
+  }, [onClose, setCurrentTrackIndex, setTracks]);
 
   // Plein écran: bloque le scroll du body uniquement quand ouvert
   useEffect(() => {
