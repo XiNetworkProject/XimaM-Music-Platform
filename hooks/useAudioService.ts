@@ -690,6 +690,8 @@ export const useAudioService = () => {
         url: track.audioUrl,
         ended: audio.ended,
         paused: audio.paused,
+        readyState: audio.readyState,
+        networkState: audio.networkState,
       });
       try { audio.pause(); } catch {}
       try { audio.currentTime = 0; } catch {}
@@ -722,6 +724,14 @@ export const useAudioService = () => {
         const a = audioRef.current;
         if (!a) return;
         try {
+          console.log(`⏯️ attemptPlay(${label})`, {
+            ended: a.ended,
+            paused: a.paused,
+            currentTime: a.currentTime,
+            readyState: a.readyState,
+            networkState: a.networkState,
+            src: a.src,
+          });
           const prevVol = a.volume;
           if (useTinyVolume) {
             try { a.volume = 0.0001; } catch {}
@@ -768,8 +778,14 @@ export const useAudioService = () => {
       const retry = (label: string) => {
         const a = audioRef.current;
         if (!a) return;
+        console.warn(`⏭️ playImmediate retry check (${label})`, {
+          ended: a.ended,
+          paused: a.paused,
+          currentTime: a.currentTime,
+          readyState: a.readyState,
+          networkState: a.networkState,
+        });
         if (a.paused && (a.currentTime || 0) < 0.05) {
-          console.warn(`⏭️ playImmediate retry (${label})`);
           attemptPlay(`retry-${label}`, false);
         }
       };
@@ -781,6 +797,26 @@ export const useAudioService = () => {
         const onCanPlay = () => retry('canplay');
         audio.addEventListener('canplay', onCanPlay, { once: true } as any);
       } catch {}
+
+      // If after 500ms we still haven't advanced, surface a deterministic error with media states.
+      setTimeout(() => {
+        const a = audioRef.current;
+        if (!a) return;
+        const notStarted = a.paused && (a.currentTime || 0) < 0.05;
+        if (!notStarted) return;
+        const code = (a.error as any)?.code;
+        const msg = `Auto-next bloqué: paused@0s (ended=${a.ended}) readyState=${a.readyState} networkState=${a.networkState} errorCode=${code ?? 'n/a'}`;
+        console.error('❌ auto-next not started:', {
+          ended: a.ended,
+          paused: a.paused,
+          currentTime: a.currentTime,
+          readyState: a.readyState,
+          networkState: a.networkState,
+          error: a.error,
+          src: a.src,
+        });
+        setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: msg }));
+      }, 500);
     } catch (e) {
       console.error('❌ playImmediate error:', e);
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
@@ -1329,6 +1365,14 @@ export const useAudioService = () => {
       const idxFallback =
         currentIndex >= 0 && currentIndex < effectiveQueue.length ? currentIndex : 0;
       const idx = idxById !== -1 ? idxById : idxFallback;
+      console.log('➡️ auto-next queue decision', {
+        idxById,
+        idxFallback,
+        idx,
+        curId,
+        nextId: effectiveQueue[idx + 1]?._id || null,
+        nextTitle: (effectiveQueue[idx + 1] as any)?.title || null,
+      });
 
       const isLast = idx >= effectiveQueue.length - 1;
       if (!isLast) {
