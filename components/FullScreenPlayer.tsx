@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, Radio, AlertTriangle, ChevronDown } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, AlertTriangle, ChevronDown } from "lucide-react";
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import LikeButton from './LikeButton';
 import TikTokPlayer from './TikTokPlayer';
@@ -28,7 +28,8 @@ export default function SynauraMiniPlayer() {
     seek,
     setVolume,
     toggleMute,
-    setRepeat
+    setRepeat,
+    addToUpNext,
   } = useAudioPlayer();
   const { currentTime, duration } = useAudioTime();
 
@@ -204,6 +205,25 @@ export default function SynauraMiniPlayer() {
                   size="md"
                 />
               )}
+
+              <button
+                onClick={() => {
+                  if (!currentTrack) return;
+                  if (isLive) return;
+                  if (String(currentTrack._id || '').startsWith('radio-')) return;
+                  addToUpNext(currentTrack as any, 'end');
+                }}
+                disabled={!currentTrack || isLive || String(currentTrack?._id || '').startsWith('radio-')}
+                className={`hidden sm:inline-flex p-2 rounded-md border transition ${
+                  (!currentTrack || isLive || String(currentTrack?._id || '').startsWith('radio-'))
+                    ? 'opacity-50 cursor-not-allowed border-transparent'
+                    : 'hover:bg-white/5 border-transparent'
+                }`}
+                title="Ajouter à “À suivre”"
+                aria-label="Ajouter à la liste d'attente"
+              >
+                <ListPlus className="w-5 h-5"/>
+              </button>
               
               <button 
                 onClick={handleRepeat} 

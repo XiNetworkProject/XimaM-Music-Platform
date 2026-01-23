@@ -14,6 +14,7 @@ import {
   FileText,
   Lock,
   Loader2,
+  ListPlus,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -224,6 +225,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     pause,
     seek,
     getAudioElement,
+    addToUpNext,
   } = useAudioPlayer();
 
   const { canDownload, upgradeMessage } = useDownloadPermission();
@@ -1132,6 +1134,22 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                     >
                       {canDownload ? <Download className="w-5 h-5" /> : <Lock className="w-5 h-5" />}
                       <span className="text-[10px] leading-none text-white/70"> </span>
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isThis) return;
+                        if (isRadio) return;
+                        addToUpNext(t as any, 'end');
+                        toast.success('Ajouté à “À suivre”');
+                      }}
+                      className="w-12 h-12 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition hover:bg-white/10 bg-white/5 border-white/10"
+                      aria-label="Ajouter à la liste d'attente"
+                      title="Ajouter à “À suivre”"
+                    >
+                      <ListPlus className="w-5 h-5" />
+                      <span className="text-[10px] leading-none text-white/70">À suivre</span>
                     </button>
                   </aside>
 
