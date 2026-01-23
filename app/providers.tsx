@@ -342,7 +342,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       if (upNextEnabled) {
         applyingUpNextRef.current = true;
         try {
-          const currentId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
+          const currentId =
+            ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+            audioState.tracks[audioState.currentTrackIndex]?._id ||
+            null;
           const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
           rawSetQueueOnly(merged.tracks, merged.currentIndex);
         } finally {
@@ -350,7 +353,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
+    [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
   );
 
   const removeFromUpNext = useCallback(
@@ -360,7 +363,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       if (upNextEnabled) {
         applyingUpNextRef.current = true;
         try {
-          const currentId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
+          const currentId =
+            ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+            audioState.tracks[audioState.currentTrackIndex]?._id ||
+            null;
           const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
           rawSetQueueOnly(merged.tracks, merged.currentIndex);
         } finally {
@@ -368,7 +374,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
+    [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
   );
 
   const clearUpNext = useCallback(() => {
@@ -376,14 +382,17 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (upNextEnabled) {
       applyingUpNextRef.current = true;
       try {
-        const currentId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
+        const currentId =
+          ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+          audioState.tracks[audioState.currentTrackIndex]?._id ||
+          null;
         const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
         rawSetQueueOnly(merged.tracks, merged.currentIndex);
       } finally {
         applyingUpNextRef.current = false;
       }
     }
-  }, [audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled]);
+  }, [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled]);
 
   const toggleUpNextEnabled = useCallback(() => {
     setUpNextEnabled((prev) => {
@@ -395,7 +404,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         }
         applyingUpNextRef.current = true;
         try {
-          const currentId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
+          const currentId =
+            ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+            audioState.tracks[audioState.currentTrackIndex]?._id ||
+            null;
           const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
           rawSetQueueOnly(merged.tracks, merged.currentIndex);
         } finally {
@@ -408,7 +420,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
           applyingUpNextRef.current = true;
           try {
             // Restore queue without forcing restart if current track exists in base
-            const currentId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
+            const currentId =
+              ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+              audioState.tracks[audioState.currentTrackIndex]?._id ||
+              null;
             const idx = currentId ? base.tracks.findIndex((t) => t?._id === currentId) : -1;
             rawSetQueueOnly(base.tracks, idx >= 0 ? idx : base.currentTrackIndex || 0);
           } finally {
@@ -418,17 +433,19 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, [audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly]);
+  }, [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly]);
 
   // When an UpNext track starts playing, consider it "consumed" from the list (but keep it in queue).
   useEffect(() => {
     if (!upNextEnabled) return;
-    const currentId = audioState.tracks[audioState.currentTrackIndex]?._id;
+    const currentId =
+      ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+      audioState.tracks[audioState.currentTrackIndex]?._id;
     if (!currentId) return;
     if (upNextTracks.some((t) => t?._id === currentId)) {
       setUpNextTracks((prev) => prev.filter((t) => t?._id !== currentId));
     }
-  }, [audioState.currentTrackIndex, audioState.tracks, upNextEnabled, upNextTracks]);
+  }, [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, upNextEnabled, upNextTracks]);
   // Media Session: mapping piste courante -> métadonnées Media Session
   const mediaSessionTrack: MSMediaTrack | null = useMemo(() => {
     const t = audioService.state.currentTrack as any;
