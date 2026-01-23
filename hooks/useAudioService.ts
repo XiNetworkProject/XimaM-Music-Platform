@@ -64,6 +64,7 @@ export const useAudioService = () => {
   // IMPORTANT: audio element listeners are registered once (effect with []),
   // so callbacks they call must be routed through refs to avoid stale closures.
   const handleTrackEndRef = useRef<() => void>(() => {});
+  const currentTrackIdRef = useRef<string | null>(null);
   
   const [state, setState] = useState<AudioServiceState>({
     currentTrack: null,
@@ -106,6 +107,10 @@ export const useAudioService = () => {
       setCurrentIndex(idx);
     }
   }, [state.currentTrack?._id, queue, shuffledQueue, shuffle, currentIndex]);
+
+  useEffect(() => {
+    currentTrackIdRef.current = state.currentTrack?._id || null;
+  }, [state.currentTrack?._id]);
   
   // Initialisation du service worker et des notifications
   useEffect(() => {
@@ -170,6 +175,29 @@ export const useAudioService = () => {
     
     // Événements audio optimisés
     const audio = audioRef.current;
+
+    // Debug: detect who pauses playback (this is the current blocker for auto-next).
+    try {
+      const anyAudio = audio as any;
+      if (!anyAudio.__ximamPauseWrapped) {
+        anyAudio.__ximamPauseWrapped = true;
+        const origPause = audio.pause.bind(audio);
+        audio.pause = () => {
+          try {
+            console.warn('🔇 audio.pause() called', {
+              trackId: currentTrackIdRef.current,
+              currentTime: audio.currentTime,
+              ended: audio.ended,
+              paused: audio.paused,
+              readyState: audio.readyState,
+              networkState: audio.networkState,
+              stack: new Error().stack,
+            });
+          } catch {}
+          return origPause();
+        };
+      }
+    } catch {}
 
     const handleLoadStart = () => {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
