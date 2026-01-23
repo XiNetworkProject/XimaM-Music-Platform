@@ -805,6 +805,12 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!audioState.showPlayer) return;
     if (!audioState.tracks.length) return;
     if (audioService.state.isLoading) return;
+    // CRITICAL: if the audio service already has a currentTrack, never force-load a track from UI state.
+    // This was interrupting auto-next (ended -> next starts -> provider rehydration loadTrack pauses it).
+    if (audioService.state.currentTrack) {
+      hasRehydratedAudioRef.current = true;
+      return;
+    }
     const idx = Math.max(0, Math.min(audioState.currentTrackIndex, audioState.tracks.length - 1));
     const t = audioState.tracks[idx];
     if (!t) return;
