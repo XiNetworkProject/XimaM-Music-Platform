@@ -312,7 +312,7 @@ export default function BoostersPage() {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="bg-gradient-to-r from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-6 mb-8"
         >
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="p-3 bg-purple-500/20 rounded-xl">
                 <Gift className="w-8 h-8 text-purple-400" />
@@ -322,14 +322,33 @@ export default function BoostersPage() {
                 <p className="text-[var(--text-muted)]">
                   {canOpen ? 'Votre booster quotidien est disponible !' : `Prochain booster dans ${formatRemaining(remainingMs)}`}
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('shop')}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/10 text-white/90"
+                  >
+                    Aller au Shop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('history')}
+                    className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/10 hover:bg-white/15 border border-white/10 text-white/90"
+                  >
+                    Voir l’historique
+                  </button>
+                  <span className="text-xs text-white/70">
+                    Plan: <span className="text-white font-semibold">{plan}</span>
+                  </span>
+                </div>
               </div>
             </div>
             <motion.button
               onClick={() => setShowBoosterModal(true)}
               disabled={!canOpen || boostersLoading}
               className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ${
-                canOpen 
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700' 
+                canOpen
+                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
                   : 'bg-[var(--surface-2)] text-[var(--text-muted)] border border-[var(--border)]'
               }`}
               whileHover={canOpen ? { scale: 1.05 } : {}}
