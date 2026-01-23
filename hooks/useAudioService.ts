@@ -707,24 +707,61 @@ export const useAudioService = () => {
       }));
       lastTrackId.current = track._id;
 
+      // Hard reset can help clear a sticky `ended` state in some browsers
+      try {
+        audio.src = '';
+        audio.load();
+      } catch {}
+
       audio.src = getCdnUrl(track.audioUrl) || track.audioUrl;
       try { audio.load(); } catch {}
       // Re-apply currentTime AFTER setting src to help clear ended-state in some browsers.
       try { audio.currentTime = 0; } catch {}
 
-      const p = audio.play();
-      if (p && typeof (p as any).catch === 'function') {
-        (p as Promise<void>).then(() => {
-          setState(prev => ({ ...prev, isPlaying: true, error: null }));
-        }).catch((err) => {
-          const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
-          console.error('❌ playImmediate: play() refusé/échoué:', err);
-          // Afficher l'erreur dans l'UI pour debug (autoplay policy / src not supported / etc.)
-          setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: `Auto-next bloqué: ${msg}` }));
-        });
-      } else {
-        setState(prev => ({ ...prev, isPlaying: true, error: null }));
-      }
+      const attemptPlay = (label: string, useTinyVolume: boolean) => {
+        const a = audioRef.current;
+        if (!a) return;
+        try {
+          const prevVol = a.volume;
+          if (useTinyVolume) {
+            try { a.volume = 0.0001; } catch {}
+          }
+          const p = a.play();
+          const onOk = () => {
+            if (useTinyVolume) {
+              setTimeout(() => {
+                try { if (audioRef.current) audioRef.current.volume = prevVol; } catch {}
+              }, 80);
+            }
+            setState(prev => ({ ...prev, isPlaying: true, error: null }));
+          };
+          const onErr = (err: any) => {
+            if (useTinyVolume) {
+              try { if (audioRef.current) audioRef.current.volume = prevVol; } catch {}
+            }
+            const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
+            console.error(`❌ playImmediate ${label} failed:`, err);
+            setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: `Auto-next bloqué: ${msg}` }));
+          };
+          if (p && typeof (p as any).then === 'function') {
+            (p as Promise<void>).then(onOk).catch((err) => {
+              // If blocked, retry once with tiny volume (best-effort bypass for autoplay restrictions)
+              if (!useTinyVolume && (err?.name === 'NotAllowedError' || String(err?.message || '').toLowerCase().includes('not allowed'))) {
+                console.warn('⏭️ playImmediate: NotAllowedError -> retry tiny volume');
+                attemptPlay(`${label}-tiny`, true);
+                return;
+              }
+              onErr(err);
+            });
+          } else {
+            onOk();
+          }
+        } catch (e) {
+          console.error(`❌ playImmediate ${label} threw:`, e);
+        }
+      };
+
+      attemptPlay('immediate', false);
 
       // Fallbacks: after changing src, some browsers keep audio.ended=true until playback starts.
       // So we retry play() even if ended is still true, as long as we're paused at ~0s.
@@ -733,18 +770,17 @@ export const useAudioService = () => {
         if (!a) return;
         if (a.paused && (a.currentTime || 0) < 0.05) {
           console.warn(`⏭️ playImmediate retry (${label})`);
-          const p2 = a.play();
-          if (p2 && typeof (p2 as any).catch === 'function') {
-            (p2 as Promise<void>).catch((err) => {
-              console.error('❌ playImmediate retry failed:', err);
-              const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
-              setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: `Auto-next bloqué: ${msg}` }));
-            });
-          }
+          attemptPlay(`retry-${label}`, false);
         }
       };
       setTimeout(() => retry('250ms'), 250);
       setTimeout(() => retry('1200ms'), 1200);
+
+      // Also retry when the browser signals it can play
+      try {
+        const onCanPlay = () => retry('canplay');
+        audio.addEventListener('canplay', onCanPlay, { once: true } as any);
+      } catch {}
     } catch (e) {
       console.error('❌ playImmediate error:', e);
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
