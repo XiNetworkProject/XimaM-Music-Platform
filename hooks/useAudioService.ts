@@ -47,6 +47,8 @@ interface AudioServiceActions {
   toggleMute: () => void;
   setShuffleMode?: (enabled: boolean) => void;
   setRepeatMode?: (mode: 'none' | 'one' | 'all') => void;
+  setUpNextEnabled?: (enabled: boolean) => void;
+  setUpNextQueue?: (tracks: Track[]) => void;
   setPlaybackRate: (rate: number) => void;
   nextTrack: () => void;
   previousTrack: () => void;
@@ -86,6 +88,9 @@ export const useAudioService = () => {
   const [repeat, setRepeat] = useState<'none' | 'one' | 'all'>('none');
   const [shuffledQueue, setShuffledQueue] = useState<Track[]>([]);
   const [allTracks, setAllTracks] = useState<Track[]>([]);
+  // "À suivre" (Up Next) — independent queue, prioritized when enabled
+  const [upNextEnabled, setUpNextEnabled] = useState(false);
+  const [upNextQueue, setUpNextQueue] = useState<Track[]>([]);
   const [autoPlayEnabled, setAutoPlayEnabled] = useState(true);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>('default');
   const [isFirstPlay, setIsFirstPlay] = useState(true);
@@ -1324,6 +1329,8 @@ export const useAudioService = () => {
       toggleMute,
       setShuffleMode,
       setRepeatMode,
+      setUpNextEnabled,
+      setUpNextQueue,
       setPlaybackRate,
       nextTrack,
       previousTrack,
@@ -1363,6 +1370,8 @@ export const useAudioService = () => {
     toggleMute,
     setShuffleMode,
     setRepeatMode,
+    setUpNextEnabled,
+    setUpNextQueue,
     setPlaybackRate,
     nextTrack,
     previousTrack,
@@ -1404,6 +1413,17 @@ export const useAudioService = () => {
         });
       }
       return;
+    }
+
+    // PRIORITÉ: "À suivre" strict (si activé et non vide)
+    if (upNextEnabled && Array.isArray(upNextQueue) && upNextQueue.length > 0) {
+      const next = upNextQueue[0];
+      if (next) {
+        setUpNextQueue((prev) => (Array.isArray(prev) ? prev.slice(1) : []));
+        // play immediately (ended context)
+        playImmediate(next);
+        return;
+      }
     }
 
     // Si on a une queue explicite (album/playlist), avancer si possible; sinon tomber en auto‑play global
@@ -1571,6 +1591,8 @@ export const useAudioService = () => {
     updatePlayCount,
     nextTrack,
     playImmediate,
+    upNextEnabled,
+    upNextQueue,
   ]);
 
   // Keep the ended handler pointing to the latest implementation (queue/repeat/current track etc.)

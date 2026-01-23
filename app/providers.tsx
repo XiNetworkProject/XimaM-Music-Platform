@@ -166,6 +166,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     } catch {}
   }, [upNextEnabled, upNextTracks]);
 
+  // Sync Up Next state into the audio service so auto-next always plays the correct list tracks (in order).
+  useEffect(() => {
+    try {
+      (audioService.actions as any).setUpNextEnabled?.(!!upNextEnabled);
+      (audioService.actions as any).setUpNextQueue?.(Array.isArray(upNextTracks) ? upNextTracks : []);
+    } catch {}
+  }, [audioService.actions, upNextEnabled, upNextTracks]);
+
   // Synchronisation optimisée avec le service audio
   useEffect(() => {
     setAudioState(prev => ({
