@@ -50,14 +50,25 @@ type Mission = {
   id: string;
   key: string;
   title: string;
-  goal_type: 'plays' | 'likes' | 'shares';
+  goal_type: 'plays' | 'likes' | 'shares' | 'boosts';
   threshold: number;
   cooldown_hours: number;
   reward_booster_id: string | null;
+  reward?: {
+    id: string;
+    key: string;
+    name: string;
+    rarity: BoosterRarity;
+    type: BoosterType;
+    multiplier: number;
+    duration_hours: number;
+  } | null;
   enabled: boolean;
   progress: number;
   completed: boolean;
   claimed: boolean;
+  canClaim?: boolean;
+  resetsAt?: string | null;
 };
 
 function cx(...classes: Array<string | false | undefined | null>) {
@@ -79,6 +90,16 @@ function pct(n: number) {
 function formatRemaining(ms: number) {
   const v = Math.max(0, Number(ms || 0));
   if (v <= 0) return 'Disponible';
+  const h = Math.floor(v / 3_600_000);
+  const m = Math.floor((v % 3_600_000) / 60_000);
+  const s = Math.floor((v % 60_000) / 1000);
+  if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
+function formatCountdown(ms: number) {
+  const v = Math.max(0, Number(ms || 0));
+  if (v <= 0) return '0s';
   const h = Math.floor(v / 3_600_000);
   const m = Math.floor((v % 3_600_000) / 60_000);
   const s = Math.floor((v % 60_000) / 1000);
@@ -891,7 +912,10 @@ export default function BoostersClient() {
                   {missions.map((m) => {
                     const progress = clamp((Number(m.progress || 0) / Math.max(1, Number(m.threshold || 1))) * 100, 0, 100);
                     const done = Boolean(m.completed) || Number(m.progress || 0) >= Number(m.threshold || 0);
-                    const canClaim = done && !m.claimed;
+                    const canClaim = Boolean(m.canClaim ?? (done && !m.claimed));
+                    const resetsAtTs = m.resetsAt ? new Date(m.resetsAt).getTime() : null;
+                    const msToReset = resetsAtTs ? (resetsAtTs - nowTs) : null;
+                    const reward = m.reward || null;
                     return (
                       <div key={m.id} className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
                         <div className="flex items-start justify-between gap-3">
@@ -908,21 +932,49 @@ export default function BoostersClient() {
                         <div className="mt-3 w-full h-2 rounded-full bg-black/20 overflow-hidden">
                           <div className="h-2 bg-purple-500" style={{ width: pct(progress) }} />
                         </div>
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <div className="text-xs text-[var(--text-muted)]">
-                            Cooldown: {Number(m.cooldown_hours || 0)}h
+                        <div className="mt-3 flex flex-col gap-2">
+                          {reward && (
+                            <div className="p-3 rounded-xl border border-white/10 bg-white/5">
+                              <div className="flex items-center justify-between gap-3">
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    {rarityIcon(reward.rarity)}
+                                    <div className="text-sm font-semibold text-white truncate">{reward.name}</div>
+                                    <span className={cx('text-xs px-2 py-0.5 rounded-full border', rarityChipClass(reward.rarity))}>
+                                      {rarityLabel(reward.rarity)}
+                                    </span>
+                                  </div>
+                                  <div className="mt-1 text-xs text-white/70">
+                                    {reward.type === 'track' ? 'Boost piste' : 'Boost artiste'} • x{Number(reward.multiplier).toFixed(2)} • {Number(reward.duration_hours)}h
+                                  </div>
+                                </div>
+                                <div className="shrink-0 text-right">
+                                  <div className="text-xs text-white/60">Récompense</div>
+                                  <div className="text-sm font-bold text-green-300">x{Number(reward.multiplier).toFixed(2)}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-xs text-[var(--text-muted)]">
+                              Cooldown: {Number(m.cooldown_hours || 0)}h
+                              {m.claimed && msToReset != null ? (
+                                <span className="ml-2 text-white/70">• reset dans {formatCountdown(msToReset)}</span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => claimMission(m.id)}
+                              disabled={!canClaim || claimingMissionId === m.id}
+                              className={cx(
+                                'px-3 py-2 rounded-xl font-semibold text-sm border transition-colors',
+                                canClaim ? 'bg-green-600 hover:bg-green-700 text-white border-green-500/40' : 'bg-[var(--surface)] text-[var(--text-muted)] border-[var(--border)]',
+                              )}
+                            >
+                              {claimingMissionId === m.id ? '...' : canClaim ? 'Réclamer' : done ? (m.claimed ? 'Réclamée' : 'Terminée') : 'Indispo'}
+                            </button>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => claimMission(m.id)}
-                            disabled={!canClaim || claimingMissionId === m.id}
-                            className={cx(
-                              'px-3 py-2 rounded-xl font-semibold text-sm border transition-colors',
-                              canClaim ? 'bg-green-600 hover:bg-green-700 text-white border-green-500/40' : 'bg-[var(--surface)] text-[var(--text-muted)] border-[var(--border)]',
-                            )}
-                          >
-                            {claimingMissionId === m.id ? '...' : canClaim ? 'Réclamer' : 'Indispo'}
-                          </button>
                         </div>
                       </div>
                     );
