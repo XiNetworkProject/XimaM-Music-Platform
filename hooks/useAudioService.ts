@@ -58,6 +58,7 @@ interface AudioServiceActions {
 export const useAudioService = () => {
   const { data: session } = useSession();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
   const recommendations = useAudioRecommendations();
   const isInitialized = useRef(false);
   const lastTrackId = useRef<string | null>(null);
@@ -107,6 +108,39 @@ export const useAudioService = () => {
       setCurrentIndex(idx);
     }
   }, [state.currentTrack?._id, queue, shuffledQueue, shuffle, currentIndex]);
+
+  // Précharger la prochaine piste (si elle existe dans la queue) pour réduire les temps de démarrage.
+  useEffect(() => {
+    const curId = state.currentTrack?._id;
+    if (!curId) return;
+    const effectiveQueue = shuffle && shuffledQueue.length ? shuffledQueue : queue;
+    if (!effectiveQueue.length) return;
+
+    const idx = effectiveQueue.findIndex((t) => t?._id === curId);
+    if (idx === -1) return;
+    const isLast = idx >= effectiveQueue.length - 1;
+    const next = !isLast ? effectiveQueue[idx + 1] : (repeat === 'all' ? effectiveQueue[0] : null);
+    if (!next?.audioUrl) return;
+
+    // Skip HLS/radio streams (wasteful to preload)
+    const url = String(next.audioUrl);
+    if (url.toLowerCase().endsWith('.m3u8')) return;
+
+    try {
+      if (!preloadAudioRef.current) {
+        const a = new Audio();
+        a.preload = 'auto';
+        a.crossOrigin = 'anonymous';
+        preloadAudioRef.current = a;
+      }
+      const a = preloadAudioRef.current!;
+      const src = getCdnUrl(url) || url;
+      if (a.src !== src) {
+        a.src = src;
+        try { a.load(); } catch {}
+      }
+    } catch {}
+  }, [state.currentTrack?._id, queue, shuffledQueue, shuffle, repeat]);
 
   useEffect(() => {
     currentTrackIdRef.current = state.currentTrack?._id || null;
