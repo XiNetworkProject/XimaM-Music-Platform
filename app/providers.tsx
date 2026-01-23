@@ -71,6 +71,8 @@ interface AudioPlayerContextType {
   addToUpNext: (track: Track, mode?: 'next' | 'end') => void;
   removeFromUpNext: (trackId: string) => void;
   clearUpNext: () => void;
+  reorderUpNext: (tracks: Track[]) => void;
+  moveUpNext: (trackId: string, direction: 'up' | 'down') => void;
   setTracks: (tracks: Track[]) => void;
   setCurrentTrackIndex: (index: number) => void;
   setIsPlaying: (playing: boolean) => void;
@@ -363,6 +365,25 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     },
     [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
   );
+
+  const reorderUpNext = useCallback((tracks: Track[]) => {
+    setUpNextTracks(Array.isArray(tracks) ? tracks : []);
+  }, []);
+
+  const moveUpNext = useCallback((trackId: string, direction: 'up' | 'down') => {
+    if (!trackId) return;
+    setUpNextTracks((prev) => {
+      const list = Array.isArray(prev) ? [...prev] : [];
+      const i = list.findIndex((t) => t?._id === trackId);
+      if (i === -1) return list;
+      const j = direction === 'up' ? i - 1 : i + 1;
+      if (j < 0 || j >= list.length) return list;
+      const tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+      return list;
+    });
+  }, []);
 
   const removeFromUpNext = useCallback(
     (trackId: string) => {
@@ -864,6 +885,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     addToUpNext,
     removeFromUpNext,
     clearUpNext,
+    reorderUpNext,
+    moveUpNext,
     setTracks,
     setCurrentTrackIndex,
     setIsPlaying,
@@ -901,6 +924,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     addToUpNext,
     removeFromUpNext,
     clearUpNext,
+    reorderUpNext,
+    moveUpNext,
     setTracks,
     setCurrentTrackIndex,
     setIsPlaying,

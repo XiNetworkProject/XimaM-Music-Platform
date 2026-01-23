@@ -3,7 +3,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ListMusic, Play, Plus, Trash2, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, GripVertical, ListMusic, Play, Plus, Save, Trash2, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useAudioPlayer } from '@/app/providers';
 
 type Props = {
@@ -16,7 +17,7 @@ function cx(...classes: Array<string | false | undefined | null>) {
 }
 
 export default function QueueDialog({ isOpen, onClose }: Props) {
-  const { audioState, playTrack, upNextEnabled, upNextTracks, toggleUpNextEnabled, removeFromUpNext, clearUpNext, addToUpNext } =
+  const { audioState, playTrack, upNextEnabled, upNextTracks, toggleUpNextEnabled, removeFromUpNext, clearUpNext, addToUpNext, reorderUpNext, moveUpNext } =
     useAudioPlayer();
 
   const { current } = useMemo(() => {
@@ -28,6 +29,8 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
 
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSug, setLoadingSug] = useState(false);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,6 +56,42 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
 
   if (!isOpen) return null;
   if (typeof document === 'undefined') return null;
+
+  const saveAsPlaylist = async () => {
+    if (!upNextTracks.length) return;
+    const defaultName = `À suivre — ${new Date().toLocaleDateString('fr-FR')}`;
+    const name = window.prompt('Nom du dossier', defaultName);
+    if (!name || !name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/playlists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), description: 'Enregistré depuis “À suivre”', isPublic: false }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Erreur création dossier');
+      const playlistId = String((json as any)?._id || '');
+      if (!playlistId) throw new Error('ID dossier invalide');
+
+      for (const t of upNextTracks) {
+        if (!t?._id) continue;
+        const r = await fetch(`/api/playlists/${encodeURIComponent(playlistId)}/tracks`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trackId: t._id }),
+        });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j?.error || 'Erreur ajout piste');
+      }
+
+      toast.success('File enregistrée dans un dossier');
+    } catch (e: any) {
+      toast.error(e?.message || 'Erreur');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return createPortal(
     <AnimatePresence>
@@ -126,16 +165,56 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
             {upNextTracks.length ? (
               <div className="rounded-2xl border border-border-secondary bg-background-fog-thin overflow-hidden">
                 <div className="px-3 py-2 border-b border-border-secondary/60 text-xs text-foreground-tertiary">
-                  Prochains titres
+                  Prochains titres (glisser-déposer pour réordonner)
                 </div>
                 <div className="divide-y divide-border-secondary/40">
                   {upNextTracks.map((t: any) => (
-                    <div key={t._id} className="px-3 py-2 flex items-center gap-3">
+                    <div
+                      key={t._id}
+                      className="px-3 py-2 flex items-center gap-3"
+                      draggable
+                      onDragStart={() => setDragId(t._id)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                      }}
+                      onDrop={() => {
+                        if (!dragId || dragId === t._id) return;
+                        const from = upNextTracks.findIndex((x: any) => x?._id === dragId);
+                        const to = upNextTracks.findIndex((x: any) => x?._id === t._id);
+                        if (from === -1 || to === -1) return;
+                        const next = [...upNextTracks];
+                        const [moved] = next.splice(from, 1);
+                        next.splice(to, 0, moved);
+                        reorderUpNext(next as any);
+                        setDragId(null);
+                      }}
+                    >
+                      <div className="h-10 w-8 grid place-items-center text-foreground-tertiary">
+                        <GripVertical className="h-4 w-4" />
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="text-sm text-foreground-primary truncate">{t.title}</div>
                         <div className="text-xs text-foreground-tertiary truncate">
                           {t.artist?.name || t.artist?.username || ''}
                         </div>
+                      </div>
+                      <div className="hidden sm:flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => moveUpNext(t._id, 'up')}
+                          className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                          aria-label="Monter"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveUpNext(t._id, 'down')}
+                          className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                          aria-label="Descendre"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </button>
                       </div>
                       <button
                         type="button"
@@ -212,6 +291,18 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
               )}
             >
               Vider “à suivre”
+            </button>
+            <button
+              type="button"
+              onClick={saveAsPlaylist}
+              disabled={!upNextTracks.length || saving}
+              className={cx(
+                'flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition inline-flex items-center justify-center gap-2',
+                (!upNextTracks.length || saving) && 'opacity-50',
+              )}
+            >
+              <Save className="h-4 w-4" />
+              Enregistrer
             </button>
             <button
               type="button"
