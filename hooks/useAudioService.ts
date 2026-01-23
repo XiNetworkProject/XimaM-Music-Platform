@@ -684,6 +684,13 @@ export const useAudioService = () => {
     const audio = audioRef.current;
     if (!audio || !track?.audioUrl) return;
     try {
+      console.log('⏭️ playImmediate(auto-next):', {
+        id: track._id,
+        title: track.title,
+        url: track.audioUrl,
+        ended: audio.ended,
+        paused: audio.paused,
+      });
       try { audio.pause(); } catch {}
       try { audio.currentTime = 0; } catch {}
       lastMilestoneRef.current = 0;
@@ -707,12 +714,33 @@ export const useAudioService = () => {
         (p as Promise<void>).then(() => {
           setState(prev => ({ ...prev, isPlaying: true, error: null }));
         }).catch((err) => {
+          const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
           console.error('❌ playImmediate: play() refusé/échoué:', err);
-          setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
+          // Afficher l'erreur dans l'UI pour debug (autoplay policy / src not supported / etc.)
+          setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: `Auto-next bloqué: ${msg}` }));
         });
       } else {
         setState(prev => ({ ...prev, isPlaying: true, error: null }));
       }
+
+      // Fallback: si au bout de 1.2s ça n'a pas démarré, retenter un play "classique"
+      setTimeout(() => {
+        const a = audioRef.current;
+        if (!a) return;
+        if (a.ended) return;
+        // Si on est toujours à 0s et en pause, on retente une fois.
+        if (a.paused && (a.currentTime || 0) < 0.05) {
+          console.warn('⏭️ playImmediate fallback: retry audio.play()');
+          const p2 = a.play();
+          if (p2 && typeof (p2 as any).catch === 'function') {
+            (p2 as Promise<void>).catch((err) => {
+              console.error('❌ playImmediate fallback failed:', err);
+              const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
+              setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: `Auto-next bloqué: ${msg}` }));
+            });
+          }
+        }
+      }, 1200);
     } catch (e) {
       console.error('❌ playImmediate error:', e);
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
@@ -1234,7 +1262,14 @@ export const useAudioService = () => {
 
   // Fonction pour gérer la fin d'une piste
   const handleTrackEnd = useCallback(() => {
-    console.log('🎵 Fin de piste détectée, auto-play activé');
+    console.log('🎵 Fin de piste détectée, auto-play activé', {
+      repeat,
+      shuffle,
+      currentIndex,
+      queueLen: queue?.length || 0,
+      shuffledLen: shuffledQueue?.length || 0,
+      currentTrackId: state.currentTrack?._id || null,
+    });
     
     if (repeat === 'one') {
       if (audioRef.current) {
