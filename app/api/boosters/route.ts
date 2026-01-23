@@ -49,11 +49,53 @@ export async function GET(request: NextRequest) {
       remainingMs = Math.max(0, cooldownMs - elapsed);
     }
 
+    // Pity + pack claims (best-effort, tables may not exist yet)
+    let pity = { opens_since_rare: 0, opens_since_epic: 0, opens_since_legendary: 0 };
+    try {
+      const { data: pityRow } = await supabaseAdmin
+        .from('user_booster_pity')
+        .select('opens_since_rare, opens_since_epic, opens_since_legendary')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (pityRow) pity = pityRow as any;
+    } catch {}
+
+    const packs: Record<string, { periodStart: string; claimed: number; perWeek: number }> = {};
+    try {
+      // current week start (UTC Monday)
+      const d = new Date();
+      const dt = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+      const day = dt.getUTCDay();
+      const diff = (day + 6) % 7;
+      dt.setUTCDate(dt.getUTCDate() - diff);
+      const periodStart = dt.toISOString().slice(0, 10);
+      const { data: rows } = await supabaseAdmin
+        .from('user_booster_pack_claims')
+        .select('pack_key, claimed_count')
+        .eq('user_id', userId)
+        .eq('period_start', periodStart);
+      const byKey = new Map<string, number>();
+      for (const r of (rows as any[]) || []) {
+        byKey.set(String(r.pack_key), Number(r.claimed_count || 0));
+      }
+      // rules mirror API claim-pack
+      const rules: Record<string, { perWeek: number }> = {
+        starter_weekly: { perWeek: 1 },
+        pro_weekly: { perWeek: 2 },
+      };
+      for (const k of Object.keys(rules)) {
+        packs[k] = { periodStart, claimed: byKey.get(k) || 0, perWeek: rules[k].perWeek };
+      }
+    } catch {}
+
     return NextResponse.json({
       inventory: inv || [],
       cooldownMs,
       remainingMs,
-      streak: daily?.streak || 0
+      streak: daily?.streak || 0,
+      plan,
+      pity,
+      packs,
     });
   } catch (e) {
     return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });

@@ -26,6 +26,9 @@ interface InventoryResponse {
   cooldownMs: number;
   remainingMs: number | null;
   streak: number;
+  plan?: 'free' | 'starter' | 'pro' | 'enterprise';
+  pity?: { opens_since_rare: number; opens_since_epic: number; opens_since_legendary: number };
+  packs?: Record<string, { periodStart: string; claimed: number; perWeek: number }>;
 }
 
 export function useBoosters() {
@@ -35,6 +38,13 @@ export function useBoosters() {
   const [remainingMs, setRemainingMs] = useState<number>(0);
   const [streak, setStreak] = useState<number>(0);
   const [lastOpened, setLastOpened] = useState<{ inventoryId: string; booster: BoosterCatalogItem } | null>(null);
+  const [plan, setPlan] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
+  const [pity, setPity] = useState<{ opens_since_rare: number; opens_since_epic: number; opens_since_legendary: number }>({
+    opens_since_rare: 0,
+    opens_since_epic: 0,
+    opens_since_legendary: 0,
+  });
+  const [packs, setPacks] = useState<Record<string, { periodStart: string; claimed: number; perWeek: number }>>({});
 
   const canOpen = useMemo(() => !loading && (!remainingMs || remainingMs <= 0), [loading, remainingMs]);
 
@@ -58,6 +68,9 @@ export function useBoosters() {
       setCooldownMs(data.cooldownMs || 24 * 3_600_000);
       setRemainingMs(data.remainingMs || 0);
       setStreak(data.streak || 0);
+      if (data.plan) setPlan(data.plan);
+      if (data.pity) setPity(data.pity);
+      if (data.packs) setPacks(data.packs);
     } finally {
       setLoading(false);
     }
@@ -142,6 +155,9 @@ export function useBoosters() {
     streak,
     lastOpened,
     canOpen,
+    plan,
+    pity,
+    packs,
     fetchInventory,
     openDaily,
     useOnTrack,

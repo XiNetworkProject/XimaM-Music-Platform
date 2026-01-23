@@ -15,17 +15,173 @@ import {
   Target,
   Calendar,
   Trophy,
-  Sparkles
+  Sparkles,
+  ShoppingBag,
+  ShieldCheck,
 } from 'lucide-react';
 import { useBoosters } from '@/hooks/useBoosters';
 import BoosterOpenModal from '@/components/BoosterOpenModal';
 import TrackSelectModal from '@/components/TrackSelectModal';
 import { notify } from '@/components/NotificationCenter';
 
+function clampPct(v: number) {
+  if (!isFinite(v)) return 0;
+  return Math.max(0, Math.min(100, v));
+}
+
+function nextMilestone(streak: number) {
+  const s = Math.max(0, Number(streak || 0));
+  const targets = [7, 14, 30];
+  for (const t of targets) {
+    if (s < t) return t;
+  }
+  // after 30, repeat the cycle
+  const mod = s % 30;
+  if (mod === 0) return 30;
+  if (mod < 7) return s + (7 - mod);
+  if (mod < 14) return s + (14 - mod);
+  return s + (30 - mod);
+}
+
+function ShopSection({
+  plan,
+  streak,
+  pity,
+  packs,
+  onClaim,
+}: {
+  plan: 'free' | 'starter' | 'pro' | 'enterprise';
+  streak: number;
+  pity: { opens_since_rare: number; opens_since_epic: number; opens_since_legendary: number } | undefined;
+  packs: Record<string, { periodStart: string; claimed: number; perWeek: number }> | undefined;
+  onClaim: (packKey: string) => void | Promise<void>;
+}) {
+  const isSubscriber = plan !== 'free';
+  const p = pity || { opens_since_rare: 0, opens_since_epic: 0, opens_since_legendary: 0 };
+  const ns = nextMilestone(streak);
+  const toNext = Math.max(0, ns - Math.max(0, Number(streak || 0)));
+
+  const rareNeed = 6;
+  const epicNeed = 24;
+  const legNeed = 79;
+
+  const packStarter = packs?.starter_weekly;
+  const packPro = packs?.pro_weekly;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <div className="text-lg font-bold text-[var(--text)]">Shop</div>
+            <div className="text-sm text-[var(--text-muted)]">
+              Packs abonnés + garanties (streak/pity). Objectif: te donner envie de revenir et de booster plus souvent.
+            </div>
+          </div>
+          <div className="text-xs px-3 py-2 rounded-full border border-[var(--border)] bg-[var(--surface-3)] text-[var(--text-muted)]">
+            Plan: <span className="text-[var(--text)] font-semibold">{plan}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <ShieldCheck className="w-5 h-5 text-purple-400" />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-[var(--text)]">Streak</div>
+              <div className="text-xs text-[var(--text-muted)]">Paliers: J7 Rare, J14 Épique, J30 Légendaire</div>
+            </div>
+          </div>
+          <div className="text-2xl font-bold text-[var(--text)]">{Math.max(0, Number(streak || 0))}</div>
+          <div className="mt-1 text-sm text-[var(--text-muted)]">Prochain palier: J{ns} (dans {toNext}j)</div>
+        </div>
+
+        <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4">
+          <div className="text-sm font-semibold text-[var(--text)] mb-2">Pity Rare</div>
+          <div className="text-xs text-[var(--text-muted)] mb-2">{p.opens_since_rare}/{rareNeed} avant garantie</div>
+          <div className="w-full h-2 bg-black/20 rounded overflow-hidden">
+            <div className="h-2 bg-blue-500" style={{ width: `${clampPct((p.opens_since_rare / rareNeed) * 100)}%` }} />
+          </div>
+        </div>
+
+        <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-4">
+          <div className="text-sm font-semibold text-[var(--text)] mb-2">Pity Épique / Légendaire</div>
+          <div className="text-xs text-[var(--text-muted)]">Épique: {p.opens_since_epic}/{epicNeed} • Légendaire: {p.opens_since_legendary}/{legNeed}</div>
+          <div className="mt-2 space-y-2">
+            <div className="w-full h-2 bg-black/20 rounded overflow-hidden">
+              <div className="h-2 bg-purple-500" style={{ width: `${clampPct((p.opens_since_epic / epicNeed) * 100)}%` }} />
+            </div>
+            <div className="w-full h-2 bg-black/20 rounded overflow-hidden">
+              <div className="h-2 bg-yellow-500" style={{ width: `${clampPct((p.opens_since_legendary / legNeed) * 100)}%` }} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-6">
+        <div className="text-lg font-bold text-[var(--text)] mb-4">Packs</div>
+
+        {!isSubscriber ? (
+          <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-3)]">
+            <div className="text-[var(--text)] font-semibold">Abonnement requis</div>
+            <div className="text-sm text-[var(--text-muted)] mt-1">
+              Les packs hebdo + meilleures chances Epic/Légendaire sont réservés aux abonnés.
+            </div>
+            <a
+              href="/subscriptions"
+              className="inline-flex mt-3 px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors"
+            >
+              Voir les abonnements
+            </a>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-3)]">
+              <div className="text-[var(--text)] font-semibold">Pack Starter (hebdo)</div>
+              <div className="text-sm text-[var(--text-muted)] mt-1">3 boosters • rare garanti • 1/sem</div>
+              <div className="text-xs text-[var(--text-muted)] mt-2">
+                {packStarter ? `${packStarter.claimed}/${packStarter.perWeek} utilisé (semaine ${packStarter.periodStart})` : '—'}
+              </div>
+              <button
+                type="button"
+                onClick={() => onClaim('starter_weekly')}
+                disabled={(packStarter ? packStarter.claimed >= packStarter.perWeek : false)}
+                className="mt-3 w-full px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Réclamer
+              </button>
+            </div>
+
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-3)]">
+              <div className="text-[var(--text)] font-semibold">Pack Pro (hebdo)</div>
+              <div className="text-sm text-[var(--text-muted)] mt-1">5 boosters • rare garanti • 2/sem</div>
+              <div className="text-xs text-[var(--text-muted)] mt-2">
+                {packPro ? `${packPro.claimed}/${packPro.perWeek} utilisé (semaine ${packPro.periodStart})` : '—'}
+              </div>
+              <button
+                type="button"
+                onClick={() => onClaim('pro_weekly')}
+                disabled={(plan !== 'pro' && plan !== 'enterprise') || (packPro ? packPro.claimed >= packPro.perWeek : false)}
+                className="mt-3 w-full px-4 py-2 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Réclamer (Pro)
+              </button>
+              {(plan === 'starter') && (
+                <div className="mt-2 text-xs text-[var(--text-muted)]">Réservé au plan Pro.</div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function BoostersPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'inventory' | 'missions' | 'history'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'shop' | 'missions' | 'history'>('inventory');
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [selectModalOpen, setSelectModalOpen] = useState(false);
   const [pendingInventoryId, setPendingInventoryId] = useState<string | null>(null);
@@ -39,7 +195,11 @@ export default function BoostersPage() {
     useOnArtist,
     lastOpened,
     loading: boostersLoading,
-    fetchInventory
+    fetchInventory,
+    plan,
+    pity,
+    packs,
+    streak,
   } = useBoosters();
 
   useEffect(() => {
@@ -180,6 +340,7 @@ export default function BoostersPage() {
         <div className="flex gap-2 mb-6">
           {[
             { id: 'inventory', label: 'Inventaire', icon: Target },
+            { id: 'shop', label: 'Shop', icon: ShoppingBag },
             { id: 'missions', label: 'Missions', icon: Trophy },
             { id: 'history', label: 'Historique', icon: Calendar }
           ].map((tab) => {
@@ -331,6 +492,39 @@ export default function BoostersPage() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'shop' && (
+            <motion.div
+              key="shop"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-6"
+            >
+              <ShopSection
+                plan={plan}
+                streak={streak}
+                pity={pity as any}
+                packs={packs as any}
+                onClaim={async (packKey: string) => {
+                  try {
+                    const res = await fetch('/api/boosters/claim-pack', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ packKey }),
+                    });
+                    const j = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(j?.error || 'Erreur');
+                    notify.success('Pack récupéré !', `${(j?.received || []).length} booster(s) ajouté(s) à ton inventaire.`);
+                    fetchInventory();
+                  } catch (e: any) {
+                    notify.error('Pack', e?.message || 'Erreur');
+                  }
+                }}
+              />
             </motion.div>
           )}
 

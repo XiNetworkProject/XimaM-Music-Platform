@@ -69,6 +69,42 @@ CREATE TABLE IF NOT EXISTS public.user_booster_daily (
   streak INTEGER NOT NULL DEFAULT 0
 );
 
+-- Pity / anti-malchance (compteurs d'ouvertures depuis une rareté)
+CREATE TABLE IF NOT EXISTS public.user_booster_pity (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  opens_since_rare INTEGER NOT NULL DEFAULT 0,
+  opens_since_epic INTEGER NOT NULL DEFAULT 0,
+  opens_since_legendary INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Historique des ouvertures (daily / pack / mission)
+CREATE TABLE IF NOT EXISTS public.user_booster_open_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source TEXT NOT NULL DEFAULT 'daily',
+  booster_id UUID REFERENCES public.boosters(id) ON DELETE SET NULL,
+  booster_key TEXT,
+  rarity TEXT,
+  type TEXT,
+  multiplier NUMERIC,
+  duration_hours INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_user_booster_history_user ON public.user_booster_open_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_booster_history_opened ON public.user_booster_open_history(opened_at);
+
+-- Packs abonnés (claims hebdo)
+CREATE TABLE IF NOT EXISTS public.user_booster_pack_claims (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  pack_key TEXT NOT NULL,
+  period_start DATE NOT NULL,
+  claimed_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_pack_claim_user_period ON public.user_booster_pack_claims(user_id, pack_key, period_start);
+
 -- Missions de base
 CREATE TABLE IF NOT EXISTS public.missions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
