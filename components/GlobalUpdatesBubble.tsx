@@ -6,7 +6,7 @@ import { useAudioPlayer } from '@/app/providers';
 import UpdatesBubble from '@/components/UpdatesBubble';
 import UpdatesDialog from '@/components/UpdatesDialog';
 
-const UPDATES_VERSION = '2026-01-23';
+const UPDATES_VERSION = '2026-01-24';
 const STORAGE_KEY = 'ui.updates.lastSeenVersion';
 
 export default function GlobalUpdatesBubble() {

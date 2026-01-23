@@ -27,6 +27,16 @@ export default function UpdatesDialog({ isOpen, onClose, onMarkSeen }: Props) {
         ],
       },
       {
+        title: 'Boosters (gros update)',
+        items: [
+          'Refonte complète de la page /boosters (style Library, plus clean + plus pratique)',
+          'Shop + packs abonnés + ouverture de pack “premium” (révélation multi-items)',
+          'Pity + streak (J7 Rare, J14 Épique, J30 Légendaire)',
+          'Missions daily/weekly + progression auto (plays/likes/shares/boosts)',
+          'Bouton “Réclamer tout” + section “À faire maintenant”',
+        ],
+      },
+      {
         title: 'À suivre (liste d’attente)',
         items: [
           '3 accès: bulle globale, pill dans le player, onglet Bibliothèque',
@@ -96,6 +106,15 @@ export default function UpdatesDialog({ isOpen, onClose, onMarkSeen }: Props) {
                 </ul>
               </div>
             ))}
+
+            <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+              <div className="text-sm font-semibold text-foreground-primary">Boosters — comment ça marche</div>
+              <div className="mt-2 text-sm text-foreground-secondary space-y-2">
+                <p>- Va sur <b>/boosters</b> → onglet <b>Missions</b> → “À faire maintenant”.</p>
+                <p>- “Réclamer tout” récupère toutes les missions terminées en 1 clic.</p>
+                <p>- Les missions reviennent après leur cooldown (daily/weekly).</p>
+              </div>
+            </div>
 
             <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
               <div className="text-sm font-semibold text-foreground-primary">Fonctionnement “À suivre”</div>
