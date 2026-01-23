@@ -367,6 +367,27 @@ export default function BoostersClient() {
     }
   }, [fetchInventory, refreshHistory, refreshMissions]);
 
+  const claimManyMissions = useCallback(async (missionIds: string[]) => {
+    const ids = Array.from(new Set((missionIds || []).map((x) => String(x || '').trim()).filter(Boolean))).slice(0, 20);
+    if (!ids.length) return;
+    try {
+      const res = await fetch('/api/missions/claim-many', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ missionIds: ids }),
+      });
+      const j = await safeJson(res);
+      if (!res.ok) throw new Error(j?.error || 'Erreur');
+      const claimed = Array.isArray(j?.claimed) ? j.claimed : [];
+      const errors = Array.isArray(j?.errors) ? j.errors : [];
+      if (claimed.length) notify.success('Missions', `${claimed.length} mission(s) réclamée(s)`);
+      if (errors.length && !claimed.length) notify.error('Missions', errors[0]?.error || 'Erreur');
+      await Promise.all([fetchInventory(), refreshMissions(), refreshHistory()]);
+    } catch (e: any) {
+      notify.error('Missions', e?.message || 'Erreur');
+    }
+  }, [fetchInventory, refreshHistory, refreshMissions]);
+
   const openTrackSelect = useCallback((inventoryId: string) => {
     setPendingInventoryId(inventoryId);
     setSelectTrackOpen(true);
@@ -908,6 +929,100 @@ export default function BoostersClient() {
                   </button>
                 </div>
                 {missionsError && <div className="text-red-400">{missionsError}</div>}
+
+                {/* À faire maintenant */}
+                {(() => {
+                  const list = [...missions];
+                  list.sort((a, b) => {
+                    const aCan = Number(Boolean(a.canClaim ?? (a.completed && !a.claimed)));
+                    const bCan = Number(Boolean(b.canClaim ?? (b.completed && !b.claimed)));
+                    if (aCan !== bCan) return bCan - aCan;
+                    const ap = (Number(a.progress || 0) / Math.max(1, Number(a.threshold || 1)));
+                    const bp = (Number(b.progress || 0) / Math.max(1, Number(b.threshold || 1)));
+                    return bp - ap;
+                  });
+                  const top = list.slice(0, 3);
+                  const claimableIds = missions.filter((m) => Boolean(m.canClaim ?? (m.completed && !m.claimed))).map((m) => m.id);
+                  if (!top.length) return null;
+                  return (
+                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-[var(--text)] font-bold">À faire maintenant</div>
+                          <div className="text-xs text-[var(--text-muted)] mt-1">
+                            3 missions prioritaires (réclame d’abord ce qui est terminé).
+                          </div>
+                        </div>
+                        {claimableIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => claimManyMissions(claimableIds)}
+                            className="px-3 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm"
+                          >
+                            Réclamer tout ({claimableIds.length})
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {top.map((m) => {
+                          const done = Boolean(m.canClaim ?? (m.completed && !m.claimed));
+                          const ratio = clamp((Number(m.progress || 0) / Math.max(1, Number(m.threshold || 1))) * 100, 0, 100);
+                          const resetsAtTs = m.resetsAt ? new Date(m.resetsAt).getTime() : null;
+                          const msToReset = resetsAtTs ? (resetsAtTs - nowTs) : null;
+                          return (
+                            <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="text-sm font-semibold text-white truncate">{m.title}</div>
+                                  <div className="text-xs text-white/70 mt-1">
+                                    {m.progress}/{m.threshold} • {pct(ratio)}
+                                    {m.claimed && msToReset != null ? <span> • reset {formatCountdown(msToReset)}</span> : null}
+                                  </div>
+                                </div>
+                                <div className={cx('text-xs px-2 py-1 rounded-full border shrink-0', done ? 'border-green-400/40 bg-green-400/10 text-green-200' : 'border-white/10 bg-white/5 text-white/70')}>
+                                  {done ? 'OK' : 'Go'}
+                                </div>
+                              </div>
+
+                              {m.reward ? (
+                                <div className="mt-2 text-xs text-white/80">
+                                  Récompense: <span className="font-semibold">{m.reward.name}</span> • {rarityLabel(m.reward.rarity)} • x{Number(m.reward.multiplier).toFixed(2)}
+                                </div>
+                              ) : null}
+
+                              <div className="mt-3 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => claimMission(m.id)}
+                                  disabled={!done || claimingMissionId === m.id}
+                                  className={cx(
+                                    'px-3 py-2 rounded-xl font-semibold text-sm border transition-colors',
+                                    done ? 'bg-green-600 hover:bg-green-700 text-white border-green-500/40' : 'bg-[var(--surface)] text-[var(--text-muted)] border-[var(--border)]',
+                                  )}
+                                >
+                                  {claimingMissionId === m.id ? '...' : done ? 'Réclamer' : 'En cours'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (m.goal_type === 'boosts') setTab('inventory');
+                                    else if (m.goal_type === 'shares') setTab('history');
+                                    else setTab('dashboard');
+                                  }}
+                                  className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-semibold text-sm"
+                                >
+                                  Action
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {missions.map((m) => {
                     const progress = clamp((Number(m.progress || 0) / Math.max(1, Number(m.threshold || 1))) * 100, 0, 100);
