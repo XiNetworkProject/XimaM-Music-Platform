@@ -156,4 +156,72 @@ INSERT INTO public.boosters (key, name, description, type, rarity, multiplier, d
 SELECT 'track_boost_legendary', 'Boost légendaire de piste (x1.55 / 12h)', 'Coup de projecteur massif (très rare)', 'track', 'legendary', 1.55, 12
 WHERE NOT EXISTS (SELECT 1 FROM public.boosters WHERE key='track_boost_legendary');
 
+-- Seed missions (daily/weekly) (idempotent)
+-- Note: reward_booster_id est optionnel; on le mappe par booster.key quand possible.
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'daily_plays_3',
+  'Daily: écouter 3 musiques jusqu’au bout',
+  'plays',
+  3,
+  (SELECT id FROM public.boosters WHERE key='track_boost_common' LIMIT 1),
+  24,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='daily_plays_3');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'daily_likes_2',
+  'Daily: liker 2 musiques',
+  'likes',
+  2,
+  (SELECT id FROM public.boosters WHERE key='track_boost_common' LIMIT 1),
+  24,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='daily_likes_2');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'daily_shares_1',
+  'Daily: partager 1 musique',
+  'shares',
+  1,
+  (SELECT id FROM public.boosters WHERE key='track_boost_common' LIMIT 1),
+  24,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='daily_shares_1');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'weekly_plays_20',
+  'Weekly: 20 écoutes complètes',
+  'plays',
+  20,
+  (SELECT id FROM public.boosters WHERE key='track_boost_rare' LIMIT 1),
+  168,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='weekly_plays_20');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'weekly_likes_10',
+  'Weekly: liker 10 musiques',
+  'likes',
+  10,
+  (SELECT id FROM public.boosters WHERE key='artist_boost_rare' LIMIT 1),
+  168,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='weekly_likes_10');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'weekly_shares_5',
+  'Weekly: partager 5 musiques',
+  'shares',
+  5,
+  (SELECT id FROM public.boosters WHERE key='track_boost_epic' LIMIT 1),
+  168,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='weekly_shares_5');
+
 

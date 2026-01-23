@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { applyMissionProgress } from '@/lib/missions/progress';
 
 // GET /api/tracks/[id]/like - Vérifier l'état du like (version simplifiée)
 export async function GET(
@@ -135,6 +136,11 @@ export async function POST(
     if (evErr) {
       console.warn('like insert: log event error', evErr);
     }
+
+    // Missions likes (best effort)
+    try {
+      await applyMissionProgress({ userId, inc: { likes: 1 } });
+    } catch {}
 
     // Lire état final
     const { data: likeRow, error: likeErr } = await supabaseAdmin

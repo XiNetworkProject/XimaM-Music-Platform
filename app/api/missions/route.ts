@@ -35,12 +35,48 @@ export async function GET(request: NextRequest) {
     }
 
     const map = new Map(progress.map(r => [r.mission_id, r]));
-    const enriched = (missions || []).map(m => ({
-      ...m,
-      progress: map.get(m.id)?.progress || 0,
-      completed: Boolean(map.get(m.id)?.completed_at),
-      claimed: Boolean(map.get(m.id)?.claimed)
-    }));
+    const nowIso = new Date().toISOString();
+
+    // Cooldown/reset: si mission réclamée et cooldown passé => reset
+    for (const m of missions || []) {
+      const um = map.get(m.id);
+      const cd = Number(m.cooldown_hours || 0);
+      if (!um || !cd || cd <= 0) continue;
+      if (!um.completed_at) continue;
+      if (!um.claimed) continue;
+      const hours = Math.abs(new Date(nowIso).getTime() - new Date(um.completed_at).getTime()) / 3_600_000;
+      if (hours >= cd) {
+        try {
+          await supabaseAdmin
+            .from('user_missions')
+            .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
+            .eq('user_id', userId)
+            .eq('mission_id', m.id);
+          map.set(m.id, { ...um, progress: 0, completed_at: null, claimed: false, last_progress_at: null });
+        } catch {}
+      }
+    }
+
+    const enriched = (missions || []).map(m => {
+      const um = map.get(m.id);
+      const p = um?.progress || 0;
+      const completed = Boolean(um?.completed_at) || p >= Number(m.threshold || 0);
+      const claimed = Boolean(um?.claimed);
+      const canClaim = completed && !claimed;
+      const cd = Number(m.cooldown_hours || 0);
+      const resetsAt = (claimed && cd > 0 && um?.completed_at)
+        ? new Date(new Date(um.completed_at).getTime() + cd * 3_600_000).toISOString()
+        : null;
+
+      return {
+        ...m,
+        progress: p,
+        completed,
+        claimed,
+        canClaim,
+        resetsAt,
+      };
+    });
 
     return NextResponse.json({ missions: enriched });
   } catch (e) {
