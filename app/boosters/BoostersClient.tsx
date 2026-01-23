@@ -129,10 +129,8 @@ function rarityIcon(r: BoosterRarity) {
 }
 
 function rarityChipClass(r: BoosterRarity) {
-  if (r === 'legendary') return 'border-yellow-400/40 bg-yellow-400/10 text-yellow-200';
-  if (r === 'epic') return 'border-purple-400/40 bg-purple-400/10 text-purple-200';
-  if (r === 'rare') return 'border-blue-400/40 bg-blue-400/10 text-blue-200';
-  return 'border-white/10 bg-white/5 text-white/80';
+  // Style Library: chips neutres (on garde l’icône colorée pour la rareté)
+  return 'border-border-secondary bg-background-fog-thin text-foreground-secondary';
 }
 
 function computeDailyOdds(plan: 'free' | 'starter' | 'pro' | 'enterprise') {
@@ -456,10 +454,22 @@ export default function BoostersClient() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[var(--text)] mb-2">Connexion requise</h1>
-          <p className="text-[var(--text-muted)]">Connecte-toi pour gérer tes boosters.</p>
+      <div className="min-h-[70vh] px-4 py-10">
+        <div className="mx-auto max-w-xl rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-center">
+          <div className="mx-auto h-12 w-12 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center">
+            <Gift className="h-6 w-6 text-foreground-secondary" />
+          </div>
+          <div className="mt-4 text-lg font-semibold text-foreground-primary">Connecte-toi</div>
+          <div className="mt-1 text-sm text-foreground-secondary">
+            Tes boosters, missions et historiques sont liés à ton compte.
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push('/auth/signin')}
+            className="mt-5 h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition"
+          >
+            Se connecter
+          </button>
         </div>
       </div>
     );
@@ -591,7 +601,7 @@ export default function BoostersClient() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   <Panel title="Daily (garanties & odds)">
-                    <div className="text-sm text-[var(--text-muted)]">
+                    <div className="text-sm text-foreground-tertiary">
                       La <b>pity</b> + la <b>streak</b> sont partagées pour tout le monde. Ton plan joue surtout sur le confort.
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -606,8 +616,10 @@ export default function BoostersClient() {
                         onClick={() => setShowDailyModal(true)}
                         disabled={!canOpen || boostersLoading}
                         className={cx(
-                          'px-3 py-2 rounded-xl font-semibold transition-colors border',
-                          canOpen ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-500/40' : 'bg-[var(--surface-2)] text-[var(--text-muted)] border-[var(--border)]',
+                          'h-11 px-4 rounded-2xl font-semibold transition',
+                          canOpen
+                            ? 'bg-overlay-on-primary text-foreground-primary hover:opacity-90'
+                            : 'border border-border-secondary bg-background-fog-thin text-foreground-tertiary',
                         )}
                       >
                         {canOpen ? 'Ouvrir maintenant' : formatRemaining(remainingMs)}
@@ -615,7 +627,7 @@ export default function BoostersClient() {
                       <button
                         type="button"
                         onClick={() => setTab('insights')}
-                        className="px-3 py-2 rounded-xl font-semibold border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)]"
+                        className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition"
                       >
                         Voir détails
                       </button>
@@ -625,18 +637,18 @@ export default function BoostersClient() {
                   <Panel title="Boost rapide (morceau en cours)">
                     {playingTrackId ? (
                       <>
-                        <div className="text-sm text-[var(--text-muted)]">
-                          Morceau: <span className="text-[var(--text)] font-semibold">{playing?.title || playingTrackId}</span>
+                        <div className="text-sm text-foreground-tertiary">
+                          Morceau: <span className="text-foreground-primary font-semibold">{playing?.title || playingTrackId}</span>
                         </div>
                         <div className="mt-3 space-y-2">
                           {owned.filter((i) => i.booster.type === 'track').slice(0, 4).map((i) => (
-                            <div key={i.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+                            <div key={i.id} className="flex items-center justify-between gap-3 p-3 rounded-3xl border border-border-secondary bg-background-fog-thin">
                               <div className="min-w-0">
                                 <div className="flex items-center gap-2">
                                   {rarityIcon(i.booster.rarity as any)}
-                                  <div className="text-sm font-semibold text-[var(--text)] truncate">{i.booster.name}</div>
+                                  <div className="text-sm font-semibold text-foreground-primary truncate">{i.booster.name}</div>
                                 </div>
-                                <div className="text-xs text-[var(--text-muted)]">
+                                <div className="text-xs text-foreground-tertiary">
                                   x{Number(i.booster.multiplier).toFixed(2)} • {i.booster.duration_hours}h
                                 </div>
                               </div>
@@ -644,19 +656,19 @@ export default function BoostersClient() {
                                 type="button"
                                 onClick={() => applyToCurrentTrack(i.id)}
                                 disabled={boostersLoading}
-                                className="px-3 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm disabled:opacity-60"
+                                className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold disabled:opacity-60"
                               >
                                 Appliquer
                               </button>
                             </div>
                           ))}
                           {owned.filter((i) => i.booster.type === 'track').length === 0 && (
-                            <div className="text-sm text-[var(--text-muted)]">Aucun booster “piste” disponible.</div>
+                            <div className="text-sm text-foreground-tertiary">Aucun booster “piste” disponible.</div>
                           )}
                         </div>
                       </>
                     ) : (
-                      <div className="text-sm text-[var(--text-muted)]">
+                      <div className="text-sm text-foreground-tertiary">
                         Lance une piste dans le player pour activer le “boost rapide”.
                       </div>
                     )}
@@ -667,18 +679,20 @@ export default function BoostersClient() {
                       {ideas.map((it) => {
                         const pinned = pinnedIdeas.includes(it.id);
                         return (
-                          <div key={it.id} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
+                          <div key={it.id} className="p-3 rounded-3xl border border-border-secondary bg-background-fog-thin">
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="text-sm font-semibold text-[var(--text)]">{it.title}</div>
-                                <div className="text-xs text-[var(--text-muted)] mt-1">{it.desc}</div>
+                                <div className="text-sm font-semibold text-foreground-primary">{it.title}</div>
+                                <div className="text-xs text-foreground-tertiary mt-1">{it.desc}</div>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => togglePin(it.id)}
                                 className={cx(
-                                  'px-3 py-1.5 rounded-full text-xs font-semibold border',
-                                  pinned ? 'bg-purple-600 text-white border-purple-500/40' : 'bg-white/5 text-white/80 border-white/10 hover:bg-white/10',
+                                  'h-9 px-3 rounded-2xl border text-xs transition',
+                                  pinned
+                                    ? 'border-border-secondary bg-background-fog-thin text-foreground-primary'
+                                    : 'border-border-secondary/60 bg-transparent text-foreground-tertiary hover:bg-background-fog-thin',
                                 )}
                               >
                                 {pinned ? 'Épinglé' : 'Épingler'}
@@ -703,8 +717,8 @@ export default function BoostersClient() {
                 className="space-y-3"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="text-sm text-[var(--text-muted)]">
-                    Affichage: <span className="text-[var(--text)] font-semibold">{filteredInventory.length}</span> booster(s)
+                  <div className="text-sm text-foreground-tertiary">
+                    Affichage: <span className="text-foreground-primary font-semibold">{filteredInventory.length}</span> booster(s)
                   </div>
                   <div className="flex items-center gap-2">
                     <Select
@@ -736,27 +750,34 @@ export default function BoostersClient() {
                     const b = item.booster;
                     const canQuick = item.status === 'owned' && b.type === 'track' && Boolean(playingTrackId);
                     return (
-                      <div key={item.id} className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+                      <div key={item.id} className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                               {rarityIcon(b.rarity as any)}
-                              <div className="text-[var(--text)] font-bold truncate">{b.name}</div>
+                              <div className="text-foreground-primary font-semibold truncate">{b.name}</div>
                             </div>
-                            <div className="mt-1 text-xs text-[var(--text-muted)] line-clamp-2">{b.description}</div>
+                            <div className="mt-1 text-xs text-foreground-tertiary line-clamp-2">{b.description}</div>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               <span className={cx('text-xs px-2 py-1 rounded-full border', rarityChipClass(b.rarity as any))}>
                                 {rarityLabel(b.rarity as any)}
                               </span>
-                              <span className="text-xs px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/80">
+                              <span className="text-xs px-2 py-1 rounded-full border border-border-secondary bg-background-fog-thin text-foreground-secondary">
                                 {b.type === 'track' ? 'Piste' : 'Artiste'}
                               </span>
-                              <span className="text-xs px-2 py-1 rounded-full border border-white/10 bg-white/5 text-white/80">
+                              <span className="text-xs px-2 py-1 rounded-full border border-border-secondary bg-background-fog-thin text-foreground-secondary">
                                 x{Number(b.multiplier).toFixed(2)} • {b.duration_hours}h
                               </span>
                             </div>
                           </div>
-                          <span className={cx('text-xs px-2 py-1 rounded-full border', item.status === 'owned' ? 'border-green-400/40 bg-green-400/10 text-green-200' : 'border-white/10 bg-white/5 text-white/70')}>
+                          <span
+                            className={cx(
+                              'text-xs px-2 py-1 rounded-full border',
+                              item.status === 'owned'
+                                ? 'border-border-secondary bg-background-fog-thin text-foreground-primary'
+                                : 'border-border-secondary/60 bg-transparent text-foreground-tertiary',
+                            )}
+                          >
                             {item.status === 'owned' ? 'Disponible' : 'Utilisé'}
                           </span>
                         </div>
@@ -769,7 +790,7 @@ export default function BoostersClient() {
                                   type="button"
                                   onClick={() => openTrackSelect(item.id)}
                                   disabled={boostersLoading}
-                                  className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm disabled:opacity-60"
+                                  className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold disabled:opacity-60"
                                 >
                                   Choisir une piste
                                 </button>
@@ -777,7 +798,7 @@ export default function BoostersClient() {
                                   type="button"
                                   onClick={() => applyToCurrentTrack(item.id)}
                                   disabled={!canQuick || boostersLoading}
-                                  className="px-3 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm disabled:opacity-50"
+                                  className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition font-semibold disabled:opacity-50"
                                   title={!playingTrackId ? 'Lance une piste dans le player' : 'Appliquer au morceau en cours'}
                                 >
                                   Sur la piste en cours
@@ -796,7 +817,7 @@ export default function BoostersClient() {
                                   }
                                 }}
                                 disabled={boostersLoading}
-                                className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm disabled:opacity-60"
+                                className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold disabled:opacity-60"
                               >
                                 Activer sur mon profil
                               </button>
@@ -809,7 +830,7 @@ export default function BoostersClient() {
                                   notify.success('Copié', 'Info booster copiée');
                                 } catch {}
                               }}
-                              className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-3)] text-[var(--text)] text-sm font-semibold"
+                              className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition font-semibold"
                             >
                               Copier
                             </button>
@@ -821,13 +842,13 @@ export default function BoostersClient() {
                 </div>
 
                 {filteredInventory.length === 0 && (
-                  <div className="p-8 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] text-center">
-                    <div className="text-[var(--text)] font-bold">Aucun résultat</div>
-                    <div className="text-sm text-[var(--text-muted)] mt-1">Essaye d’enlever des filtres ou va au Shop.</div>
+                  <div className="p-8 rounded-3xl border border-border-secondary bg-background-fog-thin text-center">
+                    <div className="text-foreground-primary font-semibold">Aucun résultat</div>
+                    <div className="text-sm text-foreground-secondary mt-1">Essaye d’enlever des filtres ou va au Shop.</div>
                     <button
                       type="button"
                       onClick={() => setTab('shop')}
-                      className="mt-4 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                      className="mt-4 h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition font-semibold"
                     >
                       Aller au Shop
                     </button>
@@ -846,12 +867,12 @@ export default function BoostersClient() {
                 className="space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-[var(--text-muted)]">Boosts en cours (pistes + profil)</div>
+                  <div className="text-sm text-foreground-tertiary">Boosts en cours (pistes + profil)</div>
                   <button
                     type="button"
                     onClick={refreshActive}
                     disabled={activeLoading}
-                    className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-semibold text-sm disabled:opacity-60"
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition disabled:opacity-60"
                   >
                     {activeLoading ? 'Refresh…' : 'Refresh'}
                   </button>
@@ -860,26 +881,26 @@ export default function BoostersClient() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                   <Panel title="Boosts piste">
                     {activeTrackBoosts.length === 0 ? (
-                      <div className="text-sm text-[var(--text-muted)]">Aucun boost piste actif.</div>
+                      <div className="text-sm text-foreground-tertiary">Aucun boost piste actif.</div>
                     ) : (
                       <div className="space-y-2">
                         {activeTrackBoosts.map((b, idx) => {
                           const t = trackMap[String(b.track_id)];
                           const msLeft = new Date(b.expires_at).getTime() - nowTs;
                           return (
-                            <div key={`${b.track_id}-${idx}`} className="flex items-center gap-3 p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-                              <div className="w-12 h-12 rounded-xl overflow-hidden bg-black/30 border border-[var(--border)] shrink-0">
+                            <div key={`${b.track_id}-${idx}`} className="flex items-center gap-3 p-3 rounded-3xl border border-border-secondary bg-background-fog-thin">
+                              <div className="h-12 w-12 rounded-2xl overflow-hidden bg-background-tertiary border border-border-secondary shrink-0">
                                 {t?.coverUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
                                   <img src={t.coverUrl} alt={t.title} className="w-full h-full object-cover" />
                                 ) : null}
                               </div>
                               <div className="min-w-0 flex-1">
-                                <div className="text-[var(--text)] font-semibold truncate">{t?.title || String(b.track_id)}</div>
-                                <div className="text-xs text-[var(--text-muted)] truncate">
+                                <div className="text-foreground-primary font-semibold truncate">{t?.title || String(b.track_id)}</div>
+                                <div className="text-xs text-foreground-tertiary truncate">
                                   {t?.artist?.name || t?.artist?.username ? `${t.artist.name || t.artist.username}` : '—'}
                                 </div>
-                                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                                <div className="mt-1 text-xs text-foreground-tertiary">
                                   x{Number(b.multiplier).toFixed(2)} • expire dans {formatRemaining(msLeft)}
                                 </div>
                               </div>
@@ -892,15 +913,15 @@ export default function BoostersClient() {
 
                   <Panel title="Boosts artiste (profil)">
                     {activeArtistBoosts.length === 0 ? (
-                      <div className="text-sm text-[var(--text-muted)]">Aucun boost artiste actif.</div>
+                      <div className="text-sm text-foreground-tertiary">Aucun boost artiste actif.</div>
                     ) : (
                       <div className="space-y-2">
                         {activeArtistBoosts.map((b, idx) => {
                           const msLeft = new Date(b.expires_at).getTime() - nowTs;
                           return (
-                            <div key={`${b.artist_id}-${idx}`} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)]">
-                              <div className="text-[var(--text)] font-semibold">Mon profil</div>
-                              <div className="text-xs text-[var(--text-muted)] mt-1">
+                            <div key={`${b.artist_id}-${idx}`} className="p-3 rounded-3xl border border-border-secondary bg-background-fog-thin">
+                              <div className="text-foreground-primary font-semibold">Mon profil</div>
+                              <div className="text-xs text-foreground-tertiary mt-1">
                                 x{Number(b.multiplier).toFixed(2)} • expire dans {formatRemaining(msLeft)}
                               </div>
                             </div>
@@ -923,14 +944,14 @@ export default function BoostersClient() {
                 className="space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-[var(--text-muted)]">
+                  <div className="text-sm text-foreground-tertiary">
                     Missions actives (progression + récompenses). Astuce: fais-les après avoir boosté une piste.
                   </div>
                   <button
                     type="button"
                     onClick={refreshMissions}
                     disabled={missionsLoading}
-                    className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-semibold text-sm disabled:opacity-60"
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition disabled:opacity-60"
                   >
                     {missionsLoading ? 'Refresh…' : 'Refresh'}
                   </button>
@@ -952,11 +973,11 @@ export default function BoostersClient() {
                   const claimableIds = missions.filter((m) => Boolean(m.canClaim ?? (m.completed && !m.claimed))).map((m) => m.id);
                   if (!top.length) return null;
                   return (
-                    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+                    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <div className="text-[var(--text)] font-bold">À faire maintenant</div>
-                          <div className="text-xs text-[var(--text-muted)] mt-1">
+                          <div className="text-foreground-primary font-semibold">À faire maintenant</div>
+                          <div className="text-xs text-foreground-tertiary mt-1">
                             3 missions prioritaires (réclame d’abord ce qui est terminé).
                           </div>
                         </div>
@@ -964,7 +985,7 @@ export default function BoostersClient() {
                           <button
                             type="button"
                             onClick={() => claimManyMissions(claimableIds)}
-                            className="px-3 py-2 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold text-sm"
+                            className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition font-semibold text-sm"
                           >
                             Réclamer tout ({claimableIds.length})
                           </button>
@@ -978,23 +999,28 @@ export default function BoostersClient() {
                           const resetsAtTs = m.resetsAt ? new Date(m.resetsAt).getTime() : null;
                           const msToReset = resetsAtTs ? (resetsAtTs - nowTs) : null;
                           return (
-                            <div key={m.id} className="p-3 rounded-xl border border-white/10 bg-white/5">
+                            <div key={m.id} className="p-3 rounded-3xl border border-border-secondary bg-background-fog-thin">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                  <div className="text-sm font-semibold text-white truncate">{m.title}</div>
-                                  <div className="text-xs text-white/70 mt-1">
+                                  <div className="text-sm font-semibold text-foreground-primary truncate">{m.title}</div>
+                                  <div className="text-xs text-foreground-tertiary mt-1">
                                     {m.progress}/{m.threshold} • {pct(ratio)}
                                     {m.claimed && msToReset != null ? <span> • reset {formatCountdown(msToReset)}</span> : null}
                                   </div>
                                 </div>
-                                <div className={cx('text-xs px-2 py-1 rounded-full border shrink-0', done ? 'border-green-400/40 bg-green-400/10 text-green-200' : 'border-white/10 bg-white/5 text-white/70')}>
+                                <div
+                                  className={cx(
+                                    'text-xs px-2 py-1 rounded-full border shrink-0',
+                                    done ? 'border-border-secondary bg-background-fog-thin text-foreground-primary' : 'border-border-secondary/60 bg-transparent text-foreground-tertiary',
+                                  )}
+                                >
                                   {done ? 'OK' : 'Go'}
                                 </div>
                               </div>
 
                               {m.reward ? (
-                                <div className="mt-2 text-xs text-white/80">
-                                  Récompense: <span className="font-semibold">{m.reward.name}</span> • {rarityLabel(m.reward.rarity)} • x{Number(m.reward.multiplier).toFixed(2)}
+                                <div className="mt-2 text-xs text-foreground-tertiary">
+                                  Récompense: <span className="text-foreground-primary font-semibold">{m.reward.name}</span> • {rarityLabel(m.reward.rarity)} • x{Number(m.reward.multiplier).toFixed(2)}
                                 </div>
                               ) : null}
 
@@ -1004,8 +1030,8 @@ export default function BoostersClient() {
                                   onClick={() => claimMission(m.id)}
                                   disabled={!done || claimingMissionId === m.id}
                                   className={cx(
-                                    'px-3 py-2 rounded-xl font-semibold text-sm border transition-colors',
-                                    done ? 'bg-green-600 hover:bg-green-700 text-white border-green-500/40' : 'bg-[var(--surface)] text-[var(--text-muted)] border-[var(--border)]',
+                                    'h-11 px-4 rounded-2xl text-sm transition font-semibold',
+                                    done ? 'bg-overlay-on-primary text-foreground-primary hover:opacity-90' : 'border border-border-secondary bg-background-fog-thin text-foreground-tertiary',
                                   )}
                                 >
                                   {claimingMissionId === m.id ? '...' : done ? 'Réclamer' : 'En cours'}
@@ -1017,7 +1043,7 @@ export default function BoostersClient() {
                                     else if (m.goal_type === 'shares') setTab('history');
                                     else setTab('dashboard');
                                   }}
-                                  className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-semibold text-sm"
+                                  className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition font-semibold"
                                 >
                                   Action
                                 </button>
@@ -1039,50 +1065,55 @@ export default function BoostersClient() {
                     const msToReset = resetsAtTs ? (resetsAtTs - nowTs) : null;
                     const reward = m.reward || null;
                     return (
-                      <div key={m.id} className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
+                      <div key={m.id} className="p-4 rounded-3xl border border-border-secondary bg-background-fog-thin">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-[var(--text)] font-bold">{m.title}</div>
-                            <div className="mt-1 text-xs text-[var(--text-muted)]">
+                            <div className="text-foreground-primary font-semibold">{m.title}</div>
+                            <div className="mt-1 text-xs text-foreground-tertiary">
                               Objectif: {m.goal_type} • {m.progress}/{m.threshold}
                             </div>
                           </div>
-                          <span className={cx('text-xs px-2 py-1 rounded-full border', done ? 'border-green-400/40 bg-green-400/10 text-green-200' : 'border-white/10 bg-white/5 text-white/70')}>
+                          <span
+                            className={cx(
+                              'text-xs px-2 py-1 rounded-full border',
+                              done ? 'border-border-secondary bg-background-fog-thin text-foreground-primary' : 'border-border-secondary/60 bg-transparent text-foreground-tertiary',
+                            )}
+                          >
                             {done ? (m.claimed ? 'Réclamée' : 'Terminée') : 'En cours'}
                           </span>
                         </div>
-                        <div className="mt-3 w-full h-2 rounded-full bg-black/20 overflow-hidden">
-                          <div className="h-2 bg-purple-500" style={{ width: pct(progress) }} />
+                        <div className="mt-3 w-full h-2 rounded-full bg-background-tertiary overflow-hidden border border-border-secondary/60">
+                          <div className="h-2 bg-overlay-on-primary" style={{ width: pct(progress) }} />
                         </div>
                         <div className="mt-3 flex flex-col gap-2">
                           {reward && (
-                            <div className="p-3 rounded-xl border border-white/10 bg-white/5">
+                            <div className="p-3 rounded-3xl border border-border-secondary bg-background-fog-thin">
                               <div className="flex items-center justify-between gap-3">
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-2">
                                     {rarityIcon(reward.rarity)}
-                                    <div className="text-sm font-semibold text-white truncate">{reward.name}</div>
+                                    <div className="text-sm font-semibold text-foreground-primary truncate">{reward.name}</div>
                                     <span className={cx('text-xs px-2 py-0.5 rounded-full border', rarityChipClass(reward.rarity))}>
                                       {rarityLabel(reward.rarity)}
                                     </span>
                                   </div>
-                                  <div className="mt-1 text-xs text-white/70">
+                                  <div className="mt-1 text-xs text-foreground-tertiary">
                                     {reward.type === 'track' ? 'Boost piste' : 'Boost artiste'} • x{Number(reward.multiplier).toFixed(2)} • {Number(reward.duration_hours)}h
                                   </div>
                                 </div>
                                 <div className="shrink-0 text-right">
-                                  <div className="text-xs text-white/60">Récompense</div>
-                                  <div className="text-sm font-bold text-green-300">x{Number(reward.multiplier).toFixed(2)}</div>
+                                  <div className="text-xs text-foreground-tertiary">Récompense</div>
+                                  <div className="text-sm font-semibold text-foreground-primary">x{Number(reward.multiplier).toFixed(2)}</div>
                                 </div>
                               </div>
                             </div>
                           )}
 
                           <div className="flex items-center justify-between gap-2">
-                            <div className="text-xs text-[var(--text-muted)]">
+                            <div className="text-xs text-foreground-tertiary">
                               Cooldown: {Number(m.cooldown_hours || 0)}h
                               {m.claimed && msToReset != null ? (
-                                <span className="ml-2 text-white/70">• reset dans {formatCountdown(msToReset)}</span>
+                                <span className="ml-2 text-foreground-tertiary">• reset dans {formatCountdown(msToReset)}</span>
                               ) : null}
                             </div>
                             <button
@@ -1090,8 +1121,8 @@ export default function BoostersClient() {
                               onClick={() => claimMission(m.id)}
                               disabled={!canClaim || claimingMissionId === m.id}
                               className={cx(
-                                'px-3 py-2 rounded-xl font-semibold text-sm border transition-colors',
-                                canClaim ? 'bg-green-600 hover:bg-green-700 text-white border-green-500/40' : 'bg-[var(--surface)] text-[var(--text-muted)] border-[var(--border)]',
+                                'h-11 px-4 rounded-2xl text-sm transition font-semibold',
+                                canClaim ? 'bg-overlay-on-primary text-foreground-primary hover:opacity-90' : 'border border-border-secondary bg-background-fog-thin text-foreground-tertiary',
                               )}
                             >
                               {claimingMissionId === m.id ? '...' : canClaim ? 'Réclamer' : done ? (m.claimed ? 'Réclamée' : 'Terminée') : 'Indispo'}
@@ -1125,14 +1156,14 @@ export default function BoostersClient() {
               >
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   <Panel title="Streak & garanties">
-                    <div className="text-sm text-[var(--text-muted)]">
+                    <div className="text-sm text-foreground-tertiary">
                       Paliers: J7 Rare • J14 Épique • J30 Légendaire. La streak est ton “battle pass” gratuit.
                     </div>
-                    <div className="mt-3 text-3xl font-bold text-[var(--text)]">{streak}</div>
-                    <div className="mt-1 text-xs text-[var(--text-muted)]">Garde le rythme, même si tu ne joues pas longtemps.</div>
+                    <div className="mt-3 text-3xl font-semibold text-foreground-primary">{streak}</div>
+                    <div className="mt-1 text-xs text-foreground-tertiary">Garde le rythme, même si tu ne joues pas longtemps.</div>
                   </Panel>
                   <Panel title="Pity">
-                    <div className="text-xs text-[var(--text-muted)]">Rare: {pity?.opens_since_rare ?? 0}/6 • Épique: {pity?.opens_since_epic ?? 0}/24 • Légendaire: {pity?.opens_since_legendary ?? 0}/79</div>
+                    <div className="text-xs text-foreground-tertiary">Rare: {pity?.opens_since_rare ?? 0}/6 • Épique: {pity?.opens_since_epic ?? 0}/24 • Légendaire: {pity?.opens_since_legendary ?? 0}/79</div>
                     <div className="mt-3 space-y-2">
                       <Bar label="Rare" value={(Number(pity?.opens_since_rare || 0) / 6) * 100} color="bg-blue-500" />
                       <Bar label="Épique" value={(Number(pity?.opens_since_epic || 0) / 24) * 100} color="bg-purple-500" />
@@ -1140,7 +1171,7 @@ export default function BoostersClient() {
                     </div>
                   </Panel>
                   <Panel title="Odds packs (approx)">
-                    <div className="text-xs text-[var(--text-muted)]">Starter: Rare garanti • Pro: Rare garanti</div>
+                    <div className="text-xs text-foreground-tertiary">Starter: Rare garanti • Pro: Rare garanti</div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                       <OddsRow label="Starter • Épique" v={starterPackOdds.epicPct} />
                       <OddsRow label="Starter • Légendaire" v={starterPackOdds.legendaryPct} />
@@ -1172,10 +1203,13 @@ export default function BoostersClient() {
                 </div>
 
                 {plan === 'free' && (
-                  <div className="p-5 rounded-2xl border border-[var(--border)] bg-[var(--surface-2)]">
-                    <div className="text-[var(--text)] font-bold">Débloque les packs</div>
-                    <div className="text-sm text-[var(--text-muted)] mt-1">Les packs hebdo sont réservés aux abonnés.</div>
-                    <a href="/subscriptions" className="inline-flex mt-3 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold">
+                  <div className="p-5 rounded-3xl border border-border-secondary bg-background-fog-thin">
+                    <div className="text-foreground-primary font-semibold">Débloque les packs</div>
+                    <div className="text-sm text-foreground-secondary mt-1">Les packs hebdo sont réservés aux abonnés.</div>
+                    <a
+                      href="/subscriptions"
+                      className="inline-flex mt-3 h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition font-semibold items-center"
+                    >
                       Voir abonnements
                     </a>
                   </div>
@@ -1193,12 +1227,12 @@ export default function BoostersClient() {
                 className="space-y-3"
               >
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm text-[var(--text-muted)]">Ouvertures (daily/packs/missions)</div>
+                  <div className="text-sm text-foreground-tertiary">Ouvertures (daily/packs/missions)</div>
                   <button
                     type="button"
                     onClick={refreshHistory}
                     disabled={historyLoading}
-                    className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-semibold text-sm disabled:opacity-60"
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition disabled:opacity-60"
                   >
                     {historyLoading ? 'Refresh…' : 'Refresh'}
                   </button>
@@ -1206,26 +1240,26 @@ export default function BoostersClient() {
                 {historyError && <div className="text-red-400">{historyError}</div>}
                 <div className="space-y-2">
                   {opens.map((o: any) => (
-                    <div key={o.id} className="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-between gap-3">
+                    <div key={o.id} className="p-3 rounded-3xl border border-border-secondary bg-background-fog-thin flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           {o.rarity ? rarityIcon(o.rarity as any) : <Sparkles className="w-4 h-4 text-zinc-400" />}
-                          <div className="text-[var(--text)] font-semibold truncate">{o.booster_key || 'Booster'}</div>
+                          <div className="text-foreground-primary font-semibold truncate">{o.booster_key || 'Booster'}</div>
                           {o.rarity ? <span className={cx('text-xs px-2 py-0.5 rounded-full border', rarityChipClass(o.rarity as any))}>{rarityLabel(o.rarity as any)}</span> : null}
                         </div>
-                        <div className="text-xs text-[var(--text-muted)] truncate mt-1">
+                        <div className="text-xs text-foreground-tertiary truncate mt-1">
                           {String(o.source || 'daily')} • {o.opened_at ? new Date(o.opened_at).toLocaleString() : ''}
                         </div>
                       </div>
                       <div className="shrink-0 text-right">
                         {o.multiplier ? <div className="text-sm text-green-300 font-bold">x{Number(o.multiplier).toFixed(2)}</div> : null}
-                        {o.duration_hours ? <div className="text-xs text-[var(--text-muted)]">{Number(o.duration_hours)}h</div> : null}
+                        {o.duration_hours ? <div className="text-xs text-foreground-tertiary">{Number(o.duration_hours)}h</div> : null}
                       </div>
                     </div>
                   ))}
 
                   {opens.length === 0 && !historyLoading && (
-                    <div className="text-sm text-[var(--text-muted)]">Aucune ouverture enregistrée.</div>
+                    <div className="text-sm text-foreground-tertiary">Aucune ouverture enregistrée.</div>
                   )}
 
                   {opensMore && (
@@ -1246,7 +1280,7 @@ export default function BoostersClient() {
                         } catch {}
                         setOpensLoadingMore(false);
                       }}
-                      className="w-full mt-2 px-4 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] font-semibold disabled:opacity-60"
+                      className="w-full mt-2 h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin text-foreground-secondary hover:bg-overlay-on-primary transition font-semibold disabled:opacity-60"
                     >
                       {opensLoadingMore ? 'Chargement…' : 'Charger plus'}
                     </button>
@@ -1265,7 +1299,7 @@ export default function BoostersClient() {
                 className="space-y-3"
               >
                 <Panel title="Comment ça marche (vraiment)">
-                  <div className="text-sm text-[var(--text-muted)] space-y-2">
+                  <div className="text-sm text-foreground-tertiary space-y-2">
                     <p>
                       - <b>Streak</b>: tous les 7/14/30 jours, tu as une garantie Rare/Épique/Légendaire.
                     </p>
@@ -1285,10 +1319,10 @@ export default function BoostersClient() {
                       <OddsRow label="Épique" v={dailyOdds.epicPct} />
                       <OddsRow label="Légendaire" v={dailyOdds.legendaryPct} />
                     </div>
-                    <div className="mt-3 text-xs text-[var(--text-muted)]">Valeurs indicatives (hors garanties).</div>
+                    <div className="mt-3 text-xs text-foreground-tertiary">Valeurs indicatives (hors garanties).</div>
                   </Panel>
                   <Panel title="Améliorations à venir (idées)">
-                    <div className="space-y-2 text-sm text-[var(--text-muted)]">
+                    <div className="space-y-2 text-sm text-foreground-tertiary">
                       <div>• Missions “smart” personnalisées (selon écoute/genres).</div>
                       <div>• Analytics boost: plays/likes gagnés pendant la fenêtre de boost.</div>
                       <div>• “Boost presets”: pack de boosts + calendrier (ex: sortie hebdo).</div>
@@ -1327,25 +1361,25 @@ export default function BoostersClient() {
 
       {isMounted && showFilters && createPortal(
         <div className="fixed inset-0 z-[220] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-          <div className="relative w-[95vw] max-w-[520px] rounded-2xl border border-white/10 bg-gradient-to-b from-black/75 to-black/60 shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white font-bold">
-                <Settings2 className="w-5 h-5 text-purple-300" />
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowFilters(false)} />
+          <div className="relative w-[95vw] max-w-[520px] rounded-3xl border border-border-secondary bg-background-fog-thin shadow-2xl overflow-hidden">
+            <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
+              <div className="flex items-center gap-2 text-foreground-primary font-semibold">
+                <Settings2 className="w-5 h-5 text-foreground-secondary" />
                 Filtres inventaire
               </div>
-              <button onClick={() => setShowFilters(false)} className="text-white/70 hover:text-white" aria-label="Fermer">
+              <button onClick={() => setShowFilters(false)} className="text-foreground-tertiary hover:text-foreground-primary" aria-label="Fermer">
                 <X className="w-6 h-6" />
               </button>
             </div>
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <div className="text-xs text-white/60 mb-1">Statut</div>
+                  <div className="text-xs text-foreground-tertiary mb-1">Statut</div>
                   <select
                     value={filterStatus}
                     onChange={(e) => setFilterStatus(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white outline-none"
+                    className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
                   >
                     <option value="owned">Disponibles</option>
                     <option value="used">Utilisés</option>
@@ -1353,11 +1387,11 @@ export default function BoostersClient() {
                   </select>
                 </div>
                 <div>
-                  <div className="text-xs text-white/60 mb-1">Type</div>
+                  <div className="text-xs text-foreground-tertiary mb-1">Type</div>
                   <select
                     value={filterType}
                     onChange={(e) => setFilterType(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white outline-none"
+                    className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
                   >
                     <option value="all">Tous</option>
                     <option value="track">Piste</option>
@@ -1365,11 +1399,11 @@ export default function BoostersClient() {
                   </select>
                 </div>
                 <div>
-                  <div className="text-xs text-white/60 mb-1">Rareté</div>
+                  <div className="text-xs text-foreground-tertiary mb-1">Rareté</div>
                   <select
                     value={filterRarity}
                     onChange={(e) => setFilterRarity(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white outline-none"
+                    className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
                   >
                     <option value="all">Toutes</option>
                     <option value="common">Commun</option>
@@ -1379,11 +1413,11 @@ export default function BoostersClient() {
                   </select>
                 </div>
                 <div>
-                  <div className="text-xs text-white/60 mb-1">Tri</div>
+                  <div className="text-xs text-foreground-tertiary mb-1">Tri</div>
                   <select
                     value={sort}
                     onChange={(e) => setSort(e.target.value as any)}
-                    className="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 text-white outline-none"
+                    className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
                   >
                     <option value="new">Récents</option>
                     <option value="rarity">Rareté</option>
@@ -1397,14 +1431,14 @@ export default function BoostersClient() {
                 <button
                   type="button"
                   onClick={() => { setFilterRarity('all'); setFilterType('all'); setFilterStatus('owned'); setSort('new'); }}
-                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-semibold border border-white/10"
+                  className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
                 >
                   Reset
                 </button>
                 <button
                   type="button"
                   onClick={() => { setShowFilters(false); setTab('inventory'); }}
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold"
+                  className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold"
                 >
                   Voir inventaire
                 </button>
@@ -1444,9 +1478,9 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function OddsRow({ label, v }: { label: string; v: number }) {
   return (
-    <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-white/10 bg-white/5">
-      <div className="text-white/80">{label}</div>
-      <div className="text-white font-bold">{Number(v).toFixed(1)}%</div>
+    <div className="flex items-center justify-between gap-2 p-2 rounded-2xl border border-border-secondary bg-background-fog-thin">
+      <div className="text-foreground-secondary">{label}</div>
+      <div className="text-foreground-primary font-semibold">{Number(v).toFixed(1)}%</div>
     </div>
   );
 }
@@ -1455,11 +1489,11 @@ function Bar({ label, value, color }: { label: string; value: number; color: str
   const w = clamp(value, 0, 100);
   return (
     <div>
-      <div className="flex items-center justify-between text-xs text-[var(--text-muted)] mb-1">
+      <div className="flex items-center justify-between text-xs text-foreground-tertiary mb-1">
         <span>{label}</span>
         <span>{pct(w)}</span>
       </div>
-      <div className="w-full h-2 rounded-full bg-black/20 overflow-hidden">
+      <div className="w-full h-2 rounded-full bg-background-tertiary overflow-hidden border border-border-secondary/60">
         <div className={cx('h-2', color)} style={{ width: pct(w) }} />
       </div>
     </div>
@@ -1522,11 +1556,11 @@ function Select({
 }) {
   return (
     <label className="flex items-center gap-2 text-sm">
-      <span className="text-xs text-[var(--text-muted)]">{label}</span>
+      <span className="text-xs text-foreground-tertiary">{label}</span>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text)] text-sm outline-none"
+        className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-foreground-secondary text-sm outline-none hover:bg-overlay-on-primary transition"
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>
