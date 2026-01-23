@@ -12,20 +12,30 @@ type BoosterRow = {
   name: string;
   description: string;
   type: 'track' | 'artist';
-  rarity: 'common' | 'rare' | 'epic';
+  rarity: 'common' | 'rare' | 'epic' | 'legendary';
   multiplier: number;
   duration_hours: number;
 };
 
-function chooseBooster(available: BoosterRow[]): BoosterRow | null {
-  // Pondération par rareté: common 80%, rare 18%, epic 2%
+function chooseBooster(available: BoosterRow[], opts?: { luck?: number }): BoosterRow | null {
+  // Pondération par rareté (base): common 78%, rare 18%, epic 3%, legendary 1%
+  // luck (0..1) : bonus abonnés (augmente epic/legendary, réduit common)
+  const luck = Math.max(0, Math.min(1, Number(opts?.luck ?? 0)));
   const common = available.filter(b => b.rarity === 'common');
   const rare = available.filter(b => b.rarity === 'rare');
   const epic = available.filter(b => b.rarity === 'epic');
+  const legendary = available.filter(b => b.rarity === 'legendary');
 
   const roll = Math.random() * 100;
   let pool: BoosterRow[] = [];
-  if (roll < 2 && epic.length) pool = epic; else if (roll < 20 && rare.length) pool = rare; else pool = common.length ? common : (rare.length ? rare : epic);
+  const legendaryCut = 1 + luck * 1.5; // up to 2.5%
+  const epicCut = legendaryCut + (3 + luck * 4); // up to ~9.5%
+  const rareCut = epicCut + 18; // keep rare stable
+
+  if (roll < legendaryCut && legendary.length) pool = legendary;
+  else if (roll < epicCut && epic.length) pool = epic;
+  else if (roll < rareCut && rare.length) pool = rare;
+  else pool = common.length ? common : (rare.length ? rare : (epic.length ? epic : legendary));
   if (!pool.length) return null;
   const idx = Math.floor(Math.random() * pool.length);
   return pool[idx] || null;
@@ -38,6 +48,16 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
+
+    // Bonus abonnés: cooldown réduit + meilleures chances
+    let plan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
+    try {
+      const { data: p } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+      if (p?.plan) plan = p.plan;
+    } catch {}
+    const isSubscriber = plan !== 'free';
+    const cooldownMs = isSubscriber ? 12 * 3_600_000 : 24 * 3_600_000;
+    const luck = isSubscriber ? (plan === 'pro' || plan === 'enterprise' ? 1 : 0.6) : 0;
 
     // Vérifier cooldown quotidien
     const { data: daily, error: dailyErr } = await supabaseAdmin
@@ -53,8 +73,8 @@ export async function POST(request: NextRequest) {
     if (daily?.last_opened_at) {
       const last = new Date(daily.last_opened_at);
       const diffH = (now.getTime() - last.getTime()) / 3_600_000;
-      if (diffH < 24) {
-        const remainingMs = 24 * 3_600_000 - (now.getTime() - last.getTime());
+      if ((now.getTime() - last.getTime()) < cooldownMs) {
+        const remainingMs = cooldownMs - (now.getTime() - last.getTime());
         return NextResponse.json({ error: 'Cooldown', remainingMs }, { status: 429 });
       }
     }
@@ -67,7 +87,7 @@ export async function POST(request: NextRequest) {
     if (boostersErr) {
       return NextResponse.json({ error: 'Erreur boosters' }, { status: 500 });
     }
-    const picked = chooseBooster((boosters || []) as BoosterRow[]);
+    const picked = chooseBooster((boosters || []) as BoosterRow[], { luck });
     if (!picked) {
       return NextResponse.json({ error: 'Aucun booster disponible' }, { status: 500 });
     }
@@ -99,7 +119,7 @@ export async function POST(request: NextRequest) {
         inventory_id: inv?.id,
         booster: picked
       },
-      cooldownMs: 24 * 3_600_000,
+      cooldownMs,
       streak
     });
   } catch (e) {

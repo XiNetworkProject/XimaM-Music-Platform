@@ -16,6 +16,14 @@ export async function GET(request: NextRequest) {
 
     const nowIso = new Date().toISOString();
 
+    // Bonus abonnés: cooldown réduit
+    let plan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
+    try {
+      const { data: p } = await supabaseAdmin.from('profiles').select('plan').eq('id', userId).maybeSingle();
+      if (p?.plan) plan = p.plan;
+    } catch {}
+    const cooldownMs = plan !== 'free' ? 12 * 3_600_000 : 24 * 3_600_000;
+
     const [{ data: inv, error: invErr }, { data: daily, error: dailyErr }] = await Promise.all([
       supabaseAdmin
         .from('user_boosters')
@@ -38,13 +46,12 @@ export async function GET(request: NextRequest) {
       const last = new Date(daily.last_opened_at).getTime();
       const now = new Date(nowIso).getTime();
       const elapsed = now - last;
-      const cd = 24 * 3_600_000;
-      remainingMs = Math.max(0, cd - elapsed);
+      remainingMs = Math.max(0, cooldownMs - elapsed);
     }
 
     return NextResponse.json({
       inventory: inv || [],
-      cooldownMs: 24 * 3_600_000,
+      cooldownMs,
       remainingMs,
       streak: daily?.streak || 0
     });

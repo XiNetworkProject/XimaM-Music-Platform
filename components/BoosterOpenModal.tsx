@@ -25,6 +25,15 @@ export default function BoosterOpenModal({
 }: BoosterOpenModalProps) {
   const [phase, setPhase] = useState<'idle' | 'shaking' | 'opening' | 'revealed' | 'tearing'>('idle');
   const [isHovered, setIsHovered] = useState(false);
+  const [viewport, setViewport] = useState({ w: 800, h: 600 });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   useEffect(() => {
     if (!isOpen) {
@@ -111,13 +120,13 @@ export default function BoosterOpenModal({
         >
           {/* Fond avec particules flottantes */}
           <div className="absolute inset-0 overflow-hidden">
-            {[...Array(20)].map((_, i) => (
+            {Array.from({ length: 20 }).map((_, i) => (
               <motion.div
                 key={i}
                 className={`absolute w-1 h-1 ${rarityConfig.particles} rounded-full opacity-60`}
                 initial={{
-                  x: Math.random() * window.innerWidth,
-                  y: Math.random() * window.innerHeight,
+                  x: Math.random() * viewport.w,
+                  y: Math.random() * viewport.h,
                   scale: 0
                 }}
                 animate={{

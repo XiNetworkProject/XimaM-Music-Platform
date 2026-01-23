@@ -8,13 +8,18 @@ CREATE TABLE IF NOT EXISTS public.boosters (
   name TEXT NOT NULL,
   description TEXT DEFAULT '',
   type TEXT NOT NULL CHECK (type IN ('track','artist')),
-  rarity TEXT NOT NULL CHECK (rarity IN ('common','rare','epic')),
+  rarity TEXT NOT NULL CHECK (rarity IN ('common','rare','epic','legendary')),
   multiplier NUMERIC NOT NULL CHECK (multiplier >= 1.0),
   duration_hours INTEGER NOT NULL CHECK (duration_hours > 0),
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Si la table existait déjà, élargir la contrainte de rareté (idempotent)
+ALTER TABLE public.boosters DROP CONSTRAINT IF EXISTS boosters_rarity_check;
+ALTER TABLE public.boosters
+  ADD CONSTRAINT boosters_rarity_check CHECK (rarity IN ('common','rare','epic','legendary'));
 
 -- Inventaire des boosters possédés par l'utilisateur
 CREATE TABLE IF NOT EXISTS public.user_boosters (
@@ -101,5 +106,18 @@ WHERE NOT EXISTS (SELECT 1 FROM public.boosters WHERE key='artist_boost_rare');
 INSERT INTO public.boosters (key, name, description, type, rarity, multiplier, duration_hours)
 SELECT 'track_boost_epic', 'Boost épique de piste (x1.30 / 6h)', 'Gros coup de projecteur temporaire', 'track', 'epic', 1.30, 6
 WHERE NOT EXISTS (SELECT 1 FROM public.boosters WHERE key='track_boost_epic');
+
+-- Nouveaux boosters (meilleure progression + une vraie "chase" légendaire)
+INSERT INTO public.boosters (key, name, description, type, rarity, multiplier, duration_hours)
+SELECT 'track_boost_rare', 'Boost rare de piste (x1.22 / 12h)', 'Bon push + durée plus longue', 'track', 'rare', 1.22, 12
+WHERE NOT EXISTS (SELECT 1 FROM public.boosters WHERE key='track_boost_rare');
+
+INSERT INTO public.boosters (key, name, description, type, rarity, multiplier, duration_hours)
+SELECT 'artist_boost_epic', 'Boost épique d’artiste (48h)', 'Mise en avant plus forte sur la page artiste', 'artist', 'epic', 1.35, 48
+WHERE NOT EXISTS (SELECT 1 FROM public.boosters WHERE key='artist_boost_epic');
+
+INSERT INTO public.boosters (key, name, description, type, rarity, multiplier, duration_hours)
+SELECT 'track_boost_legendary', 'Boost légendaire de piste (x1.55 / 12h)', 'Coup de projecteur massif (très rare)', 'track', 'legendary', 1.55, 12
+WHERE NOT EXISTS (SELECT 1 FROM public.boosters WHERE key='track_boost_legendary');
 
 

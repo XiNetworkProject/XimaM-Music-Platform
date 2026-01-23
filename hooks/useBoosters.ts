@@ -8,7 +8,7 @@ export interface BoosterCatalogItem {
   name: string;
   description: string;
   type: "track" | "artist";
-  rarity: "common" | "rare" | "epic";
+  rarity: "common" | "rare" | "epic" | "legendary";
   multiplier: number;
   duration_hours: number;
 }
