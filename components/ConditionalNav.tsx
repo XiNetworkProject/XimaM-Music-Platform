@@ -24,10 +24,12 @@ export function ConditionalNavbar() {
   const isMeteoPage = pathname?.includes('/meteo/login') || pathname?.includes('/meteo/dashboard');
   const isAIStudio = pathname?.startsWith('/ai-generator');
   const isLibrary = pathname?.startsWith('/library');
+  const isBoosters = pathname?.startsWith('/boosters');
   
   if (isMeteoPage) return null;
   if (isAIStudio) return null; // pas de barre en haut dans le studio IA
   if (isLibrary) return null; // pas de barre de recherche globale sur la Library (elle a sa propre recherche)
+  if (isBoosters) return null; // pas de barre de recherche globale sur Boosters (page déjà équipée)
   return <TopSearchBar />;
 }
 
