@@ -39,8 +39,9 @@ function chooseBooster(available: BoosterRow[], opts?: { luck?: number; minRarit
 
   const roll = Math.random() * 100;
   let pool: BoosterRow[] = [];
-  const legendaryCut = 1 + luck * 2.0; // packs have slightly higher leg chance
-  const epicCut = legendaryCut + (4 + luck * 5);
+  // Fair & safe: packs shouldn't massively outperform daily odds; keep it close.
+  const legendaryCut = 1 + luck * 1.2;
+  const epicCut = legendaryCut + (3 + luck * 3);
   const rareCut = epicCut + 20;
 
   if (allowLegendary && roll < legendaryCut && legendary.length) pool = legendary;
@@ -84,8 +85,8 @@ export async function POST(req: NextRequest) {
     const now = new Date();
     const periodStart = weekStartUTC(now);
     const rules: Record<string, { perWeek: number; size: number; luck: number; minRarity?: BoosterRow['rarity'] }> = {
-      starter_weekly: { perWeek: 1, size: 3, luck: 0.6, minRarity: 'rare' },
-      pro_weekly: { perWeek: 2, size: 5, luck: 1.0, minRarity: 'rare' },
+      starter_weekly: { perWeek: 1, size: 3, luck: 0.3, minRarity: 'rare' },
+      pro_weekly: { perWeek: 2, size: 5, luck: 0.5, minRarity: 'rare' },
     };
     const rule = rules[packKey];
     if (!rule) return NextResponse.json({ error: 'Pack inconnu' }, { status: 400 });

@@ -78,7 +78,8 @@ export async function POST(request: NextRequest) {
     } catch {}
     const isSubscriber = plan !== 'free';
     const cooldownMs = isSubscriber ? 12 * 3_600_000 : 24 * 3_600_000;
-    const luck = isSubscriber ? (plan === 'pro' || plan === 'enterprise' ? 1 : 0.6) : 0;
+    // Fair & safe: subscription gives convenience (12h cooldown) + small luck, but guarantees are shared (pity/streak).
+    const luck = isSubscriber ? (plan === 'pro' || plan === 'enterprise' ? 0.5 : 0.3) : 0;
 
     // Vérifier cooldown quotidien
     const { data: daily, error: dailyErr } = await supabaseAdmin
