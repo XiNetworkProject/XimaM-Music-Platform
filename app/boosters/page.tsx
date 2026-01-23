@@ -583,6 +583,10 @@ function HistorySection() {
   const [used, setUsed] = useState<any[]>([]);
   const [active, setActive] = useState<any[]>([]);
   const [activeArtist, setActiveArtist] = useState<any[]>([]);
+  const [opens, setOpens] = useState<any[]>([]);
+  const [opensCursor, setOpensCursor] = useState<string | null>(null);
+  const [opensMore, setOpensMore] = useState<boolean>(true);
+  const [opensLoadingMore, setOpensLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [nowTs, setNowTs] = useState<number>(Date.now());
 
@@ -596,9 +600,10 @@ function HistorySection() {
       setLoading(true);
       setError(null);
       try {
-        const [invRes, actRes] = await Promise.all([
+        const [invRes, actRes, histRes] = await Promise.all([
           fetch('/api/boosters', { cache: 'no-store' }),
           fetch('/api/boosters/my-active', { cache: 'no-store' }),
+          fetch('/api/boosters/history?limit=30', { cache: 'no-store' }),
         ]);
         if (!invRes.ok) throw new Error('Erreur inventaire');
         const invJson = await invRes.json();
@@ -609,6 +614,18 @@ function HistorySection() {
         const actJson = await actRes.json();
         setActive(actJson?.boosts || []);
         setActiveArtist(actJson?.artistBoosts || []);
+
+        if (histRes.ok) {
+          const h = await histRes.json().catch(() => ({}));
+          const items = Array.isArray(h?.items) ? h.items : [];
+          setOpens(items);
+          setOpensCursor(h?.nextCursor || null);
+          setOpensMore(Boolean(h?.nextCursor) && items.length > 0);
+        } else {
+          setOpens([]);
+          setOpensCursor(null);
+          setOpensMore(false);
+        }
       } catch (e: any) {
         setError(e?.message || 'Erreur');
       } finally {
@@ -631,6 +648,56 @@ function HistorySection() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h4 className="text-md font-semibold text-[var(--text)] mb-2">Ouvertures (daily / packs / missions)</h4>
+        {opens.length === 0 ? (
+          <div className="text-[var(--text-muted)] text-sm">Aucune ouverture enregistrée</div>
+        ) : (
+          <div className="space-y-2">
+            {opens.map((o: any) => (
+              <div key={o.id} className="p-3 rounded-lg border border-[var(--border)] bg-[var(--surface-3)] flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[var(--text)] font-medium truncate">
+                    {(o.booster_key || 'Booster')}
+                    {o.rarity ? <span className="ml-2 text-xs text-[var(--text-muted)]">({String(o.rarity)})</span> : null}
+                  </div>
+                  <div className="text-xs text-[var(--text-muted)] truncate">
+                    {String(o.source || 'daily')} • {o.opened_at ? new Date(o.opened_at).toLocaleString() : ''}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  {o.multiplier ? <div className="text-sm text-green-400 font-semibold">x{Number(o.multiplier).toFixed(2)}</div> : null}
+                  {o.duration_hours ? <div className="text-xs text-[var(--text-muted)]">{Number(o.duration_hours)}h</div> : null}
+                </div>
+              </div>
+            ))}
+
+            {opensMore && (
+              <button
+                disabled={opensLoadingMore}
+                onClick={async () => {
+                  if (!opensCursor || opensLoadingMore) return;
+                  setOpensLoadingMore(true);
+                  try {
+                    const res = await fetch(`/api/boosters/history?limit=30&cursor=${encodeURIComponent(opensCursor)}`, { cache: 'no-store' });
+                    if (!res.ok) throw new Error('Erreur historique');
+                    const j = await res.json().catch(() => ({}));
+                    const items = Array.isArray(j?.items) ? j.items : [];
+                    setOpens((prev) => [...prev, ...items]);
+                    setOpensCursor(j?.nextCursor || null);
+                    setOpensMore(Boolean(j?.nextCursor) && items.length > 0);
+                  } catch {}
+                  setOpensLoadingMore(false);
+                }}
+                className="w-full mt-2 bg-[var(--surface-2)] hover:bg-[var(--surface-1)] border border-[var(--border)] text-[var(--text)] py-2 px-4 rounded-lg font-semibold transition-colors disabled:opacity-60"
+              >
+                {opensLoadingMore ? 'Chargement…' : 'Charger plus'}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       <div>
         <h4 className="text-md font-semibold text-[var(--text)] mb-2">Boosts actifs (pistes)</h4>
         {active.length === 0 ? (

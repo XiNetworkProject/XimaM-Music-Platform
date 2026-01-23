@@ -34,12 +34,33 @@ export async function POST(request: NextRequest) {
 
     // Attribuer booster si dispo
     if (mission.reward_booster_id) {
-      const { error: invErr } = await supabaseAdmin
-        .from('user_boosters')
-        .insert({ user_id: userId, booster_id: mission.reward_booster_id, status: 'owned' });
+      const [{ data: booster }, { error: invErr }] = await Promise.all([
+        supabaseAdmin
+          .from('boosters')
+          .select('id, key, rarity, type, multiplier, duration_hours')
+          .eq('id', mission.reward_booster_id)
+          .maybeSingle(),
+        supabaseAdmin
+          .from('user_boosters')
+          .insert({ user_id: userId, booster_id: mission.reward_booster_id, status: 'owned', metadata: { source: 'mission' } }),
+      ]);
       if (invErr) {
         return NextResponse.json({ error: 'Erreur attribution récompense' }, { status: 500 });
       }
+
+      // Historique best-effort
+      try {
+        await supabaseAdmin.from('user_booster_open_history').insert({
+          user_id: userId,
+          source: 'mission',
+          booster_id: mission.reward_booster_id,
+          booster_key: (booster as any)?.key ?? null,
+          rarity: (booster as any)?.rarity ?? null,
+          type: (booster as any)?.type ?? null,
+          multiplier: (booster as any)?.multiplier ?? null,
+          duration_hours: (booster as any)?.duration_hours ?? null,
+        });
+      } catch {}
     }
 
     // Marquer claim
