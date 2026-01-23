@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useBoosters } from '@/hooks/useBoosters';
 import BoosterOpenModal from '@/components/BoosterOpenModal';
+import BoosterPackOpenModal, { PackReceivedItem } from '@/components/BoosterPackOpenModal';
 import TrackSelectModal from '@/components/TrackSelectModal';
 import { notify } from '@/components/NotificationCenter';
 
@@ -183,6 +184,9 @@ export default function BoostersPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'inventory' | 'shop' | 'missions' | 'history'>('inventory');
   const [showBoosterModal, setShowBoosterModal] = useState(false);
+  const [showPackModal, setShowPackModal] = useState(false);
+  const [packKey, setPackKey] = useState<string | null>(null);
+  const [packReceived, setPackReceived] = useState<PackReceivedItem[]>([]);
   const [selectModalOpen, setSelectModalOpen] = useState(false);
   const [pendingInventoryId, setPendingInventoryId] = useState<string | null>(null);
 
@@ -518,7 +522,11 @@ export default function BoostersPage() {
                     });
                     const j = await res.json().catch(() => ({}));
                     if (!res.ok) throw new Error(j?.error || 'Erreur');
-                    notify.success('Pack récupéré !', `${(j?.received || []).length} booster(s) ajouté(s) à ton inventaire.`);
+                    const received = (Array.isArray(j?.received) ? j.received : []) as PackReceivedItem[];
+                    notify.success('Pack récupéré !', `${received.length} booster(s) ajouté(s) à ton inventaire.`);
+                    setPackKey(packKey);
+                    setPackReceived(received);
+                    setShowPackModal(true);
                     fetchInventory();
                   } catch (e: any) {
                     notify.error('Pack', e?.message || 'Erreur');
@@ -565,6 +573,13 @@ export default function BoostersPage() {
           isOpening={boostersLoading}
           openedBooster={lastOpened ? { id: lastOpened.inventoryId, status: 'owned', obtained_at: new Date().toISOString(), booster: lastOpened.booster } : null}
           item={lastOpened || null}
+        />
+
+        <BoosterPackOpenModal
+          isOpen={showPackModal}
+          onClose={() => setShowPackModal(false)}
+          packKey={packKey}
+          received={packReceived}
         />
 
         {/* Track Select Modal */}
