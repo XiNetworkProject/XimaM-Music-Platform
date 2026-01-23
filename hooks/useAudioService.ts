@@ -60,6 +60,7 @@ export const useAudioService = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const preloadAudioRef = useRef<HTMLAudioElement | null>(null);
   const recommendations = useAudioRecommendations();
+  const DEBUG_AUDIO = false;
   const isInitialized = useRef(false);
   const lastTrackId = useRef<string | null>(null);
   // IMPORTANT: audio element listeners are registered once (effect with []),
@@ -209,29 +210,7 @@ export const useAudioService = () => {
     
     // Événements audio optimisés
     const audio = audioRef.current;
-
-    // Debug: detect who pauses playback (this is the current blocker for auto-next).
-    try {
-      const anyAudio = audio as any;
-      if (!anyAudio.__ximamPauseWrapped) {
-        anyAudio.__ximamPauseWrapped = true;
-        const origPause = audio.pause.bind(audio);
-        audio.pause = () => {
-          try {
-            console.warn('🔇 audio.pause() called', {
-              trackId: currentTrackIdRef.current,
-              currentTime: audio.currentTime,
-              ended: audio.ended,
-              paused: audio.paused,
-              readyState: audio.readyState,
-              networkState: audio.networkState,
-              stack: new Error().stack,
-            });
-          } catch {}
-          return origPause();
-        };
-      }
-    } catch {}
+    // (debug pause wrapper removed)
 
     const handleLoadStart = () => {
       setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -746,15 +725,17 @@ export const useAudioService = () => {
     const audio = audioRef.current;
     if (!audio || !track?.audioUrl) return;
     try {
-      console.log('⏭️ playImmediate(auto-next):', {
-        id: track._id,
-        title: track.title,
-        url: track.audioUrl,
-        ended: audio.ended,
-        paused: audio.paused,
-        readyState: audio.readyState,
-        networkState: audio.networkState,
-      });
+      if (DEBUG_AUDIO) {
+        console.log('⏭️ playImmediate(auto-next):', {
+          id: track._id,
+          title: track.title,
+          url: track.audioUrl,
+          ended: audio.ended,
+          paused: audio.paused,
+          readyState: audio.readyState,
+          networkState: audio.networkState,
+        });
+      }
       try { audio.pause(); } catch {}
       try { audio.currentTime = 0; } catch {}
       lastMilestoneRef.current = 0;
@@ -786,14 +767,16 @@ export const useAudioService = () => {
         const a = audioRef.current;
         if (!a) return;
         try {
-          console.log(`⏯️ attemptPlay(${label})`, {
-            ended: a.ended,
-            paused: a.paused,
-            currentTime: a.currentTime,
-            readyState: a.readyState,
-            networkState: a.networkState,
-            src: a.src,
-          });
+          if (DEBUG_AUDIO) {
+            console.log(`⏯️ attemptPlay(${label})`, {
+              ended: a.ended,
+              paused: a.paused,
+              currentTime: a.currentTime,
+              readyState: a.readyState,
+              networkState: a.networkState,
+              src: a.src,
+            });
+          }
           const prevVol = a.volume;
           if (useTinyVolume) {
             try { a.volume = 0.0001; } catch {}
@@ -819,7 +802,7 @@ export const useAudioService = () => {
             (p as Promise<void>).then(onOk).catch((err) => {
               // If blocked, retry once with tiny volume (best-effort bypass for autoplay restrictions)
               if (!useTinyVolume && (err?.name === 'NotAllowedError' || String(err?.message || '').toLowerCase().includes('not allowed'))) {
-                console.warn('⏭️ playImmediate: NotAllowedError -> retry tiny volume');
+                if (DEBUG_AUDIO) console.warn('⏭️ playImmediate: NotAllowedError -> retry tiny volume');
                 attemptPlay(`${label}-tiny`, true);
                 return;
               }
@@ -840,13 +823,15 @@ export const useAudioService = () => {
       const retry = (label: string) => {
         const a = audioRef.current;
         if (!a) return;
-        console.warn(`⏭️ playImmediate retry check (${label})`, {
-          ended: a.ended,
-          paused: a.paused,
-          currentTime: a.currentTime,
-          readyState: a.readyState,
-          networkState: a.networkState,
-        });
+        if (DEBUG_AUDIO) {
+          console.warn(`⏭️ playImmediate retry check (${label})`, {
+            ended: a.ended,
+            paused: a.paused,
+            currentTime: a.currentTime,
+            readyState: a.readyState,
+            networkState: a.networkState,
+          });
+        }
         if (a.paused && (a.currentTime || 0) < 0.05) {
           attemptPlay(`retry-${label}`, false);
         }
@@ -1400,14 +1385,16 @@ export const useAudioService = () => {
 
   // Fonction pour gérer la fin d'une piste
   const handleTrackEnd = useCallback(() => {
-    console.log('🎵 Fin de piste détectée, auto-play activé', {
-      repeat,
-      shuffle,
-      currentIndex,
-      queueLen: queue?.length || 0,
-      shuffledLen: shuffledQueue?.length || 0,
-      currentTrackId: state.currentTrack?._id || null,
-    });
+    if (DEBUG_AUDIO) {
+      console.log('🎵 Fin de piste détectée, auto-play activé', {
+        repeat,
+        shuffle,
+        currentIndex,
+        queueLen: queue?.length || 0,
+        shuffledLen: shuffledQueue?.length || 0,
+        currentTrackId: state.currentTrack?._id || null,
+      });
+    }
     
     if (repeat === 'one') {
       if (audioRef.current) {
@@ -1427,14 +1414,16 @@ export const useAudioService = () => {
       const idxFallback =
         currentIndex >= 0 && currentIndex < effectiveQueue.length ? currentIndex : 0;
       const idx = idxById !== -1 ? idxById : idxFallback;
-      console.log('➡️ auto-next queue decision', {
-        idxById,
-        idxFallback,
-        idx,
-        curId,
-        nextId: effectiveQueue[idx + 1]?._id || null,
-        nextTitle: (effectiveQueue[idx + 1] as any)?.title || null,
-      });
+      if (DEBUG_AUDIO) {
+        console.log('➡️ auto-next queue decision', {
+          idxById,
+          idxFallback,
+          idx,
+          curId,
+          nextId: effectiveQueue[idx + 1]?._id || null,
+          nextTitle: (effectiveQueue[idx + 1] as any)?.title || null,
+        });
+      }
 
       const isLast = idx >= effectiveQueue.length - 1;
       if (!isLast) {
