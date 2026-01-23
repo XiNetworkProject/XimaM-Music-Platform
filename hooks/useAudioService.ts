@@ -709,6 +709,9 @@ export const useAudioService = () => {
 
       audio.src = getCdnUrl(track.audioUrl) || track.audioUrl;
       try { audio.load(); } catch {}
+      // Re-apply currentTime AFTER setting src to help clear ended-state in some browsers.
+      try { audio.currentTime = 0; } catch {}
+
       const p = audio.play();
       if (p && typeof (p as any).catch === 'function') {
         (p as Promise<void>).then(() => {
@@ -723,24 +726,25 @@ export const useAudioService = () => {
         setState(prev => ({ ...prev, isPlaying: true, error: null }));
       }
 
-      // Fallback: si au bout de 1.2s ça n'a pas démarré, retenter un play "classique"
-      setTimeout(() => {
+      // Fallbacks: after changing src, some browsers keep audio.ended=true until playback starts.
+      // So we retry play() even if ended is still true, as long as we're paused at ~0s.
+      const retry = (label: string) => {
         const a = audioRef.current;
         if (!a) return;
-        if (a.ended) return;
-        // Si on est toujours à 0s et en pause, on retente une fois.
         if (a.paused && (a.currentTime || 0) < 0.05) {
-          console.warn('⏭️ playImmediate fallback: retry audio.play()');
+          console.warn(`⏭️ playImmediate retry (${label})`);
           const p2 = a.play();
           if (p2 && typeof (p2 as any).catch === 'function') {
             (p2 as Promise<void>).catch((err) => {
-              console.error('❌ playImmediate fallback failed:', err);
+              console.error('❌ playImmediate retry failed:', err);
               const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
               setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: `Auto-next bloqué: ${msg}` }));
             });
           }
         }
-      }, 1200);
+      };
+      setTimeout(() => retry('250ms'), 250);
+      setTimeout(() => retry('1200ms'), 1200);
     } catch (e) {
       console.error('❌ playImmediate error:', e);
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
