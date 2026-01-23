@@ -17,7 +17,10 @@ export async function GET(request: NextRequest) {
     // Récupérer missions actives et progression utilisateur
     const { data: missions, error } = await supabaseAdmin
       .from('missions')
-      .select('id, key, title, goal_type, threshold, cooldown_hours, reward_booster_id, enabled')
+      .select(`
+        id, key, title, goal_type, threshold, cooldown_hours, reward_booster_id, enabled,
+        reward:boosters!missions_reward_booster_id_fkey ( id, key, name, rarity, type, multiplier, duration_hours )
+      `)
       .eq('enabled', true);
     if (error) {
       return NextResponse.json({ error: 'Erreur missions' }, { status: 500 });

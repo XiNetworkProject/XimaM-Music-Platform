@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase';
 
-type GoalType = 'plays' | 'likes' | 'shares';
+type GoalType = 'plays' | 'likes' | 'shares' | 'boosts';
 
 type MissionRow = {
   id: string;
@@ -69,8 +69,9 @@ export async function applyMissionProgress(opts: {
   const plays = Number(inc.plays || 0);
   const likes = Number(inc.likes || 0);
   const shares = Number(inc.shares || 0);
+  const boosts = Number(inc.boosts || 0);
   if (!userId) return;
-  if (!plays && !likes && !shares) return;
+  if (!plays && !likes && !shares && !boosts) return;
 
   const nowIso = new Date().toISOString();
 
@@ -98,7 +99,8 @@ export async function applyMissionProgress(opts: {
     const delta =
       m.goal_type === 'plays' ? plays :
       m.goal_type === 'likes' ? likes :
-      m.goal_type === 'shares' ? shares : 0;
+      m.goal_type === 'shares' ? shares :
+      m.goal_type === 'boosts' ? boosts : 0;
     if (!delta) continue;
 
     const um = byMissionId.get(m.id);

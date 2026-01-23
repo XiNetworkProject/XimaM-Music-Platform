@@ -22,12 +22,26 @@ export async function POST(request: NextRequest) {
 
     // Lire mission + progression
     const [{ data: mission, error: mErr }, { data: um, error: uErr }] = await Promise.all([
-      supabaseAdmin.from('missions').select('id, reward_booster_id, threshold').eq('id', missionId).single(),
+      supabaseAdmin.from('missions').select('id, reward_booster_id, threshold, cooldown_hours').eq('id', missionId).single(),
       supabaseAdmin.from('user_missions').select('id, progress, completed_at, claimed').eq('user_id', userId).eq('mission_id', missionId).maybeSingle(),
     ]);
     if (mErr || !mission) {
       return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     }
+    // Reset si mission déjà réclamée et cooldown passé
+    if (um?.claimed && um?.completed_at && Number(mission.cooldown_hours || 0) > 0) {
+      const cdMs = Number(mission.cooldown_hours || 0) * 3_600_000;
+      const elapsed = Date.now() - new Date(um.completed_at).getTime();
+      if (elapsed >= cdMs) {
+        await supabaseAdmin
+          .from('user_missions')
+          .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
+          .eq('user_id', userId)
+          .eq('mission_id', missionId);
+        return NextResponse.json({ error: 'Mission réinitialisée (cooldown). Recommence-la.' }, { status: 400 });
+      }
+    }
+
     if (!um || um.progress < mission.threshold || um.claimed) {
       return NextResponse.json({ error: 'Mission non terminée ou déjà réclamée' }, { status: 400 });
     }

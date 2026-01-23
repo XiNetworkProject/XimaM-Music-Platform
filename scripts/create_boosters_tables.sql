@@ -110,13 +110,18 @@ CREATE TABLE IF NOT EXISTS public.missions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   key TEXT UNIQUE NOT NULL,
   title TEXT NOT NULL,
-  goal_type TEXT NOT NULL CHECK (goal_type IN ('plays','likes','shares')),
+  goal_type TEXT NOT NULL CHECK (goal_type IN ('plays','likes','shares','boosts')),
   threshold INTEGER NOT NULL CHECK (threshold > 0),
   reward_booster_id UUID REFERENCES public.boosters(id) ON DELETE SET NULL,
   cooldown_hours INTEGER NOT NULL DEFAULT 0,
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Si la table existait déjà, élargir la contrainte goal_type (idempotent)
+ALTER TABLE public.missions DROP CONSTRAINT IF EXISTS missions_goal_type_check;
+ALTER TABLE public.missions
+  ADD CONSTRAINT missions_goal_type_check CHECK (goal_type IN ('plays','likes','shares','boosts'));
 
 CREATE TABLE IF NOT EXISTS public.user_missions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -223,5 +228,27 @@ SELECT
   168,
   TRUE
 WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='weekly_shares_5');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'daily_boosts_1',
+  'Daily: utiliser 1 booster',
+  'boosts',
+  1,
+  (SELECT id FROM public.boosters WHERE key='track_boost_common' LIMIT 1),
+  24,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='daily_boosts_1');
+
+INSERT INTO public.missions (key, title, goal_type, threshold, reward_booster_id, cooldown_hours, enabled)
+SELECT
+  'weekly_boosts_3',
+  'Weekly: utiliser 3 boosters',
+  'boosts',
+  3,
+  (SELECT id FROM public.boosters WHERE key='track_boost_rare' LIMIT 1),
+  168,
+  TRUE
+WHERE NOT EXISTS (SELECT 1 FROM public.missions WHERE key='weekly_boosts_3');
 
 

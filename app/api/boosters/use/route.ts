@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { applyMissionProgress } from '@/lib/missions/progress';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -89,6 +90,11 @@ export async function POST(request: NextRequest) {
         .eq('id', inventoryId)
         .eq('user_id', userId);
       if (updErr2) return NextResponse.json({ error: 'Erreur maj inventaire' }, { status: 500 });
+
+      // Missions boosts (best effort)
+      try {
+        await applyMissionProgress({ userId, inc: { boosts: 1 } });
+      } catch {}
 
       return NextResponse.json({ ok: true, boost: { artistId: userId, type: 'artist' } });
     }
@@ -194,6 +200,11 @@ export async function POST(request: NextRequest) {
     if (updErr) {
       return NextResponse.json({ error: 'Erreur mise à jour inventaire' }, { status: 500 });
     }
+
+    // Missions boosts (best effort)
+    try {
+      await applyMissionProgress({ userId, inc: { boosts: 1 } });
+    } catch {}
 
     return NextResponse.json({ ok: true, boost: { trackId: targetTrackId, multiplier: effectiveMultiplier, expiresAt: effectiveExpires }, inventory: { id: inventoryId, status: 'used' } });
   } catch (e) {
