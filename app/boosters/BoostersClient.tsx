@@ -480,87 +480,94 @@ export default function BoostersClient() {
   ];
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
+    <div className="min-h-screen bg-background-primary">
       <div className="mx-auto max-w-6xl px-4 py-6">
-        {/* Header sticky (style Library) */}
-        <div className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-3 bg-[var(--bg-primary)]/85 backdrop-blur-xl border-b border-[var(--border)]">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <Zap className="w-6 h-6 text-purple-400" />
-                <h1 className="text-xl sm:text-2xl font-bold text-[var(--text)] truncate">Boosters</h1>
-                <span className="text-xs px-2 py-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-muted)]">
-                  Plan: <span className="text-[var(--text)] font-semibold">{plan}</span>
-                </span>
+        {/* Header sticky (align Library) */}
+        <div className="sticky top-0 z-10 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
+          <div className="mx-auto max-w-6xl px-4 py-4 -mx-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-2xl bg-background-fog-thin border border-border-secondary grid place-items-center">
+                    <Gift className="h-5 w-5 text-foreground-secondary" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-lg sm:text-xl font-semibold text-foreground-primary leading-tight">Boosters</div>
+                    <div className="text-xs text-foreground-tertiary">Missions • Inventaire • Shop • Actifs</div>
+                  </div>
+                </div>
               </div>
-              <div className="mt-1 text-sm text-[var(--text-muted)]">
-                Inventaire, missions, packs, boosts actifs et analytics — au même endroit.
+
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-xs text-foreground-tertiary inline-flex items-center">
+                  Plan:&nbsp;<span className="text-foreground-primary font-semibold">{plan}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDailyModal(true)}
+                  disabled={!canOpen || boostersLoading}
+                  className={cx(
+                    'h-10 px-3 rounded-2xl text-sm transition',
+                    canOpen
+                      ? 'bg-overlay-on-primary text-foreground-primary hover:opacity-90'
+                      : 'border border-border-secondary bg-background-fog-thin text-foreground-tertiary',
+                  )}
+                >
+                  {canOpen ? 'Ouvrir (daily)' : formatRemaining(remainingMs)}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowFilters(true)}
+                  className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-secondary hover:bg-overlay-on-primary transition"
+                  aria-label="Filtres"
+                >
+                  <Filter className="h-4 w-4" />
+                </button>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDailyModal(true)}
-                disabled={!canOpen || boostersLoading}
-                className={cx(
-                  'px-3 py-2 rounded-xl font-semibold transition-colors border',
-                  canOpen ? 'bg-purple-600 hover:bg-purple-700 text-white border-purple-500/40' : 'bg-[var(--surface-2)] text-[var(--text-muted)] border-[var(--border)]',
-                )}
-              >
-                {canOpen ? 'Ouvrir (daily)' : formatRemaining(remainingMs)}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowFilters(true)}
-                className="p-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)]"
-                aria-label="Filtres"
-              >
-                <Filter className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* Search + tabs */}
-          <div className="mt-3 flex flex-col gap-3">
-            <div className="flex items-center gap-2">
-              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
-                <Search className="w-4 h-4 text-[var(--text-muted)]" />
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-inactive" />
                 <input
                   value={q}
                   onChange={(e) => setQ(e.target.value)}
-                  placeholder="Rechercher boosters / missions / historique…"
-                  className="w-full bg-transparent outline-none text-[var(--text)] placeholder:text-[var(--text-muted)] text-sm"
+                  placeholder="Rechercher un booster, une mission…"
+                  className="w-full h-11 pl-10 pr-10 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
                 />
-              </div>
-              <button
-                type="button"
-                onClick={() => { setQ(''); setFilterRarity('all'); setFilterType('all'); setFilterStatus('owned'); setSort('new'); }}
-                className="px-3 py-2 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] hover:bg-[var(--surface-3)] text-[var(--text)] text-sm font-semibold"
-              >
-                Reset
-              </button>
-            </div>
-
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-              {tabs.map((t) => {
-                const Icon = t.icon;
-                const active = tab === t.id;
-                return (
+                {q.trim() ? (
                   <button
-                    key={t.id}
                     type="button"
-                    onClick={() => setTab(t.id)}
-                    className={cx(
-                      'shrink-0 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold border transition-colors',
-                      active ? 'bg-purple-600 text-white border-purple-500/40' : 'bg-[var(--surface-2)] text-[var(--text)] border-[var(--border)] hover:bg-[var(--surface-3)]',
-                    )}
+                    onClick={() => setQ('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition grid place-items-center"
+                    aria-label="Effacer la recherche"
                   >
-                    <Icon className="w-4 h-4" />
-                    {t.label}
+                    <X className="h-4 w-4" />
                   </button>
-                );
-              })}
+                ) : null}
+              </div>
+
+              <TabButton active={tab === 'dashboard'} onClick={() => setTab('dashboard')}>
+                Dashboard
+              </TabButton>
+              <TabButton active={tab === 'missions'} onClick={() => setTab('missions')}>
+                Missions
+              </TabButton>
+              <TabButton active={tab === 'inventory'} onClick={() => setTab('inventory')}>
+                Inventaire
+              </TabButton>
+              <TabButton active={tab === 'shop'} onClick={() => setTab('shop')}>
+                Shop
+              </TabButton>
+              <TabButton active={tab === 'active'} onClick={() => setTab('active')}>
+                Actifs
+              </TabButton>
+              <TabButton active={tab === 'history'} onClick={() => setTab('history')}>
+                Historique
+              </TabButton>
+              <TabButton active={tab === 'insights'} onClick={() => setTab('insights')}>
+                Insights
+              </TabButton>
             </div>
           </div>
         </div>
@@ -1413,13 +1420,13 @@ export default function BoostersClient() {
 
 function StatCard({ title, value, subtitle, icon }: { title: string; value: any; subtitle: string; icon: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
+    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-black/20 border border-white/10">{icon}</div>
+        <div className="h-10 w-10 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center">{icon}</div>
         <div className="min-w-0">
-          <div className="text-xs text-[var(--text-muted)]">{title}</div>
-          <div className="text-2xl font-bold text-[var(--text)]">{value}</div>
-          <div className="text-xs text-[var(--text-muted)]">{subtitle}</div>
+          <div className="text-xs text-foreground-tertiary">{title}</div>
+          <div className="text-2xl font-semibold text-foreground-primary">{value}</div>
+          <div className="text-xs text-foreground-tertiary">{subtitle}</div>
         </div>
       </div>
     </div>
@@ -1428,8 +1435,8 @@ function StatCard({ title, value, subtitle, icon }: { title: string; value: any;
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-2)] p-4">
-      <div className="text-[var(--text)] font-bold mb-2">{title}</div>
+    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
+      <div className="text-foreground-primary font-semibold mb-2">{title}</div>
       {children}
     </div>
   );
@@ -1476,28 +1483,25 @@ function PackCard({
   tone: 'purple' | 'gold';
   onClick: () => void;
 }) {
-  const cls =
-    tone === 'gold'
-      ? 'bg-gradient-to-r from-yellow-600/20 to-orange-600/20 border-yellow-500/30'
-      : 'bg-gradient-to-r from-purple-600/20 to-pink-600/20 border-purple-500/30';
+  const cls = 'bg-background-fog-thin border-border-secondary';
   const btn =
     tone === 'gold'
       ? 'bg-yellow-600 hover:bg-yellow-700'
-      : 'bg-purple-600 hover:bg-purple-700';
+      : 'bg-overlay-on-primary hover:opacity-90';
   return (
-    <div className={cx('rounded-2xl p-5 border', cls)}>
+    <div className={cx('rounded-3xl p-5 border', cls)}>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-[var(--text)] font-bold">{title}</div>
-          <div className="text-sm text-[var(--text-muted)] mt-1">{subtitle}</div>
-          <div className="text-xs text-[var(--text-muted)] mt-2">{meta}</div>
+          <div className="text-foreground-primary font-semibold">{title}</div>
+          <div className="text-sm text-foreground-tertiary mt-1">{subtitle}</div>
+          <div className="text-xs text-foreground-tertiary mt-2">{meta}</div>
         </div>
       </div>
       <button
         type="button"
         onClick={onClick}
         disabled={disabled}
-        className={cx('mt-4 w-full px-4 py-2 rounded-xl text-white font-semibold disabled:opacity-60 disabled:cursor-not-allowed', btn)}
+        className={cx('mt-4 w-full h-11 px-4 rounded-2xl text-foreground-primary font-semibold disabled:opacity-60 disabled:cursor-not-allowed', btn)}
       >
         {cta}
       </button>
@@ -1536,10 +1540,35 @@ function Select({
 
 function IdeaCard({ title, desc }: { title: string; desc: string }) {
   return (
-    <div className="p-4 rounded-2xl border border-[var(--border)] bg-[var(--surface)]">
-      <div className="text-[var(--text)] font-bold">{title}</div>
-      <div className="text-sm text-[var(--text-muted)] mt-1">{desc}</div>
+    <div className="p-4 rounded-3xl border border-border-secondary bg-background-fog-thin">
+      <div className="text-foreground-primary font-semibold">{title}</div>
+      <div className="text-sm text-foreground-tertiary mt-1">{desc}</div>
     </div>
+  );
+}
+
+function TabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: any;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cx(
+        'h-10 px-3 rounded-2xl border text-sm transition',
+        active
+          ? 'border-border-secondary bg-background-fog-thin text-foreground-primary'
+          : 'border-border-secondary/60 bg-transparent text-foreground-tertiary hover:bg-background-fog-thin',
+      )}
+    >
+      {children}
+    </button>
   );
 }
 
