@@ -770,26 +770,19 @@ const WelcomeHeader = ({
     "sur Synaura";
 
   return (
-    <div className="rounded-3xl border border-border-secondary bg-gradient-to-r from-overlay-on-primary/12 via-background-fog-thin to-overlay-on-primary/10 p-4 md:p-6">
+    <div className="rounded-3xl border border-border-secondary bg-gradient-to-r from-overlay-on-primary/10 via-background-fog-thin to-overlay-on-primary/8 p-3 md:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-foreground-tertiary text-xs md:text-sm">{getGreeting()}</p>
-          <h1 className="mt-0.5 text-xl md:text-2xl font-bold tracking-tight line-clamp-1 text-foreground-primary">
+          <h1 className="mt-0.5 text-lg md:text-xl font-bold tracking-tight line-clamp-1 text-foreground-primary">
             {session ? `Bienvenue, ${name}` : "Bienvenue sur Synaura"}
           </h1>
-          <p className="text-foreground-secondary text-xs md:text-sm mt-1 max-w-xl">
-            Découvre de nouvelles musiques, garde ton “À suivre” propre, et récupère tes récompenses boosters.
+          <p className="text-foreground-secondary text-xs mt-1">
+            Tout est déjà prêt: découvre, écoute, et enchaîne.
           </p>
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <button
-            onClick={() => onGo("/boosters")}
-            className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2"
-          >
-            <Gift className="w-4 h-4" />
-            Boosters
-          </button>
           <button
             onClick={() => onGo("/subscriptions")}
             className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
@@ -797,44 +790,67 @@ const WelcomeHeader = ({
             <Crown className="w-4 h-4" />
             Premium
           </button>
+          <button
+            onClick={() => onGo("/trending")}
+            className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+            aria-label="Explorer"
+            title="Explorer"
+          >
+            <TrendingUp className="w-4 h-4 text-foreground-secondary" />
+          </button>
         </div>
       </div>
 
       {/* Stats compactes */}
       {session && (
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        <div className="mt-3 flex flex-wrap gap-2">
           <button
             onClick={() => onGo("/library?tab=playlists")}
-            className="rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition p-3 text-left"
+            className="h-9 px-3 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary inline-flex items-center gap-2"
           >
-            <div className="text-xs text-foreground-tertiary">Playlists</div>
-            <div className="mt-0.5 text-lg font-semibold text-foreground-primary">{stats?.playlists ?? 0}</div>
+            <span className="text-foreground-tertiary">Playlists</span>
+            <span className="text-foreground-primary font-semibold">{stats?.playlists ?? 0}</span>
           </button>
           <button
             onClick={() => onGo("/library?tab=favorites")}
-            className="rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition p-3 text-left"
+            className="h-9 px-3 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary inline-flex items-center gap-2"
           >
-            <div className="text-xs text-foreground-tertiary">Favoris</div>
-            <div className="mt-0.5 text-lg font-semibold text-foreground-primary">{stats?.favorites ?? 0}</div>
+            <span className="text-foreground-tertiary">Favoris</span>
+            <span className="text-foreground-primary font-semibold">{stats?.favorites ?? 0}</span>
           </button>
           <button
             onClick={() => onGo("/library?tab=queue")}
-            className="rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition p-3 text-left"
+            className="h-9 px-3 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary inline-flex items-center gap-2"
           >
-            <div className="text-xs text-foreground-tertiary">À suivre</div>
-            <div className="mt-0.5 text-lg font-semibold text-foreground-primary">{stats?.queue ?? 0}</div>
+            <span className="text-foreground-tertiary">À suivre</span>
+            <span className="text-foreground-primary font-semibold">{stats?.queue ?? 0}</span>
           </button>
         </div>
       )}
 
-      {/* Actions */}
-      <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
-        <ActionPill icon={TrendingUp} label="Explorer" onClick={() => onGo("/trending")} />
-        <ActionPill icon={Sparkles} label="Swipe" onClick={() => onGo("/swipe")} />
-        <ActionPill icon={Gift} label="Boosters" onClick={() => onGo("/boosters")} />
-        <ActionPill icon={Library} label="Bibliothèque" onClick={() => onGo("/library")} />
-        <ActionPill icon={Upload} label="Uploader" onClick={() => onGo("/upload")} />
-        <ActionPill icon={Cloud} label="Météo" onClick={() => onGo("/meteo")} />
+      {/* Actions mini (mobile) */}
+      <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1 md:hidden">
+        <button
+          onClick={() => onGo("/trending")}
+          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+        >
+          <TrendingUp className="w-4 h-4" />
+          Explorer
+        </button>
+        <button
+          onClick={() => onGo("/boosters")}
+          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+        >
+          <Gift className="w-4 h-4" />
+          Boosters
+        </button>
+        <button
+          onClick={() => onGo("/upload")}
+          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+        >
+          <Upload className="w-4 h-4" />
+          Uploader
+        </button>
       </div>
     </div>
   );
