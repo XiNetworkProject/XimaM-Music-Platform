@@ -23,7 +23,8 @@ const protectedPages = [
   '/stats',
   '/subscriptions',
   '/ai-generator',
-  '/settings'
+  '/settings',
+  '/admin',
 ];
 
 export async function middleware(request: NextRequest) {
@@ -64,6 +65,22 @@ export async function middleware(request: NextRequest) {
       const signInUrl = new URL('/auth/signin', request.url);
       signInUrl.searchParams.set('callbackUrl', request.url);
       return NextResponse.redirect(signInUrl);
+    }
+
+    // Guard admin: /admin nécessite role=admin (ou bootstrap via env ADMIN_OWNER_EMAILS)
+    if (pathname.startsWith('/admin')) {
+      const tokenRole = (token as any)?.role as string | undefined;
+      const tokenEmail = ((token as any)?.email as string | undefined) || '';
+      const owners = String(process.env.ADMIN_OWNER_EMAILS || '')
+        .split(',')
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean);
+
+      const isOwner = tokenEmail ? owners.includes(tokenEmail.toLowerCase()) : false;
+      if (tokenRole !== 'admin' && !isOwner) {
+        const url = new URL('/', request.url);
+        return NextResponse.redirect(url);
+      }
     }
   }
   
