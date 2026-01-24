@@ -1,7 +1,33 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { Play, Pause, Heart, Upload, Radio, Sparkles, Music2, Users, Library, CloudSun, ChevronLeft, ChevronRight, Plus, Headphones, Mic2, Wand2, Disc3, Repeat, Star, Clock, TrendingUp, Crown, Cloud } from "lucide-react";
+import {
+  Play,
+  Pause,
+  Heart,
+  Upload,
+  Radio,
+  Sparkles,
+  Music2,
+  Users,
+  Library,
+  CloudSun,
+  ChevronLeft,
+  ChevronRight,
+  List,
+  Plus,
+  Headphones,
+  Mic2,
+  Wand2,
+  Disc3,
+  Repeat,
+  Star,
+  Clock,
+  TrendingUp,
+  Crown,
+  Cloud,
+  Gift,
+} from "lucide-react";
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useAudioPlayer } from './providers';
@@ -153,14 +179,29 @@ const scoreCreatorForProfile = (
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
 const CACHE_DURATION = 30 * 1000;
 
-const SectionTitle = ({ icon: Icon, title, actionLabel, onAction }: { icon: any; title: string; actionLabel?: string; onAction?: () => void }) => (
+const SectionTitle = ({
+  icon: Icon,
+  title,
+  actionLabel,
+  onAction,
+}: {
+  icon: any;
+  title: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) => (
   <div className="flex items-center justify-between mb-2 md:mb-3">
-    <div className="flex items-center gap-1.5 md:gap-2">
-      <Icon className="w-4 h-4 md:w-5 md:h-5" />
-      <h3 className="text-base md:text-lg font-semibold tracking-tight">{title}</h3>
+    <div className="flex items-center gap-2">
+      <div className="h-9 w-9 rounded-2xl bg-background-fog-thin border border-border-secondary grid place-items-center">
+        <Icon className="w-4 h-4 text-foreground-secondary" />
+      </div>
+      <h3 className="text-base md:text-lg font-semibold tracking-tight text-foreground-primary">{title}</h3>
     </div>
     {actionLabel && (
-      <button onClick={onAction} className="text-[10px] md:text-xs px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-white/10 hover:bg-white/5 transition">
+      <button
+        onClick={onAction}
+        className="h-9 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary"
+      >
         {actionLabel}
       </button>
     )}
@@ -205,10 +246,10 @@ const HorizontalScroller = ({ children }: { children: React.ReactNode }) => {
       {showLeftArrow && (
         <button
           onClick={() => scroll('left')}
-          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-background-tertiary/80 hover:bg-background-tertiary border border-border-secondary opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur"
           aria-label="Défiler vers la gauche"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5 text-foreground-primary" />
         </button>
       )}
 
@@ -225,10 +266,10 @@ const HorizontalScroller = ({ children }: { children: React.ReactNode }) => {
       {showRightArrow && (
         <button
           onClick={() => scroll('right')}
-          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity"
+          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-background-tertiary/80 hover:bg-background-tertiary border border-border-secondary opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur"
           aria-label="Défiler vers la droite"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-5 h-5 text-foreground-primary" />
         </button>
       )}
     </div>
@@ -243,19 +284,35 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
   };
   
   return (
-    <div className="min-w-[140px] md:min-w-[160px] max-w-[140px] md:max-w-[160px] bg-white/5 backdrop-blur-xl border border-white/10 rounded-xl md:rounded-2xl p-2 hover:bg-white/10 transition shadow-sm" style={{ scrollSnapAlign: "start" }}>
+    <div
+      className="min-w-[150px] md:min-w-[170px] max-w-[150px] md:max-w-[170px] bg-background-fog-thin border border-border-secondary rounded-2xl p-2 hover:bg-overlay-on-primary transition shadow-sm"
+      style={{ scrollSnapAlign: "start" }}
+    >
       <div className="relative">
-        <img src={track.cover} alt={track.title} className="w-full h-36 md:h-44 object-cover rounded-lg md:rounded-xl" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
-        <button onClick={handlePlay} className="absolute bottom-1.5 md:bottom-2 right-1.5 md:right-2 p-1.5 md:p-2 rounded-full bg-black/60 hover:bg-black/80 border border-white/10">
-          <Play className="w-3.5 h-3.5 md:w-4 md:h-4" />
+        <img
+          src={track.cover}
+          alt={track.title}
+          className="w-full h-36 md:h-44 object-cover rounded-xl border border-border-secondary/60"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+          }}
+        />
+        <button
+          onClick={handlePlay}
+          className="absolute bottom-2 right-2 p-2 rounded-2xl bg-background-tertiary/80 hover:bg-background-tertiary border border-border-secondary backdrop-blur"
+        >
+          <Play className="w-4 h-4 text-foreground-primary" />
         </button>
       </div>
       <div className="mt-1.5 md:mt-2">
-        <p className="text-xs md:text-sm font-medium line-clamp-1">{track.title}</p>
-        <p className="text-[10px] md:text-xs text-white/60 line-clamp-1">{track.artist}</p>
+        <p className="text-xs md:text-sm font-medium line-clamp-1 text-foreground-primary">{track.title}</p>
+        <p className="text-[10px] md:text-xs text-foreground-tertiary line-clamp-1">{track.artist}</p>
       </div>
       <div className="mt-1.5 md:mt-2 flex items-center justify-between text-[10px] md:text-xs">
-        <span className="text-white/50 flex items-center gap-0.5 md:gap-1"><Clock className="w-2.5 h-2.5 md:w-3 md:h-3" />{Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}</span>
+        <span className="text-foreground-tertiary flex items-center gap-0.5 md:gap-1">
+          <Clock className="w-2.5 h-2.5 md:w-3 md:h-3" />
+          {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}
+        </span>
         {track._original && (
           <LikeButton
             trackId={track._original._id}
@@ -273,7 +330,10 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
 };
 
 const CreatorCard = ({ c, onClick }: { c: any; onClick: () => void }) => (
-  <div className="min-w-[180px] bg-white/5 border border-white/10 rounded-2xl p-3 hover:bg-white/10 transition" style={{ scrollSnapAlign: "start" }}>
+  <div
+    className="min-w-[190px] bg-background-fog-thin border border-border-secondary rounded-2xl p-3 hover:bg-overlay-on-primary transition"
+    style={{ scrollSnapAlign: "start" }}
+  >
     <div onClick={onClick} className="cursor-pointer">
       <div className="flex items-center gap-3">
         <Avatar
@@ -284,8 +344,8 @@ const CreatorCard = ({ c, onClick }: { c: any; onClick: () => void }) => (
           className="w-12 h-12"
         />
         <div>
-          <p className="text-sm font-semibold line-clamp-1">{c.name}</p>
-          <p className="text-xs text-white/60">{Intl.NumberFormat().format(c.followers)} abonnés</p>
+          <p className="text-sm font-semibold line-clamp-1 text-foreground-primary">{c.name}</p>
+          <p className="text-xs text-foreground-tertiary">{Intl.NumberFormat().format(c.followers)} abonnés</p>
         </div>
       </div>
     </div>
@@ -301,15 +361,22 @@ const CreatorCard = ({ c, onClick }: { c: any; onClick: () => void }) => (
 );
 
 const AIGenCard = ({ g }: { g: any }) => (
-  <div className="min-w-[180px] md:min-w-[220px] bg-gradient-to-br from-fuchsia-600/20 via-blue-600/10 to-indigo-600/20 border border-white/20 rounded-xl md:rounded-2xl p-2.5 md:p-3 hover:from-fuchsia-600/30 hover:to-indigo-600/30 transition" style={{ scrollSnapAlign: "start" }}>
+  <div
+    className="min-w-[180px] md:min-w-[220px] bg-gradient-to-br from-overlay-on-primary/18 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-2.5 md:p-3 hover:bg-overlay-on-primary transition"
+    style={{ scrollSnapAlign: "start" }}
+  >
     <img src={g.cover} alt={g.prompt} className="w-full h-32 md:h-36 object-cover rounded-lg md:rounded-xl" />
     <div className="mt-1.5 md:mt-2 flex items-start gap-1.5 md:gap-2">
       <Wand2 className="w-3.5 h-3.5 md:w-4 md:h-4 mt-0.5 flex-shrink-0" />
-      <p className="text-[10px] md:text-xs text-white/80 line-clamp-2">{g.prompt}</p>
+      <p className="text-[10px] md:text-xs text-foreground-secondary line-clamp-2">{g.prompt}</p>
     </div>
     <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 md:gap-2">
-      <button className="text-[10px] md:text-xs px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-white/10 border border-white/10 hover:bg-white/15">Générer</button>
-      <button className="text-[10px] md:text-xs px-2 md:px-3 py-0.5 md:py-1 rounded-full bg-white/5 border border-white/10 hover:bg-white/10">Varier</button>
+      <button className="text-[10px] md:text-xs px-3 py-1.5 rounded-2xl bg-background-fog-thin border border-border-secondary hover:bg-overlay-on-primary transition text-foreground-primary">
+        Générer
+      </button>
+      <button className="text-[10px] md:text-xs px-3 py-1.5 rounded-2xl bg-background-tertiary border border-border-secondary hover:bg-overlay-on-primary transition text-foreground-secondary">
+        Varier
+      </button>
     </div>
   </div>
 );
@@ -361,7 +428,7 @@ const WeatherWidget = ({ weather, weatherCode }: { weather: { city: string; temp
   };
 
   const getBackgroundGradient = () => {
-    if (weather.loading) return 'from-white/5 to-white/5';
+    if (weather.loading) return 'from-overlay-on-primary/10 to-background-fog-thin';
     
     const code = weatherCode || 0;
     
@@ -376,21 +443,23 @@ const WeatherWidget = ({ weather, weatherCode }: { weather: { city: string; temp
     // Orage
     if (code >= 95) return 'from-purple-500/20 via-violet-600/20 to-indigo-600/20';
     
-    return 'from-white/5 to-white/5';
+    return 'from-overlay-on-primary/10 to-background-fog-thin';
   };
 
   return (
-    <div className={`bg-gradient-to-r ${getBackgroundGradient()} border border-white/10 rounded-2xl p-4 flex items-center justify-between transition-all duration-500`}>
+    <div
+      className={`bg-gradient-to-r ${getBackgroundGradient()} border border-border-secondary rounded-2xl p-4 flex items-center justify-between transition-all duration-500`}
+    >
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-white/10">
+        <div className="p-2 rounded-2xl bg-background-tertiary border border-border-secondary">
           {getWeatherIcon()}
         </div>
         <div>
-          <p className="text-sm font-semibold">Météo — {weather.city}</p>
-          <p className="text-xs text-white/60">{weather.loading ? 'Chargement...' : weather.desc}</p>
+          <p className="text-sm font-semibold text-foreground-primary">Météo — {weather.city}</p>
+          <p className="text-xs text-foreground-tertiary">{weather.loading ? 'Chargement...' : weather.desc}</p>
         </div>
       </div>
-      <p className="text-2xl font-bold">{weather.loading ? '—' : `${weather.temp}°C`}</p>
+      <p className="text-2xl font-bold text-foreground-primary">{weather.loading ? '—' : `${weather.temp}°C`}</p>
     </div>
   );
 };
@@ -409,21 +478,24 @@ const LiveRadioCard = ({
   onToggle: () => void;
 }) => {
   return (
-    <div className="bg-gradient-to-r from-indigo-600/20 via-fuchsia-600/20 to-cyan-600/20 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
+    <div className="bg-gradient-to-r from-overlay-on-primary/15 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-black/40 border border-white/10">
+        <div className="p-2 rounded-2xl bg-background-tertiary border border-border-secondary">
           {logoSrc ? (
             <img src={logoSrc} alt={title} className="w-12 h-8 object-contain" />
           ) : (
-            <Radio className="w-8 h-8 text-white/90" />
+            <Radio className="w-8 h-8 text-foreground-primary" />
           )}
         </div>
         <div>
-          <p className="text-sm font-semibold">{title}</p>
-          <p className="text-xs text-white/60 line-clamp-1">{currentTrack}</p>
+          <p className="text-sm font-semibold text-foreground-primary">{title}</p>
+          <p className="text-xs text-foreground-tertiary line-clamp-1">{currentTrack}</p>
         </div>
       </div>
-      <button onClick={onToggle} className="px-3 py-1.5 text-sm rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center gap-2">
+      <button
+        onClick={onToggle}
+        className="px-3 py-2 text-sm rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 transition"
+      >
         {isPlaying ? (<><Pause className="w-4 h-4" /> Pause</>) : (<><Play className="w-4 h-4" /> Écouter</>)}
       </button>
     </div>
@@ -433,7 +505,7 @@ const LiveRadioCard = ({
 const AlertempsCard = ({ onClick, bulletinImage }: { onClick: () => void; bulletinImage: string | null }) => (
   <div 
     onClick={onClick}
-    className="relative bg-gradient-to-r from-blue-500/20 via-cyan-500/20 to-sky-500/20 border border-white/10 rounded-2xl p-4 overflow-hidden cursor-pointer hover:from-blue-500/30 hover:via-cyan-500/30 hover:to-sky-500/30 transition-all duration-300 group"
+    className="relative bg-gradient-to-r from-overlay-on-primary/12 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-4 overflow-hidden cursor-pointer hover:bg-overlay-on-primary transition-all duration-300 group"
   >
     {/* Image de prévision en arrière-plan si disponible */}
     {bulletinImage && (
@@ -451,17 +523,17 @@ const AlertempsCard = ({ onClick, bulletinImage }: { onClick: () => void; bullet
     {/* Contenu */}
     <div className="relative z-10 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-white/10 backdrop-blur-sm">
-          <Cloud className="w-5 h-5 text-blue-300" />
+        <div className="p-2 rounded-2xl bg-background-tertiary border border-border-secondary backdrop-blur-sm">
+          <Cloud className="w-5 h-5 text-foreground-secondary" />
         </div>
         <div>
-          <p className="text-sm font-semibold">Alertemps</p>
-          <p className="text-xs text-white/60">Prévisions détaillées</p>
+          <p className="text-sm font-semibold text-foreground-primary">Alertemps</p>
+          <p className="text-xs text-foreground-tertiary">Prévisions détaillées</p>
         </div>
       </div>
-      <button className="px-3 py-1.5 text-sm rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center gap-2 backdrop-blur-sm">
+      <button className="px-3 py-2 text-sm rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 backdrop-blur-sm transition">
         <span>Voir</span>
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4 text-foreground-primary" />
       </button>
     </div>
   </div>
@@ -538,7 +610,7 @@ const HeroCarousel = ({
 
   return (
     <div
-      className="relative w-full h-[240px] md:h-[300px] rounded-3xl overflow-hidden border border-white/10"
+      className="relative w-full h-[240px] md:h-[300px] rounded-3xl overflow-hidden border border-border-secondary bg-background-tertiary"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={(e) => (startX.current = e.touches[0]?.clientX ?? null)}
@@ -577,7 +649,7 @@ const HeroCarousel = ({
       {/* Toggle auto/pause */}
       <button
         onClick={() => setIsAuto((v) => !v)}
-        className="absolute top-3 right-3 z-10 px-3 py-1.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10 text-xs flex items-center gap-2"
+        className="absolute top-3 right-3 z-10 px-3 py-2 rounded-2xl bg-background-tertiary/70 hover:bg-background-tertiary border border-border-secondary text-xs flex items-center gap-2 backdrop-blur"
       >
         <Repeat className="w-4 h-4" />
         {isAuto ? "Auto" : "Pause"}
@@ -593,9 +665,13 @@ const HeroCarousel = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4 md:left-6 md:right-6">
             <div className="flex items-center gap-2 text-xs mb-2">
-              <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10">{s.tag}</span>
+              <span className="px-2 py-1 rounded-full bg-background-tertiary/70 border border-border-secondary backdrop-blur">
+                {s.tag}
+              </span>
               {s.genre && (
-                <span className="px-2 py-0.5 rounded-full bg-white/10 border border-white/10">{s.genre}</span>
+                <span className="px-2 py-1 rounded-full bg-background-tertiary/70 border border-border-secondary backdrop-blur">
+                  {s.genre}
+                </span>
               )}
             </div>
             <h2 className="text-xl md:text-2xl font-bold mt-2">{s.title}</h2>
@@ -603,7 +679,7 @@ const HeroCarousel = ({
             {s.actionLabel && onAction && (
               <button 
                 onClick={() => onAction(s.actionType, s.actionData ?? s.track)} 
-                className="mt-3 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full hover:bg-white/20 transition flex items-center gap-2"
+                className="mt-3 px-4 py-2 bg-background-tertiary/70 backdrop-blur-md rounded-2xl hover:bg-background-tertiary transition flex items-center gap-2 border border-border-secondary"
               >
                 {s.actionIcon && <s.actionIcon className="w-4 h-4" />}
                 <span className="text-sm font-medium">{s.actionLabel}</span>
@@ -627,8 +703,18 @@ const HeroCarousel = ({
           />
         ))}
       </div>
-      <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10"><ChevronLeft className="w-4 h-4" /></button>
-      <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10"><ChevronRight className="w-4 h-4" /></button>
+      <button
+        onClick={prev}
+        className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-2xl bg-background-tertiary/70 hover:bg-background-tertiary border border-border-secondary backdrop-blur"
+      >
+        <ChevronLeft className="w-4 h-4 text-white" />
+      </button>
+      <button
+        onClick={next}
+        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-2xl bg-background-tertiary/70 hover:bg-background-tertiary border border-border-secondary backdrop-blur"
+      >
+        <ChevronRight className="w-4 h-4 text-white" />
+      </button>
     </div>
   );
 };
@@ -638,7 +724,7 @@ const LIB_ICONS = [Heart, Disc3, Clock, Library, Mic2, Repeat];
 
 const Skeleton = ({ className = "" }: { className?: string }) => (
   <div
-    className={`animate-pulse rounded-2xl bg-white/5 border border-white/10 ${className}`}
+    className={`animate-pulse rounded-2xl bg-background-fog-thin border border-border-secondary ${className}`}
   />
 );
 
@@ -661,10 +747,10 @@ const ActionPill = ({
 }) => (
   <button
     onClick={onClick}
-    className="flex items-center gap-2 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-sm whitespace-nowrap transition"
+    className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary text-sm whitespace-nowrap transition text-foreground-secondary"
   >
     <Icon className="w-4 h-4" />
-    <span className="font-medium">{label}</span>
+    <span className="font-medium text-foreground-primary">{label}</span>
   </button>
 );
 
@@ -682,24 +768,24 @@ const WelcomeHeader = ({
     "sur Synaura";
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-gradient-to-r from-white/5 via-white/4 to-white/5 p-4 md:p-6">
+    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4 md:p-6">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-white/70 text-xs md:text-sm">{getGreeting()}</p>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight line-clamp-1">
+          <p className="text-foreground-tertiary text-xs md:text-sm">{getGreeting()}</p>
+          <h1 className="text-xl md:text-2xl font-bold tracking-tight line-clamp-1 text-foreground-primary">
             {session ? `Bienvenue, ${name}` : "Bienvenue sur Synaura"}
           </h1>
-          <p className="text-white/60 text-xs md:text-sm mt-1">
+          <p className="text-foreground-secondary text-xs md:text-sm mt-1">
             Découvre, écoute, et crée ta prochaine musique préférée.
           </p>
         </div>
 
         <button
           onClick={() => onGo("/subscriptions")}
-          className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition"
+          className="hidden md:flex items-center gap-2 px-4 py-2 rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary transition"
         >
-          <Crown className="w-4 h-4" />
-          <span className="text-sm font-semibold">Premium</span>
+          <Crown className="w-4 h-4 text-foreground-secondary" />
+          <span className="text-sm font-semibold text-foreground-primary">Premium</span>
         </button>
       </div>
 
@@ -745,20 +831,20 @@ const ContinueListening = ({
   if (!track?._id) return null;
 
   return (
-    <div className="rounded-3xl border border-white/10 bg-white/5 p-3 md:p-4 flex items-center justify-between gap-3">
+    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <img
           src={track.coverUrl || "/default-cover.jpg"}
-          className="w-12 h-12 rounded-xl object-cover border border-white/10"
+          className="w-12 h-12 rounded-2xl object-cover border border-border-secondary"
           onError={(e) =>
             ((e.currentTarget as HTMLImageElement).src = "/default-cover.jpg")
           }
           alt=""
         />
         <div className="min-w-0">
-          <p className="text-xs text-white/60">Reprendre l’écoute</p>
-          <p className="text-sm font-semibold line-clamp-1">{track.title}</p>
-          <p className="text-xs text-white/60 line-clamp-1">
+          <p className="text-xs text-foreground-tertiary">Reprendre l’écoute</p>
+          <p className="text-sm font-semibold line-clamp-1 text-foreground-primary">{track.title}</p>
+          <p className="text-xs text-foreground-tertiary line-clamp-1">
             {track.artist?.name || track.artist?.username}
           </p>
         </div>
@@ -766,18 +852,45 @@ const ContinueListening = ({
 
       <button
         onClick={onToggle}
-        className="shrink-0 px-3 py-2 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center gap-2"
+        className="shrink-0 px-3 py-2 rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 transition"
       >
         {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-        <span className="text-sm font-medium">{isPlaying ? "Pause" : "Lire"}</span>
+        <span className="text-sm font-medium text-foreground-primary">{isPlaying ? "Pause" : "Lire"}</span>
       </button>
     </div>
   );
 };
 
+const SidebarCard = ({
+  title,
+  subtitle,
+  icon: Icon,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  icon: any;
+  children: React.ReactNode;
+}) => (
+  <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+    <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start gap-2 min-w-0">
+        <div className="h-10 w-10 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center shrink-0">
+          <Icon className="h-5 w-5 text-foreground-secondary" />
+        </div>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-foreground-primary truncate">{title}</div>
+          {subtitle && <div className="text-xs text-foreground-tertiary line-clamp-2">{subtitle}</div>}
+        </div>
+      </div>
+    </div>
+    <div className="mt-3">{children}</div>
+  </div>
+);
+
 export default function SynauraHome() {
   const { data: session } = useSession();
-  const { audioState, playTrack, play, pause, setTracks } = useAudioPlayer();
+  const { audioState, playTrack, play, pause, setTracks, upNextEnabled, upNextTracks, toggleUpNextEnabled } = useAudioPlayer();
   const [loading, setLoading] = useState(true);
   const [featuredTracks, setFeaturedTracks] = useState<Track[]>([]);
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
@@ -942,9 +1055,9 @@ export default function SynauraHome() {
   const fetchUserPreferenceProfile = useCallback(async () => {
     if (!session?.user?.id) {
       setPreferenceProfile(null);
-      return;
-    }
-
+          return;
+        }
+        
     try {
       const likedRes = await fetch('/api/tracks?liked=true&limit=150', { cache: 'no-store' });
       let likedTracks: Track[] = [];
@@ -1591,8 +1704,21 @@ export default function SynauraHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen text-white">
-        <main className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4 space-y-4 md:space-y-8">
+      <div className="min-h-screen bg-background-primary text-foreground-primary">
+        <main className="mx-auto max-w-7xl px-3 md:px-4 py-3 md:py-4 space-y-4 md:space-y-6">
+          <div className="sticky top-0 z-10 -mx-3 md:-mx-4 px-3 md:px-4 py-3 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
+            <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground-primary">Accueil</div>
+                <div className="text-xs text-foreground-tertiary">Découverte • Radios • Boosters</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded-2xl bg-background-fog-thin border border-border-secondary" />
+                <div className="h-10 w-10 rounded-2xl bg-background-fog-thin border border-border-secondary" />
+              </div>
+            </div>
+          </div>
+
           <WelcomeHeader session={session} onGo={onGo} />
 
           <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
@@ -1612,28 +1738,183 @@ export default function SynauraHome() {
   }
 
   return (
-    <div className="min-h-screen text-white">
-      <main className="mx-auto max-w-7xl px-2 md:px-4 py-2 md:py-4 space-y-4 md:space-y-8">
+    <div className="min-h-screen bg-background-primary text-foreground-primary">
+      <main className="mx-auto max-w-7xl px-3 md:px-4 py-3 md:py-4 space-y-4 md:space-y-6">
+        <div className="sticky top-0 z-10 -mx-3 md:-mx-4 px-3 md:px-4 py-3 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
+          <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground-primary">Accueil</div>
+              <div className="text-xs text-foreground-tertiary">Découverte • Radios • Boosters</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onGo('/boosters')}
+                className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2"
+              >
+                <Gift className="h-4 w-4" />
+                Boosters
+              </button>
+              <button
+                onClick={() => onGo('/library')}
+                className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2"
+              >
+                <Library className="h-4 w-4" />
+                Bibliothèque
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* ✅ Nouveau header accueil */}
         <WelcomeHeader session={session} onGo={onGo} />
 
-        {/* ✅ Reprendre l’écoute */}
-        <ContinueListening
-          track={currentTrack}
-          isPlaying={audioState.isPlaying}
-          onToggle={async () => {
-            if (!currentTrack?._id) return;
-            if (audioState.isPlaying) pause();
-            else await play(); // reprend sans restart
-          }}
-        />
-
-        {/* ✅ Hero + widgets mieux “composés” sur desktop */}
+        {/* ✅ Dashboard compact (colonne principale + sidebar) */}
         <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-8 space-y-3 md:space-y-4">
+            <ContinueListening
+              track={currentTrack}
+              isPlaying={audioState.isPlaying}
+              onToggle={async () => {
+                if (!currentTrack?._id) return;
+                if (audioState.isPlaying) pause();
+                else await play(); // reprend sans restart
+              }}
+            />
+
             <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
-          </div>
+
+            {/* Raccourcis “rempli” */}
+            <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="text-sm font-semibold text-foreground-primary">Raccourcis</div>
+                <div className="text-xs text-foreground-tertiary">Tout au même endroit</div>
+                </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <button
+                  onClick={() => onGo('/boosters')}
+                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+              >
+                  <Gift className="h-4 w-4 text-foreground-secondary" />
+                  Boosters
+              </button>
+                      <button
+                  onClick={() => onGo('/library')}
+                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                >
+                  <Library className="h-4 w-4 text-foreground-secondary" />
+                  Bibliothèque
+                      </button>
+                    <button
+                  onClick={() => onGo('/trending')}
+                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                >
+                  <TrendingUp className="h-4 w-4 text-foreground-secondary" />
+                  Trending
+                    </button>
+                      <button
+                  onClick={() => onGo('/swipe')}
+                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                >
+                  <Sparkles className="h-4 w-4 text-foreground-secondary" />
+                  Swipe
+                      </button>
+                      <button
+                  onClick={() => onGo('/upload')}
+                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                >
+                  <Upload className="h-4 w-4 text-foreground-secondary" />
+                  Uploader
+                      </button>
+                    <button
+                  onClick={() => onGo('/subscriptions')}
+                  className="h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center justify-center gap-2"
+                    >
+                  <Crown className="h-4 w-4" />
+                  Premium
+                    </button>
+                  </div>
+                      </div>
+                    </div>
+                    
           <div className="lg:col-span-4 space-y-3">
+            <SidebarCard title="À suivre" subtitle="Ta liste d’attente (ordre respecté)" icon={List}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-xs text-foreground-tertiary">
+                  {upNextTracks?.length || 0} titre{(upNextTracks?.length || 0) > 1 ? 's' : ''}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleUpNextEnabled()}
+                  className={[
+                    'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                    upNextEnabled ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
+                  ].join(' ')}
+                  aria-label="Activer À suivre"
+                >
+                  <span
+                    className={[
+                      'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                      upNextEnabled ? 'left-6' : 'left-1',
+                    ].join(' ')}
+                  />
+                </button>
+              </div>
+
+              {(upNextTracks || []).slice(0, 3).map((t: any) => (
+                <div key={t._id} className="mt-2 flex items-center gap-2">
+                  <div className="h-10 w-10 rounded-2xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
+                    <img
+                      src={t.coverUrl || '/default-cover.jpg'}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                      }}
+                      alt=""
+                    />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm text-foreground-primary truncate">{t.title}</div>
+                    <div className="text-xs text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username || ''}</div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => onGo('/library?tab=queue')}
+                  className="h-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
+                >
+                  Ouvrir
+                </button>
+                <button
+                  onClick={() => onGo('/boosters')}
+                  className="h-10 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm"
+                >
+                  Missions
+                </button>
+              </div>
+            </SidebarCard>
+
+            <SidebarCard title="Boosters" subtitle="Packs • pity • streak • missions" icon={Gift}>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => onGo('/boosters')}
+                  className="h-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
+                >
+                  Ouvrir
+                </button>
+                <button
+                  onClick={() => onGo('/boosters?tab=shop')}
+                  className="h-10 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm"
+                >
+                  Shop
+                </button>
+              </div>
+              <div className="mt-3 text-xs text-foreground-tertiary">
+                Astuce: fais les missions “À faire maintenant” et réclame tout d’un coup.
+              </div>
+            </SidebarCard>
+
             <LiveRadioCard
               title="Mixx Party — Radio en direct"
               logoSrc="/mixxpartywhitelog.png"
@@ -1649,43 +1930,60 @@ export default function SynauraHome() {
               onToggle={handleXimamRadioToggle}
             />
             <WeatherWidget weather={weatherData} weatherCode={weatherCode} />
-            <AlertempsCard
-              onClick={() => router.push('/meteo', { scroll: false })}
-              bulletinImage={alertempsBulletinImage}
-            />
-          </div>
-        </div>
+            <AlertempsCard onClick={() => router.push('/meteo', { scroll: false })} bulletinImage={alertempsBulletinImage} />
+                    </div>
+                  </div>
 
         {/* Pour toi */}
         {!loading && forYouCards.length > 0 && (
-          <section>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <SectionTitle icon={Sparkles} title="Pour toi" actionLabel="Tout voir" onAction={() => router.push('/for-you', { scroll: false })} />
             <HorizontalScroller>
               {forYouCards.map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
             </HorizontalScroller>
-          </section>
+        </section>
         )}
 
         {/* Trending */}
         {!loading && trendingList.length > 0 && (
-          <section>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <SectionTitle icon={TrendingUp} title="Les plus écoutées" actionLabel="Voir le top 50" onAction={() => router.push('/trending', { scroll: false })} />
             <HorizontalScroller>
               {trendingList.slice(0, 10).map((track, i) => (
-                <div key={track._id} className="min-w-[180px] md:min-w-[220px] bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-2.5 md:p-3 hover:bg-white/10 transition" style={{ scrollSnapAlign: "start" }}>
+                <div
+                  key={track._id}
+                  className="min-w-[190px] md:min-w-[230px] bg-background-fog-thin border border-border-secondary rounded-2xl p-2.5 md:p-3 hover:bg-overlay-on-primary transition"
+                  style={{ scrollSnapAlign: "start" }}
+                >
                   <div className="relative">
-                    <img src={track.coverUrl || '/default-cover.jpg'} className="w-full h-32 md:h-36 object-cover rounded-lg md:rounded-xl" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
-                    <div className="absolute top-1.5 md:top-2 left-1.5 md:left-2 px-1.5 md:px-2 py-0.5 rounded-full bg-black/60 text-[10px] md:text-xs">#{i + 1}</div>
-                    <button onClick={() => playTrack(track)} className="absolute bottom-1.5 md:bottom-2 right-1.5 md:right-2 p-1.5 md:p-2 rounded-full bg-black/60 border border-white/10"><Play className="w-3.5 h-3.5 md:w-4 md:h-4" /></button>
-                </div>
-                  <p className="mt-1.5 md:mt-2 text-xs md:text-sm font-semibold line-clamp-1">{track.title}</p>
-                  <p className="text-[10px] md:text-xs text-white/60">{track.artist?.name || track.artist?.username}</p>
-                  <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 md:gap-2 text-[10px] md:text-xs text-white/50">
-                    <span className="flex items-center gap-1"><Headphones className="w-3 h-3" />{formatNumber(track.plays || 0)}</span>
-                    <LikeButton
-                      trackId={track._id}
+                    <img
+                      src={track.coverUrl || '/default-cover.jpg'}
+                      className="w-full h-32 md:h-36 object-cover rounded-xl border border-border-secondary/60"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                      }}
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-background-tertiary/80 border border-border-secondary text-[10px] md:text-xs backdrop-blur text-foreground-primary">
+                      #{i + 1}
+                  </div>
+                    <button
+                      onClick={() => playTrack(track)}
+                      className="absolute bottom-2 right-2 p-2 rounded-2xl bg-background-tertiary/80 border border-border-secondary hover:bg-background-tertiary transition backdrop-blur"
+                    >
+                      <Play className="w-4 h-4 text-foreground-primary" />
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs md:text-sm font-semibold line-clamp-1 text-foreground-primary">{track.title}</p>
+                  <p className="text-[10px] md:text-xs text-foreground-tertiary">{track.artist?.name || track.artist?.username}</p>
+                  <div className="mt-2 flex items-center gap-2 text-[10px] md:text-xs text-foreground-tertiary">
+                    <span className="flex items-center gap-1">
+                      <Headphones className="w-3 h-3" />
+                      {formatNumber(track.plays || 0)}
+                    </span>
+                      <LikeButton
+                        trackId={track._id}
                       initialLikesCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                      initialIsLiked={track.isLiked || false}
+                        initialIsLiked={track.isLiked || false}
                         size="sm"
                         variant="minimal"
                       showCount={true}
@@ -1700,7 +1998,7 @@ export default function SynauraHome() {
 
         {/* Nouveaux créateurs */}
         {!loading && mockCreators.length > 0 && (
-          <section>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <SectionTitle icon={Users} title="Nouveaux créateurs" actionLabel="Explorer" />
             <HorizontalScroller>
               {mockCreators.map(c => (
@@ -1711,7 +2009,7 @@ export default function SynauraHome() {
                 />
               ))}
             </HorizontalScroller>
-          </section>
+        </section>
         )}
 
         {/* Génération IA - Section masquée */}
@@ -1726,54 +2024,54 @@ export default function SynauraHome() {
 
         {/* Bibliothèque */}
         {session && (
-          <section>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <SectionTitle icon={Library} title="Ta bibliothèque" actionLabel="Gérer" onAction={() => router.push('/library', { scroll: false })} />
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
               <div 
                 onClick={() => router.push('/library?tab=favorites', { scroll: false })}
-                className="bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-3 md:p-4 hover:bg-white/10 transition cursor-pointer"
+                className="bg-background-fog-thin border border-border-secondary rounded-2xl p-3 md:p-4 hover:bg-overlay-on-primary transition cursor-pointer"
               >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-pink-500/20 to-red-500/20 flex items-center justify-center mb-2 md:mb-3">
-                  <Heart className="w-4 h-4 md:w-5 md:h-5 text-pink-400" />
-                        </div>
-                <p className="text-xs md:text-sm font-semibold">Favoris</p>
-                <p className="text-[10px] md:text-xs text-white/60">{libraryStats.favorites} tracks</p>
-            </div>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/18 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
+                  <Heart className="w-4 h-4 md:w-5 md:h-5 text-foreground-secondary" />
+                  </div>
+                <p className="text-xs md:text-sm font-semibold text-foreground-primary">Favoris</p>
+                <p className="text-[10px] md:text-xs text-foreground-tertiary">{libraryStats.favorites} tracks</p>
+                  </div>
             
               <div 
                 onClick={() => router.push('/library?tab=playlists', { scroll: false })}
-                className="bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-3 md:p-4 hover:bg-white/10 transition cursor-pointer"
+                className="bg-background-fog-thin border border-border-secondary rounded-2xl p-3 md:p-4 hover:bg-overlay-on-primary transition cursor-pointer"
               >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-2 md:mb-3">
-                  <Disc3 className="w-5 h-5 text-purple-400" />
-                        </div>
-                <p className="text-sm font-semibold">Playlists</p>
-                <p className="text-xs text-white/60">{libraryStats.playlists} dossiers</p>
-            </div>
-            
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/20 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
+                  <Disc3 className="w-5 h-5 text-foreground-secondary" />
+                </div>
+                <p className="text-sm font-semibold text-foreground-primary">Playlists</p>
+                <p className="text-xs text-foreground-tertiary">{libraryStats.playlists} dossiers</p>
+              </div>
+
               <div 
                 onClick={() => router.push('/library?tab=recent', { scroll: false })}
-                className="bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-3 md:p-4 hover:bg-white/10 transition cursor-pointer"
+                className="bg-background-fog-thin border border-border-secondary rounded-2xl p-3 md:p-4 hover:bg-overlay-on-primary transition cursor-pointer"
               >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-2 md:mb-3">
-                  <Clock className="w-5 h-5 text-cyan-400" />
-                  </div>
-                <p className="text-sm font-semibold">Historique</p>
-                <p className="text-xs text-white/60">Récemment écoutées</p>
+                <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/16 to-overlay-on-primary/7 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
+                  <Clock className="w-5 h-5 text-foreground-secondary" />
+                </div>
+                <p className="text-sm font-semibold text-foreground-primary">Historique</p>
+                <p className="text-xs text-foreground-tertiary">Récemment écoutées</p>
                     </div>
                     
               {/* Générations IA - Carte masquée */}
               {false && (
                 <div 
                   onClick={() => router.push('/ai-generator', { scroll: false })}
-                  className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition cursor-pointer"
+                  className="bg-background-fog-thin border border-border-secondary rounded-2xl p-4 hover:bg-overlay-on-primary transition cursor-pointer"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center mb-3">
-                    <Sparkles className="w-5 h-5 text-indigo-400" />
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/18 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-3">
+                    <Sparkles className="w-5 h-5 text-foreground-secondary" />
                   </div>
-                  <p className="text-sm font-semibold">Générations IA</p>
-                  <p className="text-xs text-white/60">{libraryStats.aiGenerations} créations</p>
-              </div>
+                  <p className="text-sm font-semibold text-foreground-primary">Générations IA</p>
+                  <p className="text-xs text-foreground-tertiary">{libraryStats.aiGenerations} créations</p>
+                          </div>
             )}
           </div>
         </section>
@@ -1781,14 +2079,14 @@ export default function SynauraHome() {
 
         {/* Créateurs suggérés */}
         {!loading && personalizedCreators.length > 0 && (
-          <section>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <SectionTitle icon={Star} title="Créateurs suggérés" actionLabel="Actualiser" onAction={fetchSuggestedCreators} />
             <HorizontalScroller>
               {personalizedCreators.map(creator => (
                 <div 
                   key={creator._id} 
                   onClick={() => router.push(`/profile/${creator.username}`, { scroll: false })}
-                  className="min-w-[180px] md:min-w-[220px] bg-white/5 border border-white/10 rounded-xl md:rounded-2xl p-2.5 md:p-3 hover:bg-white/10 transition cursor-pointer" 
+                  className="min-w-[190px] md:min-w-[230px] bg-background-fog-thin border border-border-secondary rounded-2xl p-2.5 md:p-3 hover:bg-overlay-on-primary transition cursor-pointer" 
                   style={{ scrollSnapAlign: "start" }}
                 >
                   <div className="flex items-center gap-2 md:gap-3">
@@ -1800,8 +2098,8 @@ export default function SynauraHome() {
                       className="w-10 h-10 md:w-12 md:h-12"
                       />
                   <div className="flex-1 min-w-0">
-                      <p className="text-xs md:text-sm font-semibold line-clamp-1">{creator.name}</p>
-                      <p className="text-[10px] md:text-xs text-white/60">{formatNumber(creator.totalPlays)} écoutes</p>
+                      <p className="text-xs md:text-sm font-semibold line-clamp-1 text-foreground-primary">{creator.name}</p>
+                      <p className="text-[10px] md:text-xs text-foreground-tertiary">{formatNumber(creator.totalPlays)} écoutes</p>
                     </div>
                     </div>
                   <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1809,11 +2107,13 @@ export default function SynauraHome() {
                       <div key={j} className="relative">
                           <img
                             src={track.coverUrl || '/default-cover.jpg'}
-                          className="w-full h-16 object-cover rounded-lg border border-white/10" 
+                          className="w-full h-16 object-cover rounded-xl border border-border-secondary/60" 
                           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
                         />
                         {String(track._id || '').startsWith('ai-') && (
-                          <span className="absolute top-0.5 left-0.5 px-1 py-0.5 rounded text-[8px] font-semibold bg-purple-600/90 text-white border border-white/10">IA</span>
+                          <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full text-[8px] font-semibold bg-overlay-on-primary text-foreground-primary border border-border-secondary">
+                            IA
+                          </span>
                         )}
                         </div>
                     ))}
@@ -1824,7 +2124,7 @@ export default function SynauraHome() {
                               e.stopPropagation();
                         playTrack(creator.tracks[0]);
                       }}
-                      className="text-xs py-1.5 rounded-lg bg-gradient-to-r from-fuchsia-600/40 to-indigo-600/40 border border-white/10 hover:from-fuchsia-600/50 hover:to-indigo-600/50 transition-colors flex items-center justify-center gap-1"
+                      className="text-xs py-2 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition flex items-center justify-center gap-1"
                     >
                       <Play className="w-3 h-3" />
                       Écouter
@@ -1846,7 +2146,7 @@ export default function SynauraHome() {
 
         {/* Nouvelles musiques */}
         {!loading && recentCards.length > 0 && (
-          <section>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <SectionTitle icon={Music2} title="Nouvelles musiques" actionLabel="Tout voir" />
             <HorizontalScroller>
               {recentCards.slice(0, 12).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
@@ -1858,19 +2158,19 @@ export default function SynauraHome() {
         {process.env.NODE_ENV !== "production" && <DevTests />}
 
         {/* Footer mini-nav */}
-          <footer className="pt-8 pb-10 text-xs text-white/60">
+          <footer className="pt-8 pb-10 text-xs text-foreground-tertiary">
             <div className="flex flex-wrap items-center gap-3 justify-center">
-              <a href="/legal/mentions-legales" className="hover:text-white transition">Mentions légales</a>
+              <a href="/legal/mentions-legales" className="hover:text-foreground-primary transition">Mentions légales</a>
               <span className="opacity-40">•</span>
-              <a href="/legal/confidentialite" className="hover:text-white transition">Confidentialité</a>
+              <a href="/legal/confidentialite" className="hover:text-foreground-primary transition">Confidentialité</a>
               <span className="opacity-40">•</span>
-              <a href="/legal/cgu" className="hover:text-white transition">CGU</a>
+              <a href="/legal/cgu" className="hover:text-foreground-primary transition">CGU</a>
               <span className="opacity-40">•</span>
-              <a href="/legal/cgv" className="hover:text-white transition">CGV</a>
+              <a href="/legal/cgv" className="hover:text-foreground-primary transition">CGV</a>
               <span className="opacity-40">•</span>
-              <a href="/legal/cookies" className="hover:text-white transition">Cookies</a>
+              <a href="/legal/cookies" className="hover:text-foreground-primary transition">Cookies</a>
               <span className="opacity-40">•</span>
-              <a href="/legal/rgpd" className="hover:text-white transition">RGPD</a>
+              <a href="/legal/rgpd" className="hover:text-foreground-primary transition">RGPD</a>
               <span className="opacity-40">•</span>
               <span>© {new Date().getFullYear()} Synaura. Tous droits réservés.</span>
             </div>
