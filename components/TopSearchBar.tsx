@@ -216,10 +216,10 @@ export default function TopSearchBar() {
   };
 
   return (
-    <div className="sticky top-0 z-40 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
+    <div className="sticky top-0 z-40 bg-background-primary border-b border-border-secondary/60">
       <div className="mx-auto max-w-7xl px-3 md:px-4 py-3">
         <div className="relative global-search-container">
-          <div className="relative rounded-3xl border border-border-secondary bg-background-fog-thin h-14 flex items-center px-3">
+          <div className="relative rounded-3xl border border-border-secondary bg-background-tertiary h-14 flex items-center px-3 focus-within:ring-2 focus-within:ring-overlay-on-primary">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-foreground-inactive pointer-events-none" />
             <input
               value={searchQuery}
@@ -232,7 +232,7 @@ export default function TopSearchBar() {
               }}
               onKeyDown={onKeyDown}
               placeholder="Rechercher un titre, un artiste, une playlist..."
-              className="w-full h-11 pl-10 pr-10 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
+              className="w-full h-11 pl-10 pr-10 rounded-2xl bg-transparent text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none"
             />
 
             {searchQuery.trim().length > 0 && (
@@ -245,7 +245,7 @@ export default function TopSearchBar() {
                   setActiveIndex(-1);
                   setSearchError(null);
                 }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition grid place-items-center"
+                className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-2xl border border-border-secondary bg-transparent hover:bg-overlay-on-primary transition grid place-items-center"
                 aria-label="Effacer la recherche"
               >
                 <X className="h-4 w-4 text-foreground-tertiary" />
