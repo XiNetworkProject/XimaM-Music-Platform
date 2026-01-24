@@ -757,9 +757,11 @@ const ActionPill = ({
 const WelcomeHeader = ({
   session,
   onGo,
+  stats,
 }: {
   session: any;
   onGo: (path: string) => void;
+  stats?: { playlists: number; favorites: number; queue: number };
 }) => {
   const name =
     session?.user?.name ||
@@ -768,52 +770,71 @@ const WelcomeHeader = ({
     "sur Synaura";
 
   return (
-    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4 md:p-6">
-      <div className="flex items-center justify-between gap-3">
+    <div className="rounded-3xl border border-border-secondary bg-gradient-to-r from-overlay-on-primary/12 via-background-fog-thin to-overlay-on-primary/10 p-4 md:p-6">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-foreground-tertiary text-xs md:text-sm">{getGreeting()}</p>
-          <h1 className="text-xl md:text-2xl font-bold tracking-tight line-clamp-1 text-foreground-primary">
+          <h1 className="mt-0.5 text-xl md:text-2xl font-bold tracking-tight line-clamp-1 text-foreground-primary">
             {session ? `Bienvenue, ${name}` : "Bienvenue sur Synaura"}
           </h1>
-          <p className="text-foreground-secondary text-xs md:text-sm mt-1">
-            Découvre, écoute, et crée ta prochaine musique préférée.
+          <p className="text-foreground-secondary text-xs md:text-sm mt-1 max-w-xl">
+            Découvre de nouvelles musiques, garde ton “À suivre” propre, et récupère tes récompenses boosters.
           </p>
         </div>
 
-        <button
-          onClick={() => onGo("/subscriptions")}
-          className="hidden md:flex items-center gap-2 px-4 py-2 rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary transition"
-        >
-          <Crown className="w-4 h-4 text-foreground-secondary" />
-          <span className="text-sm font-semibold text-foreground-primary">Premium</span>
-        </button>
+        <div className="hidden md:flex items-center gap-2">
+          <button
+            onClick={() => onGo("/boosters")}
+            className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2"
+          >
+            <Gift className="w-4 h-4" />
+            Boosters
+          </button>
+          <button
+            onClick={() => onGo("/subscriptions")}
+            className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
+          >
+            <Crown className="w-4 h-4" />
+            Premium
+          </button>
+        </div>
       </div>
 
+      {/* Stats compactes */}
+      {session && (
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <button
+            onClick={() => onGo("/library?tab=playlists")}
+            className="rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition p-3 text-left"
+          >
+            <div className="text-xs text-foreground-tertiary">Playlists</div>
+            <div className="mt-0.5 text-lg font-semibold text-foreground-primary">{stats?.playlists ?? 0}</div>
+          </button>
+          <button
+            onClick={() => onGo("/library?tab=favorites")}
+            className="rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition p-3 text-left"
+          >
+            <div className="text-xs text-foreground-tertiary">Favoris</div>
+            <div className="mt-0.5 text-lg font-semibold text-foreground-primary">{stats?.favorites ?? 0}</div>
+          </button>
+          <button
+            onClick={() => onGo("/library?tab=queue")}
+            className="rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition p-3 text-left"
+          >
+            <div className="text-xs text-foreground-tertiary">À suivre</div>
+            <div className="mt-0.5 text-lg font-semibold text-foreground-primary">{stats?.queue ?? 0}</div>
+          </button>
+        </div>
+      )}
+
+      {/* Actions */}
       <div className="mt-4 flex gap-2 overflow-x-auto no-scrollbar pb-1">
-        <ActionPill
-          icon={TrendingUp}
-          label="Explorer"
-          onClick={() => onGo("/trending")}
-        />
-        <ActionPill
-          icon={Sparkles}
-          label="Générer IA"
-          onClick={() => onGo("/ai-generator")}
-        />
-        <ActionPill icon={Cloud} label="Météo" onClick={() => onGo("/meteo")} />
-        <ActionPill
-          icon={Crown}
-          label="Abonnements"
-          onClick={() => onGo("/subscriptions")}
-        />
-        {session && (
-          <ActionPill
-            icon={Library}
-            label="Bibliothèque"
-            onClick={() => onGo("/library")}
-          />
-        )}
+        <ActionPill icon={TrendingUp} label="Explorer" onClick={() => onGo("/trending")} />
+        <ActionPill icon={Sparkles} label="Swipe" onClick={() => onGo("/swipe")} />
+        <ActionPill icon={Gift} label="Boosters" onClick={() => onGo("/boosters")} />
+        <ActionPill icon={Library} label="Bibliothèque" onClick={() => onGo("/library")} />
         <ActionPill icon={Upload} label="Uploader" onClick={() => onGo("/upload")} />
+        <ActionPill icon={Cloud} label="Météo" onClick={() => onGo("/meteo")} />
       </div>
     </div>
   );
@@ -1706,20 +1727,7 @@ export default function SynauraHome() {
     return (
       <div className="min-h-screen bg-background-primary text-foreground-primary">
         <main className="mx-auto max-w-7xl px-3 md:px-4 py-3 md:py-4 space-y-4 md:space-y-6">
-          <div className="sticky top-0 z-10 -mx-3 md:-mx-4 px-3 md:px-4 py-3 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
-            <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground-primary">Accueil</div>
-                <div className="text-xs text-foreground-tertiary">Découverte • Radios • Boosters</div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="h-10 w-10 rounded-2xl bg-background-fog-thin border border-border-secondary" />
-                <div className="h-10 w-10 rounded-2xl bg-background-fog-thin border border-border-secondary" />
-              </div>
-            </div>
-          </div>
-
-          <WelcomeHeader session={session} onGo={onGo} />
+          <WelcomeHeader session={session} onGo={onGo} stats={{ playlists: 0, favorites: 0, queue: 0 }} />
 
           <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
             <Skeleton className="lg:col-span-8 h-[240px] md:h-[300px]" />
@@ -1740,33 +1748,16 @@ export default function SynauraHome() {
   return (
     <div className="min-h-screen bg-background-primary text-foreground-primary">
       <main className="mx-auto max-w-7xl px-3 md:px-4 py-3 md:py-4 space-y-4 md:space-y-6">
-        <div className="sticky top-0 z-10 -mx-3 md:-mx-4 px-3 md:px-4 py-3 backdrop-blur-xl bg-background-primary/70 border-b border-border-secondary/60">
-          <div className="mx-auto max-w-7xl flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground-primary">Accueil</div>
-              <div className="text-xs text-foreground-tertiary">Découverte • Radios • Boosters</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onGo('/boosters')}
-                className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2"
-              >
-                <Gift className="h-4 w-4" />
-                Boosters
-              </button>
-              <button
-                onClick={() => onGo('/library')}
-                className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2"
-              >
-                <Library className="h-4 w-4" />
-                Bibliothèque
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* ✅ Nouveau header accueil */}
-        <WelcomeHeader session={session} onGo={onGo} />
+        <WelcomeHeader
+          session={session}
+          onGo={onGo}
+          stats={{
+            playlists: libraryStats.playlists || 0,
+            favorites: libraryStats.favorites || 0,
+            queue: upNextTracks?.length || 0,
+          }}
+        />
 
         {/* ✅ Dashboard compact (colonne principale + sidebar) */}
         <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
