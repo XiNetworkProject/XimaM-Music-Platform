@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { getAdminGuard } from '@/lib/admin';
+import { getAdminGuard, getOwnerEmails } from '@/lib/admin';
 
 function norm(s: any) {
   return String(s || '').trim();
@@ -51,10 +51,7 @@ export async function PATCH(req: NextRequest) {
   if (!g.isOwner && !g.isAdmin) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
   // Safety: prevent removing owner access via role change if owner isn't admin yet
-  const owners = String(process.env.ADMIN_OWNER_EMAILS || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  const owners = getOwnerEmails();
   const { data: target } = await supabaseAdmin.from('profiles').select('id,email,role').eq('id', userId).maybeSingle();
   const targetEmail = (target?.email || '').toLowerCase();
   const isTargetOwner = targetEmail ? owners.includes(targetEmail) : false;

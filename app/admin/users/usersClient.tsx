@@ -227,7 +227,7 @@ export default function AdminUsersClient() {
             <div className="flex items-start gap-2">
               <Check className="h-4 w-4 text-foreground-secondary mt-0.5" />
               <div className="text-xs text-foreground-tertiary">
-                Si tu n’es pas encore “admin”, ajoute ton email dans <span className="text-foreground-primary font-semibold">ADMIN_OWNER_EMAILS</span> (dans <span className="text-foreground-primary font-semibold">.env.local</span>) pour accéder à /admin et te promouvoir.
+                Ton compte <span className="text-foreground-primary font-semibold">vermeulenmaxime59@gmail.com</span> est autorisé par défaut (bootstrap) pour accéder à /admin et gérer les admins.
               </div>
             </div>
           </div>

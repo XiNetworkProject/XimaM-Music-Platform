@@ -1,6 +1,9 @@
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 
+// Bootstrap owner (hard-coded, demandé par toi)
+const DEFAULT_OWNER_EMAILS = ['vermeulenmaxime59@gmail.com'];
+
 export type AdminGuardResult = {
   ok: boolean;
   userId: string | null;
@@ -9,16 +12,22 @@ export type AdminGuardResult = {
   isOwner: boolean;
 };
 
+export function getOwnerEmails(): string[] {
+  const fromEnv = String(process.env.ADMIN_OWNER_EMAILS || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const merged = [...DEFAULT_OWNER_EMAILS.map((e) => e.toLowerCase()), ...fromEnv];
+  return Array.from(new Set(merged)).filter(Boolean);
+}
+
 export async function getAdminGuard(): Promise<AdminGuardResult> {
   const session = await getServerSession(authOptions);
   const userId = (session?.user as any)?.id as string | undefined;
   const email = (session?.user as any)?.email as string | undefined;
   const role = (session?.user as any)?.role as string | undefined;
 
-  const owners = String(process.env.ADMIN_OWNER_EMAILS || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
+  const owners = getOwnerEmails();
   const isOwner = email ? owners.includes(String(email).toLowerCase()) : false;
   const isAdmin = role === 'admin';
   const ok = Boolean(userId) && (isAdmin || isOwner);

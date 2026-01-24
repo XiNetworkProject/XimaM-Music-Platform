@@ -81,6 +81,8 @@ export default function AppSidebar() {
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href);
 
+  const isBootstrapOwner = String((session?.user as any)?.email || '').toLowerCase() === 'vermeulenmaxime59@gmail.com';
+
   return (
     <aside
       className="group/sidebar fixed inset-y-0 left-0 hidden lg:flex lg:flex-col bg-background-primary text-foreground-primary border-r border-border-secondary overflow-hidden z-40"
@@ -177,7 +179,7 @@ export default function AppSidebar() {
           { href: '/discover', label: 'Découvrir', icon: Compass },
           { href: '/library', label: 'Bibliothèque', icon: BookOpen },
           { href: '/boosters', label: 'Boosters', icon: Gift },
-          ...(((session?.user as any)?.role === 'admin')
+          ...((((session?.user as any)?.role === 'admin') || isBootstrapOwner)
             ? [{ href: '/admin', label: 'Admin', icon: ShieldCheck }]
             : []),
           { href: '/community', label: 'Communauté', icon: Users },

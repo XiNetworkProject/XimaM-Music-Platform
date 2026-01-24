@@ -71,12 +71,14 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith('/admin')) {
       const tokenRole = (token as any)?.role as string | undefined;
       const tokenEmail = ((token as any)?.email as string | undefined) || '';
+      const defaultOwners = ['vermeulenmaxime59@gmail.com'];
       const owners = String(process.env.ADMIN_OWNER_EMAILS || '')
         .split(',')
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
 
-      const isOwner = tokenEmail ? owners.includes(tokenEmail.toLowerCase()) : false;
+      const allOwners = [...defaultOwners, ...owners].map((e) => String(e).toLowerCase());
+      const isOwner = tokenEmail ? allOwners.includes(tokenEmail.toLowerCase()) : false;
       if (tokenRole !== 'admin' && !isOwner) {
         const url = new URL('/', request.url);
         return NextResponse.redirect(url);

@@ -15,7 +15,7 @@ export default async function AdminPage() {
         </div>
         <div className="text-xs text-foreground-tertiary text-right">
           <div>Accès: <span className="text-foreground-primary font-semibold">{g.isOwner ? 'Owner' : 'Admin'}</span></div>
-          <div className="mt-1">Bootstrap: <span className="text-foreground-primary font-semibold">{String(process.env.ADMIN_OWNER_EMAILS || '').trim() ? 'ON' : 'OFF'}</span></div>
+          <div className="mt-1">Bootstrap: <span className="text-foreground-primary font-semibold">ON</span></div>
         </div>
       </div>
 
