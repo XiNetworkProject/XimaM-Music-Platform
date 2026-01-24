@@ -1917,6 +1917,12 @@ export default function SynauraHome() {
                   Shop
                 </button>
               </div>
+              <button
+                onClick={() => onGo('/boosters?tab=shop')}
+                className="mt-2 h-10 w-full rounded-2xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
+              >
+                Roue quotidienne
+              </button>
               <div className="mt-3 text-xs text-foreground-tertiary">
                 Astuce: fais les missions “À faire maintenant” et réclame tout d’un coup.
               </div>

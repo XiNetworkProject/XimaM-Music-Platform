@@ -28,6 +28,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useBoosters } from '@/hooks/useBoosters';
 import BoosterOpenModal from '@/components/BoosterOpenModal';
 import BoosterPackOpenModal, { PackReceivedItem } from '@/components/BoosterPackOpenModal';
+import DailySpinModal from '@/components/DailySpinModal';
 import TrackSelectModal from '@/components/TrackSelectModal';
 import { notify } from '@/components/NotificationCenter';
 
@@ -204,6 +205,7 @@ export default function BoostersClient() {
 
   // Modals
   const [showDailyModal, setShowDailyModal] = useState(false);
+  const [showSpinModal, setShowSpinModal] = useState(false);
   const [showPackModal, setShowPackModal] = useState(false);
   const [packKey, setPackKey] = useState<string | null>(null);
   const [packReceived, setPackReceived] = useState<PackReceivedItem[]>([]);
@@ -1154,6 +1156,24 @@ export default function BoostersClient() {
                 transition={{ duration: 0.2 }}
                 className="space-y-3"
               >
+                <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-foreground-primary font-semibold">Roue quotidienne</div>
+                      <div className="text-xs text-foreground-tertiary mt-1">
+                        1 spin / jour. Tu peux perdre… ou gagner un gros lot (boosters/credits).
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowSpinModal(true)}
+                      className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition font-semibold text-sm"
+                    >
+                      Tourner
+                    </button>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   <Panel title="Streak & garanties">
                     <div className="text-sm text-foreground-tertiary">
@@ -1352,6 +1372,8 @@ export default function BoostersClient() {
         packKey={packKey}
         received={packReceived}
       />
+
+      <DailySpinModal isOpen={showSpinModal} onClose={() => setShowSpinModal(false)} />
 
       <TrackSelectModal
         isOpen={selectTrackOpen}

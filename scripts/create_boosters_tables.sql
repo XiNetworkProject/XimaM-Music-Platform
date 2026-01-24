@@ -135,6 +135,24 @@ CREATE TABLE IF NOT EXISTS public.user_missions (
 CREATE INDEX IF NOT EXISTS idx_user_missions_user ON public.user_missions(user_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_mission ON public.user_missions(user_id, mission_id);
 
+-- Daily Spin (roue quotidienne)
+CREATE TABLE IF NOT EXISTS public.user_daily_spin (
+  user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  last_spun_at TIMESTAMPTZ,
+  streak INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS public.user_daily_spin_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  spun_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  result_key TEXT NOT NULL,
+  reward_type TEXT NOT NULL,
+  reward_payload JSONB DEFAULT '{}'::jsonb
+);
+CREATE INDEX IF NOT EXISTS idx_user_daily_spin_history_user ON public.user_daily_spin_history(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_daily_spin_history_spun ON public.user_daily_spin_history(spun_at);
+
 -- Seed minimal boosters (si absents)
 INSERT INTO public.boosters (key, name, description, type, rarity, multiplier, duration_hours)
 SELECT 'track_boost_common', 'Boost de piste (x1.15 / 6h)', 'Augmente le score de ranking de la piste', 'track', 'common', 1.15, 6
