@@ -270,13 +270,9 @@ export default function TopSearchBar() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 4 }}
                     transition={{ duration: 0.15 }}
-                    className="fixed md:absolute top-16 md:top-full left-0 right-0 md:mt-2 bg-background-tertiary md:border border-border-secondary md:rounded-3xl shadow-2xl overflow-hidden z-[70]"
-                    style={{
-                      maxHeight: 'calc(100vh - 80px)',
-                      height: 'calc(100vh - 80px)',
-                    }}
+                    className="fixed md:absolute top-16 md:top-full left-0 right-0 md:mt-2 bg-background-primary md:border border-border-secondary md:rounded-3xl shadow-2xl overflow-hidden z-[70] h-[calc(100vh-80px)] md:h-auto md:max-h-[520px]"
                   >
-                    <div className="sticky top-0 bg-background-tertiary border-b border-border-secondary/60 p-3 flex items-center justify-between md:hidden z-10">
+                    <div className="sticky top-0 bg-background-primary border-b border-border-secondary/60 p-3 flex items-center justify-between md:hidden z-10">
                       <h3 className="text-base font-semibold text-foreground-primary">
                         {searchLoading ? 'Recherche...' : `${searchResults.total} résultat(s)`}
                       </h3>
@@ -289,7 +285,7 @@ export default function TopSearchBar() {
                       </button>
                     </div>
 
-                    <div className="overflow-y-auto" style={{ height: 'calc(100% - 60px)' }}>
+                    <div className="overflow-y-auto h-[calc(100%-60px)] md:h-auto md:max-h-[520px]">
                       <div className="p-2">
                         {searchError && (
                           <div className="p-4 text-sm text-foreground-secondary">
