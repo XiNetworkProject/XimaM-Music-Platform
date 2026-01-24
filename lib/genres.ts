@@ -1,25 +1,33 @@
 export const MUSIC_GENRES = [
   // Genres populaires
-  'Pop', 'Rock', 'Hip-Hop', 'Rap', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B',
+  'Pop', 'Rock', 'Hip-Hop', 'Rap', 'Electronic', 'Jazz', 'Classical', 'Country', 'R&B', 'Dance', 'EDM',
   
   // Rock et dérivés
   'Reggae', 'Blues', 'Folk', 'Metal', 'Punk', 'Indie', 'Alternative', 'Grunge',
+  'Hard Rock', 'Post-Rock', 'Post-Punk', 'Shoegaze', 'Emo', 'Hardcore', 'Metalcore', 'Nu Metal',
+  'Death Metal', 'Black Metal',
   
   // Electronic et dérivés
   'Ambient', 'Trap', 'Drill', 'Dubstep', 'House', 'Deep House', 'Tech House',
-  'Techno', 'Trance', 'Progressive', 'Drum & Bass', 'Breakbeat', 'Jungle',
+  'Techno', 'Hard Techno', 'Melodic Techno', 'Trance', 'Progressive', 'Progressive House',
+  'Drum & Bass', 'Breakbeat', 'Jungle', 'UK Garage', 'Garage', 'Electro', 'Future House', 'Bass House',
+  'Hardstyle', 'Jersey Club',
   
   // Chill et acoustique
-  'Acoustic', 'Instrumental', 'Lo-Fi', 'Chill', 'Downtempo', 'Trip-Hop',
+  'Acoustic', 'Instrumental', 'Lo-Fi', 'Chill', 'Downtempo', 'Trip-Hop', 'Chillstep',
   
   // Funk et rétro
-  'Funk', 'Soul', 'Disco', 'Synthwave', 'Vaporwave', 'Future Bass',
+  'Funk', 'Soul', 'Disco', 'Synthwave', 'Vaporwave', 'Future Bass', 'Synthpop', 'New Wave', 'Electro Swing',
   
   // Internationaux et modernes
-  'Phonk', 'Afrobeat', 'Latin', 'Reggaeton', 'Dancehall', 'K-Pop',
+  'Phonk', 'Afrobeat', 'Afro House', 'Amapiano', 'Latin', 'Reggaeton', 'Dancehall',
+  'Salsa', 'Bachata', 'Merengue', 'Cumbia', 'Tango', 'Flamenco', 'Bossa Nova',
+  'K-Pop', 'J-Pop', 'C-Pop',
+  'Baile Funk',
   
   // Spirituel et expérimental
-  'Gospel', 'Spiritual', 'World', 'Experimental', 'Noise', 'Avant-Garde'
+  'Gospel', 'Spiritual', 'World', 'Experimental', 'Noise', 'Avant-Garde',
+  'Soundtrack', 'Game Music', 'Anime', 'Opera', 'A Cappella'
 ] as const;
 
 export type MusicGenre = typeof MUSIC_GENRES[number];

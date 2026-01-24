@@ -47,6 +47,16 @@ interface UploadProgress {
   cover: number;
 }
 
+type AlbumTrackMeta = {
+  file: File;
+  title: string;
+  duration: number;
+  // Overrides (null = héritage de l’album)
+  genreOverride?: string[] | null;
+  isExplicitOverride?: boolean | null;
+  lyricsOverride?: string | null;
+};
+
 // Compression côté client pour images > 10MB (Cloudinary refuse les fichiers trop volumineux)
 async function compressImageIfNeeded(file: File, maxBytes: number = 10 * 1024 * 1024): Promise<File> {
   try {
@@ -331,8 +341,8 @@ export default function UploadPage() {
   const [albumFiles, setAlbumFiles] = useState<File[]>([]);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [uploadMode, setUploadMode] = useState<'single' | 'album'>('single');
-  const [albumTrackMetas, setAlbumTrackMetas] = useState<Array<{ file: File; title: string; duration: number }>>([]);
-  const albumTrackMetasRef = useRef<Array<{ file: File; title: string; duration: number }>>([]);
+  const [albumTrackMetas, setAlbumTrackMetas] = useState<AlbumTrackMeta[]>([]);
+  const albumTrackMetasRef = useRef<AlbumTrackMeta[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -519,7 +529,7 @@ export default function UploadPage() {
     if (uploadMode !== 'album') return;
     let isCancelled = false;
     (async () => {
-      const metas: Array<{ file: File; title: string; duration: number }> = [];
+      const metas: AlbumTrackMeta[] = [];
       const prev = albumTrackMetasRef.current || [];
       for (const f of albumFiles) {
         // Titre par défaut depuis le nom de fichier sans extension
@@ -545,7 +555,14 @@ export default function UploadPage() {
             });
           }
         } catch {}
-        metas.push({ file: f, title, duration: Math.round(duration || 0) });
+        metas.push({
+          file: f,
+          title,
+          duration: Math.round(duration || 0),
+          genreOverride: existing?.genreOverride ?? null,
+          isExplicitOverride: existing?.isExplicitOverride ?? null,
+          lyricsOverride: existing?.lyricsOverride ?? null,
+        });
       }
       if (!isCancelled) setAlbumTrackMetas(metas);
     })();
@@ -554,6 +571,44 @@ export default function UploadPage() {
 
   const handleAlbumTrackTitleChange = (index: number, value: string) => {
     setAlbumTrackMetas(prev => prev.map((m, i) => i === index ? { ...m, title: value } : m));
+  };
+
+  const handleAlbumTrackExplicitChange = (index: number, value: boolean | null) => {
+    setAlbumTrackMetas((prev) => prev.map((m, i) => (i === index ? { ...m, isExplicitOverride: value } : m)));
+  };
+
+  const handleAlbumTrackLyricsChange = (index: number, value: string | null) => {
+    setAlbumTrackMetas((prev) => prev.map((m, i) => (i === index ? { ...m, lyricsOverride: value } : m)));
+  };
+
+  const addAlbumTrackGenreOverride = (index: number, genre: string) => {
+    setAlbumTrackMetas((prev) =>
+      prev.map((m, i) => {
+        if (i !== index) return m;
+        const base = Array.isArray(m.genreOverride) ? m.genreOverride : [];
+        if (!genre) return m;
+        if (base.includes(genre)) return m;
+        return { ...m, genreOverride: [...base, genre] };
+      }),
+    );
+  };
+
+  const removeAlbumTrackGenreOverride = (index: number, genre: string) => {
+    setAlbumTrackMetas((prev) =>
+      prev.map((m, i) => {
+        if (i !== index) return m;
+        const base = Array.isArray(m.genreOverride) ? m.genreOverride : [];
+        return { ...m, genreOverride: base.filter((g) => g !== genre) };
+      }),
+    );
+  };
+
+  const resetAlbumTrackOverrides = (index: number) => {
+    setAlbumTrackMetas((prev) =>
+      prev.map((m, i) =>
+        i === index ? { ...m, genreOverride: null, isExplicitOverride: null, lyricsOverride: null } : m,
+      ),
+    );
   };
 
   const moveAlbumTrack = useCallback((from: number, to: number) => {
@@ -751,6 +806,13 @@ export default function UploadPage() {
           const custom = albumTrackMetas[i]?.title?.trim();
           const fallbackFromFile = (tr.file?.name || '').replace(/\.[^/.]+$/, '') || `Piste ${i+1}`;
           const metaTitle = custom || fallbackFromFile;
+          const perTrack = albumTrackMetas[i];
+          const perTrackGenre = Array.isArray(perTrack?.genreOverride) && perTrack?.genreOverride?.length ? perTrack.genreOverride : formData.genre;
+          const perTrackExplicit = typeof perTrack?.isExplicitOverride === 'boolean' ? perTrack.isExplicitOverride : formData.isExplicit;
+          const perTrackLyrics =
+            typeof perTrack?.lyricsOverride === 'string' && perTrack.lyricsOverride.trim()
+              ? perTrack.lyricsOverride
+              : (formData.lyrics || '');
           const tRes = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -759,7 +821,14 @@ export default function UploadPage() {
               audioPublicId: tr.public_id,
               coverUrl: (coverResult && coverResult.secure_url) ? coverResult.secure_url : null,
               coverPublicId: (coverResult && coverResult.public_id) ? coverResult.public_id : null,
-              trackData: { ...formData, title: metaTitle, album: (formData.title || '').trim() || null },
+              trackData: {
+                ...formData,
+                title: metaTitle,
+                album: (formData.title || '').trim() || null,
+                genre: perTrackGenre,
+                isExplicit: perTrackExplicit,
+                lyrics: perTrackLyrics || null,
+              },
               duration: tr.duration || 0,
               audioBytes: Math.round((tr.file?.size || 0)),
               coverBytes: Math.round((coverFile?.size || 0)),
@@ -1054,6 +1123,79 @@ export default function UploadPage() {
                                   />
                                   <div className="text-xs text-foreground-tertiary mt-1">
                                     {(m.file.size/1024/1024).toFixed(2)} MB • {Math.floor((m.duration||0)/60)}:{String(Math.floor((m.duration||0)%60)).padStart(2,'0')}
+                                  </div>
+
+                                  {/* Options par piste */}
+                                  <div className="mt-2 rounded-2xl border border-border-secondary bg-background-tertiary p-2">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <div className="text-xs text-foreground-tertiary">
+                                        Options piste (hérite de l’album si vide)
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => resetAlbumTrackOverrides(idx)}
+                                        className="h-8 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary"
+                                      >
+                                        Réinitialiser
+                                      </button>
+                                    </div>
+
+                                    <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                      <label className="flex items-center gap-3 text-sm text-foreground-secondary">
+                                        <input
+                                          type="checkbox"
+                                          checked={(m.isExplicitOverride ?? formData.isExplicit) === true}
+                                          onChange={(e) => handleAlbumTrackExplicitChange(idx, e.target.checked)}
+                                          className="h-4 w-4 rounded border-border-secondary"
+                                        />
+                                        Explicite (piste)
+                                      </label>
+
+                                      <div className="flex items-center gap-2">
+                                        <select
+                                          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
+                                          defaultValue=""
+                                          onChange={(e) => {
+                                            const g = e.target.value;
+                                            if (g) addAlbumTrackGenreOverride(idx, g);
+                                            e.currentTarget.value = '';
+                                          }}
+                                        >
+                                          <option value="">+ Ajouter un genre</option>
+                                          {MUSIC_GENRES.map((g) => (
+                                            <option key={g} value={g}>
+                                              {g}
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                    </div>
+
+                                    {Array.isArray(m.genreOverride) && m.genreOverride.length > 0 && (
+                                      <div className="mt-2 flex flex-wrap gap-2">
+                                        {m.genreOverride.map((g) => (
+                                          <button
+                                            key={g}
+                                            type="button"
+                                            onClick={() => removeAlbumTrackGenreOverride(idx, g)}
+                                            className="px-3 py-1 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-red-500/15 hover:border-red-500/30 transition text-xs text-foreground-secondary"
+                                            title="Retirer"
+                                          >
+                                            {g} <span className="text-foreground-tertiary">×</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+
+                                    <div className="mt-2">
+                                      <textarea
+                                        value={m.lyricsOverride ?? ''}
+                                        onChange={(e) => handleAlbumTrackLyricsChange(idx, e.target.value || null)}
+                                        rows={2}
+                                        className="w-full min-h-[64px] px-3 py-2 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary resize-none"
+                                        placeholder="Paroles spécifiques à cette piste (optionnel)"
+                                      />
+                                    </div>
                                   </div>
                         </div>
                       </div>
