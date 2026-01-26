@@ -90,3 +90,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true, user: data });
 }
 
+// Certains proxies/CDN peuvent bloquer PATCH. Alias en POST pour la prod.
+export async function POST(req: NextRequest) {
+  return PATCH(req);
+}
