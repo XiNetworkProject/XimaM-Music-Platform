@@ -40,7 +40,19 @@ export async function GET(req: NextRequest) {
   }
 
   const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message || 'Erreur' }, { status: 500 });
+  if (error) {
+    const msg = String(error.message || 'Erreur');
+    if (/column\s+\"?role\"?\s+does not exist/i.test(msg) || /profiles\.role/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Schéma Supabase incomplet: la colonne `profiles.role` est manquante en production. Exécute le script `scripts/add_profiles_role.sql` dans Supabase (SQL Editor), puis réessaie.",
+        },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
   return NextResponse.json({ items: data || [] });
 }
 
@@ -94,7 +106,19 @@ export async function PATCH(req: NextRequest) {
     .eq('id', resolvedUserId)
     .select('id,email,username,name,role,is_artist,is_verified,updated_at')
     .single();
-  if (error) return NextResponse.json({ error: error.message || 'Erreur update' }, { status: 500 });
+  if (error) {
+    const msg = String(error.message || 'Erreur update');
+    if (/column\s+\"?role\"?\s+does not exist/i.test(msg) || /profiles\.role/i.test(msg)) {
+      return NextResponse.json(
+        {
+          error:
+            "Schéma Supabase incomplet: la colonne `profiles.role` est manquante en production. Exécute le script `scripts/add_profiles_role.sql` dans Supabase (SQL Editor), puis réessaie.",
+        },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 
   return NextResponse.json({ ok: true, user: data });
 }

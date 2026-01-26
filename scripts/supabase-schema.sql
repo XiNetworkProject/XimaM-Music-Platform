@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   name TEXT NOT NULL,
   email TEXT UNIQUE NOT NULL,
   username TEXT UNIQUE NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user',
   avatar TEXT,
   banner TEXT,
   bio TEXT DEFAULT '',
