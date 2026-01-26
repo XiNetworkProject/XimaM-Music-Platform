@@ -21,13 +21,16 @@ export async function GET() {
     const muxLiveStreamId = String(row?.mux_live_stream_id || '');
 
     let isLive = false;
+    let providerStatus: string | null = null;
     if (enabled && playbackUrl) {
       if (provider === 'mux' && muxLiveStreamId && isMuxConfigured()) {
         try {
           const { status } = await muxGetLiveStream(muxLiveStreamId);
+          providerStatus = status || null;
           isLive = status === 'active';
         } catch {
           // fallback: considérer offline si le status provider échoue
+          providerStatus = null;
           isLive = false;
         }
       } else {
@@ -42,7 +45,10 @@ export async function GET() {
         provider,
         enabled,
         isLive,
-        playbackUrl: isLive ? playbackUrl : null,
+        providerStatus,
+        // Important: on renvoie la playbackUrl si la TV est "activée", même si le statut live
+        // n'est pas confirmé (ex: Mux status indispo). Le player fera foi.
+        playbackUrl: enabled && playbackUrl ? playbackUrl : null,
         updatedAt: row?.updated_at || null,
       },
       {
