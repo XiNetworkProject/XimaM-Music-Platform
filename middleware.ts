@@ -79,10 +79,15 @@ export async function middleware(request: NextRequest) {
 
       const allOwners = [...defaultOwners, ...owners].map((e) => String(e).toLowerCase());
       const isOwner = tokenEmail ? allOwners.includes(tokenEmail.toLowerCase()) : false;
-      if (tokenRole !== 'admin' && !isOwner) {
-        const url = new URL('/', request.url);
-        return NextResponse.redirect(url);
+      // IMPORTANT:
+      // Le rôle dans le JWT peut être "stale" après un changement de role en DB.
+      // On laisse passer tout utilisateur authentifié vers /admin, et on s'appuie sur
+      // le guard serveur (getAdminGuard + layout /admin) + les routes API /api/admin/*,
+      // qui vérifient le rôle en base.
+      if (tokenRole === 'admin' || isOwner) {
+        return NextResponse.next();
       }
+      return NextResponse.next();
     }
   }
   
