@@ -79,7 +79,7 @@ export default function AdminUsersClient() {
     setBusyId(userId);
     try {
       const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, role }),
       });
@@ -104,7 +104,7 @@ export default function AdminUsersClient() {
     setBusyId(`email:${email}`);
     try {
       const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, role: roleForNew }),
       });
