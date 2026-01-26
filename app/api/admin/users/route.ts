@@ -6,6 +6,10 @@ function norm(s: any) {
   return String(s || '').trim();
 }
 
+function isUuid(s: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(s || '').trim());
+}
+
 export async function GET(req: NextRequest) {
   const g = await getAdminGuard();
   if (!g.userId) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
@@ -25,9 +29,14 @@ export async function GET(req: NextRequest) {
   if (role && role !== 'all') query = query.eq('role', role);
   if (q) {
     // search by email or username or name (and artist_name / id as practical fallbacks)
-    query = query.or(
-      `email.ilike.%${q}%,username.ilike.%${q}%,name.ilike.%${q}%,artist_name.ilike.%${q}%,id.eq.${q}`,
-    );
+    const clauses = [
+      `email.ilike.%${q}%`,
+      `username.ilike.%${q}%`,
+      `name.ilike.%${q}%`,
+      `artist_name.ilike.%${q}%`,
+    ];
+    if (isUuid(q)) clauses.push(`id.eq.${q}`);
+    query = query.or(clauses.join(','));
   }
 
   const { data, error } = await query;
@@ -90,7 +99,7 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true, user: data });
 }
 
-// Certains proxies/CDN peuvent bloquer PATCH. Alias en POST pour la prod.
+// Certains proxies/CDN ne forwardent pas PATCH correctement. Alias en POST pour la prod.
 export async function POST(req: NextRequest) {
   return PATCH(req);
 }
