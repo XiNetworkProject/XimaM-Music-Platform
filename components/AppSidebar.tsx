@@ -15,6 +15,7 @@ import {
   Cloud,
   Sparkles,
   Gift,
+  Tv,
   ChevronDown,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
@@ -176,6 +177,7 @@ export default function AppSidebar() {
           { href: '/discover', label: 'Découvrir', icon: Compass },
           { href: '/library', label: 'Bibliothèque', icon: BookOpen },
           { href: '/boosters', label: 'Boosters', icon: Gift },
+          { href: '/tv', label: 'SYNAURA TV', icon: Tv },
           { href: '/community', label: 'Communauté', icon: Users },
           { href: '/stats', label: 'Stats', icon: TrendingUp },
           { href: '/meteo', label: 'Météo', icon: Cloud },

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShieldCheck, Users } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, Tv, Users } from 'lucide-react';
 
 function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(' ');
@@ -15,6 +15,7 @@ export default function AdminSidebar({ isOwner }: { isOwner: boolean }) {
   const items = [
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Admins & rôles', icon: Users },
+    { href: '/admin/tv', label: 'SYNAURA TV', icon: Tv },
   ];
 
   return (

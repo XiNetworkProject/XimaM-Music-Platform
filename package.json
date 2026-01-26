@@ -50,6 +50,7 @@
     "date-fns": "^2.30.0",
     "dotenv": "^17.2.2",
     "framer-motion": "^12.23.24",
+    "hls.js": "^1.6.15",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.292.0",
     "mongodb": "^6.19.0",
