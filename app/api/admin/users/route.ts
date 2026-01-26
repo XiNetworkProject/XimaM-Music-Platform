@@ -18,14 +18,16 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from('profiles')
-    .select('id,email,username,name,role,is_artist,is_verified,updated_at')
+    .select('id,email,username,name,artist_name,role,is_artist,is_verified,updated_at')
     .order('updated_at', { ascending: false })
     .limit(limit);
 
   if (role && role !== 'all') query = query.eq('role', role);
   if (q) {
-    // search by email or username or name
-    query = query.or(`email.ilike.%${q}%,username.ilike.%${q}%,name.ilike.%${q}%`);
+    // search by email or username or name (and artist_name / id as practical fallbacks)
+    query = query.or(
+      `email.ilike.%${q}%,username.ilike.%${q}%,name.ilike.%${q}%,artist_name.ilike.%${q}%,id.eq.${q}`,
+    );
   }
 
   const { data, error } = await query;
@@ -40,9 +42,10 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const userId = norm(body?.userId);
+  const email = norm(body?.email).toLowerCase();
   const role = norm(body?.role);
 
-  if (!userId) return NextResponse.json({ error: 'userId manquant' }, { status: 400 });
+  if (!userId && !email) return NextResponse.json({ error: 'userId ou email manquant' }, { status: 400 });
   if (!['user', 'artist', 'admin'].includes(role)) return NextResponse.json({ error: 'role invalide' }, { status: 400 });
 
   // Only owner can change roles to/from admin
@@ -50,9 +53,26 @@ export async function PATCH(req: NextRequest) {
   if (toAdmin && !g.isOwner && !g.isAdmin) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   if (!g.isOwner && !g.isAdmin) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
 
+  // Resolve target by email if needed
+  let resolvedUserId = userId;
+  if (!resolvedUserId && email) {
+    const { data: byEmail } = await supabaseAdmin
+      .from('profiles')
+      .select('id,email,role')
+      .ilike('email', email)
+      .maybeSingle();
+    resolvedUserId = byEmail?.id || '';
+    if (!resolvedUserId) {
+      return NextResponse.json(
+        { error: "Utilisateur introuvable. Il doit créer un compte (et donc un profil) avant qu'on puisse lui attribuer un rôle." },
+        { status: 404 },
+      );
+    }
+  }
+
   // Safety: prevent removing owner access via role change if owner isn't admin yet
   const owners = getOwnerEmails();
-  const { data: target } = await supabaseAdmin.from('profiles').select('id,email,role').eq('id', userId).maybeSingle();
+  const { data: target } = await supabaseAdmin.from('profiles').select('id,email,role').eq('id', resolvedUserId).maybeSingle();
   const targetEmail = (target?.email || '').toLowerCase();
   const isTargetOwner = targetEmail ? owners.includes(targetEmail) : false;
   if (isTargetOwner && role !== 'admin') {
@@ -62,7 +82,7 @@ export async function PATCH(req: NextRequest) {
   const { data, error } = await supabaseAdmin
     .from('profiles')
     .update({ role })
-    .eq('id', userId)
+    .eq('id', resolvedUserId)
     .select('id,email,username,name,role,is_artist,is_verified,updated_at')
     .single();
   if (error) return NextResponse.json({ error: error.message || 'Erreur update' }, { status: 500 });

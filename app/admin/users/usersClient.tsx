@@ -9,6 +9,7 @@ type ProfileLite = {
   email: string | null;
   username: string | null;
   name: string | null;
+  artist_name?: string | null;
   role: 'user' | 'artist' | 'admin';
   is_artist?: boolean | null;
   is_verified?: boolean | null;
@@ -85,6 +86,31 @@ export default function AdminUsersClient() {
       const j = await safeJson(res);
       if (!res.ok) throw new Error(j?.error || 'Erreur');
       notify.success('Rôle mis à jour', `${j?.user?.email || j?.user?.username || 'Utilisateur'} → ${role}`);
+      await loadAdmins();
+      await search();
+    } catch (e: any) {
+      notify.error('Rôle', e?.message || 'Erreur');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const isEmailQuery = useMemo(() => /\S+@\S+\.\S+/.test(q.trim()), [q]);
+  const canApplyDirectEmail = useMemo(() => isEmailQuery && q.trim().length > 0, [isEmailQuery, q]);
+
+  const applyRoleToEmail = async () => {
+    const email = q.trim().toLowerCase();
+    if (!email) return;
+    setBusyId(`email:${email}`);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, role: roleForNew }),
+      });
+      const j = await safeJson(res);
+      if (!res.ok) throw new Error(j?.error || 'Erreur');
+      notify.success('Rôle mis à jour', `${email} → ${roleForNew}`);
       await loadAdmins();
       await search();
     } catch (e: any) {
@@ -205,7 +231,7 @@ export default function AdminUsersClient() {
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-foreground-primary truncate">
-                      {u.username || u.name || u.email || u.id}
+                      {u.username || u.name || u.artist_name || u.email || u.id}
                     </div>
                     <div className="text-xs text-foreground-tertiary truncate mt-1">
                       {u.email || '—'} • rôle actuel: {u.role}
@@ -219,7 +245,30 @@ export default function AdminUsersClient() {
               </button>
             ))}
             {results.length === 0 && q.trim() && !loading && (
-              <div className="text-sm text-foreground-tertiary">Aucun résultat.</div>
+              <div className="space-y-2">
+                <div className="text-sm text-foreground-tertiary">Aucun résultat.</div>
+                {canApplyDirectEmail && (
+                  <button
+                    type="button"
+                    onClick={applyRoleToEmail}
+                    disabled={busyId === `email:${q.trim().toLowerCase()}`}
+                    className="w-full inline-flex items-center justify-between gap-2 p-3 rounded-3xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition disabled:opacity-60"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold text-foreground-primary truncate">
+                        Attribuer <span className="font-bold">{roleForNew}</span> à {q.trim().toLowerCase()}
+                      </div>
+                      <div className="text-xs text-foreground-tertiary mt-1">
+                        Si la personne n’a pas encore de compte, elle doit d’abord s’inscrire.
+                      </div>
+                    </div>
+                    <div className="shrink-0 h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary flex items-center gap-2 text-sm font-semibold">
+                      <UserPlus className="h-4 w-4" />
+                      Appliquer
+                    </div>
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
