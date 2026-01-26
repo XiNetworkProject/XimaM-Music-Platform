@@ -1,6 +1,6 @@
 // Service Worker pour XimaM Music Platform
-const CACHE_NAME = 'ximam-audio-v3';
-const AUDIO_CACHE_NAME = 'ximam-audio-files-v3';
+const CACHE_NAME = 'ximam-audio-v4';
+const AUDIO_CACHE_NAME = 'ximam-audio-files-v4';
 const NOTIFICATION_TAG = 'ximam-music-player';
 
 // Fonction helper pour vérifier si une requête peut être mise en cache
@@ -234,6 +234,21 @@ self.addEventListener('fetch', (event) => {
   
   // Ignorer les requêtes avec des schémas non supportés
   if (!canCacheRequest(event.request)) {
+    return;
+  }
+
+  // IMPORTANT: ne jamais intercepter les requêtes non-GET (POST/PATCH/PUT/DELETE),
+  // sinon certains appels API peuvent échouer (ex: /api/admin/users).
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // IMPORTANT: ne pas mettre en cache / intercepter les endpoints sensibles
+  if (
+    url.pathname.startsWith('/api/admin') ||
+    url.pathname.startsWith('/api/auth') ||
+    url.pathname.startsWith('/api/upload')
+  ) {
     return;
   }
   

@@ -1,5 +1,5 @@
 // Service Worker Optimisé pour XimaM Music Platform
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `xima-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `xima-dynamic-${CACHE_VERSION}`;
 const AUDIO_CACHE = `xima-audio-${CACHE_VERSION}`;
@@ -174,6 +174,20 @@ self.addEventListener('fetch', (event) => {
   
   // Ignorer les requêtes avec des schémas non supportés
   if (!canCacheRequest(event.request)) {
+    return;
+  }
+
+  // IMPORTANT: ne jamais intercepter les requêtes non-GET (POST/PATCH/PUT/DELETE)
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // IMPORTANT: ne pas intercepter les endpoints sensibles
+  if (
+    url.pathname.startsWith('/api/admin') ||
+    url.pathname.startsWith('/api/auth') ||
+    url.pathname.startsWith('/api/upload')
+  ) {
     return;
   }
   
