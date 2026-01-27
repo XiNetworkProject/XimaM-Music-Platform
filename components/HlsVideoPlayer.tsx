@@ -23,21 +23,22 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
   const [debug, setDebug] = useState<any>(null);
 
   const isHls = useMemo(() => src.toLowerCase().includes('.m3u8'), [src]);
-  const debugEnabled = useMemo(() => {
+  const debugEnabled = (() => {
     try {
+      if (typeof window === 'undefined') return false;
       const qp = new URLSearchParams(window.location.search);
       if (qp.get('debug') === '1') return true;
       return window.localStorage.getItem('tvDebug') === '1';
     } catch {
       return false;
     }
-  }, []);
+  })();
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
     setError(null);
-    setDebug(null);
+    setDebug((d: any) => (debugEnabled ? d : null));
     retryCountRef.current = 0;
 
     const cleanup = () => {
@@ -79,6 +80,24 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
         init();
       }, delayMs);
       setError(`Reconnexion… (${reason})`);
+      if (debugEnabled) {
+        try {
+          setDebug({
+            at: new Date().toISOString(),
+            type: 'reinit',
+            reason,
+            retryCount: retryCountRef.current,
+            delayMs,
+            src,
+            video: {
+              currentTime: video.currentTime || 0,
+              readyState: video.readyState,
+              networkState: video.networkState,
+              paused: video.paused,
+            },
+          });
+        } catch {}
+      }
     };
 
     const jumpToLiveEdge = () => {
@@ -107,6 +126,13 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
         cleanup();
         video.src = src;
         safePlay();
+        if (debugEnabled) {
+          setDebug({
+            at: new Date().toISOString(),
+            type: 'init_native_hls',
+            src,
+          });
+        }
         return;
       }
 
@@ -130,6 +156,13 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
         hls.on(Hls.Events.MEDIA_ATTACHED, () => {
           try {
             hls.loadSource(src);
+            if (debugEnabled) {
+              setDebug({
+                at: new Date().toISOString(),
+                type: 'media_attached',
+                src,
+              });
+            }
           } catch {
             scheduleReinit('loadSource');
           }
@@ -137,7 +170,13 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
 
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           setError(null);
-          setDebug(null);
+          if (debugEnabled) {
+            setDebug({
+              at: new Date().toISOString(),
+              type: 'manifest_parsed',
+              src,
+            });
+          }
           safePlay();
         });
 
@@ -216,6 +255,20 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
         const lastT = lastTimeRef.current || 0;
         // Si pas de progression depuis un moment, re-init
         if (nowT <= lastT + 0.01) {
+          if (debugEnabled) {
+            setDebug({
+              at: new Date().toISOString(),
+              type: 'stall_detected',
+              src,
+              nowT,
+              lastT,
+              video: {
+                readyState: video.readyState,
+                networkState: video.networkState,
+                paused: video.paused,
+              },
+            });
+          }
           jumpToLiveEdge();
           scheduleReinit('stall');
         }
@@ -251,7 +304,7 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
       video.removeEventListener('error', onVideoError);
       cleanup();
     };
-  }, [src, isHls, autoPlay]);
+  }, [src, isHls, autoPlay, debugEnabled]);
 
   return (
     <div className={className}>
@@ -270,11 +323,13 @@ export default function HlsVideoPlayer({ src, poster, className, autoPlay = true
           {error}
         </div>
       )}
-      {debugEnabled && debug && (
-        <div className="mt-2 rounded-2xl border border-border-secondary bg-background-tertiary px-3 py-2 text-xs text-foreground-tertiary">
-          <div className="font-semibold text-foreground-secondary">Debug live</div>
+      {debugEnabled && (
+        <div className="mt-2 rounded-2xl border border-white/15 bg-black/60 px-3 py-2 text-xs text-white/70">
+          <div className="font-semibold text-white/85">Debug live</div>
           <div className="break-all">src: {src}</div>
-          <div className="mt-1 break-all">{JSON.stringify(debug)}</div>
+          <div className="mt-1 break-all">
+            {debug ? JSON.stringify(debug) : 'En attente… (le debug apparaît au 1er stall/retry/erreur)'}
+          </div>
         </div>
       )}
     </div>
