@@ -1,6 +1,6 @@
 // Service Worker pour XimaM Music Platform
-const CACHE_NAME = 'ximam-audio-v4';
-const AUDIO_CACHE_NAME = 'ximam-audio-files-v4';
+const CACHE_NAME = 'ximam-audio-v5';
+const AUDIO_CACHE_NAME = 'ximam-audio-files-v5';
 const NOTIFICATION_TAG = 'ximam-music-player';
 
 // Fonction helper pour vérifier si une requête peut être mise en cache
@@ -240,6 +240,31 @@ self.addEventListener('fetch', (event) => {
   // IMPORTANT: ne jamais intercepter les requêtes non-GET (POST/PATCH/PUT/DELETE),
   // sinon certains appels API peuvent échouer (ex: /api/admin/users).
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // IMPORTANT: ne jamais intercepter/cacher des flux vidéo/live (HLS) ou des requêtes Range
+  // (ça provoque des freezes/écrans noirs sur le player dans l'app)
+  try {
+    const path = url.pathname.toLowerCase();
+    const isHls =
+      path.endsWith('.m3u8') ||
+      path.endsWith('.ts') ||
+      path.endsWith('.m4s') ||
+      path.endsWith('.mp4') ||
+      path.endsWith('.webm');
+    const isMux = url.hostname.toLowerCase().endsWith('mux.com');
+    const hasRange = event.request.headers && event.request.headers.has('range');
+    const dest = event.request.destination;
+    const isVideoDest = dest === 'video';
+
+    if (isMux || isHls || hasRange || isVideoDest) {
+      event.respondWith(fetch(event.request));
+      return;
+    }
+  } catch (e) {
+    // en cas de doute: ne pas casser le live
+    event.respondWith(fetch(event.request));
     return;
   }
 

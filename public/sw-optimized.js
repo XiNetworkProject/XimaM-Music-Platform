@@ -1,5 +1,5 @@
 // Service Worker Optimisé pour XimaM Music Platform
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `xima-static-${CACHE_VERSION}`;
 const DYNAMIC_CACHE = `xima-dynamic-${CACHE_VERSION}`;
 const AUDIO_CACHE = `xima-audio-${CACHE_VERSION}`;
@@ -179,6 +179,30 @@ self.addEventListener('fetch', (event) => {
 
   // IMPORTANT: ne jamais intercepter les requêtes non-GET (POST/PATCH/PUT/DELETE)
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  // IMPORTANT: ne jamais intercepter/cacher des flux vidéo/live (HLS) ou des requêtes Range
+  // (ça provoque des freezes/écrans noirs sur le player dans l'app)
+  try {
+    const path = url.pathname.toLowerCase();
+    const isHls =
+      path.endsWith('.m3u8') ||
+      path.endsWith('.ts') ||
+      path.endsWith('.m4s') ||
+      path.endsWith('.mp4') ||
+      path.endsWith('.webm');
+    const isMux = url.hostname.toLowerCase().endsWith('mux.com');
+    const hasRange = event.request.headers && event.request.headers.has('range');
+    const dest = event.request.destination;
+    const isVideoDest = dest === 'video';
+
+    if (isMux || isHls || hasRange || isVideoDest) {
+      event.respondWith(fetch(event.request));
+      return;
+    }
+  } catch (e) {
+    event.respondWith(fetch(event.request));
     return;
   }
 
