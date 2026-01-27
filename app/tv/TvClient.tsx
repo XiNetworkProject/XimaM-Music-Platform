@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import HlsVideoPlayer from '@/components/HlsVideoPlayer';
+import MuxVideoPlayer, { muxPlaybackIdFromUrl } from '@/components/MuxVideoPlayer';
 import { Tv, Radio, RefreshCw } from 'lucide-react';
 
 type TvStatus = {
@@ -27,6 +28,7 @@ export default function TvClient() {
   const canPlay = Boolean(status?.ok && status?.enabled && status?.playbackUrl);
   const isLive = Boolean(status?.ok && status?.enabled && status?.isLive);
   const playbackUrl = status?.playbackUrl || '';
+  const muxPlaybackId = useMemo(() => muxPlaybackIdFromUrl(playbackUrl), [playbackUrl]);
 
   const headerText = useMemo(() => {
     if (!status) return 'Chargement…';
@@ -107,7 +109,11 @@ export default function TvClient() {
           {canPlay ? (
             <div className="rounded-[28px] border border-white/15 bg-gradient-to-b from-white/10 to-black p-2">
               <div className="rounded-[22px] overflow-hidden bg-black">
-                <HlsVideoPlayer src={playbackUrl} className="aspect-video w-full" autoPlay muted controls />
+                {muxPlaybackId ? (
+                  <MuxVideoPlayer playbackId={muxPlaybackId} className="aspect-video w-full" autoPlay muted controls />
+                ) : (
+                  <HlsVideoPlayer src={playbackUrl} className="aspect-video w-full" autoPlay muted controls />
+                )}
               </div>
               {!isLive && (
                 <div className="mt-2 rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-xs text-white/70">

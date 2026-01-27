@@ -37,6 +37,7 @@ import Avatar from '@/components/Avatar';
 import FollowButton from '@/components/FollowButton';
 import LikeButton from '@/components/LikeButton';
 import HlsVideoPlayer from '@/components/HlsVideoPlayer';
+import MuxVideoPlayer, { muxPlaybackIdFromUrl } from '@/components/MuxVideoPlayer';
 
 interface Track {
   _id: string;
@@ -999,6 +1000,8 @@ export default function SynauraHome() {
     isLive?: boolean;
     playbackUrl?: string | null;
   } | null>(null);
+
+  const tvMuxPlaybackId = useMemo(() => muxPlaybackIdFromUrl(String(tvStatus?.playbackUrl || '')), [tvStatus?.playbackUrl]);
   
   // Fonction pour charger les données
   const fetchCategoryData = useCallback(async (key: string, url: string) => {
@@ -1859,13 +1862,17 @@ export default function SynauraHome() {
                     <div className="rounded-2xl border border-border-secondary bg-black overflow-hidden">
                       {/* pointer-events-none pour que le clic ouvre /tv */}
                       <div className="pointer-events-none">
-                        <HlsVideoPlayer
-                          src={String(tvStatus.playbackUrl)}
-                          className="aspect-video w-full"
-                          autoPlay
-                          muted
-                          controls={false}
-                        />
+                        {tvMuxPlaybackId ? (
+                          <MuxVideoPlayer playbackId={tvMuxPlaybackId} className="aspect-video w-full" autoPlay muted controls={false} />
+                        ) : (
+                          <HlsVideoPlayer
+                            src={String(tvStatus.playbackUrl)}
+                            className="aspect-video w-full"
+                            autoPlay
+                            muted
+                            controls={false}
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="mt-2 text-xs text-foreground-tertiary">
