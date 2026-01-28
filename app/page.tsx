@@ -1863,7 +1863,14 @@ export default function SynauraHome() {
                       {/* pointer-events-none pour que le clic ouvre /tv */}
                       <div className="pointer-events-none">
                         {tvMuxPlaybackId ? (
-                          <MuxVideoPlayer playbackId={tvMuxPlaybackId} className="aspect-video w-full" autoPlay muted controls={false} />
+                          <MuxVideoPlayer
+                            playbackUrl={String(tvStatus.playbackUrl)}
+                            playbackId={tvMuxPlaybackId}
+                            className="aspect-video w-full"
+                            autoPlay
+                            muted
+                            controls={false}
+                          />
                         ) : (
                           <HlsVideoPlayer
                             src={String(tvStatus.playbackUrl)}

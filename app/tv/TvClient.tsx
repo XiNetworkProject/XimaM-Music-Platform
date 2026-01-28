@@ -110,7 +110,7 @@ export default function TvClient() {
             <div className="rounded-[28px] border border-white/15 bg-gradient-to-b from-white/10 to-black p-2">
               <div className="rounded-[22px] overflow-hidden bg-black">
                 {muxPlaybackId ? (
-                  <MuxVideoPlayer playbackId={muxPlaybackId} className="aspect-video w-full" autoPlay muted controls />
+                  <MuxVideoPlayer playbackUrl={playbackUrl} playbackId={muxPlaybackId} className="aspect-video w-full" autoPlay muted controls />
                 ) : (
                   <HlsVideoPlayer src={playbackUrl} className="aspect-video w-full" autoPlay muted controls />
                 )}
