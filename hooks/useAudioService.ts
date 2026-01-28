@@ -3,6 +3,7 @@ import { useSession } from 'next-auth/react';
 import { useAudioRecommendations } from './useAudioRecommendations';
 import { sendTrackEvents } from '@/lib/analyticsClient';
 import { getCdnUrl } from '@/lib/cdn';
+import { getEntitlements } from '@/lib/entitlements';
 
 interface Track {
   _id: string;
@@ -101,6 +102,70 @@ export const useAudioService = () => {
   // Suivi des milestones de lecture (25%, 50%, 75%, 100%)
   const lastMilestoneRef = useRef<number>(0);
   const hasStartedRef = useRef<boolean>(false);
+
+  // =========================
+  // Publicités audio (MVP)
+  // =========================
+  const adFreeRef = useRef<boolean>(false);
+  const audioAdUrlRef = useRef<string>(String(process.env.NEXT_PUBLIC_AUDIO_AD_URL || ''));
+  const audioAdClickUrlRef = useRef<string>(String(process.env.NEXT_PUBLIC_AUDIO_AD_CLICK_URL || '/subscriptions'));
+  const pendingAfterAdRef = useRef<Track | null>(null);
+  const tracksSinceLastAdRef = useRef<number>(0);
+  const lastAudioAdAtRef = useRef<number>(0);
+
+  function isAdTrack(t: Track | null | undefined) {
+    const id = t?._id ? String(t._id) : '';
+    return id.startsWith('ad-audio-');
+  }
+
+  // Hydrate / persist simple frequency cap
+  useEffect(() => {
+    try {
+      const lastAt = Number(localStorage.getItem('ads.audio.lastAt') || '0');
+      const since = Number(localStorage.getItem('ads.audio.tracksSince') || '0');
+      if (Number.isFinite(lastAt)) lastAudioAdAtRef.current = lastAt;
+      if (Number.isFinite(since)) tracksSinceLastAdRef.current = since;
+    } catch {}
+  }, []);
+
+  const persistAudioAdState = useCallback(() => {
+    try {
+      localStorage.setItem('ads.audio.lastAt', String(lastAudioAdAtRef.current || 0));
+      localStorage.setItem('ads.audio.tracksSince', String(tracksSinceLastAdRef.current || 0));
+    } catch {}
+  }, []);
+
+  // Déterminer "ad-free" via le plan (Starter+ => sans pub)
+  useEffect(() => {
+    let mounted = true;
+    const run = async () => {
+      try {
+        if (!session?.user?.id) {
+          if (mounted) adFreeRef.current = false; // free (pubs)
+          return;
+        }
+        const res = await fetch('/api/subscriptions/my-subscription', { headers: { 'Cache-Control': 'no-store' } });
+        const j = res.ok ? await res.json().catch(() => ({})) : {};
+        const raw = String(j?.subscription?.name || 'free').toLowerCase();
+        const plan =
+          raw.includes('enterprise') ? 'enterprise' :
+          raw.includes('pro') ? 'pro' :
+          raw.includes('starter') ? 'starter' :
+          'free';
+        const ent = getEntitlements(plan as any);
+        if (mounted) adFreeRef.current = !!ent.features.adFree;
+      } catch {
+        if (mounted) adFreeRef.current = false;
+      }
+    };
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, [session?.user?.id]);
+
+  // NOTE: maybePlayAudioAdThen est défini plus bas, après `playImmediate`,
+  // pour éviter un ReferenceError (TDZ) sur l'ordre des hooks.
 
   // Garder currentIndex synchronisé avec la piste réellement chargée.
   // Sinon, next/ended peuvent repartir sur la même piste (index stale = -1 ou mauvais).
@@ -234,6 +299,7 @@ export const useAudioService = () => {
         
         // Envoyer les événements de progression (25%, 50%, 75%, 98%=complete)
         const currentTrack = state.currentTrack;
+        if (currentTrack && isAdTrack(currentTrack)) return;
         if (currentTrack && audio.duration > 0) {
           const progressPct = (audio.currentTime / audio.duration) * 100;
           const milestones = [25, 50, 75];
@@ -568,7 +634,7 @@ export const useAudioService = () => {
         lastTrackId.current = track._id;
         
         // Incrémenter les écoutes pour la nouvelle piste chargée
-        if (track._id && session?.user?.id) {
+        if (track._id && session?.user?.id && !isAdTrack(track)) {
           updatePlayCount(track._id);
         }
         
@@ -643,7 +709,7 @@ export const useAudioService = () => {
         localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
         
         // Incrémenter les écoutes pour la piste qui commence à jouer
-        updatePlayCount(track._id);
+        if (!isAdTrack(track)) updatePlayCount(track._id);
         
         // Émettre un événement pour synchroniser les compteurs d'écoutes
         window.dispatchEvent(new CustomEvent('trackPlayed', {
@@ -672,7 +738,7 @@ export const useAudioService = () => {
           setState(prev => ({ ...prev, isPlaying: true, error: null }));
           
           // Envoyer l'événement play_start (une seule fois par piste)
-          if (!hasStartedRef.current && state.currentTrack) {
+          if (!hasStartedRef.current && state.currentTrack && !isAdTrack(state.currentTrack)) {
             hasStartedRef.current = true;
             const trackId = state.currentTrack._id;
             const isAI = String(trackId).startsWith('ai-');
@@ -698,7 +764,7 @@ export const useAudioService = () => {
             setState(prev => ({ ...prev, isPlaying: true, error: null }));
             
             // Envoyer l'événement play_start (une seule fois par piste)
-            if (!hasStartedRef.current && state.currentTrack) {
+            if (!hasStartedRef.current && state.currentTrack && !isAdTrack(state.currentTrack)) {
               hasStartedRef.current = true;
               const trackId = state.currentTrack._id;
               const isAI = String(trackId).startsWith('ai-');
@@ -874,6 +940,51 @@ export const useAudioService = () => {
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
     }
   }, []);
+
+  const buildAudioAdTrack = useCallback((): Track | null => {
+    const url = String(audioAdUrlRef.current || '').trim();
+    if (!url) return null;
+    return {
+      _id: `ad-audio-${Date.now()}`,
+      title: 'Publicité',
+      artist: { _id: 'sponsor', name: 'Sponsor', username: 'sponsor' },
+      audioUrl: url,
+      coverUrl: '/synaura_symbol.svg',
+      duration: 30,
+      likes: [],
+      comments: [],
+      plays: 0,
+      isLiked: false,
+      genre: ['ad'],
+      createdAt: new Date().toISOString(),
+      album: null,
+    };
+  }, []);
+
+  const maybePlayAudioAdThen = useCallback(
+    (next: Track | null | undefined) => {
+      if (!next) return false;
+      if (adFreeRef.current) return false;
+      if (isAdTrack(next)) return false;
+      const ad = buildAudioAdTrack();
+      if (!ad) return false;
+
+      // Fréquence: 1 pub max / 8 minutes, et pas plus souvent que toutes les 4 pistes
+      const now = Date.now();
+      const MIN_MS = 8 * 60 * 1000;
+      const TRACKS_INTERVAL = 4;
+      if (now - (lastAudioAdAtRef.current || 0) < MIN_MS) return false;
+      if ((tracksSinceLastAdRef.current || 0) < TRACKS_INTERVAL) return false;
+
+      pendingAfterAdRef.current = next;
+      lastAudioAdAtRef.current = now;
+      tracksSinceLastAdRef.current = 0;
+      persistAudioAdState();
+      playImmediate(ad);
+      return true;
+    },
+    [buildAudioAdTrack, persistAudioAdState, playImmediate],
+  );
 
   const pause = useCallback(() => {
     if (audioRef.current) {
@@ -1405,6 +1516,21 @@ export const useAudioService = () => {
       });
     }
     
+    // Si on vient de terminer une pub audio, reprendre la piste prévue.
+    if (isAdTrack(state.currentTrack)) {
+      const nextAfterAd = pendingAfterAdRef.current;
+      pendingAfterAdRef.current = null;
+      if (nextAfterAd) {
+        playImmediate(nextAfterAd);
+        return;
+      }
+      // Si pas de piste prévue, on continue le flux normal.
+    } else {
+      // Une piste "normale" vient de se terminer => incrémenter compteur
+      tracksSinceLastAdRef.current = (tracksSinceLastAdRef.current || 0) + 1;
+      persistAudioAdState();
+    }
+
     if (repeat === 'one') {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
@@ -1421,7 +1547,7 @@ export const useAudioService = () => {
       if (next) {
         setUpNextQueue((prev) => (Array.isArray(prev) ? prev.slice(1) : []));
         // play immediately (ended context)
-        playImmediate(next);
+        if (!maybePlayAudioAdThen(next)) playImmediate(next);
         return;
       }
     }
@@ -1451,7 +1577,7 @@ export const useAudioService = () => {
         if (next) {
           setCurrentIndex(idx + 1);
           // IMPORTANT: ended -> éviter les awaits (autoplay policy). Play immédiatement.
-          playImmediate(next);
+          if (!maybePlayAudioAdThen(next)) playImmediate(next);
           return;
         }
       }
@@ -1460,7 +1586,7 @@ export const useAudioService = () => {
         if (next) {
           setCurrentIndex(0);
           // IMPORTANT: ended -> éviter les awaits (autoplay policy). Play immédiatement.
-          playImmediate(next);
+          if (!maybePlayAudioAdThen(next)) playImmediate(next);
           return;
         }
       }
@@ -1477,7 +1603,7 @@ export const useAudioService = () => {
           if (loadedTracks && loadedTracks.length > 0) {
             const randomTrack = loadedTracks[Math.floor(Math.random() * loadedTracks.length)];
             console.log('Auto-play: Piste aléatoire sélectionnée:', randomTrack.title);
-            playImmediate(randomTrack);
+            if (!maybePlayAudioAdThen(randomTrack)) playImmediate(randomTrack);
           } else {
             console.log('Aucune piste disponible après chargement');
             setState(prev => ({ ...prev, isPlaying: false }));
@@ -1567,7 +1693,7 @@ export const useAudioService = () => {
         const updatedHistory = [...recentlyPlayed, autoPlayNextTrack._id].slice(-10); // Garder les 10 dernières
         localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
         
-        playImmediate(autoPlayNextTrack);
+        if (!maybePlayAudioAdThen(autoPlayNextTrack)) playImmediate(autoPlayNextTrack);
         setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
       } else {
         // Aucune piste disponible, arrêter la lecture
@@ -1593,6 +1719,9 @@ export const useAudioService = () => {
     playImmediate,
     upNextEnabled,
     upNextQueue,
+    isAdTrack,
+    maybePlayAudioAdThen,
+    persistAudioAdState,
   ]);
 
   // Keep the ended handler pointing to the latest implementation (queue/repeat/current track etc.)

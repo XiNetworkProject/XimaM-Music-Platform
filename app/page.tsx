@@ -38,6 +38,7 @@ import FollowButton from '@/components/FollowButton';
 import LikeButton from '@/components/LikeButton';
 import HlsVideoPlayer from '@/components/HlsVideoPlayer';
 import MuxVideoPlayer, { muxPlaybackIdFromUrl } from '@/components/MuxVideoPlayer';
+import AdSlot from '@/components/AdSlot';
 
 interface Track {
   _id: string;
@@ -1948,6 +1949,11 @@ export default function SynauraHome() {
                     </button>
                   </div>
                       </div>
+
+            {/* Pub visuelle non intrusive (house ad) */}
+            <div className="mt-3">
+              <AdSlot placement="home_card" />
+            </div>
                     </div>
                     
           <div className="lg:col-span-4 space-y-3">
