@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { SYNAURA_TV_TABLE } from '@/lib/synauraTv';
-import { isMuxConfigured, muxGetLiveStream } from '@/lib/mux';
+import { isMuxConfigured, muxGetLiveStream, muxPlaybackUrl } from '@/lib/mux';
 
 export async function GET() {
   try {
     const { data: row, error } = await supabaseAdmin
       .from(SYNAURA_TV_TABLE)
-      .select('provider, enabled, playback_url, mux_live_stream_id, updated_at')
+      .select('provider, enabled, playback_url, mux_live_stream_id, mux_playback_id, updated_at')
       .eq('id', 1)
       .maybeSingle();
 
@@ -17,7 +17,13 @@ export async function GET() {
 
     const enabled = Boolean(row?.enabled);
     const provider = String(row?.provider || 'manual');
-    const playbackUrl = String(row?.playback_url || '');
+    const muxPlaybackId = String((row as any)?.mux_playback_id || '');
+    // IMPORTANT: en mode Mux, on préfère toujours le playbackId stocké (stable) et on génère l'URL,
+    // plutôt que de dépendre d'un playback_url potentiellement périmé/écrasé.
+    const playbackUrl =
+      provider === 'mux' && muxPlaybackId
+        ? muxPlaybackUrl(muxPlaybackId)
+        : String(row?.playback_url || '');
     const muxLiveStreamId = String(row?.mux_live_stream_id || '');
 
     let isLive = false;
