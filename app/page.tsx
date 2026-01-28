@@ -1904,6 +1904,13 @@ export default function SynauraHome() {
                   <Gift className="h-4 w-4 text-foreground-secondary" />
                   Boosters
               </button>
+              <button
+                  onClick={() => onGo('/community')}
+                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+              >
+                  <Users className="h-4 w-4 text-foreground-secondary" />
+                  Communauté
+              </button>
                       <button
                   onClick={() => onGo('/library')}
                   className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"

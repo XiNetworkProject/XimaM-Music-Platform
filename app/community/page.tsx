@@ -240,7 +240,7 @@ export default function CommunityPage() {
                       (session.user as any)?.username ||
                       'membre'}
                   </span>
-                  . Merci de faire partie de la communauté ✨
+                  . Merci de faire partie de la communauté.
                 </p>
               )}
             </div>
