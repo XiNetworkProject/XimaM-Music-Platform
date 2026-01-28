@@ -10,6 +10,7 @@ import StudioBackground from '@/components/StudioBackground';
 import GlobalQueueBubble from '@/components/GlobalQueueBubble';
 import GlobalUpdatesBubble from '@/components/GlobalUpdatesBubble';
 import { Analytics } from '@vercel/analytics/next';
+import AdSenseScript from '@/components/AdSenseScript';
 
 // Déclaration des types pour les fonctions globales
 declare global {
@@ -102,6 +103,7 @@ export default function RootLayout({
         {/* Précharger le DNS et la connexion au CDN Bunny */}
         <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />
         <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
+        <AdSenseScript />
       </head>
           <body className={`theme-suno ${inter.className} overflow-x-hidden max-w-full`}>
         <Providers>

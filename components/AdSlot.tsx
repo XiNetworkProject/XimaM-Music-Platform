@@ -4,6 +4,7 @@ import Link from 'next/link';
 import React, { useMemo } from 'react';
 import { Megaphone, Crown } from 'lucide-react';
 import { useEntitlementsClient } from '@/hooks/useEntitlementsClient';
+import AdSenseUnit from '@/components/AdSenseUnit';
 
 type Props = {
   placement: 'home_card' | 'feed_inline' | 'player_banner';
@@ -12,9 +13,24 @@ type Props = {
 
 export default function AdSlot({ placement, className }: Props) {
   const { adFree, loading, plan } = useEntitlementsClient();
+  const adSenseSlot =
+    placement === 'home_card'
+      ? process.env.NEXT_PUBLIC_ADSENSE_SLOT_HOME || ''
+      : placement === 'feed_inline'
+        ? process.env.NEXT_PUBLIC_ADSENSE_SLOT_FEED || ''
+        : process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYER || '';
 
   // Si l'utilisateur est sans pub, on ne rend rien (zéro layout shift).
   if (!loading && adFree) return null;
+
+  // Si AdSense est configuré, on affiche une vraie pub (sinon fallback house ad)
+  if (process.env.NEXT_PUBLIC_ADSENSE_CLIENT && adSenseSlot) {
+    return (
+      <div className={className} data-placement={placement}>
+        <AdSenseUnit adSlot={adSenseSlot} className="w-full" />
+      </div>
+    );
+  }
 
   const title = useMemo(() => {
     if (placement === 'player_banner') return 'Sans pub avec Starter+';
