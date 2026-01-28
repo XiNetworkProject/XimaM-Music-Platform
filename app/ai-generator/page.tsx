@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat, Search, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat, Search, SlidersHorizontal } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -139,7 +139,7 @@ function StudioStatusOrb({
 export default function AIGenerator() {
   const { data: session } = useSession();
   const { quota, loading: quotaLoading } = useAIQuota();
-  const { playTrack, setQueueAndPlay } = useAudioPlayer();
+  const { audioState, playTrack, play, pause, nextTrack, previousTrack, setQueueAndPlay } = useAudioPlayer();
   // États pour la bibliothèque des générations (même logique que ai-library)
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
   const [allTracks, setAllTracks] = useState<AITrack[]>([]);
@@ -161,6 +161,13 @@ export default function AIGenerator() {
   const [customMode, setCustomMode] = useState(false);
   const [modelVersion, setModelVersion] = useState('V4_5');
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+
+  const formatTime = (seconds: number) => {
+    const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+  };
   
   // États pour la bibliothèque des générations
   const [searchQuery, setSearchQuery] = useState('');
@@ -1043,10 +1050,95 @@ export default function AIGenerator() {
 }
 
   return (
-    <div className="relative min-h-svh text-white overflow-hidden">
+    <div className="flex flex-col h-[100svh] bg-[#050505] text-white overflow-hidden font-sans selection:bg-indigo-500/30">
       <StudioBackground />
-      <div className="relative z-10 w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-5">
-        {/* Pas de header global sur /ai-generator (structure Suno : toolbar dans le builder) */}
+
+      {/* --- HEADER : "TRANSPORT BAR" --- */}
+      <header className="h-14 border-b border-white/5 bg-[#0a0a0a] flex items-center justify-between px-4 shrink-0 z-50">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-2 text-indigo-400 min-w-0">
+            <Zap className="w-5 h-5" fill="currentColor" />
+            <span className="font-bold tracking-tight text-lg truncate">
+              SYNAURA <span className="text-zinc-600 font-normal text-xs align-top">STUDIO</span>
+            </span>
+          </div>
+
+          <div className="h-6 w-[1px] bg-white/10 hidden sm:block" />
+
+          {/* Global Playback Controls */}
+          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
+            <button
+              type="button"
+              onClick={() => previousTrack()}
+              className="p-1.5 hover:text-white text-zinc-500 transition-colors"
+              aria-label="Piste précédente"
+            >
+              <SkipBack className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (audioState.isPlaying) {
+                  pause();
+                  return;
+                }
+                // si une piste est déjà chargée, reprendre; sinon jouer la dernière sélection IA si dispo
+                const cur = (audioState.tracks || [])[audioState.currentTrackIndex || 0];
+                if (cur) {
+                  await play();
+                  return;
+                }
+                if (generatedTrack) {
+                  playGenerated(generatedTrack);
+                }
+              }}
+              className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded shadow-lg shadow-indigo-900/20 transition-all"
+              aria-label={audioState.isPlaying ? 'Pause' : 'Lecture'}
+            >
+              {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => nextTrack()}
+              className="p-1.5 hover:text-white text-zinc-500 transition-colors"
+              aria-label="Piste suivante"
+            >
+              <SkipForward className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Time Display */}
+          <div className="font-mono text-xs text-indigo-300 bg-indigo-950/30 px-3 py-1.5 rounded border border-indigo-500/10 hidden md:block">
+            {formatTime(audioState.currentTime)} <span className="text-zinc-600">/ {formatTime(audioState.duration || 0)}</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowBuyCredits(true)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition"
+            aria-label="Acheter des crédits"
+          >
+            <Coins className="w-4 h-4 text-indigo-300" />
+            <span className="text-[10px] font-semibold text-zinc-300 tabular-nums">{creditsBalance}</span>
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Crédits</span>
+          </button>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5">
+            <div className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-indigo-500' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(99,102,241,0.4)]`} />
+            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
+              {isGenerating ? 'Generating' : 'System Ready'}
+            </span>
+          </div>
+          <button className="p-2 hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors" aria-label="Settings">
+            <Settings className="w-5 h-5" />
+          </button>
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border border-white/10" aria-hidden />
+        </div>
+      </header>
+
+      <div className="flex-1 overflow-hidden relative z-10 w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-5">
+        {/* (ancien header: gardé SR-only pour accessibilité) */}
         <header className="sr-only">
           <div className="flex items-center gap-3">
             <div className="relative">
