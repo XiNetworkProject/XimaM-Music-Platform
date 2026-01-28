@@ -98,6 +98,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Synaura" />
+        {/* AdSense: méthode alternative de validation (balise meta) */}
+        {process.env.NEXT_PUBLIC_ADSENSE_CLIENT ? (
+          <meta name="google-adsense-account" content={process.env.NEXT_PUBLIC_ADSENSE_CLIENT} />
+        ) : null}
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         {/* Précharger le DNS et la connexion au CDN Bunny */}
