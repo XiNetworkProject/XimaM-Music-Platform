@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import React, { useMemo } from 'react';
+import React from 'react';
 import { Megaphone, Crown } from 'lucide-react';
 import { useEntitlementsClient } from '@/hooks/useEntitlementsClient';
 import AdSenseUnit from '@/components/AdSenseUnit';
@@ -20,6 +20,8 @@ export default function AdSlot({ placement, className }: Props) {
         ? process.env.NEXT_PUBLIC_ADSENSE_SLOT_FEED || ''
         : process.env.NEXT_PUBLIC_ADSENSE_SLOT_PLAYER || '';
 
+  const title = placement === 'player_banner' ? 'Sans pub avec Starter+' : 'Sponsorisé';
+
   // Si l'utilisateur est sans pub, on ne rend rien (zéro layout shift).
   if (!loading && adFree) return null;
 
@@ -31,11 +33,6 @@ export default function AdSlot({ placement, className }: Props) {
       </div>
     );
   }
-
-  const title = useMemo(() => {
-    if (placement === 'player_banner') return 'Sans pub avec Starter+';
-    return 'Sponsorisé';
-  }, [placement]);
 
   // MVP: "house ad" non intrusive (upgrade). On pluggera un vrai provider ensuite.
   return (

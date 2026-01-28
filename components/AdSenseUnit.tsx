@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useEntitlementsClient } from '@/hooks/useEntitlementsClient';
 
 type Props = {
@@ -21,19 +21,23 @@ export default function AdSenseUnit({ adSlot, className, style, format = 'auto',
   const { adFree, loading } = useEntitlementsClient();
   const client = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
-  // Abonnés => pas de pubs
-  if (!loading && adFree) return null;
-  // Pas configuré => ne rien afficher (fallback géré par AdSlot)
-  if (!client || !adSlot) return null;
+  const canRender = useMemo(() => {
+    if (!client || !adSlot) return false;
+    if (!loading && adFree) return false;
+    return true;
+  }, [adFree, adSlot, client, loading]);
 
   useEffect(() => {
+    if (!canRender) return;
     try {
       window.adsbygoogle = window.adsbygoogle || [];
       window.adsbygoogle.push({});
     } catch {
       // ignore
     }
-  }, [adSlot]);
+  }, [adSlot, canRender]);
+
+  if (!canRender) return null;
 
   return (
     <ins
