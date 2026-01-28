@@ -37,6 +37,67 @@
   --background-fog-dense: var(--color-background-fog-dense, rgba(255,255,255,0.18));
 }
 
+/* ============================
+   Studio Pro theme (scopé)
+   Utilisé sur /ai-generator via la classe .studio-pro
+   ============================ */
+.studio-pro {
+  /* base */
+  --bg: #050505;
+  --bg-muted: #0a0a0a;
+  --surface: rgba(12, 12, 14, 0.70);
+  --surface-2: rgba(18, 18, 22, 0.75);
+  --border: rgba(255,255,255,0.06);
+  --text: rgba(255,255,255,0.92);
+  --text-muted: rgba(255,255,255,0.62);
+
+  /* accents */
+  --color-primary: #6366f1; /* indigo */
+  --color-primary-hover: #4f46e5;
+  --color-accent: #22d3ee; /* cyan */
+
+  /* tokens Suno-like */
+  --foreground-primary: var(--text);
+  --foreground-secondary: rgba(255,255,255,0.78);
+  --foreground-tertiary: rgba(255,255,255,0.58);
+  --foreground-inactive: rgba(255,255,255,0.46);
+
+  --background-primary: var(--bg);
+  --background-secondary: var(--bg-muted);
+  --background-tertiary: rgba(255,255,255,0.03);
+
+  --border-primary: rgba(255,255,255,0.10);
+  --border-secondary: rgba(255,255,255,0.06);
+  --overlay-on-primary: rgba(255,255,255,0.05);
+
+  --accent-brand: var(--color-primary);
+  --accent-blue: #1f8bff;
+  --accent-purple: #8b6efe;
+  --accent-success: #34d399;
+  --accent-error: #fb7185;
+  --accent-yellow: #fbbf24;
+
+  --background-fog-thin: rgba(255,255,255,0.03);
+  --background-fog-dense: rgba(255,255,255,0.14);
+}
+
+.studio-pro .panel-suno {
+  background: rgba(10,10,12,0.55);
+  border: 1px solid rgba(255,255,255,0.07);
+  backdrop-filter: blur(12px);
+  border-radius: 18px;
+}
+
+.studio-pro .threshold-label {
+  background: rgba(5,5,5,0.65) !important;
+  border-color: rgba(99,102,241,0.22) !important;
+  color: rgba(255,255,255,0.82) !important;
+}
+
+.studio-pro .border-border-primary { border-color: rgba(255,255,255,0.10); }
+.studio-pro .border-border-secondary { border-color: rgba(255,255,255,0.06); }
+
+
 .btn-suno {
   background: linear-gradient(135deg, var(--color-primary) 0%, #8b7af3 100%);
   color: #fff;

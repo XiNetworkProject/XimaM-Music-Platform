@@ -1050,7 +1050,7 @@ export default function AIGenerator() {
 }
 
   return (
-    <div className="flex flex-col h-[100svh] bg-[#050505] text-white overflow-hidden font-sans selection:bg-indigo-500/30">
+    <div className="studio-pro flex flex-col h-[100svh] bg-[#050505] text-white overflow-hidden font-sans selection:bg-indigo-500/30">
       <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
