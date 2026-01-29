@@ -53,3 +53,21 @@ export type GenerationJob = {
   paramsSnapshot: any;
 };
 
+export type StudioQueueStatus = 'pending' | 'running' | 'done' | 'failed';
+
+export type StudioQueueItem = {
+  id: string; // local id
+  taskId?: string; // set once started
+  projectId: string;
+  createdAt: string;
+  status: StudioQueueStatus;
+  progress?: number;
+  error?: string;
+  paramsSnapshot: any;
+};
+
+export type StudioQueueConfig = {
+  maxConcurrency: 1 | 2 | 3;
+  autoRun: boolean;
+};
+

@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { GenerationJob, StudioProject, StudioTrack } from '@/lib/studio/types';
+import type {
+  GenerationJob,
+  StudioProject,
+  StudioQueueConfig,
+  StudioQueueItem,
+  StudioTrack,
+} from '@/lib/studio/types';
 
 type SortBy = 'newest' | 'oldest' | 'title';
 type FilterBy = 'all' | 'favorites' | 'instrumental' | 'with-lyrics';
@@ -40,7 +46,8 @@ export type StudioState = {
   abTrackIdA: string | null;
   abTrackIdB: string | null;
   jobs: GenerationJob[];
-  queue: string[];
+  queueItems: StudioQueueItem[];
+  queueConfig: StudioQueueConfig;
   ui: StudioUIState;
   form: StudioFormState;
 
@@ -66,6 +73,10 @@ export type StudioState = {
   upsertJob: (job: GenerationJob) => void;
   updateJobStatus: (id: string, patch: Partial<GenerationJob>) => void;
   bindTaskToProject: (taskId: string, projectId: string) => void;
+  enqueueQueueItem: (paramsSnapshot: any, projectId: string) => string;
+  updateQueueItem: (id: string, patch: Partial<StudioQueueItem>) => void;
+  setQueueConfig: (patch: Partial<StudioQueueConfig>) => void;
+  retryQueueItem: (id: string) => string | null;
 
   // UI
   setUI: (patch: Partial<StudioUIState>) => void;
@@ -107,6 +118,11 @@ const DEFAULT_UI: StudioUIState = {
   rightOpen: true,
 };
 
+const DEFAULT_QUEUE_CONFIG: StudioQueueConfig = {
+  maxConcurrency: 1,
+  autoRun: true,
+};
+
 function ensureDefaultProject(projects: StudioProject[]) {
   if (projects.length) return projects;
   const t = nowIso();
@@ -133,7 +149,8 @@ export const useStudioStore = create<StudioState>()(
       abTrackIdA: null,
       abTrackIdB: null,
       jobs: [],
-      queue: [],
+      queueItems: [],
+      queueConfig: DEFAULT_QUEUE_CONFIG,
       ui: DEFAULT_UI,
       form: DEFAULT_FORM,
 
@@ -218,6 +235,41 @@ export const useStudioStore = create<StudioState>()(
       bindTaskToProject: (taskId, projectId) =>
         set((s) => ({ taskProjectMap: { ...(s.taskProjectMap || {}), [taskId]: projectId } })),
 
+      enqueueQueueItem: (paramsSnapshot, projectId) => {
+        const id = makeId('q');
+        const item: StudioQueueItem = {
+          id,
+          projectId: projectId || 'project_default',
+          createdAt: nowIso(),
+          status: 'pending',
+          paramsSnapshot,
+        };
+        set((s) => ({ queueItems: [item, ...(s.queueItems || [])] }));
+        return id;
+      },
+
+      updateQueueItem: (id, patch) =>
+        set((s) => ({
+          queueItems: (s.queueItems || []).map((q) => (q.id === id ? { ...q, ...patch } : q)),
+        })),
+
+      setQueueConfig: (patch) => set((s) => ({ queueConfig: { ...s.queueConfig, ...patch } })),
+
+      retryQueueItem: (id) => {
+        const src = get().queueItems.find((q) => q.id === id) || null;
+        if (!src) return null;
+        const newId = makeId('q');
+        const item: StudioQueueItem = {
+          id: newId,
+          projectId: src.projectId,
+          createdAt: nowIso(),
+          status: 'pending',
+          paramsSnapshot: src.paramsSnapshot,
+        };
+        set((s) => ({ queueItems: [item, ...(s.queueItems || [])] }));
+        return newId;
+      },
+
       setUI: (patch) => set((s) => ({ ui: { ...s.ui, ...patch } })),
       setForm: (patch) => set((s) => ({ form: { ...s.form, ...patch } })),
 
@@ -237,11 +289,13 @@ export const useStudioStore = create<StudioState>()(
       },
     }),
     {
-      name: 'studio.store.v1',
+      name: 'studio.store.v2',
       partialize: (s) => ({
         projects: ensureDefaultProject(s.projects || []),
         activeProjectId: s.activeProjectId,
         taskProjectMap: s.taskProjectMap,
+        queueItems: s.queueItems,
+        queueConfig: s.queueConfig,
         ui: s.ui,
         form: s.form,
         selectedTrackId: s.selectedTrackId,

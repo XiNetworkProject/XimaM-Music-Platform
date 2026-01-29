@@ -7,6 +7,7 @@ import type { StudioTrack } from '@/lib/studio/types';
 import { useAudioPlayer } from '@/app/providers';
 import { useStudioStore } from '@/lib/studio/store';
 import LibraryPanel from '@/components/studio/Library/LibraryPanel';
+import QueuePanel from '@/components/studio/Center/QueuePanel';
 
 function statusChip(g: BackgroundGeneration) {
   if (g.status === 'pending') return { label: 'running', icon: <Loader2 className="w-3 h-3 animate-spin" /> };
@@ -74,6 +75,8 @@ export default function StudioTimeline({
 
   return (
     <div className="h-full min-h-0 flex flex-col gap-3">
+      <QueuePanel />
+
       <div className="panel-suno overflow-hidden">
         <div className="p-3 border-b border-border-secondary">
           <div className="text-[11px] text-foreground-tertiary">CENTER</div>
