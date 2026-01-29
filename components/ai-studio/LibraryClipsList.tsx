@@ -91,10 +91,11 @@ export function LibraryClipsList({
               return (
                 <div
                   key={t.id}
-                  className="group flex items-center gap-3 px-3 py-2 hover:bg-overlay-on-primary cursor-pointer"
+                  className="studio-rack-row group flex items-center gap-3 px-3 py-2 hover:bg-overlay-on-primary cursor-pointer"
                   onClick={() => onPickTrack(t, gen)}
                   role="row"
                 >
+                  <div className="studio-rack-led" aria-hidden="true" />
                   <div className="w-10 h-10 rounded-xl bg-background-tertiary border border-border-primary overflow-hidden flex items-center justify-center shrink-0">
                     {cover ? (
                       // eslint-disable-next-line @next/next/no-img-element

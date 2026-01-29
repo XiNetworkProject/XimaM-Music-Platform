@@ -97,6 +97,86 @@
 .studio-pro .border-border-primary { border-color: rgba(255,255,255,0.10); }
 .studio-pro .border-border-secondary { border-color: rgba(255,255,255,0.06); }
 
+/* ============================
+   Studio Pro - Library "Rack"
+   ============================ */
+.studio-pro .clip-browser-list-scroller {
+  padding: 8px 8px 10px;
+}
+
+.studio-pro .studio-rack-row {
+  position: relative;
+  border-radius: 14px;
+  margin: 8px 0;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.35) inset,
+    0 10px 25px rgba(0,0,0,0.35);
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.studio-pro .studio-rack-row:hover {
+  transform: translateY(-1px);
+  border-color: rgba(99,102,241,0.20);
+  background: linear-gradient(180deg, rgba(99,102,241,0.10), rgba(255,255,255,0.02));
+}
+
+.studio-pro .studio-rack-row:active {
+  transform: translateY(0px);
+}
+
+.studio-pro .studio-rack-led {
+  width: 7px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.10);
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.35) inset;
+  margin-right: 2px;
+  flex: 0 0 auto;
+}
+
+.studio-pro .studio-rack-row:hover .studio-rack-led {
+  background: rgba(34,211,238,0.18);
+  border-color: rgba(34,211,238,0.22);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.35) inset,
+    0 0 14px rgba(34,211,238,0.22);
+}
+
+.studio-pro .studio-rack-row > .w-10.h-10 {
+  width: 44px !important;
+  height: 44px !important;
+  border-radius: 14px !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  background: rgba(255,255,255,0.03) !important;
+}
+
+.studio-pro .studio-rack-row img {
+  filter: saturate(1.05) contrast(1.05);
+}
+
+.studio-pro .studio-rack-row .text-\\[13px\\] {
+  font-size: 13px;
+  letter-spacing: 0.01em;
+}
+
+.studio-pro .studio-rack-row .text-\\[11px\\] {
+  font-size: 11px;
+  opacity: 0.82;
+}
+
+.studio-pro .studio-rack-row button {
+  opacity: 1; /* on garde l’action toujours accessible */
+}
+
+.studio-pro .studio-rack-row .group-hover\\:opacity-100 {
+  opacity: 1; /* override Tailwind hover-only */
+}
+
 
 .btn-suno {
   background: linear-gradient(135deg, var(--color-primary) 0%, #8b7af3 100%);
