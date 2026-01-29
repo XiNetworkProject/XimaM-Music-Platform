@@ -1,0 +1,214 @@
+'use client';
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import StudioBackground from '@/components/StudioBackground';
+import BuyCreditsModal from '@/components/BuyCreditsModal';
+import { useAudioPlayer } from '@/app/providers';
+import { fetchCreditsBalance } from '@/lib/credits';
+import { useAIQuota } from '@/hooks/useAIQuota';
+import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
+import { useStudioStore } from '@/lib/studio/store';
+import { aiTrackToStudioTrack } from '@/lib/studio/adapters';
+import { handleStudioHotkeys } from '@/lib/studio/hotkeys';
+import TransportBar from '@/components/studio/TransportBar';
+import LeftDock from '@/components/studio/LeftDock/LeftDock';
+import StudioTimeline from '@/components/studio/Center/StudioTimeline';
+import Inspector from '@/components/studio/RightDock/Inspector';
+
+type TracksApiResponse = { tracks?: any[] };
+
+export default function StudioClient() {
+  const { data: session } = useSession();
+  const { audioState, play, pause, nextTrack, previousTrack } = useAudioPlayer();
+  const { quota } = useAIQuota();
+  const { generations: bgGenerations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
+
+  const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [showBuyCredits, setShowBuyCredits] = useState(false);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+
+  const searchRef = useRef<HTMLInputElement | null>(null);
+
+  const activeProjectId = useStudioStore((s) => s.activeProjectId);
+  const setTracks = useStudioStore((s) => s.setTracks);
+  const tracks = useStudioStore((s) => s.tracks);
+  const ui = useStudioStore((s) => s.ui);
+  const setUI = useStudioStore((s) => s.setUI);
+  const form = useStudioStore((s) => s.form);
+
+  const artistName = useMemo(() => {
+    const u: any = session?.user;
+    return (u?.name || u?.username || u?.email || 'Artiste') as string;
+  }, [session?.user]);
+
+  const loadCredits = async () => {
+    const data = await fetchCreditsBalance();
+    setCreditsBalance(data?.balance ?? 0);
+  };
+
+  const loadLibraryTracks = async () => {
+    if (!session?.user?.id) return;
+    try {
+      setLibraryLoading(true);
+      setLibraryError(null);
+      const q = (ui.search || '').trim();
+      const url = `/api/ai/library/tracks?limit=200&offset=0&search=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+      const json = (await res.json()) as TracksApiResponse;
+      if (!res.ok) throw new Error((json as any)?.error || 'Erreur chargement bibliothèque');
+      const mapped = (json.tracks || []).map((t) => aiTrackToStudioTrack(t, artistName)).map((t) => ({
+        ...t,
+        projectId: activeProjectId || undefined,
+      }));
+      setTracks(mapped);
+    } catch (e: any) {
+      setLibraryError(e?.message || 'Erreur chargement bibliothèque');
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
+  // Initial load
+  useEffect(() => {
+    loadCredits().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    loadLibraryTracks().catch(() => {});
+    const onUpdated = () => loadLibraryTracks().catch(() => {});
+    window.addEventListener('aiLibraryUpdated', onUpdated as EventListener);
+    return () => window.removeEventListener('aiLibraryUpdated', onUpdated as EventListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user?.id, ui.search, activeProjectId]);
+
+  // Hotkeys
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      handleStudioHotkeys(e, {
+        onPlayPause: () => (audioState.isPlaying ? pause() : void play()),
+        onPrev: () => previousTrack(),
+        onNext: () => nextTrack(),
+        onFocusSearch: () => searchRef.current?.focus(),
+        onClose: () => setUI({ inspectorOpen: false }),
+      });
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [audioState.isPlaying, nextTrack, pause, play, previousTrack, setUI]);
+
+  const onGenerate = async () => {
+    try {
+      const requestBody: any = {
+        customMode: form.customMode,
+        instrumental: form.instrumental,
+        model: form.model,
+        callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined,
+      };
+
+      const tags = (form.tags || []).filter(Boolean);
+      if (form.customMode) {
+        if (!form.style.trim()) throw new Error('Style manquant');
+        if (!form.instrumental && !form.lyrics.trim()) throw new Error('Paroles manquantes (ou coche Instrumental)');
+        requestBody.title = form.title.trim() ? form.title.trim() : undefined;
+        requestBody.style = [form.style, ...tags].filter(Boolean).join(', ');
+        requestBody.prompt = form.instrumental ? undefined : (form.lyrics.trim() || undefined);
+        requestBody.styleWeight = Number((Math.round(form.styleInfluence) / 100).toFixed(2));
+        requestBody.weirdnessConstraint = Number((Math.round(form.weirdness) / 100).toFixed(2));
+        requestBody.audioWeight = Number((Math.round(form.audioWeight) / 100).toFixed(2));
+        requestBody.negativeTags = form.negativeTags || undefined;
+        requestBody.vocalGender = form.vocalGender || undefined;
+      } else {
+        if (!form.description.trim()) throw new Error('Description manquante');
+        requestBody.prompt = [form.description, ...tags].filter(Boolean).join(', ');
+      }
+
+      const res = await fetch('/api/suno/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!res.ok) {
+        if (res.status === 402) setShowBuyCredits(true);
+        throw new Error('Erreur génération');
+      }
+
+      const data = await res.json();
+      if (data?.credits?.balance != null) setCreditsBalance(data.credits.balance);
+
+      if (data?.taskId) {
+        const promptText = data.prompt || requestBody.prompt || 'Musique générée';
+        const title = form.customMode ? (form.title || 'Musique') : String(promptText).slice(0, 60);
+        startBackgroundGeneration({
+          id: data.id,
+          taskId: data.taskId,
+          status: 'pending',
+          title,
+          style: form.customMode ? form.style : 'Simple',
+          prompt: promptText,
+          progress: 0,
+          startTime: Date.now(),
+          estimatedTime: 60000,
+        });
+      }
+    } catch (e: any) {
+      console.error(e);
+      // V1: on reste simple (les toasts existants restent dans l'ancien studio)
+      alert(e?.message || 'Erreur génération');
+    }
+  };
+
+  const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+
+  return (
+    <div className="studio-pro relative h-[100svh] overflow-hidden bg-[#050505] text-white">
+      <StudioBackground />
+
+      <div className="relative z-10 flex flex-col h-full">
+        <TransportBar
+          currentTrackTitle={(currentTrack as any)?.title || ''}
+          isPlaying={audioState.isPlaying}
+          onPlayPause={() => (audioState.isPlaying ? pause() : void play())}
+          onPrev={() => previousTrack()}
+          onNext={() => nextTrack()}
+          creditsBalance={creditsBalance}
+          quotaRemaining={quota?.remaining ?? null}
+          runningJobsCount={activeGenerations?.size ?? 0}
+          onOpenBuyCredits={() => setShowBuyCredits(true)}
+        />
+
+        <div className="flex-1 min-h-0 px-3 pb-3">
+          <div className="h-full grid grid-cols-12 gap-3">
+            {/* Left Dock */}
+            <div className="col-span-12 lg:col-span-3 min-h-0">
+              <LeftDock onGenerate={onGenerate} />
+            </div>
+
+            {/* Center */}
+            <div className="col-span-12 lg:col-span-6 min-h-0">
+              <StudioTimeline
+                tracks={tracks}
+                loading={libraryLoading}
+                error={libraryError}
+                bgGenerations={bgGenerations}
+                onRefreshLibrary={loadLibraryTracks}
+                searchRef={searchRef}
+              />
+            </div>
+
+            {/* Right Dock */}
+            <div className="col-span-12 lg:col-span-3 min-h-0">
+              <Inspector />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
+    </div>
+  );
+}
+
