@@ -5,6 +5,7 @@ import { Clock, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
 import type { BackgroundGeneration } from '@/hooks/useBackgroundGeneration';
 import type { StudioTrack } from '@/lib/studio/types';
 import { useAudioPlayer } from '@/app/providers';
+import { useStudioStore } from '@/lib/studio/store';
 import LibraryPanel from '@/components/studio/Library/LibraryPanel';
 
 function statusChip(g: BackgroundGeneration) {
@@ -29,12 +30,15 @@ export default function StudioTimeline({
   searchRef: React.RefObject<HTMLInputElement | null>;
 }) {
   const { setQueueAndPlay } = useAudioPlayer();
+  const activeProjectId = useStudioStore((s) => s.activeProjectId);
+  const jobs = useStudioStore((s) => s.jobs);
 
   const sortedJobs = useMemo(() => {
-    const copy = [...(bgGenerations || [])];
-    copy.sort((a, b) => b.startTime - a.startTime);
+    const pid = activeProjectId || 'project_default';
+    const copy = [...(jobs || [])].filter((j) => (j.projectId || 'project_default') === pid);
+    copy.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     return copy.slice(0, 30);
-  }, [bgGenerations]);
+  }, [jobs, activeProjectId]);
 
   const onPlayTrack = (t: StudioTrack) => {
     const playerTrack: any = {
@@ -81,17 +85,22 @@ export default function StudioTimeline({
             <div className="text-sm text-foreground-tertiary">Aucun job en cours.</div>
           ) : (
             <div className="grid gap-2">
-              {sortedJobs.map((g) => {
-                const chip = statusChip(g);
+              {sortedJobs.map((j) => {
+                const bg = (bgGenerations || []).find((x) => x.taskId === j.id) || null;
+                const chip = bg ? statusChip(bg) : { label: j.status, icon: <Clock className="w-3 h-3" /> };
                 return (
                   <div
-                    key={g.taskId}
+                    key={j.id}
                     className="rounded-xl border border-border-secondary bg-white/5 px-3 py-2 flex items-center gap-3"
                   >
                     <div className="text-foreground-tertiary">{chip.icon}</div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] text-foreground-primary truncate">{g.title}</div>
-                      <div className="text-[11px] text-foreground-tertiary truncate">{g.prompt}</div>
+                      <div className="text-[13px] text-foreground-primary truncate">
+                        {j.paramsSnapshot?.title || j.paramsSnapshot?.prompt || 'Génération'}
+                      </div>
+                      <div className="text-[11px] text-foreground-tertiary truncate">
+                        {j.paramsSnapshot?.style || j.paramsSnapshot?.model || ''}
+                      </div>
                     </div>
                     <div className="text-[11px] text-foreground-tertiary flex items-center gap-1">
                       <Clock className="w-3 h-3" />

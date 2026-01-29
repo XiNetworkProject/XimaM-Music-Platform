@@ -5,6 +5,7 @@ export type StudioTrack = {
   title: string;
   artistName: string;
   createdAt: string;
+  generationTaskId?: string;
   durationSec?: number;
   bpm?: number;
   key?: string;

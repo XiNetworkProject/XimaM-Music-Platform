@@ -34,6 +34,7 @@ type StudioFormState = {
 export type StudioState = {
   projects: StudioProject[];
   activeProjectId: string | null;
+  taskProjectMap: Record<string, string>;
   tracks: StudioTrack[];
   selectedTrackId: string | null;
   abTrackIdA: string | null;
@@ -64,6 +65,7 @@ export type StudioState = {
   // Jobs/queue (V1 simple)
   upsertJob: (job: GenerationJob) => void;
   updateJobStatus: (id: string, patch: Partial<GenerationJob>) => void;
+  bindTaskToProject: (taskId: string, projectId: string) => void;
 
   // UI
   setUI: (patch: Partial<StudioUIState>) => void;
@@ -125,6 +127,7 @@ export const useStudioStore = create<StudioState>()(
     (set, get) => ({
       projects: ensureDefaultProject([]),
       activeProjectId: 'project_default',
+      taskProjectMap: {},
       tracks: [],
       selectedTrackId: null,
       abTrackIdA: null,
@@ -212,6 +215,9 @@ export const useStudioStore = create<StudioState>()(
       updateJobStatus: (id, patch) =>
         set((s) => ({ jobs: s.jobs.map((j) => (j.id === id ? { ...j, ...patch } : j)) })),
 
+      bindTaskToProject: (taskId, projectId) =>
+        set((s) => ({ taskProjectMap: { ...(s.taskProjectMap || {}), [taskId]: projectId } })),
+
       setUI: (patch) => set((s) => ({ ui: { ...s.ui, ...patch } })),
       setForm: (patch) => set((s) => ({ form: { ...s.form, ...patch } })),
 
@@ -235,6 +241,7 @@ export const useStudioStore = create<StudioState>()(
       partialize: (s) => ({
         projects: ensureDefaultProject(s.projects || []),
         activeProjectId: s.activeProjectId,
+        taskProjectMap: s.taskProjectMap,
         ui: s.ui,
         form: s.form,
         selectedTrackId: s.selectedTrackId,

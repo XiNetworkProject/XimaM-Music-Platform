@@ -34,6 +34,10 @@ export default function StudioClient() {
   const activeProjectId = useStudioStore((s) => s.activeProjectId);
   const setTracks = useStudioStore((s) => s.setTracks);
   const tracks = useStudioStore((s) => s.tracks);
+  const taskProjectMap = useStudioStore((s) => s.taskProjectMap);
+  const upsertJob = useStudioStore((s) => s.upsertJob);
+  const updateJobStatus = useStudioStore((s) => s.updateJobStatus);
+  const bindTaskToProject = useStudioStore((s) => s.bindTaskToProject);
   const ui = useStudioStore((s) => s.ui);
   const setUI = useStudioStore((s) => s.setUI);
   const form = useStudioStore((s) => s.form);
@@ -58,10 +62,15 @@ export default function StudioClient() {
       const res = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
       const json = (await res.json()) as TracksApiResponse;
       if (!res.ok) throw new Error((json as any)?.error || 'Erreur chargement bibliothèque');
-      const mapped = (json.tracks || []).map((t) => aiTrackToStudioTrack(t, artistName)).map((t) => ({
-        ...t,
-        projectId: activeProjectId || undefined,
-      }));
+      const mapped = (json.tracks || []).map((t) => {
+        const st = aiTrackToStudioTrack(t, artistName);
+        const taskId = st.generationTaskId;
+        const inferredProjectId = taskId ? taskProjectMap?.[taskId] : undefined;
+        return {
+          ...st,
+          projectId: inferredProjectId || st.projectId || 'project_default',
+        };
+      });
       setTracks(mapped);
     } catch (e: any) {
       setLibraryError(e?.message || 'Erreur chargement bibliothèque');
@@ -98,6 +107,15 @@ export default function StudioClient() {
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [audioState.isPlaying, nextTrack, pause, play, previousTrack, setUI]);
+
+  // Sync background generations -> studio jobs
+  useEffect(() => {
+    (bgGenerations || []).forEach((g) => {
+      const status =
+        g.status === 'completed' ? 'done' : g.status === 'failed' ? 'failed' : 'running';
+      updateJobStatus(g.taskId, { status, progress: g.progress });
+    });
+  }, [bgGenerations, updateJobStatus]);
 
   const onGenerate = async () => {
     try {
@@ -142,6 +160,18 @@ export default function StudioClient() {
       if (data?.taskId) {
         const promptText = data.prompt || requestBody.prompt || 'Musique générée';
         const title = form.customMode ? (form.title || 'Musique') : String(promptText).slice(0, 60);
+        const projectId = activeProjectId || 'project_default';
+
+        bindTaskToProject(data.taskId, projectId);
+        upsertJob({
+          id: data.taskId,
+          projectId,
+          createdAt: new Date().toISOString(),
+          status: 'pending',
+          progress: 0,
+          paramsSnapshot: requestBody,
+        });
+
         startBackgroundGeneration({
           id: data.id,
           taskId: data.taskId,
@@ -162,6 +192,11 @@ export default function StudioClient() {
   };
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+
+  const visibleTracks = useMemo(() => {
+    const pid = activeProjectId || 'project_default';
+    return (tracks || []).filter((t) => (t.projectId || 'project_default') === pid);
+  }, [tracks, activeProjectId]);
 
   return (
     <div className="studio-pro relative h-[100svh] overflow-hidden bg-[#050505] text-white">
@@ -190,7 +225,7 @@ export default function StudioClient() {
             {/* Center */}
             <div className="col-span-12 lg:col-span-6 min-h-0">
               <StudioTimeline
-                tracks={tracks}
+                tracks={visibleTracks}
                 loading={libraryLoading}
                 error={libraryError}
                 bgGenerations={bgGenerations}

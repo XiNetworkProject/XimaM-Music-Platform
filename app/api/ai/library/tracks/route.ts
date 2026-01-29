@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
       .select(
         `
           *,
-          generation:ai_generations!inner(id, user_id, model, created_at, prompt, status)
+          generation:ai_generations!inner(id, user_id, model, created_at, prompt, status, task_id)
         `
       )
       .eq('generation.user_id', session.user.id)

@@ -5,6 +5,10 @@ function safeStr(v: any, fallback = ''): string {
   return typeof v === 'string' ? v : fallback;
 }
 
+function safeOptStr(v: any): string | undefined {
+  return typeof v === 'string' && v.trim() ? v : undefined;
+}
+
 export function aiTrackToStudioTrack(ai: any, artistName: string): StudioTrack {
   const t = ai as AITrack & { generation?: any };
   const gen = (t as any).generation || null;
@@ -16,6 +20,7 @@ export function aiTrackToStudioTrack(ai: any, artistName: string): StudioTrack {
     title: safeStr(t.title, 'Musique générée'),
     artistName: artistName || 'Artiste',
     createdAt: safeStr(t.created_at, safeStr(gen?.created_at, new Date().toISOString())),
+    generationTaskId: safeOptStr(gen?.task_id),
     durationSec: typeof (t as any).duration === 'number' ? (t as any).duration : undefined,
     tags,
     prompt,
