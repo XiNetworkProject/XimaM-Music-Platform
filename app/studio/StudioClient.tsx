@@ -40,7 +40,6 @@ export default function StudioClient() {
   const bindTaskToProject = useStudioStore((s) => s.bindTaskToProject);
   const ui = useStudioStore((s) => s.ui);
   const setUI = useStudioStore((s) => s.setUI);
-  const form = useStudioStore((s) => s.form);
 
   const artistName = useMemo(() => {
     const u: any = session?.user;
@@ -117,8 +116,9 @@ export default function StudioClient() {
     });
   }, [bgGenerations, updateJobStatus]);
 
-  const onGenerate = async () => {
+  const onGenerate = async (formOverride?: Record<string, any>) => {
     try {
+      const form = { ...useStudioStore.getState().form, ...(formOverride || {}) } as any;
       const requestBody: any = {
         customMode: form.customMode,
         instrumental: form.instrumental,
@@ -191,6 +191,15 @@ export default function StudioClient() {
     }
   };
 
+  const onGenerateVariantFromTrack = (trackId: string) => {
+    const st = useStudioStore.getState();
+    const t = st.tracks.find((x) => x.id === trackId);
+    if (!t) return;
+    st.loadTrackIntoForm(trackId);
+    const nextTitle = `${t.title || 'Musique'} (variante)`;
+    void onGenerate({ customMode: true, title: nextTitle });
+  };
+
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
 
   const visibleTracks = useMemo(() => {
@@ -236,7 +245,7 @@ export default function StudioClient() {
 
             {/* Right Dock */}
             <div className="col-span-12 lg:col-span-3 min-h-0">
-              <Inspector />
+              <Inspector onGenerateVariantFromTrack={onGenerateVariantFromTrack} />
             </div>
           </div>
         </div>

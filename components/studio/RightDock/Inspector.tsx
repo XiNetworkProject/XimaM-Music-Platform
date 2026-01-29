@@ -13,7 +13,11 @@ async function copyText(text: string) {
   } catch {}
 }
 
-export default function Inspector() {
+export default function Inspector({
+  onGenerateVariantFromTrack,
+}: {
+  onGenerateVariantFromTrack: (trackId: string) => void;
+}) {
   const tracks = useStudioStore((s) => s.tracks);
   const selectedTrackId = useStudioStore((s) => s.selectedTrackId);
   const setAB = useStudioStore((s) => s.setAB);
@@ -192,7 +196,7 @@ export default function Inspector() {
                     </button>
                   </div>
                 </div>
-                <ABCompare />
+                <ABCompare onGenerateVariantFromTrack={onGenerateVariantFromTrack} />
               </div>
             ) : null}
           </div>
