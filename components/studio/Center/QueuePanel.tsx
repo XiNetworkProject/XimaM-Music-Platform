@@ -4,6 +4,13 @@ import { useMemo } from 'react';
 import { Play, Pause, RefreshCw } from 'lucide-react';
 import { useStudioStore } from '@/lib/studio/store';
 
+function statusPill(status: string) {
+  if (status === 'running') return 'bg-cyan-500/15 text-cyan-200 border-cyan-500/20';
+  if (status === 'pending') return 'bg-indigo-500/15 text-indigo-200 border-indigo-500/20';
+  if (status === 'done') return 'bg-emerald-500/15 text-emerald-200 border-emerald-500/20';
+  return 'bg-rose-500/15 text-rose-200 border-rose-500/20';
+}
+
 export default function QueuePanel() {
   const activeProjectId = useStudioStore((s) => s.activeProjectId);
   const queueItems = useStudioStore((s) => s.queueItems);
@@ -73,10 +80,20 @@ export default function QueuePanel() {
                   {q.paramsSnapshot?.title || q.paramsSnapshot?.prompt || 'Génération'}
                 </div>
                 <div className="text-[11px] text-foreground-tertiary truncate">
-                  {q.status}
-                  {q.taskId ? ` · ${q.taskId}` : ''}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full border ${statusPill(q.status)}`}>
+                    {q.status}
+                  </span>
+                  {q.taskId ? <span className="ml-2 text-foreground-inactive">#{q.taskId}</span> : null}
                 </div>
                 {q.error ? <div className="text-[11px] text-red-400 truncate">{q.error}</div> : null}
+                {q.status === 'running' && typeof q.progress === 'number' ? (
+                  <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className="h-full bg-cyan-400/70"
+                      style={{ width: `${Math.max(2, Math.min(100, Math.round(q.progress || 0)))}%` }}
+                    />
+                  </div>
+                ) : null}
               </div>
               {q.status === 'failed' ? (
                 <button

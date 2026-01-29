@@ -41,8 +41,11 @@ export default function GeneratorForm({ onGenerate }: { onGenerate: () => void }
             onClick={onGenerate}
           >
             <Wand2 className="w-4 h-4" />
-            Generate
+            Queue {Math.max(1, Math.min(8, Number(form.variations || 1)))}x
           </button>
+        </div>
+        <div className="px-4 pb-4 -mt-2 text-[11px] text-foreground-tertiary">
+          Ajoute à la queue (auto-run selon ton réglage).
         </div>
       </div>
 
@@ -74,6 +77,18 @@ export default function GeneratorForm({ onGenerate }: { onGenerate: () => void }
               <option value="V3_5">V3_5</option>
               <option value="V5">V5</option>
             </select>
+          </label>
+
+          <label className="grid gap-1">
+            <span className="text-[11px] text-foreground-tertiary">Variations (1–8)</span>
+            <input
+              className={SUNO_FIELD}
+              type="number"
+              min={1}
+              max={8}
+              value={form.variations}
+              onChange={(e) => setForm({ variations: Math.max(1, Math.min(8, Number(e.target.value || 1))) })}
+            />
           </label>
 
           <label className="flex items-center justify-between gap-3">
