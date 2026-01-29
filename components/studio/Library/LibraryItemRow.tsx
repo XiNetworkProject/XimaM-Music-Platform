@@ -12,19 +12,34 @@ export default function LibraryItemRow({
   track: StudioTrack;
   onPlay: (track: StudioTrack) => void;
 }) {
-  const selectedTrackId = useStudioStore((s) => s.selectedTrackId);
-  const selectTrack = useStudioStore((s) => s.selectTrack);
-  const isSelected = selectedTrackId === track.id;
+  const selectedTrackIds = useStudioStore((s) => s.selectedTrackIds);
+  const toggleSelectTrack = useStudioStore((s) => s.toggleSelectTrack);
+  const isSelected = (selectedTrackIds || []).includes(track.id);
 
   return (
     <div
       className={`studio-rack-row group flex items-center gap-3 px-3 py-2 cursor-pointer ${
         isSelected ? 'ring-1 ring-indigo-400/30' : ''
       }`}
-      onClick={() => selectTrack(track.id)}
+      onClick={(e) => {
+        const ev = e as any;
+        toggleSelectTrack(track.id, { multi: !!ev?.metaKey || !!ev?.ctrlKey, range: !!ev?.shiftKey });
+      }}
       role="row"
     >
       <div className="studio-rack-led" aria-hidden="true" />
+      <input
+        type="checkbox"
+        className="h-4 w-4 accent-indigo-400"
+        checked={isSelected}
+        onChange={(e) => {
+          e.stopPropagation();
+          const ev: any = e.nativeEvent;
+          toggleSelectTrack(track.id, { multi: true, range: !!ev?.shiftKey });
+        }}
+        onClick={(e) => e.stopPropagation()}
+        aria-label="Select"
+      />
       <div className="w-10 h-10 rounded-xl bg-background-tertiary border border-border-primary overflow-hidden flex items-center justify-center shrink-0">
         {track.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element

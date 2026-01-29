@@ -13,6 +13,8 @@ import Inspector from '@/components/studio/RightDock/Inspector';
 import { useStudioLibrary } from '@/components/studio/hooks/useStudioLibrary';
 import { useStudioHotkeys } from '@/components/studio/hooks/useStudioHotkeys';
 import { useStudioGenerationQueue } from '@/components/studio/hooks/useStudioGenerationQueue';
+import MobileTabs from '@/components/studio/ui/MobileTabs';
+import DrawerInspector from '@/components/studio/ui/DrawerInspector';
 
 export default function StudioClient() {
   const { audioState, play, pause, nextTrack, previousTrack } = useAudioPlayer();
@@ -22,6 +24,7 @@ export default function StudioClient() {
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   const setUI = useStudioStore((s) => s.setUI);
+  const ui = useStudioStore((s) => s.ui);
   const runningJobsCount = useStudioStore((s) => (s.queueItems || []).filter((q) => q.status === 'running').length);
 
   const { creditsBalance, setCreditsBalance, libraryLoading, libraryError, loadLibraryTracks, visibleTracks } =
@@ -43,6 +46,7 @@ export default function StudioClient() {
   });
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+  const mobileTab = ui.mobileTab || 'library';
 
   return (
     <div className="studio-pro relative h-[100svh] overflow-hidden bg-[#050505] text-white">
@@ -62,30 +66,47 @@ export default function StudioClient() {
         />
 
         <div className="flex-1 min-h-0 px-3 pb-3">
-          <div className="h-full grid grid-cols-12 gap-3">
+          <div className="h-full grid grid-cols-12 gap-3 pb-16 lg:pb-0">
             <div className="col-span-12 lg:col-span-3 min-h-0">
-              <LeftDock onGenerate={enqueueFromCurrentForm} />
+              <div className={mobileTab === 'generate' ? 'block' : 'hidden lg:block'}>
+                <LeftDock onGenerate={enqueueFromCurrentForm} />
+              </div>
             </div>
 
             <div className="col-span-12 lg:col-span-6 min-h-0">
-              <StudioTimeline
-                tracks={visibleTracks}
-                loading={libraryLoading}
-                error={libraryError}
-                bgGenerations={[]}
-                onRefreshLibrary={loadLibraryTracks}
-                searchRef={searchRef}
-              />
+              <div className={mobileTab === 'timeline' || mobileTab === 'library' ? 'block' : 'hidden lg:block'}>
+                <StudioTimeline
+                  tracks={visibleTracks}
+                  loading={libraryLoading}
+                  error={libraryError}
+                  bgGenerations={[]}
+                  onRefreshLibrary={loadLibraryTracks}
+                  searchRef={searchRef}
+                />
+              </div>
             </div>
 
             <div className="col-span-12 lg:col-span-3 min-h-0">
-              <Inspector onGenerateVariantFromTrack={generateVariantFromTrack} />
+              <div className="hidden lg:block h-full">
+                <Inspector onGenerateVariantFromTrack={generateVariantFromTrack} />
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
+      <MobileTabs />
+
+      <DrawerInspector
+        isOpen={mobileTab === 'inspector'}
+        title="Inspector"
+        onClose={() => setUI({ mobileTab: 'library' })}
+      >
+        <div className="h-[64svh] overflow-hidden">
+          <Inspector onGenerateVariantFromTrack={generateVariantFromTrack} />
+        </div>
+      </DrawerInspector>
     </div>
   );
 }

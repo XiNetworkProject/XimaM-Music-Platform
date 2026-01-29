@@ -18,6 +18,7 @@ type StudioUIState = {
   inspectorOpen: boolean;
   leftOpen: boolean;
   rightOpen: boolean;
+  mobileTab?: 'generate' | 'library' | 'timeline' | 'inspector';
 };
 
 type StudioFormState = {
@@ -48,6 +49,8 @@ export type StudioState = {
   jobs: GenerationJob[];
   queueItems: StudioQueueItem[];
   queueConfig: StudioQueueConfig;
+  selectedTrackIds: string[];
+  lastSelectedTrackId: string | null;
   ui: StudioUIState;
   form: StudioFormState;
 
@@ -63,6 +66,8 @@ export type StudioState = {
   selectTrack: (id: string | null) => void;
   toggleFavoriteLocal: (id: string) => void;
   deleteTracksLocal: (ids: string[]) => void;
+  clearSelection: () => void;
+  toggleSelectTrack: (id: string, opts?: { multi?: boolean; range?: boolean }) => void;
 
   // A/B
   setAB: (a: string | null, b: string | null) => void;
@@ -116,6 +121,7 @@ const DEFAULT_UI: StudioUIState = {
   inspectorOpen: true,
   leftOpen: true,
   rightOpen: true,
+  mobileTab: 'library',
 };
 
 const DEFAULT_QUEUE_CONFIG: StudioQueueConfig = {
@@ -151,6 +157,8 @@ export const useStudioStore = create<StudioState>()(
       jobs: [],
       queueItems: [],
       queueConfig: DEFAULT_QUEUE_CONFIG,
+      selectedTrackIds: [],
+      lastSelectedTrackId: null,
       ui: DEFAULT_UI,
       form: DEFAULT_FORM,
 
@@ -207,14 +215,57 @@ export const useStudioStore = create<StudioState>()(
       setActiveProject: (id) => set({ activeProjectId: id }),
 
       setTracks: (tracks) => set({ tracks }),
-      selectTrack: (id) => set({ selectedTrackId: id, ui: { ...get().ui, inspectorOpen: true } }),
+      selectTrack: (id) =>
+        set({
+          selectedTrackId: id,
+          ui: { ...get().ui, inspectorOpen: true },
+          lastSelectedTrackId: id,
+        }),
       toggleFavoriteLocal: (id) =>
         set((s) => ({ tracks: s.tracks.map((t) => (t.id === id ? { ...t, isFavorite: !t.isFavorite } : t)) })),
       deleteTracksLocal: (ids) =>
         set((s) => ({
           tracks: s.tracks.filter((t) => !ids.includes(t.id)),
           selectedTrackId: ids.includes(s.selectedTrackId || '') ? null : s.selectedTrackId,
+          selectedTrackIds: (s.selectedTrackIds || []).filter((x) => !ids.includes(x)),
+          lastSelectedTrackId: ids.includes(s.lastSelectedTrackId || '') ? null : s.lastSelectedTrackId,
         })),
+
+      clearSelection: () => set({ selectedTrackIds: [], lastSelectedTrackId: null }),
+
+      toggleSelectTrack: (id, opts) => {
+        const { multi, range } = opts || {};
+        const s = get();
+        const current = new Set(s.selectedTrackIds || []);
+        const visible = s.tracks || [];
+        const lastId = s.lastSelectedTrackId;
+
+        if (range && lastId) {
+          const a = visible.findIndex((t) => t.id === lastId);
+          const b = visible.findIndex((t) => t.id === id);
+          if (a !== -1 && b !== -1) {
+            const [start, end] = a < b ? [a, b] : [b, a];
+            const ids = visible.slice(start, end + 1).map((t) => t.id);
+            ids.forEach((x) => current.add(x));
+            set({ selectedTrackIds: Array.from(current), lastSelectedTrackId: id });
+            return;
+          }
+        }
+
+        if (!multi) {
+          set({
+            selectedTrackIds: [id],
+            lastSelectedTrackId: id,
+            selectedTrackId: id,
+            ui: { ...s.ui, inspectorOpen: true, mobileTab: 'inspector' },
+          });
+          return;
+        }
+
+        if (current.has(id)) current.delete(id);
+        else current.add(id);
+        set({ selectedTrackIds: Array.from(current), lastSelectedTrackId: id });
+      },
 
       setAB: (a, b) => set({ abTrackIdA: a, abTrackIdB: b }),
       swapAB: () => set((s) => ({ abTrackIdA: s.abTrackIdB, abTrackIdB: s.abTrackIdA })),
@@ -296,6 +347,8 @@ export const useStudioStore = create<StudioState>()(
         taskProjectMap: s.taskProjectMap,
         queueItems: s.queueItems,
         queueConfig: s.queueConfig,
+        selectedTrackIds: s.selectedTrackIds,
+        lastSelectedTrackId: s.lastSelectedTrackId,
         ui: s.ui,
         form: s.form,
         selectedTrackId: s.selectedTrackId,

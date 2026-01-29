@@ -32,6 +32,7 @@ export default function StudioTimeline({
 }) {
   const { setQueueAndPlay } = useAudioPlayer();
   const activeProjectId = useStudioStore((s) => s.activeProjectId);
+  const mobileTab = useStudioStore((s) => s.ui.mobileTab);
   const jobs = useStudioStore((s) => s.jobs);
 
   const sortedJobs = useMemo(() => {
@@ -77,54 +78,58 @@ export default function StudioTimeline({
     <div className="h-full min-h-0 flex flex-col gap-3">
       <QueuePanel />
 
-      <div className="panel-suno overflow-hidden">
-        <div className="p-3 border-b border-border-secondary">
-          <div className="text-[11px] text-foreground-tertiary">CENTER</div>
-          <div className="text-sm font-semibold text-foreground-primary">Timeline</div>
-        </div>
+      {mobileTab !== 'library' ? (
+        <div className="panel-suno overflow-hidden">
+          <div className="p-3 border-b border-border-secondary">
+            <div className="text-[11px] text-foreground-tertiary">CENTER</div>
+            <div className="text-sm font-semibold text-foreground-primary">Timeline</div>
+          </div>
 
-        <div className="min-h-0 overflow-y-auto p-3">
-          {sortedJobs.length === 0 ? (
-            <div className="text-sm text-foreground-tertiary">Aucun job en cours.</div>
-          ) : (
-            <div className="grid gap-2">
-              {sortedJobs.map((j) => {
-                const bg = (bgGenerations || []).find((x) => x.taskId === j.id) || null;
-                const chip = bg ? statusChip(bg) : { label: j.status, icon: <Clock className="w-3 h-3" /> };
-                return (
-                  <div
-                    key={j.id}
-                    className="rounded-xl border border-border-secondary bg-white/5 px-3 py-2 flex items-center gap-3"
-                  >
-                    <div className="text-foreground-tertiary">{chip.icon}</div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] text-foreground-primary truncate">
-                        {j.paramsSnapshot?.title || j.paramsSnapshot?.prompt || 'Génération'}
+          <div className="min-h-0 overflow-y-auto p-3">
+            {sortedJobs.length === 0 ? (
+              <div className="text-sm text-foreground-tertiary">Aucun job en cours.</div>
+            ) : (
+              <div className="grid gap-2">
+                {sortedJobs.map((j) => {
+                  const bg = (bgGenerations || []).find((x) => x.taskId === j.id) || null;
+                  const chip = bg ? statusChip(bg) : { label: j.status, icon: <Clock className="w-3 h-3" /> };
+                  return (
+                    <div
+                      key={j.id}
+                      className="rounded-xl border border-border-secondary bg-white/5 px-3 py-2 flex items-center gap-3"
+                    >
+                      <div className="text-foreground-tertiary">{chip.icon}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] text-foreground-primary truncate">
+                          {j.paramsSnapshot?.title || j.paramsSnapshot?.prompt || 'Génération'}
+                        </div>
+                        <div className="text-[11px] text-foreground-tertiary truncate">
+                          {j.paramsSnapshot?.style || j.paramsSnapshot?.model || ''}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-foreground-tertiary truncate">
-                        {j.paramsSnapshot?.style || j.paramsSnapshot?.model || ''}
+                      <div className="text-[11px] text-foreground-tertiary flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        {chip.label}
                       </div>
                     </div>
-                    <div className="text-[11px] text-foreground-tertiary flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {chip.label}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      ) : null}
 
-      <LibraryPanel
-        tracks={tracks}
-        loading={loading}
-        error={error}
-        onRefresh={onRefreshLibrary}
-        searchRef={searchRef}
-        onPlayTrack={onPlayTrack}
-      />
+      {mobileTab !== 'timeline' ? (
+        <LibraryPanel
+          tracks={tracks}
+          loading={loading}
+          error={error}
+          onRefresh={onRefreshLibrary}
+          searchRef={searchRef}
+          onPlayTrack={onPlayTrack}
+        />
+      ) : null}
     </div>
   );
 }
