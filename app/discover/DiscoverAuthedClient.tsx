@@ -250,7 +250,7 @@ export default function DiscoverAuthedClient({
           <>
             {/* Quick picks */}
             <section className="space-y-3">
-              <SectionHeader title="À la une" subtitle="Des picks rapides, comme sur les grosses plateformes" />
+              <SectionHeader title="À la une" subtitle="Sélection rapide" />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
                 {quickPicks.map((t) => (
                   <TrackRow key={t._id} track={t} />
