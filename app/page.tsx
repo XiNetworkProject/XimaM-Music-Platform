@@ -798,7 +798,9 @@ const WelcomeHeader = ({
           <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight text-foreground-primary">
             Écoute des sons créés par la communauté.
           </h1>
-          <p className="text-foreground-secondary text-sm mt-2">Scroll. Découvre. Boost. Crée.</p>
+          <p className="text-foreground-secondary text-sm mt-2">
+            Lance un son. Si tu kiffes, crée ton profil en 10 secondes.
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
