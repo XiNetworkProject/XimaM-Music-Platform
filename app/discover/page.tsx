@@ -122,7 +122,7 @@ export default async function DiscoverPage() {
 
   return (
     <div className="min-h-screen bg-background-primary text-foreground-primary">
-      <main className="mx-auto max-w-6xl px-4 py-10 space-y-10">
+      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-10 space-y-8 md:space-y-10">
         <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-8">
           <div className="text-xs text-foreground-tertiary">Plateforme de partage musical</div>
           <h1 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Découvre, écoute, enchaîne.</h1>
@@ -159,7 +159,7 @@ export default async function DiscoverPage() {
               La promesse →
             </Link>
                             </div>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {trending.length ? trending.map((t) => <TrackCard key={t._id} track={t} />) : (
               <div className="text-sm text-foreground-tertiary">Aucune track à afficher pour le moment.</div>
                           )}
@@ -168,7 +168,7 @@ export default async function DiscoverPage() {
 
         <section className="space-y-4">
           <h2 className="text-xl font-bold">Nouveautés</h2>
-          <div className="grid md:grid-cols-2 gap-3">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {newest.length ? newest.map((t) => <TrackCard key={t._id} track={t} />) : (
               <div className="text-sm text-foreground-tertiary">Aucune track à afficher pour le moment.</div>
             )}

@@ -117,7 +117,7 @@ export default function DiscoverAuthedClient({
 
   return (
     <div className="min-h-screen bg-background-primary text-foreground-primary">
-      <main className="mx-auto max-w-6xl px-4 py-8 space-y-6">
+      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-6">
         {/* Hero */}
         <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-5 md:p-7">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -218,7 +218,7 @@ export default function DiscoverAuthedClient({
               <Music2 className="h-5 w-5 text-foreground-secondary" />
               <h2 className="text-lg font-bold">Playlists populaires</h2>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
               {playlists.map((p) => (
                 <Link
                   key={p._id}
@@ -241,7 +241,7 @@ export default function DiscoverAuthedClient({
             </div>
           </section>
         ) : view === 'grid' ? (
-          <section className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <section className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
             {activeTracks.map((t) => (
               <TrackCard key={t._id} track={t} compact />
             ))}
@@ -251,12 +251,12 @@ export default function DiscoverAuthedClient({
           <section className="space-y-4">
             <HorizontalRow>
               {activeTracks.slice(0, 12).map((t) => (
-                <div key={t._id} className="w-[420px] max-w-[82vw]">
+                <div key={t._id} className="w-[420px] max-w-[86vw]">
                   <TrackCard track={t} />
                 </div>
               ))}
             </HorizontalRow>
-            <div className="grid md:grid-cols-2 gap-3">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
               {activeTracks.slice(12, 24).map((t) => (
                 <TrackCard key={t._id} track={t} compact />
               ))}
