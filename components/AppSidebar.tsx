@@ -17,6 +17,8 @@ import {
   Gift,
   Tv,
   ChevronDown,
+  LifeBuoy,
+  Scale,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useEffect, useState } from 'react';
@@ -228,6 +230,24 @@ export default function AppSidebar() {
 
         {/* Links bas */}
         <div className="flex flex-col gap-1 px-4 pb-4">
+          <Link
+            href="/support"
+            className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer rounded-md bg-transparent text-foreground-inactive enabled:hover:before:bg-transparent hover:before:bg-transparent hover:text-foreground-primary focus-visible:text-foreground-primary w-full px-2 py-1 text-[16px] leading-[16px]"
+          >
+            <span className="relative flex flex-row items-center gap-2 justify-start">
+              <LifeBuoy className="text-current shrink-0 m-0 my-1 w-[18px] h-[18px]" />
+              <span className="group-data-[show-content=false]/sidebar:hidden">Support</span>
+            </span>
+          </Link>
+          <Link
+            href="/legal"
+            className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer rounded-md bg-transparent text-foreground-inactive enabled:hover:before:bg-transparent hover:before:bg-transparent hover:text-foreground-primary focus-visible:text-foreground-primary w-full px-2 py-1 text-[16px] leading-[16px]"
+          >
+            <span className="relative flex flex-row items-center gap-2 justify-start">
+              <Scale className="text-current shrink-0 m-0 my-1 w-[18px] h-[18px]" />
+              <span className="group-data-[show-content=false]/sidebar:hidden">Légal</span>
+            </span>
+          </Link>
           <Link
             href="/settings"
             className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer rounded-md bg-transparent text-foreground-inactive enabled:hover:before:bg-transparent hover:before:bg-transparent hover:text-foreground-primary focus-visible:text-foreground-primary w-full px-2 py-1 text-[16px] leading-[16px]"

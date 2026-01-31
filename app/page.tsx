@@ -2513,6 +2513,8 @@ export default function SynauraHome() {
         {/* Footer mini-nav */}
           <footer className="pt-8 pb-10 text-xs text-foreground-tertiary">
             <div className="flex flex-wrap items-center gap-3 justify-center">
+              <a href="/support" className="hover:text-foreground-primary transition">Support / Contact</a>
+              <span className="opacity-40">•</span>
               <a href="/legal/mentions-legales" className="hover:text-foreground-primary transition">Mentions légales</a>
               <span className="opacity-40">•</span>
               <a href="/legal/confidentialite" className="hover:text-foreground-primary transition">Confidentialité</a>

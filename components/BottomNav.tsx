@@ -19,7 +19,9 @@ import {
   BookOpen,
   Users,
   MoreHorizontal,
-  Cloud
+  Cloud,
+  LifeBuoy,
+  Scale
 } from 'lucide-react';
 import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useAudioPlayer } from '@/app/providers';
@@ -122,6 +124,20 @@ export default function BottomNav() {
       path: '/settings',
       active: pathname === '/settings',
       public: false
+    },
+    {
+      icon: LifeBuoy,
+      label: 'Support',
+      path: '/support',
+      active: pathname === '/support',
+      public: true
+    },
+    {
+      icon: Scale,
+      label: 'Légal',
+      path: '/legal',
+      active: pathname.startsWith('/legal'),
+      public: true
     }
   ];
 
