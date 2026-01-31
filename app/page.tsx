@@ -769,10 +769,18 @@ const WelcomeHeader = ({
   session,
   onGo,
   stats,
+  listenList,
+  listenTrack,
+  nextUp,
+  onListenNow,
 }: {
   session: any;
   onGo: (path: string) => void;
   stats?: { playlists: number; favorites: number; queue: number };
+  listenList: any[];
+  listenTrack: any | null;
+  nextUp: any[];
+  onListenNow: () => void;
 }) => {
   const name =
     session?.user?.name ||
@@ -781,82 +789,106 @@ const WelcomeHeader = ({
     "sur Synaura";
 
   return (
-    <div className="rounded-3xl border border-border-secondary bg-gradient-to-r from-overlay-on-primary/10 via-background-fog-thin to-overlay-on-primary/8 p-3 md:p-4">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-3xl border border-border-secondary bg-gradient-to-r from-overlay-on-primary/10 via-background-fog-thin to-overlay-on-primary/8 p-4 md:p-6">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div className="min-w-0">
-          <p className="text-foreground-tertiary text-xs md:text-sm">{getGreeting()}</p>
-          <h1 className="mt-0.5 text-lg md:text-xl font-bold tracking-tight line-clamp-1 text-foreground-primary">
-            {session ? `Bienvenue, ${name}` : "Bienvenue sur Synaura"}
-          </h1>
-          <p className="text-foreground-secondary text-xs mt-1">
-            Tout est déjà prêt: découvre, écoute, et enchaîne.
+          <p className="text-foreground-tertiary text-xs md:text-sm">
+            {session ? `${getGreeting()}, ${name}` : 'Découvrir'}
           </p>
+          <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight text-foreground-primary">
+            Écoute des sons créés par la communauté.
+          </h1>
+          <p className="text-foreground-secondary text-sm mt-2">Scroll. Découvre. Boost. Crée.</p>
         </div>
 
-        <div className="hidden md:flex items-center gap-2">
-          {session ? (
-            <>
-              <button
-                onClick={() => onGo("/subscriptions")}
-                className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
-              >
-                <Crown className="w-4 h-4" />
-                Premium
-              </button>
-              <button
-                onClick={() => onGo("/trending")}
-                className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
-                aria-label="Explorer"
-                title="Explorer"
-              >
-                <TrendingUp className="w-4 h-4 text-foreground-secondary" />
-              </button>
-            </>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={onListenNow}
+            className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold inline-flex items-center gap-2"
+          >
+            <Play className="w-4 h-4" />
+            Écouter maintenant
+          </button>
+          {!session ? (
+            <button
+              onClick={() => onGo("/auth/signup")}
+              className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm font-semibold"
+            >
+              Créer un compte
+            </button>
           ) : (
-            <>
-              <button
-                onClick={() => onGo("/auth/signin")}
-                className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
-              >
-                Se connecter
-              </button>
-              <button
-                onClick={() => onGo("/auth/signup")}
-                className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm inline-flex items-center gap-2"
-              >
-                Créer un compte
-              </button>
-            </>
+            <button
+              onClick={() => onGo("/boosters")}
+              className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm font-semibold"
+            >
+              Boosters
+            </button>
           )}
         </div>
       </div>
 
-      {/* Stats compactes */}
-      {session && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <button
-            onClick={() => onGo("/library?tab=playlists")}
-            className="h-9 px-3 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary inline-flex items-center gap-2"
-          >
-            <span className="text-foreground-tertiary">Playlists</span>
-            <span className="text-foreground-primary font-semibold">{stats?.playlists ?? 0}</span>
-          </button>
-          <button
-            onClick={() => onGo("/library?tab=favorites")}
-            className="h-9 px-3 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary inline-flex items-center gap-2"
-          >
-            <span className="text-foreground-tertiary">Favoris</span>
-            <span className="text-foreground-primary font-semibold">{stats?.favorites ?? 0}</span>
-          </button>
-          <button
-            onClick={() => onGo("/library?tab=queue")}
-            className="h-9 px-3 rounded-full border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary inline-flex items-center gap-2"
-          >
-            <span className="text-foreground-tertiary">À suivre</span>
-            <span className="text-foreground-primary font-semibold">{stats?.queue ?? 0}</span>
-          </button>
+      {/* Lecteur instantané + mini file */}
+      <div className="mt-5 grid lg:grid-cols-12 gap-3">
+        <div className="lg:col-span-8 rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-xs text-foreground-tertiary">Lecteur instantané</div>
+              <div className="text-sm font-semibold text-foreground-primary truncate">
+                {listenTrack?.title || 'Choisis une track et lance la lecture'}
+              </div>
+              <div className="text-xs text-foreground-tertiary truncate">
+                {listenTrack?.artist?.name || listenTrack?.artist?.username || '—'}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onListenNow}
+              className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm inline-flex items-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Play
+            </button>
+          </div>
+          <div className="mt-3 flex items-center gap-3">
+            <img
+              src={listenTrack?.coverUrl || '/default-cover.jpg'}
+              className="w-14 h-14 rounded-2xl object-cover border border-border-secondary"
+              onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+              alt=""
+            />
+            <div className="text-xs text-foreground-tertiary">
+              Clique “Écouter maintenant” pour lancer une file de lecture.
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="lg:col-span-4 rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold text-foreground-primary">3 suivants</div>
+            <div className="text-xs text-foreground-tertiary">{nextUp.length ? `${nextUp.length}/3` : '—'}</div>
+          </div>
+          <div className="mt-3 grid gap-2">
+            {nextUp.length ? (
+              nextUp.slice(0, 3).map((t) => (
+                <div key={t._id} className="flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 p-2">
+                  <img
+                    src={t.coverUrl || '/default-cover.jpg'}
+                    className="w-10 h-10 rounded-xl object-cover border border-border-secondary"
+                    onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+                    alt=""
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
+                    <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-foreground-tertiary">Lance la lecture pour remplir la file.</div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Actions mini (mobile) */}
       <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1 md:hidden">
@@ -1837,11 +1869,30 @@ export default function SynauraHome() {
 
   const onGo = (path: string) => router.push(path, { scroll: false });
 
+  // File instantanée pour "Écouter maintenant"
+  const listenBase = (session ? personalizedForYouList : trendingList) || [];
+  const listenList = listenBase.slice(0, 30);
+  const listenTrack = listenList[0] || null;
+  const listenNextUp = listenList.slice(1, 4);
+  const onListenNow = () => {
+    if (!listenList.length) return;
+    setTracks(listenList as any);
+    playTrack(listenList[0] as any);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background-primary text-foreground-primary">
         <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-4 md:space-y-6">
-          <WelcomeHeader session={session} onGo={onGo} stats={{ playlists: 0, favorites: 0, queue: 0 }} />
+          <WelcomeHeader
+            session={session}
+            onGo={onGo}
+            stats={{ playlists: 0, favorites: 0, queue: 0 }}
+            listenList={[]}
+            listenTrack={null}
+            nextUp={[]}
+            onListenNow={() => {}}
+          />
 
           <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
             <Skeleton className="lg:col-span-8 h-[240px] md:h-[300px]" />
@@ -1862,7 +1913,6 @@ export default function SynauraHome() {
   return (
     <div className="min-h-screen bg-background-primary text-foreground-primary">
       <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-4 md:space-y-6">
-        {/* ✅ Nouveau header accueil */}
         <WelcomeHeader
           session={session}
           onGo={onGo}
@@ -1871,10 +1921,14 @@ export default function SynauraHome() {
             favorites: libraryStats.favorites || 0,
             queue: upNextTracks?.length || 0,
           }}
+          listenList={listenList as any[]}
+          listenTrack={listenTrack as any}
+          nextUp={listenNextUp as any[]}
+          onListenNow={onListenNow}
         />
 
-        {/* ✅ Guest: contenu jouable immédiatement + CTA auth */}
-        {!session ? (
+        {/* ✅ Guest: ancien bloc (désactivé) */}
+        {false && !session ? (
           <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
@@ -2035,8 +2089,156 @@ export default function SynauraHome() {
           </div>
         ) : null}
 
-        {/* ✅ Dashboard compact (colonne principale + sidebar) */}
+        {/* ✅ Home “je comprends + j’écoute en 5 secondes” */}
         <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
+          <div className="lg:col-span-8 space-y-3 md:space-y-4">
+            <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-foreground-secondary" />
+                  Tendances du jour
+                </div>
+                <button
+                  onClick={() => {
+                    const list = trendingList.slice(0, 30);
+                    if (!list.length) return;
+                    setTracks(list as any);
+                    playTrack(list[0] as any);
+                  }}
+                  className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs inline-flex items-center gap-1"
+                >
+                  <Play className="w-4 h-4" />
+                  Play
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {trendingList.slice(0, 8).map((t) => (
+                  <button
+                    key={t._id}
+                    onClick={() => {
+                      const list = trendingList.slice(0, 30);
+                      setTracks(list as any);
+                      playTrack(t as any);
+                    }}
+                    className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                  >
+                    <img
+                      src={t.coverUrl || '/default-cover.jpg'}
+                      className="w-11 h-11 rounded-xl object-cover border border-border-secondary"
+                      onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+                      alt=""
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
+                      <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
+                    </div>
+                    <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
+                      <Play className="w-4 h-4 text-foreground-primary" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-foreground-secondary" />
+                  Nouveautés
+                </div>
+                <button
+                  onClick={() => onGo('/discover')}
+                  className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+                >
+                  Voir plus
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                {recentTracks.slice(0, 8).map((t) => (
+                  <button
+                    key={t._id}
+                    onClick={() => {
+                      const list = recentTracks.slice(0, 30);
+                      setTracks(list as any);
+                      playTrack(t as any);
+                    }}
+                    className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                  >
+                    <img
+                      src={t.coverUrl || '/default-cover.jpg'}
+                      className="w-11 h-11 rounded-xl object-cover border border-border-secondary"
+                      onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+                      alt=""
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
+                      <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
+                    </div>
+                    <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
+                      <Play className="w-4 h-4 text-foreground-primary" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          <aside className="lg:col-span-4 space-y-3">
+            <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
+                  <Users className="w-4 h-4 text-foreground-secondary" />
+                  Créateurs à suivre
+                </div>
+                <button
+                  onClick={() => onGo('/discover')}
+                  className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+                >
+                  Explorer
+                </button>
+              </div>
+
+              <div className="grid gap-2">
+                {personalizedCreators.slice(0, 6).map((creator: any) => (
+                  <div
+                    key={creator._id || creator.id}
+                    className="rounded-2xl border border-border-secondary bg-white/5 p-2 flex items-center gap-3"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onGo(`/profile/${encodeURIComponent(creator.username)}`)}
+                      className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                    >
+                      <img
+                        src={creator.avatar || '/default-avatar.png'}
+                        className="w-11 h-11 rounded-full object-cover border border-border-secondary"
+                        onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-avatar.png'))}
+                        alt=""
+                      />
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-semibold text-foreground-primary truncate">
+                          {creator.name || creator.username}
+                        </div>
+                        <div className="text-[11px] text-foreground-tertiary truncate">@{creator.username}</div>
+                      </div>
+                    </button>
+                    <div onClick={(e) => e.stopPropagation()}>
+                      <FollowButton
+                        artistId={creator._id}
+                        artistUsername={creator.username}
+                        size="sm"
+                        className="text-xs py-1.5 rounded-lg"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </aside>
+        </div>
+
+        {/* ✅ Dashboard compact (colonne principale + sidebar) */}
+        <div className="hidden grid lg:grid-cols-12 gap-3 md:gap-4">
           <div className="lg:col-span-8 space-y-3 md:space-y-4">
             <ContinueListening
               track={currentTrack}
