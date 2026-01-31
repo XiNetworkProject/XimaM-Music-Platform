@@ -1011,6 +1011,7 @@ export default function SynauraHome() {
   const { data: session } = useSession();
   const { audioState, playTrack, play, pause, setTracks, upNextEnabled, upNextTracks, toggleUpNextEnabled } = useAudioPlayer();
   const [loading, setLoading] = useState(true);
+  const [showHomeMore, setShowHomeMore] = useState(true);
   const [featuredTracks, setFeaturedTracks] = useState<Track[]>([]);
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
@@ -2274,8 +2275,25 @@ export default function SynauraHome() {
           </aside>
         </div>
 
+        {/* Plus (blocs avancés) */}
+        <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-foreground-primary">Plus</div>
+              <div className="text-xs text-foreground-tertiary">Carrousel • TV • raccourcis • radio • widgets</div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowHomeMore((v) => !v)}
+              className="h-9 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+            >
+              {showHomeMore ? 'Masquer' : 'Afficher'}
+            </button>
+          </div>
+        </div>
+
         {/* ✅ Dashboard compact (colonne principale + sidebar) */}
-        <div className="hidden grid lg:grid-cols-12 gap-3 md:gap-4">
+        <div className={`${showHomeMore ? 'grid' : 'hidden'} lg:grid-cols-12 gap-3 md:gap-4`}>
           <div className="lg:col-span-8 space-y-3 md:space-y-4">
             <ContinueListening
               track={currentTrack}
