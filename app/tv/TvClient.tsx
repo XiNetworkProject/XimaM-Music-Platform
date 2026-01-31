@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import HlsVideoPlayer from '@/components/HlsVideoPlayer';
 import MuxVideoPlayer, { muxPlaybackIdFromUrl } from '@/components/MuxVideoPlayer';
 import { Tv, Radio, RefreshCw } from 'lucide-react';
+import { notify } from '@/components/NotificationCenter';
 
 type TvStatus = {
   ok: boolean;
@@ -24,6 +25,7 @@ export default function TvClient() {
   const [status, setStatus] = useState<TvStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [notifyMe, setNotifyMe] = useState(false);
 
   const canPlay = Boolean(status?.ok && status?.enabled && status?.playbackUrl);
   const isLive = Boolean(status?.ok && status?.enabled && status?.isLive);
@@ -59,6 +61,14 @@ export default function TvClient() {
       }
     })();
     return () => ac.abort();
+  }, []);
+
+  // Simple opt-in côté client (pas de backend ici)
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem('tv.notifyMe') === '1';
+      setNotifyMe(v);
+    } catch {}
   }, []);
 
   // Polling léger (10s)
@@ -126,9 +136,28 @@ export default function TvClient() {
               <div className="mx-auto h-12 w-12 rounded-3xl border border-white/15 bg-white/10 grid place-items-center">
                 <Radio className="h-6 w-6 text-white/65" />
               </div>
-              <div className="mt-3 text-base font-semibold">Aucun live en cours</div>
+              <div className="mt-3 text-base font-semibold">Pas de live pour le moment</div>
               <div className="mt-1 text-sm text-white/60">
-                Active SYNAURA TV dans <span className="font-semibold">/admin/tv</span>, puis lance OBS.
+                Reviens plus tard — dès qu’un live démarre, il apparaîtra ici.
+              </div>
+
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  className="h-10 px-4 rounded-2xl border border-white/15 bg-white/10 text-white hover:bg-white/15 transition text-sm font-semibold"
+                  onClick={() => {
+                    try {
+                      const next = !notifyMe;
+                      setNotifyMe(next);
+                      localStorage.setItem('tv.notifyMe', next ? '1' : '0');
+                      notify.success('SYNAURA TV', next ? 'Notifications activées (bientôt).' : 'Notifications désactivées.');
+                    } catch {
+                      notify.error('SYNAURA TV', 'Impossible d’enregistrer la préférence.');
+                    }
+                  }}
+                >
+                  {notifyMe ? 'Ne plus être notifié' : 'Être notifié'}
+                </button>
               </div>
               {loading && <div className="mt-2 text-xs text-white/50">chargement…</div>}
             </div>
