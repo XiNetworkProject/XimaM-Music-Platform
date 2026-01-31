@@ -69,6 +69,13 @@ interface PreferenceProfile {
   trackCount: number;
 }
 
+interface PublicPlaylist {
+  _id: string;
+  name: string;
+  description?: string;
+  coverUrl?: string | null;
+}
+
 const normalizeScoresMap = (map: Map<string, number>) => {
   const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
   const total = entries.reduce((sum, [, value]) => sum + value, 0) || 1;
@@ -787,21 +794,40 @@ const WelcomeHeader = ({
         </div>
 
         <div className="hidden md:flex items-center gap-2">
-          <button
-            onClick={() => onGo("/subscriptions")}
-            className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
-          >
-            <Crown className="w-4 h-4" />
-            Premium
-          </button>
-          <button
-            onClick={() => onGo("/trending")}
-            className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
-            aria-label="Explorer"
-            title="Explorer"
-          >
-            <TrendingUp className="w-4 h-4 text-foreground-secondary" />
-          </button>
+          {session ? (
+            <>
+              <button
+                onClick={() => onGo("/subscriptions")}
+                className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
+              >
+                <Crown className="w-4 h-4" />
+                Premium
+              </button>
+              <button
+                onClick={() => onGo("/trending")}
+                className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                aria-label="Explorer"
+                title="Explorer"
+              >
+                <TrendingUp className="w-4 h-4 text-foreground-secondary" />
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => onGo("/auth/signin")}
+                className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center gap-2"
+              >
+                Se connecter
+              </button>
+              <button
+                onClick={() => onGo("/auth/signup")}
+                className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm inline-flex items-center gap-2"
+              >
+                Créer un compte
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -834,6 +860,22 @@ const WelcomeHeader = ({
 
       {/* Actions mini (mobile) */}
       <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1 md:hidden">
+        {!session ? (
+          <>
+            <button
+              onClick={() => onGo("/auth/signin")}
+              className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+            >
+              Se connecter
+            </button>
+            <button
+              onClick={() => onGo("/auth/signup")}
+              className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+            >
+              Créer un compte
+            </button>
+          </>
+        ) : null}
         <button
           onClick={() => onGo("/trending")}
           className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
@@ -848,13 +890,15 @@ const WelcomeHeader = ({
           <Gift className="w-4 h-4" />
           Boosters
         </button>
-        <button
-          onClick={() => onGo("/upload")}
-          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
-        >
-          <Upload className="w-4 h-4" />
-          Uploader
-        </button>
+        {session ? (
+          <button
+            onClick={() => onGo("/upload")}
+            className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+          >
+            <Upload className="w-4 h-4" />
+            Uploader
+          </button>
+        ) : null}
       </div>
     </div>
   );
@@ -937,6 +981,8 @@ export default function SynauraHome() {
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
   const [forYouTracks, setForYouTracks] = useState<Track[]>([]);
+  const [guestPlaylists, setGuestPlaylists] = useState<PublicPlaylist[]>([]);
+  const [guestPlaylistsLoading, setGuestPlaylistsLoading] = useState(false);
   const [popularUsers, setPopularUsers] = useState<any[]>([]);
   const [suggestedCreators, setSuggestedCreators] = useState<any[]>([]);
   const [preferenceProfile, setPreferenceProfile] = useState<PreferenceProfile | null>(null);
@@ -1154,6 +1200,25 @@ export default function SynauraHome() {
     
     loadData();
   }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators]);
+
+  // Guest: playlists populaires (3)
+  useEffect(() => {
+    const loadGuest = async () => {
+      if (session) return;
+      try {
+        setGuestPlaylistsLoading(true);
+        const res = await fetch('/api/playlists/popular?limit=3', { cache: 'no-store' });
+        const json = await res.json();
+        const list = Array.isArray(json?.playlists) ? (json.playlists as PublicPlaylist[]) : [];
+        setGuestPlaylists(list.slice(0, 3));
+      } catch {
+        setGuestPlaylists([]);
+      } finally {
+        setGuestPlaylistsLoading(false);
+      }
+    };
+    loadGuest();
+  }, [session]);
 
   useEffect(() => {
     fetchUserPreferenceProfile();
@@ -1807,6 +1872,168 @@ export default function SynauraHome() {
             queue: upNextTracks?.length || 0,
           }}
         />
+
+        {/* ✅ Guest: contenu jouable immédiatement + CTA auth */}
+        {!session ? (
+          <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground-primary">Écoute maintenant</div>
+                <div className="text-xs text-foreground-tertiary">
+                  Top tendances • playlists • nouveautés. Teste la valeur en 10 secondes.
+                </div>
+              </div>
+              <div className="hidden md:flex items-center gap-2">
+                <button
+                  onClick={() => onGo('/auth/signin')}
+                  className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm"
+                >
+                  Se connecter
+                </button>
+                <button
+                  onClick={() => onGo('/auth/signup')}
+                  className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm"
+                >
+                  Créer un compte
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-3 grid md:grid-cols-12 gap-3">
+              {/* Top 10 tendances */}
+              <div className="md:col-span-6 rounded-3xl border border-border-secondary bg-background-fog-thin p-3">
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-foreground-secondary" />
+                    Top 10 tendances
+                  </div>
+                  <button
+                    onClick={() => {
+                      const list = trendingList.slice(0, 10);
+                      if (!list.length) return;
+                      setTracks(list as any);
+                      playTrack(list[0] as any);
+                    }}
+                    className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs inline-flex items-center gap-1"
+                  >
+                    <Play className="w-4 h-4" />
+                    Play all
+                  </button>
+                </div>
+                <div className="grid gap-2">
+                  {trendingList.slice(0, 10).map((t, i) => (
+                    <button
+                      key={t._id}
+                      onClick={() => {
+                        const list = trendingList.slice(0, 10);
+                        setTracks(list as any);
+                        playTrack(t as any);
+                      }}
+                      className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                    >
+                      <div className="w-7 text-xs text-foreground-tertiary font-semibold">#{i + 1}</div>
+                      <img
+                        src={t.coverUrl || '/default-cover.jpg'}
+                        className="w-10 h-10 rounded-xl object-cover border border-border-secondary"
+                        onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+                        alt=""
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
+                        <div className="text-[11px] text-foreground-tertiary truncate">
+                          {t.artist?.name || t.artist?.username}
+                        </div>
+                      </div>
+                      <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
+                        <Play className="w-4 h-4 text-foreground-primary" />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Playlists + nouveautés */}
+              <div className="md:col-span-6 grid gap-3">
+                <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
+                      <Disc3 className="w-4 h-4 text-foreground-secondary" />
+                      Playlists
+                    </div>
+                    <button
+                      onClick={() => onGo('/discover')}
+                      className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+                    >
+                      Découvrir
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {(guestPlaylistsLoading ? Array.from({ length: 3 }) : guestPlaylists).map((p: any, idx: number) =>
+                      p ? (
+                        <button
+                          key={p._id}
+                          onClick={() => onGo(`/playlists/${encodeURIComponent(p._id)}`)}
+                          className="text-left rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                        >
+                          <img
+                            src={p.coverUrl || '/default-cover.jpg'}
+                            className="w-full h-20 rounded-xl object-cover border border-border-secondary"
+                            onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+                            alt=""
+                          />
+                          <div className="mt-2 text-[13px] font-semibold text-foreground-primary truncate">{p.name}</div>
+                          <div className="text-[11px] text-foreground-tertiary line-clamp-1">{p.description || 'Playlist'}</div>
+                        </button>
+                      ) : (
+                        <div key={`sk-${idx}`} className="rounded-2xl border border-border-secondary bg-white/5 p-2 animate-pulse">
+                          <div className="h-20 rounded-xl bg-white/10" />
+                          <div className="mt-2 h-4 w-3/4 bg-white/10 rounded" />
+                          <div className="mt-1 h-3 w-full bg-white/10 rounded" />
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3">
+                  <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2 mb-2">
+                    <Clock className="w-4 h-4 text-foreground-secondary" />
+                    Nouveautés (6)
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {recentTracks.slice(0, 6).map((t) => (
+                      <button
+                        key={t._id}
+                        onClick={() => {
+                          const list = recentTracks.slice(0, 30);
+                          setTracks(list as any);
+                          playTrack(t as any);
+                        }}
+                        className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                      >
+                        <img
+                          src={t.coverUrl || '/default-cover.jpg'}
+                          className="w-10 h-10 rounded-xl object-cover border border-border-secondary"
+                          onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+                          alt=""
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
+                          <div className="text-[11px] text-foreground-tertiary truncate">
+                            {t.artist?.name || t.artist?.username}
+                          </div>
+                        </div>
+                        <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
+                          <Play className="w-4 h-4 text-foreground-primary" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {/* ✅ Dashboard compact (colonne principale + sidebar) */}
         <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
