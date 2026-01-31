@@ -5,6 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import DiscoverPlayButton, { type DiscoverTrackLite } from './DiscoverPlayButton';
 import DiscoverAuthedClient from './DiscoverAuthedClient';
+import type { DiscoverArtistLite, DiscoverPlaylistLite } from './DiscoverTiles';
 
 export const dynamic = 'force-dynamic';
 
@@ -80,17 +81,19 @@ export default async function DiscoverPage() {
     const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
     const baseUrl = `${proto}://${host}`;
 
-    const [forYouRes, trendingRes, newRes, playlistsRes] = await Promise.all([
+    const [forYouRes, trendingRes, newRes, playlistsRes, artistsRes] = await Promise.all([
       fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=reco`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=trending`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/recommendations/personal?limit=24`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/artists?sort=trending&limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
     ]);
 
     const initialForYou = Array.isArray((forYouRes as any)?.tracks) ? ((forYouRes as any).tracks as DiscoverTrackLite[]) : [];
     const initialTrending = Array.isArray((trendingRes as any)?.tracks) ? ((trendingRes as any).tracks as DiscoverTrackLite[]) : [];
     const initialNew = Array.isArray((newRes as any)?.tracks) ? ((newRes as any).tracks as DiscoverTrackLite[]) : [];
     const initialPlaylists = Array.isArray((playlistsRes as any)?.playlists) ? ((playlistsRes as any).playlists as any[]) : [];
+    const initialArtists = Array.isArray((artistsRes as any)?.artists) ? ((artistsRes as any).artists as any[]) : [];
 
     const displayName =
       (session?.user as any)?.name ||
@@ -104,12 +107,26 @@ export default async function DiscoverPage() {
         initialForYou={initialForYou}
         initialTrending={initialTrending}
         initialNew={initialNew}
-        initialPlaylists={initialPlaylists.map((p) => ({
-          _id: String(p?._id || p?.id || ''),
-          name: String(p?.name || 'Playlist'),
-          description: typeof p?.description === 'string' ? p.description : '',
-          coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
-        }))}
+        initialPlaylists={initialPlaylists.map(
+          (p): DiscoverPlaylistLite => ({
+            _id: String(p?._id || p?.id || ''),
+            name: String(p?.name || 'Playlist'),
+            description: typeof p?.description === 'string' ? p.description : '',
+            coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
+          }),
+        )}
+        initialArtists={initialArtists.map(
+          (a): DiscoverArtistLite => ({
+            _id: String(a?._id || a?.id || ''),
+            username: String(a?.username || ''),
+            name: String(a?.name || a?.username || 'Artiste'),
+            avatar: typeof a?.avatar === 'string' ? a.avatar : '',
+            totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
+            totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
+            trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
+            isTrending: Boolean(a?.isTrending),
+          }),
+        )}
       />
     );
   }
