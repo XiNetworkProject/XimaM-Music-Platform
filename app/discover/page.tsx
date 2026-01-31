@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { MUSIC_GENRES, GENRE_CATEGORIES } from '@/lib/genres';
 import Link from 'next/link';
+import { notify } from '@/components/NotificationCenter';
 
 export const dynamic = 'force-dynamic';
 
@@ -394,20 +395,29 @@ export default function DiscoverPage() {
       setIsLoading(true);
       setError(null);
 
-      // Tracks principales
-      const tracksResponse = await fetch('/api/tracks?limit=100', {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-          'Pragma': 'no-cache',
-        },
+      // ✅ Catalogue public minimal (guest-friendly): tendances + nouveautés
+      const [feedRes, recentRes] = await Promise.all([
+        fetch('/api/ranking/feed?limit=80&ai=1&strategy=trending', { cache: 'no-store' }).catch(() => null as any),
+        fetch('/api/tracks/recent?limit=60', { cache: 'no-store' }).catch(() => null as any),
+      ]);
+
+      const feedJson = feedRes && feedRes.ok ? await feedRes.json() : { tracks: [] };
+      const recentJson = recentRes && recentRes.ok ? await recentRes.json() : { tracks: [] };
+
+      // On unifie sous la forme Track attendue (Discover utilise déjà des champs proches)
+      const combined = [
+        ...(Array.isArray(feedJson?.tracks) ? feedJson.tracks : []),
+        ...(Array.isArray(recentJson?.tracks) ? recentJson.tracks : []),
+      ];
+
+      // Dédoublonner + fallback
+      const seen = new Set<string>();
+      const allTracks: Track[] = combined.filter((t: any) => {
+        const id = String(t?._id || '');
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
       });
-
-      let allTracks: Track[] = [];
-
-      if (tracksResponse.ok) {
-        const tracksData = await tracksResponse.json();
-        allTracks = tracksData.tracks || tracksData || [];
-      }
 
       // Fallback si aucune track
       if (allTracks.length === 0) {
@@ -642,20 +652,32 @@ export default function DiscoverPage() {
 
   const handlePlayTrack = async (track: Track) => {
     try {
-      const response = await fetch(`/api/tracks/${track._id}`);
-      if (response.ok) {
-        const trackData = await response.json();
-        const audioUrl = trackData.audioUrl;
-        if (audioUrl) {
-          playTrack(track as any);
-        } else {
-          alert("Cette track n'a pas d'audio disponible.");
-        }
-      } else {
-        alert('Impossible de récupérer les informations de cette track.');
+      // IA et normal: on a déjà audioUrl dans les listes publiques (/api/ranking/feed, /api/tracks/recent)
+      if (track?.audioUrl) {
+        playTrack(track as any);
+        return;
       }
+
+      // Fallback: si track normale sans audioUrl dans la liste, on tente GET /api/tracks/:id (mais pas pour ai-*)
+      if (String(track._id || '').startsWith('ai-')) {
+        notify.error('Lecture', "Cette piste n'a pas d'audio disponible.");
+        return;
+      }
+
+      const response = await fetch(`/api/tracks/${encodeURIComponent(track._id)}`, { cache: 'no-store' });
+      if (!response.ok) {
+        notify.error('Lecture', 'Impossible de récupérer les informations de cette track.');
+        return;
+      }
+      const trackData = await response.json();
+      const audioUrl = trackData.audioUrl;
+      if (!audioUrl) {
+        notify.error('Lecture', "Cette track n'a pas d'audio disponible.");
+        return;
+      }
+      playTrack({ ...(track as any), audioUrl } as any);
     } catch (error) {
-      alert('Erreur lors de la lecture de la track.');
+      notify.error('Lecture', 'Erreur lors de la lecture de la track.');
     }
   };
 
