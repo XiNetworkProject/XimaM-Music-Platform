@@ -1840,7 +1840,7 @@ export default function SynauraHome() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background-primary text-foreground-primary">
-        <main className="mx-auto max-w-7xl px-3 md:px-4 py-3 md:py-4 space-y-4 md:space-y-6">
+        <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-4 md:space-y-6">
           <WelcomeHeader session={session} onGo={onGo} stats={{ playlists: 0, favorites: 0, queue: 0 }} />
 
           <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
@@ -1861,7 +1861,7 @@ export default function SynauraHome() {
 
   return (
     <div className="min-h-screen bg-background-primary text-foreground-primary">
-      <main className="mx-auto max-w-7xl px-3 md:px-4 py-3 md:py-4 space-y-4 md:space-y-6">
+      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-4 md:space-y-6">
         {/* ✅ Nouveau header accueil */}
         <WelcomeHeader
           session={session}
@@ -1880,7 +1880,7 @@ export default function SynauraHome() {
               <div className="min-w-0">
                 <div className="text-sm font-semibold text-foreground-primary">Écoute maintenant</div>
                 <div className="text-xs text-foreground-tertiary">
-                  Top tendances • playlists • nouveautés. Teste la valeur en 10 secondes.
+                  Top tendances • playlists • nouveautés. Écoute en 1 clic.
                 </div>
               </div>
               <div className="hidden md:flex items-center gap-2">
