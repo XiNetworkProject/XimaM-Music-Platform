@@ -145,7 +145,9 @@ export default function DiscoverAuthedClient({
               <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">
                 {greeting()}, {displayName}.
               </h1>
-              <p className="mt-2 text-sm text-foreground-secondary">Une vraie page de découverte: rapide, claire, jouable.</p>
+              <p className="mt-2 text-sm text-foreground-secondary">
+                Tendances, nouveautés, artistes, playlists — et lecture en 1 clic.
+              </p>
             </div>
 
             <div className="w-full md:w-[520px]">

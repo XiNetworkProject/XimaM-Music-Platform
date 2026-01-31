@@ -23,6 +23,53 @@ export type DiscoverArtistLite = {
   isTrending?: boolean;
 };
 
+function initials(name: string) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] || '?';
+  const b = parts.length > 1 ? parts[1]?.[0] : parts[0]?.[1];
+  return `${a}${b || ''}`.toUpperCase();
+}
+
+function colorFromSeed(seed: string) {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  // map to a small palette (stable)
+  const palette = [
+    'from-violet-500/35 to-fuchsia-500/20',
+    'from-sky-500/35 to-indigo-500/20',
+    'from-emerald-500/30 to-teal-500/15',
+    'from-amber-500/30 to-orange-500/15',
+    'from-pink-500/30 to-rose-500/15',
+  ];
+  return palette[h % palette.length];
+}
+
+function ArtistAvatar({ username, name, avatar }: { username: string; name: string; avatar?: string }) {
+  const [broken, setBroken] = useState(false);
+  const showImg = Boolean(avatar && !broken);
+  if (showImg) {
+    return (
+      <img
+        src={avatar}
+        className="w-12 h-12 rounded-full object-cover border border-border-secondary"
+        alt=""
+        loading="lazy"
+        onError={() => setBroken(true)}
+      />
+    );
+  }
+  const bg = colorFromSeed(username || name || 'artist');
+  return (
+    <div
+      className={`w-12 h-12 rounded-full border border-border-secondary bg-gradient-to-br ${bg} grid place-items-center text-sm font-bold text-white`}
+      aria-label={name}
+      title={name}
+    >
+      {initials(name || username)}
+    </div>
+  );
+}
+
 export function SectionHeader({
   title,
   subtitle,
@@ -194,15 +241,7 @@ export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="flex items-center gap-3">
-        <img
-          src={artist.avatar || '/default-avatar.png'}
-          className="w-12 h-12 rounded-full object-cover border border-border-secondary"
-          alt=""
-          loading="lazy"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-          }}
-        />
+        <ArtistAvatar username={artist.username} name={artist.name} avatar={artist.avatar} />
         <div className="min-w-0">
           <div className="text-sm font-semibold truncate">{artist.name}</div>
           <div className="text-xs text-foreground-tertiary truncate">@{artist.username}</div>

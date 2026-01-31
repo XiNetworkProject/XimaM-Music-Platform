@@ -38,6 +38,58 @@ async function fetchPublicFeed(params: string): Promise<DiscoverTrackLite[]> {
   }
 }
 
+async function fetchPublicPlaylists(): Promise<DiscoverPlaylistLite[]> {
+  try {
+    const h = await headers();
+    const proto = h.get('x-forwarded-proto') || 'https';
+    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
+    const baseUrl = `${proto}://${host}`;
+    const res = await fetch(`${baseUrl}/api/playlists/popular?limit=8`, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    const items = Array.isArray((json as any)?.playlists) ? ((json as any).playlists as any[]) : [];
+    return items
+      .map(
+        (p): DiscoverPlaylistLite => ({
+          _id: String(p?._id || p?.id || ''),
+          name: String(p?.name || 'Playlist'),
+          description: typeof p?.description === 'string' ? p.description : '',
+          coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
+        }),
+      )
+      .filter((p) => p._id);
+  } catch {
+    return [];
+  }
+}
+
+async function fetchPublicArtists(): Promise<DiscoverArtistLite[]> {
+  try {
+    const h = await headers();
+    const proto = h.get('x-forwarded-proto') || 'https';
+    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
+    const baseUrl = `${proto}://${host}`;
+    const res = await fetch(`${baseUrl}/api/artists?sort=trending&limit=10`, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    const items = Array.isArray((json as any)?.artists) ? ((json as any).artists as any[]) : [];
+    return items
+      .map(
+        (a): DiscoverArtistLite => ({
+          _id: String(a?._id || a?.id || ''),
+          username: String(a?.username || ''),
+          name: String(a?.name || a?.username || 'Artiste'),
+          avatar: typeof a?.avatar === 'string' ? a.avatar : '',
+          totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
+          totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
+          trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
+          isTrending: Boolean(a?.isTrending),
+        }),
+      )
+      .filter((a) => a._id && a.username);
+  } catch {
+    return [];
+  }
+}
+
 function TrackCard({ track }: { track: DiscoverTrackLite }) {
   const artistLabel =
     track.artist?.artistName || track.artist?.name || track.artist?.username || (track.isAI ? 'Créateur IA' : 'Artiste');
@@ -132,9 +184,11 @@ export default async function DiscoverPage() {
   }
 
   // Guest experience (SEO indexable)
-  const [trending, newest] = await Promise.all([
+  const [trending, newest, playlists, artists] = await Promise.all([
     fetchPublicFeed('limit=16&ai=1&strategy=trending'),
     fetchPublicFeed('limit=16&ai=1&strategy=reco'),
+    fetchPublicPlaylists(),
+    fetchPublicArtists(),
   ]);
 
   return (
@@ -182,6 +236,70 @@ export default async function DiscoverPage() {
                           )}
                         </div>
         </section>
+
+        {(playlists.length || artists.length) ? (
+          <section className="grid lg:grid-cols-2 gap-6">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold">Playlists populaires</h2>
+                <Link href="/auth/signin" className="text-sm text-foreground-secondary hover:text-foreground-primary transition">
+                  Se connecter →
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {playlists.map((p) => (
+                  <a
+                    key={p._id}
+                    href={`/playlists/${encodeURIComponent(p._id)}`}
+                    className="rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3 flex gap-3"
+                  >
+                    <img
+                      src={p.coverUrl || '/default-cover.jpg'}
+                      className="w-14 h-14 rounded-xl object-cover border border-border-secondary"
+                      alt=""
+                      loading="lazy"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{p.name}</div>
+                      <div className="text-xs text-foreground-tertiary line-clamp-2">{p.description || 'Playlist'}</div>
+                    </div>
+                  </a>
+                ))}
+                {!playlists.length ? <div className="text-sm text-foreground-tertiary">Aucune playlist.</div> : null}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-xl font-bold">Artistes du moment</h2>
+                <Link href="/auth/signup" className="text-sm text-foreground-secondary hover:text-foreground-primary transition">
+                  Créer un compte →
+                </Link>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                {artists.slice(0, 8).map((a) => (
+                  <a
+                    key={a._id}
+                    href={`/profile/${encodeURIComponent(a.username)}`}
+                    className="rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3 flex items-center gap-3"
+                  >
+                    <img
+                      src={a.avatar || '/default-avatar.png'}
+                      className="w-12 h-12 rounded-full object-cover border border-border-secondary"
+                      alt=""
+                      loading="lazy"
+                    />
+                    <div className="min-w-0">
+                      <div className="text-sm font-semibold truncate">{a.name}</div>
+                      <div className="text-xs text-foreground-tertiary truncate">@{a.username}</div>
+                    </div>
+                  </a>
+                ))}
+                {!artists.length ? <div className="text-sm text-foreground-tertiary">Aucun artiste.</div> : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="space-y-4">
           <h2 className="text-xl font-bold">Nouveautés</h2>
