@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/authOptions';
 import DiscoverPlayButton, { type DiscoverTrackLite } from './DiscoverPlayButton';
+import DiscoverAuthedClient from './DiscoverAuthedClient';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,6 +70,51 @@ function TrackCard({ track }: { track: DiscoverTrackLite }) {
 }
 
 export default async function DiscoverPage() {
+  const session = await getServerSession(authOptions).catch(() => null);
+  const userId = (session?.user as any)?.id as string | undefined;
+
+  // Logged-in experience (Spotify-like)
+  if (userId) {
+    const h = await headers();
+    const proto = h.get('x-forwarded-proto') || 'https';
+    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
+    const baseUrl = `${proto}://${host}`;
+
+    const [forYouRes, trendingRes, newRes, playlistsRes] = await Promise.all([
+      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=reco`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=trending`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/recommendations/personal?limit=24`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+    ]);
+
+    const initialForYou = Array.isArray((forYouRes as any)?.tracks) ? ((forYouRes as any).tracks as DiscoverTrackLite[]) : [];
+    const initialTrending = Array.isArray((trendingRes as any)?.tracks) ? ((trendingRes as any).tracks as DiscoverTrackLite[]) : [];
+    const initialNew = Array.isArray((newRes as any)?.tracks) ? ((newRes as any).tracks as DiscoverTrackLite[]) : [];
+    const initialPlaylists = Array.isArray((playlistsRes as any)?.playlists) ? ((playlistsRes as any).playlists as any[]) : [];
+
+    const displayName =
+      (session?.user as any)?.name ||
+      (session?.user as any)?.username ||
+      (session?.user as any)?.email ||
+      'toi';
+
+    return (
+      <DiscoverAuthedClient
+        displayName={String(displayName)}
+        initialForYou={initialForYou}
+        initialTrending={initialTrending}
+        initialNew={initialNew}
+        initialPlaylists={initialPlaylists.map((p) => ({
+          _id: String(p?._id || p?.id || ''),
+          name: String(p?.name || 'Playlist'),
+          description: typeof p?.description === 'string' ? p.description : '',
+          coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
+        }))}
+      />
+    );
+  }
+
+  // Guest experience (SEO indexable)
   const [trending, newest] = await Promise.all([
     fetchPublicFeed('limit=16&ai=1&strategy=trending'),
     fetchPublicFeed('limit=16&ai=1&strategy=reco'),
