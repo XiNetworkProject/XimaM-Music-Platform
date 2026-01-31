@@ -22,7 +22,6 @@ export function PreloadProvider({ children }: { children: ReactNode }) {
       {children}
       <PreloadBanner
         isLoading={preloadState.isLoading}
-        progress={preloadState.progress}
         currentTask={preloadState.currentTask}
         error={preloadState.error}
       />

@@ -1870,7 +1870,12 @@ export default function SynauraHome() {
   const onGo = (path: string) => router.push(path, { scroll: false });
 
   // File instantanée pour "Écouter maintenant"
-  const listenBase = (session ? personalizedForYouList : trendingList) || [];
+  const listenBase =
+    (session && personalizedForYouList?.length ? personalizedForYouList : null) ||
+    (trendingList?.length ? trendingList : null) ||
+    (recentTracks?.length ? recentTracks : null) ||
+    (featuredTracks?.length ? featuredTracks : null) ||
+    [];
   const listenList = listenBase.slice(0, 30);
   const listenTrack = listenList[0] || null;
   const listenNextUp = listenList.slice(1, 4);
@@ -2184,6 +2189,36 @@ export default function SynauraHome() {
           </div>
 
           <aside className="lg:col-span-4 space-y-3">
+            {!session ? (
+              <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+                <div className="text-sm font-semibold text-foreground-primary">Pourquoi créer un compte ?</div>
+                <div className="mt-2 grid grid-cols-2 gap-2">
+                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                    <div className="text-[12px] font-semibold text-foreground-primary">Likes & playlists</div>
+                    <div className="text-[11px] text-foreground-tertiary">Sauvegarde et organise</div>
+                  </div>
+                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                    <div className="text-[12px] font-semibold text-foreground-primary">Historique</div>
+                    <div className="text-[11px] text-foreground-tertiary">Reprendre facilement</div>
+                  </div>
+                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                    <div className="text-[12px] font-semibold text-foreground-primary">IA Studio</div>
+                    <div className="text-[11px] text-foreground-tertiary">Créer des sons</div>
+                  </div>
+                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                    <div className="text-[12px] font-semibold text-foreground-primary">Boosters</div>
+                    <div className="text-[11px] text-foreground-tertiary">Gains & bonus</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onGo('/auth/signup')}
+                  className="mt-3 h-10 w-full rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold"
+                >
+                  Créer un compte
+                </button>
+              </section>
+            ) : null}
+
             <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">

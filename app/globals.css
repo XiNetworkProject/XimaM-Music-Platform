@@ -1375,3 +1375,12 @@ a {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@keyframes preloadIndeterminate {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(260%);
+  }
+}

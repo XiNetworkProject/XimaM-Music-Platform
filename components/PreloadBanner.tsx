@@ -1,26 +1,18 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 
 export default function PreloadBanner({
   isLoading,
-  progress,
   currentTask,
   error,
 }: {
   isLoading: boolean;
-  progress: number;
   currentTask: string;
   error: string | null;
 }) {
   const [dismissed, setDismissed] = useState(false);
-
-  const pct = useMemo(() => {
-    const n = Number(progress);
-    if (!Number.isFinite(n)) return 0;
-    return Math.max(0, Math.min(100, Math.round(n)));
-  }, [progress]);
 
   if (!isLoading || dismissed) return null;
 
@@ -39,9 +31,8 @@ export default function PreloadBanner({
                   error ? 'bg-red-400' : 'bg-emerald-400'
                 } shadow-[0_0_10px_rgba(16,185,129,0.55)]`}
               />
-              <div className="text-sm font-semibold text-foreground-primary">Préparation…</div>
+              <div className="text-sm font-semibold text-foreground-primary">Préparation du feed…</div>
               <Loader2 className="h-4 w-4 text-foreground-tertiary animate-spin" />
-              <div className="text-xs text-foreground-tertiary tabular-nums">{String(pct).padStart(2, '0')}%</div>
             </div>
             <div className="mt-1 text-xs text-foreground-tertiary truncate">
               {error ? `Erreur: ${error}` : currentTask || 'Chargement'}
@@ -60,8 +51,7 @@ export default function PreloadBanner({
 
         <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-violet-500 transition-[width] duration-200"
-            style={{ width: `${pct}%` }}
+            className="h-full w-[40%] rounded-full bg-gradient-to-r from-cyan-300 via-fuchsia-400 to-violet-500 animate-[preloadIndeterminate_1.2s_ease-in-out_infinite]"
           />
         </div>
       </div>
