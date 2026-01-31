@@ -2,7 +2,7 @@
 
 import { createContext, useContext, ReactNode } from 'react';
 import { useAppPreload } from '@/hooks/useAppPreload';
-import LoadingScreen from '@/components/LoadingScreen';
+import PreloadBanner from '@/components/PreloadBanner';
 
 interface PreloadContextType {
   isLoading: boolean;
@@ -20,13 +20,12 @@ export function PreloadProvider({ children }: { children: ReactNode }) {
   return (
     <PreloadContext.Provider value={preloadState}>
       {children}
-      {preloadState.isLoading && (
-        <LoadingScreen
-          progress={preloadState.progress}
-          message={preloadState.currentTask}
-          isPreloading={true}
-        />
-      )}
+      <PreloadBanner
+        isLoading={preloadState.isLoading}
+        progress={preloadState.progress}
+        currentTask={preloadState.currentTask}
+        error={preloadState.error}
+      />
     </PreloadContext.Provider>
   );
 }

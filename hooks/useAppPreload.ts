@@ -49,9 +49,10 @@ interface CacheEntry {
 export function useAppPreload() {
   const { data: session, status: sessionStatus } = useSession();
   const [state, setState] = useState<PreloadState>({
-    isLoading: true, // Toujours commencer avec isLoading = true pour afficher le splash
+    // Ne pas bloquer l’UI: le préchargement se fait en background
+    isLoading: false,
     progress: 0,
-    currentTask: 'Initialisation...',
+    currentTask: 'Préparation…',
     error: null,
   });
   const hasStartedPreload = useRef(false);
@@ -140,35 +141,20 @@ export function useAppPreload() {
     
     isLoadingRef.current = true;
     
-    // Toujours afficher le splash screen au début
-    setState({
-      isLoading: true,
-      progress: 0,
-      currentTask: 'Initialisation...',
-      error: null,
-    });
-
-    // Petit délai pour s'assurer que le splash screen s'affiche
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Préchargement en background (pas de délai artificiel)
+    setState({ isLoading: true, progress: 0, currentTask: 'Préparation…', error: null });
 
     if (useCache) {
       const cached = loadFromCache();
       if (cached) {
-        // Afficher brièvement le splash avec le cache trouvé (mais minimum 800ms d'affichage)
-        updateProgress(100, 'Chargement terminé');
-        await new Promise(resolve => setTimeout(resolve, 500));
-        setState(prev => ({ ...prev, isLoading: false, progress: 100 }));
+        updateProgress(100, 'Prêt');
+        setState(prev => ({ ...prev, isLoading: false, progress: 100, currentTask: 'Prêt' }));
         isLoadingRef.current = false;
         return cached;
       }
     }
 
-    setState({
-      isLoading: true,
-      progress: 0,
-      currentTask: 'Préparation...',
-      error: null,
-    });
+    setState({ isLoading: true, progress: 0, currentTask: 'Préparation…', error: null });
 
     const preloaded: PreloadedData = {
       session: null,
@@ -185,7 +171,7 @@ export function useAppPreload() {
     };
 
     try {
-      updateProgress(10, 'Authentification...');
+      updateProgress(10, 'Authentification…');
       
       if (sessionStatus === 'loading') {
         await new Promise<void>(resolve => {
@@ -199,7 +185,7 @@ export function useAppPreload() {
       }
 
       preloaded.session = session;
-      updateProgress(20, 'Chargement de la page d\'accueil...');
+      updateProgress(20, "Chargement de la page d’accueil…");
 
       // Phase 1: Données critiques de la page d'accueil (priorité haute)
       const [featuredRes, trendingRes, popularRes, recentRes] = await Promise.allSettled([
@@ -222,7 +208,7 @@ export function useAppPreload() {
         preloaded.recentTracks = applyCdnToTracks(recentRes.value.tracks);
       }
 
-      updateProgress(35, 'Chargement des pages supplémentaires...');
+      updateProgress(35, 'Chargement des pages…');
 
       // Phase 2: Données pour navigation et autres pages (en parallèle)
       const [forYouRes, recommendedRes, followingRes, discoverRes, usersRes, genresRes] = await Promise.allSettled([
@@ -255,7 +241,7 @@ export function useAppPreload() {
         preloaded.genres = genresRes.value.genres;
       }
 
-      updateProgress(50, 'Préchargement des images et audio...');
+      updateProgress(50, 'Préchargement médias…');
 
       // Collecter toutes les pistes pour précharger les images et audio
       const allTracks = [
@@ -353,7 +339,7 @@ export function useAppPreload() {
         })
       ).catch(() => {}); // Ignorer les erreurs, c'est optionnel
 
-      updateProgress(65, 'Données utilisateur...');
+      updateProgress(65, 'Données utilisateur…');
 
       // Phase 3: Données utilisateur (si connecté)
       if (session?.user?.id) {
@@ -386,7 +372,7 @@ export function useAppPreload() {
         }
       }
 
-      updateProgress(90, 'Finalisation...');
+      updateProgress(90, 'Finalisation…');
 
       saveToCache(preloaded);
 
