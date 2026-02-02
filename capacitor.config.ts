@@ -1,7 +1,7 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.synaura.app',
+  appId: 'com.synaura.music',
   appName: 'Synaura',
   webDir: 'out',
   server: {
@@ -18,12 +18,12 @@ const config: CapacitorConfig = {
       'https://accounts.google.com/oauth/*',
       'https://accounts.google.com/signin/*',
       'https://accounts.google.com/ServiceLogin*'
-    ]
+    ],
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 3000,
-      backgroundColor: '#1a1a1a',
+      launchShowDuration: 2000,
+      backgroundColor: '#050214',
       androidSplashResourceName: 'splash',
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
@@ -32,16 +32,19 @@ const config: CapacitorConfig = {
     },
     LocalNotifications: {
       smallIcon: 'ic_stat_icon_config_sample',
-      iconColor: '#488AFF',
+      iconColor: '#7C3AED',
     },
-    App: {
-      url: 'https://xima-m-music-platform.vercel.app'
-    }
+    Keyboard: {
+      resize: 'body',
+      style: 'DARK',
+      resizeOnFullScreen: true,
+    },
   },
   android: {
     allowMixedContent: true,
-    webContentsDebuggingEnabled: true,
-    captureInput: true
+    webContentsDebuggingEnabled: false,
+    captureInput: true,
+    backgroundColor: '#050214'
   }
 };
 

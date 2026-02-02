@@ -1,4 +1,4 @@
-import type { MediaArtwork } from '@/hooks/useMediaSession';
+import type { MediaArtwork } from '@/hooks/useCapacitorMediaSession';
 
 export function toArtworkList(url?: string): MediaArtwork[] | undefined {
   if (!url) return undefined;

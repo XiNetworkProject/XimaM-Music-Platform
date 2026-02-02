@@ -1,9 +1,11 @@
 {
   "name": "synaura-music",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Application de partage de musique moderne et futuriste",
   "private": true,
   "scripts": {
+    "build:android": "next build && npx cap sync android",
+    "assets:generate": "npx capacitor-assets generate",
     "dev": "next dev -p 3000",
     "build": "next build",
     "start": "next start",
@@ -30,6 +32,7 @@
     "@capacitor/core": "^7.4.0",
     "@capacitor/filesystem": "^7.1.1",
     "@capacitor/local-notifications": "^7.0.1",
+    "@jofr/capacitor-media-session": "^4.0.0",
     "@mux/mux-player": "^3.10.2",
     "@mux/mux-player-react": "^3.10.2",
     "@stripe/react-stripe-js": "^4.0.2",
@@ -85,6 +88,11 @@
     "zustand": "^4.4.0"
   },
   "devDependencies": {
+    "@capacitor/app": "^7.1.1",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/haptics": "^7.0.3",
+    "@capacitor/keyboard": "^7.0.4",
+    "@capacitor/status-bar": "^7.0.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.11",

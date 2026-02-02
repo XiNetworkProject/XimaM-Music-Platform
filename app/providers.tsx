@@ -5,7 +5,7 @@ import { SessionProvider } from 'next-auth/react';
 import { Toaster } from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
-import { useMediaSession, type MediaTrack as MSMediaTrack } from '@/hooks/useMediaSession';
+import { useCapacitorMediaSession, type MediaTrack as MSMediaTrack } from '@/hooks/useCapacitorMediaSession';
 import { toArtworkList } from '@/lib/mediaArtwork';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
@@ -490,10 +490,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [audioService.state.currentTrack, audioService.state.duration]);
 
-  useMediaSession({
-    audioEl: (audioService as any).audioElement ?? null,
-    track: mediaSessionTrack,
-    controls: {
+  // Media Session unifiée : Web (navigator.mediaSession) + Android/iOS natif via @jofr/capacitor-media-session
+  useCapacitorMediaSession(
+    (audioService as any).audioElement ?? null,
+    mediaSessionTrack,
+    {
       play: () => audioService.actions.play(),
       pause: () => audioService.actions.pause(),
       next: () => audioService.actions.nextTrack(),
@@ -508,8 +509,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       },
       stop: () => audioService.actions.stop(),
     },
-    isPlaying: !!audioService.state.isPlaying,
-  });
+    !!audioService.state.isPlaying
+  );
 
   // Synchronisation de la piste courante (ne jamais pousser currentTrackIndex à -1)
   // NOTE: on garde la version plus sûre plus bas (avec guard trackIndex !== -1).
@@ -1115,6 +1116,13 @@ function PlaysSyncWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+import { useNativeFeatures } from '@/hooks/useNativeFeatures';
+
+function NativeFeaturesWrapper({ children }: { children: React.ReactNode }) {
+  useNativeFeatures();
+  return <>{children}</>;
+}
+
 export default function Providers({ children }: { children: React.ReactNode }) {
   const WhatsNewModal = dynamic(() => import('@/components/WhatsNewModal'), { ssr: false });
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -1164,7 +1172,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
               <AudioPlayerProvider>
                 <SidebarProvider>
                   <SubscriptionProvider>
-                    {children}
+                    <NativeFeaturesWrapper>
+                      {children}
+                    </NativeFeaturesWrapper>
                     <WhatsNewModal isOpen={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
                     <Toaster position="top-center" />
                   </SubscriptionProvider>
