@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat, Search, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat, Search, SlidersHorizontal, Wand2, ListMusic } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -195,6 +195,9 @@ export default function AIGenerator() {
   const [openAdvancedSection, setOpenAdvancedSection] = useState(false);
   const [openResultsSection, setOpenResultsSection] = useState(true);
   const [showInspo, setShowInspo] = useState(true);
+
+  // Onglet mobile : Générer | Bibliothèque
+  const [mobileTab, setMobileTab] = useState<'generate' | 'library'>('generate');
 
   const remixSectionRef = useRef<HTMLDivElement | null>(null);
   const presetStripRef = useRef<HTMLDivElement | null>(null);
@@ -1054,7 +1057,7 @@ export default function AIGenerator() {
       <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
-      <header className="h-14 border-b border-white/5 bg-[#0a0a0a] flex items-center justify-between px-4 shrink-0 z-50">
+      <header className="h-14 min-h-[56px] border-b border-white/5 bg-[#0a0a0a] flex items-center justify-between px-3 sm:px-4 shrink-0 z-50">
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-2 text-indigo-400 min-w-0">
             <Zap className="w-5 h-5" fill="currentColor" />
@@ -1070,10 +1073,10 @@ export default function AIGenerator() {
             <button
               type="button"
               onClick={() => previousTrack()}
-              className="p-1.5 hover:text-white text-zinc-500 transition-colors"
+              className="p-2.5 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:text-white text-zinc-500 transition-colors rounded"
               aria-label="Piste précédente"
             >
-              <SkipBack className="w-4 h-4" />
+              <SkipBack className="w-5 h-5 sm:w-4 sm:h-4" />
             </button>
             <button
               type="button"
@@ -1092,18 +1095,18 @@ export default function AIGenerator() {
                   playGenerated(generatedTrack);
                 }
               }}
-              className="p-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded shadow-lg shadow-indigo-900/20 transition-all"
+              className="p-2.5 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded shadow-lg shadow-indigo-900/20 transition-all"
               aria-label={audioState.isPlaying ? 'Pause' : 'Lecture'}
             >
-              {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
+              {audioState.isPlaying ? <Pause className="w-5 h-5 sm:w-4 sm:h-4" /> : <Play className="w-5 h-5 sm:w-4 sm:h-4 fill-current" />}
             </button>
             <button
               type="button"
               onClick={() => nextTrack()}
-              className="p-1.5 hover:text-white text-zinc-500 transition-colors"
+              className="p-2.5 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:text-white text-zinc-500 transition-colors rounded"
               aria-label="Piste suivante"
             >
-              <SkipForward className="w-4 h-4" />
+              <SkipForward className="w-5 h-5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
@@ -1117,27 +1120,27 @@ export default function AIGenerator() {
           <button
             type="button"
             onClick={() => setShowBuyCredits(true)}
-            className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition"
-            aria-label="Acheter des crédits"
+            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 min-h-[44px] bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition"
+            aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
           >
-            <Coins className="w-4 h-4 text-indigo-300" />
+            <Coins className="w-4 h-4 text-indigo-300 shrink-0" />
             <span className="text-[10px] font-semibold text-zinc-300 tabular-nums">{creditsBalance}</span>
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Crédits</span>
+            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider hidden sm:inline">Crédits</span>
           </button>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5">
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5">
             <div className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-indigo-500' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(99,102,241,0.4)]`} />
             <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-              {isGenerating ? 'Generating' : 'System Ready'}
+              {isGenerating ? 'Generating' : 'Ready'}
             </span>
           </div>
-          <button className="p-2 hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors" aria-label="Settings">
+          <button className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors" aria-label="Paramètres">
             <Settings className="w-5 h-5" />
           </button>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border border-white/10" aria-hidden />
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border border-white/10 hidden sm:block" aria-hidden />
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden relative z-10 w-full px-3 sm:px-6 lg:px-8 xl:px-10 py-4 sm:py-5">
+      <div className="flex-1 overflow-hidden relative z-10 w-full px-2 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5">
         {/* (ancien header: gardé SR-only pour accessibilité) */}
         <header className="sr-only">
           <div className="flex items-center gap-3">
@@ -1327,11 +1330,11 @@ export default function AIGenerator() {
           </div>
         </header>
 
-        {/* LAYOUT "Studio Pro" : panneaux fixes (scroll interne uniquement) */}
+        {/* LAYOUT "Studio Pro" : panneaux fixes (scroll interne uniquement) ; sur mobile onglets Générer / Bibliothèque */}
         <div className="flex h-full overflow-hidden">
-          {/* LEFT PANEL: Generator / Remixer */}
-          <aside className="w-[360px] hidden lg:flex flex-col border-r border-white/5 bg-[#080808] overflow-hidden">
-            <div className="flex-1 overflow-y-auto pr-1 space-y-4">
+          {/* LEFT PANEL: Generator / Remixer — sur mobile visible quand onglet "Générer" */}
+          <aside className={`w-full lg:w-[360px] shrink-0 flex flex-col border-r border-white/5 bg-[#080808] overflow-hidden ${mobileTab === 'generate' ? 'flex' : 'hidden'} lg:!flex`}>
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4 pb-24 lg:pb-0">
               {/* Builder : création / presets (contenu existant) */}
               <section className="space-y-4 flex flex-col min-h-0">
                 {/* Toolbar interne */}
@@ -1840,9 +1843,9 @@ export default function AIGenerator() {
             </div>
           </aside>
 
-          {/* CENTER PANEL: Library */}
-          <main className="flex-1 flex flex-col overflow-hidden bg-[#050505]">
-            <div className="flex-1 overflow-y-auto pl-1 space-y-3 min-h-0">
+          {/* CENTER PANEL: Library — sur mobile visible quand onglet "Bibliothèque" */}
+          <main className={`flex-1 min-w-0 flex flex-col overflow-hidden bg-[#050505] ${mobileTab === 'library' ? 'flex' : 'hidden'} lg:!flex`}>
+            <div className="flex-1 overflow-y-auto pl-1 space-y-3 min-h-0 pb-24 lg:pb-0">
               <div className="panel-suno p-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 flex-1 px-4 py-2 rounded-full bg-background-tertiary">
@@ -2065,6 +2068,36 @@ export default function AIGenerator() {
               />
             </div>
           </aside>
+
+          {/* Barre onglets mobile : Générer | Bibliothèque */}
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+            <div className="flex items-stretch h-14 px-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileTab('generate')}
+                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-t-xl text-sm font-medium transition-colors ${
+                  mobileTab === 'generate'
+                    ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Wand2 className="w-5 h-5 shrink-0" />
+                <span>Générer</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileTab('library')}
+                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-t-xl text-sm font-medium transition-colors ${
+                  mobileTab === 'library'
+                    ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <ListMusic className="w-5 h-5 shrink-0" />
+                <span>Bibliothèque</span>
+              </button>
+            </div>
+          </nav>
         </div>
 
         {/* Modale d'achat de crédits */}

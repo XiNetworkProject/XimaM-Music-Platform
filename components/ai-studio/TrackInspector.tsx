@@ -185,9 +185,10 @@ export function TrackInspector({
               </div>
               <button
                 onClick={onClose}
-                className="p-1.5 rounded-full hover:bg-white/10 text-foreground-tertiary"
+                className="min-w-[44px] min-h-[44px] flex items-center justify-center p-2 rounded-full hover:bg-white/10 text-foreground-tertiary touch-manipulation"
+                aria-label="Fermer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -209,20 +210,22 @@ export function TrackInspector({
               <div className="flex gap-2 mb-4">
                 <button
                   onClick={() => onPlay(track)}
-                  className={`flex-1 inline-flex items-center justify-center gap-1.5 ${SUNO_PILL_SOLID} bg-accent-brand text-white`}
+                  className={`flex-1 min-h-[44px] inline-flex items-center justify-center gap-1.5 ${SUNO_PILL_SOLID} bg-accent-brand text-white touch-manipulation`}
                 >
-                  <Play className="w-4 h-4" />
-                  Lire dans le player
+                  <Play className="w-4 h-4 shrink-0" />
+                  <span>Lire dans le player</span>
                 </button>
                 <button
                   onClick={() => onDownload(track)}
-                  className={`${SUNO_ICON_PILL} px-3 py-2`}
+                  className={`${SUNO_ICON_PILL} min-w-[44px] min-h-[44px] flex items-center justify-center px-3 py-2 touch-manipulation`}
+                  aria-label="Télécharger"
                 >
                   <Download className="w-4 h-4" />
                 </button>
                 <button
                   onClick={() => onShare(track)}
-                  className={`${SUNO_ICON_PILL} px-3 py-2`}
+                  className={`${SUNO_ICON_PILL} min-w-[44px] min-h-[44px] flex items-center justify-center px-3 py-2 touch-manipulation`}
+                  aria-label="Partager"
                 >
                   <Share2 className="w-4 h-4" />
                 </button>
