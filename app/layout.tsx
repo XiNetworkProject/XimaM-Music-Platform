@@ -109,7 +109,7 @@ export default function RootLayout({
         <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
         <AdSenseScript />
       </head>
-          <body className={`theme-suno ${inter.className} overflow-x-hidden max-w-full`}>
+          <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
         <Providers>
           {/* Studio Background (fond global de l'app) */}
           <StudioBackground />
@@ -122,19 +122,22 @@ export default function RootLayout({
             <div className="aurora-vignette"></div>
           </div>
 
-          <div className="flex min-h-screen overflow-x-hidden overflow-y-visible max-w-full relative z-10">
-            <ConditionalNav>
-              <LayoutContent>
-                <ConditionalNavbar />
-                <main className="flex-1 overflow-x-hidden overflow-y-visible max-w-full">
-                  {children}
-                </main>
-                <ConditionalBottomNav />
-                <GlobalUpdatesBubble />
-                <GlobalQueueBubble />
-                <FullScreenPlayer />
-              </LayoutContent>
-            </ConditionalNav>
+          {/* Conteneur de scroll unique : hauteur viewport, scroll interne, pas de rebond */}
+          <div className="app-scroll-container">
+            <div className="flex min-h-screen overflow-x-hidden max-w-full relative z-10">
+              <ConditionalNav>
+                <LayoutContent>
+                  <ConditionalNavbar />
+                  <main className="flex-1 overflow-x-hidden max-w-full">
+                    {children}
+                  </main>
+                  <ConditionalBottomNav />
+                  <GlobalUpdatesBubble />
+                  <GlobalQueueBubble />
+                  <FullScreenPlayer />
+                </LayoutContent>
+              </ConditionalNav>
+            </div>
           </div>
           <Analytics />
         </Providers>

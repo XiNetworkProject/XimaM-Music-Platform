@@ -90,22 +90,28 @@
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
-  overflow-y: auto; /* explicite pour permettre molette + tactile */
+  overflow: hidden; /* pas de scroll sur body : tout le scroll est dans .app-scroll-container */
   font-family: 'Inter', sans-serif;
-  /* Supprime le rebond (overscroll) en haut/bas du scroll (app Capacitor + navigateur) */
-  overscroll-behavior: none;
-  -webkit-overflow-scrolling: touch;
+  height: 100%;
 }
 
 body {
   color: var(--text);
   background: var(--bg);
+  max-width: 100vw;
+}
+
+/* Conteneur de scroll unique : molette + tactile, sans rebond */
+.app-scroll-container {
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   overflow-x: hidden;
   overflow-y: auto;
-  max-width: 100vw;
   overscroll-behavior: none;
-  min-height: 100%;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Force mobile width constraints (exclure html/body pour ne pas bloquer le scroll) */
@@ -115,11 +121,9 @@ body {
 }
 
 html {
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   max-width: 100vw;
-  height: auto;
-  min-height: 100%;
+  height: 100%;
 }
 
 /* Force containers to respect mobile width */
