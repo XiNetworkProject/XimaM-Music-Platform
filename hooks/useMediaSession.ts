@@ -48,7 +48,10 @@ export function useMediaSession({ audioEl, track, controls, isPlaying }: UseMedi
         title: track.title || 'Synaura',
         artist: track.artist || 'Unknown',
         album: track.album || 'Synaura',
-        artwork: track.artwork,
+        artwork: track.artwork?.length ? track.artwork : [
+          { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' }
+        ],
       });
       // @ts-ignore
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
