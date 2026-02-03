@@ -122,11 +122,11 @@ export default function RootLayout({
             <div className="aurora-vignette"></div>
           </div>
 
-          <div className="flex min-h-screen overflow-x-hidden max-w-full relative z-10">
+          <div className="flex min-h-screen overflow-x-hidden overflow-y-visible max-w-full relative z-10">
             <ConditionalNav>
               <LayoutContent>
                 <ConditionalNavbar />
-                <main className="flex-1 overflow-x-hidden max-w-full">
+                <main className="flex-1 overflow-x-hidden overflow-y-visible max-w-full">
                   {children}
                 </main>
                 <ConditionalBottomNav />
