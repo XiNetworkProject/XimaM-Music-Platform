@@ -13,14 +13,15 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
-
-const API_BASE_URL = "https://synaura.fr"; // à adapter
+import { useAuth } from "../contexts/AuthContext";
+import { SynauraSymbol } from "../components/SynauraLogo";
 
 type SignUpScreenProps = {
   navigation: any;
 };
 
 const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
+  const { signUp } = useAuth();
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -74,29 +75,14 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
     setErrorText(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/mobile-signup`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          username: username.trim().toLowerCase(),
-          email: email.trim().toLowerCase(),
-          password,
-        }),
+      const r = await signUp({
+        name,
+        username,
+        email,
+        password,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data?.error || "Erreur lors de l'inscription."
-        );
-      }
-
-      // Une fois inscrit → vers login avec info
-      navigation.replace("Login", {
-        fromSignup: true,
-      });
+      if (!r.ok) throw new Error(r.error);
+      // navigation gérée par App.tsx (switch automatique vers l'app quand user != null)
     } catch (err: any) {
       console.error("Erreur signup mobile:", err);
       setErrorText(err?.message || "Impossible de créer le compte.");
@@ -127,8 +113,10 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
               colors={["#22d3ee", "#e879f9", "#a855f7"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.logoGradient}
-            />
+              style={[styles.logoGradient, { alignItems: "center", justifyContent: "center" }]}
+            >
+              <SynauraSymbol size={26} />
+            </LinearGradient>
           </View>
           <View style={styles.headerTextBlock}>
             <Text style={styles.headerLabel}>Synaura</Text>

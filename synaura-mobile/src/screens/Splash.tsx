@@ -9,6 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { SynauraSymbol } from "../components/SynauraLogo";
 
 const { width, height } = Dimensions.get("window");
 
@@ -167,8 +168,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
               colors={["#22d3ee", "#e879f9", "#a855f7"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.logoCore}
-            />
+              style={[styles.logoCore, { alignItems: "center", justifyContent: "center" }]}
+            >
+              <SynauraSymbol size={56} />
+            </LinearGradient>
             <View style={styles.logoHighlight} />
           </Animated.View>
         </View>

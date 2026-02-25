@@ -1,7 +1,17 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { Calendar, Clock, Coins } from 'lucide-react';
+import {
+  Calendar,
+  Clock,
+  Coins,
+  Shield,
+  Sparkles,
+  Check,
+  HelpCircle,
+  CreditCard,
+  ArrowDown,
+} from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
 import PaymentUpdateCard from './PaymentUpdateCard';
 import { PLAN_ENTITLEMENTS } from '@/lib/entitlements';
@@ -83,20 +93,12 @@ export default function SubscriptionsPage() {
   const priceMap = useMemo(
     () => ({
       Starter: {
-        month:
-          process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH ||
-          '',
-        year:
-          process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH ||
-          '',
+        month: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || '',
+        year: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR || '',
       },
       Pro: {
-        month:
-          process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH ||
-          '',
-        year:
-          process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR ||
-          '',
+        month: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || '',
+        year: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR || '',
       },
       Enterprise: {
         month: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || '',
@@ -110,6 +112,30 @@ export default function SubscriptionsPage() {
   const isFreeActive = activePlanName === 'free';
   const isStarterActive = activePlanName === 'starter';
   const isProActive = activePlanName === 'pro';
+  const isEnterpriseActive = activePlanName === 'enterprise';
+
+  const selectedPlanLabel = useMemo(() => {
+    if (!selectedPriceId) return null;
+    if (selectedPriceId === priceMap.Starter[period]) return 'Starter';
+    if (selectedPriceId === priceMap.Pro[period]) return 'Pro';
+    if (selectedPriceId === priceMap.Enterprise[period]) return 'Enterprise';
+    return 'Plan';
+  }, [period, priceMap.Enterprise, priceMap.Pro, priceMap.Starter, selectedPriceId]);
+
+  const selectedPlanPriceText = useMemo(() => {
+    if (!selectedPlanLabel) return null;
+    const baseMonthly =
+      selectedPlanLabel === 'Starter'
+        ? 4.99
+        : selectedPlanLabel === 'Pro'
+        ? 14.99
+        : 39.99;
+    if (period === 'year') {
+      const yearly = baseMonthly * 12 * 0.8;
+      return `${yearly.toFixed(2)}€ / an`;
+    }
+    return `${baseMonthly.toFixed(2)}€ / mois`;
+  }, [period, selectedPlanLabel]);
 
   const choosePlan = (priceId: string) => {
     if (!priceId) return;
@@ -281,15 +307,139 @@ export default function SubscriptionsPage() {
   }, [usage]);
 
   return (
-    <div className="relative min-h-screen w-full text-white overflow-hidden">
+    <div className="relative min-h-screen w-full bg-background-primary text-foreground-primary overflow-hidden">
       <SubscriptionsBackground />
 
-      <main className="relative z-10 w-full max-w-6xl mx-auto px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24">
+      <main className="relative z-10 mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 pt-6 md:pt-10 pb-28 space-y-6">
+
+        {/* HERO */}
+        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10 overflow-hidden relative">
+          <div className="pointer-events-none absolute inset-[1px] rounded-[inherit] bg-gradient-to-r from-violet-500/15 via-fuchsia-500/10 to-cyan-400/15 opacity-60 mix-blend-soft-light" />
+          <div className="relative grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7">
+              <div className="inline-flex items-center gap-2 rounded-full border border-border-secondary bg-white/5 px-3 py-1 text-xs text-foreground-secondary">
+                <Shield className="w-4 h-4" />
+                Paiement sécurisé • Annulable à tout moment
+              </div>
+              <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">
+                Passe en Premium, garde le flow.
+              </h1>
+              <p className="mt-3 text-sm md:text-base text-foreground-secondary max-w-2xl">
+                Plus de crédits IA, meilleure qualité audio et fonctionnalités créateurs.
+                Choisis un plan, paye en 30 secondes, et reprends la musique.
+              </p>
+
+              <div className="mt-5 flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() =>
+                    plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                  }
+                  className="h-11 px-4 inline-flex items-center justify-center rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary hover:opacity-90 transition font-semibold"
+                >
+                  Voir les plans
+                </button>
+                <button
+                  onClick={() => setShowBuyCredits(true)}
+                  className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
+                >
+                  Acheter des crédits
+                </button>
+                <div className="text-xs text-foreground-tertiary">
+                  1 génération = 12 crédits • Les crédits non utilisés sont conservés
+                </div>
+              </div>
+
+              {(timeLeft.days + timeLeft.hours + timeLeft.minutes + timeLeft.seconds) > 0 && (
+                <div className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-white/5 px-3 py-2 text-sm">
+                  <Sparkles className="w-4 h-4 text-foreground-tertiary" />
+                  <span className="font-semibold">Offre de lancement</span>
+                  <span className="text-foreground-tertiary">
+                    se termine dans {timeLeft.days}j {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="lg:col-span-5">
+              <div className="rounded-3xl border border-border-secondary bg-white/5 p-4 md:p-5">
+                <div className="text-sm font-semibold">Ton plan actuel</div>
+                <div className="mt-3 grid grid-cols-2 gap-3">
+                  <Kpi label="Plan" value={planName} />
+                  <Kpi label="Période" value={billingPeriod} />
+                  <Kpi label="Prochain prélèvement" value={nextBilling} icon={<Calendar className="w-4 h-4" />} />
+                  <Kpi label="Crédits restants" value={`${creditsBalance}`} icon={<Coins className="w-4 h-4" />} />
+                  <Kpi label="Pistes uploadées" value={uploadsText} />
+                  <Kpi label="Playlists" value={playlistsText} />
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {!isFreeActive && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm("Confirmer l'annulation à la fin de la période ?")) return;
+                        const res = await fetch('/api/billing/cancel-subscription', { method: 'POST' });
+                        if (res.ok) await fetchAll();
+                      }}
+                      className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm font-semibold"
+                    >
+                      Annuler
+                    </button>
+                  )}
+                  {!isFreeActive && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!window.confirm('Revenir immédiatement au plan gratuit ?')) return;
+                        const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
+                        if (res.ok) {
+                          await fetchAll();
+                          setToast({ type: 'success', msg: 'Rétrogradation appliquée au plan gratuit.' });
+                        } else {
+                          setToast({ type: 'error', msg: 'Échec de la rétrogradation.' });
+                        }
+                      }}
+                      className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+                    >
+                      Plan gratuit
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowBuyCredits(true)}
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_20px_rgba(124,58,237,0.28)] transition text-sm font-semibold"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Coins className="w-4 h-4" />
+                      Crédits
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    }
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+                  >
+                    Choisir un plan
+                  </button>
+                </div>
+
+                <div className="mt-4 text-xs text-foreground-tertiary">
+                  Besoin d&apos;aide ?{' '}
+                  <a className="underline" href="mailto:billing@synaura.fr">
+                    billing@synaura.fr
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Alertes (paiement / quotas) */}
         <div className="flex w-full flex-col gap-3">
           {hasPaymentIssue && (
-            <div className="w-full rounded-xl p-3 sm:p-4 border border-yellow-400/40 bg-yellow-500/10 text-yellow-100 backdrop-blur-md">
+            <div className="w-full rounded-3xl p-4 border border-border-secondary bg-yellow-500/10 text-foreground-primary">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="text-sm">
                   Problème de paiement détecté ({subscriptionStatus}). Mettez à jour votre moyen
@@ -314,7 +464,7 @@ export default function SubscriptionsPage() {
                         setToast({ type: 'error', msg: 'Échec de la relance.' });
                       }
                     }}
-                    className="text-xs px-3 py-1.5 rounded-md bg-yellow-400/15 ring-1 ring-yellow-400/40 hover:bg-yellow-400/25 transition"
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm font-semibold"
                   >
                     Retenter le paiement
                   </button>
@@ -324,7 +474,7 @@ export default function SubscriptionsPage() {
           )}
 
           {quotaWarnings.length > 0 && (
-            <div className="w-full rounded-xl p-3 sm:p-4 border border-cyan-400/40 bg-cyan-500/10 text-cyan-100 backdrop-blur-md">
+            <div className="w-full rounded-3xl p-4 border border-border-secondary bg-cyan-500/10 text-foreground-primary">
               <div className="flex flex-col gap-2">
                 {quotaWarnings.map((w, i) => (
                   <div key={i} className="text-sm">
@@ -336,7 +486,7 @@ export default function SubscriptionsPage() {
                     onClick={() =>
                       plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }
-                    className="text-xs px-3 py-1.5 rounded-md bg-cyan-400/20 ring-1 ring-cyan-400/40 hover:bg-cyan-400/25 transition"
+                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm font-semibold"
                   >
                     Voir les plans
                   </button>
@@ -344,111 +494,31 @@ export default function SubscriptionsPage() {
               </div>
             </div>
           )}
-
-          {/* Carte résumé plan actuel */}
-          <div className="w-full rounded-2xl p-3 sm:p-4 backdrop-blur-xl border border-white/10 bg-black/40 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.15),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.12),transparent)]">
-            <div className="flex w-full flex-col gap-4 md:flex-row md:flex-wrap md:items-center md:justify-between">
-              <div className="space-between flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-white/10">
-                <InfoChip label="Plan actuel" value={planName} />
-                <InfoChip label="Période" value={billingPeriod} />
-                <InfoChip
-                  label="Prochain prélèvement"
-                  value={nextBilling}
-                  icon={<Calendar size={16} className="hidden md:block" />}
-                />
-                <InfoChip label="Pistes uploadées" value={uploadsText} />
-                <InfoChip label="Playlists" value={playlistsText} />
-                <InfoChip
-                  label="Crédits restants"
-                  value={`${creditsBalance} (≈ ${Math.floor(creditsBalance / 12)} gen)`}
-                  icon={<Coins className="w-3.5 h-3.5" />}
-                />
-              </div>
-
-              <div className="flex flex-row flex-wrap justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    if (isFreeActive) return;
-                    if (!window.confirm("Confirmer l'annulation à la fin de la période ?")) return;
-                    const res = await fetch('/api/billing/cancel-subscription', {
-                      method: 'POST',
-                    });
-                    if (res.ok) {
-                      await fetchAll();
-                    }
-                  }}
-                  className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white/90 bg-white/5 ring-1 ring-white/15 hover:bg-white/10 hover:ring-purple-400/30 transition"
-                >
-                  Annuler l&apos;abonnement
-                </button>
-                <div className="flex">
-                  <button
-                    type="button"
-                    onClick={() => setShowBuyCredits(true)}
-                    className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_24px_rgba(124,58,237,0.35)]"
-                  >
-                    <span className="relative flex flex-row items-center justify-center gap-2">
-                      <Coins className="w-4 h-4" />
-                      Acheter des crédits
-                    </span>
-                  </button>
-                </div>
-                {!isFreeActive && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      if (!window.confirm('Revenir immédiatement au plan gratuit ?')) return;
-                      const res = await fetch('/api/billing/downgrade-to-free', {
-                        method: 'POST',
-                      });
-                      if (res.ok) {
-                        await fetchAll();
-                        setToast({
-                          type: 'success',
-                          msg: 'Rétrogradation appliquée au plan gratuit.',
-                        });
-                      } else {
-                        setToast({ type: 'error', msg: 'Échec de la rétrogradation.' });
-                      }
-                    }}
-                    className="relative inline-block font-sans font-medium text-center select-none cursor-pointer px-3 sm:px-4 py-2 text-[14px] sm:text-[15px] leading-[22px] sm:leading-[24px] rounded-full text-white/90 bg-white/5 ring-1 ring-white/15 hover:bg-white/10 hover:ring-red-400/30 transition"
-                  >
-                    Revenir au plan gratuit
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="w-full text-center font-sans text-xs text-white/40">
-            Besoin d&apos;aide ? Support abonnements :{' '}
-            <a className="underline" href="mailto:billing@synaura.fr">
-              billing@synaura.fr
-            </a>
-            .
-          </div>
         </div>
-
 
         {/* Plans */}
         <div
           ref={plansRef}
-          className="relative z-10 w-full max-w-[1280px] mx-auto mt-8 p-4 sm:p-6"
+          className="relative z-10 w-full max-w-none mx-auto"
         >
-          <div className="flex flex-col items-center gap-2 text-center">
-            <h2 className="font-light text-[26px] lg:text-[36px] leading-[1.2] text-white/90">
-              Choisis ton plan Synaura
-            </h2>
-            <span className="text-sm text-white/60">
-              Adapte le Studio IA et les crédits à ton rythme de création.
-            </span>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10">
+            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+              <div>
+                <div className="text-xs text-foreground-tertiary">Étape 1</div>
+                <h2 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">
+                  Choisis ton plan
+                </h2>
+                <p className="mt-2 text-sm text-foreground-secondary max-w-2xl">
+                  Annuel = ~20% d’économie. Starter est le meilleur pour créer régulièrement.
+                </p>
+              </div>
+              <div className="flex items-center justify-start md:justify-end">
+                <PeriodToggle value={period} onChange={setPeriod} />
+              </div>
+            </div>
 
-            <PeriodToggle value={period} onChange={setPeriod} />
-          </div>
-
-          {/* Grille des plans */}
-          <div className="mt-8 grid w-full grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            {/* Grille des plans */}
+            <div className="mt-6 grid w-full grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
             {/* FREE */}
             <PlanCard
               title="Free"
@@ -566,28 +636,51 @@ export default function SubscriptionsPage() {
               onChoose={() => choosePlan(priceMap.Pro[period])}
             />
 
-          </div>
+            </div>
+
+            <div className="mt-5 text-xs text-foreground-tertiary flex flex-wrap gap-2 items-center">
+              <span className="inline-flex items-center gap-2">
+                <Check className="w-4 h-4" /> Sans engagement long
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Check className="w-4 h-4" /> Annulation en 1 clic
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Check className="w-4 h-4" /> Support: billing@synaura.fr
+              </span>
+            </div>
+          </section>
         </div>
 
         {/* Comparateur compact */}
-        <div className="relative z-10 w-full max-w-[1280px] mx-auto mt-6 p-4 sm:p-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl overflow-x-auto">
-          <div className="min-w-[720px] grid grid-cols-4 gap-2 text-sm text-white/85">
-            <div className="text-white/60">Caractéristiques</div>
-            <div className="text-white/80">Free</div>
-            <div className="text-white/80">Starter</div>
-            <div className="text-white/80">Pro</div>
+        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 overflow-x-auto">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs text-foreground-tertiary">Comparaison</div>
+              <div className="text-lg font-semibold">Ce que tu débloques</div>
+            </div>
+            <div className="text-xs text-foreground-tertiary hidden sm:block">
+              1 génération = 12 crédits • Les crédits non utilisés sont conservés
+            </div>
+          </div>
 
-            <div className="text-white/60 mt-2">Pistes/mois</div>
+          <div className="mt-4 min-w-[760px] grid grid-cols-4 gap-2 text-sm text-foreground-secondary">
+            <div className="text-foreground-tertiary">Caractéristiques</div>
+            <div className="text-foreground-secondary font-semibold">Free</div>
+            <div className="text-foreground-secondary font-semibold">Starter</div>
+            <div className="text-foreground-secondary font-semibold">Pro</div>
+
+            <div className="text-foreground-tertiary mt-2">Pistes/mois</div>
             <div className="mt-2">10</div>
             <div className="mt-2">{PLAN_ENTITLEMENTS.starter.uploads.maxTracks}</div>
             <div className="mt-2">{PLAN_ENTITLEMENTS.pro.uploads.maxTracks}</div>
 
-            <div className="text-white/60 mt-1">Playlists</div>
+            <div className="text-foreground-tertiary mt-1">Playlists</div>
             <div className="mt-1">3</div>
             <div className="mt-1">{PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}</div>
             <div className="mt-1">Illimité</div>
 
-            <div className="text-white/60 mt-1">Crédits/mois (≈ gen)</div>
+            <div className="text-foreground-tertiary mt-1">Crédits/mois (≈ gen)</div>
             <div className="mt-1">
               {PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0} (≈{' '}
               {Math.floor((PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0) / 12)})
@@ -601,19 +694,19 @@ export default function SubscriptionsPage() {
               {Math.floor((PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0) / 12)})
             </div>
 
-            <div className="text-white/60 mt-1">Qualité audio</div>
+            <div className="text-foreground-tertiary mt-1">Qualité audio</div>
             <div className="mt-1">{PLAN_ENTITLEMENTS.free.audio.maxQualityKbps} kbps</div>
             <div className="mt-1">{PLAN_ENTITLEMENTS.starter.audio.maxQualityKbps} kbps</div>
             <div className="mt-1">{PLAN_ENTITLEMENTS.pro.audio.maxQualityKbps} kbps</div>
 
-            <div className="text-white/60 mt-1">Téléchargement</div>
+            <div className="text-foreground-tertiary mt-1">Téléchargement</div>
             <div className="mt-1">—</div>
             <div className="mt-1">—</div>
             <div className="mt-1">
               {PLAN_ENTITLEMENTS.pro.features.download ? 'Oui' : '—'}
             </div>
 
-            <div className="text-white/60 mt-1">Messagerie</div>
+            <div className="text-foreground-tertiary mt-1">Messagerie</div>
             <div className="mt-1">—</div>
             <div className="mt-1">
               {PLAN_ENTITLEMENTS.starter.features.messaging ? 'Oui' : '—'}
@@ -622,25 +715,22 @@ export default function SubscriptionsPage() {
               {PLAN_ENTITLEMENTS.pro.features.messaging ? 'Oui' : '—'}
             </div>
 
-            <div className="text-white/60 mt-1">Statistiques avancées</div>
+            <div className="text-foreground-tertiary mt-1">Statistiques avancées</div>
             <div className="mt-1">—</div>
             <div className="mt-1">—</div>
             <div className="mt-1">
               {PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Oui' : '—'}
             </div>
           </div>
-          <div className="mt-3 text-center text-xs text-white/60">
-            1 génération = 12 crédits. Les crédits non utilisés sont conservés.
-          </div>
-        </div>
+        </section>
 
         {/* Aperçu proration */}
         {preview && (
           <div
             ref={previewRef}
-            className="mt-6 rounded-2xl border border-white/10 bg-black/40 backdrop-blur-xl p-4 text-sm text-white/85"
+            className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-sm"
           >
-            <div className="text-white/90 text-sm font-medium">
+            <div className="text-sm font-semibold">
               Aperçu du changement de plan
             </div>
             <ul className="mt-2 space-y-1">
@@ -660,7 +750,27 @@ export default function SubscriptionsPage() {
 
         {/* PaymentElement / UpdateCard */}
         {selectedPriceId && !paid && (
-          <div className="mt-6" ref={payRef}>
+          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6" ref={payRef}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xs text-foreground-tertiary">Étape 2</div>
+                <div className="mt-1 text-lg font-semibold">Paiement</div>
+                <div className="mt-1 text-sm text-foreground-secondary">
+                  {selectedPlanLabel ? (
+                    <>
+                      Plan <span className="font-semibold">{selectedPlanLabel}</span> •{' '}
+                      <span className="text-foreground-tertiary">{selectedPlanPriceText}</span>
+                    </>
+                  ) : (
+                    'Finalise ton abonnement.'
+                  )}
+                </div>
+              </div>
+              <div className="hidden sm:flex items-center gap-2 text-xs text-foreground-tertiary">
+                <CreditCard className="w-4 h-4" /> Paiement Stripe
+              </div>
+            </div>
+
             <PaymentElementCard
               priceId={selectedPriceId}
               onSuccess={() => {
@@ -668,16 +778,86 @@ export default function SubscriptionsPage() {
                 fetchAll();
               }}
             />
-          </div>
+          </section>
         )}
-
 
         {paid && (
-          <div className="mt-6 rounded-2xl border border-emerald-400/40 bg-emerald-500/15 backdrop-blur-xl p-4 text-emerald-100 text-sm">
-            Paiement réussi. Abonnement activé.
-          </div>
+          <section className="rounded-3xl border border-border-secondary bg-emerald-500/10 p-6">
+            <div className="text-xs text-foreground-tertiary">Étape 3</div>
+            <div className="mt-1 text-lg font-semibold">Abonnement activé</div>
+            <div className="mt-2 text-sm text-foreground-secondary">
+              C’est bon. Tes avantages Premium sont actifs.
+            </div>
+            <div className="mt-4 flex gap-2 flex-wrap">
+              <button
+                onClick={() => window.location.href = '/'}
+                className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
+              >
+                Retour musique
+              </button>
+              <button
+                onClick={() => window.location.href = '/settings'}
+                className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition"
+              >
+                Gérer mon compte
+              </button>
+            </div>
+          </section>
         )}
+
+        {/* FAQ */}
+        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-xs text-foreground-tertiary">FAQ</div>
+              <div className="mt-1 text-2xl font-bold tracking-tight">Questions fréquentes</div>
+              <div className="mt-2 text-sm text-foreground-secondary">
+                Réponses rapides sur la facturation et les crédits.
+              </div>
+            </div>
+            <HelpCircle className="w-5 h-5 text-foreground-tertiary" />
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-3">
+            <FaqItem
+              q="Les crédits expirent ?"
+              a="Non. Les crédits non utilisés sont conservés."
+            />
+            <FaqItem
+              q="Je peux annuler quand je veux ?"
+              a="Oui. Tu peux annuler à tout moment et garder l’accès jusqu’à la fin de la période."
+            />
+            <FaqItem
+              q="Combien coûte une génération ?"
+              a="Une génération consomme 12 crédits."
+            />
+            <FaqItem
+              q="Je change de plan en cours de période ?"
+              a="Si tu es déjà abonné, on te montre un aperçu de proration avant de payer."
+            />
+          </div>
+        </section>
       </main>
+
+      {/* Sticky CTA mobile */}
+      {selectedPriceId && !paid && (
+        <div className="sm:hidden fixed bottom-3 left-3 right-3 z-40">
+          <div className="rounded-3xl border border-border-secondary bg-background-fog-thin backdrop-blur-xl p-3 flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-xs text-foreground-tertiary truncate">Plan sélectionné</div>
+              <div className="text-sm font-semibold truncate">
+                {selectedPlanLabel || 'Plan'} {selectedPlanPriceText ? `• ${selectedPlanPriceText}` : ''}
+              </div>
+            </div>
+            <button
+              onClick={() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+              className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary font-semibold inline-flex items-center gap-2"
+            >
+              Payer <ArrowDown className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Toast global */}
       {toast && (
@@ -721,6 +901,35 @@ function InfoChip({
           <span>{value}</span>
         </span>
       </span>
+    </div>
+  );
+}
+
+function Kpi({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-2xl border border-border-secondary bg-white/5 p-3">
+      <div className="text-xs text-foreground-tertiary">{label}</div>
+      <div className="mt-1 text-sm font-semibold inline-flex items-center gap-2">
+        {icon ? <span className="text-foreground-tertiary">{icon}</span> : null}
+        <span className="truncate">{value}</span>
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({ q, a }: { q: string; a: string }) {
+  return (
+    <div className="rounded-3xl border border-border-secondary bg-white/5 p-4">
+      <div className="text-sm font-semibold">{q}</div>
+      <div className="mt-2 text-sm text-foreground-secondary">{a}</div>
     </div>
   );
 }
@@ -819,35 +1028,38 @@ function PlanCard({
   launchDiscount?: number;
   monthlyCredits?: number;
 }) {
-  const { price, originalPrice, discountedPrice } = useMemo(() => {
-    const discount = launchDiscount || 0;
+  const pricing = useMemo(() => {
+    const discountPct = launchDiscount || 0;
 
-    if (period === 'year') {
-      const yearlyBase = priceMonthly * 12 * 0.8;
-      const discounted = discount > 0 ? yearlyBase * (1 - discount / 100) : yearlyBase;
-      return {
-        price: `${discounted.toFixed(2)}€ / an`,
-        originalPrice: discount > 0 ? `${yearlyBase.toFixed(2)}€` : null,
-        discountedPrice: discount > 0 ? discounted : null,
-      };
-    }
+    // base prices in euros
+    const monthly = priceMonthly;
+    const yearly = priceMonthly * 12 * 0.8; // -20% yearly
 
-    const discounted = discount > 0 ? priceMonthly * (1 - discount / 100) : priceMonthly;
+    const base = period === 'year' ? yearly : monthly;
+    const discounted = discountPct > 0 ? base * (1 - discountPct / 100) : base;
+
+    const format = (n: number) =>
+      n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
+
     return {
-      price: `${discounted.toFixed(2)}€ / mois`,
-      originalPrice: discount > 0 ? `${priceMonthly.toFixed(2)}€` : null,
-      discountedPrice: discount > 0 ? discounted : null,
+      base,
+      discounted,
+      baseLabel: period === 'year' ? `${format(base)} / an` : `${format(base)} / mois`,
+      discountedLabel:
+        period === 'year' ? `${format(discounted)} / an` : `${format(discounted)} / mois`,
+      savings: base > discounted ? base - discounted : 0,
     };
   }, [priceMonthly, period, launchDiscount]);
 
   return (
     <div
-      className={`flex h-full w-full flex-col rounded-3xl border overflow-hidden ${
+      className={`flex h-full w-full flex-col rounded-3xl border overflow-hidden transition hover:-translate-y-0.5 hover:bg-white/[0.05] ${
         highlight
-          ? 'border-purple-400/40 shadow-[0_0_40px_rgba(168,85,247,0.25)]'
+          ? 'border-purple-400/40 shadow-[0_0_60px_rgba(168,85,247,0.22)]'
           : 'border-white/12'
       }`}
     >
+      <div className={`h-1 w-full ${highlight ? 'bg-gradient-to-r from-purple-500 to-cyan-400' : 'bg-white/10'}`} />
       <div className="flex h-full flex-col bg-white/[0.04] backdrop-blur-md p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.09),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.06),transparent)]">
         <div className="flex flex-col gap-6 flex-1">
           <div className="flex items-center justify-between gap-2">
@@ -867,17 +1079,17 @@ function PlanCard({
               <div className="text-2xl">Gratuit</div>
             ) : (
               <div className="flex flex-col gap-1">
-                {originalPrice && (
-                  <div className="text-lg text-white/50 line-through">{originalPrice}</div>
+                {pricing.savings > 0 && (
+                  <div className="text-lg text-white/50 line-through">{pricing.baseLabel}</div>
                 )}
                 <div
-                  className={`${
-                    originalPrice
-                      ? 'text-3xl font-bold bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent'
+                  className={
+                    pricing.savings > 0
+                      ? 'text-3xl font-bold bg-gradient-to-r from-emerald-300 to-green-400 bg-clip-text text-transparent'
                       : 'text-2xl'
-                  }`}
+                  }
                 >
-                  {price}
+                  {pricing.discountedLabel}
                 </div>
                 {typeof monthlyCredits === 'number' && monthlyCredits > 0 && (
                   <div className="text-xs text-white/70">
@@ -886,14 +1098,13 @@ function PlanCard({
                 )}
               </div>
             )}
-            <div className="text-xs text-white/50">
-              {originalPrice && discountedPrice
-                ? `Économisez ${(originalPrice && discountedPrice
-                    ? (parseFloat(originalPrice) - discountedPrice).toFixed(2)
-                    : '0'
-                  ).toString()}€ / période`
-                : 'Taxes calculées au paiement'}
-            </div>
+            {title === 'Free' ? null : pricing.savings > 0 ? (
+              <div className="text-xs text-white/60">
+                Économisez {pricing.savings.toFixed(2)}€ / période
+              </div>
+            ) : (
+              <div className="text-xs text-white/50">Taxes calculées au paiement</div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-2 text-sm text-white/80 mt-2">

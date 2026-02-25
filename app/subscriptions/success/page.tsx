@@ -3,177 +3,203 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CheckCircle, Crown, Star, Music } from 'lucide-react';
+import { CheckCircle, Crown, Star, Music, Loader2 } from 'lucide-react';
 import BottomNav from '@/components/BottomNav';
 
 function SubscriptionSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [loading, setLoading] = useState(true);
-  const [subscriptionData, setSubscriptionData] = useState<any>(null);
+  const [subscriptionData, setSubscriptionData] = useState<{
+    name: string;
+    price: number;
+    currency: string;
+    interval: string;
+    status: string;
+    nextBilling: string | null;
+  } | null>(null);
+  const [error, setError] = useState<string>('');
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
-    
-    if (sessionId) {
-      // Simuler la récupération des données de l'abonnement
-      setTimeout(() => {
-        setSubscriptionData({
-          sessionId,
-          plan: {
-            name: 'Pro',
-            price: 9.99,
-            currency: 'EUR',
-            interval: 'mois'
-          },
-          status: 'active',
-          startDate: new Date().toLocaleDateString('fr-FR'),
-          endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('fr-FR')
+
+    (async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Vérifier le checkout si on a un session_id
+        if (sessionId) {
+          const verifyRes = await fetch('/api/billing/verify-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          if (!verifyRes.ok) {
+            setError("Paiement vérifié, mais impossible de confirmer l'activation automatiquement.");
+          }
+        }
+
+        // Charger le plan actuel réel
+        const subRes = await fetch('/api/subscriptions/my-subscription', {
+          headers: { 'Cache-Control': 'no-store' },
         });
+        const subJson = await subRes.json().catch(() => null);
+
+        const plan = subJson?.subscription || null;
+        const userSub = subJson?.userSubscription || null;
+
+        const nextBilling = userSub?.currentPeriodEnd
+          ? new Date(userSub.currentPeriodEnd).toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+          : null;
+
+        if (plan?.name) {
+          setSubscriptionData({
+            name: String(plan.name),
+            price: Number(plan.price || 0),
+            currency: String(plan.currency || 'EUR'),
+            interval: String(plan.interval || ''),
+            status: String(userSub?.status || 'active'),
+            nextBilling,
+          });
+        } else {
+          setSubscriptionData(null);
+        }
+      } catch (e: any) {
+        setError(e?.message || 'Erreur lors du chargement.');
+      } finally {
         setLoading(false);
-      }, 2000);
-    } else {
-      setLoading(false);
-    }
+      }
+    })();
   }, [searchParams]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-white mb-2">Traitement en cours...</h2>
-          <p className="text-gray-300">Vérification de votre abonnement</p>
+      <div className="min-h-screen bg-background-primary text-foreground-primary flex items-center justify-center px-4">
+        <div className="w-full max-w-md rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-center">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto text-foreground-tertiary" />
+          <h2 className="mt-4 text-lg font-semibold">Activation en cours…</h2>
+          <p className="mt-1 text-sm text-foreground-tertiary">
+            On vérifie ton paiement et on charge ton abonnement.
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
-      <main className="container mx-auto px-4 pt-16 pb-32">
-        <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-background-primary text-foreground-primary">
+      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 pt-10 pb-32">
+        <div className="max-w-3xl mx-auto">
           {/* Header */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center mb-12"
+            className="text-center mb-8"
           >
             <div className="flex items-center justify-center mb-6">
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500">
+              <div className="p-4 rounded-3xl border border-border-secondary bg-emerald-500/10">
                 <CheckCircle size={32} className="text-white" />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold gradient-text mb-4">
-              Abonnement activé !
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+              Abonnement activé
             </h1>
-            <p className="text-xl text-gray-300">
-              Félicitations ! Votre abonnement a été activé avec succès.
+            <p className="mt-2 text-sm md:text-base text-foreground-secondary">
+              Tes avantages Premium sont maintenant disponibles.
             </p>
           </motion.div>
 
           {/* Subscription Details */}
-          {subscriptionData && (
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="glass-effect rounded-2xl p-8 mb-8 border-2 border-green-500/30"
-            >
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
-                  <Crown size={24} className="text-white" />
-                </div>
-                <div>
-                  <h2 className="text-2xl font-bold text-white">
-                    Plan {subscriptionData.plan.name}
-                  </h2>
-                  <p className="text-green-400 font-semibold">
-                    Abonnement actif
-                  </p>
-                </div>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-8"
+          >
+            {error && (
+              <div className="mb-4 rounded-2xl border border-border-secondary bg-yellow-500/10 p-4 text-sm">
+                {error}
               </div>
+            )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="text-center">
-                  <div className="text-gray-300 text-sm mb-1">Prix</div>
-                  <div className="text-2xl font-bold text-white">
-                    {subscriptionData.plan.price}€/{subscriptionData.plan.interval}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-300 text-sm mb-1">Statut</div>
-                  <div className="text-green-400 font-semibold">
-                    {subscriptionData.status === 'active' ? 'Actif' : 'En attente'}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-300 text-sm mb-1">Début</div>
-                  <div className="text-white font-semibold">
-                    {subscriptionData.startDate}
-                  </div>
-                </div>
-                <div className="text-center">
-                  <div className="text-gray-300 text-sm mb-1">Prochain paiement</div>
-                  <div className="text-white font-semibold">
-                    {subscriptionData.endDate}
-                  </div>
-                </div>
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-white/5 border border-border-secondary">
+                <Crown size={22} className="text-white" />
               </div>
+              <div className="min-w-0">
+                <h2 className="text-xl md:text-2xl font-bold truncate">
+                  {subscriptionData ? `Plan ${subscriptionData.name}` : 'Plan activé'}
+                </h2>
+                <p className="text-sm text-foreground-tertiary">
+                  {subscriptionData ? `Statut: ${subscriptionData.status}` : 'Statut: actif'}
+                </p>
+              </div>
+            </div>
 
-              <div className="border-t border-gray-700 pt-6">
-                <h3 className="text-lg font-semibold text-white mb-4">
-                  Fonctionnalités débloquées :
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="flex items-center text-sm">
-                    <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                    <span className="text-gray-300">Upload illimité</span>
+            {subscriptionData && (
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4 text-center">
+                  <div className="text-xs text-foreground-tertiary">Prix</div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {Number.isFinite(subscriptionData.price) ? subscriptionData.price : 0}€
+                    <span className="text-foreground-tertiary text-sm">
+                      /{subscriptionData.interval || 'mois'}
+                    </span>
                   </div>
-                  <div className="flex items-center text-sm">
-                    <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                    <span className="text-gray-300">Qualité audio HD</span>
+                </div>
+                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4 text-center">
+                  <div className="text-xs text-foreground-tertiary">Prochain paiement</div>
+                  <div className="mt-1 text-lg font-semibold">
+                    {subscriptionData.nextBilling || '—'}
                   </div>
-                  <div className="flex items-center text-sm">
-                    <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                    <span className="text-gray-300">Sans publicités</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                    <span className="text-gray-300">Analytics avancées</span>
-                  </div>
-                  <div className="flex items-center text-sm">
-                    <CheckCircle size={16} className="text-green-400 mr-2 flex-shrink-0" />
-                    <span className="text-gray-300">Support prioritaire</span>
-                  </div>
-                  
+                </div>
+                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4 text-center">
+                  <div className="text-xs text-foreground-tertiary">Avantages</div>
+                  <div className="mt-1 text-lg font-semibold">Débloqués</div>
                 </div>
               </div>
-            </motion.div>
-          )}
+            )}
+
+            <div className="mt-6 border-t border-border-secondary pt-6">
+              <h3 className="text-sm font-semibold mb-3">Prochaines étapes</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-foreground-secondary">
+                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">
+                  Va dans <span className="font-semibold">Studio</span> pour générer avec tes crédits.
+                </div>
+                <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">
+                  Tu peux gérer ton compte dans <span className="font-semibold">Réglages</span>.
+                </div>
+              </div>
+            </div>
+          </motion.div>
 
           {/* Action Buttons */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-            className="flex flex-col sm:flex-row gap-4 justify-center"
+            transition={{ duration: 0.6, delay: 0.35 }}
+            className="mt-6 flex flex-col sm:flex-row gap-3 justify-center"
           >
             <button
               onClick={() => router.push('/')}
-              className="px-8 py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center space-x-2"
+              className="h-11 px-5 rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary font-semibold inline-flex items-center justify-center gap-2"
             >
-              <Music size={20} />
-              <span>Retour à l'accueil</span>
+              <Music size={18} />
+              Retour à la musique
             </button>
-            
+
             <button
-              onClick={() => router.push('/settings')}
-              className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white font-semibold rounded-xl hover:bg-white/20 transition-all duration-300 flex items-center justify-center space-x-2"
+              onClick={() => router.push('/subscriptions')}
+              className="h-11 px-5 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition inline-flex items-center justify-center gap-2"
             >
-              <Star size={20} />
-              <span>Gérer mon abonnement</span>
+              <Star size={18} />
+              Gérer l’abonnement
             </button>
           </motion.div>
 
@@ -181,20 +207,21 @@ function SubscriptionSuccessContent() {
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="mt-12 text-center"
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="mt-8 text-center"
           >
-            <div className="glass-effect rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">
-                Merci de votre confiance !
-              </h3>
-              <p className="text-gray-300 text-sm">
-                Votre abonnement est maintenant actif. Vous pouvez commencer à profiter de toutes les fonctionnalités premium.
-                <br />
-                Un email de confirmation vous a été envoyé avec tous les détails.
+            <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6">
+              <h3 className="text-sm font-semibold">Merci pour ton soutien.</h3>
+              <p className="mt-2 text-sm text-foreground-tertiary">
+                Si tu as un souci de facturation, écris à{' '}
+                <a className="underline" href="mailto:billing@synaura.fr">
+                  billing@synaura.fr
+                </a>
+                .
               </p>
             </div>
           </motion.div>
+
         </div>
       </main>
 
@@ -206,15 +233,19 @@ function SubscriptionSuccessContent() {
 
 export default function SubscriptionSuccess() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-500 mx-auto mb-6"></div>
-          <h2 className="text-2xl font-bold text-white mb-2">Chargement...</h2>
-          <p className="text-gray-300">Préparation de votre page</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background-primary text-foreground-primary flex items-center justify-center px-4">
+          <div className="w-full max-w-md rounded-3xl border border-border-secondary bg-background-fog-thin p-6 text-center">
+            <Loader2 className="w-6 h-6 animate-spin mx-auto text-foreground-tertiary" />
+            <h2 className="mt-4 text-lg font-semibold">Chargement…</h2>
+            <p className="mt-1 text-sm text-foreground-tertiary">
+              Préparation de ta page.
+            </p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <SubscriptionSuccessContent />
     </Suspense>
   );
