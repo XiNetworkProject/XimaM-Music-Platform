@@ -8,7 +8,6 @@ import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 import StudioBackground from '@/components/StudioBackground';
 import GlobalQueueBubble from '@/components/GlobalQueueBubble';
-import GlobalUpdatesBubble from '@/components/GlobalUpdatesBubble';
 import { Analytics } from '@vercel/analytics/next';
 import AdSenseScript from '@/components/AdSenseScript';
 
@@ -132,7 +131,6 @@ export default function RootLayout({
                     {children}
                   </main>
                   <ConditionalBottomNav />
-                  <GlobalUpdatesBubble />
                   <GlobalQueueBubble />
                   <FullScreenPlayer />
                 </LayoutContent>

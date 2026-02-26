@@ -128,17 +128,6 @@ export type RadioStatusResponse = {
   source?: string;
 };
 
-export type TvStatusResponse = {
-  ok: boolean;
-  provider?: string;
-  enabled?: boolean;
-  isLive?: boolean;
-  providerStatus?: string | null;
-  playbackUrl?: string | null;
-  updatedAt?: string | null;
-  error?: string;
-};
-
 class ApiService {
   private token: string | null = null;
 
@@ -271,13 +260,9 @@ class ApiService {
     });
   }
 
-  // ===== RADIO / TV =====
+  // ===== RADIO =====
   async getRadioStatus(station: 'mixx_party' | 'ximam' = 'mixx_party'): Promise<ApiResponse<RadioStatusResponse>> {
     return this.request<RadioStatusResponse>(`/api/radio/status?station=${encodeURIComponent(station)}`, { method: 'GET' });
-  }
-
-  async getTvStatus(): Promise<ApiResponse<TvStatusResponse>> {
-    return this.request<TvStatusResponse>(`/api/tv/status`, { method: 'GET' });
   }
 
   // ===== SEARCH =====

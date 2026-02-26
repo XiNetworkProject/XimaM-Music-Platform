@@ -1129,35 +1129,33 @@ function NativeFeaturesWrapper({ children }: { children: React.ReactNode }) {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const WhatsNewModal = dynamic(() => import('@/components/WhatsNewModal'), { ssr: false });
-  const [showWhatsNew, setShowWhatsNew] = useState(false);
   const WHATSNEW_VERSION = (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v1';
-  useEffect(() => {
-    try {
-      const key = `whatsnew.${WHATSNEW_VERSION}.shown`;
-      const dateKey = `whatsnew.${WHATSNEW_VERSION}.date`;
-      if (typeof window !== 'undefined' && !localStorage.getItem(key)) {
-        setShowWhatsNew(true);
-        localStorage.setItem(key, '1');
-        localStorage.setItem(dateKey, String(Date.now()));
-      }
-    } catch {}
-  }, []);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const storageKey = `whatsnew.${WHATSNEW_VERSION}.dontShowUntilNextUpdate`;
+
   useEffect(() => {
     try {
       if (typeof window === 'undefined') return;
       const params = new URLSearchParams(window.location.search);
       const flag = params.get('whatsnew');
-      const key = `whatsnew.${WHATSNEW_VERSION}.shown`;
-      const dateKey = `whatsnew.${WHATSNEW_VERSION}.date`;
+      if (flag === 'reset') localStorage.removeItem(storageKey);
       if (flag === '1' || flag === 'true') {
         setShowWhatsNew(true);
-      } else if (flag === 'reset') {
-        localStorage.removeItem(key);
-        localStorage.removeItem(dateKey);
-        setShowWhatsNew(true);
+        return;
       }
+
+      const dismissed = localStorage.getItem(storageKey);
+      if (!dismissed) setShowWhatsNew(true);
     } catch {}
-  }, []);
+  }, [storageKey]);
+
+  const dontShowUntilNextUpdate = () => {
+    try {
+      localStorage.setItem(storageKey, '1');
+    } catch {}
+    setShowWhatsNew(false);
+  };
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       (window as any).showWhatsNew = () => setShowWhatsNew(true);
@@ -1179,7 +1177,11 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     <NativeFeaturesWrapper>
                   {children}
                     </NativeFeaturesWrapper>
-                    <WhatsNewModal isOpen={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
+                    <WhatsNewModal
+                      isOpen={showWhatsNew}
+                      onClose={() => setShowWhatsNew(false)}
+                      onDontShowUntilNextUpdate={dontShowUntilNextUpdate}
+                    />
                   <Toaster position="top-center" />
                 </SubscriptionProvider>
                 </SidebarProvider>

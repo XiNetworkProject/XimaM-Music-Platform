@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Search, Sparkles, Upload, Tv } from 'lucide-react';
+import { Search, Sparkles, Upload } from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
@@ -202,13 +202,6 @@ export default function DiscoverAuthedClient({
               >
                 <Upload className="h-4 w-4" />
                 Uploader
-              </Link>
-              <Link
-                href="/tv"
-                className="h-9 px-4 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition inline-flex items-center gap-2 text-sm"
-              >
-                <Tv className="h-4 w-4" />
-                TV
               </Link>
             </div>
           </div>

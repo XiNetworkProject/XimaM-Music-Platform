@@ -60,7 +60,7 @@ export default function MuxVideoPlayer({
 
   const metadata = useMemo(
     () => ({
-      video_title: title || 'SYNAURA TV',
+      video_title: title || 'Video',
       video_id: finalPlaybackId,
     }),
     [finalPlaybackId, title],

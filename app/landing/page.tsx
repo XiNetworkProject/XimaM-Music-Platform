@@ -142,8 +142,7 @@ export default async function LandingPage() {
         </section>
 
         <section className="text-xs text-foreground-tertiary">
-          Pages publiques indexables: <a className="underline" href="/discover">/discover</a>,{' '}
-          <a className="underline" href="/tv">/tv</a>.
+          Pages publiques indexables: <a className="underline" href="/discover">/discover</a>.
         </section>
       </main>
     </div>

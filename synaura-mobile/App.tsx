@@ -47,7 +47,6 @@ function RootNavigator() {
           <Stack.Screen name="Upload" component={SimplePlaceholderScreen} />
           <Stack.Screen name="Premium" component={SimplePlaceholderScreen} />
           <Stack.Screen name="Meteo" component={SimplePlaceholderScreen} />
-          <Stack.Screen name="TV" component={SimplePlaceholderScreen} />
         </>
       )}
     </Stack.Navigator>

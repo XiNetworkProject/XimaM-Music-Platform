@@ -7,7 +7,6 @@ import {
   Heart,
   Upload,
   Radio,
-  Tv,
   Sparkles,
   Music2,
   Users,
@@ -36,8 +35,6 @@ import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import Avatar from '@/components/Avatar';
 import FollowButton from '@/components/FollowButton';
 import LikeButton from '@/components/LikeButton';
-import HlsVideoPlayer from '@/components/HlsVideoPlayer';
-import MuxVideoPlayer, { muxPlaybackIdFromUrl } from '@/components/MuxVideoPlayer';
 import AdSlot from '@/components/AdSlot';
 
 interface Track {
@@ -1075,16 +1072,6 @@ export default function SynauraHome() {
   const [weatherCode, setWeatherCode] = useState<number>(0);
   const [alertempsBulletinImage, setAlertempsBulletinImage] = useState<string | null>(null);
 
-  // ✅ SYNAURA TV mini-panel (home)
-  const [tvStatus, setTvStatus] = useState<{
-    ok: boolean;
-    enabled?: boolean;
-    isLive?: boolean;
-    playbackUrl?: string | null;
-  } | null>(null);
-
-  const tvMuxPlaybackId = useMemo(() => muxPlaybackIdFromUrl(String(tvStatus?.playbackUrl || '')), [tvStatus?.playbackUrl]);
-  
   // Fonction pour charger les données
   const fetchCategoryData = useCallback(async (key: string, url: string) => {
     const cached = dataCache.get(key);
@@ -1658,25 +1645,6 @@ export default function SynauraHome() {
       playTrack(data);
     }
   }, [router, playTrack]);
-
-  const fetchTvStatus = useCallback(async () => {
-    try {
-      const res = await fetch('/api/tv/status', { cache: 'no-store' });
-      const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j?.error || 'Erreur TV');
-      setTvStatus(j);
-    } catch {
-      // silencieux (on n'affiche rien si indispo)
-      setTvStatus(null);
-    }
-  }, []);
-
-  // Polling léger du statut TV (15s)
-  useEffect(() => {
-    fetchTvStatus();
-    const t = window.setInterval(() => fetchTvStatus(), 15000);
-    return () => window.clearInterval(t);
-  }, [fetchTvStatus]);
 
   // Fonction pour récupérer la météo en temps réel
   const fetchWeather = useCallback(async () => {
@@ -2305,74 +2273,9 @@ export default function SynauraHome() {
               }}
             />
 
-            {/* Hero + mini TV (si live) */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
-              <div className={tvStatus?.ok && tvStatus?.enabled && tvStatus?.playbackUrl ? 'md:col-span-8' : 'md:col-span-12'}>
-                <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
-              </div>
-
-              {tvStatus?.ok && tvStatus?.enabled && tvStatus?.playbackUrl && (
-                <button
-                  type="button"
-                  onClick={() => onGo('/tv')}
-                  className="md:col-span-4 rounded-3xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition overflow-hidden text-left"
-                  title="Ouvrir SYNAURA TV"
-                >
-                  <div className="p-3 border-b border-border-secondary/60 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className="h-9 w-9 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center shrink-0">
-                        <Tv className="h-4 w-4 text-foreground-secondary" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-semibold text-foreground-primary truncate">SYNAURA TV</div>
-                        <div className="text-xs text-foreground-tertiary truncate">
-                          {tvStatus?.isLive ? 'DIRECT en cours' : 'Live prêt'}
-                        </div>
-                      </div>
-                    </div>
-                    <span
-                      className={[
-                        'shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold',
-                        tvStatus?.isLive
-                          ? 'border-red-500/30 bg-red-500/10 text-foreground-primary'
-                          : 'border-border-secondary/60 bg-background-tertiary text-foreground-tertiary',
-                      ].join(' ')}
-                    >
-                      <span className={tvStatus?.isLive ? 'h-1.5 w-1.5 rounded-full bg-red-500' : 'h-1.5 w-1.5 rounded-full bg-foreground-inactive'} />
-                      {tvStatus?.isLive ? 'DIRECT' : 'LIVE'}
-                    </span>
-                  </div>
-
-                  <div className="p-2">
-                    <div className="rounded-2xl border border-border-secondary bg-black overflow-hidden">
-                      {/* pointer-events-none pour que le clic ouvre /tv */}
-                      <div className="pointer-events-none">
-                        {tvMuxPlaybackId ? (
-                          <MuxVideoPlayer
-                            playbackUrl={String(tvStatus.playbackUrl)}
-                            playbackId={tvMuxPlaybackId}
-                            className="aspect-video w-full"
-                            autoPlay
-                            muted
-                            controls={false}
-                          />
-                        ) : (
-                          <HlsVideoPlayer
-                            src={String(tvStatus.playbackUrl)}
-                            className="aspect-video w-full"
-                            autoPlay
-                            muted
-                            controls={false}
-                          />
-                        )}
-                      </div>
-                    </div>
-                    <div className="mt-2 text-xs text-foreground-tertiary">
-                      Aperçu muet • Clique pour ouvrir la TV
-                    </div>
-                  </div>
-                </button>
-              )}
+            {/* Hero */}
+            <div>
+              <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
             </div>
 
             {/* Raccourcis “rempli” */}
