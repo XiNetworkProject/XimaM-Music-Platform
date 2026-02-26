@@ -11,7 +11,6 @@ import {
   Music2,
   Users,
   Library,
-  CloudSun,
   ChevronLeft,
   ChevronRight,
   List,
@@ -25,7 +24,6 @@ import {
   Clock,
   TrendingUp,
   Crown,
-  Cloud,
   Gift,
 } from "lucide-react";
 import { useSession } from 'next-auth/react';
@@ -198,17 +196,17 @@ const SectionTitle = ({
   actionLabel?: string;
   onAction?: () => void;
 }) => (
-  <div className="flex items-center justify-between mb-2 md:mb-3">
-    <div className="flex items-center gap-2">
-      <div className="h-9 w-9 rounded-2xl bg-background-fog-thin border border-border-secondary grid place-items-center">
-        <Icon className="w-4 h-4 text-foreground-secondary" />
+  <div className="flex items-center justify-between mb-3 md:mb-4">
+    <div className="flex items-center gap-3">
+      <div className="h-10 w-10 rounded-xl bg-white/[0.06] border border-white/[0.06] grid place-items-center">
+        <Icon className="w-5 h-5 text-foreground-secondary" />
       </div>
-      <h3 className="text-base md:text-lg font-semibold tracking-tight text-foreground-primary">{title}</h3>
+      <h3 className="text-lg md:text-xl font-bold tracking-tight text-foreground-primary">{title}</h3>
     </div>
     {actionLabel && (
       <button
         onClick={onAction}
-        className="h-9 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary"
+        className="text-sm font-medium text-foreground-tertiary hover:text-foreground-primary transition"
       >
         {actionLabel}
       </button>
@@ -250,11 +248,10 @@ const HorizontalScroller = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="relative group">
-      {/* Flèche gauche - PC uniquement */}
       {showLeftArrow && (
         <button
           onClick={() => scroll('left')}
-          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-background-tertiary/80 hover:bg-background-tertiary border border-border-secondary opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur"
+          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg"
           aria-label="Défiler vers la gauche"
         >
           <ChevronLeft className="w-5 h-5 text-foreground-primary" />
@@ -263,18 +260,17 @@ const HorizontalScroller = ({ children }: { children: React.ReactNode }) => {
 
       <div 
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar pb-1 pr-1" 
+        className="flex gap-4 overflow-x-auto no-scrollbar pb-2 pr-1 -mx-1" 
         style={{ scrollSnapType: "x mandatory" }}
         onScroll={handleScroll}
       >
         {children}
       </div>
 
-      {/* Flèche droite - PC uniquement */}
       {showRightArrow && (
         <button
           onClick={() => scroll('right')}
-          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-background-tertiary/80 hover:bg-background-tertiary border border-border-secondary opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur"
+          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg"
           aria-label="Défiler vers la droite"
         >
           <ChevronRight className="w-5 h-5 text-foreground-primary" />
@@ -293,14 +289,14 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
   
   return (
     <div
-      className="min-w-[150px] md:min-w-[170px] max-w-[150px] md:max-w-[170px] bg-background-fog-thin border border-border-secondary rounded-2xl p-2 hover:bg-overlay-on-primary transition shadow-sm"
+      className="min-w-[150px] md:min-w-[180px] max-w-[150px] md:max-w-[180px] bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-xl p-2.5 transition-all duration-200 hover:scale-[1.02]"
       style={{ scrollSnapAlign: "start" }}
     >
-      <div className="relative">
+      <div className="relative group/cover">
         <img
           src={track.cover}
           alt={track.title}
-          className="w-full h-36 md:h-44 object-cover rounded-xl border border-border-secondary/60"
+          className="w-full h-36 md:h-44 object-cover rounded-lg border border-white/[0.06]"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
           }}
@@ -389,89 +385,6 @@ const AIGenCard = ({ g }: { g: any }) => (
   </div>
 );
 
-const WeatherWidget = ({ weather, weatherCode }: { weather: { city: string; temp: number; desc: string; loading: boolean }; weatherCode?: number }) => {
-  // Sélection de l'icône et du fond selon la météo
-  const getWeatherIcon = () => {
-    if (weather.loading) return <CloudSun className="w-5 h-5" />;
-    
-    const code = weatherCode || 0;
-    
-    // Soleil
-    if (code === 0 || code === 1) return (
-      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z"/>
-      </svg>
-    );
-    
-    // Nuages
-    if (code === 2 || code === 3) return (
-      <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M6.5 20Q4.22 20 2.61 18.43 1 16.85 1 14.58q0-1.95 1.17-3.48 1.18-1.53 3.08-1.95.63-2.3 2.5-3.72Q9.63 4 12 4q2.93 0 4.96 2.04Q19 8.07 19 11q1.73.2 2.86 1.5 1.14 1.28 1.14 3 0 1.88-1.31 3.19T18.5 20z"/>
-      </svg>
-    );
-    
-    // Pluie
-    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return (
-      <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/>
-      </svg>
-    );
-    
-    // Neige
-    if (code >= 71 && code <= 77) return (
-      <svg className="w-5 h-5 text-cyan-300" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12 .587l3.668 7.568 8.332 1.151-6.064 5.828 1.48 8.279-7.416-3.967-7.417 3.967 1.481-8.279-6.064-5.828 8.332-1.151z"/>
-      </svg>
-    );
-    
-    // Orage
-    if (code >= 95) return (
-      <svg className="w-5 h-5 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M13 2L3 14h8l-1 8 10-12h-8l1-8z"/>
-      </svg>
-    );
-    
-    // Par défaut
-    return <CloudSun className="w-5 h-5" />;
-  };
-
-  const getBackgroundGradient = () => {
-    if (weather.loading) return 'from-overlay-on-primary/10 to-background-fog-thin';
-    
-    const code = weatherCode || 0;
-    
-    // Soleil
-    if (code === 0 || code === 1) return 'from-yellow-500/20 via-orange-500/20 to-amber-500/20';
-    // Nuages
-    if (code === 2 || code === 3) return 'from-gray-500/20 via-slate-500/20 to-gray-600/20';
-    // Pluie
-    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return 'from-blue-500/20 via-cyan-500/20 to-blue-600/20';
-    // Neige
-    if (code >= 71 && code <= 77) return 'from-cyan-400/20 via-sky-400/20 to-blue-400/20';
-    // Orage
-    if (code >= 95) return 'from-purple-500/20 via-violet-600/20 to-indigo-600/20';
-    
-    return 'from-overlay-on-primary/10 to-background-fog-thin';
-  };
-
-  return (
-    <div
-      className={`bg-gradient-to-r ${getBackgroundGradient()} border border-border-secondary rounded-2xl p-4 flex items-center justify-between transition-all duration-500`}
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-2xl bg-background-tertiary border border-border-secondary">
-          {getWeatherIcon()}
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground-primary">Météo — {weather.city}</p>
-          <p className="text-xs text-foreground-tertiary">{weather.loading ? 'Chargement...' : weather.desc}</p>
-        </div>
-      </div>
-      <p className="text-2xl font-bold text-foreground-primary">{weather.loading ? '—' : `${weather.temp}°C`}</p>
-    </div>
-  );
-};
-
 const LiveRadioCard = ({
   title,
   logoSrc,
@@ -509,43 +422,6 @@ const LiveRadioCard = ({
     </div>
   );
 };
-
-const AlertempsCard = ({ onClick, bulletinImage }: { onClick: () => void; bulletinImage: string | null }) => (
-  <div 
-    onClick={onClick}
-    className="relative bg-gradient-to-r from-overlay-on-primary/12 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-4 overflow-hidden cursor-pointer hover:bg-overlay-on-primary transition-all duration-300 group"
-  >
-    {/* Image de prévision en arrière-plan si disponible */}
-    {bulletinImage && (
-      <div className="absolute inset-0 z-0">
-        <img 
-          src={bulletinImage} 
-          alt="Prévisions Alertemps" 
-          className="w-full h-full object-cover opacity-20 group-hover:opacity-30 transition-opacity duration-300"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-900/60 via-cyan-900/60 to-sky-900/60"></div>
-      </div>
-    )}
-    
-    {/* Contenu */}
-    <div className="relative z-10 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-2xl bg-background-tertiary border border-border-secondary backdrop-blur-sm">
-          <Cloud className="w-5 h-5 text-foreground-secondary" />
-        </div>
-        <div>
-          <p className="text-sm font-semibold text-foreground-primary">Alertemps</p>
-          <p className="text-xs text-foreground-tertiary">Prévisions détaillées</p>
-        </div>
-      </div>
-      <button className="px-3 py-2 text-sm rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 backdrop-blur-sm transition">
-        <span>Voir</span>
-        <ChevronRight className="w-4 h-4 text-foreground-primary" />
-      </button>
-    </div>
-  </div>
-);
 
 const HeroCarousel = ({
   slides,
@@ -618,7 +494,7 @@ const HeroCarousel = ({
 
   return (
     <div
-      className="relative w-full h-[240px] md:h-[300px] rounded-3xl overflow-hidden border border-border-secondary bg-background-tertiary"
+      className="relative w-full h-[280px] md:h-[360px] rounded-2xl overflow-hidden bg-[#181818] shadow-xl"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       onTouchStart={(e) => (startX.current = e.touches[0]?.clientX ?? null)}
@@ -633,14 +509,14 @@ const HeroCarousel = ({
       }}
     >
       {/* Progress bars type "stories" */}
-      <div className="absolute top-2 left-2 right-2 flex gap-1 z-10">
+      <div className="absolute top-3 left-3 right-3 flex gap-1.5 z-10">
         {slides.map((_: any, i: number) => (
           <div
             key={i}
-            className="h-1 flex-1 rounded-full bg-white/20 overflow-hidden"
+            className="h-0.5 flex-1 rounded-full bg-white/25 overflow-hidden"
           >
             <div
-              className="h-full bg-white/90"
+              className="h-full bg-white/95 transition-all duration-150"
               style={{
                 width:
                   i < index
@@ -713,13 +589,13 @@ const HeroCarousel = ({
       </div>
       <button
         onClick={prev}
-        className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-2xl bg-background-tertiary/70 hover:bg-background-tertiary border border-border-secondary backdrop-blur"
+        className="absolute left-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10 backdrop-blur-sm transition"
       >
         <ChevronLeft className="w-4 h-4 text-white" />
       </button>
       <button
         onClick={next}
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-2xl bg-background-tertiary/70 hover:bg-background-tertiary border border-border-secondary backdrop-blur"
+        className="absolute right-3 top-1/2 -translate-y-1/2 p-2.5 rounded-full bg-black/50 hover:bg-black/70 border border-white/10 backdrop-blur-sm transition"
       >
         <ChevronRight className="w-4 h-4 text-white" />
       </button>
@@ -786,39 +662,39 @@ const WelcomeHeader = ({
     "sur Synaura";
 
   return (
-    <div className="rounded-3xl border border-border-secondary bg-gradient-to-r from-overlay-on-primary/10 via-background-fog-thin to-overlay-on-primary/8 p-4 md:p-6">
-      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+    <div className="rounded-2xl bg-gradient-to-b from-white/[0.06] to-transparent border border-white/[0.06] p-4 md:p-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-foreground-tertiary text-xs md:text-sm">
+          <p className="text-foreground-tertiary text-xs">
             {session ? `${getGreeting()}, ${name}` : 'Découvrir'}
           </p>
-          <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight text-foreground-primary">
+          <h1 className="mt-0.5 text-xl md:text-2xl font-bold tracking-tight text-foreground-primary">
             Écoute des sons créés par la communauté.
           </h1>
-          <p className="text-foreground-secondary text-sm mt-2">
+          <p className="text-foreground-secondary text-xs mt-1 max-w-xl">
             Lance un son. Si tu kiffes, crée ton profil en 10 secondes.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           <button
             onClick={onListenNow}
-            className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold inline-flex items-center gap-2"
+            className="h-9 px-4 rounded-full bg-white text-black hover:scale-[1.02] active:scale-[0.98] transition text-xs font-semibold inline-flex items-center gap-1.5"
           >
-            <Play className="w-4 h-4" />
+            <Play className="w-3.5 h-3.5 fill-current" />
             Écouter maintenant
           </button>
           {!session ? (
             <button
               onClick={() => onGo("/auth/signup")}
-              className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm font-semibold"
+              className="h-9 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.08] transition text-xs font-semibold"
             >
               Créer un compte
             </button>
           ) : (
             <button
               onClick={() => onGo("/boosters")}
-              className="h-11 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm font-semibold"
+              className="h-9 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.08] transition text-xs font-semibold"
             >
               Boosters
             </button>
@@ -827,11 +703,17 @@ const WelcomeHeader = ({
       </div>
 
       {/* Lecteur instantané + mini file */}
-      <div className="mt-5 grid lg:grid-cols-12 gap-3">
-        <div className="lg:col-span-8 rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-xs text-foreground-tertiary">Lecteur instantané</div>
+      <div className="mt-6 grid lg:grid-cols-12 gap-4">
+        <div className="lg:col-span-8 rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
+          <div className="flex items-center gap-3">
+            <img
+              src={listenTrack?.coverUrl || '/default-cover.jpg'}
+              className="w-11 h-11 rounded-lg object-cover border border-white/[0.06] shrink-0"
+              onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
+              alt=""
+            />
+            <div className="min-w-0 flex-1">
+              <div className="text-[10px] text-foreground-tertiary">Lecteur instantané</div>
               <div className="text-sm font-semibold text-foreground-primary truncate">
                 {listenTrack?.title || 'Choisis une track et lance la lecture'}
               </div>
@@ -842,48 +724,37 @@ const WelcomeHeader = ({
             <button
               type="button"
               onClick={onListenNow}
-              className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm inline-flex items-center gap-2"
+              className="h-9 px-3 rounded-full bg-white text-black hover:scale-[1.02] transition text-xs font-medium inline-flex items-center gap-1.5 shrink-0"
             >
-              <Play className="w-4 h-4" />
+              <Play className="w-3.5 h-3.5 fill-current" />
               Play
             </button>
           </div>
-          <div className="mt-3 flex items-center gap-3">
-            <img
-              src={listenTrack?.coverUrl || '/default-cover.jpg'}
-              className="w-14 h-14 rounded-2xl object-cover border border-border-secondary"
-              onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-              alt=""
-            />
-            <div className="text-xs text-foreground-tertiary">
-              Clique “Écouter maintenant” pour lancer une file de lecture.
-            </div>
-          </div>
         </div>
 
-        <div className="lg:col-span-4 rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-          <div className="flex items-center justify-between gap-2">
-            <div className="text-sm font-semibold text-foreground-primary">3 suivants</div>
-            <div className="text-xs text-foreground-tertiary">{nextUp.length ? `${nextUp.length}/3` : '—'}</div>
+        <div className="lg:col-span-4 rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="text-xs font-semibold text-foreground-primary">3 suivants</span>
+            <span className="text-[10px] text-foreground-tertiary">{nextUp.length ? `${nextUp.length}/3` : '—'}</span>
           </div>
-          <div className="mt-3 grid gap-2">
+          <div className="grid gap-1.5">
             {nextUp.length ? (
               nextUp.slice(0, 3).map((t) => (
-                <div key={t._id} className="flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 p-2">
+                <div key={t._id} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition py-1.5 px-2">
                   <img
                     src={t.coverUrl || '/default-cover.jpg'}
-                    className="w-10 h-10 rounded-xl object-cover border border-border-secondary"
+                    className="w-8 h-8 rounded-md object-cover border border-white/[0.06] shrink-0"
                     onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
                     alt=""
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
-                    <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
+                    <div className="text-[12px] font-medium text-foreground-primary truncate">{t.title}</div>
+                    <div className="text-[10px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="text-xs text-foreground-tertiary">Lance la lecture pour remplir la file.</div>
+              <div className="text-[11px] text-foreground-tertiary py-1">Lance la lecture pour remplir la file.</div>
             )}
           </div>
         </div>
@@ -895,13 +766,13 @@ const WelcomeHeader = ({
           <>
             <button
               onClick={() => onGo("/auth/signin")}
-              className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+              className="h-10 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.06] transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
             >
               Se connecter
             </button>
             <button
               onClick={() => onGo("/auth/signup")}
-              className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+              className="h-10 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.06] transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
             >
               Créer un compte
             </button>
@@ -924,7 +795,7 @@ const WelcomeHeader = ({
         {session ? (
           <button
             onClick={() => onGo("/upload")}
-            className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+            className="h-10 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.06] transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
           >
             <Upload className="w-4 h-4" />
             Uploader
@@ -947,7 +818,7 @@ const ContinueListening = ({
   if (!track?._id) return null;
 
   return (
-    <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4 flex items-center justify-between gap-3">
+    <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5 flex items-center justify-between gap-3">
       <div className="flex items-center gap-3 min-w-0">
         <img
           src={track.coverUrl || "/default-cover.jpg"}
@@ -988,10 +859,10 @@ const SidebarCard = ({
   icon: any;
   children: React.ReactNode;
 }) => (
-  <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
     <div className="flex items-start justify-between gap-3">
       <div className="flex items-start gap-2 min-w-0">
-        <div className="h-10 w-10 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center shrink-0">
+        <div className="h-10 w-10 rounded-xl bg-white/[0.06] border border-white/[0.06] grid place-items-center shrink-0">
           <Icon className="h-5 w-5 text-foreground-secondary" />
         </div>
         <div className="min-w-0">
@@ -1008,7 +879,7 @@ export default function SynauraHome() {
   const { data: session } = useSession();
   const { audioState, playTrack, play, pause, setTracks, upNextEnabled, upNextTracks, toggleUpNextEnabled } = useAudioPlayer();
   const [loading, setLoading] = useState(true);
-  const [showHomeMore, setShowHomeMore] = useState(true);
+  const [showHomeMore, setShowHomeMore] = useState(true); // conservé pour compat, toujours true
   const [featuredTracks, setFeaturedTracks] = useState<Track[]>([]);
   const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
   const [recentTracks, setRecentTracks] = useState<Track[]>([]);
@@ -1061,16 +932,6 @@ export default function SynauraHome() {
     isLive: true,
     lastUpdate: new Date().toISOString()
   });
-  
-  // États pour la météo
-  const [weatherData, setWeatherData] = useState({
-    city: 'Chargement...',
-    temp: 0,
-    desc: 'Chargement...',
-    loading: true
-  });
-  const [weatherCode, setWeatherCode] = useState<number>(0);
-  const [alertempsBulletinImage, setAlertempsBulletinImage] = useState<string | null>(null);
 
   // Fonction pour charger les données
   const fetchCategoryData = useCallback(async (key: string, url: string) => {
@@ -1346,20 +1207,7 @@ export default function SynauraHome() {
   const heroSlides = useMemo(() => {
     const slides = [];
     
-    // Slide 0: Météo Alertemps
-    slides.push({
-      id: 'meteo',
-      title: 'Météo Alertemps sur Synaura',
-      subtitle: 'Bulletin météo professionnel par Alertemps',
-      image: '/meteocaroussel.webp',
-      tag: 'Bulletin météo',
-      actionLabel: 'Voir la météo',
-      actionType: 'navigate',
-      actionIcon: Cloud,
-      actionData: '/meteo'
-    });
-    
-    // Slide 1: Abonnements
+    // Slide: Abonnements
     slides.push({
       id: 'subscriptions',
       title: 'Débloquez tout Synaura',
@@ -1372,7 +1220,7 @@ export default function SynauraHome() {
       actionData: '/subscriptions'
     });
     
-    // Slide 2: Générateur IA
+    // Slide: Générateur IA
     slides.push({
       id: 'ai',
       title: 'Générateur de Musique IA',
@@ -1646,144 +1494,6 @@ export default function SynauraHome() {
     }
   }, [router, playTrack]);
 
-  // Fonction pour récupérer la météo en temps réel
-  const fetchWeather = useCallback(async () => {
-    try {
-      // Récupérer la position de l'utilisateur avec haute précision
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          async (position) => {
-            const { latitude, longitude } = position.coords;
-            
-            try {
-              // Appel à l'API Open-Meteo (gratuite, sans clé)
-              const weatherResponse = await fetch(
-                `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`
-              );
-              
-              if (weatherResponse.ok) {
-                const weatherData = await weatherResponse.json();
-                
-                // Appel à l'API BigDataCloud pour le géocodage inverse (gratuite, sans clé, sans CORS)
-                const geoResponse = await fetch(
-                  `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=fr`
-                );
-                
-                let cityName = 'Votre position';
-                if (geoResponse.ok) {
-                  const geoData = await geoResponse.json();
-                  // Priorité: locality (quartier) > city (ville) > principalSubdivision (région)
-                  const locality = geoData.locality || '';
-                  const city = geoData.city || '';
-                  const region = geoData.principalSubdivision || '';
-                  
-                  // Construire le nom le plus précis
-                  if (locality && locality !== city) {
-                    cityName = `${locality}, ${city}`;
-                  } else if (city) {
-                    cityName = city;
-                  } else if (region) {
-                    cityName = region;
-                  }
-                }
-                
-                // Convertir le code météo en description
-                const weatherCode = weatherData.current?.weather_code || 0;
-                const weatherDescriptions: { [key: number]: string } = {
-                  0: 'Ciel dégagé',
-                  1: 'Principalement dégagé',
-                  2: 'Partiellement nuageux',
-                  3: 'Couvert',
-                  45: 'Brouillard',
-                  48: 'Brouillard givrant',
-                  51: 'Bruine légère',
-                  53: 'Bruine modérée',
-                  55: 'Bruine dense',
-                  61: 'Pluie légère',
-                  63: 'Pluie modérée',
-                  65: 'Pluie forte',
-                  71: 'Neige légère',
-                  73: 'Neige modérée',
-                  75: 'Neige forte',
-                  80: 'Averses légères',
-                  81: 'Averses modérées',
-                  82: 'Averses violentes',
-                  95: 'Orage',
-                  96: 'Orage avec grêle légère',
-                  99: 'Orage avec grêle forte'
-                };
-                
-                setWeatherCode(weatherCode);
-                setWeatherData({
-                  city: cityName,
-                  temp: Math.round(weatherData.current?.temperature_2m || 0),
-                  desc: weatherDescriptions[weatherCode] || 'Ciel dégagé',
-                  loading: false
-                });
-              }
-            } catch (error) {
-              console.error('Erreur météo:', error);
-              setWeatherData({
-                city: 'Votre ville',
-                temp: 18,
-                desc: 'Météo indisponible',
-                loading: false
-              });
-            }
-          },
-          (error) => {
-            console.error('Erreur géolocalisation:', error);
-            setWeatherData({
-              city: 'Votre ville',
-              temp: 18,
-              desc: 'Géolocalisation refusée',
-              loading: false
-            });
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-      } else {
-        setWeatherData({
-          city: 'Votre ville',
-          temp: 18,
-          desc: 'Géolocalisation non disponible',
-          loading: false
-        });
-      }
-    } catch (error) {
-      setWeatherData({
-        city: 'Votre ville',
-        temp: 18,
-        desc: 'Erreur',
-        loading: false
-      });
-    }
-  }, []);
-
-  // Fonction pour récupérer le bulletin Alertemps
-  const fetchAlertempsBulletin = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/meteo/public?source=home&_ts=${Date.now()}`, { cache: 'no-store' });
-      const data = await response.json();
-      
-      if (response.ok && data.bulletin?.image_url) {
-        setAlertempsBulletinImage(data.bulletin.image_url);
-      }
-    } catch (error) {
-      console.error('Erreur chargement bulletin Alertemps:', error);
-    }
-  }, []);
-
-  // Charger la météo au démarrage
-  useEffect(() => {
-    fetchWeather();
-    fetchAlertempsBulletin();
-  }, [fetchWeather, fetchAlertempsBulletin]);
-
   // Charger les métadonnées radio au démarrage
   useEffect(() => {
     fetchRadioMetadata();
@@ -1887,8 +1597,8 @@ export default function SynauraHome() {
   }
 
   return (
-    <div className="min-h-screen bg-background-primary text-foreground-primary">
-      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-4 md:space-y-6">
+    <div className="min-h-screen bg-[#0a0a0a] text-foreground-primary">
+      <main className="mx-auto w-full max-w-none px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 md:py-10 space-y-6 md:space-y-8">
         <WelcomeHeader
           session={session}
           onGo={onGo}
@@ -1902,6 +1612,11 @@ export default function SynauraHome() {
           nextUp={listenNextUp as any[]}
           onListenNow={onListenNow}
         />
+
+        {/* Carousel en avant — visible immédiatement */}
+        <section className="w-full" aria-label="À la une">
+          <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
+        </section>
 
         {/* ✅ Guest: ancien bloc (désactivé) */}
         {false && !session ? (
@@ -2067,11 +1782,11 @@ export default function SynauraHome() {
 
         {/* ✅ Home “je comprends + j’écoute en 5 secondes” */}
         <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
-          <div className="lg:col-span-8 space-y-3 md:space-y-4">
-            <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-foreground-secondary" />
+          <div className="lg:col-span-8 space-y-4 md:space-y-6">
+            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="text-base font-bold text-foreground-primary flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-foreground-secondary" />
                   Tendances du jour
                 </div>
                 <button
@@ -2081,14 +1796,14 @@ export default function SynauraHome() {
                     setTracks(list as any);
                     playTrack(list[0] as any);
                   }}
-                  className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs inline-flex items-center gap-1"
+                  className="h-9 px-4 rounded-full bg-white text-black hover:scale-[1.02] transition text-xs font-semibold inline-flex items-center gap-1.5"
                 >
-                  <Play className="w-4 h-4" />
+                  <Play className="w-4 h-4 fill-current" />
                   Play
                 </button>
               </div>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {trendingList.slice(0, 8).map((t) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {trendingList.slice(0, 4).map((t) => (
                   <button
                     key={t._id}
                     onClick={() => {
@@ -2096,11 +1811,11 @@ export default function SynauraHome() {
                       setTracks(list as any);
                       playTrack(t as any);
                     }}
-                    className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                    className="w-full text-left flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition p-2.5"
                   >
                     <img
                       src={t.coverUrl || '/default-cover.jpg'}
-                      className="w-11 h-11 rounded-xl object-cover border border-border-secondary"
+                      className="w-12 h-12 rounded-lg object-cover border border-white/[0.06]"
                       onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
                       alt=""
                     />
@@ -2108,7 +1823,7 @@ export default function SynauraHome() {
                       <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
                       <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
                     </div>
-                    <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
+                    <div className="shrink-0 p-2 rounded-full bg-white/[0.08] hover:bg-white/20 transition">
                       <Play className="w-4 h-4 text-foreground-primary" />
                     </div>
                   </button>
@@ -2116,21 +1831,21 @@ export default function SynauraHome() {
               </div>
             </section>
 
-            <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-foreground-secondary" />
+            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="text-base font-bold text-foreground-primary flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-foreground-secondary" />
                   Nouveautés
                 </div>
                 <button
                   onClick={() => onGo('/discover')}
-                  className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+                  className="text-sm font-medium text-foreground-tertiary hover:text-foreground-primary transition"
                 >
                   Voir plus
                 </button>
               </div>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {recentTracks.slice(0, 8).map((t) => (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {recentTracks.slice(0, 4).map((t) => (
                   <button
                     key={t._id}
                     onClick={() => {
@@ -2138,11 +1853,11 @@ export default function SynauraHome() {
                       setTracks(list as any);
                       playTrack(t as any);
                     }}
-                    className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
+                    className="w-full text-left flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition p-2.5"
                   >
                     <img
                       src={t.coverUrl || '/default-cover.jpg'}
-                      className="w-11 h-11 rounded-xl object-cover border border-border-secondary"
+                      className="w-12 h-12 rounded-lg object-cover border border-white/[0.06]"
                       onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
                       alt=""
                     />
@@ -2150,7 +1865,7 @@ export default function SynauraHome() {
                       <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
                       <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
                     </div>
-                    <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
+                    <div className="shrink-0 p-2 rounded-full bg-white/[0.08] hover:bg-white/20 transition">
                       <Play className="w-4 h-4 text-foreground-primary" />
                     </div>
                   </button>
@@ -2159,56 +1874,56 @@ export default function SynauraHome() {
             </section>
           </div>
 
-          <aside className="lg:col-span-4 space-y-3">
+          <aside className="lg:col-span-4 space-y-4">
             {!session ? (
-              <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-                <div className="text-sm font-semibold text-foreground-primary">Pourquoi créer un compte ?</div>
-                <div className="mt-2 grid grid-cols-2 gap-2">
-                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+              <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
+                <div className="text-base font-bold text-foreground-primary">Pourquoi créer un compte ?</div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
                     <div className="text-[12px] font-semibold text-foreground-primary">Likes & playlists</div>
                     <div className="text-[11px] text-foreground-tertiary">Sauvegarde et organise</div>
                   </div>
-                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
                     <div className="text-[12px] font-semibold text-foreground-primary">Historique</div>
                     <div className="text-[11px] text-foreground-tertiary">Reprendre facilement</div>
                   </div>
-                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
                     <div className="text-[12px] font-semibold text-foreground-primary">IA Studio</div>
                     <div className="text-[11px] text-foreground-tertiary">Créer des sons</div>
                   </div>
-                  <div className="rounded-2xl border border-border-secondary bg-white/5 p-2">
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
                     <div className="text-[12px] font-semibold text-foreground-primary">Boosters</div>
                     <div className="text-[11px] text-foreground-tertiary">Gains & bonus</div>
                   </div>
                 </div>
                 <button
                   onClick={() => onGo('/auth/signup')}
-                  className="mt-3 h-10 w-full rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm font-semibold"
+                  className="mt-4 h-11 w-full rounded-full bg-white text-black hover:scale-[1.01] transition text-sm font-semibold"
                 >
                   Créer un compte
                 </button>
               </section>
             ) : null}
 
-            <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
-                  <Users className="w-4 h-4 text-foreground-secondary" />
+            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3 md:p-4">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="text-base font-bold text-foreground-primary flex items-center gap-2">
+                  <Users className="w-5 h-5 text-foreground-secondary" />
                   Créateurs à suivre
                 </div>
                 <button
                   onClick={() => onGo('/discover')}
-                  className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+                  className="text-sm font-medium text-foreground-tertiary hover:text-foreground-primary transition"
                 >
                   Explorer
                 </button>
               </div>
 
               <div className="grid gap-2">
-                {personalizedCreators.slice(0, 6).map((creator: any) => (
+                {personalizedCreators.slice(0, 3).map((creator: any) => (
                   <div
                     key={creator._id || creator.id}
-                    className="rounded-2xl border border-border-secondary bg-white/5 p-2 flex items-center gap-3"
+                    className="rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition p-2.5 flex items-center gap-3"
                   >
                     <button
                       type="button"
@@ -2243,25 +1958,8 @@ export default function SynauraHome() {
           </aside>
         </div>
 
-        {/* Plus (blocs avancés) */}
-        <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="text-sm font-semibold text-foreground-primary">Plus</div>
-              <div className="text-xs text-foreground-tertiary">Carrousel • TV • raccourcis • radio • widgets</div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setShowHomeMore((v) => !v)}
-              className="h-9 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
-            >
-              {showHomeMore ? 'Masquer' : 'Afficher'}
-            </button>
-          </div>
-        </div>
-
-        {/* ✅ Dashboard compact (colonne principale + sidebar) */}
-        <div className={`${showHomeMore ? 'grid' : 'hidden'} lg:grid-cols-12 gap-3 md:gap-4`}>
+        {/* Colonne principale + sidebar (toujours visible) */}
+        <div className="grid lg:grid-cols-12 gap-4 md:gap-5">
           <div className="lg:col-span-8 space-y-3 md:space-y-4">
             <ContinueListening
               track={currentTrack}
@@ -2273,67 +1971,55 @@ export default function SynauraHome() {
               }}
             />
 
-            {/* Hero */}
-            <div>
-              <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
-            </div>
-
-            {/* Raccourcis “rempli” */}
-            <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+            {/* Raccourcis */}
+            <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
               <div className="flex items-center justify-between gap-2 mb-3">
                 <div className="text-sm font-semibold text-foreground-primary">Raccourcis</div>
                 <div className="text-xs text-foreground-tertiary">Tout au même endroit</div>
                 </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2">
               <button
                   onClick={() => onGo('/boosters')}
-                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
               >
                   <Gift className="h-4 w-4 text-foreground-secondary" />
                   Boosters
               </button>
               <button
                   onClick={() => onGo('/community')}
-                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
               >
                   <Users className="h-4 w-4 text-foreground-secondary" />
                   Communauté
               </button>
-                      <button
+              <button
                   onClick={() => onGo('/library')}
-                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
                 >
                   <Library className="h-4 w-4 text-foreground-secondary" />
                   Bibliothèque
-                      </button>
-                    <button
+              </button>
+              <button
                   onClick={() => onGo('/trending')}
-                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
                 >
                   <TrendingUp className="h-4 w-4 text-foreground-secondary" />
                   Trending
-                    </button>
-                      <button
-                  onClick={() => onGo('/swipe')}
-                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-                >
-                  <Sparkles className="h-4 w-4 text-foreground-secondary" />
-                  Swipe
-                      </button>
-                      <button
+              </button>
+              <button
                   onClick={() => onGo('/upload')}
-                  className="h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
+                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
                 >
                   <Upload className="h-4 w-4 text-foreground-secondary" />
                   Uploader
-                      </button>
-                    <button
+              </button>
+              <button
                   onClick={() => onGo('/subscriptions')}
-                  className="h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm inline-flex items-center justify-center gap-2"
+                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
                     >
                   <Crown className="h-4 w-4" />
                   Premium
-                    </button>
+              </button>
                   </div>
                       </div>
 
@@ -2341,6 +2027,38 @@ export default function SynauraHome() {
             <div className="mt-3">
               <AdSlot placement="home_card" />
             </div>
+
+            {/* En direct (déplacé depuis la sidebar) */}
+            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
+                  <Radio className="w-4 h-4 text-foreground-secondary" />
+                  En direct
+                </div>
+                <button
+                  onClick={() => onGo('/discover')}
+                  className="text-xs font-medium text-foreground-tertiary hover:text-foreground-primary transition"
+                >
+                  Explorer
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-2">
+                <LiveRadioCard
+                  title="Mixx Party — Radio en direct"
+                  logoSrc="/mixxpartywhitelog.png"
+                  isPlaying={isRadioPlaying}
+                  currentTrack={radioInfo.currentTrack}
+                  onToggle={handleRadioToggle}
+                />
+                <LiveRadioCard
+                  title="XimaM — Radio en direct"
+                  logoSrc="/ximam-radio-x.svg"
+                  isPlaying={isXimamRadioPlaying}
+                  currentTrack={ximamRadioInfo.currentTrack}
+                  onToggle={handleXimamRadioToggle}
+                />
+              </div>
+            </section>
                     </div>
                     
           <div className="lg:col-span-4 space-y-3">
@@ -2417,39 +2135,13 @@ export default function SynauraHome() {
                   Shop
                 </button>
               </div>
-              <button
-                onClick={() => onGo('/boosters?tab=shop')}
-                className="mt-2 h-10 w-full rounded-2xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
-              >
-                Roue quotidienne
-              </button>
-              <div className="mt-3 text-xs text-foreground-tertiary">
-                Astuce: fais les missions “À faire maintenant” et réclame tout d’un coup.
-              </div>
             </SidebarCard>
-
-            <LiveRadioCard
-              title="Mixx Party — Radio en direct"
-              logoSrc="/mixxpartywhitelog.png"
-              isPlaying={isRadioPlaying}
-              currentTrack={radioInfo.currentTrack}
-              onToggle={handleRadioToggle}
-            />
-            <LiveRadioCard
-              title="XimaM — Radio en direct"
-              logoSrc="/ximam-radio-x.svg"
-              isPlaying={isXimamRadioPlaying}
-              currentTrack={ximamRadioInfo.currentTrack}
-              onToggle={handleXimamRadioToggle}
-            />
-            <WeatherWidget weather={weatherData} weatherCode={weatherCode} />
-            <AlertempsCard onClick={() => router.push('/meteo', { scroll: false })} bulletinImage={alertempsBulletinImage} />
                     </div>
                   </div>
 
         {/* Pour toi */}
         {!loading && forYouCards.length > 0 && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
             <SectionTitle icon={Sparkles} title="Pour toi" actionLabel="Tout voir" onAction={() => router.push('/for-you', { scroll: false })} />
             <HorizontalScroller>
               {forYouCards.map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
@@ -2459,13 +2151,13 @@ export default function SynauraHome() {
 
         {/* Trending */}
         {!loading && trendingList.length > 0 && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
             <SectionTitle icon={TrendingUp} title="Les plus écoutées" actionLabel="Voir le top 50" onAction={() => router.push('/trending', { scroll: false })} />
             <HorizontalScroller>
               {trendingList.slice(0, 10).map((track, i) => (
                 <div
                   key={track._id}
-                  className="min-w-[190px] md:min-w-[230px] bg-background-fog-thin border border-border-secondary rounded-2xl p-2.5 md:p-3 hover:bg-overlay-on-primary transition"
+                  className="min-w-[190px] md:min-w-[230px] bg-white/[0.04] border border-white/[0.06] rounded-xl p-2.5 md:p-3 hover:bg-white/[0.08] transition-all duration-200 hover:scale-[1.02]"
                   style={{ scrollSnapAlign: "start" }}
                 >
                   <div className="relative">
@@ -2511,7 +2203,7 @@ export default function SynauraHome() {
 
         {/* Nouveaux créateurs */}
         {!loading && mockCreators.length > 0 && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
             <SectionTitle icon={Users} title="Nouveaux créateurs" actionLabel="Explorer" />
             <HorizontalScroller>
               {mockCreators.map(c => (
@@ -2537,12 +2229,12 @@ export default function SynauraHome() {
 
         {/* Bibliothèque */}
         {session && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
             <SectionTitle icon={Library} title="Ta bibliothèque" actionLabel="Gérer" onAction={() => router.push('/library', { scroll: false })} />
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
               <div 
                 onClick={() => router.push('/library?tab=favorites', { scroll: false })}
-                className="bg-background-fog-thin border border-border-secondary rounded-2xl p-3 md:p-4 hover:bg-overlay-on-primary transition cursor-pointer"
+                className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 md:p-4 hover:bg-white/[0.08] transition cursor-pointer"
               >
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/18 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
                   <Heart className="w-4 h-4 md:w-5 md:h-5 text-foreground-secondary" />
@@ -2553,7 +2245,7 @@ export default function SynauraHome() {
             
               <div 
                 onClick={() => router.push('/library?tab=playlists', { scroll: false })}
-                className="bg-background-fog-thin border border-border-secondary rounded-2xl p-3 md:p-4 hover:bg-overlay-on-primary transition cursor-pointer"
+                className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 md:p-4 hover:bg-white/[0.08] transition cursor-pointer"
               >
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/20 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
                   <Disc3 className="w-5 h-5 text-foreground-secondary" />
@@ -2564,7 +2256,7 @@ export default function SynauraHome() {
 
               <div 
                 onClick={() => router.push('/library?tab=recent', { scroll: false })}
-                className="bg-background-fog-thin border border-border-secondary rounded-2xl p-3 md:p-4 hover:bg-overlay-on-primary transition cursor-pointer"
+                className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 md:p-4 hover:bg-white/[0.08] transition cursor-pointer"
               >
                 <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/16 to-overlay-on-primary/7 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
                   <Clock className="w-5 h-5 text-foreground-secondary" />
@@ -2592,14 +2284,14 @@ export default function SynauraHome() {
 
         {/* Créateurs suggérés */}
         {!loading && personalizedCreators.length > 0 && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
             <SectionTitle icon={Star} title="Créateurs suggérés" actionLabel="Actualiser" onAction={fetchSuggestedCreators} />
             <HorizontalScroller>
               {personalizedCreators.map(creator => (
                 <div 
                   key={creator._id} 
                   onClick={() => router.push(`/profile/${creator.username}`, { scroll: false })}
-                  className="min-w-[190px] md:min-w-[230px] bg-background-fog-thin border border-border-secondary rounded-2xl p-2.5 md:p-3 hover:bg-overlay-on-primary transition cursor-pointer" 
+                  className="min-w-[190px] md:min-w-[230px] bg-white/[0.04] border border-white/[0.06] rounded-xl p-2.5 md:p-3 hover:bg-white/[0.08] transition-all duration-200 hover:scale-[1.02] cursor-pointer" 
                   style={{ scrollSnapAlign: "start" }}
                 >
                   <div className="flex items-center gap-2 md:gap-3">
@@ -2659,7 +2351,7 @@ export default function SynauraHome() {
 
         {/* Nouvelles musiques */}
         {!loading && recentCards.length > 0 && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
+          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
             <SectionTitle icon={Music2} title="Nouvelles musiques" actionLabel="Tout voir" />
             <HorizontalScroller>
               {recentCards.slice(0, 12).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
