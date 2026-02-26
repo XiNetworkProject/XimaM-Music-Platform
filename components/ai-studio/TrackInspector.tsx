@@ -2,7 +2,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Play, Download, Share2, Clock, Music } from 'lucide-react';
+import { X, Play, Download, Share2, Clock, Music, Wand2 } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { SUNO_ICON_PILL, SUNO_PILL_SOLID } from '@/components/ui/sunoClasses';
 
@@ -13,6 +13,7 @@ interface TrackInspectorProps {
   onPlay: (track: GeneratedTrack) => void;
   onDownload: (track: GeneratedTrack) => void;
   onShare: (track: GeneratedTrack) => void;
+  onRemix: (track: GeneratedTrack) => void;
   variant?: 'overlay' | 'docked';
 }
 
@@ -30,12 +31,21 @@ const sanitizeCoverUrl = (url?: string) => {
   if (trimmed.startsWith('/')) return trimmed;
   try {
     const host = new URL(trimmed).hostname.toLowerCase();
-    if (host === 'musicfile.api.box' || host.endsWith('.musicfile.api.box')) return '';
+    if (
+      host === 'musicfile.api.box' ||
+      host.endsWith('.musicfile.api.box')
+    ) return '';
     return trimmed;
   } catch {
     return '';
   }
 };
+
+const normalizeText = (value?: string) =>
+  String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
 
 export function TrackInspector({
   track,
@@ -44,8 +54,13 @@ export function TrackInspector({
   onPlay,
   onDownload,
   onShare,
+  onRemix,
   variant = 'overlay',
 }: TrackInspectorProps) {
+  const promptText = track?.prompt || '';
+  const lyricsText = track?.lyrics || '';
+  const hasPromptCard = Boolean(promptText.trim()) && normalizeText(promptText) !== normalizeText(lyricsText);
+
   if (variant === 'docked') {
     if (!isOpen || !track) return null;
     return (
@@ -103,6 +118,12 @@ export function TrackInspector({
               Lire
             </button>
             <button
+              onClick={() => onRemix(track)}
+              className={`${SUNO_ICON_PILL} px-3 py-2`}
+            >
+              <Wand2 className="w-4 h-4" />
+            </button>
+            <button
               onClick={() => onDownload(track)}
               className={`${SUNO_ICON_PILL} px-3 py-2`}
             >
@@ -148,24 +169,24 @@ export function TrackInspector({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-4">
-          {track.prompt && (
+          {hasPromptCard && (
             <div className="bg-white/5 border border-white/10 rounded-xl p-3">
               <p className="text-[11px] uppercase tracking-[0.2em] text-foreground-tertiary mb-1.5">
                 Prompt utilisé
               </p>
               <p className="text-[13px] text-foreground-secondary whitespace-pre-line">
-                {track.prompt}
+                {promptText}
               </p>
             </div>
           )}
 
-          {track.lyrics && (
+          {lyricsText.trim() && (
             <div className="bg-white/5 border border-white/10 rounded-xl p-3">
               <p className="text-[11px] uppercase tracking-[0.2em] text-foreground-tertiary mb-1.5">
                 Paroles générées
               </p>
               <p className="text-[13px] text-foreground-secondary whitespace-pre-line">
-                {track.lyrics}
+                {lyricsText}
               </p>
             </div>
           )}
@@ -240,6 +261,13 @@ export function TrackInspector({
                   <span>Lire dans le player</span>
                 </button>
                 <button
+                  onClick={() => onRemix(track)}
+                  className={`${SUNO_ICON_PILL} min-w-[44px] min-h-[44px] flex items-center justify-center px-3 py-2 touch-manipulation`}
+                  aria-label="Remixer"
+                >
+                  <Wand2 className="w-4 h-4" />
+                </button>
+                <button
                   onClick={() => onDownload(track)}
                   className={`${SUNO_ICON_PILL} min-w-[44px] min-h-[44px] flex items-center justify-center px-3 py-2 touch-manipulation`}
                   aria-label="Télécharger"
@@ -289,24 +317,24 @@ export function TrackInspector({
 
             {/* Paroles / prompt */}
             <div className="flex-1 overflow-y-auto px-5 pb-6 space-y-4">
-              {track.prompt && (
+              {hasPromptCard && (
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-foreground-tertiary mb-1.5">
                     Prompt utilisé
                   </p>
                   <p className="text-[13px] text-foreground-secondary whitespace-pre-line">
-                    {track.prompt}
+                    {promptText}
                   </p>
                 </div>
               )}
 
-              {track.lyrics && (
+              {lyricsText.trim() && (
                 <div className="bg-white/5 border border-white/10 rounded-xl p-3">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-foreground-tertiary mb-1.5">
                     Paroles générées
                   </p>
                   <p className="text-[13px] text-foreground-secondary whitespace-pre-line">
-                    {track.lyrics}
+                    {lyricsText}
                   </p>
                 </div>
               )}

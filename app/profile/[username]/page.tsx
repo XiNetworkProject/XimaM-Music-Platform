@@ -240,7 +240,10 @@ export default function SynauraProfile(){
   const handleDeleteTrack = async (trackId: string) => {
     if (!confirm('Supprimer cette piste définitivement ?')) return;
     try {
-      const res = await fetch(`/api/tracks/${trackId}`, { method: 'DELETE' });
+      const isAiTrack = String(trackId).startsWith('ai-');
+      const effectiveId = isAiTrack ? String(trackId).slice(3) : trackId;
+      const endpoint = isAiTrack ? `/api/ai/tracks/${effectiveId}` : `/api/tracks/${effectiveId}`;
+      const res = await fetch(endpoint, { method: 'DELETE' });
       if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.error || 'Erreur suppression');
@@ -1228,6 +1231,7 @@ function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: s
 }
 
 function TrackTile({ track, isPlaying, onPlay, onOpenDetails, menuOpen, onToggleMenu, onAction, isOwnProfile, onLikeUpdate }: { track: any; isPlaying: boolean; onPlay: (e: React.MouseEvent) => void; onOpenDetails: () => void; menuOpen: boolean; onToggleMenu: (e: React.MouseEvent) => void; onAction: (action: string) => void; isOwnProfile: boolean; onLikeUpdate: (trackId: string, isLiked: boolean, likesCount: number) => void }){
+  const isAiTrack = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
   return (
     <div
       onClick={onOpenDetails}
@@ -1242,18 +1246,20 @@ function TrackTile({ track, isPlaying, onPlay, onOpenDetails, menuOpen, onToggle
         />
         
         {/* Bouton like en haut à gauche */}
-        <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10" onClick={(e) => e.stopPropagation()}>
-          <LikeButton
-            trackId={track.id}
-            initialIsLiked={track.isLiked || false}
-            initialLikesCount={track.likes || 0}
-            onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
-            showCount={false}
-            size="sm"
-          />
-                </div>
+        {!isAiTrack && (
+          <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10" onClick={(e) => e.stopPropagation()}>
+            <LikeButton
+              trackId={track.id}
+              initialIsLiked={track.isLiked || false}
+              initialLikesCount={track.likes || 0}
+              onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
+              showCount={false}
+              size="sm"
+            />
+          </div>
+        )}
 
-        {isOwnProfile && (
+        {isOwnProfile && !isAiTrack && (
           <button
             onClick={onToggleMenu}
             aria-haspopup="menu"
@@ -1281,7 +1287,7 @@ function TrackTile({ track, isPlaying, onPlay, onOpenDetails, menuOpen, onToggle
               </div>
 
       {/* Mini modal menu */}
-      {menuOpen && isOwnProfile && (
+      {menuOpen && isOwnProfile && !isAiTrack && (
         <div data-menu-root="true" role="menu" className="absolute right-2 top-20 z-20 w-44 rounded-2xl border border-border-secondary bg-black/80 backdrop-blur-xl shadow-lg overflow-hidden">
           <MenuBtn onClick={() => onAction("edit")} label="Modifier" danger={false} />
           <MenuBtn onClick={() => onAction("stats")} label="Statistiques" danger={false} />
@@ -1318,6 +1324,7 @@ function Drawer({ open, onClose, children }: { open: boolean; onClose: () => voi
 }
 
 function DrawerContent({ track, isPlaying, onPlay, onEdit, onDuplicate, onDelete, isOwnProfile, onLikeUpdate, onClose }: { track: any; isPlaying: boolean; onPlay: () => void; onEdit: () => void; onDuplicate: () => void; onDelete: () => void; isOwnProfile: boolean; onLikeUpdate: (trackId: string, isLiked: boolean, likesCount: number) => void; onClose: () => void }){
+  const isAiTrack = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
   return (
     <div className="h-full flex flex-col text-foreground-primary">
       <div className="p-3 sm:p-4 border-b border-border-secondary bg-background-fog-thin">
@@ -1340,15 +1347,17 @@ function DrawerContent({ track, isPlaying, onPlay, onEdit, onDuplicate, onDelete
             {isPlaying? <Pause className="w-3 h-3 sm:w-4 sm:h-4"/> : <Play className="w-3 h-3 sm:w-4 sm:h-4"/>}
             <span className="hidden xs:inline">{isPlaying? 'Pause':'Play'}</span>
                 </button>
-          <LikeButton
-            trackId={track.id}
-            initialIsLiked={track.isLiked || false}
-            initialLikesCount={track.likes || 0}
-            onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
-            showCount={false}
-            size="md"
-          />
-          {isOwnProfile && (
+          {!isAiTrack && (
+            <LikeButton
+              trackId={track.id}
+              initialIsLiked={track.isLiked || false}
+              initialLikesCount={track.likes || 0}
+              onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
+              showCount={false}
+              size="md"
+            />
+          )}
+          {isOwnProfile && !isAiTrack && (
             <>
               <button onClick={onEdit} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-border-secondary">
                 <Edit className="w-3 h-3 sm:w-4 sm:h-4" />

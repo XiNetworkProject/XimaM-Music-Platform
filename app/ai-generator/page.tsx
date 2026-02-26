@@ -32,6 +32,14 @@ type LogLine = {
   msg: string;
 };
 
+type TimestampedWord = {
+  word: string;
+  startS: number;
+  endS: number;
+  success?: boolean;
+  palign?: number;
+};
+
 const makeId = () => Math.random().toString(36).slice(2, 10);
 
 // Interface Track compatible avec le lecteur principal
@@ -191,12 +199,18 @@ export default function AIGenerator() {
   // États pour le panneau de track sélectionnée
   const [selectedTrack, setSelectedTrack] = useState<GeneratedTrack | null>(null);
   const [showTrackPanel, setShowTrackPanel] = useState(false);
+  const [timestampedWords, setTimestampedWords] = useState<TimestampedWord[]>([]);
+  const [timestampedWaveform, setTimestampedWaveform] = useState<number[]>([]);
+  const [timestampedLoading, setTimestampedLoading] = useState(false);
+  const [timestampedError, setTimestampedError] = useState<string | null>(null);
+  const [publishingVisibility, setPublishingVisibility] = useState(false);
   
   // Remix (upload audio) pour upload-cover
   const [remixFile, setRemixFile] = useState<File | null>(null);
   const [remixUploadUrl, setRemixUploadUrl] = useState<string | null>(null);
   const [remixSourceDurationSec, setRemixSourceDurationSec] = useState<number | undefined>(undefined);
   const [remixUploading, setRemixUploading] = useState<boolean>(false);
+  const [remixSourceLabel, setRemixSourceLabel] = useState<string | null>(null);
   
   // Génération IA activée
   const isGenerationDisabled = false;
@@ -222,6 +236,9 @@ export default function AIGenerator() {
   const [abSide, setAbSide] = useState<'A' | 'B'>('A');
   const [assetQuery, setAssetQuery] = useState('');
   const [logs, setLogs] = useState<LogLine[]>([]);
+  const [waveHoverRatio, setWaveHoverRatio] = useState<number | null>(null);
+  const [waveScrubbing, setWaveScrubbing] = useState(false);
+  const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false);
   const activeGenerationCount = activeGenerations.size;
   const isRemixMode = generationModeKind === 'remix';
   const selectGenerationMode = useCallback((mode: 'simple' | 'custom' | 'remix') => {
@@ -232,6 +249,7 @@ export default function AIGenerator() {
       setRemixUploadUrl(null);
       setRemixSourceDurationSec(undefined);
       setRemixUploading(false);
+      setRemixSourceLabel(null);
     } else {
       setOpenStyleSection(true);
     }
@@ -242,16 +260,67 @@ export default function AIGenerator() {
 
   // --- Layout resizable (desktop) ---
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [leftPx, setLeftPx] = useState(450);
-  const [rightPx, setRightPx] = useState(420);
+  const [leftPx, setLeftPx] = useState(460);
+  const [rightPx, setRightPx] = useState(360);
   const dragRef = useRef<{ mode: 'left' | 'right' | null; startX: number; startLeft: number; startRight: number }>({
     mode: null,
     startX: 0,
-    startLeft: 450,
-    startRight: 420,
+    startLeft: 460,
+    startRight: 360,
   });
 
   const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
+  const LEFT_MIN = 320;
+  const LEFT_MAX = 620;
+  const RIGHT_MIN = 320;
+  const RIGHT_MAX = 620;
+  const CENTER_MIN = 420;
+  const LAYOUT_VERSION = '3';
+
+  const getContainerWidth = useCallback(() => {
+    const w = containerRef.current?.getBoundingClientRect?.().width || 0;
+    if (Number.isFinite(w) && w > 0) return w;
+    if (typeof window !== 'undefined') return Math.min(window.innerWidth - 32, 1600);
+    return 1600;
+  }, []);
+
+  const getDefaultLeftWidth = useCallback(() => {
+    const cw = getContainerWidth();
+    // Base: panneau gauche assez large (builder), centre prioritaire.
+    return clamp(Math.round(cw * 0.32), 420, 580);
+  }, [getContainerWidth]);
+
+  const getDefaultRightWidth = useCallback(() => {
+    const cw = getContainerWidth();
+    // Base: panneau droit volontairement plus compact que gauche/centre.
+    return clamp(Math.round(cw * 0.20), 300, 400);
+  }, [getContainerWidth]);
+
+  const normalizePanelWidths = useCallback((leftCandidate: number, rightCandidate: number) => {
+    let left = clamp(leftCandidate, LEFT_MIN, LEFT_MAX);
+    let right = clamp(rightCandidate, RIGHT_MIN, RIGHT_MAX);
+    const cw = getContainerWidth();
+
+    // Garantit une zone centrale minimale pour conserver une UI exploitable.
+    const maxCombined = Math.max(LEFT_MIN + RIGHT_MIN, cw - CENTER_MIN);
+    if (left + right > maxCombined) {
+      let overflow = left + right - maxCombined;
+      const rightReducible = right - RIGHT_MIN;
+      const takeRight = Math.min(rightReducible, overflow);
+      right -= takeRight;
+      overflow -= takeRight;
+      if (overflow > 0) {
+        left = Math.max(LEFT_MIN, left - overflow);
+      }
+    }
+
+    // Conserve la préférence: droite plus compacte que gauche sans bloquer les drags.
+    if (right > left) {
+      right = left;
+    }
+
+    return { left, right };
+  }, [getContainerWidth]);
 
   const beginDrag = (mode: 'left' | 'right') => (e: React.PointerEvent<HTMLDivElement>) => {
     // Only meaningful on large screens; still safe otherwise.
@@ -266,9 +335,13 @@ export default function AIGenerator() {
       const delta = e.clientX - d.startX;
 
       if (d.mode === 'left') {
-        setLeftPx(clamp(d.startLeft + delta, 368, 620));
+        const normalized = normalizePanelWidths(d.startLeft + delta, d.startRight);
+        setLeftPx(normalized.left);
+        setRightPx(normalized.right);
       } else {
-        setRightPx(clamp(d.startRight - delta, 320, 520));
+        const normalized = normalizePanelWidths(d.startLeft, d.startRight - delta);
+        setLeftPx(normalized.left);
+        setRightPx(normalized.right);
       }
     };
     const onUp = () => {
@@ -280,7 +353,7 @@ export default function AIGenerator() {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
     };
-  }, [leftPx, rightPx]);
+  }, [normalizePanelWidths]);
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -459,6 +532,17 @@ export default function AIGenerator() {
     });
   }, [allTracks, assetQuery]);
 
+  const uploadedRemixAssets = React.useMemo(
+    () =>
+      allTracks.filter((t: any) => {
+        const isUploadModel = String((t as any)?.model_name || '').toUpperCase() === 'UPLOAD';
+        const links = parseSourceLinks((t as any)?.source_links);
+        const hasCloudinaryUpload = Boolean(links?.cloudinary_public_id);
+        return isUploadModel || hasCloudinaryUpload;
+      }),
+    [allTracks]
+  );
+
   const commandItems = React.useMemo(
     () => [
       { id: 'generate', label: 'Generate', desc: 'Lancer une génération', run: () => executePaletteCommand('generate') },
@@ -508,13 +592,42 @@ export default function AIGenerator() {
     return '';
   };
 
-  const parseSourceLinks = (sourceLinks?: string | null) => {
+  const isBlockedCoverHost = (host: string) =>
+    host === 'musicfile.api.box' ||
+    host.endsWith('.musicfile.api.box');
+
+  const pickFirstHttpImage = (...values: Array<unknown>) => {
+    for (const value of values) {
+      if (typeof value !== 'string') continue;
+      const trimmed = value.trim();
+      if (!/^https?:\/\//i.test(trimmed)) continue;
+      try {
+        const host = new URL(trimmed).hostname.toLowerCase();
+        if (isBlockedCoverHost(host)) continue;
+      } catch {
+        continue;
+      }
+      return trimmed;
+    }
+    return '';
+  };
+
+  function parseSourceLinks(sourceLinks?: string | null) {
     if (!sourceLinks) return null as any;
     try {
       return JSON.parse(sourceLinks);
     } catch {
       return null;
     }
+  }
+
+  const getUploadedAssetName = (track: AITrack | any) => {
+    const links = parseSourceLinks((track as any)?.source_links);
+    const fromLinks =
+      (typeof links?.original_file_name === 'string' && links.original_file_name.trim()) ||
+      (typeof links?.file_name === 'string' && links.file_name.trim()) ||
+      '';
+    return fromLinks || String((track as any)?.title || 'Audio uploadé');
   };
 
   const resolveTrackMedia = (track: AITrack | any) => {
@@ -536,7 +649,7 @@ export default function AIGenerator() {
       linksObj.source_stream_audio_url,
       linksObj.sourceStreamAudioUrl
     );
-    const imageFromLinks = pickFirstHttp(
+    const imageFromLinks = pickFirstHttpImage(
       linksObj.image,
       linksObj.image_url,
       linksObj.imageUrl,
@@ -561,7 +674,7 @@ export default function AIGenerator() {
       (track as any)?.sourceAudioUrl,
       audioFromLinks
     );
-    const imageUrl = pickFirstHttp(
+    const imageUrl = pickFirstHttpImage(
       (track as any)?.image_url,
       (track as any)?.imageUrl,
       (track as any)?.source_image_url,
@@ -570,7 +683,8 @@ export default function AIGenerator() {
     );
 
     return {
-      playableUrl: pickFirstHttp(streamUrl, audioUrl),
+      // En bibliothèque, préférer l'URL audio finale; garder le stream en fallback.
+      playableUrl: pickFirstHttp(audioUrl, streamUrl),
       audioUrl,
       streamUrl,
       imageUrl,
@@ -592,8 +706,9 @@ export default function AIGenerator() {
       track?.source_stream_audio_url,
       track?.raw?.stream_audio_url
     );
-    const playableUrl = pickFirstHttp(audioUrl, streamUrl);
-    const imageUrl = pickFirstHttp(
+    // En live, le stream est généralement disponible avant l'URL audio finale.
+    const playableUrl = pickFirstHttp(streamUrl, audioUrl);
+    const imageUrl = pickFirstHttpImage(
       track?.image,
       track?.image_url,
       track?.imageUrl,
@@ -855,9 +970,33 @@ export default function AIGenerator() {
     if (savedConsole === '1') setConsoleCollapsed(true);
     const savedLeftPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftPx') : null;
     const savedRightPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.rightPx') : null;
-    if (savedLeftPx) setLeftPx(clamp(Number(savedLeftPx), 368, 620));
-    if (savedRightPx) setRightPx(clamp(Number(savedRightPx), 320, 620));
-  }, []);
+    const savedLeftRatio = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftRatio') : null;
+    const savedRightRatio = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.rightRatio') : null;
+    const savedLayoutVersion = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.layoutVersion') : null;
+
+    const defaultLeft = getDefaultLeftWidth();
+    const defaultRight = getDefaultRightWidth();
+    let nextLeft = defaultLeft;
+    let nextRight = defaultRight;
+
+    const cw = getContainerWidth();
+    const canUseSaved = savedLayoutVersion === LAYOUT_VERSION;
+    if (canUseSaved && savedLeftRatio) {
+      const r = Number(savedLeftRatio);
+      if (Number.isFinite(r) && r > 0) nextLeft = clamp(Math.round(cw * r), LEFT_MIN, LEFT_MAX);
+    } else if (canUseSaved && savedLeftPx) {
+      nextLeft = clamp(Number(savedLeftPx), LEFT_MIN, LEFT_MAX);
+    }
+    if (canUseSaved && savedRightRatio) {
+      const r = Number(savedRightRatio);
+      if (Number.isFinite(r) && r > 0) nextRight = clamp(Math.round(cw * r), RIGHT_MIN, RIGHT_MAX);
+    } else if (canUseSaved && savedRightPx) {
+      nextRight = clamp(Number(savedRightPx), RIGHT_MIN, RIGHT_MAX);
+    }
+    const normalized = normalizePanelWidths(nextLeft, nextRight);
+    setLeftPx(normalized.left);
+    setRightPx(normalized.right);
+  }, [getContainerWidth, getDefaultLeftWidth, getDefaultRightWidth, normalizePanelWidths]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -878,7 +1017,13 @@ export default function AIGenerator() {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem('synaura.ai.leftPx', String(leftPx));
     window.localStorage.setItem('synaura.ai.rightPx', String(rightPx));
-  }, [leftPx, rightPx]);
+    window.localStorage.setItem('synaura.ai.layoutVersion', LAYOUT_VERSION);
+    const cw = getContainerWidth();
+    if (cw > 0) {
+      window.localStorage.setItem('synaura.ai.leftRatio', String(leftPx / cw));
+      window.localStorage.setItem('synaura.ai.rightRatio', String(rightPx / cw));
+    }
+  }, [getContainerWidth, leftPx, rightPx]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1081,7 +1226,11 @@ export default function AIGenerator() {
 
   const playGenerated = async (gt: GeneratedTrack) => {
     const directUrl = typeof gt.audioUrl === 'string' ? gt.audioUrl.trim() : '';
-    if (!directUrl) {
+    const backupDirect = Array.isArray(gt.backupAudioUrls)
+      ? gt.backupAudioUrls.find((u) => typeof u === 'string' && u.trim().length > 0)?.trim() || ''
+      : '';
+    const playableDirect = directUrl || backupDirect;
+    if (!playableDirect) {
       const rawLive = (activeBgGeneration?.latestTracks || []).find((t: any, idx: number) => {
         const tid = String(t?.id || `${activeBgGeneration?.taskId || 'task'}_${idx}`);
         return tid === String(gt.id) || String(t?.title || '').trim() === String(gt.title || '').trim();
@@ -1132,8 +1281,10 @@ export default function AIGenerator() {
         name: 'Synaura IA',
         username: 'synaura-ai'
       },
-      audioUrl: gt.audioUrl,
-      backupAudioUrls: Array.isArray(gt.backupAudioUrls) ? gt.backupAudioUrls : [],
+      audioUrl: playableDirect,
+      backupAudioUrls: Array.isArray(gt.backupAudioUrls)
+        ? gt.backupAudioUrls.filter((u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect)
+        : [],
       coverUrl: gt.imageUrl || '/synaura_symbol.svg',
       duration: gt.duration || 120,
       likes: [],
@@ -1189,14 +1340,66 @@ export default function AIGenerator() {
     setSelectedTrack(null);
   };
 
+  const useLibraryTrackForRemix = (track: AITrack) => {
+    const media = resolveTrackMedia(track as any);
+    const sourceUrl = media.audioUrl || media.streamUrl || media.playableUrl;
+    if (!sourceUrl) {
+      notify.error('Remix', 'Aucune URL audio exploitable pour cette piste.');
+      return;
+    }
+    setGenerationModeKind('remix');
+    setCustomMode(true);
+    setOpenStyleSection(true);
+    setRemixFile(null);
+    setRemixUploadUrl(sourceUrl);
+    setRemixSourceDurationSec(Number((track as any)?.duration || 0) || undefined);
+    const label = getUploadedAssetName(track);
+    setRemixSourceLabel(label);
+    pushLog('info', `Source remix sélectionnée: ${label}`);
+  };
+
+  const useGeneratedTrackForRemix = (track: GeneratedTrack) => {
+    const sourceUrl =
+      (typeof track.audioUrl === 'string' && track.audioUrl.trim().length > 0
+        ? track.audioUrl.trim()
+        : '') ||
+      (Array.isArray(track.backupAudioUrls)
+        ? track.backupAudioUrls.find((u) => typeof u === 'string' && u.trim().length > 0)?.trim() || ''
+        : '');
+    if (!sourceUrl) {
+      notify.error('Remix', 'Aucune URL audio exploitable pour cette génération.');
+      return;
+    }
+    setGenerationModeKind('remix');
+    setCustomMode(true);
+    setOpenStyleSection(true);
+    setRemixFile(null);
+    setRemixUploadUrl(sourceUrl);
+    setRemixSourceDurationSec(Number(track.duration || 0) || undefined);
+    const label = track.title || 'Piste générée';
+    setRemixSourceLabel(label);
+    pushLog('info', `Source remix sélectionnée: ${label}`);
+  };
+
+  const clearRemixSource = () => {
+    setRemixFile(null);
+    setRemixUploadUrl(null);
+    setRemixSourceDurationSec(undefined);
+    setRemixSourceLabel(null);
+    pushLog('info', 'Source remix désélectionnée');
+  };
+
   // Fonction pour convertir AITrack en GeneratedTrack
   const convertAITrackToGenerated = (aiTrack: AITrack): GeneratedTrack => {
     const media = resolveTrackMedia(aiTrack);
     const backupAudioUrls = Array.from(
       new Set([media.audioUrl, media.streamUrl].filter((u): u is string => Boolean(u && u !== media.playableUrl)))
     );
+    const generation = generationsById.get(String(aiTrack.generation_id));
     return {
       id: aiTrack.id,
+      sunoAudioId: aiTrack.suno_id || undefined,
+      generationTaskId: generation?.task_id || undefined,
       audioUrl: media.playableUrl || '',
       backupAudioUrls,
       prompt: aiTrack.prompt || '',
@@ -1230,12 +1433,12 @@ export default function AIGenerator() {
   }, [activeBgGeneration]);
 
   const liveStatusLabel = React.useMemo(() => {
-    if (sunoState === 'first') return 'Premier rendu disponible';
-    if (sunoState === 'pending') return 'Génération en cours';
-    if (sunoState === 'success') return 'Génération finalisée';
-    if (sunoState === 'error') return 'Erreur de génération';
+    if (sunoState === 'first') return isRemixMode ? 'Premier rendu remix disponible' : 'Premier rendu disponible';
+    if (sunoState === 'pending') return isRemixMode ? 'Remix en cours' : 'Génération en cours';
+    if (sunoState === 'success') return isRemixMode ? 'Remix finalisé' : 'Génération finalisée';
+    if (sunoState === 'error') return isRemixMode ? 'Erreur de remix' : 'Erreur de génération';
     return 'En attente';
-  }, [sunoState]);
+  }, [isRemixMode, sunoState]);
 
   // Source de vérité unique pour le statut de génération
   React.useEffect(() => {
@@ -1287,6 +1490,346 @@ export default function AIGenerator() {
     return activeBgGeneration.status === 'pending' || activeBgGeneration.status === 'first';
   }, [activeBgGeneration, generationStatus, sunoState]);
 
+  const activeQueueTrack = (audioState.tracks || [])[audioState.currentTrackIndex || 0] as any;
+  const activeInspectorTrack = selectedTrack || generatedTrack;
+  const inspectorDuration = Number(audioState.duration || activeInspectorTrack?.duration || 0);
+  const inspectorProgress = Math.max(
+    0,
+    Math.min(1, inspectorDuration > 0 ? Number(audioState.currentTime || 0) / inspectorDuration : 0),
+  );
+  const showDesktopRightPanel = Boolean(showTrackPanel && selectedTrack);
+  const idePromptValue = customMode ? style : description;
+  const playbackDuration = Number(audioState.duration || generatedTrack?.duration || 0);
+  const playbackCurrentTime = Number(audioState.currentTime || 0);
+  const playbackProgress = Math.max(0, Math.min(1, playbackDuration > 0 ? playbackCurrentTime / playbackDuration : 0));
+
+  const waveformGeometry = React.useMemo(() => {
+    const source = `${activeInspectorTrack?.id || activeInspectorTrack?.title || 'idle'}`;
+    let seed = 0;
+    for (let i = 0; i < source.length; i += 1) {
+      seed = (seed * 33 + source.charCodeAt(i)) % 2147483647;
+    }
+
+    const count = 180;
+    const width = 1000;
+    const height = 140;
+    const mid = height / 2;
+    const amps = Array.from({ length: count }).map((_, i) => {
+      seed = (seed * 48271) % 2147483647;
+      const n = ((seed % 1000) / 1000) * 2 - 1;
+      const f1 = Math.sin((i / count) * Math.PI * 2.6);
+      const f2 = Math.sin((i / count) * Math.PI * 8.4 + 0.6);
+      const shaped = Math.abs(f1 * 0.5 + f2 * 0.25 + n * 0.45);
+      const envelope = 0.35 + Math.sin((i / (count - 1)) * Math.PI) * 0.5;
+      return Math.max(0.08, Math.min(0.98, shaped * envelope + 0.08));
+    });
+
+    // Simple lissage pour éviter un rendu "haché".
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (let i = 1; i < amps.length - 1; i += 1) {
+        amps[i] = (amps[i - 1] + amps[i] * 2 + amps[i + 1]) / 4;
+      }
+    }
+
+    const topPts: Array<[number, number]> = amps.map((amp, i) => {
+      const x = (i / (count - 1)) * width;
+      const y = mid - amp * (mid - 10);
+      return [x, y];
+    });
+    const bottomPts: Array<[number, number]> = amps.map((amp, i) => {
+      const x = (i / (count - 1)) * width;
+      const y = mid + amp * (mid - 10);
+      return [x, y];
+    });
+
+    const linePath = topPts.map(([x, y], idx) => `${idx === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
+    const areaPath = [
+      topPts.map(([x, y], idx) => `${idx === 0 ? 'M' : 'L'} ${x} ${y}`).join(' '),
+      bottomPts.reverse().map(([x, y]) => `L ${x} ${y}`).join(' '),
+      'Z',
+    ].join(' ');
+
+    return { width, height, areaPath, linePath };
+  }, [activeInspectorTrack?.id, activeInspectorTrack?.title]);
+
+  const getWaveRatioFromClientX = useCallback((clientX: number, host: HTMLDivElement) => {
+    const rect = host.getBoundingClientRect();
+    return clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
+  }, []);
+
+  const seekWithWaveRatio = useCallback((ratio: number) => {
+    if (!Number.isFinite(inspectorDuration) || inspectorDuration <= 0) return;
+    seek(inspectorDuration * ratio);
+  }, [inspectorDuration, seek]);
+
+  const handleWavePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!Number.isFinite(inspectorDuration) || inspectorDuration <= 0) return;
+    const host = e.currentTarget as HTMLDivElement;
+    host.setPointerCapture?.(e.pointerId);
+    setWaveScrubbing(true);
+    const ratio = getWaveRatioFromClientX(e.clientX, host);
+    setWaveHoverRatio(ratio);
+    seekWithWaveRatio(ratio);
+    const onMove = (ev: PointerEvent) => {
+      const moveRatio = getWaveRatioFromClientX(ev.clientX, host);
+      setWaveHoverRatio(moveRatio);
+      seekWithWaveRatio(moveRatio);
+    };
+    const onUp = () => {
+      setWaveScrubbing(false);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  }, [getWaveRatioFromClientX, inspectorDuration, seekWithWaveRatio]);
+
+  const seekByRatio = useCallback((ratio: number) => {
+    if (!Number.isFinite(playbackDuration) || playbackDuration <= 0) return;
+    seek(Math.max(0, Math.min(playbackDuration, playbackDuration * ratio)));
+  }, [playbackDuration, seek]);
+
+  const selectGenerationInIde = useCallback((g: AIGeneration) => {
+    const track = g.tracks?.[0];
+    if (!track) {
+      notify.warning('Version', 'Cette génération ne contient pas encore de piste exploitable.');
+      return;
+    }
+    const converted = convertAITrackToGenerated(track as any);
+    setSelectedGeneration(g);
+    setSelectedTrack(converted);
+    setGeneratedTrack(converted);
+    setShowTrackPanel(true);
+    setRightTab('inspector');
+    pushLog('info', `Version sélectionnée: ${converted.title || 'Génération'}`);
+  }, [pushLog]);
+
+  const generateAutoLyrics = useCallback(async () => {
+    if (isInstrumental) {
+      notify.warning('Lyrics', 'Mode instrumental actif: passe en mode voix pour auto-générer des paroles.');
+      return;
+    }
+    if (isGeneratingLyrics) return;
+
+    const seedText = [
+      title.trim() ? `Title: ${title.trim()}` : '',
+      (customMode ? style : description).trim(),
+      selectedTags.slice(0, 5).join(', '),
+      'Structure: intro, verse, chorus, verse, chorus, bridge, outro',
+      'Language: French',
+      'Tone: modern, catchy, emotional',
+    ]
+      .filter(Boolean)
+      .join(' | ');
+
+    setIsGeneratingLyrics(true);
+    pushLog('info', 'Lyrics auto: requête Suno...');
+    try {
+      const res = await fetch('/api/suno/generate-lyrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: seedText }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Impossible de générer des lyrics');
+      }
+
+      let best = typeof json?.best === 'string' ? json.best.trim() : '';
+      let variants = Array.isArray(json?.variants) ? json.variants : [];
+
+      // Si encore pending, on poll les détails quelques secondes supplémentaires.
+      const taskId = typeof json?.taskId === 'string' ? json.taskId : '';
+      if (!best && variants.length === 0 && taskId) {
+        pushLog('info', `Lyrics auto: task ${taskId.slice(0, 8)} en cours...`);
+        for (let attempt = 0; attempt < 10; attempt += 1) {
+          await new Promise((r) => window.setTimeout(r, 1400));
+          const detailRes = await fetch(`/api/suno/generate-lyrics?taskId=${encodeURIComponent(taskId)}`, { cache: 'no-store' });
+          const detailJson = await detailRes.json().catch(() => ({}));
+          if (!detailRes.ok) continue;
+          best = typeof detailJson?.best === 'string' ? detailJson.best.trim() : '';
+          variants = Array.isArray(detailJson?.variants) ? detailJson.variants : [];
+          if (best || variants.length > 0) break;
+        }
+      }
+
+      const selected = best || (typeof variants?.[0]?.text === 'string' ? variants[0].text.trim() : '');
+      if (!selected) {
+        notify.warning('Lyrics', 'Toujours en cours chez Suno. Re-clique Auto dans quelques secondes.');
+        pushLog('warn', `Lyrics auto: en attente (${taskId || json?.taskId || 'task'})`);
+        return;
+      }
+
+      setLyrics((prev) => (prev.trim().length > 0 ? `${prev}\n\n${selected}` : selected));
+      notify.success('Lyrics', `Paroles générées${variants.length > 1 ? ` (${variants.length} variantes)` : ''}`);
+      pushLog('info', `Lyrics auto: ${variants.length || 1} variante(s) reçue(s)`);
+    } catch (e: any) {
+      notify.error('Lyrics', e?.message || 'Erreur génération lyrics');
+      pushLog('error', `Lyrics auto: ${e?.message || 'échec'}`);
+    } finally {
+      setIsGeneratingLyrics(false);
+    }
+  }, [customMode, description, isGeneratingLyrics, isInstrumental, pushLog, selectedTags, style, title]);
+
+  const selectedTrackContext = React.useMemo(() => {
+    if (!selectedTrack) return { taskId: '', audioId: '' };
+    const directTaskId = selectedTrack.generationTaskId || selectedGeneration?.task_id || '';
+    const directAudioId = selectedTrack.sunoAudioId || '';
+    if (directTaskId && directAudioId) {
+      return { taskId: directTaskId, audioId: directAudioId };
+    }
+
+    const holder = recentGenerationsSorted.find((g) =>
+      (g.tracks || []).some((t: any) => String(t.id) === String(selectedTrack.id) || String(t.suno_id || '') === String(selectedTrack.sunoAudioId || ''))
+    );
+    const candidate = holder?.tracks?.find((t: any) => String(t.id) === String(selectedTrack.id) || String(t.suno_id || '') === String(selectedTrack.sunoAudioId || ''));
+    return {
+      taskId: directTaskId || holder?.task_id || '',
+      audioId: directAudioId || String(candidate?.suno_id || ''),
+    };
+  }, [recentGenerationsSorted, selectedGeneration?.task_id, selectedTrack]);
+
+  const selectedGenerationForVisibility = React.useMemo(() => {
+    if (selectedGeneration) return selectedGeneration;
+    if (generatedTrack) {
+      const sourceTrack = allTracks.find((t) => String(t.id) === String(generatedTrack.id));
+      const sourceGenId = (sourceTrack as any)?.generation_id || (sourceTrack as any)?.generation?.id;
+      if (sourceGenId) {
+        const byId = generationsById.get(String(sourceGenId));
+        if (byId) return byId;
+      }
+      const byTrack = recentGenerationsSorted.find((g) =>
+        (g.tracks || []).some((t: any) => String(t.id) === String(generatedTrack.id))
+      );
+      if (byTrack) return byTrack;
+    }
+    return null;
+  }, [allTracks, generatedTrack, generationsById, recentGenerationsSorted, selectedGeneration]);
+
+  const toggleGenerationVisibility = useCallback(async () => {
+    const generation = selectedGenerationForVisibility;
+    if (!generation?.id) {
+      notify.warning('Publication', 'Sélectionne une génération enregistrée pour publier.');
+      return;
+    }
+    if (publishingVisibility) return;
+    const nextPublic = !(generation.is_public === true);
+    setPublishingVisibility(true);
+    try {
+      const res = await fetch(`/api/ai/generations/${encodeURIComponent(String(generation.id))}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: nextPublic }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Impossible de changer la visibilité');
+      }
+
+      setGenerations((prev) =>
+        prev.map((g) => (String(g.id) === String(generation.id) ? { ...g, is_public: nextPublic } : g))
+      );
+      setSelectedGeneration((prev) =>
+        prev && String(prev.id) === String(generation.id) ? { ...prev, is_public: nextPublic } : prev
+      );
+
+      notify.success('Publication', nextPublic ? 'Génération rendue publique.' : 'Génération rendue privée.');
+      pushLog('info', `Visibilité génération ${String(generation.id).slice(0, 8)}: ${nextPublic ? 'public' : 'privé'}`);
+      window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+    } catch (e: any) {
+      notify.error('Publication', e?.message || 'Erreur de publication');
+      pushLog('error', `Visibilité: ${e?.message || 'échec'}`);
+    } finally {
+      setPublishingVisibility(false);
+    }
+  }, [publishingVisibility, pushLog, selectedGenerationForVisibility]);
+
+  const fetchTimestampedLyrics = useCallback(async (silent = false) => {
+    const { taskId, audioId } = selectedTrackContext;
+    if (!taskId || !audioId) {
+      setTimestampedWords([]);
+      setTimestampedWaveform([]);
+      setTimestampedError('Sélectionne une piste issue d’une génération Suno finalisée.');
+      return;
+    }
+    if (selectedTrack?.isInstrumental) {
+      setTimestampedWords([]);
+      setTimestampedWaveform([]);
+      setTimestampedError('Pas de paroles alignées en mode instrumental.');
+      return;
+    }
+    setTimestampedLoading(true);
+    setTimestampedError(null);
+    try {
+      const res = await fetch('/api/suno/timestamped-lyrics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taskId, audioId }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json?.error || 'Impossible de récupérer les paroles synchronisées');
+      }
+      const words = Array.isArray(json?.alignedWords) ? (json.alignedWords as TimestampedWord[]) : [];
+      const wave = Array.isArray(json?.waveformData) ? (json.waveformData as number[]) : [];
+      setTimestampedWords(words);
+      setTimestampedWaveform(wave);
+      if (words.length > 0) {
+        const plainLyrics = words
+          .map((w) => String(w.word || '').trim())
+          .filter(Boolean)
+          .join(' ')
+          .replace(/\s+([,.;!?])/g, '$1');
+        if (!lyrics.trim() && plainLyrics.trim()) {
+          setLyrics(plainLyrics);
+        }
+        if (!silent) {
+          notify.success('Lyrics', `Paroles synchronisées chargées (${words.length} mots).`);
+        }
+      } else if (!silent) {
+        notify.warning('Lyrics', 'Aucune parole alignée trouvée pour cette piste.');
+      }
+      pushLog('info', `Timestamped lyrics: ${words.length} mots`);
+    } catch (e: any) {
+      const msg = e?.message || 'Erreur de récupération des paroles synchronisées';
+      setTimestampedError(msg);
+      if (!silent) notify.error('Lyrics', msg);
+      pushLog('warn', `Timestamped lyrics: ${msg}`);
+    } finally {
+      setTimestampedLoading(false);
+    }
+  }, [lyrics, pushLog, selectedTrack?.isInstrumental, selectedTrackContext]);
+
+  React.useEffect(() => {
+    if (!selectedTrack) return;
+    fetchTimestampedLyrics(true);
+  }, [fetchTimestampedLyrics, selectedTrack]);
+
+  const activeWordIndex = React.useMemo(() => {
+    const now = Number(audioState.currentTime || 0);
+    if (!timestampedWords.length) return -1;
+    return timestampedWords.findIndex((w) => now >= Number(w.startS || 0) && now <= Number(w.endS || 0));
+  }, [audioState.currentTime, timestampedWords]);
+
+  const compactWaveform = React.useMemo(() => {
+    if (!timestampedWaveform.length) return null;
+    const target = 56;
+    const chunk = Math.max(1, Math.floor(timestampedWaveform.length / target));
+    const out: number[] = [];
+    for (let i = 0; i < target; i += 1) {
+      const start = i * chunk;
+      const slice = timestampedWaveform.slice(start, start + chunk);
+      if (!slice.length) {
+        out.push(0);
+        continue;
+      }
+      const avg = slice.reduce((s, n) => s + Math.abs(Number(n || 0)), 0) / slice.length;
+      out.push(avg);
+    }
+    const max = Math.max(...out, 0.0001);
+    return out.map((v) => Math.max(0, Math.min(1, v / max)));
+  }, [timestampedWaveform]);
+
   // Afficher les tracks live issues du polling (FIRST_SUCCESS/SUCCESS)
   React.useEffect(() => {
     if (!activeBgGeneration?.latestTracks || activeBgGeneration.latestTracks.length === 0) return;
@@ -1299,7 +1842,7 @@ export default function AIGenerator() {
           new Set([media.audioUrl, media.streamUrl].filter((u): u is string => Boolean(u && u !== media.playableUrl)))
         ),
         prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
-        title: track.title || title || `Musique générée ${index + 1}`,
+        title: track.title || title || (isRemixMode ? `Remix ${index + 1}` : `Musique générée ${index + 1}`),
         style: track.raw?.tags || style || 'Custom',
         lyrics: customMode ? lyrics : '',
         isInstrumental,
@@ -1310,7 +1853,7 @@ export default function AIGenerator() {
     });
     setGeneratedTracks(convertedTracks);
     setGeneratedTrack((prev) => prev || convertedTracks[0] || null);
-  }, [activeBgGeneration, customMode, description, isInstrumental, lyrics, style, title]);
+  }, [activeBgGeneration, customMode, description, isInstrumental, isRemixMode, lyrics, style, title]);
 
   // Dès qu'une génération passe en completed, synchroniser la bibliothèque
   React.useEffect(() => {
@@ -1524,7 +2067,9 @@ export default function AIGenerator() {
       if (data.taskId) {
         // Génération Suno en cours - démarrer le suivi en arrière-plan
         const promptText = data.prompt || description || 'Musique générée';
-        const customTitle = customMode ? title : promptText.substring(0, 50) + (promptText.length > 50 ? '...' : '');
+        const customTitle = customMode
+          ? (title.trim() || (isRemixMode ? 'Remix en cours' : 'Génération en cours'))
+          : promptText.substring(0, 50) + (promptText.length > 50 ? '...' : '');
         
         startBackgroundGeneration({
           id: data.id,
@@ -2377,6 +2922,7 @@ export default function AIGenerator() {
                         uploading={remixUploading}
                         onFileSelected={async (file: File) => {
                           setRemixFile(file);
+                          setRemixSourceLabel(file.name);
                           try {
                             setRemixUploading(true);
                             // Signature Cloudinary
@@ -2417,7 +2963,13 @@ export default function AIGenerator() {
                               const res = await fetch('/api/ai/upload-source', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ audioUrl: secureUrl, publicId: uploadedPublicId, title, duration: uploadedDuration })
+                                body: JSON.stringify({
+                                  audioUrl: secureUrl,
+                                  publicId: uploadedPublicId,
+                                  title,
+                                  duration: uploadedDuration,
+                                  fileName: file.name,
+                                })
                               });
                               if (res.ok) {
                                 window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
@@ -2430,8 +2982,46 @@ export default function AIGenerator() {
                         }}
                       />
                       {remixUploadUrl && <p className="text-[10px] text-foreground-tertiary mt-2">Audio uploadé ✓</p>}
+                      {remixSourceLabel && (
+                        <div className="mt-1 flex items-center gap-2">
+                          <p className="text-[10px] text-cyan-200/90 truncate">
+                            Source sélectionnée: {remixSourceLabel}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={clearRemixSource}
+                            className="h-6 px-2 rounded-md border border-red-300/30 bg-red-500/10 text-[10px] text-red-200 hover:bg-red-500/20"
+                          >
+                            Désélectionner
+                          </button>
+                        </div>
+                      )}
                       {isRemixMode && !remixUploadUrl && !remixUploading && (
                         <p className="text-[10px] text-cyan-200/90 mt-2">Ajoute un audio pour lancer une génération Remix.</p>
+                      )}
+                      {isRemixMode && uploadedRemixAssets.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <div className="text-[10px] text-foreground-tertiary">Réutiliser un audio uploadé</div>
+                          <div className="max-h-36 overflow-auto space-y-1.5 pr-1">
+                            {uploadedRemixAssets.slice(0, 12).map((track) => (
+                              <button
+                                key={`remix-asset-${track.id}`}
+                                type="button"
+                                onClick={() => useLibraryTrackForRemix(track)}
+                                className={`w-full rounded-lg border px-2 py-1.5 text-left text-[11px] transition ${
+                                  remixUploadUrl && resolveTrackMedia(track).playableUrl === remixUploadUrl
+                                    ? 'border-cyan-300/50 bg-cyan-400/10 text-cyan-100'
+                                    : 'border-white/10 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06]'
+                                }`}
+                              >
+                                <div className="truncate font-medium">{getUploadedAssetName(track)}</div>
+                                <div className="text-[10px] text-zinc-400">
+                                  {Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : 'Durée inconnue'}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </SunoAccordionSection>
@@ -2570,6 +3160,7 @@ export default function AIGenerator() {
                         onPlayTrack={playGenerated}
                         onDownloadTrack={downloadGenerated}
                         onShareTrack={shareGenerated}
+                        onRemixTrack={useGeneratedTrackForRemix}
                       />
                     </SunoAccordionSection>
                   )}
@@ -2626,7 +3217,7 @@ export default function AIGenerator() {
                 <div className="mt-3 panel-suno p-3 space-y-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-semibold text-white">Now generating</div>
+                      <div className="text-xs font-semibold text-white">{isRemixMode ? 'Now remixing' : 'Now generating'}</div>
                       <div className="text-[11px] text-white/60">{liveStatusLabel}</div>
                     </div>
                     <span className={`text-[10px] px-2 py-1 rounded-full border ${
@@ -2656,7 +3247,11 @@ export default function AIGenerator() {
                       />
                     </div>
                     <div className="flex items-center justify-between text-[10px] text-white/50">
-                      <span>{activeBgGeneration?.status === 'first' ? 'Playable now' : 'Processing...'}</span>
+                      <span>
+                        {activeBgGeneration?.status === 'first'
+                          ? (isRemixMode ? 'Remix live dispo' : 'Playable now')
+                          : (isRemixMode ? 'Remix processing...' : 'Processing...')}
+                      </span>
                       <span>{liveProgressPct}%</span>
                     </div>
                   </div>
@@ -2690,7 +3285,9 @@ export default function AIGenerator() {
                       }`}
                     >
                       <Play className="w-3.5 h-3.5" />
-                      {livePreviewTrack ? 'Écouter le rendu live' : 'En attente du 1er rendu'}
+                      {livePreviewTrack
+                        ? (isRemixMode ? 'Écouter le remix live' : 'Écouter le rendu live')
+                        : (isRemixMode ? 'En attente du 1er remix' : 'En attente du 1er rendu')}
                     </button>
                     {generatedTracks.length > 0 && (
                       <span className="text-[10px] text-white/55">
@@ -2717,7 +3314,9 @@ export default function AIGenerator() {
                                 : 'border border-white/10 bg-white/[0.03] text-white/40'
                             }`}
                           >
-                            <span className="truncate text-left">Live {idx + 1}: {t.title || `Variation ${idx + 1}`}</span>
+                            <span className="truncate text-left">
+                              {isRemixMode ? `Remix ${idx + 1}` : `Live ${idx + 1}`}: {t.title || `Variation ${idx + 1}`}
+                            </span>
                             <Play className="w-3.5 h-3.5 shrink-0" />
                           </button>
                         );
@@ -2875,7 +3474,7 @@ export default function AIGenerator() {
                   />
                   {filteredAssets.slice(0, 24).map((track) => (
                     <div key={track.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
-                      <div className="text-xs font-semibold truncate">{track.title || 'Untitled'}</div>
+                      <div className="text-xs font-semibold truncate">{getUploadedAssetName(track)}</div>
                       <div className="text-[11px] text-zinc-400 truncate">{track.style || track.model_name || 'AI Track'}</div>
                       <div className="mt-2 flex gap-2">
                         <button
@@ -2910,6 +3509,16 @@ export default function AIGenerator() {
                         >
                           Play
                         </button>
+                        {(String((track as any)?.model_name || '').toUpperCase() === 'UPLOAD' ||
+                          Boolean(parseSourceLinks((track as any)?.source_links)?.cloudinary_public_id)) && (
+                          <button
+                            type="button"
+                            onClick={() => useLibraryTrackForRemix(track)}
+                            className="h-7 px-2 rounded-lg text-[11px] bg-cyan-400/20 hover:bg-cyan-400/30"
+                          >
+                            Remix
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -2953,7 +3562,75 @@ export default function AIGenerator() {
           <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'library' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}>
             <div className="flex-1 overflow-y-auto pl-1 space-y-3 min-h-0 pb-24 lg:pb-0">
               {shellMode === 'ide' && (
-                <div className="grid gap-3 p-2 lg:grid-cols-12">
+                <div className="space-y-3 p-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] text-zinc-400">Actions rapides</span>
+                    <button
+                      type="button"
+                      onClick={refreshGenerations}
+                      className="h-8 px-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] hover:bg-white/[0.08]"
+                    >
+                      Refresh
+                    </button>
+                    <button
+                      type="button"
+                      onClick={generateMusic}
+                      className={`h-8 px-3 rounded-xl text-[11px] ${
+                        isGenerating
+                          ? 'bg-indigo-500/20 text-indigo-100 cursor-not-allowed'
+                          : 'bg-indigo-500/25 text-indigo-100 hover:bg-indigo-500/35'
+                      }`}
+                      disabled={isGenerating}
+                    >
+                      {isGenerating ? 'Generating…' : 'Generate'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!generatedTrack) return;
+                        playGenerated(generatedTrack);
+                      }}
+                      disabled={!generatedTrack}
+                      className={`h-8 px-3 rounded-xl text-[11px] ${
+                        generatedTrack ? 'bg-white text-black hover:bg-white/90' : 'border border-white/10 bg-white/[0.03] text-white/40'
+                      }`}
+                    >
+                      Play selected
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!generatedTrack) return;
+                        useGeneratedTrackForRemix(generatedTrack);
+                      }}
+                      disabled={!generatedTrack}
+                      className={`h-8 px-3 rounded-xl text-[11px] ${
+                        generatedTrack ? 'bg-cyan-400/20 text-cyan-100 hover:bg-cyan-400/30' : 'border border-white/10 bg-white/[0.03] text-white/40'
+                      }`}
+                    >
+                      Remix selected
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!generatedTrack}
+                      onClick={() => {
+                        if (!generatedTrack) return;
+                        setSelectedTrack(generatedTrack);
+                        setShowTrackPanel(true);
+                        setRightTab('inspector');
+                      }}
+                      className={`h-8 px-3 rounded-xl text-[11px] ${
+                        generatedTrack ? 'border border-white/10 bg-white/[0.04] hover:bg-white/[0.08]' : 'border border-white/10 bg-white/[0.03] text-white/40'
+                      }`}
+                    >
+                      Open inspector
+                    </button>
+                    <span className="ml-auto truncate max-w-[260px] text-[10px] text-zinc-400">
+                      {generatedTrack ? `Sélection: ${generatedTrack.title || 'Piste sans titre'}` : 'Aucune piste sélectionnée'}
+                    </span>
+                  </div>
+
+                <div className="grid gap-3 lg:grid-cols-12">
                   <div className="space-y-3 lg:col-span-7">
                     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
                       <div className="mb-2 flex items-center justify-between">
@@ -2968,11 +3645,15 @@ export default function AIGenerator() {
                         </div>
                       </div>
                       <textarea
-                        value={customMode ? style : description}
+                        value={idePromptValue}
                         onChange={(e) => (customMode ? setStyle(e.target.value) : setDescription(e.target.value))}
                         className="min-h-[140px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
                         placeholder="Décris le style, l’ambiance, les instruments, la structure…"
                       />
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-400">
+                        <span>{customMode ? 'Mode custom: style + lyrics influencent fortement le rendu.' : 'Mode simple: ce prompt pilote la génération.'}</span>
+                        <span>{idePromptValue.length} car.</span>
+                      </div>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {selectedTags.slice(0, 12).map((tag) => (
                           <button
@@ -2991,24 +3672,95 @@ export default function AIGenerator() {
                       <div className="mb-2 flex items-center justify-between">
                         <div className="text-sm font-semibold">Timeline</div>
                         <div className="text-[10px] text-white/60">
-                          {Math.round((audioState.currentTime || 0))}s / {Math.round((audioState.duration || generatedTrack?.duration || 120))}s
+                          {formatTime(playbackCurrentTime)} / {formatTime(playbackDuration || generatedTrack?.duration || 0)}
                         </div>
                       </div>
-                      <div className="relative h-24 rounded-2xl bg-white/[0.03] overflow-hidden">
-                        <div className="absolute inset-0 grid grid-cols-12 gap-1 p-2 opacity-80">
-                          {Array.from({ length: 12 }).map((_, i) => (
-                            <div
-                              key={i}
-                              className="rounded-xl bg-gradient-to-b from-purple-400/25 to-cyan-400/10"
-                              style={{ height: `${30 + (i % 5) * 10}%`, alignSelf: 'end' }}
-                            />
-                          ))}
-                        </div>
-                        <div
-                          className="absolute top-0 bottom-0 w-[2px] bg-white"
-                          style={{
-                            left: `${Math.max(0, Math.min(1, (audioState.duration || 0) > 0 ? (audioState.currentTime || 0) / (audioState.duration || 1) : 0)) * 100}%`,
+                      <div
+                        className="relative h-24 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden cursor-ew-resize"
+                        onPointerDown={(e) => {
+                          const host = e.currentTarget as HTMLDivElement;
+                          const ratio = clamp((e.clientX - host.getBoundingClientRect().left) / Math.max(1, host.getBoundingClientRect().width), 0, 1);
+                          seekByRatio(ratio);
+                        }}
+                      >
+                        {compactWaveform ? (
+                          <div className="absolute inset-0 px-2 py-2 flex items-end gap-[2px]">
+                            {compactWaveform.map((amp, i) => (
+                              <div
+                                key={`wf-${i}`}
+                                className={`min-w-[2px] flex-1 rounded-t-sm transition-all ${
+                                  i / Math.max(1, compactWaveform.length - 1) <= playbackProgress
+                                    ? 'bg-gradient-to-t from-indigo-400 to-cyan-300 opacity-95'
+                                    : 'bg-gradient-to-t from-indigo-700/45 to-cyan-500/35 opacity-55'
+                                }`}
+                                style={{ height: `${Math.max(6, Math.round(amp * 68))}%` }}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="absolute inset-0 px-2 py-2">
+                            <svg viewBox={`0 0 ${waveformGeometry.width} ${waveformGeometry.height}`} className="h-full w-full" preserveAspectRatio="none" aria-hidden>
+                              <defs>
+                                <linearGradient id="ide-wave-idle" x1="0" y1="0" x2="1" y2="0">
+                                  <stop offset="0%" stopColor="rgba(129,140,248,0.30)" />
+                                  <stop offset="100%" stopColor="rgba(34,211,238,0.22)" />
+                                </linearGradient>
+                                <linearGradient id="ide-wave-played" x1="0" y1="0" x2="1" y2="0">
+                                  <stop offset="0%" stopColor="rgba(165,180,252,0.88)" />
+                                  <stop offset="100%" stopColor="rgba(103,232,249,0.88)" />
+                                </linearGradient>
+                                <clipPath id="ide-wave-progress">
+                                  <rect x="0" y="0" width={waveformGeometry.width * playbackProgress} height={waveformGeometry.height} />
+                                </clipPath>
+                              </defs>
+                              <path d={waveformGeometry.linePath} fill="none" stroke="url(#ide-wave-idle)" strokeWidth="2.4" strokeLinecap="round" />
+                              <g clipPath="url(#ide-wave-progress)">
+                                <path d={waveformGeometry.linePath} fill="none" stroke="url(#ide-wave-played)" strokeWidth="2.6" strokeLinecap="round" />
+                              </g>
+                            </svg>
+                          </div>
+                        )}
+                        <div className="absolute top-0 bottom-0 w-[2px] bg-white/90" style={{ left: `${playbackProgress * 100}%` }} />
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => seek(Math.max(0, playbackCurrentTime - 10))}
+                          className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] hover:bg-white/[0.08]"
+                        >
+                          -10s
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (audioState.isPlaying) {
+                              pause();
+                              return;
+                            }
+                            if (generatedTrack) {
+                              await Promise.resolve(playGenerated(generatedTrack));
+                              return;
+                            }
+                            await play().catch(() => {});
                           }}
+                          className="rounded-xl bg-white px-3 py-1 text-[11px] font-semibold text-black hover:bg-white/90"
+                        >
+                          {audioState.isPlaying ? 'Pause' : 'Play'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => seek(Math.min(playbackDuration || 0, playbackCurrentTime + 10))}
+                          className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] hover:bg-white/[0.08]"
+                        >
+                          +10s
+                        </button>
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={Math.round(playbackProgress * 100)}
+                          onChange={(e) => seekByRatio(Number(e.target.value || 0) / 100)}
+                          className="ml-auto w-[45%] accent-cyan-300"
                         />
                       </div>
                     </div>
@@ -3030,25 +3782,71 @@ export default function AIGenerator() {
                         <button
                           type="button"
                           onClick={async () => {
+                            if (!lyrics.trim()) return;
                             try {
                               await navigator.clipboard.writeText(lyrics);
+                              notify.success('Lyrics', 'Paroles copiées');
                               pushLog('info', 'Lyrics copiées');
                             } catch {
                               pushLog('warn', 'Impossible de copier les lyrics');
                             }
                           }}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs hover:bg-white/[0.06]"
+                          disabled={!lyrics.trim()}
+                          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
+                            lyrics.trim()
+                              ? 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                              : 'border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed'
+                          }`}
                         >
                           Copier
                         </button>
                         <button
                           type="button"
-                          onClick={() => pushLog('info', 'Auto-lyrics à brancher (API)')}
-                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs hover:bg-white/[0.06]"
+                          onClick={generateAutoLyrics}
+                          disabled={isGeneratingLyrics || isInstrumental}
+                          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
+                            isGeneratingLyrics || isInstrumental
+                              ? 'border-white/10 bg-white/[0.03] text-white/45 cursor-not-allowed'
+                              : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                          }`}
                         >
-                          Auto
+                          {isGeneratingLyrics ? 'Auto…' : 'Auto'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => fetchTimestampedLyrics(false)}
+                          disabled={timestampedLoading || isInstrumental}
+                          className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
+                            timestampedLoading || isInstrumental
+                              ? 'border-white/10 bg-white/[0.03] text-white/45 cursor-not-allowed'
+                              : 'border-cyan-300/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20'
+                          }`}
+                        >
+                          {timestampedLoading ? 'Sync…' : 'Sync audio'}
                         </button>
                       </div>
+                      {timestampedError && (
+                        <div className="mt-2 text-[10px] text-amber-300/90">{timestampedError}</div>
+                      )}
+                      {timestampedWords.length > 0 && (
+                        <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-2">
+                          <div className="mb-1 text-[10px] text-cyan-100/80">
+                            Lyrics synchronisées ({timestampedWords.length} mots)
+                          </div>
+                          <div className="max-h-24 overflow-auto pr-1 text-[11px] leading-relaxed">
+                            {timestampedWords.slice(0, 120).map((w, idx) => (
+                              <span
+                                key={`aligned-${idx}-${w.startS}`}
+                                className={`mr-1 inline-block rounded px-1 py-[1px] ${
+                                  idx === activeWordIndex ? 'bg-cyan-300/25 text-cyan-100' : 'text-white/80'
+                                }`}
+                              >
+                                {w.word}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
@@ -3124,7 +3922,23 @@ export default function AIGenerator() {
                           })}
 
                         {recentGenerationsSorted.slice(0, 8).map((g) => (
-                          <div key={g.id} className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                          <div
+                            key={g.id}
+                            onClick={() => selectGenerationInIde(g)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                selectGenerationInIde(g);
+                              }
+                            }}
+                            role="button"
+                            tabIndex={0}
+                            className={`w-full text-left flex items-center justify-between gap-2 rounded-2xl border px-3 py-2 transition ${
+                              selectedGeneration?.id === g.id
+                                ? 'border-cyan-300/40 bg-cyan-400/10'
+                                : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                            }`}
+                          >
                             <div className="min-w-0">
                               <div className="truncate text-sm font-semibold">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
                               <div className="truncate text-xs text-white/60">{new Date(g.created_at).toLocaleString('fr-FR')}</div>
@@ -3137,7 +3951,10 @@ export default function AIGenerator() {
                               </span>
                               <button
                                 type="button"
-                                onClick={() => handlePlayGeneration(g)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePlayGeneration(g);
+                                }}
                                 className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
                                 title="Play"
                               >
@@ -3145,7 +3962,10 @@ export default function AIGenerator() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => assignABSlot('A', g.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  assignABSlot('A', g.id);
+                                }}
                                 className={`h-7 px-2 rounded-lg text-[10px] ${abA === g.id ? 'bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
                                 title="Assigner slot A"
                               >
@@ -3153,7 +3973,10 @@ export default function AIGenerator() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => assignABSlot('B', g.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  assignABSlot('B', g.id);
+                                }}
                                 className={`h-7 px-2 rounded-lg text-[10px] ${abB === g.id ? 'bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
                                 title="Assigner slot B"
                               >
@@ -3161,14 +3984,9 @@ export default function AIGenerator() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  const t = g.tracks?.[0];
-                                  if (!t) return;
-                                  const converted = convertAITrackToGenerated(t as any);
-                                  setSelectedTrack(converted);
-                                  setGeneratedTrack(converted);
-                                  setShowTrackPanel(true);
-                                  setRightTab('inspector');
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  selectGenerationInIde(g);
                                 }}
                                 className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
                                 title="Open"
@@ -3184,6 +4002,7 @@ export default function AIGenerator() {
                       </div>
                     </div>
                   </div>
+                </div>
                 </div>
               )}
 
@@ -3314,6 +4133,35 @@ export default function AIGenerator() {
                   </AnimatePresence>
                 </div>
               </div>
+
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => selectGenerationMode('remix')}
+                  className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
+                    isRemixMode ? 'bg-background-tertiary' : ''
+                  }`}
+                >
+                  <span className="relative">Mode Remix</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={clearRemixSource}
+                  disabled={!remixUploadUrl}
+                  className={`rounded-full px-3 py-1.5 text-[11px] border ${
+                    remixUploadUrl
+                      ? 'border-red-300/30 bg-red-500/10 text-red-200 hover:bg-red-500/20'
+                      : 'border-white/10 bg-white/[0.03] text-white/35 cursor-not-allowed'
+                  }`}
+                >
+                  Retirer source remix
+                </button>
+                {remixSourceLabel && (
+                  <span className="text-[10px] text-cyan-200/90 truncate max-w-[260px]">
+                    Source: {remixSourceLabel}
+                  </span>
+                )}
+              </div>
             </div>
 
             {generations.length > 0 &&
@@ -3375,42 +4223,151 @@ export default function AIGenerator() {
                 } as any as AIGeneration;
                 playAITrack(track as any, fakeGen);
               }}
+              onRemixTrack={(track) => useLibraryTrackForRemix(track as any)}
             />
             </>
             )}
             </div>
           </main>
 
-          <div
-            role="separator"
-            aria-orientation="vertical"
-            onPointerDown={beginDrag('right')}
-            className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-white/10"
-            title="Redimensionner panneau droit"
-          >
-            <div className="h-16 w-[2px] rounded-full bg-white/20" />
-          </div>
+          {showDesktopRightPanel && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              onPointerDown={beginDrag('right')}
+              className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-white/10"
+              title="Redimensionner panneau droit"
+            >
+              <div className="h-16 w-[2px] rounded-full bg-white/20" />
+            </div>
+          )}
 
           {/* RIGHT PANEL: Inspector */}
+          {showDesktopRightPanel && (
           <aside
             className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${mobileTab === 'studio' ? 'flex' : 'hidden'} md:flex`}
             style={{ width: rightPx }}
           >
             {/* Visualizer placeholder (studio feel) */}
-            <div className="h-40 bg-black/60 border-b border-white/5 relative overflow-hidden">
-              <div className="absolute top-3 right-3">
+            <div
+              className="h-40 bg-black/60 border-b border-white/5 relative overflow-hidden cursor-ew-resize"
+              title="Cliquer/drag pour se déplacer dans la piste"
+              onPointerDown={handleWavePointerDown}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/30 via-black/20 to-cyan-950/20" />
+              <div className="absolute left-3 top-3 right-24 z-10 min-w-0">
+                <div className="truncate text-[11px] font-semibold text-white/90">
+                  {activeInspectorTrack?.title || activeQueueTrack?.title || 'Sélectionne un son pour activer l’inspector'}
+                </div>
+                <div className="text-[10px] text-white/60">
+                  {formatTime(audioState.currentTime || 0)} / {formatTime(inspectorDuration || 0)}
+                </div>
+              </div>
+              <div className="absolute top-3 right-3 z-10">
                 <span className="flex items-center gap-1.5 text-[10px] font-mono text-indigo-300 bg-indigo-900/20 px-2 py-1 rounded border border-indigo-500/20">
-                  <Volume2 className="w-3 h-3" /> -6.2dB
+                  <Volume2 className="w-3 h-3" /> {Math.round(inspectorProgress * 100)}%
                 </span>
               </div>
-              <div className="absolute inset-x-3 bottom-3 flex items-end justify-center gap-[2px] h-[80px]">
-                {Array.from({ length: 24 }).map((_, i) => (
+              <div className="absolute inset-x-3 top-14 bottom-8 rounded-xl border border-white/5 bg-black/25 overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute left-0 right-0 top-1/2 h-px bg-white/5" />
+                  <div className="absolute left-0 right-0 top-[28%] h-px bg-white/[0.035]" />
+                  <div className="absolute left-0 right-0 top-[72%] h-px bg-white/[0.035]" />
+                </div>
+                <div
+                  className="absolute inset-0 px-2 py-2"
+                  onPointerMove={(e) => {
+                    const host = e.currentTarget as HTMLDivElement;
+                    const ratio = getWaveRatioFromClientX(e.clientX, host);
+                    setWaveHoverRatio(ratio);
+                    if (waveScrubbing) seekWithWaveRatio(ratio);
+                  }}
+                  onPointerLeave={() => {
+                    if (!waveScrubbing) setWaveHoverRatio(null);
+                  }}
+                >
+                  <svg viewBox={`0 0 ${waveformGeometry.width} ${waveformGeometry.height}`} className="h-full w-full" preserveAspectRatio="none" aria-hidden>
+                    <defs>
+                      <linearGradient id="wave-idle-fill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(56,189,248,0.16)" />
+                        <stop offset="100%" stopColor="rgba(99,102,241,0.04)" />
+                      </linearGradient>
+                      <linearGradient id="wave-played-fill" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="rgba(34,211,238,0.50)" />
+                        <stop offset="100%" stopColor="rgba(129,140,248,0.16)" />
+                      </linearGradient>
+                      <linearGradient id="wave-idle-line" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="rgba(129,140,248,0.5)" />
+                        <stop offset="100%" stopColor="rgba(34,211,238,0.45)" />
+                      </linearGradient>
+                      <linearGradient id="wave-played-line" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="rgba(165,180,252,0.95)" />
+                        <stop offset="100%" stopColor="rgba(103,232,249,0.95)" />
+                      </linearGradient>
+                      <clipPath id="wave-progress-clip">
+                        <rect x="0" y="0" width={waveformGeometry.width * inspectorProgress} height={waveformGeometry.height} />
+                      </clipPath>
+                    </defs>
+                    <path d={waveformGeometry.areaPath} fill="url(#wave-idle-fill)" />
+                    <path d={waveformGeometry.linePath} fill="none" stroke="url(#wave-idle-line)" strokeWidth="2.2" strokeLinecap="round" />
+                    <g clipPath="url(#wave-progress-clip)">
+                      <path d={waveformGeometry.areaPath} fill="url(#wave-played-fill)" />
+                      <path d={waveformGeometry.linePath} fill="none" stroke="url(#wave-played-line)" strokeWidth="2.4" strokeLinecap="round" />
+                    </g>
+                  </svg>
+                </div>
+                <div
+                  className="absolute top-0 bottom-0 w-[2px] bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.6)]"
+                  style={{ left: `${inspectorProgress * 100}%` }}
+                />
+                <div
+                  className="absolute bottom-2 h-2 w-2 -translate-x-1/2 rounded-full border border-white/70 bg-black/80"
+                  style={{ left: `${inspectorProgress * 100}%` }}
+                />
+                {waveHoverRatio !== null && (
                   <div
-                    key={i}
-                    className="w-2 bg-gradient-to-t from-indigo-600 to-cyan-400 opacity-70 rounded-t-sm"
-                    style={{ height: `${20 + ((i * 7) % 60)}%` }}
-                  />
-                ))}
+                    className="absolute top-0 bottom-0 w-px bg-cyan-200/60"
+                    style={{ left: `${waveHoverRatio * 100}%` }}
+                  >
+                    <div className="absolute -top-6 -translate-x-1/2 rounded-md border border-cyan-300/30 bg-black/80 px-1.5 py-0.5 text-[10px] text-cyan-100">
+                      {formatTime((inspectorDuration || 0) * waveHoverRatio)}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="absolute inset-x-3 bottom-2 h-[3px] rounded-full bg-white/10 overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-indigo-400 to-cyan-300" style={{ width: `${inspectorProgress * 100}%` }} />
+              </div>
+              <div
+                className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full border border-white/10 bg-black/45 px-2 py-1 backdrop-blur-sm"
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <button type="button" onClick={() => previousTrack()} className="rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white" title="Précédent">
+                  <SkipBack className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (audioState.isPlaying) {
+                      pause();
+                      return;
+                    }
+                    const cur = (audioState.tracks || [])[audioState.currentTrackIndex || 0];
+                    if (cur) {
+                      await play();
+                      return;
+                    }
+                    if (generatedTrack) playGenerated(generatedTrack);
+                  }}
+                  className="rounded-full bg-white p-1.5 text-black hover:bg-white/90"
+                  title={audioState.isPlaying ? 'Pause' : 'Play'}
+                >
+                  {audioState.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                </button>
+                <button type="button" onClick={() => nextTrack()} className="rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white" title="Suivant">
+                  <SkipForward className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
 
@@ -3446,6 +4403,7 @@ export default function AIGenerator() {
                   onPlay={playGenerated}
                   onDownload={downloadGenerated}
                   onShare={shareGenerated}
+                  onRemix={useGeneratedTrackForRemix}
                   variant="docked"
                 />
               )}
@@ -3495,15 +4453,33 @@ export default function AIGenerator() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => pushLog('info', 'Publication Synaura (à brancher)')}
-                    className="w-full h-9 rounded-xl bg-white text-black text-xs inline-flex items-center justify-center gap-2"
+                    onClick={toggleGenerationVisibility}
+                    disabled={!selectedGenerationForVisibility || publishingVisibility}
+                    className={`w-full h-9 rounded-xl text-xs inline-flex items-center justify-center gap-2 ${
+                      !selectedGenerationForVisibility || publishingVisibility
+                        ? 'border border-white/10 bg-white/5 text-white/40 cursor-not-allowed'
+                        : selectedGenerationForVisibility.is_public
+                        ? 'border border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20'
+                        : 'bg-white text-black hover:bg-white/90'
+                    }`}
                   >
-                    <Send className="w-3.5 h-3.5" /> Publier sur Synaura
+                    <Send className="w-3.5 h-3.5" />
+                    {publishingVisibility
+                      ? 'Mise à jour...'
+                      : selectedGenerationForVisibility
+                      ? selectedGenerationForVisibility.is_public
+                        ? 'Rendre privé sur Synaura'
+                        : 'Publier sur Synaura'
+                      : 'Sélectionne une génération'}
                   </button>
+                  <div className="text-[10px] text-zinc-400">
+                    Visibilité actuelle: {selectedGenerationForVisibility ? (selectedGenerationForVisibility.is_public ? 'publique' : 'privée') : 'non définie'}
+                  </div>
                 </div>
               )}
             </div>
           </aside>
+          )}
 
           {/* Barre onglets mobile : Studio | Générer | Bibliothèque */}
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
@@ -3581,6 +4557,7 @@ export default function AIGenerator() {
                   </div>
                 )}
               </div>
+              {showDesktopRightPanel && (
               <div className="col-span-12 md:col-span-3 lg:shrink-0" style={{ width: rightPx }}>
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-xs text-zinc-400">Transport</div>
@@ -3645,6 +4622,7 @@ export default function AIGenerator() {
                 </div>
                 )}
               </div>
+              )}
               </div>
             </div>
           </footer>
@@ -3742,6 +4720,7 @@ export default function AIGenerator() {
             onPlay={playGenerated}
             onDownload={downloadGenerated}
             onShare={shareGenerated}
+            onRemix={useGeneratedTrackForRemix}
             variant="overlay"
           />
         </div>

@@ -76,9 +76,11 @@ export async function GET(request: NextRequest) {
             .select(`
               id, title, created_at, image_url, audio_url, duration, tags,
               generation:ai_generations!inner (
-                user_id
+                user_id, is_public, status
               )
             `)
+            .eq('generation.is_public', true)
+            .eq('generation.status', 'completed')
             .order('created_at', { ascending: false })
             .limit(limitFallback);
 
@@ -202,9 +204,11 @@ export async function GET(request: NextRequest) {
             .select(`
               id, title, created_at, image_url, audio_url, duration, tags,
               generation:ai_generations!inner (
-                user_id
+                user_id, is_public, status
               )
             `)
+            .eq('generation.is_public', true)
+            .eq('generation.status', 'completed')
             .in('id', aiIds as any);
           aiTracks = (data || []).map((t: any) => ({ ...t, _aiPrefixedId: `ai-${t.id}` }));
           
@@ -392,9 +396,11 @@ export async function GET(request: NextRequest) {
           .select(`
             id, title, created_at, image_url, audio_url, duration, tags,
             generation:ai_generations!inner (
-              user_id
+              user_id, is_public, status
             )
           `)
+          .eq('generation.is_public', true)
+          .eq('generation.status', 'completed')
           .in('id', rawAiIds);
       if (error) {
         console.error('ranking: erreur ai_tracks meta', error);

@@ -2,6 +2,8 @@
 
 export interface GeneratedTrack {
   id: string;
+  sunoAudioId?: string;
+  generationTaskId?: string;
   audioUrl: string;
   backupAudioUrls?: string[];
   prompt: string;

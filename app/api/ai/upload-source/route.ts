@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const { audioUrl, publicId, title, duration } = await request.json();
+    const { audioUrl, publicId, title, duration, fileName } = await request.json();
     if (!audioUrl || !publicId) {
       return NextResponse.json({ error: 'audioUrl et publicId requis' }, { status: 400 });
     }
@@ -19,14 +19,18 @@ export async function POST(request: NextRequest) {
     const taskId = `upload_${Math.random().toString(36).slice(2, 10)}`;
 
     // Créer une "génération" Upload
+    const cleanFileName = typeof fileName === 'string' && fileName.trim().length > 0 ? fileName.trim() : null;
+    const displayTitle = (typeof title === 'string' && title.trim().length > 0 ? title.trim() : cleanFileName) || 'Audio uploadé';
+
     const generationData: any = {
       id: generationId,
       user_id: session.user.id,
       task_id: taskId,
       status: 'completed',
+      is_public: false,
       model: 'UPLOAD',
       prompt: '',
-      metadata: { title: title || 'Audio uploadé', customMode: true, upload: true },
+      metadata: { title: displayTitle, customMode: true, upload: true, fileName: cleanFileName },
       created_at: new Date().toISOString(),
     };
 
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
     // Insérer la track associée
     const trackData: any = {
       generation_id: generationId,
-      title: title || 'Audio uploadé',
+      title: displayTitle,
       audio_url: audioUrl,
       stream_audio_url: audioUrl,
       image_url: null,
@@ -49,7 +53,11 @@ export async function POST(request: NextRequest) {
       tags: [],
       style: null,
       lyrics: null,
-      source_links: JSON.stringify({ cloudinary_public_id: publicId, resource_type: 'video' }),
+      source_links: JSON.stringify({
+        cloudinary_public_id: publicId,
+        resource_type: 'video',
+        original_file_name: cleanFileName,
+      }),
     };
 
     const { data: inserted, error: trErr } = await supabaseAdmin.from('ai_tracks').insert(trackData).select('*').single();

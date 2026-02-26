@@ -135,6 +135,7 @@ export async function POST(req: NextRequest) {
         user_id: session.user.id,
         task_id: taskId,
         status: 'pending',
+        is_public: false,
         model: effectiveModel,
         prompt: payload.customMode ? (payload.instrumental ? '' : (payload.prompt || '')) : (payload.prompt || ''),
         metadata: {
@@ -164,6 +165,9 @@ export async function POST(req: NextRequest) {
       taskId,
       code: sunoRes?.code,
       msg: sunoRes?.msg,
+      model: effectiveModel,
+      requestedModel,
+      modelAdjusted: requestedModel !== effectiveModel,
       credits: {
         debited: CREDITS_PER_GENERATION,
         balance: newBalanceRow?.balance ?? (currentBalance - CREDITS_PER_GENERATION)

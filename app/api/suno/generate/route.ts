@@ -218,6 +218,7 @@ export async function POST(req: NextRequest) {
         user_id: session.user.id,
         task_id: taskId,
         status: 'pending',
+        is_public: false,
         model: effectiveModel,
         created_at: new Date().toISOString()
       };

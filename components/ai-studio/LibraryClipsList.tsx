@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { Play, Music } from 'lucide-react';
+import { Play, Music, Wand2 } from 'lucide-react';
 import { SUNO_ICON_PILL, SUNO_BTN_BASE } from '@/components/ui/sunoClasses';
 import type { AITrack, AIGeneration } from '@/lib/aiGenerationService';
 
@@ -18,6 +18,7 @@ interface LibraryClipsListProps {
   error: string | null;
   onPickTrack: (track: AITrack, generation: AIGeneration | null) => void;
   onPlayTrack: (track: AITrack, generation: AIGeneration | null) => void;
+  onRemixTrack: (track: AITrack, generation: AIGeneration | null) => void;
   onResetFilters: () => void;
 }
 
@@ -54,6 +55,7 @@ export function LibraryClipsList({
   error,
   onPickTrack,
   onPlayTrack,
+  onRemixTrack,
   onResetFilters,
 }: LibraryClipsListProps) {
   const items = useMemo(() => {
@@ -159,6 +161,18 @@ export function LibraryClipsList({
                     title="Play"
                   >
                     <Play className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    className={`${SUNO_ICON_PILL} opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemixTrack(t, gen);
+                    }}
+                    aria-label="Remix"
+                    title="Remix"
+                  >
+                    <Wand2 className="w-4 h-4" />
                   </button>
                 </div>
               );

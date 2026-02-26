@@ -93,6 +93,7 @@ class AIGenerationService {
         prompt,
         model,
         status: 'pending', // Statut initial
+        is_public: false,
         metadata: {
           ...metadata,
           total_duration: metadata.duration || 120,

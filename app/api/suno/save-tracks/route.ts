@@ -14,11 +14,12 @@ export async function POST(req: NextRequest) {
     }
 
     const { taskId, tracks, status } = await req.json();
+    const normalizedStatus: 'partial' | 'completed' = status === 'completed' ? 'completed' : 'partial';
 
     console.log("💾 Sauvegarde tracks:", {
       taskId,
       tracksCount: tracks?.length,
-      status,
+      status: normalizedStatus,
       userId: session.user.id
     });
 
@@ -68,15 +69,20 @@ export async function POST(req: NextRequest) {
     // En "partial", ne persister que les pistes ayant déjà une URL audio finale.
     // On évite de figer des URLs live/stream temporaires dans la bibliothèque.
     const tracksToPersist =
-      status === 'partial'
+      normalizedStatus === 'partial'
         ? (tracks || []).filter((t: any) => typeof t?.audio === 'string' && t.audio.trim().length > 0)
-        : tracks;
+        : (tracks || []).filter((t: any) => {
+            const hasAudio = typeof t?.audio === 'string' && t.audio.trim().length > 0;
+            const hasStream = typeof t?.stream === 'string' && t.stream.trim().length > 0;
+            return hasAudio || hasStream;
+          });
 
     if (!tracksToPersist || tracksToPersist.length === 0) {
-      console.log("ℹ️ Aucune track persistable pour ce statut:", status);
+      console.log("ℹ️ Aucune track persistable pour ce statut:", normalizedStatus);
       return NextResponse.json({
         success: true,
         taskId,
+        status: normalizedStatus,
         tracksCount: 0,
         message: 'Aucune piste finale à sauvegarder pour le moment'
       });
@@ -86,13 +92,16 @@ export async function POST(req: NextRequest) {
     await aiGenerationService.saveTracks(generationId, tracksToPersist);
     console.log("✅ Tracks sauvegardées avec succès");
 
-    // Mettre à jour UNIQUEMENT le statut (sans re-sauvegarder les tracks)
-    await aiGenerationService.updateGenerationStatus(taskId, 'completed');
-    console.log("✅ Statut de génération mis à jour vers 'completed'");
+    // Mettre à jour le statut uniquement à la fin complète.
+    if (normalizedStatus === 'completed') {
+      await aiGenerationService.updateGenerationStatus(taskId, 'completed');
+      console.log("✅ Statut de génération mis à jour vers 'completed'");
+    }
 
     return NextResponse.json({ 
       success: true, 
       taskId, 
+      status: normalizedStatus,
       tracksCount: tracksToPersist.length,
       message: 'Musique sauvegardée dans votre bibliothèque IA'
     });

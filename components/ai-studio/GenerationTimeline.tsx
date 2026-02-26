@@ -2,7 +2,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Play, Download, Share2, Music, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Play, Download, Share2, Music, AlertTriangle, CheckCircle2, Loader2, Wand2 } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import { SUNO_BTN_BASE, SUNO_CARD, SUNO_ICON_PILL } from '@/components/ui/sunoClasses';
 
@@ -18,6 +18,7 @@ interface GenerationTimelineProps {
   onPlayTrack: (track: GeneratedTrack) => void;
   onDownloadTrack: (track: GeneratedTrack) => void;
   onShareTrack: (track: GeneratedTrack) => void;
+  onRemixTrack: (track: GeneratedTrack) => void;
 }
 
 const formatSec = (sec: number) => {
@@ -34,7 +35,10 @@ const sanitizeCoverUrl = (url?: string) => {
   if (trimmed.startsWith('/')) return trimmed;
   try {
     const host = new URL(trimmed).hostname.toLowerCase();
-    if (host === 'musicfile.api.box' || host.endsWith('.musicfile.api.box')) return '';
+    if (
+      host === 'musicfile.api.box' ||
+      host.endsWith('.musicfile.api.box')
+    ) return '';
     return trimmed;
   } catch {
     return '';
@@ -51,6 +55,7 @@ export function GenerationTimeline({
   onPlayTrack,
   onDownloadTrack,
   onShareTrack,
+  onRemixTrack,
 }: GenerationTimelineProps) {
   const isPending = generationStatus === 'pending' || sunoState === 'pending' || sunoState === 'first';
   const isError = generationStatus === 'failed' || !!sunoError;
@@ -220,6 +225,14 @@ export function GenerationTimeline({
                   </div>
 
                   <div className="flex items-center gap-1 sm:gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onRemixTrack(track)}
+                      className={`${SUNO_ICON_PILL} p-1 sm:p-1.5`}
+                      title="Remix"
+                    >
+                      <Wand2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => onDownloadTrack(track)}

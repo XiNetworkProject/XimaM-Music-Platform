@@ -95,8 +95,15 @@ export function useBackgroundGeneration() {
         body: JSON.stringify({ taskId, tracks, status }),
       });
       if (response.ok) {
-        window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
-        return true;
+        const payload = await response.json().catch(() => ({} as any));
+        const persistedCount = Number(payload?.tracksCount ?? 0);
+        const success = Boolean(payload?.success);
+        // Partial: considérer OK seulement si au moins 1 piste a réellement été persistée.
+        if (success && (status === 'completed' || persistedCount > 0)) {
+          window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+          return true;
+        }
+        return false;
       }
     } catch {}
     return false;

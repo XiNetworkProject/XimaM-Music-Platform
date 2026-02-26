@@ -39,18 +39,48 @@ export async function GET(
     }
 
     console.log(`✅ Profil trouvé pour: ${username}`);
+    const isOwnProfile = Boolean(currentUserId && String(currentUserId) === String(profile.id));
 
-    // Récupérer les tracks de l'utilisateur
-    const { data: tracks, error: tracksError } = await supabaseAdmin
+    // Récupérer les tracks "manuelles" de l'utilisateur
+    let tracksQuery = supabaseAdmin
       .from('tracks')
       .select('*')
       .eq('creator_id', profile.id)
       .order('created_at', { ascending: false });
 
+    if (!isOwnProfile) {
+      tracksQuery = tracksQuery.eq('is_public', true);
+    }
+
+    const { data: tracks, error: tracksError } = await tracksQuery;
+    if (tracksError) {
+      console.error('❌ Erreur récupération tracks manuelles:', tracksError);
+    }
+
+    // Récupérer les tracks IA publiées (ou toutes si propriétaire du profil)
+    let aiTracksQuery = supabaseAdmin
+      .from('ai_tracks')
+      .select(`
+        id, title, audio_url, image_url, duration, prompt, tags, play_count, like_count, created_at,
+        generation:ai_generations!inner(id, user_id, is_public, status, task_id, model)
+      `)
+      .eq('generation.user_id', profile.id)
+      .eq('generation.status', 'completed')
+      .order('created_at', { ascending: false });
+
+    if (!isOwnProfile) {
+      aiTracksQuery = aiTracksQuery.eq('generation.is_public', true);
+    }
+
+    const { data: aiTracks, error: aiTracksError } = await aiTracksQuery;
+    if (aiTracksError) {
+      console.error('❌ Erreur récupération tracks IA:', aiTracksError);
+    }
+
     // Si un utilisateur est connecté, récupérer l'état de like pour chaque track
-    let tracksWithLikes = tracks || [];
+    let manualTracksWithLikes = tracks || [];
     if (currentUserId && tracks && tracks.length > 0) {
-      const trackIds = tracks.map(t => t.id);
+      const trackIds = tracks.map((t: any) => t.id);
       
       const { data: likes } = await supabaseAdmin
         .from('track_likes')
@@ -60,19 +90,44 @@ export async function GET(
 
       const likedTrackIds = new Set(likes?.map(l => l.track_id) || []);
       
-      tracksWithLikes = tracks.map(track => ({
+      manualTracksWithLikes = tracks.map(track => ({
         ...track,
         isLiked: likedTrackIds.has(track.id)
       }));
     } else {
-      tracksWithLikes = tracks?.map(track => ({
+      manualTracksWithLikes = tracks?.map(track => ({
         ...track,
         isLiked: false
       })) || [];
     }
 
-    // Remplacer tracks par tracksWithLikes dans la suite du code
-    const tracks_final = tracksWithLikes;
+    const aiTracksNormalized = (aiTracks || []).map((t: any) => ({
+      id: `ai-${t.id}`,
+      raw_id: t.id,
+      title: t.title || 'Titre IA',
+      audio_url: t.audio_url || '',
+      cover_url: t.image_url || '/default-cover.jpg',
+      duration: t.duration || 0,
+      created_at: t.created_at,
+      prompt: t.prompt || '',
+      genre: Array.isArray(t.tags) ? t.tags : [],
+      plays: t.play_count || 0,
+      likes: t.like_count || 0,
+      is_public: Boolean(t?.generation?.is_public),
+      isLiked: false, // Like IA non supporté par le système tracks classique
+      is_ai: true,
+      generation_id: t?.generation?.id || null,
+      generation_task_id: t?.generation?.task_id || null,
+      model_name: t?.generation?.model || null,
+      creator_id: profile.id,
+      artist_name: profile.artist_name || profile.name || profile.username || 'Synaura IA',
+    }));
+
+    const tracks_final = [...manualTracksWithLikes, ...aiTracksNormalized].sort((a: any, b: any) => {
+      const ad = new Date(a?.created_at || 0).getTime();
+      const bd = new Date(b?.created_at || 0).getTime();
+      return bd - ad;
+    });
 
     // Récupérer les playlists de l'utilisateur
     const { data: playlists, error: playlistsError } = await supabaseAdmin
