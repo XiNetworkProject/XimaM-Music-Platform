@@ -65,8 +65,25 @@ export async function POST(req: NextRequest) {
       console.log("✅ Génération créée:", generationId);
     }
 
-    // Sauvegarder les tracks UNE SEULE FOIS
-    await aiGenerationService.saveTracks(generationId, tracks);
+    // En "partial", ne persister que les pistes ayant déjà une URL audio finale.
+    // On évite de figer des URLs live/stream temporaires dans la bibliothèque.
+    const tracksToPersist =
+      status === 'partial'
+        ? (tracks || []).filter((t: any) => typeof t?.audio === 'string' && t.audio.trim().length > 0)
+        : tracks;
+
+    if (!tracksToPersist || tracksToPersist.length === 0) {
+      console.log("ℹ️ Aucune track persistable pour ce statut:", status);
+      return NextResponse.json({
+        success: true,
+        taskId,
+        tracksCount: 0,
+        message: 'Aucune piste finale à sauvegarder pour le moment'
+      });
+    }
+
+    // Sauvegarder les tracks (insert + enrichissement des lignes existantes)
+    await aiGenerationService.saveTracks(generationId, tracksToPersist);
     console.log("✅ Tracks sauvegardées avec succès");
 
     // Mettre à jour UNIQUEMENT le statut (sans re-sauvegarder les tracks)
@@ -76,7 +93,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ 
       success: true, 
       taskId, 
-      tracksCount: tracks.length,
+      tracksCount: tracksToPersist.length,
       message: 'Musique sauvegardée dans votre bibliothèque IA'
     });
 

@@ -5,12 +5,13 @@ import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlements } from '@/lib/entitlements';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { uploadAndCoverAudio, SunoUploadCoverRequest } from '@/lib/suno';
+import { validateSunoGenerationInput, validateSunoTuningInput, validateUploadCoverExtra } from '@/lib/sunoValidation';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 type Body = SunoUploadCoverRequest & {
-  // Rien de plus pour l'instant
+  sourceDurationSec?: number;
 };
 
 export async function POST(req: NextRequest) {
@@ -24,6 +25,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }
 
+  let debited = false;
+  const refundCredits = async (userId: string) => {
+    if (!debited) return;
+    try {
+      await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: userId, p_amount: CREDITS_PER_GENERATION });
+    } catch {}
+  };
+
   try {
     const body = (await req.json()) as Body;
 
@@ -35,7 +44,25 @@ export async function POST(req: NextRequest) {
     const requestedModel = body.model || "V4_5";
     const effectiveModel = allowedModels.includes(requestedModel) ? requestedModel : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
 
-    // Crédits: vérifier et débiter
+    const tuningValidated = validateSunoTuningInput({
+      styleWeight: body.styleWeight,
+      weirdnessConstraint: body.weirdnessConstraint,
+      audioWeight: body.audioWeight,
+      vocalGender: body.vocalGender as any,
+    });
+    if (!tuningValidated.ok) {
+      return NextResponse.json({ error: tuningValidated.error }, { status: 400 });
+    }
+    if (!body.uploadUrl) {
+      return NextResponse.json({ error: 'uploadUrl requis' }, { status: 400 });
+    }
+    try {
+      new URL(body.uploadUrl);
+    } catch {
+      return NextResponse.json({ error: 'uploadUrl invalide' }, { status: 400 });
+    }
+
+    // Crédits: vérifier et débiter (après validation des paramètres)
     const { data: balanceRow } = await supabaseAdmin
       .from('ai_credit_balances')
       .select('balance')
@@ -61,6 +88,27 @@ export async function POST(req: NextRequest) {
         balance: currentBalance,
       }, { status: 402 });
     }
+    debited = true;
+
+    // Validation alignée docs Suno
+    const validated = validateSunoGenerationInput({
+      customMode: !!body.customMode,
+      instrumental: !!body.instrumental,
+      model: effectiveModel,
+      prompt: body.prompt,
+      style: body.style,
+      title: body.title,
+      hasUploadUrl: true,
+    });
+    if (!validated.ok) {
+      await refundCredits(session.user.id);
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+    const uploadValidated = validateUploadCoverExtra(effectiveModel, body.sourceDurationSec);
+    if (!uploadValidated.ok) {
+      await refundCredits(session.user.id);
+      return NextResponse.json({ error: uploadValidated.error }, { status: 400 });
+    }
 
     // Appel Suno upload-cover
     // Utiliser directement l'URL Cloudinary (publique) comme uploadUrl, conforme à la doc
@@ -72,6 +120,13 @@ export async function POST(req: NextRequest) {
 
     const sunoRes = await uploadAndCoverAudio(payload);
     const taskId = sunoRes?.data?.taskId;
+    if (!taskId) {
+      await refundCredits(session.user.id);
+      return NextResponse.json(
+        { error: 'Réponse Suno invalide: taskId manquant', raw: sunoRes },
+        { status: 502 }
+      );
+    }
 
     // Enregistrer la génération (pending)
     if (taskId) {
@@ -116,6 +171,7 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (error: any) {
+    await refundCredits(session.user.id);
     console.error('❌ Erreur upload-cover:', error);
     return NextResponse.json({ error: error.message || 'Erreur serveur' }, { status: 500 });
   }

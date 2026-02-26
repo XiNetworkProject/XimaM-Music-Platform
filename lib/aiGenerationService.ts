@@ -151,12 +151,17 @@ class AIGenerationService {
 
   // 🎵 Sauvegarder les tracks d'une génération
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
-    // Récupérer les tracks existantes pour dédupliquer par suno_id
+    // Récupérer les tracks existantes pour insert + update (les partial saves doivent être enrichis ensuite)
     const { data: existingTracks } = await supabaseAdmin
       .from('ai_tracks')
-      .select('suno_id')
+      .select('id, suno_id, audio_url, stream_audio_url, image_url, duration, prompt, title, tags, style, lyrics, source_links')
       .eq('generation_id', generationId);
-    const existingIds = new Set((existingTracks || []).map((t: any) => t.suno_id).filter(Boolean));
+    const existingBySunoId = new Map<string, any>();
+    (existingTracks || []).forEach((t: any) => {
+      const key = String(t?.suno_id || '').trim();
+      if (!key) return;
+      existingBySunoId.set(key, t);
+    });
     
     // Récupérer le titre, le style et le modèle de la génération pour les utiliser dans les tracks
     const { data: generation, error: genError } = await supabaseAdmin
@@ -183,19 +188,24 @@ class AIGenerationService {
       taskId: generation?.task_id
     });
     
-    const tracksData = tracks
-      .filter((track) => !existingIds.has(track.id))
-      .map((track, index) => {
+    const toInsert: any[] = [];
+    const toUpdate: Array<{ sunoId: string; patch: any }> = [];
+
+    tracks.forEach((track, index) => {
       // Suno renvoie les tags comme une chaîne séparée par des virgules
       const tagsString = track.raw?.tags || '';
       const tagsArray = typeof tagsString === 'string' 
         ? tagsString.split(',').map(t => t.trim()).filter(Boolean) 
         : (Array.isArray(tagsString) ? tagsString : []);
-      
-      return {
+
+      const sunoId = String(track.id || '').trim();
+      if (!sunoId) return;
+
+      const nextRow = {
         generation_id: generationId,
-        suno_id: track.id,
+        suno_id: sunoId,
         title: track.title || `${generationTitle} ${index + 1}`,
+        // Important: audio_url doit rester la piste "finale". Le stream preview reste en stream_audio_url.
         audio_url: track.audio || '',
         stream_audio_url: track.stream || '',
         image_url: track.image || '',
@@ -210,24 +220,60 @@ class AIGenerationService {
         lyrics: track.raw?.lyrics || track.raw?.prompt || generationLyrics || null,
         source_links: track.raw?.links ? JSON.stringify(track.raw.links) : null
       };
+      const existing = existingBySunoId.get(sunoId);
+      if (!existing) {
+        toInsert.push(nextRow);
+        return;
+      }
+
+      const patch: any = {
+        // Ne jamais écraser une bonne URL finale par une chaîne vide.
+        audio_url: nextRow.audio_url || existing.audio_url || '',
+        stream_audio_url: nextRow.stream_audio_url || existing.stream_audio_url || '',
+        image_url: nextRow.image_url || existing.image_url || '',
+        duration: nextRow.duration || existing.duration || 120,
+        prompt: nextRow.prompt || existing.prompt || '',
+        title: nextRow.title || existing.title || '',
+        tags: (Array.isArray(nextRow.tags) && nextRow.tags.length > 0) ? nextRow.tags : (existing.tags || []),
+        style: nextRow.style || existing.style || null,
+        lyrics: nextRow.lyrics || existing.lyrics || null,
+        source_links: nextRow.source_links || existing.source_links || null,
+      };
+      toUpdate.push({ sunoId, patch });
     });
 
-    if (!tracksData.length) {
-      console.log("ℹ️ Aucune nouvelle track à insérer (dédup OK) pour", generationId);
+    if (toInsert.length > 0) {
+      console.log("📊 Nouvelles tracks à insérer:", toInsert);
+      const { error: insertError } = await supabaseAdmin
+        .from('ai_tracks')
+        .insert(toInsert);
+      if (insertError) {
+        console.error("❌ Erreur insert tracks:", insertError);
+        throw new Error(`Erreur sauvegarde tracks: ${insertError.message}`);
+      }
+    }
+
+    for (const upd of toUpdate) {
+      const { error: updateError } = await supabaseAdmin
+        .from('ai_tracks')
+        .update(upd.patch)
+        .eq('generation_id', generationId)
+        .eq('suno_id', upd.sunoId);
+      if (updateError) {
+        console.error("❌ Erreur update track:", upd.sunoId, updateError);
+        throw new Error(`Erreur mise à jour track: ${updateError.message}`);
+      }
+    }
+
+    if (toInsert.length === 0 && toUpdate.length === 0) {
+      console.log("ℹ️ Aucune track à insérer/mettre à jour pour", generationId);
       return;
     }
-    console.log("📊 Données tracks à insérer:", tracksData);
 
-    const { error } = await supabaseAdmin
-      .from('ai_tracks')
-      .insert(tracksData);
-
-    if (error) {
-      console.error("❌ Erreur Supabase:", error);
-      throw new Error(`Erreur sauvegarde tracks: ${error.message}`);
-    }
-    
-    console.log("✅ Tracks sauvegardées avec succès");
+    console.log("✅ Tracks sauvegardées/mises à jour avec succès", {
+      inserted: toInsert.length,
+      updated: toUpdate.length,
+    });
   }
 
   // 📊 Obtenir le quota d'un utilisateur

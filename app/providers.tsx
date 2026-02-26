@@ -613,16 +613,16 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       
       // Mettre à jour l'état local si fourni
       if (data?.plays !== undefined) {
-        setAudioState(prev => {
-          const newTracks = prev.tracks.map((track) => {
-            if (track._id !== trackId) return track;
-            return { 
-              ...track, 
-              plays: data.plays || track.plays
-            };
-          });
-          return { ...prev, tracks: newTracks };
+      setAudioState(prev => {
+        const newTracks = prev.tracks.map((track) => {
+          if (track._id !== trackId) return track;
+          return { 
+            ...track, 
+            plays: data.plays || track.plays
+          };
         });
+        return { ...prev, tracks: newTracks };
+      });
         // Broadcast global pour synchroniser les listes et compteurs
         try {
           window.dispatchEvent(new CustomEvent('playsUpdated', { detail: { trackId, plays: data.plays } }));
@@ -674,16 +674,20 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       }));
       
       // Utiliser directement le service audio
-      await audioService.actions.loadTrack(trackData);
-      await audioService.actions.play();
-      
-      // Incrémenter le nombre d'écoutes
-      await updatePlayCount(trackData._id);
-      
-      // Forcer la mise à jour de la notification
-      setTimeout(() => {
-        audioService.actions.forceUpdateNotification();
-      }, 100);
+      try {
+        await audioService.actions.loadTrack(trackData);
+        await audioService.actions.play();
+        
+        // Incrémenter le nombre d'écoutes
+        await updatePlayCount(trackData._id);
+        
+        // Forcer la mise à jour de la notification
+        setTimeout(() => {
+          audioService.actions.forceUpdateNotification();
+        }, 100);
+      } catch (error) {
+        // On évite une rejection non catchée ici.
+      }
       return;
     }
     
@@ -992,7 +996,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   return (
     <AudioPlayerContext.Provider value={value}>
       <AudioTimeContext.Provider value={audioTime}>
-        {children}
+      {children}
       </AudioTimeContext.Provider>
     </AudioPlayerContext.Provider>
   );
@@ -1165,19 +1169,19 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       refetchOnWindowFocus={true} // Refetch quand la fenêtre reprend le focus
     >
       <PreloadProvider>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
         <LikeProvider>
           <PlaysProvider>
             <PlaysSyncWrapper>
               <AudioPlayerProvider>
                 <SidebarProvider>
-                  <SubscriptionProvider>
+                <SubscriptionProvider>
                     <NativeFeaturesWrapper>
-                      {children}
+                  {children}
                     </NativeFeaturesWrapper>
                     <WhatsNewModal isOpen={showWhatsNew} onClose={() => setShowWhatsNew(false)} />
-                    <Toaster position="top-center" />
-                  </SubscriptionProvider>
+                  <Toaster position="top-center" />
+                </SubscriptionProvider>
                 </SidebarProvider>
               </AudioPlayerProvider>
             </PlaysSyncWrapper>

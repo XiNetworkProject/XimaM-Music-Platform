@@ -24,6 +24,7 @@ interface Track {
   genre?: string[];
   createdAt?: string;
   album?: string | null;
+  backupAudioUrls?: string[];
 }
 
 interface AudioServiceState {
@@ -263,6 +264,19 @@ export const useAudioService = () => {
     }
   }, []);
 
+  const isDeadMediaHost = useCallback((url?: string) => {
+    if (!url) return true;
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      return (
+        host === 'musicfile.api.box' ||
+        host.endsWith('.musicfile.api.box')
+      );
+    } catch {
+      return true;
+    }
+  }, []);
+
 
 
   // Création et configuration de l'élément audio
@@ -381,7 +395,7 @@ export const useAudioService = () => {
             break;
           case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
             errorMessage = 'Source audio non supportée';
-            shouldRetry = true; // Peut-être un problème temporaire CDN
+            shouldRetry = false; // Même source: retry local peu utile, laisser le fallback multi-URL gérer
             break;
           default:
             errorMessage = 'Erreur de lecture audio';
@@ -558,18 +572,23 @@ export const useAudioService = () => {
         throw new Error('URL audio vide');
       }
 
-      // Vérifier que l'URL est accessible (optionnel)
-      try {
-        const response = await fetch(track.audioUrl, { method: 'HEAD' });
-        if (!response.ok) {
-          console.warn('Fichier audio potentiellement inaccessible:', track.audioUrl);
-          // Ne pas bloquer, juste avertir
-        }
-      } catch (fetchError) {
-        console.warn('Impossible de vérifier l\'URL audio, tentative de chargement direct:', fetchError);
-      }
+      // Ne pas pré-vérifier via HEAD:
+      // plusieurs providers audio répondent 405 sur HEAD alors que GET audio fonctionne.
+      // On tente directement le chargement de la balise <audio>.
 
       if (audioRef.current) {
+        const candidates = Array.from(
+          new Set(
+            [track.audioUrl, ...(Array.isArray(track.backupAudioUrls) ? track.backupAudioUrls : [])]
+              .map((u) => (typeof u === 'string' ? u.trim() : ''))
+              .filter((u) => /^https?:\/\//i.test(u))
+              .filter((u) => !isDeadMediaHost(u))
+          )
+        );
+        if (!candidates.length) {
+          throw new Error('Aucune URL audio valide');
+        }
+
         // Analyser la session d'écoute de la piste précédente
         if (state.currentTrack && state.currentTime > 0) {
           const listenDuration = Math.min(state.currentTime, state.currentTrack.duration);
@@ -586,47 +605,72 @@ export const useAudioService = () => {
         
         // Réinitialiser les erreurs
         setState(prev => ({ ...prev, error: null, isLoading: true }));
-        
-        // Changer la source audio avec gestion d'erreur (via CDN)
-        audioRef.current.src = getCdnUrl(track.audioUrl) || track.audioUrl;
-        
-        // Attendre que l'audio soit chargé
-        await new Promise((resolve, reject) => {
-          if (!audioRef.current) {
-            reject(new Error('Élément audio non disponible'));
-            return;
+
+        const audio = audioRef.current;
+        let loadedUrl = '';
+        let lastErr: Error | null = null;
+        const tryLoadUrl = (rawUrl: string) =>
+          new Promise<void>((resolve, reject) => {
+            const src = getCdnUrl(rawUrl) || rawUrl;
+            let settled = false;
+            let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+            const cleanup = () => {
+              audio.removeEventListener('canplay', onReady);
+              audio.removeEventListener('canplaythrough', onReady);
+              audio.removeEventListener('loadedmetadata', onReady);
+              audio.removeEventListener('error', onErr);
+              if (timeoutId) clearTimeout(timeoutId);
+            };
+
+            const finalize = (ok: boolean, error?: Error) => {
+              if (settled) return;
+              settled = true;
+              cleanup();
+              if (ok) resolve();
+              else reject(error || new Error('Erreur de chargement audio'));
+            };
+
+            const onReady = () => finalize(true);
+            const onErr = () => {
+              const mediaErrorCode = audio.error?.code;
+              const reason =
+                mediaErrorCode === 4
+                  ? 'Source audio non supportée'
+                  : mediaErrorCode === 3
+                  ? 'Erreur de décodage audio'
+                  : 'Erreur de chargement audio';
+              finalize(false, new Error(reason));
+            };
+
+            audio.addEventListener('canplay', onReady);
+            audio.addEventListener('canplaythrough', onReady);
+            audio.addEventListener('loadedmetadata', onReady);
+            audio.addEventListener('error', onErr);
+            audio.src = src;
+            audio.load();
+
+            timeoutId = setTimeout(() => {
+              finalize(false, new Error('Timeout de chargement audio'));
+            }, 8000);
+          });
+
+        for (const url of candidates) {
+          try {
+            await tryLoadUrl(url);
+            loadedUrl = url;
+            break;
+          } catch (e) {
+            lastErr = e instanceof Error ? e : new Error('Erreur de chargement audio');
           }
-
-          const audio = audioRef.current;
-          
-          const handleCanPlay = () => {
-            audio.removeEventListener('canplay', handleCanPlay);
-            audio.removeEventListener('error', handleError);
-            resolve(true);
-          };
-
-          const handleError = (e: Event) => {
-            audio.removeEventListener('canplay', handleCanPlay);
-            audio.removeEventListener('error', handleError);
-            reject(new Error('Erreur de chargement audio'));
-          };
-
-          audio.addEventListener('canplay', handleCanPlay);
-          audio.addEventListener('error', handleError);
-          
-          audio.load();
-          
-          // Timeout de sécurité
-          setTimeout(() => {
-            audio.removeEventListener('canplay', handleCanPlay);
-            audio.removeEventListener('error', handleError);
-            reject(new Error('Timeout de chargement audio'));
-          }, 10000);
-        });
+        }
+        if (!loadedUrl) {
+          throw lastErr || new Error('Aucune source audio lisible');
+        }
         
         setState(prev => ({ 
           ...prev, 
-          currentTrack: track,
+          currentTrack: loadedUrl === track.audioUrl ? track : { ...track, audioUrl: loadedUrl },
           currentTime: 0,
           isLoading: false 
         }));
@@ -652,7 +696,7 @@ export const useAudioService = () => {
       }));
       throw error;
     }
-  }, [state.currentTrack, state.currentTime, recommendations]);
+  }, [state.currentTrack, state.currentTime, recommendations, isDeadMediaHost]);
 
   // Fonction pour incrémenter les écoutes avec debounce et suivi
   const updatePlayCount = useCallback(async (trackId: string) => {
@@ -794,13 +838,26 @@ export const useAudioService = () => {
   // It sets src and calls audio.play() immediately (without waiting for canplay).
   const playImmediate = useCallback((track: Track) => {
     const audio = audioRef.current;
-    if (!audio || !track?.audioUrl) return;
+    if (!audio) return;
+    const candidates = Array.from(
+      new Set(
+        [track?.audioUrl, ...(Array.isArray(track?.backupAudioUrls) ? track.backupAudioUrls : [])]
+          .map((u) => (typeof u === 'string' ? u.trim() : ''))
+          .filter((u) => /^https?:\/\//i.test(u))
+          .filter((u) => !isDeadMediaHost(u))
+      )
+    );
+    if (!candidates.length) {
+      setState(prev => ({ ...prev, isPlaying: false, isLoading: false, error: 'Aucune source audio valide' }));
+      return;
+    }
+    let candidateIndex = 0;
     try {
       if (DEBUG_AUDIO) {
         console.log('⏭️ playImmediate(auto-next):', {
           id: track._id,
           title: track.title,
-          url: track.audioUrl,
+          url: candidates[0],
           ended: audio.ended,
           paused: audio.paused,
           readyState: audio.readyState,
@@ -829,7 +886,14 @@ export const useAudioService = () => {
         audio.load();
       } catch {}
 
-      audio.src = getCdnUrl(track.audioUrl) || track.audioUrl;
+      const applyCandidateSource = (idx: number) => {
+        const raw = candidates[idx];
+        const src = getCdnUrl(raw) || raw;
+        audio.src = src;
+        try { audio.load(); } catch {}
+      };
+
+      applyCandidateSource(candidateIndex);
       try { audio.load(); } catch {}
       // Re-apply currentTime AFTER setting src to help clear ended-state in some browsers.
       try { audio.currentTime = 0; } catch {}
@@ -864,6 +928,16 @@ export const useAudioService = () => {
           const onErr = (err: any) => {
             if (useTinyVolume) {
               try { if (audioRef.current) audioRef.current.volume = prevVol; } catch {}
+            }
+            const msgLower = String(err?.message || '').toLowerCase();
+            const isUnsupported =
+              err?.name === 'NotSupportedError' ||
+              msgLower.includes('no supported source');
+            if (isUnsupported && candidateIndex < candidates.length - 1) {
+              candidateIndex += 1;
+              applyCandidateSource(candidateIndex);
+              attemptPlay(`fallback-${candidateIndex}`, false);
+              return;
             }
             const msg = err?.name ? `${err.name}: ${err?.message || ''}` : String(err);
             console.error(`❌ playImmediate ${label} failed:`, err);
@@ -939,7 +1013,7 @@ export const useAudioService = () => {
       console.error('❌ playImmediate error:', e);
       setState(prev => ({ ...prev, isPlaying: false, isLoading: false }));
     }
-  }, []);
+  }, [isDeadMediaHost]);
 
   const buildAudioAdTrack = useCallback((): Track | null => {
     const url = String(audioAdUrlRef.current || '').trim();

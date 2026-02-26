@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { getEntitlements } from '@/lib/entitlements';
+import { validateSunoGenerationInput, validateSunoTuningInput } from '@/lib/sunoValidation';
 
 const BASE = "https://api.sunoapi.org";
 
@@ -50,6 +51,11 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const mapProviderStatus = (providerCode: number | undefined, fallback: number) => {
+      if (typeof providerCode === 'number' && providerCode >= 400 && providerCode <= 599) return providerCode;
+      return fallback;
+    };
+
     const body = (await req.json()) as Body;
     console.log("🎵 Requête génération Suno:", { 
       title: body.title, 
@@ -110,20 +116,26 @@ export async function POST(req: NextRequest) {
     // Déterminer le mode : si customMode est explicitement false, on est en mode Simple
     const isCustomMode = body.customMode !== false; // Par défaut Custom (true)
 
-    // Validation selon le mode
-    if (isCustomMode) {
-      // Mode Custom : style requis, prompt requis si non-instrumental
-      if (!body.style) {
-        return NextResponse.json({ error: "style requis en mode Custom" }, { status: 400 });
-      }
-      if (body.instrumental === false && !body.prompt) {
-        return NextResponse.json({ error: "prompt (lyrics) requis en mode Custom quand instrumental=false" }, { status: 400 });
-      }
-    } else {
-      // Mode Simple : seul prompt requis (description générale)
-      if (!body.prompt) {
-        return NextResponse.json({ error: "prompt (description) requis en mode Simple" }, { status: 400 });
-      }
+    // Validation alignée docs Suno (limites prompt/style/title selon modèle+mode)
+    const validated = validateSunoGenerationInput({
+      customMode: isCustomMode,
+      instrumental: body.instrumental,
+      model: effectiveModel,
+      prompt: body.prompt,
+      style: body.style,
+      title: body.title,
+    });
+    if (!validated.ok) {
+      return NextResponse.json({ error: validated.error }, { status: 400 });
+    }
+    const tuningValidated = validateSunoTuningInput({
+      styleWeight: body.styleWeight,
+      weirdnessConstraint: body.weirdnessConstraint,
+      audioWeight: body.audioWeight,
+      vocalGender: body.vocalGender,
+    });
+    if (!tuningValidated.ok) {
+      return NextResponse.json({ error: tuningValidated.error }, { status: 400 });
     }
 
     // Créer le prompt avec les hints de production si fournis (mode Custom uniquement)
@@ -175,20 +187,31 @@ export async function POST(req: NextRequest) {
     
     console.log("📡 Réponse Suno:", { status: response.status, json });
     
-    if (!response.ok) {
+    if (!response.ok || json?.code !== 200) {
       console.error("❌ Erreur API Suno:", json);
       // Rembourser les crédits en cas d'échec immédiat
       try {
         await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
       } catch {}
+      const providerCode = Number(json?.code);
+      const mappedStatus = mapProviderStatus(Number.isFinite(providerCode) ? providerCode : undefined, response.status);
       return NextResponse.json(
         { error: json?.msg || "Erreur Suno", raw: json }, 
-        { status: response.status }
+        { status: mappedStatus }
       );
     }
 
     // Enregistrer la génération en base (status: pending)
     const taskId = json?.data?.taskId || json?.taskId;
+    if (!taskId) {
+      try {
+        await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+      } catch {}
+      return NextResponse.json(
+        { error: "Réponse Suno invalide: taskId manquant", raw: json },
+        { status: 502 }
+      );
+    }
     if (taskId) {
       const generationData: any = {
         id: crypto.randomUUID(),

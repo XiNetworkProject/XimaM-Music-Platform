@@ -3,12 +3,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Trash2, Repeat, Search, SlidersHorizontal, Wand2, ListMusic } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Save, Send, Layers, Upload } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
 import { useAudioPlayer } from '@/app/providers';
-import { useSunoWaiter } from '@/hooks/useSunoWaiter';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { useSession } from 'next-auth/react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
@@ -25,6 +24,15 @@ import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
+
+type LogLine = {
+  id: string;
+  at: string;
+  level: 'info' | 'warn' | 'error';
+  msg: string;
+};
+
+const makeId = () => Math.random().toString(36).slice(2, 10);
 
 // Interface Track compatible avec le lecteur principal
 interface PlayerTrack {
@@ -44,6 +52,7 @@ interface PlayerTrack {
   plays: number;
   isLiked?: boolean;
   genre?: string[];
+  backupAudioUrls?: string[];
 }
 
 // Composant "Orb" de statut pour la génération
@@ -139,7 +148,7 @@ function StudioStatusOrb({
 export default function AIGenerator() {
   const { data: session } = useSession();
   const { quota, loading: quotaLoading } = useAIQuota();
-  const { audioState, playTrack, play, pause, nextTrack, previousTrack, setQueueAndPlay } = useAudioPlayer();
+  const { audioState, playTrack, play, pause, seek, nextTrack, previousTrack, setQueueAndPlay } = useAudioPlayer();
   // États pour la bibliothèque des générations (même logique que ai-library)
   const [generations, setGenerations] = useState<AIGeneration[]>([]);
   const [allTracks, setAllTracks] = useState<AITrack[]>([]);
@@ -148,18 +157,21 @@ export default function AIGenerator() {
   const { generations: bgGenerations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
   
   const [isGenerating, setIsGenerating] = useState(false);
+  const [projectName, setProjectName] = useState('Nouveau projet');
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
+  const [sunoCredits, setSunoCredits] = useState<number | null>(null);
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [generatedTrack, setGeneratedTrack] = useState<GeneratedTrack | null>(null);
   const [generationStatus, setGenerationStatus] = useState<'idle' | 'pending' | 'completed' | 'failed'>('idle');
   const [currentTaskId, setCurrentTaskId] = useState<string | null>(null);
   const [generatedTracks, setGeneratedTracks] = useState<GeneratedTrack[]>([]);
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
-  
-  // Utiliser le nouveau hook Suno
-  const { state: sunoState, tracks: sunoTracks, error: sunoError } = useSunoWaiter(currentTaskId || undefined);
+  const [sunoState, setSunoState] = useState<'idle' | 'pending' | 'first' | 'success' | 'error'>('idle');
+  const [sunoError, setSunoError] = useState<string | null>(null);
+  const [generationModeKind, setGenerationModeKind] = useState<'simple' | 'custom' | 'remix'>('simple');
   const [customMode, setCustomMode] = useState(false);
   const [modelVersion, setModelVersion] = useState('V4_5');
+  const [generationDuration, setGenerationDuration] = useState<60 | 120 | 180>(120);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
 
   const formatTime = (seconds: number) => {
@@ -183,6 +195,7 @@ export default function AIGenerator() {
   // Remix (upload audio) pour upload-cover
   const [remixFile, setRemixFile] = useState<File | null>(null);
   const [remixUploadUrl, setRemixUploadUrl] = useState<string | null>(null);
+  const [remixSourceDurationSec, setRemixSourceDurationSec] = useState<number | undefined>(undefined);
   const [remixUploading, setRemixUploading] = useState<boolean>(false);
   
   // Génération IA activée
@@ -194,13 +207,38 @@ export default function AIGenerator() {
   const [openLyricsSection, setOpenLyricsSection] = useState(true);
   const [openAdvancedSection, setOpenAdvancedSection] = useState(false);
   const [openResultsSection, setOpenResultsSection] = useState(true);
-  const [showInspo, setShowInspo] = useState(true);
 
-  // Onglet mobile : Générer | Bibliothèque
-  const [mobileTab, setMobileTab] = useState<'generate' | 'library'>('generate');
+  // Onglet mobile : Studio (complet) | Générer | Bibliothèque
+  const [mobileTab, setMobileTab] = useState<'studio' | 'generate' | 'library'>('studio');
+  const [shellMode, setShellMode] = useState<'ide' | 'classic'>('ide');
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [cmdQuery, setCmdQuery] = useState('');
+  const [cmdIndex, setCmdIndex] = useState(0);
+  const [consoleCollapsed, setConsoleCollapsed] = useState(false);
+  const [leftExplorerTab, setLeftExplorerTab] = useState<'builder' | 'presets' | 'assets' | 'history'>('builder');
+  const [rightTab, setRightTab] = useState<'inspector' | 'models' | 'export'>('inspector');
+  const [abA, setAbA] = useState<string | null>(null);
+  const [abB, setAbB] = useState<string | null>(null);
+  const [abSide, setAbSide] = useState<'A' | 'B'>('A');
+  const [assetQuery, setAssetQuery] = useState('');
+  const [logs, setLogs] = useState<LogLine[]>([]);
+  const activeGenerationCount = activeGenerations.size;
+  const isRemixMode = generationModeKind === 'remix';
+  const selectGenerationMode = useCallback((mode: 'simple' | 'custom' | 'remix') => {
+    setGenerationModeKind(mode);
+    setCustomMode(mode !== 'simple');
+    if (mode !== 'remix') {
+      setRemixFile(null);
+      setRemixUploadUrl(null);
+      setRemixSourceDurationSec(undefined);
+      setRemixUploading(false);
+    } else {
+      setOpenStyleSection(true);
+    }
+  }, []);
 
   const remixSectionRef = useRef<HTMLDivElement | null>(null);
-  const presetStripRef = useRef<HTMLDivElement | null>(null);
+  const cmdInputRef = useRef<HTMLInputElement | null>(null);
 
   // --- Layout resizable (desktop) ---
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -255,6 +293,11 @@ export default function AIGenerator() {
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
+  const pushLog = useCallback((level: LogLine['level'], msg: string) => {
+    const at = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+    setLogs((prev) => [{ id: makeId(), at, level, msg }, ...prev].slice(0, 120));
+  }, []);
+
   // Charger la bibliothèque (même logique que ai-library)
   const loadLibrary = useCallback(async () => {
     if (!session?.user?.id) {
@@ -278,20 +321,23 @@ export default function AIGenerator() {
 
       const data = await genRes.json().catch(() => ({}));
       setGenerations(data.generations || []);
+      pushLog('info', `Bibliothèque chargée: ${(data.generations || []).length} générations`);
 
       if (trRes.ok) {
         const trJson = await trRes.json().catch(() => ({}));
         setAllTracks(trJson.tracks || []);
+        pushLog('info', `Assets synchronisés: ${(trJson.tracks || []).length} tracks`);
       } else {
         setAllTracks([]);
       }
     } catch (error) {
       if (DEBUG_AI_STUDIO) console.error('[AI Studio] Erreur chargement bibliothèque:', error);
       setGenerationsError('Impossible de charger la bibliothèque');
+      pushLog('error', 'Erreur de chargement bibliothèque');
     } finally {
       setGenerationsLoading(false);
     }
-  }, [session?.user?.id]);
+  }, [pushLog, session?.user?.id]);
 
   // Rafraîchir la bibliothèque
   const refreshGenerations = () => {
@@ -404,10 +450,172 @@ export default function AIGenerator() {
     return [...allGenerations].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [generations, generationsFromTracks]);
 
+  const filteredAssets = React.useMemo(() => {
+    const q = assetQuery.trim().toLowerCase();
+    if (!q) return allTracks;
+    return allTracks.filter((t) => {
+      const hay = `${t.title || ''} ${t.prompt || ''} ${t.style || ''}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [allTracks, assetQuery]);
+
+  const commandItems = React.useMemo(
+    () => [
+      { id: 'generate', label: 'Generate', desc: 'Lancer une génération', run: () => executePaletteCommand('generate') },
+      { id: 'preset-edm', label: 'Apply preset: EDM', desc: 'Appliquer un preset proche EDM', run: () => executePaletteCommand('preset edm') },
+      { id: 'model-v5', label: 'Set model: v5', desc: 'Basculer le modèle vers v5', run: () => executePaletteCommand('model v5') },
+      { id: 'mode-custom', label: 'Set mode: custom', desc: 'Passer en mode custom', run: () => executePaletteCommand('mode custom') },
+      { id: 'mode-remix', label: 'Set mode: remix', desc: 'Passer en mode remix', run: () => executePaletteCommand('mode remix') },
+      { id: 'instrumental-on', label: 'Instrumental: on', desc: 'Activer instrumental', run: () => executePaletteCommand('instrumental on') },
+      { id: 'duration-120', label: 'Set duration: 120', desc: 'Durée de génération = 120s', run: () => executePaletteCommand('duration 120') },
+      { id: 'tab-presets', label: 'Open tab: Presets', desc: 'Basculer vers l’onglet presets', run: () => executePaletteCommand('tab presets') },
+      { id: 'tab-assets', label: 'Open tab: Assets', desc: 'Basculer vers l’onglet assets', run: () => executePaletteCommand('tab assets') },
+      { id: 'refresh', label: 'Refresh library', desc: 'Synchroniser la bibliothèque', run: () => executePaletteCommand('refresh') },
+      { id: 'refresh-credits', label: 'Refresh Suno credits', desc: 'Rafraîchir crédits provider Suno', run: () => executePaletteCommand('credits refresh') },
+      { id: 'ab-toggle', label: 'A/B toggle', desc: 'Basculer lecture entre A et B', run: () => executePaletteCommand('ab toggle') },
+      { id: 'export-mp3', label: 'Export MP3', desc: 'Préparer export MP3', run: () => executePaletteCommand('export mp3') },
+      { id: 'mode-ide', label: 'Switch mode: IDE', desc: 'Passer en mode IDE', run: () => executePaletteCommand('mode ide') },
+      { id: 'mode-classic', label: 'Switch mode: Classic', desc: 'Passer en mode Classic', run: () => executePaletteCommand('mode classic') },
+    ],
+    [executePaletteCommand]
+  );
+
+  const filteredCommandItems = React.useMemo(() => {
+    const q = cmdQuery.trim().toLowerCase();
+    if (!q) return commandItems;
+    return commandItems.filter((c) => `${c.label} ${c.desc}`.toLowerCase().includes(q));
+  }, [cmdQuery, commandItems]);
+
+  const pickFirstHttp = (...values: Array<unknown>) => {
+    for (const value of values) {
+      if (typeof value !== 'string') continue;
+      const trimmed = value.trim();
+      if (!/^https?:\/\//i.test(trimmed)) continue;
+      try {
+        const host = new URL(trimmed).hostname.toLowerCase();
+        // Legacy hosts now dead/unstable: skip early to avoid browser/network noise.
+        if (
+          host === 'musicfile.api.box' ||
+          host.endsWith('.musicfile.api.box')
+        ) {
+          continue;
+        }
+      } catch {
+        continue;
+      }
+      return trimmed;
+    }
+    return '';
+  };
+
+  const parseSourceLinks = (sourceLinks?: string | null) => {
+    if (!sourceLinks) return null as any;
+    try {
+      return JSON.parse(sourceLinks);
+    } catch {
+      return null;
+    }
+  };
+
+  const resolveTrackMedia = (track: AITrack | any) => {
+    const links = parseSourceLinks((track as any)?.source_links);
+    const linksObj = links && typeof links === 'object' ? links : {};
+    const audioFromLinks = pickFirstHttp(
+      linksObj.audio,
+      linksObj.audio_url,
+      linksObj.audioUrl,
+      linksObj.source_audio_url,
+      linksObj.sourceAudioUrl,
+      linksObj.url
+    );
+    const streamFromLinks = pickFirstHttp(
+      linksObj.stream,
+      linksObj.stream_url,
+      linksObj.stream_audio_url,
+      linksObj.streamAudioUrl,
+      linksObj.source_stream_audio_url,
+      linksObj.sourceStreamAudioUrl
+    );
+    const imageFromLinks = pickFirstHttp(
+      linksObj.image,
+      linksObj.image_url,
+      linksObj.imageUrl,
+      linksObj.source_image_url,
+      linksObj.sourceImageUrl,
+      linksObj.cover,
+      linksObj.cover_url,
+      linksObj.coverUrl
+    );
+
+    const streamUrl = pickFirstHttp(
+      (track as any)?.stream_audio_url,
+      (track as any)?.streamAudioUrl,
+      (track as any)?.source_stream_audio_url,
+      (track as any)?.sourceStreamAudioUrl,
+      streamFromLinks
+    );
+    const audioUrl = pickFirstHttp(
+      (track as any)?.audio_url,
+      (track as any)?.audioUrl,
+      (track as any)?.source_audio_url,
+      (track as any)?.sourceAudioUrl,
+      audioFromLinks
+    );
+    const imageUrl = pickFirstHttp(
+      (track as any)?.image_url,
+      (track as any)?.imageUrl,
+      (track as any)?.source_image_url,
+      (track as any)?.sourceImageUrl,
+      imageFromLinks
+    );
+
+    return {
+      playableUrl: pickFirstHttp(streamUrl, audioUrl),
+      audioUrl,
+      streamUrl,
+      imageUrl,
+    };
+  };
+
+  const resolveLiveTrackMedia = (track: any) => {
+    const audioUrl = pickFirstHttp(
+      track?.audio,
+      track?.audio_url,
+      track?.audioUrl,
+      track?.source_audio_url,
+      track?.raw?.audio_url
+    );
+    const streamUrl = pickFirstHttp(
+      track?.stream,
+      track?.stream_audio_url,
+      track?.streamAudioUrl,
+      track?.source_stream_audio_url,
+      track?.raw?.stream_audio_url
+    );
+    const playableUrl = pickFirstHttp(audioUrl, streamUrl);
+    const imageUrl = pickFirstHttp(
+      track?.image,
+      track?.image_url,
+      track?.imageUrl,
+      track?.source_image_url,
+      track?.raw?.image_url
+    );
+    return { playableUrl, imageUrl, audioUrl, streamUrl };
+  };
+
+  const isPotentiallyExpiredProviderUrl = (url?: string) => {
+    if (!url) return true;
+    return /(^|\.)musicfile\.api\.box/i.test(url);
+  };
+
   // Jouer une track IA (même logique que ai-library)
   const aiTrackToPlayerTrack = (track: AITrack, generation: AIGeneration): PlayerTrack | null => {
-    const playableUrl = track.audio_url || track.stream_audio_url || '';
+    const media = resolveTrackMedia(track);
+    const playableUrl = media.playableUrl;
     if (!playableUrl) return null;
+    const backupAudioUrls = Array.from(
+      new Set([media.streamUrl, media.audioUrl].filter((u): u is string => Boolean(u && u !== playableUrl)))
+    );
 
     return {
       _id: `ai-${track.id}`,
@@ -420,7 +628,8 @@ export default function AIGenerator() {
       },
       duration: track.duration,
       audioUrl: playableUrl,
-      coverUrl: track.image_url || '/synaura_symbol.svg',
+      backupAudioUrls,
+      coverUrl: media.imageUrl || '/synaura_symbol.svg',
       genre: ['IA', 'Généré'],
       plays: track.play_count || 0,
       likes: [],
@@ -430,13 +639,90 @@ export default function AIGenerator() {
     };
   };
 
-  const playAITrack = (track: AITrack, generation: AIGeneration) => {
-    const pt = aiTrackToPlayerTrack(track, generation);
+  const hydrateTrackFromSuno = useCallback(async (track: AITrack, generation: AIGeneration) => {
+    const taskId = generation?.task_id;
+    if (!taskId) return null;
+    try {
+      const res = await fetch(`/api/suno/status?taskId=${encodeURIComponent(taskId)}`, { cache: 'no-store' });
+      if (!res.ok) return null;
+      const json = await res.json().catch(() => ({}));
+      const tracks = Array.isArray(json?.tracks) ? json.tracks : [];
+      if (!tracks.length) return null;
+
+      const wantedSunoId = String((track as any).suno_id || '').trim();
+      const wantedId = String(track.id || '').trim();
+      const wantedTitle = String(track.title || '').trim().toLowerCase();
+      const candidate =
+        tracks.find((t: any) => String(t?.id || '') === wantedSunoId) ||
+        tracks.find((t: any) => String(t?.id || '') === wantedId) ||
+        tracks.find((t: any) => String(t?.title || '').trim().toLowerCase() === wantedTitle) ||
+        tracks[0];
+      if (!candidate) return null;
+
+      const patchedTrack: AITrack = {
+        ...(track as any),
+        suno_id: (track as any).suno_id || candidate.id || (track as any).suno_id,
+        audio_url: candidate.audio || (track as any).audio_url || '',
+        stream_audio_url: candidate.stream || (track as any).stream_audio_url || '',
+        image_url: candidate.image || (track as any).image_url || '',
+      } as AITrack;
+
+      setAllTracks((prev) => prev.map((t) => (t.id === track.id ? patchedTrack : t)));
+      setGenerations((prev) =>
+        prev.map((g) => {
+          if (g.id !== generation.id) return g;
+          return {
+            ...g,
+            tracks: (g.tracks || []).map((t) => (t.id === track.id ? (patchedTrack as any) : t)),
+          };
+        })
+      );
+      return patchedTrack;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const playAITrack = async (track: AITrack, generation: AIGeneration) => {
+    let targetTrack = track;
+    const initialMedia = resolveTrackMedia(track);
+    if (!initialMedia.playableUrl || isPotentiallyExpiredProviderUrl(initialMedia.playableUrl)) {
+      pushLog('info', 'Récupération des URLs fraîches de la piste…');
+      const refreshed = await hydrateTrackFromSuno(track, generation);
+      if (refreshed) targetTrack = refreshed;
+    }
+
+    const pt = aiTrackToPlayerTrack(targetTrack, generation);
     if (!pt) {
-      notify.error('Lecture', 'Cette piste n’a pas d’URL audio disponible (audio/stream).');
+      notify.error('Lecture', 'Cette piste n’a pas d’URL audio exploitable pour le moment.');
+      pushLog('warn', `Track sans URL audio: ${targetTrack.title || targetTrack.id}`);
       return;
     }
-    playTrack(pt as any);
+    try {
+      await Promise.resolve(playTrack(pt as any));
+      pushLog('info', `Lecture asset: ${targetTrack.title || targetTrack.id}`);
+    } catch (err) {
+      // Fallback robuste: si le chargement échoue, tenter une re-hydratation + retry 1 fois.
+      const refreshed = await hydrateTrackFromSuno(track, generation);
+      if (!refreshed) {
+        notify.error('Lecture', 'Source audio indisponible pour cette piste.');
+        pushLog('error', `Lecture impossible: ${targetTrack.title || targetTrack.id}`);
+        return;
+      }
+      const retryPt = aiTrackToPlayerTrack(refreshed, generation);
+      if (!retryPt) {
+        notify.error('Lecture', 'Aucune source audio valide après synchronisation.');
+        pushLog('error', `Retry lecture impossible: ${targetTrack.title || targetTrack.id}`);
+        return;
+      }
+      try {
+        await Promise.resolve(playTrack(retryPt as any));
+        pushLog('info', `Lecture retry OK: ${refreshed.title || refreshed.id}`);
+      } catch {
+        notify.error('Lecture', 'Le provider audio renvoie un format non lisible.');
+        pushLog('error', `Provider non lisible: ${refreshed.title || refreshed.id}`);
+      }
+    }
   };
 
   const playGenerationQueue = (generation: AIGeneration) => {
@@ -465,6 +751,37 @@ export default function AIGenerator() {
     playGenerationQueue(generation);
   };
 
+  const assignABSlot = useCallback((slot: 'A' | 'B', generationId: string) => {
+    if (slot === 'A') {
+      setAbA(generationId);
+      pushLog('info', `A/B: slot A = ${generationId.slice(0, 8)}`);
+      return;
+    }
+    setAbB(generationId);
+    pushLog('info', `A/B: slot B = ${generationId.slice(0, 8)}`);
+  }, [pushLog]);
+
+  const playABSlot = useCallback((slot: 'A' | 'B') => {
+    const id = slot === 'A' ? abA : abB;
+    if (!id) {
+      pushLog('warn', `A/B: slot ${slot} vide`);
+      return;
+    }
+    const gen = recentGenerationsSorted.find((g) => g.id === id);
+    if (!gen) {
+      pushLog('warn', `A/B: génération introuvable (${slot})`);
+      return;
+    }
+    handlePlayGeneration(gen);
+    setAbSide(slot);
+    pushLog('info', `A/B: lecture ${slot}`);
+  }, [abA, abB, handlePlayGeneration, pushLog, recentGenerationsSorted]);
+
+  const toggleABPlay = useCallback(() => {
+    const next: 'A' | 'B' = abSide === 'A' ? 'B' : 'A';
+    playABSlot(next);
+  }, [abSide, playABSlot]);
+
   // Toggle favori (même logique que ai-library)
   const toggleFavorite = async (generationId: string) => {
     try {
@@ -488,12 +805,17 @@ export default function AIGenerator() {
   // Télécharger une track (même logique que ai-library)
   const downloadTrack = async (track: AITrack) => {
     try {
-      const response = await fetch(track.audio_url);
+      const media = resolveTrackMedia(track);
+      if (!media.playableUrl) {
+        notify.error('Téléchargement', 'Aucune URL audio disponible pour cette piste.');
+        return;
+      }
+      const response = await fetch(media.playableUrl);
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `synaura-${track.title || track.id}.wav`;
+      a.download = `synaura-${track.title || track.id}.mp3`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch (error) {
@@ -521,6 +843,75 @@ export default function AIGenerator() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showModelDropdown]);
+
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.shellMode') : null;
+    if (saved === 'ide' || saved === 'classic') setShellMode(saved);
+    const savedTab = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftExplorerTab') : null;
+    if (savedTab === 'builder' || savedTab === 'presets' || savedTab === 'assets' || savedTab === 'history') {
+      setLeftExplorerTab(savedTab);
+    }
+    const savedConsole = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.consoleCollapsed') : null;
+    if (savedConsole === '1') setConsoleCollapsed(true);
+    const savedLeftPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftPx') : null;
+    const savedRightPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.rightPx') : null;
+    if (savedLeftPx) setLeftPx(clamp(Number(savedLeftPx), 368, 620));
+    if (savedRightPx) setRightPx(clamp(Number(savedRightPx), 320, 620));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('synaura.ai.shellMode', shellMode);
+  }, [shellMode]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('synaura.ai.leftExplorerTab', leftExplorerTab);
+  }, [leftExplorerTab]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('synaura.ai.consoleCollapsed', consoleCollapsed ? '1' : '0');
+  }, [consoleCollapsed]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('synaura.ai.leftPx', String(leftPx));
+    window.localStorage.setItem('synaura.ai.rightPx', String(rightPx));
+  }, [leftPx, rightPx]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inInput = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setCmdOpen((v) => !v);
+        return;
+      }
+      if (e.key === 'Escape') setCmdOpen(false);
+      if (e.code === 'Space' && !inInput && !cmdOpen) {
+        e.preventDefault();
+        if (audioState.isPlaying) pause();
+        else play().catch(() => {});
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [audioState.isPlaying, cmdOpen, pause, play]);
+
+  useEffect(() => {
+    if (!cmdOpen) return;
+    setCmdQuery('');
+    setCmdIndex(0);
+    const t = window.setTimeout(() => cmdInputRef.current?.focus(), 40);
+    return () => window.clearTimeout(t);
+  }, [cmdOpen]);
+
+  useEffect(() => {
+    if (cmdIndex < filteredCommandItems.length) return;
+    setCmdIndex(0);
+  }, [cmdIndex, filteredCommandItems.length]);
   const [title, setTitle] = useState('');
   const [style, setStyle] = useState('');
   const [lyrics, setLyrics] = useState('');
@@ -530,11 +921,20 @@ export default function AIGenerator() {
   const [weirdness, setWeirdness] = useState<number>(50);
   const [styleInfluence, setStyleInfluence] = useState<number>(50);
   const [audioWeight, setAudioWeight] = useState<number>(50);
+  const refreshSunoCredits = useCallback(async () => {
+    try {
+      const res = await fetch('/api/suno/credits', { cache: 'no-store' });
+      if (!res.ok) return;
+      const json = await res.json().catch(() => ({}));
+      if (typeof json?.credits === 'number') setSunoCredits(json.credits);
+    } catch {}
+  }, []);
 
   useEffect(() => {
     (async () => {
       const data = await fetchCreditsBalance();
       if (data && typeof data.balance === 'number') setCreditsBalance(data.balance);
+      await refreshSunoCredits();
     })();
     // Vérifier si retour de Checkout Stripe
     try {
@@ -563,7 +963,7 @@ export default function AIGenerator() {
         }, 1500);
       }
     } catch {}
-  }, []);
+  }, [refreshSunoCredits]);
   const [vocalGender, setVocalGender] = useState<string>(''); // 'm' | 'f' | ''
   const [negativeTags, setNegativeTags] = useState<string>('');
 
@@ -676,9 +1076,54 @@ export default function AIGenerator() {
     if (typeof d.styleInfluence === 'number') setStyleInfluence(d.styleInfluence);
     if (typeof d.audioWeight === 'number') setAudioWeight(d.audioWeight);
     if (d.tags && d.tags.length) setSelectedTags(d.tags);
+    pushLog('info', `Preset appliqué: ${(preset as any).name || preset.id}`);
   };
 
-  const playGenerated = (gt: GeneratedTrack) => {
+  const playGenerated = async (gt: GeneratedTrack) => {
+    const directUrl = typeof gt.audioUrl === 'string' ? gt.audioUrl.trim() : '';
+    if (!directUrl) {
+      const rawLive = (activeBgGeneration?.latestTracks || []).find((t: any, idx: number) => {
+        const tid = String(t?.id || `${activeBgGeneration?.taskId || 'task'}_${idx}`);
+        return tid === String(gt.id) || String(t?.title || '').trim() === String(gt.title || '').trim();
+      });
+      const livePlayableUrl = resolveLiveTrackMedia(rawLive).playableUrl;
+      if (livePlayableUrl) {
+        const liveMedia = resolveLiveTrackMedia(rawLive);
+        const liveTrack: GeneratedTrack = {
+          ...gt,
+          audioUrl: livePlayableUrl,
+          backupAudioUrls: Array.from(
+            new Set(
+              [liveMedia.audioUrl, liveMedia.streamUrl].filter(
+                (u): u is string => Boolean(u && u !== livePlayableUrl)
+              )
+            )
+          ),
+        };
+        setGeneratedTracks((prev) => prev.map((t) => (String(t.id) === String(gt.id) ? liveTrack : t)));
+        setGeneratedTrack((prev) => (prev && String(prev.id) === String(gt.id) ? liveTrack : prev));
+        await Promise.resolve(playGenerated(liveTrack));
+        return;
+      }
+      // Fallback: retrouver la track IA source puis utiliser le pipeline robuste (hydrate/retry).
+      const sourceTrack = allTracks.find((t) => String(t.id) === String(gt.id));
+      if (sourceTrack) {
+        const genId = (sourceTrack as any).generation_id || (sourceTrack as any).generation?.id;
+        const sourceGen =
+          (genId ? generationsById.get(String(genId)) : null) ||
+          selectedGeneration ||
+          recentGenerationsSorted.find((g) => (g.tracks || []).some((t) => String(t.id) === String(sourceTrack.id))) ||
+          null;
+        if (sourceGen) {
+          await playAITrack(sourceTrack as any, sourceGen);
+          return;
+        }
+      }
+      notify.error('Lecture', 'Aucune URL audio exploitable pour cette piste.');
+      pushLog('warn', `Track générée sans audioUrl: ${gt.title || gt.id}`);
+      return;
+    }
+
     const playerTrack: PlayerTrack = {
       _id: `gen-${gt.id}`,
       title: gt.title || 'Musique générée',
@@ -688,6 +1133,7 @@ export default function AIGenerator() {
         username: 'synaura-ai'
       },
       audioUrl: gt.audioUrl,
+      backupAudioUrls: Array.isArray(gt.backupAudioUrls) ? gt.backupAudioUrls : [],
       coverUrl: gt.imageUrl || '/synaura_symbol.svg',
       duration: gt.duration || 120,
       likes: [],
@@ -695,7 +1141,10 @@ export default function AIGenerator() {
       plays: 0,
       genre: ['IA']
     };
-    playTrack(playerTrack as any);
+    await Promise.resolve(playTrack(playerTrack as any)).catch(() => {
+      notify.error('Lecture', 'La lecture a échoué pour cette piste.');
+      pushLog('error', `Échec lecture generated: ${gt.title || gt.id}`);
+    });
   };
 
   const downloadGenerated = async (gt: GeneratedTrack) => {
@@ -705,7 +1154,7 @@ export default function AIGenerator() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${gt.title || 'synaura-track'}.wav`;
+      a.download = `${gt.title || 'synaura-track'}.mp3`;
       a.click();
       window.URL.revokeObjectURL(url);
     } catch {}
@@ -742,9 +1191,14 @@ export default function AIGenerator() {
 
   // Fonction pour convertir AITrack en GeneratedTrack
   const convertAITrackToGenerated = (aiTrack: AITrack): GeneratedTrack => {
+    const media = resolveTrackMedia(aiTrack);
+    const backupAudioUrls = Array.from(
+      new Set([media.audioUrl, media.streamUrl].filter((u): u is string => Boolean(u && u !== media.playableUrl)))
+    );
     return {
       id: aiTrack.id,
-      audioUrl: aiTrack.audio_url || aiTrack.stream_audio_url || '',
+      audioUrl: media.playableUrl || '',
+      backupAudioUrls,
       prompt: aiTrack.prompt || '',
       title: aiTrack.title,
       style: aiTrack.style || 'Custom',
@@ -752,94 +1206,169 @@ export default function AIGenerator() {
       isInstrumental: aiTrack.prompt?.toLowerCase().includes('instrumental') || false,
       duration: aiTrack.duration || 120,
       createdAt: aiTrack.created_at,
-      imageUrl: aiTrack.image_url
+      imageUrl: media.imageUrl || '/synaura_symbol.svg'
     };
   };
 
-  // Synchroniser l'état Suno avec l'état local
+  const activeBgGeneration = React.useMemo(
+    () =>
+      currentTaskId
+        ? bgGenerations.find((g) => g.taskId === currentTaskId) || null
+        : bgGenerations.find((g) => g.status === 'pending' || g.status === 'first') || null,
+    [bgGenerations, currentTaskId]
+  );
+
+  const livePreviewTrack = React.useMemo(
+    () => generatedTracks.find((t) => Boolean(t.audioUrl)) || null,
+    [generatedTracks]
+  );
+
+  const liveProgressPct = React.useMemo(() => {
+    if (!activeBgGeneration) return 0;
+    const raw = Number(activeBgGeneration.progress || 0);
+    return Math.max(2, Math.min(99, Math.round(raw)));
+  }, [activeBgGeneration]);
+
+  const liveStatusLabel = React.useMemo(() => {
+    if (sunoState === 'first') return 'Premier rendu disponible';
+    if (sunoState === 'pending') return 'Génération en cours';
+    if (sunoState === 'success') return 'Génération finalisée';
+    if (sunoState === 'error') return 'Erreur de génération';
+    return 'En attente';
+  }, [sunoState]);
+
+  // Source de vérité unique pour le statut de génération
   React.useEffect(() => {
-    console.log('🔄 useEffect triggered:', { 
-      sunoState, 
-      sunoTracksLength: sunoTracks.length, 
-      sunoError, 
-      currentTaskId,
-      customMode,
-      title,
-      style,
-      lyrics
-    });
-    
-    console.log('🎯 Condition check:', {
-      sunoState,
-      sunoTracksLength: sunoTracks.length,
-      condition: sunoState === 'success' && sunoTracks.length > 0
-    });
-    
-    // Afficher les pistes dès qu'elles sont disponibles (streaming)
-    if ((sunoState === 'first' || sunoState === 'success') && sunoTracks.length > 0) {
-      console.log('🎵 Suno tracks brutes:', sunoTracks);
-      
-      // Convertir les tracks Suno en format local
-      const convertedTracks: GeneratedTrack[] = sunoTracks.map((track, index) => {
-        // Priorité: audio final > stream > vide
-        const audioUrl = track.audio || track.stream || '';
-        console.log(`🎵 Track ${index} conversion:`, { 
-          originalTrack: track, 
-          audioUrl, 
-          hasAudio: !!track.audio, 
-          hasStream: !!track.stream,
-          hasImage: !!track.image,
-          title: track.title
-        });
-        
-        return {
-          id: track.id || `${currentTaskId}_${index}`,
-          audioUrl,
-          prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
-          // Utiliser le titre généré par Suno en priorité
-          title: track.title || title || `Musique générée ${index + 1}`,
-          // Utiliser le style d'origine ou celui généré par Suno (via tags)
-          style: track.raw?.tags || style || 'Custom',
-          lyrics: customMode ? lyrics : '',
-          isInstrumental,
-          duration: track.duration || 120,
-          createdAt: new Date().toISOString(),
-          imageUrl: track.image // Cover généré par Suno
-        };
-      });
+    if (!activeBgGeneration) {
+      setSunoState('idle');
+      setSunoError(null);
+      if (generationStatus === 'pending') setGenerationStatus('idle');
+      return;
+    }
 
-      console.log('🎵 Tracks converties:', convertedTracks);
-
-      setGeneratedTracks(convertedTracks);
-      setGeneratedTrack(convertedTracks[0]);
-      
-      // Marquer comme complété uniquement si toutes les pistes sont finales
-      if (sunoState === 'success') {
-        setGenerationStatus('completed');
-        setCurrentTaskId(null);
-        
-        // Rafraîchir la bibliothèque IA après génération complète
-        setTimeout(() => {
-          refreshGenerations();
-          console.log('🔄 Bibliothèque IA rafraîchie');
-        }, 2000);
-      } else {
-        // État intermédiaire: streaming disponible
-        setGenerationStatus('pending');
-        console.log('🎵 Streaming disponible, génération en cours...');
-      }
-      
-      console.log('✅ États mis à jour:', {
-        generatedTracksLength: convertedTracks.length,
-        generatedTrack: convertedTracks[0]?.title,
-        generationStatus: sunoState === 'success' ? 'completed' : 'pending (streaming)'
-      });
-    } else if (sunoState === 'error') {
-      console.error('❌ Suno error:', sunoError);
+    if (activeBgGeneration.status === 'failed') {
+      setSunoState('error');
+      setSunoError(activeBgGeneration.lastError || 'La génération a échoué.');
       setGenerationStatus('failed');
+      return;
+    }
+    if (activeBgGeneration.status === 'completed') {
+      setSunoState('success');
+      setSunoError(null);
+      setGenerationStatus('completed');
+      return;
+    }
+    if (activeBgGeneration.status === 'first') {
+      setSunoState('first');
+      setSunoError(null);
+      setGenerationStatus('pending');
+      return;
+    }
+
+    setSunoState('pending');
+    setSunoError(null);
+    setGenerationStatus('pending');
+  }, [activeBgGeneration, generationStatus]);
+
+  React.useEffect(() => {
+    if (!currentTaskId) return;
+    const current = bgGenerations.find((g) => g.taskId === currentTaskId);
+    if (!current) return;
+    if (current.status === 'failed' || (current.status === 'completed' && current.completedSaved)) {
       setCurrentTaskId(null);
     }
-  }, [sunoState, sunoTracks, sunoError, currentTaskId, description, style, lyrics, isInstrumental, customMode, title]);
+  }, [bgGenerations, currentTaskId]);
+
+  const showLivePanel = React.useMemo(() => {
+    if (sunoState === 'error') return true;
+    if (generationStatus === 'pending') return true;
+    if (!activeBgGeneration) return false;
+    if (activeBgGeneration.status === 'completed' && activeBgGeneration.completedSaved) return false;
+    return activeBgGeneration.status === 'pending' || activeBgGeneration.status === 'first';
+  }, [activeBgGeneration, generationStatus, sunoState]);
+
+  // Afficher les tracks live issues du polling (FIRST_SUCCESS/SUCCESS)
+  React.useEffect(() => {
+    if (!activeBgGeneration?.latestTracks || activeBgGeneration.latestTracks.length === 0) return;
+    const convertedTracks: GeneratedTrack[] = activeBgGeneration.latestTracks.map((track: any, index: number) => {
+      const media = resolveLiveTrackMedia(track);
+      return {
+        id: track.id || `${activeBgGeneration.taskId}_${index}`,
+        audioUrl: media.playableUrl,
+        backupAudioUrls: Array.from(
+          new Set([media.audioUrl, media.streamUrl].filter((u): u is string => Boolean(u && u !== media.playableUrl)))
+        ),
+        prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
+        title: track.title || title || `Musique générée ${index + 1}`,
+        style: track.raw?.tags || style || 'Custom',
+        lyrics: customMode ? lyrics : '',
+        isInstrumental,
+        duration: track.duration || 120,
+        createdAt: new Date().toISOString(),
+        imageUrl: media.imageUrl,
+      };
+    });
+    setGeneratedTracks(convertedTracks);
+    setGeneratedTrack((prev) => prev || convertedTracks[0] || null);
+  }, [activeBgGeneration, customMode, description, isInstrumental, lyrics, style, title]);
+
+  // Dès qu'une génération passe en completed, synchroniser la bibliothèque
+  React.useEffect(() => {
+    if (!activeBgGeneration || activeBgGeneration.status !== 'completed') return;
+    const t = window.setTimeout(() => {
+      refreshGenerations();
+    }, 1200);
+    return () => window.clearTimeout(t);
+  }, [activeBgGeneration]);
+
+  const syncedCompletedTasksRef = useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    const completedNow = bgGenerations.filter((g) => g.status === 'completed').map((g) => g.taskId);
+    if (!completedNow.length) return;
+
+    const newlyCompleted = completedNow.filter((taskId) => !syncedCompletedTasksRef.current.has(taskId));
+    if (!newlyCompleted.length) return;
+
+    newlyCompleted.forEach((taskId) => syncedCompletedTasksRef.current.add(taskId));
+    const t = window.setTimeout(() => {
+      refreshGenerations();
+      if (DEBUG_AI_STUDIO) {
+        console.log('[AI Studio] Sync completed jobs after reload:', newlyCompleted);
+      }
+    }, 900);
+    return () => window.clearTimeout(t);
+  }, [bgGenerations]);
+
+  const completedResaveRef = useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    const toResave = bgGenerations.filter(
+      (g) => g.status === 'completed' && !g.completedSaved && Array.isArray(g.latestTracks) && g.latestTracks.length > 0
+    );
+    if (!toResave.length) return;
+
+    toResave.forEach((g) => {
+      if (completedResaveRef.current.has(g.taskId)) return;
+      completedResaveRef.current.add(g.taskId);
+      (async () => {
+        try {
+          const res = await fetch('/api/suno/save-tracks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ taskId: g.taskId, tracks: g.latestTracks, status: 'completed' }),
+          });
+          if (res.ok) {
+            window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+            refreshGenerations();
+          }
+        } catch {}
+      })();
+    });
+  }, [bgGenerations]);
+
+  useEffect(() => {
+    if (generationStatus === 'completed') pushLog('info', 'Statut: completed');
+    if (generationStatus === 'failed') pushLog('error', 'Statut: failed');
+  }, [generationStatus, pushLog]);
 
   const generateMusic = async () => {
     // Plus de limitation de quota - accès libre
@@ -847,9 +1376,16 @@ export default function AIGenerator() {
     setIsGenerating(true);
     setGenerationStatus('pending');
     setGeneratedTracks([]);
+    pushLog('info', 'Génération lancée');
     
     try {
       let prompt = '';
+      if (generationModeKind === 'remix' && !remixUploadUrl) {
+        notify.error('Audio remix requis', 'Ajoute un audio source avant de générer en mode Remix.');
+        setIsGenerating(false);
+        setGenerationStatus('idle');
+        return;
+      }
       
       if (customMode) {
         // Mode personnalisé : le style est obligatoire, le titre est optionnel
@@ -915,7 +1451,7 @@ export default function AIGenerator() {
         // Pas de title, style, styleWeight, etc. en mode Simple selon la doc Suno
       }
 
-      console.log('🎵 Requête génération:', requestBody);
+      console.log('🎵 Requête génération:', { mode: generationModeKind, ...requestBody });
 
       // Si un audio remix est fourni, utiliser le flux upload-cover
       const response = await fetch(remixUploadUrl ? '/api/suno/upload-cover' : '/api/suno/generate', {
@@ -939,6 +1475,7 @@ export default function AIGenerator() {
                 styleWeight: Number((Math.round(styleInfluence) / 100).toFixed(2)),
                 weirdnessConstraint: Number((Math.round(weirdness) / 100).toFixed(2)),
                 audioWeight: Number((Math.round(audioWeight) / 100).toFixed(2)),
+                sourceDurationSec: remixSourceDurationSec,
                 callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined,
               }
             : requestBody
@@ -946,17 +1483,29 @@ export default function AIGenerator() {
       });
 
       if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
         // Crédit insuffisant → ouvrir le modal d'achat
-        if (response.status === 402) {
+        if (response.status === 402 || response.status === 429) {
           setShowBuyCredits(true);
         }
-        throw new Error('Erreur lors de la génération');
+        const msg =
+          errJson?.error ||
+          errJson?.msg ||
+          (response.status === 430
+            ? 'Trop de requêtes en cours, réessayez dans quelques secondes.'
+            : response.status === 413
+            ? 'Prompt/style trop long selon le modèle choisi.'
+            : response.status === 455
+            ? 'Suno est en maintenance temporaire.'
+            : 'Erreur lors de la génération');
+        throw new Error(msg);
       }
 
       const data = await response.json();
       if (data?.credits?.balance != null) {
         setCreditsBalance(data.credits.balance);
       }
+      refreshSunoCredits();
 
       // Synchroniser le modèle effectif et informer en cas de downgrade
       if (data?.model) {
@@ -986,10 +1535,11 @@ export default function AIGenerator() {
           prompt: promptText,
           progress: 0,
           startTime: Date.now(),
-          estimatedTime: 60000 // 60 secondes estimées
+          estimatedTime: Math.max(45000, Math.round((generationDuration / 120) * 60000))
         });
         
         setCurrentTaskId(data.taskId);
+        pushLog('info', `Job en file: ${data.taskId}`);
         console.log('🎵 Génération Suno initiée en arrière-plan:', data.taskId);
         console.log('🎵 Mode:', customMode ? 'personnalisé' : 'simple');
       } else {
@@ -1003,17 +1553,20 @@ export default function AIGenerator() {
           style: customMode ? style : 'Custom',
           lyrics: customMode ? lyrics : '',
           isInstrumental,
-          duration: data.duration,
+          duration: data.duration || generationDuration,
           createdAt: new Date().toISOString()
         };
 
         setGeneratedTrack(track);
         setGenerationStatus('completed');
+        pushLog('info', `Génération terminée: ${track.title || track.id}`);
       }
     } catch (error) {
       console.error('Erreur:', error);
-      notify.error('Génération', 'Erreur lors de la génération');
+      const message = error instanceof Error ? error.message : 'Erreur lors de la génération';
+      notify.error('Génération', message);
       setGenerationStatus('failed');
+      pushLog('error', `Échec de génération: ${message}`);
     } finally {
       setIsGenerating(false);
     }
@@ -1037,6 +1590,169 @@ export default function AIGenerator() {
     }
   };
 
+  function executePaletteCommand(raw: string) {
+    const v = raw.trim().toLowerCase();
+    if (!v) return;
+
+    const modelMatch = v.match(/\bmodel\s+(v5|v4\.5\+|v4\.5)\b/);
+    if (modelMatch) {
+      const m = modelMatch[1];
+      if (m === 'v5') setModelVersion('V5');
+      else if (m === 'v4.5+') setModelVersion('V4_5PLUS');
+      else setModelVersion('V4_5');
+      pushLog('info', `Palette: model ${m}`);
+      setCmdOpen(false);
+      return;
+    }
+
+    if (v.includes('mode custom')) {
+      selectGenerationMode('custom');
+      pushLog('info', 'Palette: mode custom');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('mode simple')) {
+      selectGenerationMode('simple');
+      pushLog('info', 'Palette: mode simple');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('mode remix')) {
+      selectGenerationMode('remix');
+      pushLog('info', 'Palette: mode remix');
+      setCmdOpen(false);
+      return;
+    }
+
+    if (v.includes('instrumental on')) {
+      setIsInstrumental(true);
+      pushLog('info', 'Palette: instrumental on');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('instrumental off')) {
+      setIsInstrumental(false);
+      pushLog('info', 'Palette: instrumental off');
+      setCmdOpen(false);
+      return;
+    }
+
+    if (v.includes('ab toggle')) {
+      toggleABPlay();
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('ab a')) {
+      playABSlot('A');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('ab b')) {
+      playABSlot('B');
+      setCmdOpen(false);
+      return;
+    }
+
+    if (v.includes('generate') || v === 'run') {
+      generateMusic();
+      pushLog('info', 'Palette: generate');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('credits') || v.includes('balance')) {
+      refreshSunoCredits();
+      pushLog('info', 'Palette: refresh Suno credits');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('refresh') || v.includes('sync')) {
+      refreshGenerations();
+      pushLog('info', 'Palette: refresh library');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('mode ide')) {
+      setShellMode('ide');
+      pushLog('info', 'Palette: mode ide');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('mode classic')) {
+      setShellMode('classic');
+      pushLog('info', 'Palette: mode classic');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('tab builder')) {
+      setLeftExplorerTab('builder');
+      setShellMode('ide');
+      pushLog('info', 'Palette: tab builder');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('tab presets')) {
+      setLeftExplorerTab('presets');
+      setShellMode('ide');
+      pushLog('info', 'Palette: tab presets');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('tab assets')) {
+      setLeftExplorerTab('assets');
+      setShellMode('ide');
+      pushLog('info', 'Palette: tab assets');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('tab history')) {
+      setLeftExplorerTab('history');
+      setShellMode('ide');
+      pushLog('info', 'Palette: tab history');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('preset')) {
+      const byName = aiStudioPresets.find((p) => {
+        const name = String((p as any).name || p.id).toLowerCase();
+        return v.includes(name);
+      });
+      const picked = byName || aiStudioPresets[0];
+      if (picked) {
+        handleApplyPreset(picked);
+        pushLog('info', `Palette: apply preset ${(picked as any).name || picked.id}`);
+      }
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('export mp3') || v === 'export' || v.includes('export ')) {
+      if (!generatedTrack) {
+        notify.error('Export', 'Aucune piste sélectionnée');
+      } else {
+        downloadGenerated(generatedTrack);
+        pushLog('info', 'Export MP3 lancé');
+      }
+      setRightTab('export');
+      setCmdOpen(false);
+      return;
+    }
+    if (v.includes('library')) {
+      setMobileTab('library');
+      pushLog('info', 'Palette: go library');
+      setCmdOpen(false);
+      return;
+    }
+
+    const durationMatch = v.match(/\bduration\s+(60|120|180)\b/);
+    if (durationMatch) {
+      const d = Number(durationMatch[1]) as 60 | 120 | 180;
+      setGenerationDuration(d);
+      pushLog('info', `Palette: duration ${d}s`);
+      setCmdOpen(false);
+      return;
+    }
+    pushLog('warn', `Commande inconnue: "${raw}"`);
+  }
+
   // Vérification d'authentification (même logique que ai-library)
   if (!session) {
     return (
@@ -1053,11 +1769,11 @@ export default function AIGenerator() {
 }
 
   return (
-    <div className="studio-pro flex flex-col h-[100svh] bg-[#050505] text-white overflow-hidden font-sans selection:bg-indigo-500/30">
+    <div className="studio-pro min-h-screen bg-[#07070a] text-white font-sans selection:bg-indigo-500/30">
       <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
-      <header className="h-14 min-h-[56px] border-b border-white/5 bg-[#0a0a0a] flex items-center justify-between px-3 sm:px-4 shrink-0 z-50">
+      <header className="sticky top-0 z-30 h-14 min-h-[56px] border-b border-white/10 bg-[#07070a]/75 backdrop-blur flex items-center justify-between px-3 sm:px-4">
         <div className="flex items-center gap-4 min-w-0">
           <div className="flex items-center gap-2 text-indigo-400 min-w-0">
             <Zap className="w-5 h-5" fill="currentColor" />
@@ -1067,6 +1783,31 @@ export default function AIGenerator() {
           </div>
 
           <div className="h-6 w-[1px] bg-white/10 hidden sm:block" />
+
+          <div className="hidden md:flex items-center gap-2 min-w-[260px] max-w-[420px]">
+            <button
+              type="button"
+              onClick={() => pushLog('info', 'Ouvrir projet (à brancher)')}
+              className="h-8 w-8 inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/10 text-zinc-300"
+              title="Ouvrir"
+            >
+              <FolderOpen className="w-4 h-4" />
+            </button>
+            <input
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="h-8 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs outline-none focus:border-white/20"
+              placeholder="Nom du projet"
+            />
+            <button
+              type="button"
+              onClick={() => pushLog('info', `Projet sauvegardé: ${projectName || 'Sans titre'}`)}
+              className="h-8 w-8 inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/10 text-zinc-300"
+              title="Sauvegarder"
+            >
+              <Save className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* Global Playback Controls */}
           <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
@@ -1119,6 +1860,15 @@ export default function AIGenerator() {
         <div className="flex items-center gap-3">
           <button
             type="button"
+            onClick={() => setCmdOpen(true)}
+            className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition text-xs text-zinc-300"
+          >
+            <Command className="w-3.5 h-3.5" />
+            Palette
+            <span className="text-zinc-500">Ctrl+K</span>
+          </button>
+          <button
+            type="button"
             onClick={() => setShowBuyCredits(true)}
             className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 min-h-[44px] bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition"
             aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
@@ -1126,21 +1876,40 @@ export default function AIGenerator() {
             <Coins className="w-4 h-4 text-indigo-300 shrink-0" />
             <span className="text-[10px] font-semibold text-zinc-300 tabular-nums">{creditsBalance}</span>
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider hidden sm:inline">Crédits</span>
+            {sunoCredits !== null ? (
+              <span className="text-[10px] text-zinc-500 hidden lg:inline">Suno {sunoCredits}</span>
+            ) : null}
           </button>
           <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5">
-            <div className={`w-2 h-2 rounded-full ${isGenerating ? 'bg-indigo-500' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(99,102,241,0.4)]`} />
+            <div className={`w-2 h-2 rounded-full ${isGenerating || activeGenerationCount > 0 ? 'bg-indigo-500' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(99,102,241,0.4)]`} />
             <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-              {isGenerating ? 'Generating' : 'Ready'}
+              {isGenerating || activeGenerationCount > 0 ? `Generating (${activeGenerationCount || 1})` : 'Ready'}
             </span>
           </div>
           <button className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors" aria-label="Paramètres">
             <Settings className="w-5 h-5" />
           </button>
+          <div className="hidden md:inline-flex items-center rounded-full border border-white/10 bg-black/30 p-1">
+            <button
+              type="button"
+              onClick={() => setShellMode('ide')}
+              className={`px-2 py-1 text-[11px] rounded-full ${shellMode === 'ide' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
+            >
+              IDE
+            </button>
+            <button
+              type="button"
+              onClick={() => setShellMode('classic')}
+              className={`px-2 py-1 text-[11px] rounded-full ${shellMode === 'classic' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
+            >
+              Classic
+            </button>
+          </div>
           <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border border-white/10 hidden sm:block" aria-hidden />
         </div>
       </header>
 
-      <div className="flex-1 overflow-hidden relative z-10 w-full px-2 sm:px-6 lg:px-8 xl:px-10 py-3 sm:py-5">
+      <div className="relative z-10 mx-auto max-w-[1600px] px-4 py-4 pb-28">
         {/* (ancien header: gardé SR-only pour accessibilité) */}
         <header className="sr-only">
           <div className="flex items-center gap-3">
@@ -1302,121 +2071,182 @@ export default function AIGenerator() {
               </AnimatePresence>
             </div>
 
-            {/* Switch de mode Simple / Custom */}
+            {/* Switch de mode Simple / Custom / Remix */}
             <div className="inline-flex bg-background-tertiary border border-border-primary rounded-full p-1">
               <button
                 type="button"
-                onClick={() => setCustomMode(false)}
+                onClick={() => selectGenerationMode('simple')}
                 disabled={isGenerationDisabled}
                 className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  !customMode ? 'bg-white text-black shadow' : 'text-foreground-tertiary hover:text-foreground-primary'
+                  generationModeKind === 'simple' ? 'bg-white text-black shadow' : 'text-foreground-tertiary hover:text-foreground-primary'
                 } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Simple
               </button>
               <button
                 type="button"
-                onClick={() => setCustomMode(true)}
+                onClick={() => selectGenerationMode('custom')}
                 disabled={isGenerationDisabled}
                 className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  customMode
+                  generationModeKind === 'custom'
                     ? 'bg-accent-brand text-white shadow-[0_0_25px_rgba(129,140,248,0.75)]'
                     : 'text-foreground-tertiary hover:text-foreground-primary'
                 } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Custom
               </button>
+              <button
+                type="button"
+                onClick={() => selectGenerationMode('remix')}
+                disabled={isGenerationDisabled}
+                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
+                  generationModeKind === 'remix'
+                    ? 'bg-cyan-300 text-black shadow-[0_0_25px_rgba(34,211,238,0.55)]'
+                    : 'text-foreground-tertiary hover:text-foreground-primary'
+                } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+              >
+                Remix
+              </button>
             </div>
           </div>
         </header>
 
         {/* LAYOUT "Studio Pro" : panneaux fixes (scroll interne uniquement) ; sur mobile onglets Générer / Bibliothèque */}
-        <div className="flex h-full overflow-hidden">
+        <div ref={containerRef} className="grid grid-cols-12 gap-3 lg:flex lg:items-stretch lg:gap-3">
           {/* LEFT PANEL: Generator / Remixer — sur mobile visible quand onglet "Générer" */}
-          <aside className={`w-full lg:w-[360px] shrink-0 flex flex-col border-r border-white/5 bg-[#080808] overflow-hidden ${mobileTab === 'generate' ? 'flex' : 'hidden'} lg:!flex`}>
+          <aside
+            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}
+            style={{ width: leftPx }}
+          >
             <div className="flex-1 overflow-y-auto pr-1 space-y-4 pb-24 lg:pb-0">
+              {shellMode === 'ide' && (
+                <div className="panel-suno p-2">
+                  <div className="flex items-center justify-between px-1 pb-2">
+                    <div className="text-xs text-white/70 inline-flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5" />
+                      Explorer
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCmdOpen(true)}
+                      className="rounded-xl bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/70 hover:bg-white/15"
+                    >
+                      Ctrl+K
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setLeftExplorerTab('builder')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'builder' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><SlidersHorizontal className="w-3.5 h-3.5" /> Editor</button>
+                    <button type="button" onClick={() => setLeftExplorerTab('presets')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'presets' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><Sparkles className="w-3.5 h-3.5" /> Presets</button>
+                    <button type="button" onClick={() => setLeftExplorerTab('assets')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'assets' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><Library className="w-3.5 h-3.5" /> Assets</button>
+                    <button type="button" onClick={() => setLeftExplorerTab('history')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'history' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><History className="w-3.5 h-3.5" /> History</button>
+                  </div>
+                </div>
+              )}
               {/* Builder : création / presets (contenu existant) */}
+              {(shellMode !== 'ide' || leftExplorerTab === 'builder') && (
               <section className="space-y-4 flex flex-col min-h-0">
-                {/* Toolbar interne */}
-                <div className="panel-suno p-3 flex items-center justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowBuyCredits(true)}
-                    className={`${SUNO_BTN_BASE} cursor-pointer py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 transition-all duration-200`}
-                    aria-label={`Credits remaining: ${creditsBalance}`}
-                  >
-                    <span className="relative flex flex-row items-center justify-center gap-2">
-                      <Coins className="w-4 h-4" />
-                      <span className="text-[12px] font-medium tracking-[0.5px] w-[4ch] inline-block text-center transition-[width] duration-200">
-                        {formatCreditsCompact(creditsBalance)}
-                      </span>
-                    </span>
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <div className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-border-primary h-[40px] p-[3px]">
+                {/* Toolbar interne (style Suno-like) */}
+                <div className="panel-suno p-3 space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowBuyCredits(true)}
+                      className={`${SUNO_BTN_BASE} cursor-pointer py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 transition-all duration-200`}
+                      aria-label={`Credits remaining: ${creditsBalance}`}
+                    >
                       <span className="relative flex flex-row items-center justify-center gap-2">
-                        <span className="flex flex-1 items-center justify-stretch gap-0">
-                          <button
-                            type="button"
-                            onClick={() => setCustomMode(false)}
-                            disabled={isGenerationDisabled}
-                            className={`px-3 h-[34px] rounded-full text-[12px] ${!customMode ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            Simple
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCustomMode(true)}
-                            disabled={isGenerationDisabled}
-                            className={`px-3 h-[34px] rounded-full text-[12px] ${customMode ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          >
-                            Custom
-                          </button>
+                        <Coins className="w-4 h-4" />
+                        <span className="text-[12px] font-medium tracking-[0.5px] w-[4ch] inline-block text-center transition-[width] duration-200">
+                          {formatCreditsCompact(creditsBalance)}
                         </span>
                       </span>
-                    </div>
+                    </button>
 
-                    <div className="relative model-dropdown-container">
-                      <button
-                        type="button"
-                        onClick={() => setShowModelDropdown(!showModelDropdown)}
-                        disabled={isGenerationDisabled}
-                        className={SUNO_PILL_SOLID}
-                      >
+                    <div className="flex items-center gap-2">
+                      <div className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-border-primary h-[40px] p-[3px]">
                         <span className="relative flex flex-row items-center justify-center gap-2">
-                          {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-ml-1 h-4 w-4">
-                            <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
-                          </svg>
+                          <span className="flex flex-1 items-center justify-stretch gap-0">
+                            <button
+                              type="button"
+                              onClick={() => selectGenerationMode('simple')}
+                              disabled={isGenerationDisabled}
+                              className={`px-3 h-[34px] rounded-full text-[12px] ${generationModeKind === 'simple' ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Simple
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectGenerationMode('custom')}
+                              disabled={isGenerationDisabled}
+                              className={`px-3 h-[34px] rounded-full text-[12px] ${generationModeKind === 'custom' ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Custom
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => selectGenerationMode('remix')}
+                              disabled={isGenerationDisabled}
+                              className={`px-3 h-[34px] rounded-full text-[12px] ${generationModeKind === 'remix' ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                            >
+                              Remix
+                            </button>
+                          </span>
                         </span>
-                      </button>
+                      </div>
 
-                      <AnimatePresence>
-                        {showModelDropdown && (
-                          <motion.div
-                            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                            transition={{ duration: 0.18, ease: 'easeOut' }}
-                            className="absolute right-0 top-full mt-2 w-44 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
-                          >
-                            <div className="py-1">
-                              <button type="button" onClick={() => { setModelVersion('V5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V5</button>
-                              <button type="button" onClick={() => { setModelVersion('V4_5PLUS'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5+</button>
-                              <button type="button" onClick={() => { setModelVersion('V4_5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5</button>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      <div className="relative model-dropdown-container">
+                        <button
+                          type="button"
+                          onClick={() => setShowModelDropdown(!showModelDropdown)}
+                          disabled={isGenerationDisabled}
+                          className={SUNO_PILL_SOLID}
+                        >
+                          <span className="relative flex flex-row items-center justify-center gap-2">
+                            {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-ml-1 h-4 w-4">
+                              <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
+                            </svg>
+                          </span>
+                        </button>
+
+                        <AnimatePresence>
+                          {showModelDropdown && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                              animate={{ opacity: 1, y: 0, scale: 1 }}
+                              exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                              transition={{ duration: 0.18, ease: 'easeOut' }}
+                              className="absolute right-0 top-full mt-2 w-44 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
+                            >
+                              <div className="py-1">
+                                <button type="button" onClick={() => { setModelVersion('V5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V5</button>
+                                <button type="button" onClick={() => { setModelVersion('V4_5PLUS'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5+</button>
+                                <button type="button" onClick={() => { setModelVersion('V4_5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5</button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                    <label className="mb-1 block text-[10px] text-white/45">Song Title (Optional)</label>
+                    <input
+                      type="text"
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Nom de la musique"
+                      disabled={isGenerationDisabled}
+                      className="w-full bg-transparent text-sm text-white placeholder:text-white/30 outline-none"
+                    />
                   </div>
                 </div>
 
                 {/* Formulaire actif */}
                 <div className="space-y-6 px-0">
-                  {/* Bandeau de presets (Persona) */}
-                  <div ref={presetStripRef}>
+                  {/* Bandeau de presets */}
+                  <div>
                     <PresetStrip
                       presets={aiStudioPresets}
                       activePresetId={activePresetId}
@@ -1424,16 +2254,16 @@ export default function AIGenerator() {
                     />
                   </div>
 
-                  {/* Rangée segmentée Audio / Persona / Inspo (structure existante) */}
+                  {/* Rangée segmentée Audio */}
                   <div className="panel-suno p-0 overflow-hidden">
-                    <div className="grid grid-cols-3 h-[48px]">
+                    <div className="grid grid-cols-1 h-[48px]">
                       <button
                         type="button"
                         onClick={() => {
                           remixSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           setOpenStyleSection(true);
                         }}
-                        className={`${SUNO_BTN_BASE} rounded-none rounded-l-full h-full w-full bg-background-fog-thin p-3 text-[14px]`}
+                        className={`${SUNO_BTN_BASE} rounded-none rounded-full h-full w-full bg-background-fog-thin p-3 text-[14px]`}
                         aria-label="Audio"
                         title="Audio"
                       >
@@ -1445,35 +2275,6 @@ export default function AIGenerator() {
                         </span>
                       </button>
 
-                      <button
-                        type="button"
-                        onClick={() => presetStripRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                        className={`${SUNO_BTN_BASE} rounded-none h-full w-full bg-background-fog-thin p-3 text-[14px]`}
-                        aria-label="Persona"
-                        title="Persona"
-                      >
-                        <span className="relative flex flex-row items-center justify-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-0 my-1">
-                            <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
-                          </svg>
-                          Persona
-                        </span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setShowInspo((v) => !v)}
-                        className={`${SUNO_BTN_BASE} rounded-none rounded-r-full h-full w-full bg-background-fog-thin p-3 text-[14px]`}
-                        aria-label="Inspo"
-                        title="Inspo"
-                      >
-                        <span className="relative flex flex-row items-center justify-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-0 my-1">
-                            <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
-                          </svg>
-                          Inspo
-                        </span>
-                      </button>
                     </div>
                   </div>
 
@@ -1542,13 +2343,14 @@ export default function AIGenerator() {
                       {style.length}/1000
                     </div>
 
-                    {showInspo && (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
+                    <div className="mt-2">
+                      <div className="mb-2 text-[10px] text-foreground-tertiary">Tags rapides</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {Array.from(new Set([...styleSuggestions, ...vibeSuggestions])).slice(0, 28).map((tag) => {
                           const active = selectedTags.includes(tag);
                           return (
                             <button
-                              key={`style-${tag}-${index}`}
+                              key={`style-${tag}`}
                               type="button"
                               onClick={() => handleTagClick(tag)}
                               disabled={isGenerationDisabled}
@@ -1561,11 +2363,14 @@ export default function AIGenerator() {
                           );
                         })}
                       </div>
-                    )}
+                    </div>
 
-                    <div className="mt-4" ref={remixSectionRef}>
+                    <div
+                      className={`mt-4 rounded-2xl border p-3 ${isRemixMode ? 'border-cyan-300/50 bg-cyan-400/5' : 'border-white/10 bg-transparent'}`}
+                      ref={remixSectionRef}
+                    >
                       <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
-                        Ajouter un audio source (Remix)
+                        Audio source Remix {isRemixMode ? '(obligatoire)' : '(optionnel)'}
                       </label>
                       <RemixDropzone
                         file={remixFile}
@@ -1607,6 +2412,7 @@ export default function AIGenerator() {
 
                             setRemixUploading(false);
                             setRemixUploadUrl(secureUrl);
+                            setRemixSourceDurationSec(uploadedDuration);
                             try {
                               const res = await fetch('/api/ai/upload-source', {
                                 method: 'POST',
@@ -1623,8 +2429,9 @@ export default function AIGenerator() {
                           }
                         }}
                       />
-                      {remixUploadUrl && (
-                        <p className="text-[10px] text-foreground-tertiary mt-2">Audio uploadé ✓</p>
+                      {remixUploadUrl && <p className="text-[10px] text-foreground-tertiary mt-2">Audio uploadé ✓</p>}
+                      {isRemixMode && !remixUploadUrl && !remixUploading && (
+                        <p className="text-[10px] text-cyan-200/90 mt-2">Ajoute un audio pour lancer une génération Remix.</p>
                       )}
                     </div>
                   </SunoAccordionSection>
@@ -1792,7 +2599,7 @@ export default function AIGenerator() {
                       {description.length}/199
                     </div>
                     <div className="mt-2">
-                      <div className="text-[10px] text-white/50 mb-2">Inspiration (tags)</div>
+                      <div className="text-[10px] text-white/50 mb-2">Tags rapides</div>
                       <div className="flex flex-wrap gap-1.5">
                         {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
                           const active = selectedTags.includes(tag);
@@ -1812,6 +2619,117 @@ export default function AIGenerator() {
                     </div>
                   </div>
                   {/* Pas d'options avancées en mode simple */}
+                </div>
+              )}
+
+              {showLivePanel && (
+                <div className="mt-3 panel-suno p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold text-white">Now generating</div>
+                      <div className="text-[11px] text-white/60">{liveStatusLabel}</div>
+                    </div>
+                    <span className={`text-[10px] px-2 py-1 rounded-full border ${
+                      sunoState === 'error'
+                        ? 'border-red-400/30 bg-red-500/15 text-red-200'
+                        : sunoState === 'first'
+                        ? 'border-cyan-400/30 bg-cyan-500/15 text-cyan-200'
+                        : 'border-indigo-400/30 bg-indigo-500/15 text-indigo-200'
+                    }`}>
+                      {activeBgGeneration?.taskId ? `#${activeBgGeneration.taskId.slice(-6)}` : 'Live'}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                      <motion.div
+                        className={`h-full rounded-full ${
+                          sunoState === 'first'
+                            ? 'bg-gradient-to-r from-cyan-400 to-indigo-400'
+                            : sunoState === 'error'
+                            ? 'bg-gradient-to-r from-red-400 to-red-500'
+                            : 'bg-gradient-to-r from-indigo-400 to-violet-400'
+                        }`}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${liveProgressPct}%` }}
+                        transition={{ duration: 0.35, ease: 'easeOut' }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-white/50">
+                      <span>{activeBgGeneration?.status === 'first' ? 'Playable now' : 'Processing...'}</span>
+                      <span>{liveProgressPct}%</span>
+                    </div>
+                  </div>
+
+                  {DEBUG_AI_STUDIO && (
+                    <div className="rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 text-[10px] text-white/65">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>dbg state: {sunoState}</span>
+                        <span>bg: {activeBgGeneration?.status || '-'}</span>
+                        <span>task: {activeBgGeneration?.taskId?.slice(-8) || '-'}</span>
+                        <span>api tracks: {Array.isArray(activeBgGeneration?.latestTracks) ? activeBgGeneration!.latestTracks!.length : 0}</span>
+                        <span>ui tracks: {generatedTracks.length}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!livePreviewTrack) return;
+                        playGenerated(livePreviewTrack);
+                        setGeneratedTrack(livePreviewTrack);
+                        pushLog('info', 'Lecture live preview');
+                      }}
+                      disabled={!livePreviewTrack}
+                      className={`h-8 px-3 rounded-lg text-[11px] inline-flex items-center gap-2 ${
+                        livePreviewTrack
+                          ? 'bg-white text-black hover:bg-white/90'
+                          : 'border border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed'
+                      }`}
+                    >
+                      <Play className="w-3.5 h-3.5" />
+                      {livePreviewTrack ? 'Écouter le rendu live' : 'En attente du 1er rendu'}
+                    </button>
+                    {generatedTracks.length > 0 && (
+                      <span className="text-[10px] text-white/55">
+                        {generatedTracks.length} variation{generatedTracks.length > 1 ? 's' : ''} disponible{generatedTracks.length > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+
+                  {generatedTracks.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {generatedTracks.slice(0, 2).map((t, idx) => {
+                        const playable = typeof t.audioUrl === 'string' && t.audioUrl.trim().length > 0;
+                        return (
+                          <button
+                            key={`live-${t.id}-${idx}`}
+                            type="button"
+                            onClick={() => {
+                              playGenerated(t);
+                              setGeneratedTrack(t);
+                            }}
+                            className={`h-9 px-3 rounded-lg text-[11px] inline-flex items-center justify-between gap-2 ${
+                              playable
+                                ? 'bg-white/10 text-white hover:bg-white/15'
+                                : 'border border-white/10 bg-white/[0.03] text-white/40'
+                            }`}
+                          >
+                            <span className="truncate text-left">Live {idx + 1}: {t.title || `Variation ${idx + 1}`}</span>
+                            <Play className="w-3.5 h-3.5 shrink-0" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {sunoError ? (
+                    <div className="text-[11px] text-red-200/90 bg-red-500/10 border border-red-400/20 rounded-lg px-2.5 py-2">
+                      {sunoError}
+                    </div>
+                  ) : null}
                 </div>
               )}
                 </div>
@@ -1839,13 +2757,438 @@ export default function AIGenerator() {
                     </button>
                   </div>
                 </div>
+
+                {/* Mobile access to right-side tools (Inspector / Models / Export) */}
+                <div className="lg:hidden mt-3 panel-suno p-3 space-y-3">
+                  <div className="inline-flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setRightTab('inspector')}
+                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'inspector' ? 'bg-white text-black' : 'text-zinc-300 hover:bg-white/10'}`}
+                    >
+                      Inspector
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRightTab('models')}
+                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'models' ? 'bg-white text-black' : 'text-zinc-300 hover:bg-white/10'}`}
+                    >
+                      Models
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRightTab('export')}
+                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'export' ? 'bg-white text-black' : 'text-zinc-300 hover:bg-white/10'}`}
+                    >
+                      Export
+                    </button>
+                  </div>
+
+                  {rightTab === 'inspector' && (
+                    <div className="space-y-2">
+                      {selectedTrack ? (
+                        <>
+                          <div className="text-xs text-zinc-400 truncate">{selectedTrack.title || 'Piste sélectionnée'}</div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => playGenerated(selectedTrack)}
+                              className="flex-1 h-9 rounded-xl bg-white text-black text-xs font-semibold"
+                            >
+                              Lire
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => downloadGenerated(selectedTrack)}
+                              className="h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-xs"
+                            >
+                              MP3
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs text-zinc-500">Sélectionne une piste dans la bibliothèque.</div>
+                      )}
+                    </div>
+                  )}
+
+                  {rightTab === 'models' && (
+                    <div className="grid grid-cols-3 gap-2">
+                      {['V4_5', 'V4_5PLUS', 'V5'].map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setModelVersion(m as any)}
+                          className={`h-9 rounded-xl border text-xs ${modelVersion === m ? 'border-emerald-400/40 bg-emerald-400/10' : 'border-white/10 bg-white/5'}`}
+                        >
+                          {m === 'V4_5' ? 'v4.5' : m === 'V4_5PLUS' ? 'v4.5+' : 'v5'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {rightTab === 'export' && (
+                    <div className="space-y-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!generatedTrack) {
+                            notify.error('Export', 'Aucune piste sélectionnée');
+                            return;
+                          }
+                          downloadGenerated(generatedTrack);
+                        }}
+                        className="w-full h-10 rounded-xl bg-white text-black text-sm font-semibold"
+                      >
+                        Export MP3
+                      </button>
+                      <div className="text-[11px] text-zinc-500">WAV arrive plus tard.</div>
+                    </div>
+                  )}
+                </div>
               </section>
+              )}
+              {shellMode === 'ide' && leftExplorerTab === 'presets' && (
+                <div className="panel-suno p-3 space-y-2">
+                  <div className="text-xs text-zinc-400 inline-flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Presets rapides</div>
+                  {aiStudioPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleApplyPreset(preset)}
+                      className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-2"
+                    >
+                      <div className="text-xs font-semibold">{(preset as any).name || preset.id}</div>
+                      <div className="text-[11px] text-zinc-400 truncate">{preset.description || 'Preset studio'}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {shellMode === 'ide' && leftExplorerTab === 'assets' && (
+                <div className="panel-suno p-3 space-y-2">
+                  <div className="text-xs text-zinc-400 inline-flex items-center gap-2"><Library className="w-4 h-4" /> Assets</div>
+                  <input
+                    value={assetQuery}
+                    onChange={(e) => setAssetQuery(e.target.value)}
+                    placeholder="Filtrer assets..."
+                    className="w-full h-8 rounded-lg border border-white/10 bg-black/30 px-2 text-xs outline-none focus:border-white/20"
+                  />
+                  {filteredAssets.slice(0, 24).map((track) => (
+                    <div key={track.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                      <div className="text-xs font-semibold truncate">{track.title || 'Untitled'}</div>
+                      <div className="text-[11px] text-zinc-400 truncate">{track.style || track.model_name || 'AI Track'}</div>
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const converted = convertAITrackToGenerated(track as any);
+                            setSelectedTrack(converted);
+                            setGeneratedTrack(converted);
+                            setShowTrackPanel(true);
+                            pushLog('info', `Inspector: ${track.title || track.id}`);
+                          }}
+                          className="h-7 px-2 rounded-lg text-[11px] bg-white/10 hover:bg-white/15"
+                        >
+                          Use
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const fakeGen = {
+                              id: (track as any).generation_id || (track as any).generation?.id || 'unknown',
+                              prompt: (track as any).prompt || '',
+                              created_at: (track as any).created_at || new Date().toISOString(),
+                              status: 'completed',
+                              model: (track as any).model_name || 'V4_5',
+                              user_id: (session?.user?.id as string) || '',
+                              task_id: '',
+                              tracks: [],
+                            } as any as AIGeneration;
+                            playAITrack(track as any, fakeGen);
+                          }}
+                          className="h-7 px-2 rounded-lg text-[11px] bg-accent-brand/20 hover:bg-accent-brand/30"
+                        >
+                          Play
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredAssets.length === 0 && <div className="text-xs text-zinc-500">Aucun asset.</div>}
+                </div>
+              )}
+              {shellMode === 'ide' && leftExplorerTab === 'history' && (
+                <div className="panel-suno p-3 space-y-2">
+                  <div className="text-xs text-zinc-400 inline-flex items-center gap-2"><History className="w-4 h-4" /> Historique</div>
+                  {recentGenerationsSorted.slice(0, 20).map((g) => (
+                    <button
+                      key={g.id}
+                      type="button"
+                      onClick={() => {
+                        handlePlayGeneration(g);
+                        pushLog('info', `History play: ${g.id}`);
+                      }}
+                      className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-2"
+                    >
+                      <div className="text-xs font-semibold truncate">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
+                      <div className="text-[11px] text-zinc-400 inline-flex items-center gap-1"><Clock3 className="w-3 h-3" /> {new Date(g.created_at).toLocaleString('fr-FR')}</div>
+                    </button>
+                  ))}
+                  {recentGenerationsSorted.length === 0 && <div className="text-xs text-zinc-500">Pas d'historique.</div>}
+                </div>
+              )}
             </div>
           </aside>
 
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={beginDrag('left')}
+            className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-white/10"
+            title="Redimensionner panneau gauche"
+          >
+            <div className="h-16 w-[2px] rounded-full bg-white/20" />
+          </div>
+
           {/* CENTER PANEL: Library — sur mobile visible quand onglet "Bibliothèque" */}
-          <main className={`flex-1 min-w-0 flex flex-col overflow-hidden bg-[#050505] ${mobileTab === 'library' ? 'flex' : 'hidden'} lg:!flex`}>
+          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'library' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}>
             <div className="flex-1 overflow-y-auto pl-1 space-y-3 min-h-0 pb-24 lg:pb-0">
+              {shellMode === 'ide' && (
+                <div className="grid gap-3 p-2 lg:grid-cols-12">
+                  <div className="space-y-3 lg:col-span-7">
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-sm font-semibold">Prompt</div>
+                        <div className="inline-flex items-center gap-2">
+                          <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">
+                            {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                          </div>
+                          <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">
+                            {generationDuration}s
+                          </div>
+                        </div>
+                      </div>
+                      <textarea
+                        value={customMode ? style : description}
+                        onChange={(e) => (customMode ? setStyle(e.target.value) : setDescription(e.target.value))}
+                        className="min-h-[140px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
+                        placeholder="Décris le style, l’ambiance, les instruments, la structure…"
+                      />
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {selectedTags.slice(0, 12).map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => setSelectedTags((x) => x.filter((t) => t !== tag))}
+                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/75 hover:bg-white/15"
+                          >
+                            {tag} <X className="w-3 h-3" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-sm font-semibold">Timeline</div>
+                        <div className="text-[10px] text-white/60">
+                          {Math.round((audioState.currentTime || 0))}s / {Math.round((audioState.duration || generatedTrack?.duration || 120))}s
+                        </div>
+                      </div>
+                      <div className="relative h-24 rounded-2xl bg-white/[0.03] overflow-hidden">
+                        <div className="absolute inset-0 grid grid-cols-12 gap-1 p-2 opacity-80">
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="rounded-xl bg-gradient-to-b from-purple-400/25 to-cyan-400/10"
+                              style={{ height: `${30 + (i % 5) * 10}%`, alignSelf: 'end' }}
+                            />
+                          ))}
+                        </div>
+                        <div
+                          className="absolute top-0 bottom-0 w-[2px] bg-white"
+                          style={{
+                            left: `${Math.max(0, Math.min(1, (audioState.duration || 0) > 0 ? (audioState.currentTime || 0) / (audioState.duration || 1) : 0)) * 100}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 lg:col-span-5">
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <div className="text-sm font-semibold">Lyrics</div>
+                        <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">{isInstrumental ? 'Instrumental' : 'Voix'}</div>
+                      </div>
+                      <textarea
+                        value={lyrics}
+                        onChange={(e) => setLyrics(e.target.value)}
+                        className="min-h-[220px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
+                        placeholder="Colle tes paroles ici (ou laisse vide pour auto)."
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(lyrics);
+                              pushLog('info', 'Lyrics copiées');
+                            } catch {
+                              pushLog('warn', 'Impossible de copier les lyrics');
+                            }
+                          }}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs hover:bg-white/[0.06]"
+                        >
+                          Copier
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => pushLog('info', 'Auto-lyrics à brancher (API)')}
+                          className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs hover:bg-white/[0.06]"
+                        >
+                          Auto
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold">Versions</div>
+                        <div className="inline-flex items-center gap-2">
+                          <span className="text-[10px] text-zinc-400">A:{abA ? abA.slice(0, 4) : '-'}</span>
+                          <span className="text-[10px] text-zinc-400">B:{abB ? abB.slice(0, 4) : '-'}</span>
+                          <button
+                            type="button"
+                            onClick={toggleABPlay}
+                            className="h-7 px-2 rounded-lg text-[11px] border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+                            title="Basculer A/B"
+                          >
+                            A/B ({abSide})
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        {bgGenerations
+                          .filter((g) => g.status === 'pending' || g.status === 'first')
+                          .slice(0, 2)
+                          .map((g) => {
+                            const activeLive = activeBgGeneration?.taskId === g.taskId;
+                            const firstReady = g.status === 'first' && activeLive && !!livePreviewTrack;
+                            const progress = Math.max(2, Math.min(99, Math.round(g.progress || 0)));
+                            return (
+                              <div key={g.taskId} className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="truncate text-sm font-semibold">
+                                      {g.title || g.prompt || `Job ${g.taskId.slice(-4)}`}
+                                    </div>
+                                    <div className="truncate text-xs text-white/60">
+                                      {g.status === 'first' ? 'Premier rendu dispo' : 'Render en cours'} • {progress}%
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="rounded-full px-2 py-1 text-[10px] bg-indigo-400/20 text-indigo-100">
+                                      {g.status}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      disabled={!firstReady}
+                                      onClick={() => {
+                                        if (!livePreviewTrack) return;
+                                        playGenerated(livePreviewTrack);
+                                        setGeneratedTrack(livePreviewTrack);
+                                      }}
+                                      className={`rounded-xl p-2 ${
+                                        firstReady
+                                          ? 'text-white hover:bg-white/15'
+                                          : 'text-white/35 cursor-not-allowed'
+                                      }`}
+                                      title={firstReady ? 'Écouter le rendu live' : 'Disponible au premier rendu'}
+                                    >
+                                      <Play className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                                  <div
+                                    className={`h-full rounded-full ${
+                                      g.status === 'first'
+                                        ? 'bg-gradient-to-r from-cyan-400 to-indigo-400'
+                                        : 'bg-gradient-to-r from-indigo-400 to-violet-400'
+                                    }`}
+                                    style={{ width: `${progress}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+
+                        {recentGenerationsSorted.slice(0, 8).map((g) => (
+                          <div key={g.id} className="flex items-center justify-between gap-2 rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
+                              <div className="truncate text-xs text-white/60">{new Date(g.created_at).toLocaleString('fr-FR')}</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`rounded-full px-2 py-1 text-[10px] ${
+                                g.status === 'completed' ? 'bg-emerald-400/15 text-emerald-200' : g.status === 'failed' ? 'bg-red-500/15 text-red-200' : 'bg-yellow-400/15 text-yellow-200'
+                              }`}>
+                                {g.status}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handlePlayGeneration(g)}
+                                className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
+                                title="Play"
+                              >
+                                <Play className="w-4 h-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => assignABSlot('A', g.id)}
+                                className={`h-7 px-2 rounded-lg text-[10px] ${abA === g.id ? 'bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
+                                title="Assigner slot A"
+                              >
+                                A
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => assignABSlot('B', g.id)}
+                                className={`h-7 px-2 rounded-lg text-[10px] ${abB === g.id ? 'bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
+                                title="Assigner slot B"
+                              >
+                                B
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const t = g.tracks?.[0];
+                                  if (!t) return;
+                                  const converted = convertAITrackToGenerated(t as any);
+                                  setSelectedTrack(converted);
+                                  setGeneratedTrack(converted);
+                                  setShowTrackPanel(true);
+                                  setRightTab('inspector');
+                                }}
+                                className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
+                                title="Open"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {recentGenerationsSorted.length === 0 && (
+                          <div className="text-xs text-zinc-500">Aucune version pour le moment.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {shellMode !== 'ide' && (
+              <>
               <div className="panel-suno p-3">
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 flex-1 px-4 py-2 rounded-full bg-background-tertiary">
@@ -2033,11 +3376,26 @@ export default function AIGenerator() {
                 playAITrack(track as any, fakeGen);
               }}
             />
+            </>
+            )}
             </div>
           </main>
 
+          <div
+            role="separator"
+            aria-orientation="vertical"
+            onPointerDown={beginDrag('right')}
+            className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-white/10"
+            title="Redimensionner panneau droit"
+          >
+            <div className="h-16 w-[2px] rounded-full bg-white/20" />
+          </div>
+
           {/* RIGHT PANEL: Inspector */}
-          <aside className="w-[300px] hidden lg:flex flex-col border-l border-white/5 bg-[#080808] overflow-hidden">
+          <aside
+            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${mobileTab === 'studio' ? 'flex' : 'hidden'} md:flex`}
+            style={{ width: rightPx }}
+          >
             {/* Visualizer placeholder (studio feel) */}
             <div className="h-40 bg-black/60 border-b border-white/5 relative overflow-hidden">
               <div className="absolute top-3 right-3">
@@ -2056,22 +3414,112 @@ export default function AIGenerator() {
               </div>
             </div>
 
+            <div className="px-2 pt-2 pb-1 border-b border-white/10 inline-flex gap-1">
+              <button
+                type="button"
+                onClick={() => setRightTab('inspector')}
+                className={`h-7 px-2 rounded-lg text-[11px] ${rightTab === 'inspector' ? 'bg-white text-black' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
+              >
+                Inspector
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightTab('models')}
+                className={`h-7 px-2 rounded-lg text-[11px] ${rightTab === 'models' ? 'bg-white text-black' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
+              >
+                Models
+              </button>
+              <button
+                type="button"
+                onClick={() => setRightTab('export')}
+                className={`h-7 px-2 rounded-lg text-[11px] ${rightTab === 'export' ? 'bg-white text-black' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
+              >
+                Export
+              </button>
+            </div>
             <div className="flex-1 overflow-hidden">
-              <TrackInspector
-                track={selectedTrack}
-                isOpen={showTrackPanel}
-                onClose={closeTrackPanel}
-                onPlay={playGenerated}
-                onDownload={downloadGenerated}
-                onShare={shareGenerated}
-                variant="docked"
-              />
+              {rightTab === 'inspector' && (
+                <TrackInspector
+                  track={selectedTrack}
+                  isOpen={showTrackPanel}
+                  onClose={closeTrackPanel}
+                  onPlay={playGenerated}
+                  onDownload={downloadGenerated}
+                  onShare={shareGenerated}
+                  variant="docked"
+                />
+              )}
+              {rightTab === 'models' && (
+                <div className="p-3 space-y-2">
+                  {[
+                    { id: 'V4_5', label: 'v4.5', desc: 'Rapide et stable' },
+                    { id: 'V4_5PLUS', label: 'v4.5+', desc: 'Plus de détails voix' },
+                    { id: 'V5', label: 'v5', desc: 'Qualité premium' },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => {
+                        setModelVersion(m.id as any);
+                        pushLog('info', `Model: ${m.label}`);
+                      }}
+                      className={`w-full text-left rounded-xl border p-2 ${modelVersion === m.id ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
+                    >
+                      <div className="text-xs font-semibold">{m.label}</div>
+                      <div className="text-[11px] text-zinc-400">{m.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {rightTab === 'export' && (
+                <div className="p-3 space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!generatedTrack) {
+                        notify.error('Export', 'Aucune piste sélectionnée');
+                        return;
+                      }
+                      downloadGenerated(generatedTrack);
+                    }}
+                    className="w-full h-9 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs"
+                  >
+                    Export MP3
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="w-full h-9 rounded-xl border border-white/10 bg-white/5 text-xs opacity-60 cursor-not-allowed"
+                  >
+                    WAV (bientôt)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => pushLog('info', 'Publication Synaura (à brancher)')}
+                    className="w-full h-9 rounded-xl bg-white text-black text-xs inline-flex items-center justify-center gap-2"
+                  >
+                    <Send className="w-3.5 h-3.5" /> Publier sur Synaura
+                  </button>
+                </div>
+              )}
             </div>
           </aside>
 
-          {/* Barre onglets mobile : Générer | Bibliothèque */}
+          {/* Barre onglets mobile : Studio | Générer | Bibliothèque */}
           <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
             <div className="flex items-stretch h-14 px-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMobileTab('studio')}
+                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-t-xl text-sm font-medium transition-colors ${
+                  mobileTab === 'studio'
+                    ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
+                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Layers className="w-5 h-5 shrink-0" />
+                <span>Studio</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setMobileTab('generate')}
@@ -2099,6 +3547,188 @@ export default function AIGenerator() {
             </div>
           </nav>
         </div>
+
+        {shellMode === 'ide' && (
+          <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#07070a]/85 backdrop-blur">
+            <div className="mx-auto max-w-[1600px] px-4 py-3">
+              <div className="grid grid-cols-12 gap-3 lg:flex lg:items-start lg:gap-3">
+              <div className="hidden lg:block shrink-0" style={{ width: leftPx }} />
+              <div className="col-span-12 md:col-span-6 lg:flex-1">
+                <div className="flex items-center justify-between gap-2 text-xs text-zinc-300">
+                  <div className="inline-flex items-center gap-2">
+                    <Terminal className="w-3.5 h-3.5" />
+                    Console
+                    <span className="text-zinc-500">•</span>
+                    <span className="text-zinc-500">Derniers événements</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setConsoleCollapsed((v) => !v)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10"
+                  >
+                    <ChevronRight className={`w-3.5 h-3.5 transition-transform ${consoleCollapsed ? '' : 'rotate-90'}`} />
+                    {consoleCollapsed ? 'Développer' : 'Réduire'}
+                  </button>
+                </div>
+                {!consoleCollapsed && (
+                  <div className="mt-2 space-y-1 max-h-[86px] overflow-auto pr-1">
+                    {logs.slice(0, 8).map((line) => (
+                      <div key={line.id} className={`text-[11px] ${line.level === 'error' ? 'text-red-300' : line.level === 'warn' ? 'text-amber-300' : 'text-zinc-300'}`}>
+                        <span className="text-zinc-500">[{line.at}]</span> {line.msg}
+                      </div>
+                    ))}
+                    {logs.length === 0 && <div className="text-[11px] text-zinc-500">Aucun log pour le moment.</div>}
+                  </div>
+                )}
+              </div>
+              <div className="col-span-12 md:col-span-3 lg:shrink-0" style={{ width: rightPx }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs text-zinc-400">Transport</div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => pushLog('info', 'Upload (à brancher)')}
+                      className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                      title="Upload"
+                    >
+                      <Upload className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => pushLog('info', 'Download (à brancher)')}
+                      className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                      title="Download"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+                {!consoleCollapsed && (
+                <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                  <div className="flex items-center justify-between text-xs text-zinc-400">
+                    <span>Playhead</span>
+                    <span>{Math.round(Math.max(0, Math.min(1, (audioState.duration || 0) > 0 ? (audioState.currentTime || 0) / (audioState.duration || 1) : 0)) * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    value={Math.round(Math.max(0, Math.min(1, (audioState.duration || 0) > 0 ? (audioState.currentTime || 0) / (audioState.duration || 1) : 0)) * 100)}
+                    onChange={(e) => {
+                      const pct = Number(e.target.value || 0) / 100;
+                      const duration = Number(audioState.duration || 0);
+                      if (!Number.isFinite(duration) || duration <= 0) return;
+                      seek(Math.max(0, Math.min(duration, pct * duration)));
+                    }}
+                    className="mt-2 w-full accent-white"
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (audioState.isPlaying) pause();
+                        else await play().catch(() => {});
+                      }}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-white/90"
+                    >
+                      {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                      {audioState.isPlaying ? 'Pause' : 'Play'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => pause()}
+                      className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/[0.06]"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                </div>
+                )}
+              </div>
+              </div>
+            </div>
+          </footer>
+        )}
+
+        <AnimatePresence>
+          {cmdOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm p-4 pt-20 flex items-start justify-center"
+              onClick={() => setCmdOpen(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                className="w-full max-w-[720px] rounded-3xl border border-white/10 bg-[#0b0b10] p-3 shadow-[0_30px_120px_rgba(0,0,0,0.7)]"
+                onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+              >
+                <div className="inline-flex items-center gap-2 text-xs text-zinc-400 mb-3">
+                  <Command className="w-3.5 h-3.5" /> Command Palette
+                </div>
+                <input
+                  ref={cmdInputRef}
+                  placeholder="Tape: generate, refresh, mode ide, mode classic, preset..."
+                  value={cmdQuery}
+                  onChange={(e) => setCmdQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      setCmdIndex((i) => Math.min(i + 1, Math.max(0, filteredCommandItems.length - 1)));
+                      return;
+                    }
+                    if (e.key === 'ArrowUp') {
+                      e.preventDefault();
+                      setCmdIndex((i) => Math.max(i - 1, 0));
+                      return;
+                    }
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (filteredCommandItems[cmdIndex]) filteredCommandItems[cmdIndex].run();
+                      else executePaletteCommand(cmdQuery);
+                    }
+                  }}
+                  className="w-full h-10 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none focus:border-white/20"
+                />
+                <div className="mt-3 space-y-2 text-xs max-h-[280px] overflow-auto pr-1">
+                  {filteredCommandItems.map((cmd, idx) => (
+                    <button
+                      key={cmd.id}
+                      onClick={cmd.run}
+                      className={`w-full rounded-2xl border p-3 text-left transition ${
+                        idx === cmdIndex
+                          ? 'border-white/20 bg-white/10'
+                          : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-semibold">{cmd.label}</div>
+                          <div className="text-[11px] text-zinc-400">{cmd.desc}</div>
+                        </div>
+                        <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/70">
+                          {idx === 0 ? 'Enter' : idx === 1 ? 'P' : idx === 5 ? 'E' : '⌘'}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                  {filteredCommandItems.length === 0 && (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-zinc-500">
+                      Aucune commande trouvée.
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 text-[11px] text-zinc-500">
+                  Exemples: <span className="text-zinc-400">model v5</span>, <span className="text-zinc-400">mode remix</span>, <span className="text-zinc-400">ab toggle</span>, <span className="text-zinc-400">credits refresh</span>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Modale d'achat de crédits */}
         <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />

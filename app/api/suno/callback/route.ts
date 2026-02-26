@@ -8,7 +8,7 @@ type CallbackOk = {
   code: number; // 200 si OK
   msg: string;
   data: {
-    callbackType: "text" | "first" | "complete" | "error";
+    callbackType: "text" | "first" | "complete" | "error" | string;
     task_id: string;
     data?: Array<{
       id: string;
@@ -31,42 +31,51 @@ type CallbackOk = {
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as CallbackOk;
+    const callbackType = body?.data?.callbackType;
+    const taskId = body?.data?.task_id;
+    if (!taskId) {
+      return NextResponse.json({ received: false, error: 'task_id manquant' }, { status: 400 });
+    }
 
     // Log minimal
     console.log("🎵 Suno callback reçu:", {
       status: body.code,
-      type: body.data?.callbackType,
-      taskId: body.data?.task_id,
+      type: callbackType,
+      taskId,
       items: body.data?.data?.length ?? 0,
       body: JSON.stringify(body, null, 2)
     });
 
+    // Normaliser les tracks s'il y en a (first/complete)
+    const tracks = body.data?.data?.length ? body.data.data.map(normalizeSunoItem) : [];
+
+    // Mapper callback Suno vers statuts DB
+    const callbackTypeLower = String(callbackType || '').toLowerCase();
+    const statusForDb =
+      body.code !== 200 || callbackTypeLower === 'error'
+        ? 'failed'
+        : callbackTypeLower === 'complete'
+        ? 'completed'
+        : 'pending';
+
     // Traitement des données reçues
-    if (body.data?.data && body.data.data.length > 0) {
-      console.log("📊 Tracks reçues:", body.data.data.map(track => ({
+    if (tracks.length > 0) {
+      console.log("📊 Tracks reçues:", tracks.map(track => ({
         id: track.id,
-        title: track.title,
-        audioUrl: track.audio_url,
-        streamUrl: track.stream_audio_url,
-        imageUrl: track.image_url,
+        title: track.title || track.raw?.title,
+        audioUrl: track.audio || track.raw?.audio_url,
+        streamUrl: track.stream || track.raw?.stream_audio_url,
+        imageUrl: track.image || track.raw?.image_url,
         duration: track.duration
       })));
+    }
 
-      // Normaliser les tracks
-      const tracks = body.data.data.map(normalizeSunoItem);
-
-      // Mettre à jour la génération en base
-      try {
-        await aiGenerationService.updateGenerationStatus(
-          body.data.task_id,
-          body.data.callbackType === 'complete' ? 'completed' : 'pending',
-          tracks
-        );
-        
-        console.log("✅ Génération mise à jour en base:", body.data.task_id);
-      } catch (error) {
-        console.error("❌ Erreur mise à jour base:", error);
-      }
+    // Mettre à jour la génération même quand c'est une erreur callback sans tracks
+    try {
+      await aiGenerationService.updateGenerationStatus(taskId, statusForDb, tracks);
+      console.log("✅ Génération mise à jour en base:", taskId, statusForDb);
+    } catch (error) {
+      console.error("❌ Erreur mise à jour base:", error);
     }
 
     // Répondre vite (<=15s). Le traitement lourd (download audio) doit être asynchrone.

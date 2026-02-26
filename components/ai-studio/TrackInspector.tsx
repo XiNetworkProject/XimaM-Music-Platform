@@ -23,6 +23,20 @@ const formatSec = (sec: number) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+const sanitizeCoverUrl = (url?: string) => {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('/')) return trimmed;
+  try {
+    const host = new URL(trimmed).hostname.toLowerCase();
+    if (host === 'musicfile.api.box' || host.endsWith('.musicfile.api.box')) return '';
+    return trimmed;
+  } catch {
+    return '';
+  }
+};
+
 export function TrackInspector({
   track,
   isOpen,
@@ -63,12 +77,17 @@ export function TrackInspector({
         {/* Cover + CTA */}
         <div className="px-5 pt-5">
           <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center overflow-hidden mb-4">
-            {track.imageUrl ? (
+            {sanitizeCoverUrl(track.imageUrl) ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={track.imageUrl}
+                src={sanitizeCoverUrl(track.imageUrl)}
                 alt={track.title || 'Cover générée'}
                 className="w-full h-full object-cover"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (img.src.endsWith('/synaura_symbol.svg')) return;
+                  img.src = '/synaura_symbol.svg';
+                }}
               />
             ) : (
               <Music className="w-10 h-10 text-white/80" />
@@ -195,12 +214,17 @@ export function TrackInspector({
             {/* Cover + CTA */}
             <div className="px-5 pt-5">
               <div className="w-full aspect-square rounded-2xl bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center overflow-hidden mb-4">
-                {track.imageUrl ? (
+                {sanitizeCoverUrl(track.imageUrl) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={track.imageUrl}
+                    src={sanitizeCoverUrl(track.imageUrl)}
                     alt={track.title || 'Cover générée'}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const img = e.currentTarget;
+                      if (img.src.endsWith('/synaura_symbol.svg')) return;
+                      img.src = '/synaura_symbol.svg';
+                    }}
                   />
                 ) : (
                   <Music className="w-10 h-10 text-white/80" />

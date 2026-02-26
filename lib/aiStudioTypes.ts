@@ -3,6 +3,7 @@
 export interface GeneratedTrack {
   id: string;
   audioUrl: string;
+  backupAudioUrls?: string[];
   prompt: string;
   title: string;
   style: string;

@@ -27,6 +27,20 @@ const formatSec = (sec: number) => {
   return `${m}:${String(s).padStart(2, '0')}`;
 };
 
+const sanitizeCoverUrl = (url?: string) => {
+  if (!url) return '';
+  const trimmed = String(url).trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('/')) return trimmed;
+  try {
+    const host = new URL(trimmed).hostname.toLowerCase();
+    if (host === 'musicfile.api.box' || host.endsWith('.musicfile.api.box')) return '';
+    return trimmed;
+  } catch {
+    return '';
+  }
+};
+
 export function GenerationTimeline({
   generatedTracks,
   generationStatus,
@@ -138,12 +152,17 @@ export function GenerationTimeline({
               <div className={`${SUNO_CARD} p-3 flex flex-col gap-2`}>
                 <div className="flex items-start gap-2 sm:gap-3">
                   <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-gradient-to-br from-accent-purple to-accent-blue flex items-center justify-center shrink-0 overflow-hidden">
-                    {track.imageUrl ? (
+                    {sanitizeCoverUrl(track.imageUrl) ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={track.imageUrl}
+                        src={sanitizeCoverUrl(track.imageUrl)}
                         alt={track.title || 'Cover générée'}
                         className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (img.src.endsWith('/synaura_symbol.svg')) return;
+                          img.src = '/synaura_symbol.svg';
+                        }}
                       />
                     ) : (
                       <Music className="w-5 h-5 sm:w-6 sm:h-6 text-foreground-primary" />

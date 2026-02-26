@@ -25,6 +25,25 @@ function isInstrumentalText(s: string) {
   return s.toLowerCase().includes('instrumental');
 }
 
+function sanitizeCoverUrl(url?: string) {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (trimmed.startsWith('/')) return trimmed;
+  try {
+    const host = new URL(trimmed).hostname.toLowerCase();
+    if (
+      host === 'musicfile.api.box' ||
+      host.endsWith('.musicfile.api.box')
+    ) {
+      return '';
+    }
+  } catch {
+    return '';
+  }
+  return trimmed;
+}
+
 export function LibraryClipsList({
   tracks,
   generationsById,
@@ -86,7 +105,15 @@ export function LibraryClipsList({
               const genId = (t as any).generation_id || (t as any).generation?.id;
               const gen = genId ? generationsById.get(String(genId)) || null : null;
               const title = t.title || 'Musique générée';
-              const cover = t.image_url || '/synaura_symbol.svg';
+              let cover = sanitizeCoverUrl(t.image_url) || '/synaura_symbol.svg';
+              if ((!cover || cover === '/synaura_symbol.svg') && (t as any).source_links) {
+                try {
+                  const links = JSON.parse((t as any).source_links);
+                  cover = sanitizeCoverUrl(
+                    links?.image || links?.image_url || links?.imageUrl || links?.cover || links?.cover_url
+                  ) || cover;
+                } catch {}
+              }
 
               return (
                 <div
@@ -99,7 +126,16 @@ export function LibraryClipsList({
                   <div className="w-10 h-10 rounded-xl bg-background-tertiary border border-border-primary overflow-hidden flex items-center justify-center shrink-0">
                     {cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={cover} alt={title} className="w-full h-full object-cover" />
+                      <img
+                        src={cover}
+                        alt={title}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          if (img.src.endsWith('/synaura_symbol.svg')) return;
+                          img.src = '/synaura_symbol.svg';
+                        }}
+                      />
                     ) : (
                       <Music className="w-5 h-5 text-foreground-tertiary" />
                     )}

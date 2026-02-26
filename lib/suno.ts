@@ -68,6 +68,12 @@ export interface SunoRecordInfo {
   };
 }
 
+export interface SunoCreditsResponse {
+  code: number;
+  msg: string;
+  data: number;
+}
+
 export interface SunoUploadCoverRequest {
   uploadUrl: string;
   customMode: boolean;
@@ -130,7 +136,7 @@ export async function generateMusic(request: SunoGenerateRequest): Promise<SunoG
 
   const data = await response.json();
   
-  if (!response.ok) {
+  if (!response.ok || data?.code !== 200) {
     throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
   }
 
@@ -181,7 +187,7 @@ export async function generateCustomMusic(request: SunoCustomGenerateRequest): P
 
   const data = await response.json();
   
-  if (!response.ok) {
+  if (!response.ok || data?.code !== 200) {
     throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
   }
 
@@ -242,7 +248,7 @@ export async function uploadAndCoverAudio(request: SunoUploadCoverRequest): Prom
   });
 
   const data = await response.json();
-  if (!response.ok) {
+  if (!response.ok || data?.code !== 200) {
     throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
   }
   return data;
@@ -263,10 +269,30 @@ export async function getRecordInfo(taskId: string): Promise<SunoRecordInfo> {
 
   const data = await response.json();
   
-  if (!response.ok) {
+  if (!response.ok || data?.code !== 200) {
     throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
   }
 
+  return data;
+}
+
+export async function getRemainingCredits(): Promise<SunoCreditsResponse> {
+  const apiKey = process.env.SUNO_API_KEY;
+  if (!apiKey) {
+    throw new Error("SUNO_API_KEY manquant");
+  }
+
+  const response = await fetch(`${BASE}/api/v1/generate/credit`, {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+    },
+    cache: 'no-store',
+  });
+
+  const data = await response.json();
+  if (!response.ok || data?.code !== 200) {
+    throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
+  }
   return data;
 }
 
