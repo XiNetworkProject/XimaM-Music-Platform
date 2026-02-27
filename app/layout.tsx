@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   description: 'Découvrez et partagez de la musique avec la communauté Synaura',
   manifest: '/manifest.json',
   themeColor: '#000000',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
+  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover',
   other: {
     'mobile-web-app-capable': 'yes',
   },

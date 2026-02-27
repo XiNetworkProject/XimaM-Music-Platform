@@ -90,9 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: payload.password,
     });
     if (!r.success) return { ok: false, error: r.error };
-    // login direct (récupère le token mobile)
-    return await signIn(payload.email, payload.password);
-  }, [signIn]);
+    // Comme le web : pas d’auto-login, l’utilisateur va sur la page connexion avec un message de succès
+    return { ok: true };
+  }, []);
 
   const signOut = useCallback(async () => {
     try {

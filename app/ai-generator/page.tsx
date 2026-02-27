@@ -2523,7 +2523,7 @@ export default function AIGenerator() {
         </div>
       </header>
 
-      <div className="relative z-10 mx-auto max-w-[1600px] px-4 py-4 pb-28">
+      <div className="relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom,0px)))] lg:pb-4">
         {/* (ancien header: gardé SR-only pour accessibilité) */}
         <header className="sr-only">
           <div className="flex items-center gap-3">
@@ -2767,14 +2767,14 @@ export default function AIGenerator() {
                       <span className="w-[4ch] text-center">{formatCreditsCompact(creditsBalance)}</span>
                     </button>
 
-                    <div className="flex items-center gap-1.5">
-                      {/* Mode Simple / Custom / Remix — bien différenciés */}
-                      <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Mode Simple / Custom / Remix — zones tactiles 44px sur mobile */}
+                      <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5 min-h-[44px] sm:min-h-0">
                         <button
                           type="button"
                           onClick={() => selectGenerationMode('simple')}
                           disabled={isGenerationDisabled}
-                          className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${generationModeKind === 'simple' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5 min-h-[40px] sm:min-h-0 text-[11px] font-medium transition ${generationModeKind === 'simple' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                           title="Description seule, l’IA génère titre et paroles"
                         >
                           Simple
@@ -2783,7 +2783,7 @@ export default function AIGenerator() {
                           type="button"
                           onClick={() => selectGenerationMode('custom')}
                           disabled={isGenerationDisabled}
-                          className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${generationModeKind === 'custom' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5 min-h-[40px] sm:min-h-0 text-[11px] font-medium transition ${generationModeKind === 'custom' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                           title="Titre, style et paroles personnalisés"
                         >
                           Custom
@@ -2792,7 +2792,7 @@ export default function AIGenerator() {
                           type="button"
                           onClick={() => selectGenerationMode('remix')}
                           disabled={isGenerationDisabled}
-                          className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${generationModeKind === 'remix' ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/30' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className={`rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5 min-h-[40px] sm:min-h-0 text-[11px] font-medium transition ${generationModeKind === 'remix' ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/30' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                           title="Remix à partir d’un fichier audio"
                         >
                           Remix
@@ -4235,10 +4235,10 @@ export default function AIGenerator() {
           {/* RIGHT PANEL: Inspector */}
           {showDesktopRightPanel && (
           <aside
-            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${mobileTab === 'studio' ? 'flex' : 'hidden'} md:flex`}
+            className="col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 hidden lg:flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden"
             style={{ width: rightPx }}
           >
-            {/* Visualizer placeholder (studio feel) */}
+            {/* Visualizer placeholder (studio feel) — masqué sur mobile pour garder Générer + Bibliothèque utilisables */}
             <div
               className="h-40 bg-black/60 border-b border-white/5 relative overflow-hidden cursor-ew-resize"
               title="Cliquer/drag pour se déplacer dans la piste"
@@ -4445,13 +4445,16 @@ export default function AIGenerator() {
           </aside>
           )}
 
-          {/* Barre onglets mobile : Studio | Générer | Bibliothèque */}
-          <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0a]/95 backdrop-blur-md" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
-            <div className="flex items-stretch h-14 px-2 gap-2">
+          {/* Barre onglets mobile : Studio | Générer | Bibliothèque — adaptée tactile + safe-area */}
+          <nav
+            className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0a]/98 backdrop-blur-md"
+            style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
+          >
+            <div className="flex items-stretch h-16 min-h-[56px] px-2 gap-1">
               <button
                 type="button"
                 onClick={() => setMobileTab('studio')}
-                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-t-xl text-sm font-medium transition-colors ${
+                className={`flex-1 min-h-[48px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-t-xl text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${
                   mobileTab === 'studio'
                     ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
                     : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -4463,7 +4466,7 @@ export default function AIGenerator() {
               <button
                 type="button"
                 onClick={() => setMobileTab('generate')}
-                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-t-xl text-sm font-medium transition-colors ${
+                className={`flex-1 min-h-[48px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-t-xl text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${
                   mobileTab === 'generate'
                     ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
                     : 'text-zinc-400 hover:text-white hover:bg-white/5'
@@ -4475,7 +4478,7 @@ export default function AIGenerator() {
               <button
                 type="button"
                 onClick={() => setMobileTab('library')}
-                className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-t-xl text-sm font-medium transition-colors ${
+                className={`flex-1 min-h-[48px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-t-xl text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${
                   mobileTab === 'library'
                     ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
                     : 'text-zinc-400 hover:text-white hover:bg-white/5'

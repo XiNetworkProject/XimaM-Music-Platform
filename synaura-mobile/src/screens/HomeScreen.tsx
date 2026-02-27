@@ -14,6 +14,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { api, type ApiTrack, type PopularUser } from "../services/api";
 import { usePlayer } from "../contexts/PlayerContext";
+import { useAuth } from "../contexts/AuthContext";
 import { SynauraLogotype } from "../components/SynauraLogo";
 import { ENV } from "../config/env";
 
@@ -553,6 +554,7 @@ const LibraryGrid: React.FC<{ onOpen: (path: string) => void }> = ({ onOpen }) =
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<any>();
+  const { user } = useAuth();
   const { current, isPlaying, isLoading, playTrack, togglePlayPause, setQueueAndPlay } = usePlayer();
 
   const [featuredTracks, setFeaturedTracks] = useState<ApiTrack[]>([]);
@@ -857,8 +859,18 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.headerLabel}>Accueil</Text>
             <SynauraLogotype height={22} />
           </View>
-          <Pressable style={styles.headerButton} onPress={() => navigation.navigate("Studio")}>
-            <Text style={styles.headerButtonText}>Studio IA</Text>
+          <Pressable
+            style={styles.headerButton}
+            onPress={() => {
+              const root = navigation.getParent();
+              if (user) {
+                navigation.navigate("Studio");
+              } else {
+                root?.navigate("Login");
+              }
+            }}
+          >
+            <Text style={styles.headerButtonText}>{user ? "Studio IA" : "Se connecter"}</Text>
           </Pressable>
         </View>
 

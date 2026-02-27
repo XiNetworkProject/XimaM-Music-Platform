@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateCustomMusic, createProductionPrompt } from "@/lib/suno";
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
 import { getEntitlements } from '@/lib/entitlements';
@@ -42,8 +41,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "SUNO_API_KEY manquant" }, { status: 500 });
   }
 
-  // Vérification de l'authentification
-  const session = await getServerSession(authOptions);
+  // Vérification de l'authentification (cookie web ou Bearer JWT mobile)
+  const session = await getApiSession(req);
   console.log("🔍 Session:", { hasSession: !!session, userId: session?.user?.id });
   if (!session?.user?.id) {
     console.log("❌ Non authentifié");

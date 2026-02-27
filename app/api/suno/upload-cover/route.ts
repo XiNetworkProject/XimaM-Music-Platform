@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { supabaseAdmin } from '@/lib/supabase';
 import { getEntitlements } from '@/lib/entitlements';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
@@ -20,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "SUNO_API_KEY manquant" }, { status: 500 });
   }
 
-  const session = await getServerSession(authOptions);
+  const session = await getApiSession(req);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
   }

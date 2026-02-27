@@ -18,37 +18,29 @@ import { PlayerProvider } from './src/contexts/PlayerContext';
 const Stack = createNativeStackNavigator();
 
 function RootNavigator() {
-  const { user } = useAuth();
-
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
       }}
+      initialRouteName="Main"
     >
-      {!user ? (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} />
-        </>
-      ) : (
-        <>
-          <Stack.Screen name="Home" component={BottomTabs} />
-          <Stack.Screen
-            name="Player"
-            component={TikTokPlayerScreen}
-            options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
-          />
-          <Stack.Screen name="ForYou" component={ForYouScreen} />
-          <Stack.Screen name="Trending" component={TrendingScreen} />
-          <Stack.Screen name="Library" component={SimplePlaceholderScreen} />
-          <Stack.Screen name="Boosters" component={SimplePlaceholderScreen} />
-          <Stack.Screen name="Community" component={SimplePlaceholderScreen} />
-          <Stack.Screen name="Upload" component={SimplePlaceholderScreen} />
-          <Stack.Screen name="Premium" component={SimplePlaceholderScreen} />
-          <Stack.Screen name="Meteo" component={SimplePlaceholderScreen} />
-        </>
-      )}
+      <Stack.Screen name="Main" component={BottomTabs} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
+      <Stack.Screen
+        name="Player"
+        component={TikTokPlayerScreen}
+        options={{ presentation: 'modal', animation: 'slide_from_bottom' }}
+      />
+      <Stack.Screen name="ForYou" component={ForYouScreen} />
+      <Stack.Screen name="Trending" component={TrendingScreen} />
+      <Stack.Screen name="Library" component={SimplePlaceholderScreen} />
+      <Stack.Screen name="Boosters" component={SimplePlaceholderScreen} />
+      <Stack.Screen name="Community" component={SimplePlaceholderScreen} />
+      <Stack.Screen name="Upload" component={SimplePlaceholderScreen} />
+      <Stack.Screen name="Premium" component={SimplePlaceholderScreen} />
+      <Stack.Screen name="Meteo" component={SimplePlaceholderScreen} />
     </Stack.Navigator>
   );
 }

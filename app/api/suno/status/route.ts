@@ -1,15 +1,13 @@
 // app/api/suno/status/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { normalizeSunoItem } from "@/lib/suno-normalize";
 
 const BASE = "https://api.sunoapi.org";
 
 export async function GET(req: NextRequest) {
   try {
-    // Vérification de l'authentification
-    const session = await getServerSession(authOptions);
+    const session = await getApiSession(req);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Non authentifié" }, { status: 401 });
     }

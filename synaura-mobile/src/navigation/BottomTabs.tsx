@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
 import SearchScreen from '../screens/SearchScreen';
 import StudioScreen from '../screens/StudioScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 import { Text, View } from 'react-native';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
@@ -74,7 +75,7 @@ export function BottomTabs() {
         />
         <Tab.Screen
           name="Profile"
-          children={() => <Placeholder title="Profil" />}
+          component={ProfileScreen}
           options={{
             tabBarIcon: ({ color, size, focused }) => (
               <Ionicons name={focused ? 'person' : 'person-outline'} size={size} color={color} />

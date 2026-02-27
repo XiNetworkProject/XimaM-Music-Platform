@@ -148,6 +148,7 @@ class ApiService {
 
       if (this.token) {
         headers['Authorization'] = `Bearer ${this.token}`;
+        headers['X-Auth-Token'] = this.token; // fallback si un proxy enlève Authorization
       }
 
       const res = await fetch(url, { ...options, headers });
@@ -196,6 +197,15 @@ class ApiService {
     );
     if (!r.success) return r;
     return { success: true, data: r.data.data };
+  }
+
+  async getCountUsers(): Promise<ApiResponse<{ userCount: number; maxUsers: number; canRegister: boolean; remainingSlots: number }>> {
+    return this.request('/api/auth/count-users', { method: 'GET' });
+  }
+
+  /** Diagnostic : voir si le serveur reçoit et accepte le token (GET /api/auth/mobile/debug). */
+  async getAuthDebug(): Promise<ApiResponse<{ received?: { authorization?: boolean; xAuthToken?: boolean; query?: boolean }; tokenLength?: number; verify?: string; error?: string; userId?: string }>> {
+    return this.request<any>('/api/auth/mobile/debug', { method: 'GET' });
   }
 
   // ===== TRACKS =====
@@ -272,7 +282,129 @@ class ApiService {
     const qs = `query=${encodeURIComponent(query)}&filter=${encodeURIComponent(filter)}&limit=${encodeURIComponent(String(limit))}`;
     return this.request<SearchResponse>(`/api/search?${qs}`, { method: 'GET' });
   }
+
+  // ===== STUDIO IA =====
+  /** POST avec token dans le body pour éviter 401 quand les headers sont supprimés (proxy/CDN). */
+  async getAICredits(accessToken?: string | null): Promise<ApiResponse<{ balance: number }>> {
+    const t = accessToken ?? this.token;
+    if (t) {
+      return this.request<{ balance: number }>('/api/ai/credits', {
+        method: 'POST',
+        body: JSON.stringify({ accessToken: t }),
+      });
+    }
+    return this.request<{ balance: number }>('/api/ai/credits', { method: 'GET' });
+  }
+
+  async getAILibraryTracks(
+    limit = 100,
+    offset = 0,
+    search = '',
+    accessToken?: string | null
+  ): Promise<
+    ApiResponse<{ tracks: AILibraryTrack[]; pagination: { limit: number; offset: number; total: number } }>
+  > {
+    const t = accessToken ?? this.token;
+    if (t) {
+      return this.request<{ tracks: AILibraryTrack[]; pagination: { limit: number; offset: number; total: number } }>(
+        '/api/ai/library/tracks',
+        {
+          method: 'POST',
+          body: JSON.stringify({ accessToken: t, limit, offset, search }),
+        }
+      );
+    }
+    const qs = `limit=${limit}&offset=${offset}&search=${encodeURIComponent(search)}`;
+    return this.request<{ tracks: AILibraryTrack[]; pagination: { limit: number; offset: number; total: number } }>(
+      `/api/ai/library/tracks?${qs}`,
+      { method: 'GET' }
+    );
+  }
+
+  async startAIGeneration(body: {
+    customMode: boolean;
+    title?: string;
+    style?: string;
+    prompt?: string;
+    instrumental: boolean;
+    model?: string;
+  }): Promise<
+    ApiResponse<{
+      taskId: string;
+      credits?: { balance: number; debited?: number };
+      error?: string;
+      insufficientCredits?: boolean;
+      balance?: number;
+      required?: number;
+    }>
+  > {
+    return this.request<any>('/api/suno/generate', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  }
+
+  async getAIGenerationStatus(taskId: string): Promise<
+    ApiResponse<{ taskId: string; status: string; tracks?: Array<{ id: string; title?: string; audio?: string; stream?: string; image?: string; duration?: number }> }>
+  > {
+    return this.request<any>(`/api/suno/status?taskId=${encodeURIComponent(taskId)}`, { method: 'GET' });
+  }
+
+  /** Remix (upload-cover) : uploadUrl = URL publique de l’audio source (ex. piste de la bibliothèque). */
+  async startAIRemix(body: {
+    uploadUrl: string;
+    title?: string;
+    style?: string;
+    prompt?: string;
+    instrumental: boolean;
+    model?: string;
+    customMode?: boolean;
+    sourceDurationSec?: number;
+  }): Promise<
+    ApiResponse<{
+      taskId?: string;
+      credits?: { balance: number };
+      error?: string;
+      insufficientCredits?: boolean;
+    }>
+  > {
+    return this.request<any>('/api/suno/upload-cover', {
+      method: 'POST',
+      body: JSON.stringify({
+        uploadUrl: body.uploadUrl,
+        customMode: body.customMode !== false,
+        instrumental: body.instrumental,
+        title: body.title || 'Remix',
+        style: body.style || '',
+        prompt: body.prompt,
+        model: body.model || 'V4_5',
+        sourceDurationSec: body.sourceDurationSec,
+      }),
+    });
+  }
 }
+
+export type AILibraryTrack = {
+  id: string;
+  title: string;
+  audio_url: string;
+  stream_audio_url?: string;
+  image_url?: string;
+  duration?: number;
+  prompt?: string;
+  lyrics?: string;
+  model_name?: string;
+  tags?: string[];
+  created_at?: string;
+  generation?: {
+    id: string;
+    task_id?: string;
+    model?: string;
+    created_at?: string;
+    prompt?: string;
+    status?: string;
+  };
+};
 
 export const api = new ApiService();
 

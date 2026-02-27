@@ -1,6 +1,6 @@
-// src/screens/SignUpScreen.tsx
+// Inscription — aligné sur Synaura web (auth/signup)
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,498 +10,369 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-} from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
-import { useAuth } from "../contexts/AuthContext";
-import { SynauraSymbol } from "../components/SynauraLogo";
+  ScrollView,
+  Dimensions,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
+import { api } from '../services/api';
 
-type SignUpScreenProps = {
-  navigation: any;
-};
+const { width } = Dimensions.get('window');
 
-const SignUpScreen: React.FC<SignUpScreenProps> = ({ navigation }) => {
+type SignUpScreenProps = { navigation: any };
+
+export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const { signUp } = useAuth();
-  const [name, setName] = useState("");
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [errorText, setErrorText] = useState<string | null>(null);
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [userCount, setUserCount] = useState<{
+    userCount: number;
+    maxUsers: number;
+    canRegister: boolean;
+    remainingSlots: number;
+  } | null>(null);
 
-  const validate = () => {
-    if (!name.trim()) {
-      setErrorText("Le nom complet est requis.");
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const r = await api.getCountUsers();
+      if (!cancelled && r.success) setUserCount(r.data);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const validate = (): boolean => {
+    if (!name.trim()) { setError('Le nom est requis'); return false; }
+    if (!username.trim()) { setError("Le nom d'utilisateur est requis"); return false; }
+    if (username.trim().length < 3) { setError("Le nom d'utilisateur doit contenir au moins 3 caractères"); return false; }
+    if (!/^[a-zA-Z0-9_]+$/.test(username.trim())) {
+      setError("Le nom d'utilisateur ne peut contenir que des lettres, chiffres et underscores");
       return false;
     }
-    if (!username.trim()) {
-      setErrorText("Le nom d'utilisateur est requis.");
-      return false;
-    }
-    if (username.trim().length < 3) {
-      setErrorText(
-        "Le nom d'utilisateur doit contenir au moins 3 caractères."
-      );
-      return false;
-    }
-    if (!email.trim()) {
-      setErrorText("L'email est requis.");
-      return false;
-    }
-    if (!/\S+@\S+\.\S+/.test(email.trim())) {
-      setErrorText("Format d'email invalide.");
-      return false;
-    }
-    if (password.length < 6) {
-      setErrorText(
-        "Le mot de passe doit contenir au moins 6 caractères."
-      );
-      return false;
-    }
-    if (password !== confirm) {
-      setErrorText("Les mots de passe ne correspondent pas.");
-      return false;
-    }
+    if (!email.trim()) { setError("L'email est requis"); return false; }
+    if (!/\S+@\S+\.\S+/.test(email.trim())) { setError("Format d'email invalide"); return false; }
+    if (password.length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères'); return false; }
+    if (password !== confirmPassword) { setError('Les mots de passe ne correspondent pas'); return false; }
     return true;
   };
 
   const handleSignUp = async () => {
+    if (userCount && !userCount.canRegister) {
+      setError('Les inscriptions sont fermées. La limite de comptes a été atteinte.');
+      return;
+    }
     if (!validate()) return;
-
+    setError('');
     setIsLoading(true);
-    setErrorText(null);
-
     try {
       const r = await signUp({
-        name,
-        username,
-        email,
+        name: name.trim(),
+        username: username.trim().toLowerCase(),
+        email: email.trim().toLowerCase(),
         password,
       });
-      if (!r.ok) throw new Error(r.error);
-      // navigation gérée par App.tsx (switch automatique vers l'app quand user != null)
-    } catch (err: any) {
-      console.error("Erreur signup mobile:", err);
-      setErrorText(err?.message || "Impossible de créer le compte.");
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      navigation.navigate('Login', {
+        message: 'Inscription réussie ! Vous pouvez maintenant vous connecter.',
+      });
+    } catch (e: any) {
+      setError(e?.message || "Erreur lors de l'inscription");
     } finally {
       setIsLoading(false);
     }
   };
 
+  const canSubmit = userCount?.canRegister !== false && !isLoading;
+
   return (
-    <LinearGradient
-      colors={["#020017", "#05010b"]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.screen}
-    >
+    <View style={styles.screen}>
+      <LinearGradient colors={['#020017', '#05010b']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.backgroundGrid} />
       <View style={styles.glowTop} />
       <View style={styles.glowBottom} />
 
       <KeyboardAvoidingView
         style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.logoWrapper}>
-            <LinearGradient
-              colors={["#22d3ee", "#e879f9", "#a855f7"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={[styles.logoGradient, { alignItems: "center", justifyContent: "center" }]}
-            >
-              <SynauraSymbol size={26} />
-            </LinearGradient>
-          </View>
-          <View style={styles.headerTextBlock}>
-            <Text style={styles.headerLabel}>Synaura</Text>
-            <Text style={styles.headerTitle}>Créer ton compte</Text>
-            <Text style={styles.headerSubtitle}>
-              Un profil unique pour ton lecteur, le studio IA et la communauté.
-            </Text>
-          </View>
-        </View>
-
-        {/* Carte signup */}
-        <View style={styles.card}>
-          {/* Haut de carte */}
-          <View style={styles.cardTopRow}>
-            <Pressable
-              onPress={() => navigation.goBack()}
-              style={styles.backBtn}
-            >
-              <Ionicons name="chevron-back" size={16} color="#cbd5f5" />
-              <Text style={styles.backText}>Retour</Text>
-            </Pressable>
-            <Text style={styles.smallText}>
-              Déjà un compte ?{" "}
-              <Text
-                style={styles.linkText}
-                onPress={() => navigation.replace("Login")}
-              >
-                Se connecter
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.card}>
+            <View style={styles.cardTopRow}>
+              <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
+                <Ionicons name="arrow-back" size={16} color="rgba(255,255,255,0.6)" />
+                <Text style={styles.backText}>Retour à l'accueil</Text>
+              </Pressable>
+              <Text style={styles.smallText}>
+                Déjà un compte ?{' '}
+                <Text style={styles.linkText} onPress={() => navigation.navigate('Login')}>Se connecter</Text>
               </Text>
+            </View>
+
+            <View style={styles.headerForm}>
+              <View style={styles.headerFormIcon}>
+                <LinearGradient colors={['#8b5cf6', '#d946ef']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.headerFormIconGrad}>
+                  <Ionicons name="musical-notes" size={18} color="#fff" />
+                </LinearGradient>
+              </View>
+              <Text style={styles.headerFormLabel}>Inscription</Text>
+              <Text style={styles.headerFormTitle}>Crée ton compte Synaura</Text>
+              <Text style={styles.headerFormSubtitle}>Choisis ton pseudo, ton email et ton mot de passe pour commencer.</Text>
+            </View>
+
+            {userCount && !userCount.canRegister ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={20} color="#fca5a5" />
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.errorText, { fontWeight: '600' }]}>Inscriptions fermées</Text>
+                  <Text style={[styles.errorText, { fontSize: 12, marginTop: 2 }]}>
+                    La limite de {userCount.maxUsers} comptes a été atteinte pour le moment.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {userCount && userCount.canRegister ? (
+              <View style={styles.userCountBar}>
+                <Ionicons name="people-outline" size={16} color="rgba(255,255,255,0.75)" />
+                <Text style={styles.userCountBarText}>
+                  {userCount.userCount}/{userCount.maxUsers} comptes créés
+                  {userCount.remainingSlots > 0 ? ` · ${userCount.remainingSlots} places restantes` : ''}
+                </Text>
+              </View>
+            ) : null}
+
+            {error ? (
+              <View style={styles.errorBox}>
+                <Ionicons name="alert-circle" size={20} color="#fca5a5" />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Nom complet</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="person-outline" size={20} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                <TextInput
+                  value={name}
+                  onChangeText={(t) => { setName(t); setError(''); }}
+                  placeholder="Votre nom complet"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Nom d'utilisateur</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="at-outline" size={20} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                <TextInput
+                  value={username}
+                  onChangeText={(t) => { setUsername(t); setError(''); }}
+                  placeholder="nom_utilisateur"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Email</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="mail-outline" size={20} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                <TextInput
+                  value={email}
+                  onChangeText={(t) => { setEmail(t); setError(''); }}
+                  placeholder="vous@example.com"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+              </View>
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Mot de passe</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={20} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                <TextInput
+                  value={password}
+                  onChangeText={(t) => { setPassword(t); setError(''); }}
+                  placeholder="••••••••"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  secureTextEntry={!showPassword}
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+                <Pressable onPress={() => setShowPassword((p) => !p)} hitSlop={12}>
+                  <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+              </View>
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>Confirmer le mot de passe</Text>
+              <View style={styles.inputWrapper}>
+                <Ionicons name="lock-closed-outline" size={20} color="rgba(255,255,255,0.5)" style={styles.inputIcon} />
+                <TextInput
+                  value={confirmPassword}
+                  onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
+                  placeholder="••••••••"
+                  placeholderTextColor="rgba(255,255,255,0.5)"
+                  secureTextEntry={!showConfirm}
+                  editable={!isLoading}
+                  style={styles.textInput}
+                />
+                <Pressable onPress={() => setShowConfirm((p) => !p)} hitSlop={12}>
+                  <Ionicons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={20} color="rgba(255,255,255,0.6)" />
+                </Pressable>
+              </View>
+            </View>
+
+            <Pressable
+              disabled={!canSubmit}
+              onPress={handleSignUp}
+              style={({ pressed }) => [
+                styles.submitBtn,
+                pressed && canSubmit && { opacity: 0.95 },
+                !canSubmit && styles.submitBtnDisabled,
+              ]}
+            >
+              <LinearGradient
+                colors={['#8b5cf6', '#d946ef', '#22d3ee']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.submitGradient}
+              >
+                {isLoading ? (
+                  <View style={styles.submitInner}>
+                    <ActivityIndicator color="#fff" size="small" />
+                    <Text style={styles.submitText}>Création du compte...</Text>
+                  </View>
+                ) : userCount && !userCount.canRegister ? (
+                  <Text style={styles.submitText}>Inscriptions fermées</Text>
+                ) : (
+                  <Text style={styles.submitText}>Créer mon compte</Text>
+                )}
+              </LinearGradient>
+            </Pressable>
+
+            <Text style={styles.legalText}>
+              En créant un compte, vous acceptez nos conditions d'utilisation et notre politique de confidentialité.
             </Text>
           </View>
-
-          {/* Erreur */}
-          {errorText && (
-            <View style={styles.errorBox}>
-              <Ionicons
-                name="warning-outline"
-                size={18}
-                color="#fecaca"
-                style={{ marginRight: 6 }}
-              />
-              <Text style={styles.errorText}>{errorText}</Text>
-            </View>
-          )}
-
-          {/* Nom */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Nom complet</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="person-outline"
-                size={18}
-                color="#94a3b8"
-                style={{ marginRight: 6 }}
-              />
-              <TextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Votre nom complet"
-                placeholderTextColor="#64748b"
-                style={styles.textInput}
-              />
-            </View>
-          </View>
-
-          {/* Username */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Nom d'utilisateur</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="at-outline"
-                size={18}
-                color="#94a3b8"
-                style={{ marginRight: 6 }}
-              />
-              <TextInput
-                value={username}
-                onChangeText={setUsername}
-                placeholder="nom_utilisateur"
-                autoCapitalize="none"
-                placeholderTextColor="#64748b"
-                style={styles.textInput}
-              />
-            </View>
-          </View>
-
-          {/* Email */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="mail-outline"
-                size={18}
-                color="#94a3b8"
-                style={{ marginRight: 6 }}
-              />
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="vous@example.com"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                placeholderTextColor="#64748b"
-                style={styles.textInput}
-              />
-            </View>
-          </View>
-
-          {/* Mot de passe */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Mot de passe</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={18}
-                color="#94a3b8"
-                style={{ marginRight: 6 }}
-              />
-              <TextInput
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••••"
-                secureTextEntry={!showPassword}
-                placeholderTextColor="#64748b"
-                style={styles.textInput}
-              />
-              <Pressable
-                onPress={() => setShowPassword((p) => !p)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons
-                  name={showPassword ? "eye-off-outline" : "eye-outline"}
-                  size={18}
-                  color="#cbd5f5"
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Confirmation */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>Confirmer le mot de passe</Text>
-            <View style={styles.inputWrapper}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={18}
-                color="#94a3b8"
-                style={{ marginRight: 6 }}
-              />
-              <TextInput
-                value={confirm}
-                onChangeText={setConfirm}
-                placeholder="••••••••"
-                secureTextEntry={!showConfirm}
-                placeholderTextColor="#64748b"
-                style={styles.textInput}
-              />
-              <Pressable
-                onPress={() => setShowConfirm((p) => !p)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons
-                  name={showConfirm ? "eye-off-outline" : "eye-outline"}
-                  size={18}
-                  color="#cbd5f5"
-                />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Bouton inscription */}
-          <Pressable
-            disabled={isLoading}
-            style={({ pressed }) => [
-              styles.submitBtn,
-              pressed && !isLoading && { transform: [{ scale: 0.97 }] },
-              isLoading && { opacity: 0.7 },
-            ]}
-            onPress={handleSignUp}
-          >
-            <LinearGradient
-              colors={["#8b5cf6", "#ec4899", "#22d3ee"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.submitGradient}
-            >
-              {isLoading ? (
-                <View style={styles.submitInnerRow}>
-                  <ActivityIndicator color="#f9fafb" size="small" />
-                  <Text style={styles.submitText}>Création du compte...</Text>
-                </View>
-              ) : (
-                <View style={styles.submitInnerRow}>
-                  <Ionicons name="person-add-outline" size={18} color="#f9fafb" />
-                  <Text style={styles.submitText}>Créer mon compte</Text>
-                </View>
-              )}
-            </LinearGradient>
-          </Pressable>
-
-          {/* Légal */}
-          <Text style={styles.legalText}>
-            En créant un compte, tu acceptes les{" "}
-            <Text style={styles.linkText}>conditions d'utilisation</Text> et la{" "}
-            <Text style={styles.linkText}>politique de confidentialité</Text>{" "}
-            de Synaura.
-          </Text>
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
-    </LinearGradient>
+    </View>
   );
-};
-
-export default SignUpScreen;
+}
 
 const styles = StyleSheet.create({
-  // même style de base que LoginScreen
-  screen: {
-    flex: 1,
-  },
-  container: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 24,
-    justifyContent: "center",
-  },
+  screen: { flex: 1, backgroundColor: '#020017' },
+  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 16, paddingVertical: 24, paddingBottom: 40 },
+  backgroundGrid: { position: 'absolute', inset: 0, opacity: 0.14, backgroundColor: 'transparent' },
   glowTop: {
-    position: "absolute",
+    position: 'absolute',
     top: -120,
     left: -80,
-    width: 220,
-    height: 220,
+    width: width * 0.8,
+    height: width * 0.8,
     borderRadius: 999,
-    backgroundColor: "rgba(139,92,246,0.6)",
+    backgroundColor: 'rgba(139,92,246,0.55)',
     opacity: 0.7,
   },
   glowBottom: {
-    position: "absolute",
+    position: 'absolute',
     bottom: -120,
     right: -80,
-    width: 220,
-    height: 220,
+    width: width * 0.8,
+    height: width * 0.8,
     borderRadius: 999,
-    backgroundColor: "rgba(56,189,248,0.6)",
+    backgroundColor: 'rgba(56,189,248,0.5)',
     opacity: 0.7,
-  },
-  header: {
-    marginBottom: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  logoWrapper: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: "#020617",
-    borderWidth: 1,
-    borderColor: "rgba(248,250,252,0.25)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logoGradient: {
-    width: 32,
-    height: 32,
-    borderRadius: 999,
-  },
-  headerTextBlock: {
-    flex: 1,
-  },
-  headerLabel: {
-    fontSize: 10,
-    color: "#9ca3af",
-    letterSpacing: 2.4,
-    textTransform: "uppercase",
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#e5e7eb",
-    marginTop: 4,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: "#cbd5f5",
-    marginTop: 4,
   },
   card: {
     borderRadius: 24,
-    backgroundColor: "rgba(15,23,42,0.9)",
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.45)",
-    paddingHorizontal: 18,
-    paddingVertical: 16,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    padding: 20,
   },
-  cardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
+  cardTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 },
+  backBtn: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  backText: { fontSize: 11, color: 'rgba(255,255,255,0.6)' },
+  smallText: { fontSize: 11, color: 'rgba(255,255,255,0.7)' },
+  linkText: { color: '#a78bfa', fontWeight: '600' },
+  headerForm: { marginBottom: 16 },
+  headerFormIcon: { marginBottom: 8 },
+  headerFormIconGrad: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  headerFormLabel: { fontSize: 11, letterSpacing: 2.4, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', marginBottom: 4 },
+  headerFormTitle: { fontSize: 22, fontWeight: '600', color: '#fff', marginBottom: 4 },
+  headerFormSubtitle: { fontSize: 13, color: 'rgba(255,255,255,0.65)' },
+  userCountBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    marginBottom: 12,
   },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  backText: {
-    fontSize: 11,
-    color: "#e5e7eb",
-  },
-  smallText: {
-    fontSize: 11,
-    color: "#cbd5f5",
-  },
-  linkText: {
-    color: "#a5b4fc",
-    fontWeight: "600",
-  },
+  userCountBarText: { fontSize: 12, color: 'rgba(255,255,255,0.75)' },
   errorBox: {
-    marginBottom: 10,
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    backgroundColor: "rgba(239,68,68,0.16)",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    backgroundColor: 'rgba(239,68,68,0.18)',
     borderWidth: 1,
-    borderColor: "rgba(248,113,113,0.7)",
-    flexDirection: "row",
-    alignItems: "center",
+    borderColor: 'rgba(248,113,113,0.7)',
+    marginBottom: 12,
   },
-  errorText: {
-    fontSize: 12,
-    color: "#fee2e2",
-    flex: 1,
-  },
-  fieldBlock: {
-    marginBottom: 10,
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: "500",
-    color: "#e5e7eb",
-    marginBottom: 4,
-  },
+  errorText: { fontSize: 14, color: '#fecaca', flex: 1 },
+  fieldBlock: { marginBottom: 12 },
+  label: { fontSize: 14, fontWeight: '500', color: 'rgba(255,255,255,0.9)', marginBottom: 6 },
   inputWrapper: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.7)",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: "rgba(15,23,42,0.95)",
+    borderColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
   },
-  textInput: {
-    flex: 1,
-    fontSize: 14,
-    color: "#e5e7eb",
-  },
-  submitBtn: {
-    marginTop: 4,
-    borderRadius: 16,
-    overflow: "hidden",
-  },
-  submitGradient: {
-    borderRadius: 16,
-  },
-  submitInnerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  submitText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#f9fafb",
-  },
-  legalText: {
-    fontSize: 11,
-    color: "#9ca3af",
-    marginTop: 10,
-    textAlign: "center",
-  },
+  inputIcon: { marginRight: 10 },
+  textInput: { flex: 1, fontSize: 15, color: '#fff' },
+  submitBtn: { marginTop: 8, borderRadius: 14, overflow: 'hidden' },
+  submitBtnDisabled: { opacity: 0.6 },
+  submitGradient: { paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  submitInner: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  submitText: { fontSize: 15, fontWeight: '600', color: '#fff' },
+  legalText: { fontSize: 11, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 16 },
 });
-
