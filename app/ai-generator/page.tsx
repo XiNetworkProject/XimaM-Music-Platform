@@ -280,10 +280,18 @@ export default function AIGenerator() {
   const remixSectionRef = useRef<HTMLDivElement | null>(null);
   const cmdInputRef = useRef<HTMLInputElement | null>(null);
 
-  // --- Layout resizable (desktop) ---
+  // --- Layout resizable (desktop) ; sur mobile (web) panneaux en pleine largeur ---
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [leftPx, setLeftPx] = useState(460);
   const [rightPx, setRightPx] = useState(360);
+  const [isDesktopLayout, setIsDesktopLayout] = useState(typeof window !== 'undefined' ? window.innerWidth >= 1024 : true);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const on = () => setIsDesktopLayout(mq.matches);
+    mq.addEventListener('change', on);
+    on();
+    return () => mq.removeEventListener('change', on);
+  }, []);
   const dragRef = useRef<{ mode: 'left' | 'right' | null; startX: number; startLeft: number; startRight: number }>({
     mode: null,
     startX: 0,
@@ -2729,8 +2737,8 @@ export default function AIGenerator() {
         <div ref={containerRef} className="grid grid-cols-12 gap-3 lg:flex lg:items-stretch lg:gap-3">
           {/* LEFT PANEL: Generator / Remixer — sur mobile visible quand onglet "Générer" */}
           <aside
-            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}
-            style={{ width: leftPx }}
+            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
+            style={isDesktopLayout ? { width: leftPx } : { width: '100%', maxWidth: '100%' }}
           >
             <div className="flex-1 overflow-y-auto pr-1 space-y-3 pb-24 lg:pb-0">
               {shellMode === 'ide' && (

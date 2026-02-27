@@ -762,6 +762,13 @@ const WelcomeHeader = ({
 
       {/* Actions mini (mobile) */}
       <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1 md:hidden">
+        <button
+          onClick={() => onGo("/ai-generator")}
+          className="h-10 px-4 rounded-xl bg-gradient-to-r from-purple-500/25 to-pink-500/25 hover:from-purple-500/35 hover:to-pink-500/35 border border-purple-500/30 text-white transition text-sm font-medium inline-flex items-center gap-2 whitespace-nowrap shrink-0"
+        >
+          <Sparkles className="w-4 h-4" />
+          Studio IA
+        </button>
         {!session ? (
           <>
             <button

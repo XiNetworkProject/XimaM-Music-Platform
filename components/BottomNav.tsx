@@ -41,7 +41,7 @@ export default function BottomNav() {
     setIsClient(true);
   }, []);
 
-  // Navigation principale - 4 éléments essentiels
+  // Navigation principale - max 5 boutons (Accueil, Découvrir, Upload, Bibliothèque, Plus)
   const mainNavItems = [
     {
       icon: Home,
@@ -279,6 +279,21 @@ export default function BottomNav() {
                   <div className="bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--border)] rounded-t-2xl p-4">
                     <div className="mx-auto max-w-md">
                       <div className="h-1.5 w-12 rounded-full bg-white/15 mx-auto mb-4" />
+                      {/* Studio IA en avant — accès rapide sans prendre une place dans la barre */}
+                      <button
+                        onClick={() => {
+                          router.push('/ai-generator', { scroll: false });
+                          setShowMoreMenu(false);
+                        }}
+                        className={`w-full flex items-center justify-center gap-3 rounded-xl px-4 py-3.5 mb-4 transition-all ${
+                          pathname?.startsWith('/ai-generator')
+                            ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-200 ring-1 ring-purple-500/50'
+                            : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white ring-1 ring-white/10'
+                        }`}
+                      >
+                        <Sparkles className="w-5 h-5 shrink-0" />
+                        <span className="font-semibold text-sm">Studio IA</span>
+                      </button>
                       <div className="grid grid-cols-3 gap-3">
                         {secondaryNavItems.map((item) => (
                           <button
