@@ -5,7 +5,6 @@ import {
   Clock3,
   Command,
   Coins,
-  FolderOpen,
   History,
   Library,
   ListMusic,
@@ -61,7 +60,7 @@ export default function StudioClient() {
 
   const [showBuyCredits, setShowBuyCredits] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
-  const [projectNameInput, setProjectNameInput] = useState('Mon projet');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [shellMode, setShellMode] = useState<'ide' | 'classic'>('ide');
   const [leftExplorerTab, setLeftExplorerTab] = useState<'builder' | 'presets' | 'assets' | 'history'>('builder');
   const [assetQuery, setAssetQuery] = useState('');
@@ -69,9 +68,6 @@ export default function StudioClient() {
   const searchRef = useRef<HTMLInputElement | null>(null);
   const cmdInputRef = useRef<HTMLInputElement | null>(null);
 
-  const projects = useStudioStore((s) => s.projects);
-  const activeProjectId = useStudioStore((s) => s.activeProjectId);
-  const renameProject = useStudioStore((s) => s.renameProject);
   const setUI = useStudioStore((s) => s.setUI);
   const ui = useStudioStore((s) => s.ui);
   const setForm = useStudioStore((s) => s.setForm);
@@ -84,15 +80,6 @@ export default function StudioClient() {
 
   const { creditsBalance, setCreditsBalance, libraryLoading, libraryError, loadLibraryTracks, visibleTracks } =
     useStudioLibrary();
-
-  const activeProject = useMemo(
-    () => (projects || []).find((p) => p.id === activeProjectId) || null,
-    [projects, activeProjectId]
-  );
-
-  useEffect(() => {
-    setProjectNameInput(activeProject?.name || 'Mon projet');
-  }, [activeProject?.name]);
 
   useEffect(() => {
     try {
@@ -236,15 +223,13 @@ export default function StudioClient() {
     [playTrack, pushLog, visibleTracks]
   );
 
-  const applyProjectRename = useCallback(() => {
-    if (!activeProjectId) return;
-    const next = projectNameInput.trim();
-    if (!next) return;
-    renameProject(activeProjectId, next);
-  }, [activeProjectId, projectNameInput, renameProject]);
-
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setSettingsOpen(false);
+        setCmdOpen(false);
+        return;
+      }
       const isMac = navigator.platform.toLowerCase().includes('mac');
       const mod = isMac ? e.metaKey : e.ctrlKey;
       if (mod && e.key.toLowerCase() === 'k') {
@@ -252,7 +237,6 @@ export default function StudioClient() {
         setCmdOpen(true);
         setTimeout(() => cmdInputRef.current?.focus(), 0);
       }
-      if (e.key === 'Escape') setCmdOpen(false);
       if (e.key === ' ' && (e.target as HTMLElement)?.tagName !== 'INPUT' && (e.target as HTMLElement)?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         if (audioState.isPlaying) pause();
@@ -285,23 +269,6 @@ export default function StudioClient() {
             </div>
 
             <div className="h-6 w-px bg-border-secondary mx-1 hidden md:block" />
-
-            <button className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white" title="Ouvrir projet">
-              <FolderOpen className="h-4 w-4" />
-            </button>
-            <input
-              value={projectNameInput}
-              onChange={(e) => setProjectNameInput(e.target.value)}
-              onBlur={applyProjectRename}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  applyProjectRename();
-                  (e.currentTarget as HTMLInputElement).blur();
-                }
-              }}
-              className="min-w-[160px] max-w-[360px] w-full md:w-auto rounded-xl border border-border-secondary bg-white/[0.04] px-3 py-1.5 text-sm outline-none focus:border-white/20"
-              placeholder="Nom du projet"
-            />
 
             <div className="ml-auto flex items-center gap-1">
               <button onClick={() => previousTrack()} className="rounded-xl p-2 text-white/70 hover:bg-white/10">
@@ -352,10 +319,15 @@ export default function StudioClient() {
               Générer
             </button>
 
-            <button onClick={() => setShowBuyCredits(true)} className="rounded-xl p-2 text-white/70 hover:bg-white/10">
+            <button onClick={() => setShowBuyCredits(true)} className="rounded-xl p-2 text-white/70 hover:bg-white/10" title="Acheter des crédits">
               <Sparkles className="h-4 w-4" />
             </button>
-            <button className="rounded-xl p-2 text-white/70 hover:bg-white/10">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
+              title="Paramètres"
+              aria-label="Paramètres"
+            >
               <Settings className="h-4 w-4" />
             </button>
             <div className="hidden md:flex items-center gap-1 rounded-xl border border-border-secondary bg-white/[0.04] p-1">
@@ -595,6 +567,58 @@ export default function StudioClient() {
           <Inspector onGenerateVariantFromTrack={generateVariantFromTrack} />
         </div>
       </DrawerInspector>
+
+      {/* Paramètres */}
+      {settingsOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setSettingsOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f14] shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+              <h2 className="text-base font-semibold text-white">Paramètres</h2>
+              <button
+                onClick={() => setSettingsOpen(false)}
+                className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
+                aria-label="Fermer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="p-4 space-y-4">
+              <div>
+                <div className="text-xs font-medium text-white/60 mb-2">Mode interface</div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShellMode('classic')}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium ${shellMode === 'classic' ? 'bg-white text-black' : 'bg-white/10 text-white/80 hover:bg-white/15'}`}
+                  >
+                    Classic
+                  </button>
+                  <button
+                    onClick={() => setShellMode('ide')}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium ${shellMode === 'ide' ? 'bg-white text-black' : 'bg-white/10 text-white/80 hover:bg-white/15'}`}
+                  >
+                    IDE
+                  </button>
+                </div>
+                <p className="mt-1.5 text-[11px] text-white/50">Classic : panneau unique. IDE : explorateur, onglets, timeline.</p>
+              </div>
+              <div>
+                <div className="text-xs font-medium text-white/60 mb-2">Raccourcis clavier</div>
+                <ul className="text-xs text-white/70 space-y-1.5">
+                  <li className="flex justify-between gap-4"><span>Palette de commandes</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Ctrl+K</kbd></li>
+                  <li className="flex justify-between gap-4"><span>Lecture / Pause</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Espace</kbd></li>
+                  <li className="flex justify-between gap-4"><span>Fermer (palette / modale)</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Échap</kbd></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Command palette */}
       {cmdOpen && (

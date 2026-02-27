@@ -150,18 +150,22 @@ const QUOTA_PLANS = {
 ## 🔧 **API Endpoints**
 
 ### **Génération**
+Le flux principal (page ai-generator) utilise :
 ```typescript
-POST /api/ai/generate
+POST /api/suno/generate
 {
   prompt: string,
-  duration: number,
-  style?: string,
+  customMode?: boolean,
   title?: string,
-  lyrics?: string,
-  isInstrumental?: boolean,
-  model?: string
+  style?: string,
+  instrumental: boolean,
+  model?: string,
+  durationHint?: string,
+  ...
 }
+// Callback Suno : NEXTAUTH_URL + /api/suno/callback
 ```
+*(Une route alternative existe : `POST /api/ai/generate`.)*
 
 ### **Quota**
 ```typescript

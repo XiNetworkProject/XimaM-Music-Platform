@@ -20,15 +20,19 @@ generateMusic(params)        // Génération
 ```
 
 ### 2. **API Routes**
-- `app/api/suno/status/route.ts` - Polling des statuts
-- `app/api/suno/callback/route.ts` - Webhooks Suno
-- `app/api/ai/generate/route.ts` - Génération (mis à jour)
+- `app/api/suno/status/route.ts` - Polling des statuts (record-info)
+- `app/api/suno/callback/route.ts` - Webhooks Suno (URL enregistrée auprès de Suno)
+- `app/api/suno/generate/route.ts` - Génération (crédits, mode Simple/Custom, callback URL)
+- `app/api/ai/generate/route.ts` - Route alternative / legacy
 
-### 3. **Hook Frontend** (`hooks/useSunoWaiter.ts`)
+### 3. **Hook Frontend** (`hooks/useBackgroundGeneration.ts`)
+Le flux principal (page ai-generator) utilise :
 ```typescript
-const { state, tracks, error } = useSunoWaiter(taskId);
-// state: "idle" | "pending" | "first" | "success" | "error"
+const { generations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
+// Statuts : "pending" | "first" | "completed" | "failed"
+// Polling automatique + sauvegarde via save-tracks au complete
 ```
+*(Le hook `useSunoWaiter.ts` existe aussi pour un suivi plus simple si besoin.)*
 
 ### 4. **Interface Utilisateur** (`app/ai-generator/page.tsx`)
 - ✅ Affichage en temps réel des statuts
@@ -54,35 +58,34 @@ NEXTAUTH_URL=http://localhost:3000  # Pour les webhooks
 
 ### 1. **Initiation**
 ```typescript
-// Frontend
-const response = await fetch('/api/ai/generate', {
+// Frontend (ai-generator) appelle /api/suno/generate
+const response = await fetch('/api/suno/generate', {
   method: 'POST',
-  body: JSON.stringify({ prompt, model, ... })
+  body: JSON.stringify({ prompt, model, customMode, title, style, instrumental, ... })
 });
 const { taskId } = await response.json();
+// Callback Suno configuré : NEXTAUTH_URL + /api/suno/callback
 ```
 
 ### 2. **Suivi en Temps Réel**
 ```typescript
-// Hook automatique
-const { state, tracks } = useSunoWaiter(taskId);
-
-// États possibles :
-// - "pending" : Génération en cours
-// - "first"   : Première piste terminée
-// - "success" : Génération complète
-// - "error"   : Erreur
+// useBackgroundGeneration : polling /api/suno/status?taskId=...
+// États : "pending" | "first" (première piste) | "completed" | "failed"
+// Les tracks live (latestTracks) sont affichées ; après "complete", la liste
+// est synchronisée avec la bibliothèque (URL finale audio_url prioritaire).
 ```
 
 ### 3. **Récupération des Musiques**
 ```typescript
-// Tracks disponibles
+// Tracks normalisées (lib/suno-normalize) : audio (final), stream (30–40s)
+// En base : persistance uniquement au callback "complete" (aiGenerationService).
+// Côté UI : audioUrl = audio_url en priorité une fois dispo pour téléchargement/liste.
 tracks.forEach(track => {
-  console.log(track.audioUrl);      // URL de téléchargement
-  console.log(track.streamAudioUrl); // URL de streaming
-  console.log(track.imageUrl);      // Image de couverture
-  console.log(track.title);         // Titre
-  console.log(track.duration);      // Durée
+  console.log(track.audio);    // URL finale (2–3 min)
+  console.log(track.stream);   // Stream (30–40 s)
+  console.log(track.image);    // Cover
+  console.log(track.title);
+  console.log(track.duration);
 });
 ```
 
@@ -136,8 +139,8 @@ node scripts/test-suno-integration.js
 ```
 
 ### Endpoints de test
-- `GET /api/suno/status?taskId=...` - Test polling
-- `POST /api/suno/callback` - Test webhook
+- `GET /api/suno/status?taskId=...` - Polling (record-info Suno), utilisé par le front
+- `POST /api/suno/callback` - Webhook Suno (reçoit "first" puis "complete")
 
 ## 🎵 **Utilisation**
 
@@ -164,13 +167,20 @@ node scripts/test-suno-integration.js
 }
 ```
 
-## 🔮 **Prochaines Améliorations**
+## 🔮 **État actuel et améliorations possibles**
 
-1. **Persistance** : Sauvegarder les générations en base
-2. **Téléchargement** : Archiver les fichiers audio
-3. **Cache** : Mise en cache des générations
-4. **Analytics** : Statistiques d'utilisation
-5. **Batch** : Génération en lot
+**Déjà en place :**
+- ✅ **Persistance** : Sauvegarde en base au callback "complete" (`/api/suno/callback` + `aiGenerationService`)
+- ✅ **Téléchargement** : Bouton télécharger (URL finale prioritaire après complete)
+- ✅ **Bibliothèque** : `/ai-library`, recherche, filtres, lecture
+- ✅ **URLs** : Priorité à `audio_url` (final) sur `stream_audio_url` après complétion
+
+**Améliorations possibles :**
+1. **Cache** : Mise en cache des générations côté client (déjà partiel via localStorage pour les jobs en cours)
+2. **Analytics** : Statistiques d'utilisation détaillées (temps moyen, taux succès par modèle)
+3. **Batch** : Génération en lot (plusieurs tâches d’affilée)
+4. **Lyrics / paroles** : Endpoints `generate-lyrics` et `timestamped-lyrics` déjà présents ; vérifier doc et UX
+5. **Remix / cover** : `upload-cover` utilisé ; documenter le flux Remix
 
 ## ✅ **Checklist de Déploiement**
 

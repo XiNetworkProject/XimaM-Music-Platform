@@ -25,6 +25,7 @@ import { notify } from '@/components/NotificationCenter';
 import BottomNav from '@/components/BottomNav';
 import { getEntitlements } from '@/lib/entitlements';
 import { MUSIC_GENRES } from '@/lib/genres';
+import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
 
 interface UploadFormData {
   title: string;
@@ -178,7 +179,6 @@ const uploadToCloudinary = async (file: File, resourceType: 'video' | 'image' = 
 // Composant Waveform réelle avec seek
 function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: { audioFile: File | null; currentTime?: number; duration?: number; onSeek?: (time: number) => void }) {
   const [waveformData, setWaveformData] = useState<number[]>([]);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!audioFile) return;
@@ -221,41 +221,18 @@ function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: {
     generateWaveform();
   }, [audioFile]);
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (!onSeek || duration === 0) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const progress = x / rect.width;
-    const newTime = progress * duration;
-    onSeek(Math.max(0, Math.min(duration, newTime)));
-  };
-
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const progress = duration > 0 ? currentTime / duration : 0;
 
   return (
-    <div className="relative h-12 w-full text-foreground-secondary cursor-pointer" onClick={handleClick}>
-      <div className="absolute inset-x-6 inset-y-0">
-        <div className="absolute inset-y-0 left-0 w-full overflow-clip rounded-2xl border border-border-secondary bg-background-tertiary">
-          <svg className="absolute inset-0 h-full w-full" viewBox="0 0 200 32" preserveAspectRatio="none" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <path d={waveformData.map((amp, i) => {
-              const x = (i / 200) * 200;
-              const y1 = 16 - (amp * 12);
-              const y2 = 16 + (amp * 12);
-              return `M${x} ${y1}l0 ${y2 - y1}`;
-            }).join('')} />
-          </svg>
-          {/* Barre de progression */}
-          <div 
-            className="absolute inset-y-0 left-0 bg-overlay-on-primary/25 rounded-2xl"
-            style={{ width: `${progress}%` }}
-          />
-          {/* Curseur de position */}
-          <div 
-            className="absolute inset-y-0 w-0.5 bg-foreground-primary rounded-full"
-            style={{ left: `${progress}%` }}
-          />
-        </div>
-      </div>
+    <div className="w-full max-w-full px-6">
+      <SynauraWaveform
+        waveformData={waveformData}
+        progress={progress}
+        onSeek={(ratio) => duration > 0 && onSeek?.(ratio * duration)}
+        variant="upload"
+        heightClass="h-12"
+        idPrefix="upload-wave"
+      />
     </div>
   );
 }

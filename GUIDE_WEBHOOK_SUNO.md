@@ -28,10 +28,11 @@ Exécutez le script de migration pour ajouter le champ `task_id` :
 
 ### **URL de Callback**
 
-L'URL de callback est automatiquement configurée dans l'API :
+L'URL de callback utilisée par l'application est configurée dans `app/api/suno/generate/route.ts` :
 ```
-https://votre-domaine.com/api/ai/webhook
+https://votre-domaine.com/api/suno/callback
 ```
+*(L'endpoint `/api/ai/webhook` existe encore mais n'est pas utilisé par le flux actuel ; le traitement principal et la persistance des tracks se font via `/api/suno/callback`.)*
 
 ### **Structure du Webhook**
 
@@ -105,10 +106,10 @@ NEXTAUTH_URL=https://abc123.ngrok.io
 ### **2. Test de Connectivité**
 
 ```bash
-# Tester l'endpoint webhook
-curl -X POST https://votre-domaine.com/api/ai/webhook \
+# Tester l'endpoint callback Suno (réponse attendue si body invalide: 400 task_id manquant)
+curl -X POST https://votre-domaine.com/api/suno/callback \
   -H "Content-Type: application/json" \
-  -d '{"test": "webhook"}'
+  -d '{"data":{"task_id":"test"}}'
 ```
 
 ## 🔍 Monitoring

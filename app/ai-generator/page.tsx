@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Save, Send, Layers, Upload } from 'lucide-react';
+import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -22,6 +22,7 @@ import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
 import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO_PILL_SOLID, SUNO_PANEL } from '@/components/ui/sunoClasses';
 import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
+import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -41,6 +42,25 @@ type TimestampedWord = {
 };
 
 const makeId = () => Math.random().toString(36).slice(2, 10);
+
+/** Messages d'erreur Suno en français (doc: 400, 401, 404, 405, 413, 429, 430, 455, 500) */
+function getSunoErrorMessage(status: number, errJson: { error?: string; msg?: string }): string {
+  const custom = errJson?.error || errJson?.msg;
+  if (custom && typeof custom === 'string' && custom.trim()) return custom.trim();
+  const map: Record<number, string> = {
+    400: 'Paramètres invalides. Vérifiez titre, style et paroles.',
+    401: 'Session expirée. Reconnectez-vous.',
+    402: 'Crédits insuffisants. Ajoutez des crédits pour continuer.',
+    404: 'Service temporairement indisponible.',
+    405: 'Limite de requêtes dépassée. Réessayez plus tard.',
+    413: 'Texte trop long (titre, style ou paroles). Réduisez la taille.',
+    429: 'Crédits insuffisants. Ajoutez des crédits pour continuer.',
+    430: 'Trop de requêtes. Attendez quelques secondes avant de relancer.',
+    455: 'Suno est en maintenance. Réessayez dans quelques minutes.',
+    500: 'Erreur serveur. Réessayez dans un moment.',
+  };
+  return map[status] || `Erreur lors de la génération (${status}).`;
+}
 
 // Interface Track compatible avec le lecteur principal
 interface PlayerTrack {
@@ -165,7 +185,6 @@ export default function AIGenerator() {
   const { generations: bgGenerations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
   
   const [isGenerating, setIsGenerating] = useState(false);
-  const [projectName, setProjectName] = useState('Nouveau projet');
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
   const [sunoCredits, setSunoCredits] = useState<number | null>(null);
   const [showBuyCredits, setShowBuyCredits] = useState(false);
@@ -176,6 +195,9 @@ export default function AIGenerator() {
   const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const [sunoState, setSunoState] = useState<'idle' | 'pending' | 'first' | 'success' | 'error'>('idle');
   const [sunoError, setSunoError] = useState<string | null>(null);
+  /** Cooldown après 430 (rate limit): désactive le bouton Générer pendant quelques secondes */
+  const [rateLimitCooldownUntil, setRateLimitCooldownUntil] = useState<number>(0);
+  const [cooldownTick, setCooldownTick] = useState(0);
   const [generationModeKind, setGenerationModeKind] = useState<'simple' | 'custom' | 'remix'>('simple');
   const [customMode, setCustomMode] = useState(false);
   const [modelVersion, setModelVersion] = useState('V4_5');
@@ -225,6 +247,7 @@ export default function AIGenerator() {
   // Onglet mobile : Studio (complet) | Générer | Bibliothèque
   const [mobileTab, setMobileTab] = useState<'studio' | 'generate' | 'library'>('studio');
   const [shellMode, setShellMode] = useState<'ide' | 'classic'>('ide');
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
   const [cmdQuery, setCmdQuery] = useState('');
   const [cmdIndex, setCmdIndex] = useState(0);
@@ -732,7 +755,7 @@ export default function AIGenerator() {
       new Set([media.streamUrl, media.audioUrl].filter((u): u is string => Boolean(u && u !== playableUrl)))
     );
 
-    return {
+    const pt: PlayerTrack & { generationTaskId?: string; sunoAudioId?: string } = {
       _id: `ai-${track.id}`,
       title: track.title,
       artist: {
@@ -750,8 +773,11 @@ export default function AIGenerator() {
       likes: [],
       comments: [],
       // @ts-ignore - player Track accepte lyrics via providers
-      lyrics: (track.prompt || generation.prompt || '').trim()
+      lyrics: (track.prompt || generation.prompt || '').trim(),
     };
+    (pt as any).generationTaskId = generation?.task_id ?? '';
+    (pt as any).sunoAudioId = (track as any).suno_id || track.id;
+    return pt;
   };
 
   const hydrateTrackFromSuno = useCallback(async (track: AITrack, generation: AIGeneration) => {
@@ -968,6 +994,10 @@ export default function AIGenerator() {
     }
     const savedConsole = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.consoleCollapsed') : null;
     if (savedConsole === '1') setConsoleCollapsed(true);
+    const savedModel = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.defaultModel') : null;
+    if (savedModel === 'V5' || savedModel === 'V4_5PLUS' || savedModel === 'V4_5') setModelVersion(savedModel);
+    const savedDuration = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.defaultDuration') : null;
+    if (savedDuration === '60' || savedDuration === '120' || savedDuration === '180') setGenerationDuration(Number(savedDuration) as 60 | 120 | 180);
     const savedLeftPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftPx') : null;
     const savedRightPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.rightPx') : null;
     const savedLeftRatio = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftRatio') : null;
@@ -1015,6 +1045,16 @@ export default function AIGenerator() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    window.localStorage.setItem('synaura.ai.defaultModel', modelVersion);
+  }, [modelVersion]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem('synaura.ai.defaultDuration', String(generationDuration));
+  }, [generationDuration]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     window.localStorage.setItem('synaura.ai.leftPx', String(leftPx));
     window.localStorage.setItem('synaura.ai.rightPx', String(rightPx));
     window.localStorage.setItem('synaura.ai.layoutVersion', LAYOUT_VERSION);
@@ -1034,7 +1074,10 @@ export default function AIGenerator() {
         setCmdOpen((v) => !v);
         return;
       }
-      if (e.key === 'Escape') setCmdOpen(false);
+      if (e.key === 'Escape') {
+        setSettingsOpen(false);
+        setCmdOpen(false);
+      }
       if (e.code === 'Space' && !inInput && !cmdOpen) {
         e.preventDefault();
         if (audioState.isPlaying) pause();
@@ -1273,7 +1316,11 @@ export default function AIGenerator() {
       return;
     }
 
-    const playerTrack: PlayerTrack = {
+    const taskIdForLyrics =
+      activeBgGeneration?.taskId ??
+      recentGenerationsSorted.find((g) => (g.tracks || []).some((t: any) => String(t.id) === String(gt.id)))?.task_id ??
+      null;
+    const playerTrack: PlayerTrack & { generationTaskId?: string; sunoAudioId?: string } = {
       _id: `gen-${gt.id}`,
       title: gt.title || 'Musique générée',
       artist: {
@@ -1292,6 +1339,8 @@ export default function AIGenerator() {
       plays: 0,
       genre: ['IA']
     };
+    (playerTrack as any).generationTaskId = taskIdForLyrics ?? '';
+    (playerTrack as any).sunoAudioId = String(gt.id ?? '');
     await Promise.resolve(playTrack(playerTrack as any)).catch(() => {
       notify.error('Lecture', 'La lecture a échoué pour cette piste.');
       pushLog('error', `Échec lecture generated: ${gt.title || gt.id}`);
@@ -1503,55 +1552,6 @@ export default function AIGenerator() {
   const playbackCurrentTime = Number(audioState.currentTime || 0);
   const playbackProgress = Math.max(0, Math.min(1, playbackDuration > 0 ? playbackCurrentTime / playbackDuration : 0));
 
-  const waveformGeometry = React.useMemo(() => {
-    const source = `${activeInspectorTrack?.id || activeInspectorTrack?.title || 'idle'}`;
-    let seed = 0;
-    for (let i = 0; i < source.length; i += 1) {
-      seed = (seed * 33 + source.charCodeAt(i)) % 2147483647;
-    }
-
-    const count = 180;
-    const width = 1000;
-    const height = 140;
-    const mid = height / 2;
-    const amps = Array.from({ length: count }).map((_, i) => {
-      seed = (seed * 48271) % 2147483647;
-      const n = ((seed % 1000) / 1000) * 2 - 1;
-      const f1 = Math.sin((i / count) * Math.PI * 2.6);
-      const f2 = Math.sin((i / count) * Math.PI * 8.4 + 0.6);
-      const shaped = Math.abs(f1 * 0.5 + f2 * 0.25 + n * 0.45);
-      const envelope = 0.35 + Math.sin((i / (count - 1)) * Math.PI) * 0.5;
-      return Math.max(0.08, Math.min(0.98, shaped * envelope + 0.08));
-    });
-
-    // Simple lissage pour éviter un rendu "haché".
-    for (let pass = 0; pass < 2; pass += 1) {
-      for (let i = 1; i < amps.length - 1; i += 1) {
-        amps[i] = (amps[i - 1] + amps[i] * 2 + amps[i + 1]) / 4;
-      }
-    }
-
-    const topPts: Array<[number, number]> = amps.map((amp, i) => {
-      const x = (i / (count - 1)) * width;
-      const y = mid - amp * (mid - 10);
-      return [x, y];
-    });
-    const bottomPts: Array<[number, number]> = amps.map((amp, i) => {
-      const x = (i / (count - 1)) * width;
-      const y = mid + amp * (mid - 10);
-      return [x, y];
-    });
-
-    const linePath = topPts.map(([x, y], idx) => `${idx === 0 ? 'M' : 'L'} ${x} ${y}`).join(' ');
-    const areaPath = [
-      topPts.map(([x, y], idx) => `${idx === 0 ? 'M' : 'L'} ${x} ${y}`).join(' '),
-      bottomPts.reverse().map(([x, y]) => `L ${x} ${y}`).join(' '),
-      'Z',
-    ].join(' ');
-
-    return { width, height, areaPath, linePath };
-  }, [activeInspectorTrack?.id, activeInspectorTrack?.title]);
-
   const getWaveRatioFromClientX = useCallback((clientX: number, host: HTMLDivElement) => {
     const rect = host.getBoundingClientRect();
     return clamp((clientX - rect.left) / Math.max(1, rect.width), 0, 1);
@@ -1621,6 +1621,8 @@ export default function AIGenerator() {
     ]
       .filter(Boolean)
       .join(' | ');
+    // Doc Suno Generate Lyrics: prompt max 200 caractères
+    const lyricsPrompt = seedText.slice(0, 200);
 
     setIsGeneratingLyrics(true);
     pushLog('info', 'Lyrics auto: requête Suno...');
@@ -1628,7 +1630,7 @@ export default function AIGenerator() {
       const res = await fetch('/api/suno/generate-lyrics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: seedText }),
+        body: JSON.stringify({ prompt: lyricsPrompt }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -1689,6 +1691,26 @@ export default function AIGenerator() {
     };
   }, [recentGenerationsSorted, selectedGeneration?.task_id, selectedTrack]);
 
+  /** Contexte de la piste actuellement en lecture (queue) pour charger waveform/paroles synchronisées */
+  const playingTrackContext = React.useMemo(() => {
+    const cur = activeQueueTrack as { generationTaskId?: string; sunoAudioId?: string } | undefined;
+    const taskId = (cur?.generationTaskId ?? '').trim();
+    const audioId = (cur?.sunoAudioId ?? '').trim();
+    return { taskId, audioId };
+  }, [activeQueueTrack]);
+
+  /** Contexte effectif : piste en lecture si dispo (taskId+audioId), sinon piste sélectionnée → waveform/lyrics liés à la musique jouée */
+  const effectiveTrackContext = React.useMemo(() => {
+    if (playingTrackContext.taskId && playingTrackContext.audioId) return playingTrackContext;
+    return selectedTrackContext;
+  }, [playingTrackContext, selectedTrackContext]);
+
+  /** La waveform/paroles affichées correspondent à la piste en lecture → on affiche la progression, sinon 0 */
+  const isWaveformForPlayingTrack =
+    !!playingTrackContext.taskId &&
+    effectiveTrackContext.taskId === playingTrackContext.taskId &&
+    effectiveTrackContext.audioId === playingTrackContext.audioId;
+
   const selectedGenerationForVisibility = React.useMemo(() => {
     if (selectedGeneration) return selectedGeneration;
     if (generatedTrack) {
@@ -1744,15 +1766,16 @@ export default function AIGenerator() {
     }
   }, [publishingVisibility, pushLog, selectedGenerationForVisibility]);
 
-  const fetchTimestampedLyrics = useCallback(async (silent = false) => {
-    const { taskId, audioId } = selectedTrackContext;
-    if (!taskId || !audioId) {
+  const fetchTimestampedLyrics = useCallback(async (silent = false, contextOverride?: { taskId: string; audioId: string }) => {
+    const { taskId, audioId } = contextOverride ?? effectiveTrackContext;
+    if (!taskId?.trim() || !audioId?.trim()) {
       setTimestampedWords([]);
       setTimestampedWaveform([]);
-      setTimestampedError('Sélectionne une piste issue d’une génération Suno finalisée.');
+      setTimestampedError(contextOverride ? null : 'Sélectionne une piste issue d’une génération Suno finalisée.');
       return;
     }
-    if (selectedTrack?.isInstrumental) {
+    const trackForInstrumental = contextOverride ? null : selectedTrack;
+    if (trackForInstrumental?.isInstrumental) {
       setTimestampedWords([]);
       setTimestampedWaveform([]);
       setTimestampedError('Pas de paroles alignées en mode instrumental.');
@@ -1764,7 +1787,7 @@ export default function AIGenerator() {
       const res = await fetch('/api/suno/timestamped-lyrics', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, audioId }),
+        body: JSON.stringify({ taskId: taskId.trim(), audioId: audioId.trim() }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -1798,12 +1821,18 @@ export default function AIGenerator() {
     } finally {
       setTimestampedLoading(false);
     }
-  }, [lyrics, pushLog, selectedTrack?.isInstrumental, selectedTrackContext]);
+  }, [effectiveTrackContext, lyrics, pushLog, selectedTrack?.isInstrumental]);
 
+  /** Charger waveform + paroles synchronisées pour la piste effective (en lecture ou sélectionnée) */
   React.useEffect(() => {
-    if (!selectedTrack) return;
-    fetchTimestampedLyrics(true);
-  }, [fetchTimestampedLyrics, selectedTrack]);
+    const { taskId, audioId } = effectiveTrackContext;
+    if (!taskId?.trim() || !audioId?.trim()) {
+      setTimestampedWords([]);
+      setTimestampedWaveform([]);
+      return;
+    }
+    fetchTimestampedLyrics(true, effectiveTrackContext);
+  }, [effectiveTrackContext.taskId, effectiveTrackContext.audioId, fetchTimestampedLyrics]);
 
   const activeWordIndex = React.useMemo(() => {
     const now = Number(audioState.currentTime || 0);
@@ -1811,36 +1840,20 @@ export default function AIGenerator() {
     return timestampedWords.findIndex((w) => now >= Number(w.startS || 0) && now <= Number(w.endS || 0));
   }, [audioState.currentTime, timestampedWords]);
 
-  const compactWaveform = React.useMemo(() => {
-    if (!timestampedWaveform.length) return null;
-    const target = 56;
-    const chunk = Math.max(1, Math.floor(timestampedWaveform.length / target));
-    const out: number[] = [];
-    for (let i = 0; i < target; i += 1) {
-      const start = i * chunk;
-      const slice = timestampedWaveform.slice(start, start + chunk);
-      if (!slice.length) {
-        out.push(0);
-        continue;
-      }
-      const avg = slice.reduce((s, n) => s + Math.abs(Number(n || 0)), 0) / slice.length;
-      out.push(avg);
-    }
-    const max = Math.max(...out, 0.0001);
-    return out.map((v) => Math.max(0, Math.min(1, v / max)));
-  }, [timestampedWaveform]);
-
   // Afficher les tracks live issues du polling (FIRST_SUCCESS/SUCCESS)
+  // Doc Suno: stream_audio_url dispo en 30–40s, audio_url (final) en 2–3 min. On stocke l’URL finale en priorité une fois dispo pour téléchargement/liste correcte.
   React.useEffect(() => {
     if (!activeBgGeneration?.latestTracks || activeBgGeneration.latestTracks.length === 0) return;
     const convertedTracks: GeneratedTrack[] = activeBgGeneration.latestTracks.map((track: any, index: number) => {
       const media = resolveLiveTrackMedia(track);
+      const primaryUrl = media.audioUrl || media.playableUrl;
+      const backups = Array.from(
+        new Set([media.audioUrl, media.streamUrl, media.playableUrl].filter((u): u is string => Boolean(u && u !== primaryUrl)))
+      );
       return {
         id: track.id || `${activeBgGeneration.taskId}_${index}`,
-        audioUrl: media.playableUrl,
-        backupAudioUrls: Array.from(
-          new Set([media.audioUrl, media.streamUrl].filter((u): u is string => Boolean(u && u !== media.playableUrl)))
-        ),
+        audioUrl: primaryUrl,
+        backupAudioUrls: backups,
         prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
         title: track.title || title || (isRemixMode ? `Remix ${index + 1}` : `Musique générée ${index + 1}`),
         style: track.raw?.tags || style || 'Custom',
@@ -1864,6 +1877,16 @@ export default function AIGenerator() {
     return () => window.clearTimeout(t);
   }, [activeBgGeneration]);
 
+  // Une fois la bibliothèque rafraîchie après "completed", remplacer generatedTracks par la version API (URLs finales garanties)
+  React.useEffect(() => {
+    if (!activeBgGeneration || activeBgGeneration.status !== 'completed' || !activeBgGeneration.taskId) return;
+    const gen = generations.find((g) => g.task_id === activeBgGeneration!.taskId);
+    if (!gen?.tracks?.length) return;
+    const fromApi = gen.tracks.map((t) => convertAITrackToGenerated(t));
+    setGeneratedTracks(fromApi);
+    setGeneratedTrack((prev) => prev && fromApi.some((t) => String(t.id) === String(prev.id)) ? fromApi[0] ?? prev : prev);
+  }, [activeBgGeneration?.status, activeBgGeneration?.taskId, generations]);
+
   const syncedCompletedTasksRef = useRef<Set<string>>(new Set());
   React.useEffect(() => {
     const completedNow = bgGenerations.filter((g) => g.status === 'completed').map((g) => g.taskId);
@@ -1883,6 +1906,21 @@ export default function AIGenerator() {
   }, [bgGenerations]);
 
   const completedResaveRef = useRef<Set<string>>(new Set());
+  const activeLyricWordRef = useRef<HTMLSpanElement | null>(null);
+  const lyricsSyncScrollRef = useRef<HTMLDivElement | null>(null);
+  React.useEffect(() => {
+    if (activeWordIndex < 0) return;
+    const container = lyricsSyncScrollRef.current;
+    const word = activeLyricWordRef.current;
+    if (!container || !word) return;
+    const cRect = container.getBoundingClientRect();
+    const wRect = word.getBoundingClientRect();
+    const relativeTop = wRect.top - cRect.top + container.scrollTop;
+    const targetScroll = relativeTop - container.clientHeight / 2 + wRect.height / 2;
+    const clamped = Math.max(0, Math.min(targetScroll, container.scrollHeight - container.clientHeight));
+    container.scrollTo({ top: clamped, behavior: 'smooth' });
+  }, [activeWordIndex]);
+
   React.useEffect(() => {
     const toResave = bgGenerations.filter(
       (g) => g.status === 'completed' && !g.completedSaved && Array.isArray(g.latestTracks) && g.latestTracks.length > 0
@@ -1914,9 +1952,8 @@ export default function AIGenerator() {
   }, [generationStatus, pushLog]);
 
   const generateMusic = async () => {
-    // Plus de limitation de quota - accès libre
-
     setIsGenerating(true);
+    setSunoError(null);
     setGenerationStatus('pending');
     setGeneratedTracks([]);
     pushLog('info', 'Génération lancée');
@@ -1971,6 +2008,14 @@ export default function AIGenerator() {
         callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined
       };
 
+      // Indice de durée pour Suno (l’API ne garantit pas la durée exacte ; on l’injecte dans le prompt / hints)
+      const durationHintBySec: Record<60 | 120 | 180, string> = {
+        60: 'short track, about 1 minute, compact structure',
+        120: 'radio edit 2:30–3:00 with intro / verse / pre / drop',
+        180: 'extended track, about 3 minutes, full structure',
+      };
+      const durationHint = durationHintBySec[generationDuration];
+
       if (customMode) {
         // Mode Custom : title, style, prompt (lyrics)
         // Validation : si non-instrumental, les paroles sont requises
@@ -1988,9 +2033,10 @@ export default function AIGenerator() {
         requestBody.audioWeight = Number(audioWeightVal.toFixed(2));
         requestBody.negativeTags = negativeTags || undefined;
         requestBody.vocalGender = vocalGender || undefined;
+        requestBody.durationHint = durationHint; // Envoyé à createProductionPrompt côté API (mode Custom)
       } else {
-        // Mode Simple : seulement prompt (description générale)
-        requestBody.prompt = [description, ...selectedTags].filter(Boolean).join(', ');
+        // Mode Simple : seulement prompt (description) + indication de durée dans le texte
+        requestBody.prompt = [description, ...selectedTags].filter(Boolean).join(', ') + ` (about ${generationDuration / 60} min)`;
         // Pas de title, style, styleWeight, etc. en mode Simple selon la doc Suno
       }
 
@@ -2027,20 +2073,10 @@ export default function AIGenerator() {
 
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        // Crédit insuffisant → ouvrir le modal d'achat
-        if (response.status === 402 || response.status === 429) {
-          setShowBuyCredits(true);
-        }
-        const msg =
-          errJson?.error ||
-          errJson?.msg ||
-          (response.status === 430
-            ? 'Trop de requêtes en cours, réessayez dans quelques secondes.'
-            : response.status === 413
-            ? 'Prompt/style trop long selon le modèle choisi.'
-            : response.status === 455
-            ? 'Suno est en maintenance temporaire.'
-            : 'Erreur lors de la génération');
+        if (response.status === 402 || response.status === 429) setShowBuyCredits(true);
+        if (response.status === 430) setRateLimitCooldownUntil(Date.now() + 12000); // 12 s cooldown
+        const msg = getSunoErrorMessage(response.status, errJson);
+        setSunoError(msg);
         throw new Error(msg);
       }
 
@@ -2109,6 +2145,7 @@ export default function AIGenerator() {
     } catch (error) {
       console.error('Erreur:', error);
       const message = error instanceof Error ? error.message : 'Erreur lors de la génération';
+      setSunoError(message);
       notify.error('Génération', message);
       setGenerationStatus('failed');
       pushLog('error', `Échec de génération: ${message}`);
@@ -2116,6 +2153,23 @@ export default function AIGenerator() {
       setIsGenerating(false);
     }
   };
+
+  const rateLimitActive = rateLimitCooldownUntil > Date.now();
+  const cooldownSecondsLeft = rateLimitActive ? Math.max(0, Math.ceil((rateLimitCooldownUntil - Date.now()) / 1000)) : 0;
+
+  // Mise à jour du compte à rebours chaque seconde pendant le cooldown (force re-render pour le libellé)
+  useEffect(() => {
+    if (!rateLimitActive || rateLimitCooldownUntil <= 0) return;
+    const t = setInterval(() => {
+      if (Date.now() >= rateLimitCooldownUntil) {
+        setRateLimitCooldownUntil(0);
+        clearInterval(t);
+      } else {
+        setCooldownTick((k) => k + 1);
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  }, [rateLimitActive, rateLimitCooldownUntil]);
 
 
 
@@ -2329,31 +2383,6 @@ export default function AIGenerator() {
 
           <div className="h-6 w-[1px] bg-white/10 hidden sm:block" />
 
-          <div className="hidden md:flex items-center gap-2 min-w-[260px] max-w-[420px]">
-            <button
-              type="button"
-              onClick={() => pushLog('info', 'Ouvrir projet (à brancher)')}
-              className="h-8 w-8 inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/10 text-zinc-300"
-              title="Ouvrir"
-            >
-              <FolderOpen className="w-4 h-4" />
-            </button>
-            <input
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className="h-8 flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-3 text-xs outline-none focus:border-white/20"
-              placeholder="Nom du projet"
-            />
-            <button
-              type="button"
-              onClick={() => pushLog('info', `Projet sauvegardé: ${projectName || 'Sans titre'}`)}
-              className="h-8 w-8 inline-flex items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] hover:bg-white/10 text-zinc-300"
-              title="Sauvegarder"
-            >
-              <Save className="w-4 h-4" />
-            </button>
-          </div>
-
           {/* Global Playback Controls */}
           <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
             <button
@@ -2431,7 +2460,12 @@ export default function AIGenerator() {
               {isGenerating || activeGenerationCount > 0 ? `Generating (${activeGenerationCount || 1})` : 'Ready'}
             </span>
           </div>
-          <button className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors" aria-label="Paramètres">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors"
+            aria-label="Paramètres"
+          >
             <Settings className="w-5 h-5" />
           </button>
           <div className="hidden md:inline-flex items-center rounded-full border border-white/10 bg-black/30 p-1">
@@ -2450,7 +2484,29 @@ export default function AIGenerator() {
               Classic
             </button>
           </div>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 border border-white/10 hidden sm:block" aria-hidden />
+          {session?.user ? (
+            <a
+              href="/settings"
+              className="hidden sm:block w-8 h-8 rounded-full border border-white/10 overflow-hidden bg-white/5 hover:ring-2 hover:ring-white/20 transition-all"
+              title="Paramètres du compte"
+              aria-label="Ouvrir les paramètres du compte"
+            >
+              <img
+                src={(session.user as any)?.image ?? (session.user as any)?.avatar ?? '/default-avatar.png'}
+                alt=""
+                className="w-full h-full object-cover"
+              />
+            </a>
+          ) : (
+            <a
+              href="/auth/signin"
+              className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-medium transition-all"
+              title="Se connecter"
+              aria-label="Se connecter"
+            >
+              Compte
+            </a>
+          )}
         </div>
       </header>
 
@@ -2774,21 +2830,9 @@ export default function AIGenerator() {
                       </div>
                     </div>
                   </div>
-
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2">
-                    <label className="mb-1 block text-[10px] text-white/45">Song Title (Optional)</label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Nom de la musique"
-                      disabled={isGenerationDisabled}
-                      className="w-full bg-transparent text-sm text-white placeholder:text-white/30 outline-none"
-                    />
-                  </div>
                 </div>
 
-                {/* Formulaire actif */}
+                {/* Formulaire : Titre dans "Titre & sortie" (Custom) ou implicite (Simple) */}
                 <div className="space-y-6 px-0">
                   {/* Bandeau de presets */}
                   <div>
@@ -2827,8 +2871,8 @@ export default function AIGenerator() {
                     <>
                   {/* Titre */}
                   <SunoAccordionSection
-                    title="Projet & sortie"
-                    description="Configure le titre et les infos de base."
+                    title="Titre & sortie"
+                    description="Titre du morceau et infos de base."
                     isOpen={openProjectSection}
                     onToggle={() => setOpenProjectSection((v) => !v)}
                   >
@@ -3339,19 +3383,21 @@ export default function AIGenerator() {
                     <button
                       type="button"
                       onClick={generateMusic}
-                      disabled={isGenerationDisabled || isGenerating}
+                      disabled={isGenerationDisabled || isGenerating || rateLimitActive}
                       className={`${SUNO_BTN_BASE} cursor-pointer flex-1 px-4 py-3 rounded-full text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary text-[15px] ${
-                        isGenerationDisabled || isGenerating ? 'opacity-60 cursor-not-allowed' : ''
+                        isGenerationDisabled || isGenerating || rateLimitActive ? 'opacity-60 cursor-not-allowed' : ''
                       }`}
-                      aria-label="Create song"
+                      aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Create song'}
                     >
                       <span className="relative flex items-center justify-center gap-2">
                         {isGenerating ? (
                           <span className="w-4 h-4 rounded-full border-2 border-foreground-tertiary border-t-transparent animate-spin" />
+                        ) : rateLimitActive ? (
+                          <Clock3 className="w-5 h-5" />
                         ) : (
                           <Sparkles className="w-5 h-5" />
                         )}
-                        Create
+                        {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
                       </span>
                     </button>
                   </div>
@@ -3562,76 +3608,21 @@ export default function AIGenerator() {
           <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'library' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}>
             <div className="flex-1 overflow-y-auto pl-1 space-y-3 min-h-0 pb-24 lg:pb-0">
               {shellMode === 'ide' && (
-                <div className="space-y-3 p-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 flex flex-wrap items-center gap-2">
-                    <span className="text-[11px] text-zinc-400">Actions rapides</span>
+                <div className="w-full min-w-0 space-y-3 p-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-white/80">Timeline & bibliothèque</span>
                     <button
                       type="button"
                       onClick={refreshGenerations}
-                      className="h-8 px-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] hover:bg-white/[0.08]"
+                      className="h-8 px-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] hover:bg-white/[0.08] inline-flex items-center gap-1.5"
                     >
-                      Refresh
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Rafraîchir
                     </button>
-                    <button
-                      type="button"
-                      onClick={generateMusic}
-                      className={`h-8 px-3 rounded-xl text-[11px] ${
-                        isGenerating
-                          ? 'bg-indigo-500/20 text-indigo-100 cursor-not-allowed'
-                          : 'bg-indigo-500/25 text-indigo-100 hover:bg-indigo-500/35'
-                      }`}
-                      disabled={isGenerating}
-                    >
-                      {isGenerating ? 'Generating…' : 'Generate'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!generatedTrack) return;
-                        playGenerated(generatedTrack);
-                      }}
-                      disabled={!generatedTrack}
-                      className={`h-8 px-3 rounded-xl text-[11px] ${
-                        generatedTrack ? 'bg-white text-black hover:bg-white/90' : 'border border-white/10 bg-white/[0.03] text-white/40'
-                      }`}
-                    >
-                      Play selected
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!generatedTrack) return;
-                        useGeneratedTrackForRemix(generatedTrack);
-                      }}
-                      disabled={!generatedTrack}
-                      className={`h-8 px-3 rounded-xl text-[11px] ${
-                        generatedTrack ? 'bg-cyan-400/20 text-cyan-100 hover:bg-cyan-400/30' : 'border border-white/10 bg-white/[0.03] text-white/40'
-                      }`}
-                    >
-                      Remix selected
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!generatedTrack}
-                      onClick={() => {
-                        if (!generatedTrack) return;
-                        setSelectedTrack(generatedTrack);
-                        setShowTrackPanel(true);
-                        setRightTab('inspector');
-                      }}
-                      className={`h-8 px-3 rounded-xl text-[11px] ${
-                        generatedTrack ? 'border border-white/10 bg-white/[0.04] hover:bg-white/[0.08]' : 'border border-white/10 bg-white/[0.03] text-white/40'
-                      }`}
-                    >
-                      Open inspector
-                    </button>
-                    <span className="ml-auto truncate max-w-[260px] text-[10px] text-zinc-400">
-                      {generatedTrack ? `Sélection: ${generatedTrack.title || 'Piste sans titre'}` : 'Aucune piste sélectionnée'}
-                    </span>
                   </div>
 
-                <div className="grid gap-3 lg:grid-cols-12">
-                  <div className="space-y-3 lg:col-span-7">
+                <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-12">
+                  <div className="min-w-0 space-y-3 lg:col-span-7">
                     <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
                       <div className="mb-2 flex items-center justify-between">
                         <div className="text-sm font-semibold">Prompt</div>
@@ -3675,53 +3666,17 @@ export default function AIGenerator() {
                           {formatTime(playbackCurrentTime)} / {formatTime(playbackDuration || generatedTrack?.duration || 0)}
                         </div>
                       </div>
-                      <div
-                        className="relative h-24 rounded-2xl border border-white/10 bg-white/[0.03] overflow-hidden cursor-ew-resize"
-                        onPointerDown={(e) => {
-                          const host = e.currentTarget as HTMLDivElement;
-                          const ratio = clamp((e.clientX - host.getBoundingClientRect().left) / Math.max(1, host.getBoundingClientRect().width), 0, 1);
-                          seekByRatio(ratio);
-                        }}
-                      >
-                        {compactWaveform ? (
-                          <div className="absolute inset-0 px-2 py-2 flex items-end gap-[2px]">
-                            {compactWaveform.map((amp, i) => (
-                              <div
-                                key={`wf-${i}`}
-                                className={`min-w-[2px] flex-1 rounded-t-sm transition-all ${
-                                  i / Math.max(1, compactWaveform.length - 1) <= playbackProgress
-                                    ? 'bg-gradient-to-t from-indigo-400 to-cyan-300 opacity-95'
-                                    : 'bg-gradient-to-t from-indigo-700/45 to-cyan-500/35 opacity-55'
-                                }`}
-                                style={{ height: `${Math.max(6, Math.round(amp * 68))}%` }}
-                              />
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="absolute inset-0 px-2 py-2">
-                            <svg viewBox={`0 0 ${waveformGeometry.width} ${waveformGeometry.height}`} className="h-full w-full" preserveAspectRatio="none" aria-hidden>
-                              <defs>
-                                <linearGradient id="ide-wave-idle" x1="0" y1="0" x2="1" y2="0">
-                                  <stop offset="0%" stopColor="rgba(129,140,248,0.30)" />
-                                  <stop offset="100%" stopColor="rgba(34,211,238,0.22)" />
-                                </linearGradient>
-                                <linearGradient id="ide-wave-played" x1="0" y1="0" x2="1" y2="0">
-                                  <stop offset="0%" stopColor="rgba(165,180,252,0.88)" />
-                                  <stop offset="100%" stopColor="rgba(103,232,249,0.88)" />
-                                </linearGradient>
-                                <clipPath id="ide-wave-progress">
-                                  <rect x="0" y="0" width={waveformGeometry.width * playbackProgress} height={waveformGeometry.height} />
-                                </clipPath>
-                              </defs>
-                              <path d={waveformGeometry.linePath} fill="none" stroke="url(#ide-wave-idle)" strokeWidth="2.4" strokeLinecap="round" />
-                              <g clipPath="url(#ide-wave-progress)">
-                                <path d={waveformGeometry.linePath} fill="none" stroke="url(#ide-wave-played)" strokeWidth="2.6" strokeLinecap="round" />
-                              </g>
-                            </svg>
-                          </div>
-                        )}
-                        <div className="absolute top-0 bottom-0 w-[2px] bg-white/90" style={{ left: `${playbackProgress * 100}%` }} />
-                      </div>
+                      <SynauraWaveform
+                        waveformData={timestampedWaveform}
+                        progress={isWaveformForPlayingTrack ? playbackProgress : 0}
+                        onSeek={seekByRatio}
+                        variant="studio"
+                        heightClass="h-24"
+                        idPrefix="ide-timeline-wave"
+                        duration={playbackDuration || 0}
+                        showTimeLabel
+                        showProgressBar
+                      />
                       <div className="mt-2 flex items-center gap-2">
                         <button
                           type="button"
@@ -3766,19 +3721,20 @@ export default function AIGenerator() {
                     </div>
                   </div>
 
-                  <div className="space-y-3 lg:col-span-5">
-                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="mb-2 flex items-center justify-between">
+                  <div className="min-w-0 w-full space-y-3 lg:col-span-5">
+                    <div className="flex h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mb-2 flex shrink-0 items-center justify-between">
                         <div className="text-sm font-semibold">Lyrics</div>
                         <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">{isInstrumental ? 'Instrumental' : 'Voix'}</div>
                       </div>
-                      <textarea
-                        value={lyrics}
-                        onChange={(e) => setLyrics(e.target.value)}
-                        className="min-h-[220px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
-                        placeholder="Colle tes paroles ici (ou laisse vide pour auto)."
-                      />
-                      <div className="mt-2 flex gap-2">
+                      <div className="min-h-0 flex-1 overflow-y-auto">
+                        <textarea
+                          value={lyrics}
+                          onChange={(e) => setLyrics(e.target.value)}
+                          className="min-h-[180px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
+                          placeholder="Colle tes paroles ici (ou laisse vide pour auto)."
+                        />
+                        <div className="mt-2 flex gap-2">
                         <button
                           type="button"
                           onClick={async () => {
@@ -3828,44 +3784,105 @@ export default function AIGenerator() {
                       {timestampedError && (
                         <div className="mt-2 text-[10px] text-amber-300/90">{timestampedError}</div>
                       )}
-                      {timestampedWords.length > 0 && (
-                        <div className="mt-3 rounded-2xl border border-cyan-300/20 bg-cyan-500/5 p-2">
-                          <div className="mb-1 text-[10px] text-cyan-100/80">
-                            Lyrics synchronisées ({timestampedWords.length} mots)
-                          </div>
-                          <div className="max-h-24 overflow-auto pr-1 text-[11px] leading-relaxed">
-                            {timestampedWords.slice(0, 120).map((w, idx) => (
-                              <span
-                                key={`aligned-${idx}-${w.startS}`}
-                                className={`mr-1 inline-block rounded px-1 py-[1px] ${
-                                  idx === activeWordIndex ? 'bg-cyan-300/25 text-cyan-100' : 'text-white/80'
-                                }`}
-                              >
-                                {w.word}
+                      {timestampedWords.length > 0 && (() => {
+                        const MAX_WORDS_PER_LINE = 10;
+                        const END_PHRASE = /[.!?;:\n]$/;
+                        const lines: TimestampedWord[][] = [];
+                        let currentLine: TimestampedWord[] = [];
+                        timestampedWords.forEach((w, i) => {
+                          const word = String(w.word || '').trim();
+                          currentLine.push(w);
+                          const endsPhrase = END_PHRASE.test(word);
+                          const atMax = currentLine.length >= MAX_WORDS_PER_LINE;
+                          if (endsPhrase || atMax) {
+                            lines.push([...currentLine]);
+                            currentLine = [];
+                          }
+                        });
+                        if (currentLine.length) lines.push(currentLine);
+                        let wordOffset = 0;
+                        return (
+                          <div className="mt-3 flex h-[200px] flex-col overflow-hidden rounded-2xl border border-cyan-400/20 bg-gradient-to-b from-cyan-500/[0.08] to-cyan-600/[0.04] shadow-[0_0_24px_-4px_rgba(34,211,238,0.12)]">
+                            <div className="flex shrink-0 items-center gap-2 border-b border-cyan-400/10 px-4 py-2.5">
+                              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-400/15 text-cyan-300">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                                </svg>
+                              </div>
+                              <span className="text-sm font-semibold tracking-tight text-cyan-100/95">Paroles synchronisées</span>
+                              <span className="ml-auto rounded-full bg-cyan-400/15 px-2.5 py-1 text-[11px] font-medium text-cyan-200/90">
+                                {timestampedWords.length} mots
                               </span>
-                            ))}
+                            </div>
+                            <div ref={lyricsSyncScrollRef} className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 scroll-smooth">
+                              <div className="mx-auto max-w-md space-y-3">
+                                {lines.map((lineWords, lineIdx) => {
+                                  const lineStartIdx = wordOffset;
+                                  wordOffset += lineWords.length;
+                                  return (
+                                    <p
+                                      key={`line-${lineIdx}`}
+                                      className="text-center leading-[1.75] text-[13px] tracking-wide text-white/90"
+                                    >
+                                      {lineWords.map((w, wordIdx) => {
+                                        const idx = lineStartIdx + wordIdx;
+                                        const isActive = idx === activeWordIndex;
+                                        const isPast = activeWordIndex >= 0 && idx < activeWordIndex;
+                                        return (
+                                          <span
+                                            key={`aligned-${idx}-${w.startS}`}
+                                            ref={isActive ? activeLyricWordRef : undefined}
+                                            className={`inline-block rounded-md px-1 py-px transition-all duration-200 ${
+                                              isActive
+                                                ? 'bg-cyan-400/25 text-cyan-50 font-semibold shadow-[0_0_14px_rgba(34,211,238,0.3)]'
+                                                : isPast
+                                                  ? 'text-white/40'
+                                                  : 'text-white/80'
+                                            }`}
+                                            style={isActive ? { textShadow: '0 0 14px rgba(34,211,238,0.45)' } : undefined}
+                                          >
+                                            {w.word}
+                                            {wordIdx < lineWords.length - 1 ? '\u00A0' : ''}
+                                          </span>
+                                        );
+                                      })}
+                                    </p>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
+                      </div>
                     </div>
+                  </div>
 
-                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="text-sm font-semibold">Versions</div>
-                        <div className="inline-flex items-center gap-2">
-                          <span className="text-[10px] text-zinc-400">A:{abA ? abA.slice(0, 4) : '-'}</span>
-                          <span className="text-[10px] text-zinc-400">B:{abB ? abB.slice(0, 4) : '-'}</span>
+                  {/* Versions A/B : ligne pleine largeur */}
+                  <div className="w-full min-w-0 lg:col-span-12">
+                    <div className="w-full rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                      <div className="mb-3 w-full">
+                        <div className="mb-2 text-sm font-semibold">Versions A/B</div>
+                        <div className="grid w-full grid-cols-2 gap-2 lg:grid-cols-3">
+                          <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                            <div className="text-[10px] font-medium uppercase tracking-wider text-white/50">Slot A</div>
+                            <div className="truncate text-xs text-white/90">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || abA.slice(0, 8)) : '—'}</div>
+                          </div>
+                          <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+                            <div className="text-[10px] font-medium uppercase tracking-wider text-white/50">Slot B</div>
+                            <div className="truncate text-xs text-white/90">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || abB.slice(0, 8)) : '—'}</div>
+                          </div>
                           <button
                             type="button"
                             onClick={toggleABPlay}
-                            className="h-7 px-2 rounded-lg text-[11px] border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]"
+                            className="col-span-2 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs font-medium hover:bg-white/[0.06] lg:col-span-1"
                             title="Basculer A/B"
                           >
-                            A/B ({abSide})
+                            Écouter {abSide === 'A' ? 'B' : 'A'} (actuel : {abSide})
                           </button>
                         </div>
                       </div>
-                      <div className="space-y-2">
+                      <div className="w-full space-y-2">
                         {bgGenerations
                           .filter((g) => g.status === 'pending' || g.status === 'first')
                           .slice(0, 2)
@@ -3874,8 +3891,8 @@ export default function AIGenerator() {
                             const firstReady = g.status === 'first' && activeLive && !!livePreviewTrack;
                             const progress = Math.max(2, Math.min(99, Math.round(g.progress || 0)));
                             return (
-                              <div key={g.taskId} className="rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2">
-                                <div className="flex items-center justify-between gap-2">
+                              <div key={g.taskId} className="w-full rounded-2xl border border-indigo-400/20 bg-indigo-500/10 px-3 py-2">
+                                <div className="flex w-full items-center justify-between gap-2">
                                   <div className="min-w-0">
                                     <div className="truncate text-sm font-semibold">
                                       {g.title || g.prompt || `Job ${g.taskId.slice(-4)}`}
@@ -3921,6 +3938,7 @@ export default function AIGenerator() {
                             );
                           })}
 
+                        <div className="flex w-full flex-col gap-2">
                         {recentGenerationsSorted.slice(0, 8).map((g) => (
                           <div
                             key={g.id}
@@ -3933,32 +3951,33 @@ export default function AIGenerator() {
                             }}
                             role="button"
                             tabIndex={0}
-                            className={`w-full text-left flex items-center justify-between gap-2 rounded-2xl border px-3 py-2 transition ${
+                            className={`w-full text-left flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border px-3 py-2.5 transition sm:flex-nowrap ${
                               selectedGeneration?.id === g.id
                                 ? 'border-cyan-300/40 bg-cyan-400/10'
                                 : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
                             }`}
                           >
-                            <div className="min-w-0">
+                            <div className="min-w-0 flex-1">
                               <div className="truncate text-sm font-semibold">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
                               <div className="truncate text-xs text-white/60">{new Date(g.created_at).toLocaleString('fr-FR')}</div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`rounded-full px-2 py-1 text-[10px] ${
-                                g.status === 'completed' ? 'bg-emerald-400/15 text-emerald-200' : g.status === 'failed' ? 'bg-red-500/15 text-red-200' : 'bg-yellow-400/15 text-yellow-200'
-                              }`}>
-                                {g.status}
-                              </span>
+                            <span className={`rounded-full px-2 py-1 text-[10px] ${
+                              g.status === 'completed' ? 'bg-emerald-400/15 text-emerald-200' : g.status === 'failed' ? 'bg-red-500/15 text-red-200' : 'bg-yellow-400/15 text-yellow-200'
+                            }`}>
+                              {g.status}
+                            </span>
+                            <div className="flex shrink-0 items-center gap-2 border-l border-white/10 pl-2">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handlePlayGeneration(g);
                                 }}
-                                className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
-                                title="Play"
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+                                title="Lire ce titre"
                               >
-                                <Play className="w-4 h-4" />
+                                <Play className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Lire</span>
                               </button>
                               <button
                                 type="button"
@@ -3966,8 +3985,10 @@ export default function AIGenerator() {
                                   e.stopPropagation();
                                   assignABSlot('A', g.id);
                                 }}
-                                className={`h-7 px-2 rounded-lg text-[10px] ${abA === g.id ? 'bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
-                                title="Assigner slot A"
+                                className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
+                                  abA === g.id ? 'bg-white text-black' : 'border border-white/15 bg-white/5 text-white/90 hover:bg-white/15'
+                                }`}
+                                title="Mettre en slot A (puis utiliser le bouton Écouter A/B)"
                               >
                                 A
                               </button>
@@ -3977,8 +3998,10 @@ export default function AIGenerator() {
                                   e.stopPropagation();
                                   assignABSlot('B', g.id);
                                 }}
-                                className={`h-7 px-2 rounded-lg text-[10px] ${abB === g.id ? 'bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'}`}
-                                title="Assigner slot B"
+                                className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
+                                  abB === g.id ? 'bg-white text-black' : 'border border-white/15 bg-white/5 text-white/90 hover:bg-white/15'
+                                }`}
+                                title="Mettre en slot B (puis utiliser le bouton Écouter A/B)"
                               >
                                 B
                               </button>
@@ -3988,16 +4011,17 @@ export default function AIGenerator() {
                                   e.stopPropagation();
                                   selectGenerationInIde(g);
                                 }}
-                                className="rounded-xl p-2 text-white/70 hover:bg-white/10 hover:text-white"
-                                title="Open"
+                                className="rounded-lg border border-white/15 bg-white/5 p-1.5 text-white/80 hover:bg-white/15 hover:text-white"
+                                title="Ouvrir dans l’inspector"
                               >
                                 <ExternalLink className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
                         ))}
+                        </div>
                         {recentGenerationsSorted.length === 0 && (
-                          <div className="text-xs text-zinc-500">Aucune version pour le moment.</div>
+                          <div className="w-full py-4 text-center text-xs text-zinc-500">Aucune version pour le moment.</div>
                         )}
                       </div>
                     </div>
@@ -4286,44 +4310,18 @@ export default function AIGenerator() {
                     if (!waveScrubbing) setWaveHoverRatio(null);
                   }}
                 >
-                  <svg viewBox={`0 0 ${waveformGeometry.width} ${waveformGeometry.height}`} className="h-full w-full" preserveAspectRatio="none" aria-hidden>
-                    <defs>
-                      <linearGradient id="wave-idle-fill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgba(56,189,248,0.16)" />
-                        <stop offset="100%" stopColor="rgba(99,102,241,0.04)" />
-                      </linearGradient>
-                      <linearGradient id="wave-played-fill" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="rgba(34,211,238,0.50)" />
-                        <stop offset="100%" stopColor="rgba(129,140,248,0.16)" />
-                      </linearGradient>
-                      <linearGradient id="wave-idle-line" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="rgba(129,140,248,0.5)" />
-                        <stop offset="100%" stopColor="rgba(34,211,238,0.45)" />
-                      </linearGradient>
-                      <linearGradient id="wave-played-line" x1="0" y1="0" x2="1" y2="0">
-                        <stop offset="0%" stopColor="rgba(165,180,252,0.95)" />
-                        <stop offset="100%" stopColor="rgba(103,232,249,0.95)" />
-                      </linearGradient>
-                      <clipPath id="wave-progress-clip">
-                        <rect x="0" y="0" width={waveformGeometry.width * inspectorProgress} height={waveformGeometry.height} />
-                      </clipPath>
-                    </defs>
-                    <path d={waveformGeometry.areaPath} fill="url(#wave-idle-fill)" />
-                    <path d={waveformGeometry.linePath} fill="none" stroke="url(#wave-idle-line)" strokeWidth="2.2" strokeLinecap="round" />
-                    <g clipPath="url(#wave-progress-clip)">
-                      <path d={waveformGeometry.areaPath} fill="url(#wave-played-fill)" />
-                      <path d={waveformGeometry.linePath} fill="none" stroke="url(#wave-played-line)" strokeWidth="2.4" strokeLinecap="round" />
-                    </g>
-                  </svg>
+                  <SynauraWaveform
+                    waveformData={timestampedWaveform}
+                    progress={isWaveformForPlayingTrack ? inspectorProgress : 0}
+                    onSeek={seekWithWaveRatio}
+                    variant="studio"
+                    heightClass="h-full min-h-[72px]"
+                    idPrefix="ide-inspector-wave"
+                    duration={inspectorDuration || 0}
+                    showTimeLabel
+                    showProgressBar
+                  />
                 </div>
-                <div
-                  className="absolute top-0 bottom-0 w-[2px] bg-white/90 shadow-[0_0_10px_rgba(255,255,255,0.6)]"
-                  style={{ left: `${inspectorProgress * 100}%` }}
-                />
-                <div
-                  className="absolute bottom-2 h-2 w-2 -translate-x-1/2 rounded-full border border-white/70 bg-black/80"
-                  style={{ left: `${inspectorProgress * 100}%` }}
-                />
                 {waveHoverRatio !== null && (
                   <div
                     className="absolute top-0 bottom-0 w-px bg-cyan-200/60"
@@ -4627,6 +4625,146 @@ export default function AIGenerator() {
             </div>
           </footer>
         )}
+
+        {/* Modal Paramètres */}
+        <AnimatePresence>
+          {settingsOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center"
+              onClick={() => setSettingsOpen(false)}
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.98 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+                className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f14] shadow-xl"
+                onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                  <h2 className="text-base font-semibold text-white">Paramètres</h2>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsOpen(false)}
+                    className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                    aria-label="Fermer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
+                  <div>
+                    <div className="text-xs font-medium text-zinc-400 mb-2">Mode interface</div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShellMode('ide')}
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium ${shellMode === 'ide' ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                      >
+                        IDE
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShellMode('classic')}
+                        className={`flex-1 py-2 rounded-xl text-sm font-medium ${shellMode === 'classic' ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                      >
+                        Classic
+                      </button>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-zinc-500">IDE : explorateur, onglets, timeline. Classic : panneau unique.</p>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-medium text-zinc-400 mb-2">Onglet explorateur au démarrage</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(['builder', 'presets', 'assets', 'history'] as const).map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setLeftExplorerTab(tab)}
+                          className={`py-2 rounded-xl text-xs font-medium capitalize ${leftExplorerTab === tab ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                        >
+                          {tab === 'builder' ? 'Editor' : tab === 'presets' ? 'Presets' : tab === 'assets' ? 'Assets' : 'History'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-medium text-zinc-400 mb-2">Modèle par défaut</div>
+                    <div className="flex gap-2">
+                      {(['V4_5', 'V4_5PLUS', 'V5'] as const).map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setModelVersion(m)}
+                          className={`flex-1 py-2 rounded-xl text-xs font-medium ${modelVersion === m ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                        >
+                          {m === 'V5' ? 'V5' : m === 'V4_5PLUS' ? 'V4.5+' : 'V4.5'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-medium text-zinc-400 mb-2">Durée par défaut</div>
+                    <div className="flex gap-2">
+                      {([60, 120, 180] as const).map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => setGenerationDuration(d)}
+                          className={`flex-1 py-2 rounded-xl text-xs font-medium ${generationDuration === d ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                        >
+                          {d === 60 ? '1 min' : d === 120 ? '2 min' : '3 min'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-zinc-500">Indication envoyée à Suno (résultat non garanti — l’API ne fixe pas la durée exacte).</p>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-medium text-zinc-400 mb-2">Console repliée au démarrage</div>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setConsoleCollapsed(false)}
+                        className={`flex-1 py-2 rounded-xl text-xs font-medium ${!consoleCollapsed ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                      >
+                        Non
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConsoleCollapsed(true)}
+                        className={`flex-1 py-2 rounded-xl text-xs font-medium ${consoleCollapsed ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                      >
+                        Oui
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="text-xs font-medium text-zinc-400 mb-2">Raccourcis clavier</div>
+                    <ul className="text-xs text-zinc-400 space-y-1.5">
+                      <li className="flex justify-between gap-4"><span>Palette de commandes</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Ctrl+K</kbd></li>
+                      <li className="flex justify-between gap-4"><span>Lecture / Pause</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Espace</kbd></li>
+                      <li className="flex justify-between gap-4"><span>Fermer (palette / paramètres)</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Échap</kbd></li>
+                    </ul>
+                  </div>
+
+                  <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5">
+                    <p className="text-[11px] text-zinc-500">
+                      Les fichiers générés par Suno sont conservés <strong className="text-zinc-400">15 jours</strong>. Pensez à télécharger ou à garder vos créations dans la bibliothèque.
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {cmdOpen && (

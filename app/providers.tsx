@@ -236,6 +236,24 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, [audioService]);
 
+  // Garder audioState.currentTime/duration en sync avec l’élément audio (pour IDE, player UI, etc.)
+  useEffect(() => {
+    const check = () => {
+      const audioEl = ((audioService as any).audioElement ?? null) as HTMLAudioElement | null;
+      if (audioEl) {
+        const ct = Number.isFinite(audioEl.currentTime) ? audioEl.currentTime : 0;
+        const dur = Number.isFinite(audioEl.duration) ? audioEl.duration : 0;
+        setAudioState(prev => {
+          if (Math.abs((prev.currentTime ?? 0) - ct) < 0.05 && Math.abs((prev.duration ?? 0) - dur) < 0.05) return prev;
+          return { ...prev, currentTime: ct, duration: dur };
+        });
+      }
+    };
+    check();
+    const interval = setInterval(check, 250);
+    return () => clearInterval(interval);
+  }, [audioService]);
+
   const getAudioElement = useCallback(() => {
     return (((audioService as any).audioElement ?? null) as HTMLAudioElement | null);
   }, [audioService]);
