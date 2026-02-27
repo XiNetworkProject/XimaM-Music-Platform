@@ -15,6 +15,10 @@ Document de référence pour aligner la documentation sur le comportement réel 
   Après "complete", l’UI privilégie `audio_url` (fichier final) pour liste et téléchargement ; `stream_audio_url` reste en backup pour la lecture. Sync des `generatedTracks` avec la bibliothèque après refresh.
 - **Normalisation** :  
   `lib/suno-normalize.ts` gère webhook (snake_case) et polling (camelCase) ; `audio` = final, `stream` = stream.
+- **Cover et paroles à l’upload** :  
+  - **Upload simple** (`POST /api/ai/upload-source`) : une image de cover par défaut (`/default-cover.svg`) est assignée ; les paroles sont récupérées **automatiquement** via **OpenAI Whisper** (transcription de l’audio) si `OPENAI_API_KEY` est défini. Les champs `lyrics` et `prompt` de la track (et de la génération) sont mis à jour avec le texte transcrit.  
+  - **Remix / upload-cover** : au callback `complete`, Suno renvoie pour chaque piste `image_url` (cover) et `prompt` (paroles). Ces champs sont persistés via `updateGenerationStatus` → `saveTracks`.  
+  - **Note** : l’API Suno ne fournit pas d’extraction de paroles depuis un fichier ; c’est notre stack (Whisper) qui le fait à l’upload simple.
 
 ## 📁 Routes API concernées
 

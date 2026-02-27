@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { transcribeAudioFromUrl } from '@/lib/transcribe';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,13 +41,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: genErr.message }, { status: 500 });
     }
 
-    // Insérer la track associée
+    // Cover par défaut pour les uploads simples (Suno n'assigne une cover qu'après remix/cover).
+    const defaultCoverUrl = process.env.NEXTAUTH_URL
+      ? `${process.env.NEXTAUTH_URL}/default-cover.svg`
+      : '/default-cover.svg';
+
+    // Insérer la track associée. Paroles : récupérées automatiquement via Whisper si OPENAI_API_KEY est défini.
     const trackData: any = {
       generation_id: generationId,
       title: displayTitle,
       audio_url: audioUrl,
       stream_audio_url: audioUrl,
-      image_url: null,
+      image_url: defaultCoverUrl,
       duration: Math.round(Number(duration) || 0),
       prompt: '',
       model_name: 'UPLOAD',
@@ -64,6 +70,21 @@ export async function POST(request: NextRequest) {
     if (trErr) {
       console.error('❌ Erreur insertion track upload:', trErr);
       return NextResponse.json({ error: trErr.message }, { status: 500 });
+    }
+
+    // Transcription automatique des paroles (Whisper) si la clé OpenAI est configurée
+    const lyrics = await transcribeAudioFromUrl(audioUrl);
+    if (lyrics && inserted?.id) {
+      await supabaseAdmin
+        .from('ai_tracks')
+        .update({ lyrics, prompt: lyrics })
+        .eq('id', inserted.id);
+      await supabaseAdmin
+        .from('ai_generations')
+        .update({ prompt: lyrics })
+        .eq('id', generationId);
+      (inserted as any).lyrics = lyrics;
+      (inserted as any).prompt = lyrics;
     }
 
     return NextResponse.json({ success: true, generationId, track: inserted });

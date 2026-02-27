@@ -11,7 +11,6 @@ import { useAudioPlayer } from '@/app/providers';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { useSession } from 'next-auth/react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
-import { PresetStrip } from '@/components/ai-studio/PresetStrip';
 import { GenerationTimeline } from '@/components/ai-studio/GenerationTimeline';
 import { TrackInspector } from '@/components/ai-studio/TrackInspector';
 import { RemixDropzone } from '@/components/ai-studio/RemixDropzone';
@@ -532,19 +531,19 @@ export default function AIGenerator() {
     return result;
   }, [allTracks, session?.user?.id]);
 
-  const generationsById = React.useMemo(() => {
-    const m = new Map<string, AIGeneration>();
-    const source = generations.length > 0 ? generations : generationsFromTracks;
-    source.forEach((g) => m.set(String(g.id), g));
-    return m;
+  // Fusion des deux sources (API generations + generationsFromTracks) pour que A/B et le reste voient toutes les musiques générées
+  const recentGenerationsSorted = React.useMemo(() => {
+    const byId = new Map<string, AIGeneration>();
+    generationsFromTracks.forEach((g) => byId.set(String(g.id), g));
+    generations.forEach((g) => byId.set(String(g.id), g)); // l’API écrase si doublon (métadonnées plus complètes)
+    return Array.from(byId.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [generations, generationsFromTracks]);
 
-  // Générations triées par date (plus récentes en premier)
-  // (gardé pour logique interne; l'affichage principal de la Library se fait au niveau des tracks)
-  const recentGenerationsSorted = React.useMemo(() => {
-    const allGenerations = generations.length > 0 ? generations : generationsFromTracks;
-    return [...allGenerations].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [generations, generationsFromTracks]);
+  const generationsById = React.useMemo(() => {
+    const m = new Map<string, AIGeneration>();
+    recentGenerationsSorted.forEach((g) => m.set(String(g.id), g));
+    return m;
+  }, [recentGenerationsSorted]);
 
   const filteredAssets = React.useMemo(() => {
     const q = assetQuery.trim().toLowerCase();
@@ -1157,6 +1156,20 @@ export default function AIGenerator() {
 
   const [styleSuggestions, setStyleSuggestions] = useState<string[]>(['rock','hip hop','electronic','pop','lo-fi','house','afrobeat','ambient']);
   const [vibeSuggestions, setVibeSuggestions] = useState<string[]>(['dramatic builds','catchy beats','emotional','fast guitar','breathy vocals']);
+
+  // Catégories de tags façon Suno (scroll vertical) — fusion avec les suggestions API
+  const tagCategories = React.useMemo(() => {
+    const genre = Array.from(new Set([...styleSuggestions, 'pop', 'rock', 'electronic', 'hip hop', 'lo-fi', 'house', 'ambient', 'jazz', 'trap', 'edm', 'folk', 'R&B', 'country', 'metal', 'afrobeat', 'indie', 'synthwave', 'deep house']));
+    const mood = Array.from(new Set([...vibeSuggestions, 'emotional', 'dramatic builds', 'catchy beats', 'dark', 'uplifting', 'moody', 'cinematic', 'nostalgic', 'dreamy', 'euphoric', 'intimate', 'powerful', 'melancholic']));
+    const production = ['lo-fi', 'polished', 'vintage', 'warm', 'minimal', 'atmospheric', 'gritty', 'crisp', 'modern'];
+    const vocal = ['breathy vocals', 'fast guitar', 'synth-driven', 'acoustic guitar', 'ethereal vocals', 'raspy vocals', 'piano', 'strings'];
+    return [
+      { id: 'genre', label: 'Genre', tags: genre },
+      { id: 'mood', label: 'Ambiance', tags: mood },
+      { id: 'production', label: 'Production', tags: production },
+      { id: 'vocal', label: 'Voix / Instrument', tags: vocal },
+    ];
+  }, [styleSuggestions, vibeSuggestions]);
 
 
   React.useEffect(() => {
@@ -2719,80 +2732,71 @@ export default function AIGenerator() {
             className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}
             style={{ width: leftPx }}
           >
-            <div className="flex-1 overflow-y-auto pr-1 space-y-4 pb-24 lg:pb-0">
+            <div className="flex-1 overflow-y-auto pr-1 space-y-3 pb-24 lg:pb-0">
               {shellMode === 'ide' && (
-                <div className="panel-suno p-2">
-                  <div className="flex items-center justify-between px-1 pb-2">
-                    <div className="text-xs text-white/70 inline-flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5" />
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                  <div className="flex items-center justify-between px-1 pb-1.5">
+                    <span className="text-[11px] text-white/60 inline-flex items-center gap-1">
+                      <Layers className="w-3 h-3" />
                       Explorer
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCmdOpen(true)}
-                      className="rounded-xl bg-white/10 px-2 py-1 text-[11px] font-semibold text-white/70 hover:bg-white/15"
-                    >
+                    </span>
+                    <button type="button" onClick={() => setCmdOpen(true)} className="rounded-lg bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/70 hover:bg-white/15">
                       Ctrl+K
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button type="button" onClick={() => setLeftExplorerTab('builder')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'builder' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><SlidersHorizontal className="w-3.5 h-3.5" /> Editor</button>
-                    <button type="button" onClick={() => setLeftExplorerTab('presets')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'presets' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><Sparkles className="w-3.5 h-3.5" /> Presets</button>
-                    <button type="button" onClick={() => setLeftExplorerTab('assets')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'assets' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><Library className="w-3.5 h-3.5" /> Assets</button>
-                    <button type="button" onClick={() => setLeftExplorerTab('history')} className={`h-9 rounded-2xl text-[11px] inline-flex items-center justify-center gap-1.5 ${leftExplorerTab === 'history' ? 'border border-white/20 bg-white text-black' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.08] text-zinc-300'}`}><History className="w-3.5 h-3.5" /> History</button>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button type="button" onClick={() => setLeftExplorerTab('builder')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'builder' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><SlidersHorizontal className="w-3 h-3" /> Editor</button>
+                    <button type="button" onClick={() => setLeftExplorerTab('presets')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'presets' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><Sparkles className="w-3 h-3" /> Presets</button>
+                    <button type="button" onClick={() => setLeftExplorerTab('assets')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'assets' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><Library className="w-3 h-3" /> Assets</button>
+                    <button type="button" onClick={() => setLeftExplorerTab('history')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'history' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><History className="w-3 h-3" /> History</button>
                   </div>
                 </div>
               )}
-              {/* Builder : création / presets (contenu existant) */}
               {(shellMode !== 'ide' || leftExplorerTab === 'builder') && (
-              <section className="space-y-4 flex flex-col min-h-0">
-                {/* Toolbar interne (style Suno-like) */}
-                <div className="panel-suno p-3 space-y-3">
+              <section className="space-y-3 flex flex-col min-h-0">
+                {/* Barre : crédits + mode Simple/Custom/Remix + modèle */}
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
                   <div className="flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => setShowBuyCredits(true)}
-                      className={`${SUNO_BTN_BASE} cursor-pointer py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 transition-all duration-200`}
-                      aria-label={`Credits remaining: ${creditsBalance}`}
+                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/80 hover:bg-white/[0.06]"
+                      aria-label={`Crédits: ${creditsBalance}`}
                     >
-                      <span className="relative flex flex-row items-center justify-center gap-2">
-                        <Coins className="w-4 h-4" />
-                        <span className="text-[12px] font-medium tracking-[0.5px] w-[4ch] inline-block text-center transition-[width] duration-200">
-                          {formatCreditsCompact(creditsBalance)}
-                        </span>
-                      </span>
+                      <Coins className="w-3.5 h-3.5" />
+                      <span className="w-[4ch] text-center">{formatCreditsCompact(creditsBalance)}</span>
                     </button>
 
-                    <div className="flex items-center gap-2">
-                      <div className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none text-[15px] leading-[24px] rounded-full text-foreground-primary bg-transparent before:border-border-primary h-[40px] p-[3px]">
-                        <span className="relative flex flex-row items-center justify-center gap-2">
-                          <span className="flex flex-1 items-center justify-stretch gap-0">
-                            <button
-                              type="button"
-                              onClick={() => selectGenerationMode('simple')}
-                              disabled={isGenerationDisabled}
-                              className={`px-3 h-[34px] rounded-full text-[12px] ${generationModeKind === 'simple' ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              Simple
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => selectGenerationMode('custom')}
-                              disabled={isGenerationDisabled}
-                              className={`px-3 h-[34px] rounded-full text-[12px] ${generationModeKind === 'custom' ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              Custom
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => selectGenerationMode('remix')}
-                              disabled={isGenerationDisabled}
-                              className={`px-3 h-[34px] rounded-full text-[12px] ${generationModeKind === 'remix' ? 'bg-background-primary' : ''} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              Remix
-                            </button>
-                          </span>
-                        </span>
+                    <div className="flex items-center gap-1.5">
+                      {/* Mode Simple / Custom / Remix — bien différenciés */}
+                      <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => selectGenerationMode('simple')}
+                          disabled={isGenerationDisabled}
+                          className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${generationModeKind === 'simple' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Description seule, l’IA génère titre et paroles"
+                        >
+                          Simple
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => selectGenerationMode('custom')}
+                          disabled={isGenerationDisabled}
+                          className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${generationModeKind === 'custom' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Titre, style et paroles personnalisés"
+                        >
+                          Custom
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => selectGenerationMode('remix')}
+                          disabled={isGenerationDisabled}
+                          className={`rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition ${generationModeKind === 'remix' ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/30' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title="Remix à partir d’un fichier audio"
+                        >
+                          Remix
+                        </button>
                       </div>
 
                       <div className="relative model-dropdown-container">
@@ -2800,14 +2804,12 @@ export default function AIGenerator() {
                           type="button"
                           onClick={() => setShowModelDropdown(!showModelDropdown)}
                           disabled={isGenerationDisabled}
-                          className={SUNO_PILL_SOLID}
+                          className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/90 hover:bg-white/[0.06] disabled:opacity-50"
                         >
-                          <span className="relative flex flex-row items-center justify-center gap-2">
-                            {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-ml-1 h-4 w-4">
+                          <span>{modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-ml-0.5 h-3.5 w-3.5">
                               <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
                             </svg>
-                          </span>
                         </button>
 
                         <AnimatePresence>
@@ -2833,134 +2835,122 @@ export default function AIGenerator() {
                 </div>
 
                 {/* Formulaire : Titre dans "Titre & sortie" (Custom) ou implicite (Simple) */}
-                <div className="space-y-6 px-0">
-                  {/* Bandeau de presets */}
-                  <div>
-                    <PresetStrip
-                      presets={aiStudioPresets}
-                      activePresetId={activePresetId}
-                      onPresetClick={handleApplyPreset}
-                    />
-                  </div>
-
-                  {/* Rangée segmentée Audio */}
-                  <div className="panel-suno p-0 overflow-hidden">
-                    <div className="grid grid-cols-1 h-[48px]">
+                <div className="space-y-3 px-0">
+                  {/* Lien rapide source Remix (uniquement Custom / Remix) */}
+                  {customMode && (
+                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
                       <button
                         type="button"
                         onClick={() => {
                           remixSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           setOpenStyleSection(true);
                         }}
-                        className={`${SUNO_BTN_BASE} rounded-none rounded-full h-full w-full bg-background-fog-thin p-3 text-[14px]`}
-                        aria-label="Audio"
-                        title="Audio"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-2 text-xs text-white/80 hover:bg-white/[0.06]"
+                        aria-label="Aller à la section Audio / Remix"
                       >
-                        <span className="relative flex flex-row items-center justify-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-0 my-1">
-                            <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
-                          </svg>
-                          Audio
-                        </span>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
+                          <g><path d="M12 4c-.631 0-1.143.512-1.143 1.143v5.714H5.143a1.143 1.143 0 0 0 0 2.286h5.714v5.714a1.143 1.143 0 0 0 2.286 0v-5.714h5.714a1.143 1.143 0 0 0 0-2.286h-5.714V5.143C13.143 4.512 12.63 4 12 4"></path></g>
+                        </svg>
+                        {isRemixMode ? 'Source Remix (obligatoire)' : 'Audio source Remix (optionnel)'}
                       </button>
-
                     </div>
-                  </div>
+                  )}
 
                   {customMode ? (
                     <>
                   {/* Titre */}
                   <SunoAccordionSection
-                    title="Titre & sortie"
-                    description="Titre du morceau et infos de base."
+                    title="Titre"
+                    description="Titre du morceau (optionnel)."
                     isOpen={openProjectSection}
                     onToggle={() => setOpenProjectSection((v) => !v)}
+                    variant="bare"
                   >
-                    <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
-                      Titre
-                    </label>
                     <input
                       type="text"
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Song Title (Optional)"
+                      placeholder="Ex: Summer Vibes"
                       disabled={isGenerationDisabled}
-                      className={`${SUNO_FIELD} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
                   </SunoAccordionSection>
 
                   {/* Style de musique */}
                   <SunoAccordionSection
-                    title="Styles"
-                    description="Définis l'ambiance et les tags musicaux."
+                    title="Style"
+                    description="Genre, ambiance, instruments (ou utilise les tags ci‑dessous)."
                     isOpen={openStyleSection}
                     onToggle={() => setOpenStyleSection((v) => !v)}
+                    variant="bare"
                     rightActions={
                       <button
                         type="button"
-                        className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[15px] leading-[24px] rounded-full aspect-square text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary p-3"
-                        aria-label="Clear styles"
-                        title="Clear"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setStyle('');
-                        }}
+                        onClick={(e) => { e.preventDefault(); setStyle(''); }}
+                        aria-label="Effacer le style"
+                        title="Effacer"
+                        className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition"
                       >
-                        <span className="relative flex flex-row items-center justify-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
-                            <g>
-                              <path d="m9.4 16.5 2.6-2.6 2.6 2.6 1.4-1.4-2.6-2.6L16 9.9l-1.4-1.4-2.6 2.6-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.824 0-1.412-.587A1.93 1.93 0 0 1 5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .824-.587 1.413A1.93 1.93 0 0 1 17 21zM17 6H7v13h10z" />
-                            </g>
-                          </svg>
-                        </span>
+                        <X className="w-4 h-4" />
                       </button>
                     }
                   >
-                    <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
-                      Styles
-                    </label>
                     <textarea
                       value={style}
                       onChange={(e) => setStyle(e.target.value)}
-                      placeholder="indie, electronic, synths, 120bpm, distorted"
-                      rows={3}
+                      placeholder="Ex: indie, electronic, synths, 120bpm"
+                      rows={2}
                       maxLength={1000}
                       disabled={isGenerationDisabled}
-                      className={`${SUNO_TEXTAREA} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
-                    <div className="text-[10px] text-foreground-tertiary mt-1 text-right">
-                      {style.length}/1000
-                    </div>
+                    <div className="text-[10px] text-white/40 mt-1 text-right">{style.length}/1000</div>
 
                     <div className="mt-2">
-                      <div className="mb-2 text-[10px] text-foreground-tertiary">Tags rapides</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {Array.from(new Set([...styleSuggestions, ...vibeSuggestions])).slice(0, 28).map((tag) => {
-                          const active = selectedTags.includes(tag);
-                          return (
-                            <button
-                              key={`style-${tag}`}
-                              type="button"
-                              onClick={() => handleTagClick(tag)}
-                              disabled={isGenerationDisabled}
-                              className={`${SUNO_BTN_BASE} cursor-pointer px-3 py-1 rounded-full text-[11px] before:border-border-primary enabled:hover:before:bg-overlay-on-primary ${
-                                active ? 'bg-background-tertiary' : 'bg-transparent'
-                              } ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
-                            >
-                              <span className="relative">{tag}</span>
-                            </button>
-                          );
-                        })}
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-[10px] text-foreground-tertiary">Tags style</span>
+                        {selectedTags.length > 0 && (
+                          <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-white/50 hover:text-white">
+                            Tout effacer
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-[180px] overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02]">
+                        {tagCategories.map((cat) => (
+                          <div key={cat.id} className="border-b border-white/5 last:border-0">
+                            <div className="sticky top-0 z-[0] border-b border-white/5 bg-black/60 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white/40">{cat.label}</div>
+                            <div className="divide-y divide-white/5">
+                              {cat.tags.map((tag) => {
+                                const active = selectedTags.includes(tag);
+                                return (
+                                  <button
+                                    key={`${cat.id}-${tag}`}
+                                    type="button"
+                                    onClick={() => handleTagClick(tag)}
+                                    disabled={isGenerationDisabled}
+                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  >
+                                    <span className="truncate">{tag}</span>
+                                    {active && <span className="text-[10px] text-white/80">✓</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
                     <div
-                      className={`mt-4 rounded-2xl border p-3 ${isRemixMode ? 'border-cyan-300/50 bg-cyan-400/5' : 'border-white/10 bg-transparent'}`}
+                      className={`mt-3 rounded-xl border p-2.5 ${isRemixMode ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-white/10 bg-white/[0.02]'}`}
                       ref={remixSectionRef}
                     >
-                      <label className="block text-[10px] sm:text-xs font-medium mb-2 text-foreground-tertiary">
-                        Audio source Remix {isRemixMode ? '(obligatoire)' : '(optionnel)'}
-                      </label>
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-[11px] font-medium text-white/90">
+                          {isRemixMode ? 'Source audio Remix' : 'Audio source (optionnel)'}
+                        </span>
+                        {isRemixMode && <span className="text-[10px] text-cyan-200/80">Requis</span>}
+                      </div>
                       <RemixDropzone
                         file={remixFile}
                         uploading={remixUploading}
@@ -3025,174 +3015,140 @@ export default function AIGenerator() {
                           }
                         }}
                       />
-                      {remixUploadUrl && <p className="text-[10px] text-foreground-tertiary mt-2">Audio uploadé ✓</p>}
-                      {remixSourceLabel && (
-                        <div className="mt-1 flex items-center gap-2">
-                          <p className="text-[10px] text-cyan-200/90 truncate">
-                            Source sélectionnée: {remixSourceLabel}
-                          </p>
-                          <button
-                            type="button"
-                            onClick={clearRemixSource}
-                            className="h-6 px-2 rounded-md border border-red-300/30 bg-red-500/10 text-[10px] text-red-200 hover:bg-red-500/20"
-                          >
-                            Désélectionner
+                      {remixUploadUrl && (
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+                          <span className="truncate text-[11px] text-white/90">{remixSourceLabel ?? 'Fichier uploadé'}</span>
+                          <button type="button" onClick={clearRemixSource} className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-red-300 hover:bg-red-500/20">
+                            Retirer
                           </button>
                         </div>
                       )}
                       {isRemixMode && !remixUploadUrl && !remixUploading && (
-                        <p className="text-[10px] text-cyan-200/90 mt-2">Ajoute un audio pour lancer une génération Remix.</p>
+                        <p className="mt-2 text-[10px] text-white/50">Dépose un fichier audio ou choisis une piste ci‑dessous.</p>
                       )}
-                      {isRemixMode && uploadedRemixAssets.length > 0 && (
-                        <div className="mt-3 space-y-2">
-                          <div className="text-[10px] text-foreground-tertiary">Réutiliser un audio uploadé</div>
-                          <div className="max-h-36 overflow-auto space-y-1.5 pr-1">
-                            {uploadedRemixAssets.slice(0, 12).map((track) => (
-                              <button
-                                key={`remix-asset-${track.id}`}
-                                type="button"
-                                onClick={() => useLibraryTrackForRemix(track)}
-                                className={`w-full rounded-lg border px-2 py-1.5 text-left text-[11px] transition ${
-                                  remixUploadUrl && resolveTrackMedia(track).playableUrl === remixUploadUrl
-                                    ? 'border-cyan-300/50 bg-cyan-400/10 text-cyan-100'
-                                    : 'border-white/10 bg-white/[0.03] text-zinc-200 hover:bg-white/[0.06]'
-                                }`}
-                              >
-                                <div className="truncate font-medium">{getUploadedAssetName(track)}</div>
-                                <div className="text-[10px] text-zinc-400">
-                                  {Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : 'Durée inconnue'}
-                                </div>
-                              </button>
-                            ))}
+                      {uploadedRemixAssets.length > 0 && (
+                        <div className="mt-2">
+                          <div className="mb-1 text-[10px] text-white/50">Pistes déjà uploadées</div>
+                          <div className="max-h-28 overflow-y-auto divide-y divide-white/5 rounded-lg border border-white/5">
+                            {uploadedRemixAssets.slice(0, 8).map((track) => {
+                              const isSelected = remixUploadUrl && resolveTrackMedia(track).playableUrl === remixUploadUrl;
+                              return (
+                                <button
+                                  key={`remix-asset-${track.id}`}
+                                  type="button"
+                                  onClick={() => useLibraryTrackForRemix(track)}
+                                  className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${isSelected ? 'bg-cyan-500/15 text-cyan-100' : 'text-white/80 hover:bg-white/5'}`}
+                                >
+                                  <span className="truncate">{getUploadedAssetName(track)}</span>
+                                  <span className="text-[10px] text-white/40">{Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : '—'}</span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
                     </div>
                   </SunoAccordionSection>
 
-                  {/* Paroles ou Description */}
+                  {/* Paroles */}
                   <SunoAccordionSection
-                    title="Lyrics"
-                    description="Paroles exactes ou prompt."
+                    title="Paroles"
+                    description="Texte de la chanson ou laisser vide si instrumental."
                     isOpen={openLyricsSection}
                     onToggle={() => setOpenLyricsSection((v) => !v)}
+                    variant="bare"
                     rightActions={
-                      <button
-                        type="button"
-                        className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer text-[15px] leading-[24px] rounded-full aspect-square text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary p-3"
-                        aria-label="Clear lyrics"
-                        title="Clear"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setLyrics('');
-                        }}
-                      >
-                        <span className="relative flex flex-row items-center justify-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="text-current shrink-0 w-4 h-4 m-1">
-                            <g>
-                              <path d="m9.4 16.5 2.6-2.6 2.6 2.6 1.4-1.4-2.6-2.6L16 9.9l-1.4-1.4-2.6 2.6-2.6-2.6L8 9.9l2.6 2.6L8 15.1zM7 21q-.824 0-1.412-.587A1.93 1.93 0 0 1 5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .824-.587 1.413A1.93 1.93 0 0 1 17 21zM17 6H7v13h10z" />
-                            </g>
-                          </svg>
-                        </span>
+                      <button type="button" onClick={(e) => { e.preventDefault(); setLyrics(''); }} aria-label="Effacer" title="Effacer" className="rounded-lg p-1.5 text-white/50 hover:bg-white/10 hover:text-white transition">
+                        <X className="w-4 h-4" />
                       </button>
                     }
                   >
-                    <label className="flex items-center gap-3 cursor-pointer mb-3">
-                      <input
-                        type="checkbox"
-                        checked={isInstrumental}
-                        onChange={(e) => setIsInstrumental(e.target.checked)}
-                        disabled={isGenerationDisabled}
-                        className="sr-only"
-                      />
-                      <div className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        isInstrumental ? 'bg-accent-brand' : 'bg-background-tertiary'
-                      }`}>
-                        <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          isInstrumental ? 'translate-x-6' : 'translate-x-1'
-                        }`} />
-                      </div>
-                      <span className="text-xs font-medium text-foreground-secondary">Instrumental</span>
-                    </label>
-
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input type="checkbox" checked={isInstrumental} onChange={(e) => setIsInstrumental(e.target.checked)} disabled={isGenerationDisabled} className="sr-only" />
+                        <div className={`h-5 w-9 rounded-full transition-colors ${isInstrumental ? 'bg-cyan-500' : 'bg-white/10'}`}>
+                          <span className={`block h-4 w-4 mt-0.5 ml-0.5 rounded-full bg-white transition-transform ${isInstrumental ? 'translate-x-4' : 'translate-x-0'}`} />
+                        </div>
+                        <span className="text-[11px] text-white/80">Instrumental</span>
+                      </label>
+                      <span className="text-[10px] text-white/40">{lyrics.length}/5000</span>
+                    </div>
                     <textarea
                       value={lyrics}
                       onChange={(e) => setLyrics(e.target.value)}
-                      placeholder="Write some lyrics — or leave blank for instrumental"
-                      rows={6}
+                      placeholder="Colle ou écris les paroles ici…"
+                      rows={4}
                       maxLength={5000}
                       disabled={isGenerationDisabled}
-                      className={`${SUNO_TEXTAREA} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
-                    <div className="text-[10px] text-foreground-tertiary mt-1 text-right">
-                      {lyrics.length}/5000
-                    </div>
                   </SunoAccordionSection>
                   {/* Options avancées */}
                   <SunoAccordionSection
-                    title="Advanced Options"
-                    description="Weirdness, style influence, audio weight…"
+                    title="Options avancées"
+                    description="Créativité, poids du style, voix…"
                     isOpen={openAdvancedSection}
                     onToggle={() => setOpenAdvancedSection((v) => !v)}
+                    variant="bare"
                   >
-                    <div className="space-y-4">
+                    <div className="space-y-3">
                       <SunoSlider
-                        label="Weirdness"
+                        label="Créativité"
                         value={weirdness}
                         onChange={setWeirdness}
                         disabled={isGenerationDisabled}
-                        midLabel={weirdness < 35 ? 'Tame' : weirdness < 65 ? 'Expected results' : 'Wild'}
+                        midLabel={weirdness < 35 ? 'Contrôlé' : weirdness < 65 ? 'Équilibré' : 'Créatif'}
                       />
                       <SunoSlider
-                        label="Style Influence"
+                        label="Poids du style"
                         value={styleInfluence}
                         onChange={setStyleInfluence}
                         disabled={isGenerationDisabled}
-                        midLabel={styleInfluence < 35 ? 'Low' : styleInfluence < 65 ? 'Moderate' : 'High'}
+                        midLabel={styleInfluence < 35 ? 'Faible' : styleInfluence < 65 ? 'Moyen' : 'Fort'}
                       />
                       <SunoSlider
-                        label="Audio Weight"
+                        label="Poids de l’audio"
                         value={audioWeight}
                         onChange={setAudioWeight}
                         disabled={isGenerationDisabled}
-                        midLabel={audioWeight < 35 ? 'Low' : audioWeight < 65 ? 'Moderate' : 'High'}
+                        midLabel={audioWeight < 35 ? 'Faible' : audioWeight < 65 ? 'Moyen' : 'Fort'}
                       />
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] text-foreground-tertiary mb-1">Vocal gender</label>
+                          <label className="block text-[10px] text-white/50 mb-1">Voix</label>
                           <select
                             value={vocalGender}
                             onChange={(e) => setVocalGender(e.target.value)}
                             disabled={isGenerationDisabled}
-                            className={`${SUNO_SELECT} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-sm text-white focus:border-white/20 outline-none disabled:opacity-50"
                           >
                             <option value="">Auto</option>
-                            <option value="m">Male</option>
-                            <option value="f">Female</option>
+                            <option value="m">Homme</option>
+                            <option value="f">Femme</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[10px] text-foreground-tertiary mb-1">Exclude styles</label>
+                          <label className="block text-[10px] text-white/50 mb-1">Exclure styles</label>
                           <input
                             value={negativeTags}
                             onChange={(e) => setNegativeTags(e.target.value)}
-                            placeholder="Exclude styles"
+                            placeholder="Tags à éviter"
                             disabled={isGenerationDisabled}
-                            className={`${SUNO_FIELD} ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                           />
                         </div>
                       </div>
                     </div>
                   </SunoAccordionSection>
 
-                  {/* Results (timeline) */}
+                  {/* Résultats */}
                   {generatedTracks.length > 0 && (
                     <SunoAccordionSection
-                      title="Results"
-                      description="Pistes générées (timeline)"
+                      title="Résultats"
+                      description="Pistes générées"
                       isOpen={openResultsSection}
                       onToggle={() => setOpenResultsSection((v) => !v)}
+                      variant="bare"
                     >
                       <GenerationTimeline
                         generatedTracks={generatedTracks}
@@ -3210,46 +3166,57 @@ export default function AIGenerator() {
                   )}
                 </>
               ) : (
-                // Mode description
-                <div className={`${SUNO_PANEL} p-4 md:p-5 space-y-4`}>
-                  <h2 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-accent-brand" />
-                    <span>Paroles ou Description</span>
-                  </h2>
-                  <p className="text-[11px] text-white/55">
-                    Saisissez les paroles exactes ou décrivez simplement l'ambiance souhaitée.
-                  </p>
+                /* Mode Simple : description seule */
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
                   <div>
-                    <label className="block text-xs font-medium mb-2 text-white/80">Description de la chanson</label>
+                    <h2 className="text-xs font-semibold text-white/90 mb-0.5 flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-400/80" />
+                      Description
+                    </h2>
+                    <p className="text-[10px] text-white/50 mb-2">Décris l’ambiance, l’IA génère titre et paroles.</p>
+                    <label className="block text-[10px] font-medium mb-1 text-white/60">Description de la chanson</label>
                     <textarea
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Décrivez le style de musique et le sujet que vous souhaitez, l'IA générera les paroles pour vous."
-                      rows={4}
+                      placeholder="Ex: chanson pop énergique, été, amour..."
+                      rows={3}
                       maxLength={199}
                       disabled={isGenerationDisabled}
-                      className={`${SUNO_TEXTAREA} text-sm ${isGenerationDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
-                    <div className="text-[10px] text-white/40 mt-1 text-right">
-                      {description.length}/199
-                    </div>
+                    <div className="text-[10px] text-white/40 mt-1 text-right">{description.length}/199</div>
                     <div className="mt-2">
-                      <div className="text-[10px] text-white/50 mb-2">Tags rapides</div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[...styleSuggestions, ...vibeSuggestions].map((tag, index) => {
-                          const active = selectedTags.includes(tag);
-                          return (
-                            <button
-                              key={`vibe-${tag}-${index}`}
-                              type="button"
-                              onClick={() => handleTagClick(tag)}
-                              disabled={isGenerationDisabled}
-                              className={`px-2 py-0.5 rounded-full text-[10px] border transition-colors ${active ? 'bg-accent-brand/20 border-accent-brand/50 text-white' : 'bg-transparent border-white/20 text-white/60 hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                            >
-                              {tag}
-                            </button>
-                          );
-                        })}
+                      <div className="mb-1 flex items-center justify-between">
+                        <span className="text-[10px] text-white/50">Tags style</span>
+                        {selectedTags.length > 0 && (
+                          <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-white/50 hover:text-white">
+                            Tout effacer
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-[180px] overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02]">
+                        {tagCategories.map((cat) => (
+                          <div key={cat.id} className="border-b border-white/5 last:border-0">
+                            <div className="sticky top-0 z-[0] border-b border-white/5 bg-black/60 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white/40">{cat.label}</div>
+                            <div className="divide-y divide-white/5">
+                              {cat.tags.map((tag) => {
+                                const active = selectedTags.includes(tag);
+                                return (
+                                  <button
+                                    key={`${cat.id}-s-${tag}`}
+                                    type="button"
+                                    onClick={() => handleTagClick(tag)}
+                                    disabled={isGenerationDisabled}
+                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${active ? 'bg-amber-500/15 text-amber-100' : 'text-white/70 hover:bg-white/5 hover:text-white'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  >
+                                    <span className="truncate">{tag}</span>
+                                    {active && <span className="text-[10px] text-amber-200/90">✓</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -3258,7 +3225,7 @@ export default function AIGenerator() {
               )}
 
               {showLivePanel && (
-                <div className="mt-3 panel-suno p-3 space-y-3">
+                <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold text-white">{isRemixMode ? 'Now remixing' : 'Now generating'}</div>
@@ -3377,34 +3344,30 @@ export default function AIGenerator() {
               )}
                 </div>
 
-                {/* Bottom create bar */}
-                <div className="sticky bottom-0 pt-3">
-                  <div className="panel-suno p-3 flex items-center gap-2">
+                {/* Bouton Créer */}
+                <div className="sticky bottom-0 pt-2">
+                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5">
                     <button
                       type="button"
                       onClick={generateMusic}
                       disabled={isGenerationDisabled || isGenerating || rateLimitActive}
-                      className={`${SUNO_BTN_BASE} cursor-pointer flex-1 px-4 py-3 rounded-full text-foreground-primary bg-background-tertiary enabled:hover:before:bg-overlay-on-primary text-[15px] ${
-                        isGenerationDisabled || isGenerating || rateLimitActive ? 'opacity-60 cursor-not-allowed' : ''
-                      }`}
-                      aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Create song'}
+                      className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white bg-white/15 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                      aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Créer'}
                     >
-                      <span className="relative flex items-center justify-center gap-2">
-                        {isGenerating ? (
-                          <span className="w-4 h-4 rounded-full border-2 border-foreground-tertiary border-t-transparent animate-spin" />
-                        ) : rateLimitActive ? (
-                          <Clock3 className="w-5 h-5" />
-                        ) : (
-                          <Sparkles className="w-5 h-5" />
-                        )}
-                        {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
-                      </span>
+                      {isGenerating ? (
+                        <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-transparent animate-spin" />
+                      ) : rateLimitActive ? (
+                        <Clock3 className="w-4 h-4" />
+                      ) : (
+                        <Sparkles className="w-4 h-4" />
+                      )}
+                      {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
                     </button>
                   </div>
                 </div>
 
-                {/* Mobile access to right-side tools (Inspector / Models / Export) */}
-                <div className="lg:hidden mt-3 panel-suno p-3 space-y-3">
+                {/* Mobile : Inspector / Models / Export */}
+                <div className="lg:hidden mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
                   <div className="inline-flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
                     <button
                       type="button"
@@ -3494,24 +3457,24 @@ export default function AIGenerator() {
               </section>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'presets' && (
-                <div className="panel-suno p-3 space-y-2">
-                  <div className="text-xs text-zinc-400 inline-flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Presets rapides</div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-1.5">
+                  <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><FolderOpen className="w-3.5 h-3.5" /> Presets</div>
                   {aiStudioPresets.map((preset) => (
                     <button
                       key={preset.id}
                       type="button"
                       onClick={() => handleApplyPreset(preset)}
-                      className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-2"
+                      className="w-full text-left rounded-xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] px-2.5 py-2 transition"
                     >
-                      <div className="text-xs font-semibold">{(preset as any).name || preset.id}</div>
-                      <div className="text-[11px] text-zinc-400 truncate">{preset.description || 'Preset studio'}</div>
+                      <div className="text-[11px] font-semibold text-white/90">{(preset as any).name || preset.id}</div>
+                      <div className="text-[10px] text-zinc-500 truncate">{preset.description || 'Preset studio'}</div>
                     </button>
                   ))}
                 </div>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'assets' && (
-                <div className="panel-suno p-3 space-y-2">
-                  <div className="text-xs text-zinc-400 inline-flex items-center gap-2"><Library className="w-4 h-4" /> Assets</div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
+                  <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><Library className="w-3.5 h-3.5" /> Assets</div>
                   <input
                     value={assetQuery}
                     onChange={(e) => setAssetQuery(e.target.value)}
@@ -3572,8 +3535,8 @@ export default function AIGenerator() {
                 </div>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'history' && (
-                <div className="panel-suno p-3 space-y-2">
-                  <div className="text-xs text-zinc-400 inline-flex items-center gap-2"><History className="w-4 h-4" /> Historique</div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
+                  <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><History className="w-3.5 h-3.5" /> Historique</div>
                   {recentGenerationsSorted.slice(0, 20).map((g) => (
                     <button
                       key={g.id}
@@ -3939,7 +3902,7 @@ export default function AIGenerator() {
                           })}
 
                         <div className="flex w-full flex-col gap-2">
-                        {recentGenerationsSorted.slice(0, 8).map((g) => (
+                        {recentGenerationsSorted.slice(0, 50).map((g) => (
                           <div
                             key={g.id}
                             onClick={() => selectGenerationInIde(g)}
@@ -4022,6 +3985,9 @@ export default function AIGenerator() {
                         </div>
                         {recentGenerationsSorted.length === 0 && (
                           <div className="w-full py-4 text-center text-xs text-zinc-500">Aucune version pour le moment.</div>
+                        )}
+                        {recentGenerationsSorted.length > 50 && (
+                          <div className="w-full py-2 text-center text-[10px] text-zinc-500">50 plus récentes affichées. Utilise la bibliothèque pour voir tout l’historique.</div>
                         )}
                       </div>
                     </div>

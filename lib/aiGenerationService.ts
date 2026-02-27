@@ -150,7 +150,8 @@ class AIGenerationService {
     }
   }
 
-  // 🎵 Sauvegarder les tracks d'une génération
+  // 🎵 Sauvegarder les tracks d'une génération (callback "complete" Suno).
+  // Chaque track persiste : audio_url, stream, image_url (cover), prompt/lyrics (paroles), durée, tags.
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
     // Récupérer les tracks existantes pour insert + update (les partial saves doivent être enrichis ensuite)
     const { data: existingTracks } = await supabaseAdmin
