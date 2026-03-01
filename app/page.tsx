@@ -391,12 +391,14 @@ const LiveRadioCard = ({
   isPlaying,
   currentTrack,
   onToggle,
+  available = true,
 }: {
   title: string;
   logoSrc?: string;
   isPlaying: boolean;
   currentTrack: string;
   onToggle: () => void;
+  available?: boolean;
 }) => {
   return (
     <div className="bg-gradient-to-r from-overlay-on-primary/15 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-4 flex items-center justify-between">
@@ -410,12 +412,15 @@ const LiveRadioCard = ({
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground-primary">{title}</p>
-          <p className="text-xs text-foreground-tertiary line-clamp-1">{currentTrack}</p>
+          <p className="text-xs text-foreground-tertiary line-clamp-1">
+            {available ? currentTrack : 'Indisponible — Problème serveur'}
+          </p>
         </div>
       </div>
       <button
-        onClick={onToggle}
-        className="px-3 py-2 text-sm rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 transition"
+        onClick={available ? onToggle : undefined}
+        disabled={!available}
+        className="px-3 py-2 text-sm rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background-fog-thin"
       >
         {isPlaying ? (<><Pause className="w-4 h-4" /> Pause</>) : (<><Play className="w-4 h-4" /> Écouter</>)}
       </button>
@@ -924,7 +929,8 @@ export default function SynauraHome() {
     bitrate: 128,
     quality: 'Standard',
     isLive: true,
-    lastUpdate: new Date().toISOString()
+    lastUpdate: new Date().toISOString(),
+    available: true
   });
 
   // États pour la nouvelle radio XimaM
@@ -937,7 +943,8 @@ export default function SynauraHome() {
     bitrate: 128,
     quality: 'Standard',
     isLive: true,
-    lastUpdate: new Date().toISOString()
+    lastUpdate: new Date().toISOString(),
+    available: true
   });
 
   // Fonction pour charger les données
@@ -1318,7 +1325,8 @@ export default function SynauraHome() {
             bitrate: radioData.stats.bitrate,
             quality: radioData.stats.quality,
             isLive: radioData.isOnline,
-            lastUpdate: radioData.lastUpdate
+            lastUpdate: radioData.lastUpdate,
+            available: result.available !== false
           }));
           
           // Mettre à jour le titre dans le player si la radio joue
@@ -1349,7 +1357,8 @@ export default function SynauraHome() {
         bitrate: 128,
         quality: 'Standard',
         isLive: true,
-        lastUpdate: new Date().toISOString()
+        lastUpdate: new Date().toISOString(),
+        available: false
       }));
     }
   }, [currentTrack, audioState.isPlaying, audioState.tracks, setTracks]);
@@ -1380,7 +1389,8 @@ export default function SynauraHome() {
             bitrate: radioData.stats.bitrate,
             quality: radioData.stats.quality,
             isLive: radioData.isOnline,
-            lastUpdate: radioData.lastUpdate
+            lastUpdate: radioData.lastUpdate,
+            available: result.available !== false
           }));
 
           // Mettre à jour le titre dans le player si la radio joue
@@ -1411,13 +1421,15 @@ export default function SynauraHome() {
         bitrate: 128,
         quality: 'Standard',
         isLive: true,
-        lastUpdate: new Date().toISOString()
+        lastUpdate: new Date().toISOString(),
+        available: false
       }));
     }
   }, [currentTrack, audioState.isPlaying, audioState.tracks, setTracks]);
 
   // Fonction pour gérer la lecture/arrêt de la radio
   const handleRadioToggle = useCallback(async () => {
+    if (!radioInfo.available) return;
     if (isRadioPlaying) {
       if (audioState.isPlaying && currentTrack?._id === 'radio-mixx-party') {
         pause();
@@ -1452,10 +1464,11 @@ export default function SynauraHome() {
       // Erreur silencieuse
     }
     }
-  }, [isRadioPlaying, audioState.isPlaying, currentTrack, radioInfo.currentTrack, pause, playTrack]);
+  }, [isRadioPlaying, audioState.isPlaying, currentTrack, radioInfo.currentTrack, radioInfo.available, pause, playTrack]);
 
   // Fonction pour gérer la lecture/arrêt de la radio XimaM
   const handleXimamRadioToggle = useCallback(async () => {
+    if (!ximamRadioInfo.available) return;
     if (isXimamRadioPlaying) {
       if (audioState.isPlaying && currentTrack?._id === 'radio-ximam') {
         pause();
@@ -1490,7 +1503,7 @@ export default function SynauraHome() {
         // Erreur silencieuse
       }
     }
-  }, [isXimamRadioPlaying, audioState.isPlaying, currentTrack, ximamRadioInfo.currentTrack, pause, playTrack]);
+  }, [isXimamRadioPlaying, audioState.isPlaying, currentTrack, ximamRadioInfo.currentTrack, ximamRadioInfo.available, pause, playTrack]);
   
   // Gérer les actions du carrousel
   const handleCarouselAction = useCallback((action: string, data?: any) => {
@@ -2056,6 +2069,7 @@ export default function SynauraHome() {
                   isPlaying={isRadioPlaying}
                   currentTrack={radioInfo.currentTrack}
                   onToggle={handleRadioToggle}
+                  available={radioInfo.available}
                 />
                 <LiveRadioCard
                   title="XimaM — Radio en direct"
@@ -2063,6 +2077,7 @@ export default function SynauraHome() {
                   isPlaying={isXimamRadioPlaying}
                   currentTrack={ximamRadioInfo.currentTrack}
                   onToggle={handleXimamRadioToggle}
+                  available={ximamRadioInfo.available}
                 />
               </div>
             </section>

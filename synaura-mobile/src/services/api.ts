@@ -126,6 +126,8 @@ export type RadioStatusResponse = {
     lastUpdate?: string;
   };
   source?: string;
+  /** false lorsque le serveur radio est injoignable ou en erreur */
+  available?: boolean;
 };
 
 class ApiService {

@@ -211,7 +211,7 @@ export async function GET(req: NextRequest) {
       };
 
       return NextResponse.json(
-        { success: true, data: radioData, source: 'azuracast' },
+        { success: true, data: radioData, source: 'azuracast', available: true },
         {
           headers: {
             'Access-Control-Allow-Origin': '*',
@@ -342,6 +342,7 @@ export async function GET(req: NextRequest) {
         success: true,
         data: defaultData,
         source: 'default',
+        available: false,
         warning: 'Données par défaut utilisées'
       }, {
         headers: {
@@ -395,6 +396,7 @@ export async function GET(req: NextRequest) {
       success: true,
       data: fallbackData,
       source: 'fallback',
+      available: false,
       error: error.message
     }, {
       headers: {

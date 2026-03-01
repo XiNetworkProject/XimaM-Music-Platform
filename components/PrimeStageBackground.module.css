@@ -1,0 +1,212 @@
+/* Prime Stage background - keyframes & layer base (opacity scaled via --intensity in JS) */
+
+/* a) Stage gradient base - full color, no dark vignette */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: -50;
+  pointer-events: none;
+  background:
+    radial-gradient(1400px 900px at 10% 6%, rgba(124, 58, 237, 0.42), transparent 60%),
+    radial-gradient(1300px 850px at 90% 10%, rgba(0, 242, 234, 0.3), transparent 60%),
+    radial-gradient(1150px 900px at 50% 100%, rgba(255, 45, 85, 0.26), transparent 65%),
+    radial-gradient(1000px 800px at 50% 35%, rgba(255, 212, 122, 0.22), transparent 62%),
+    #04020a;
+}
+
+/* b) Nebula conic wash */
+.nebula {
+  position: fixed;
+  inset: -15vh -15vw;
+  z-index: -49;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: blur(70px);
+  transform: translateZ(0);
+  background: conic-gradient(
+    from 180deg,
+    rgba(255, 212, 122, 0.2),
+    rgba(0, 242, 234, 0.16),
+    rgba(124, 58, 237, 0.22),
+    rgba(255, 45, 85, 0.16),
+    rgba(255, 212, 122, 0.2)
+  );
+  animation: nebulaSpin 12s ease-in-out infinite;
+}
+
+@keyframes nebulaSpin {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(14deg) scale(1.06);
+  }
+}
+
+/* c) StageWash - fills the page, removes "half dark" cut */
+.stageWash {
+  position: fixed;
+  inset: -20vh -20vw;
+  z-index: -48;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: blur(55px);
+  transform: translateZ(0);
+  background:
+    radial-gradient(900px 520px at 15% 25%, rgba(255, 212, 122, 0.22), transparent 68%),
+    radial-gradient(900px 520px at 85% 20%, rgba(0, 242, 234, 0.18), transparent 68%),
+    radial-gradient(980px 560px at 55% 85%, rgba(255, 45, 85, 0.16), transparent 72%),
+    radial-gradient(980px 560px at 35% 70%, rgba(124, 58, 237, 0.18), transparent 72%);
+  animation: washMove 9s ease-in-out infinite;
+}
+
+@keyframes washMove {
+  0%,
+  100% {
+    transform: translate3d(-1.5%, -1%, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(2.2%, 1.6%, 0) scale(1.05);
+  }
+}
+
+/* d) LedWall - subtle overlay */
+.ledWall {
+  position: fixed;
+  inset: 0;
+  z-index: -47;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 212, 122, 0.1), transparent 55%),
+    radial-gradient(circle at 80% 35%, rgba(0, 242, 234, 0.08), transparent 55%),
+    radial-gradient(circle at 55% 85%, rgba(255, 45, 85, 0.06), transparent 55%),
+    repeating-linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.05) 0px,
+      rgba(255, 255, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 14px
+    );
+  animation: ledMove 6s linear infinite;
+}
+
+@keyframes ledMove {
+  from {
+    background-position: 0 0, 0 0, 0 0, 0 0;
+  }
+  to {
+    background-position: 90px 40px, -70px 35px, 60px -60px, 160px 0;
+  }
+}
+
+/* e) Lasers container */
+.lasers {
+  position: fixed;
+  inset: -30vh -25vw;
+  z-index: -46;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  filter: blur(0.4px);
+}
+
+.laser {
+  position: absolute;
+  width: 42vw;
+  height: 160vh;
+  top: -55vh;
+  transform-origin: top center;
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  animation: laserSweep 8.5s ease-in-out infinite;
+}
+
+.laser1 {
+  left: 2vw;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 212, 122, 0.22),
+    rgba(255, 212, 122, 0.03),
+    transparent
+  );
+  animation-delay: -1.7s;
+}
+
+.laser2 {
+  left: 22vw;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(0, 242, 234, 0.18),
+    rgba(0, 242, 234, 0.03),
+    transparent
+  );
+  animation-delay: -3.1s;
+}
+
+.laser3 {
+  left: 45vw;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(124, 58, 237, 0.22),
+    rgba(124, 58, 237, 0.03),
+    transparent
+  );
+  animation-delay: -4.5s;
+}
+
+.laser4 {
+  left: 68vw;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 45, 85, 0.18),
+    rgba(255, 45, 85, 0.03),
+    transparent
+  );
+  animation-delay: -6.2s;
+}
+
+.laser5 {
+  left: 86vw;
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    rgba(255, 212, 122, 0.2),
+    rgba(255, 212, 122, 0.03),
+    transparent
+  );
+  animation-delay: -7.4s;
+}
+
+@keyframes laserSweep {
+  0%,
+  100% {
+    transform: rotate(-12deg) translateY(0);
+    opacity: 0.35;
+  }
+  50% {
+    transform: rotate(14deg) translateY(10px);
+    opacity: 0.78;
+  }
+}
+
+/* f) Canvas wrapper - particles drawn in JS */
+.particles {
+  position: fixed;
+  inset: 0;
+  z-index: -45;
+  pointer-events: none;
+}
+
+/* g) Grain overlay */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: -44;
+  pointer-events: none;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='.9'/%3E%3C/svg%3E");
+}

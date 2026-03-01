@@ -265,9 +265,11 @@ type RadioCardProps = {
   accent?: string;
   logoUrl?: string;
   onPress?: () => void;
+  /** false = problème serveur, afficher "Indisponible" et désactiver le bouton */
+  available?: boolean;
 };
 
-const RadioCard: React.FC<RadioCardProps> = ({ title, subtitle, accent = "#6ee7b7", logoUrl, onPress }) => (
+const RadioCard: React.FC<RadioCardProps> = ({ title, subtitle, accent = "#6ee7b7", logoUrl, onPress, available = true }) => (
   <LinearGradient
     colors={[
       "rgba(79,70,229,0.4)",
@@ -276,7 +278,7 @@ const RadioCard: React.FC<RadioCardProps> = ({ title, subtitle, accent = "#6ee7b
     ]}
     start={{ x: 0, y: 0 }}
     end={{ x: 1, y: 1 }}
-    style={styles.radioCard}
+    style={[styles.radioCard, !available && { opacity: 0.85 }]}
   >
     <View style={styles.radioLeft}>
       <View style={styles.radioIconWrapper}>
@@ -291,11 +293,11 @@ const RadioCard: React.FC<RadioCardProps> = ({ title, subtitle, accent = "#6ee7b
           {title}
         </Text>
         <Text numberOfLines={1} style={styles.radioSubtitle}>
-          {subtitle}
+          {available ? subtitle : "Indisponible — Problème serveur"}
         </Text>
       </View>
     </View>
-    <Pressable style={styles.radioButton} onPress={onPress}>
+    <Pressable style={[styles.radioButton, !available && styles.radioButtonDisabled]} onPress={available ? onPress : undefined}>
       <Ionicons name="play" size={14} color="#f9fafb" />
       <Text style={styles.radioButtonText}>Écouter</Text>
     </Pressable>
@@ -590,6 +592,8 @@ const HomeScreen: React.FC = () => {
 
   const [mixxRadioTitle, setMixxRadioTitle] = useState("EDM, remixes et sets non-stop");
   const [ximamRadioTitle, setXimamRadioTitle] = useState("Sélections & nouveautés");
+  const [mixxRadioAvailable, setMixxRadioAvailable] = useState(true);
+  const [ximamRadioAvailable, setXimamRadioAvailable] = useState(true);
 
   const goPlaceholder = useCallback(
     (screen: string, title: string, subtitle: string) => {
@@ -730,10 +734,12 @@ const HomeScreen: React.FC = () => {
         const t = `${mixx.data.data.currentTrack.artist} — ${mixx.data.data.currentTrack.title}`.trim();
         setMixxRadioTitle(t || mixxRadioTitle);
       }
+      setMixxRadioAvailable(mixx.success && mixx.data ? mixx.data.available !== false : false);
       if (ximam.success && ximam.data?.success && ximam.data?.data?.currentTrack?.title) {
         const t = `${ximam.data.data.currentTrack.artist} — ${ximam.data.data.currentTrack.title}`.trim();
         setXimamRadioTitle(t || ximamRadioTitle);
       }
+      setXimamRadioAvailable(ximam.success && ximam.data ? ximam.data.available !== false : false);
     };
 
     fetchOnce().catch(() => {});
@@ -1010,7 +1016,9 @@ const HomeScreen: React.FC = () => {
               title="Mixx Party — Radio en direct"
               subtitle={mixxRadioTitle}
               logoUrl={assetUrl("/mixxpartywhitelog.png")}
+              available={mixxRadioAvailable}
               onPress={() => {
+                if (!mixxRadioAvailable) return;
                 if (current?._id === radioMixx._id) togglePlayPause();
                 else playTrack(radioMixx);
                 openPlayer([radioMixx], 0, "Radio — Mixx Party");
@@ -1021,7 +1029,9 @@ const HomeScreen: React.FC = () => {
               subtitle={ximamRadioTitle}
               accent="#fca5a5"
               logoUrl={assetUrl("/ximam-radio-x.svg")}
+              available={ximamRadioAvailable}
               onPress={() => {
+                if (!ximamRadioAvailable) return;
                 if (current?._id === radioXimam._id) togglePlayPause();
                 else playTrack(radioXimam);
                 openPlayer([radioXimam], 0, "Radio — XimaM");
@@ -1867,6 +1877,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(248,250,252,0.35)",
     backgroundColor: "rgba(15,23,42,0.75)",
+  },
+  radioButtonDisabled: {
+    opacity: 0.5,
   },
   radioButtonText: {
     fontSize: 11,
