@@ -555,7 +555,9 @@ const LiveRadioCard = ({
       {/* Current track */}
       <div className="min-w-0">
         <p className="text-[11px] text-white/35 mb-0.5">En cours</p>
-        <p className="text-[13px] text-white/80 font-medium truncate leading-tight">{currentTrack}</p>
+        <p className="text-[13px] text-white/80 font-medium truncate leading-tight">
+          {currentTrack && currentTrack !== title ? currentTrack : 'Radio en direct'}
+        </p>
       </div>
 
       {/* Bottom row: listeners + play button */}
@@ -565,7 +567,7 @@ const LiveRadioCard = ({
             <span className="text-white/50 font-semibold">{listeners.toLocaleString()}</span> auditeurs
           </p>
         ) : (
-          <p className="text-[11px] text-white/20">Radio en direct</p>
+          <p className="text-[11px] text-white/20">Flux en direct</p>
         )}
         <button
           onClick={onToggle}
@@ -1462,13 +1464,10 @@ export default function SynauraHome() {
     } catch (error) {
       setRadioInfo(prev => ({
         ...prev,
-        currentTrack: 'Mixx Party Radio',
-        listeners: 1247,
-        bitrate: 128,
-        quality: 'Standard',
+        currentTrack: 'Mixx Party',
+        listeners: 0,
         isLive: true,
-        lastUpdate: new Date().toISOString(),
-        available: false
+        available: true,
       }));
     }
   }, [currentTrack, audioState.isPlaying, audioState.tracks, setTracks]);
@@ -1526,13 +1525,10 @@ export default function SynauraHome() {
     } catch (error) {
       setXimamRadioInfo(prev => ({
         ...prev,
-        currentTrack: 'XimaM Radio',
+        currentTrack: 'XimaM Music',
         listeners: 0,
-        bitrate: 128,
-        quality: 'Standard',
         isLive: true,
-        lastUpdate: new Date().toISOString(),
-        available: false
+        available: true,
       }));
     }
   }, [currentTrack, audioState.isPlaying, audioState.tracks, setTracks]);
