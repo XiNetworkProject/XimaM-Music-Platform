@@ -79,7 +79,7 @@ export default function DiscoverAuthedClient({
     try {
       const [fy, tr, nw, pl, ar] = await Promise.all([
         fetch('/api/ranking/feed?limit=50&ai=1&strategy=reco', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
-        fetch('/api/ranking/feed?limit=50&ai=1&strategy=trending', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/tracks/trending?limit=50', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/tracks/recent?limit=40', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/playlists/popular?limit=18', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/artists?sort=trending&limit=16', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
@@ -139,12 +139,39 @@ export default function DiscoverAuthedClient({
       .slice(0, 20);
   }, [q, allTracks]);
 
-  const aiTracks = useMemo(() => filterByGenre(allTracks.filter(t => Boolean(t.isAI)), activeGenre).slice(0, 16), [allTracks, activeGenre]);
   const topHits = useMemo(() =>
     uniqById(filterByGenre(trending, activeGenre))
       .sort((a, b) => (b.plays || 0) - (a.plays || 0))
       .slice(0, 10),
   [trending, activeGenre]);
+
+  const topHitIds = useMemo(() => new Set(topHits.map(t => t._id)), [topHits]);
+
+  const displayTrending = useMemo(() =>
+    filteredTrending.filter(t => !topHitIds.has(t._id)),
+  [filteredTrending, topHitIds]);
+
+  const trendingIds = useMemo(() => {
+    const s = new Set(topHitIds);
+    displayTrending.forEach(t => s.add(t._id));
+    return s;
+  }, [topHitIds, displayTrending]);
+
+  const displayForYou = useMemo(() =>
+    filteredForYou.filter(t => !trendingIds.has(t._id)),
+  [filteredForYou, trendingIds]);
+
+  const shownIds = useMemo(() => {
+    const s = new Set(trendingIds);
+    displayForYou.forEach(t => s.add(t._id));
+    return s;
+  }, [trendingIds, displayForYou]);
+
+  const displayNewest = useMemo(() =>
+    filteredNewest.filter(t => !shownIds.has(t._id)),
+  [filteredNewest, shownIds]);
+
+  const aiTracks = useMemo(() => filterByGenre(allTracks.filter(t => Boolean(t.isAI)), activeGenre).slice(0, 16), [allTracks, activeGenre]);
 
   const handlePlayAll = useCallback((tracks: DiscoverTrackLite[]) => {
     if (tracks.length) {
@@ -256,14 +283,14 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Pour toi */}
-            {filteredForYou.length > 0 && (
+            {displayForYou.length > 0 && (
               <section>
                 <SectionHeader
                   title={isFiltered ? `${activeGenre} pour toi` : 'Pour toi'}
                   subtitle="Basé sur tes goûts"
                 />
                 <HorizontalScroller>
-                  {filteredForYou.slice(0, 20).map(t => (
+                  {displayForYou.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -271,14 +298,14 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Tendances */}
-            {filteredTrending.length > 0 && (
+            {displayTrending.length > 0 && (
               <section>
                 <SectionHeader
                   title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
-                  subtitle="Ce qui cartonne maintenant"
+                  subtitle="Les plus écoutés"
                 />
                 <HorizontalScroller>
-                  {filteredTrending.slice(0, 20).map(t => (
+                  {displayTrending.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -286,14 +313,14 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Nouveautés */}
-            {filteredNewest.length > 0 && (
+            {displayNewest.length > 0 && (
               <section>
                 <SectionHeader
                   title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
                   subtitle="Tout juste publié"
                 />
                 <HorizontalScroller>
-                  {filteredNewest.slice(0, 20).map(t => (
+                  {displayNewest.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -337,7 +364,7 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Empty state when genre has no results */}
-            {isFiltered && filteredForYou.length === 0 && filteredTrending.length === 0 && filteredNewest.length === 0 && (
+            {isFiltered && displayForYou.length === 0 && displayTrending.length === 0 && displayNewest.length === 0 && topHits.length === 0 && (
               <div className="py-16 text-center">
                 <p className="text-lg font-semibold text-white/50">Aucun titre {activeGenre} trouvé</p>
                 <p className="text-sm text-white/25 mt-1">Essaye un autre genre ou reviens à "Tout"</p>

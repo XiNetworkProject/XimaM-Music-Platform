@@ -122,7 +122,7 @@ export async function GET(request: NextRequest) {
           const { data: recentAI, error: recentAIErr } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, created_at, image_url, audio_url, duration, tags,
+              id, title, created_at, image_url, audio_url, duration, tags, play_count,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
@@ -133,7 +133,6 @@ export async function GET(request: NextRequest) {
             .limit(limitFallback);
 
           if (!recentAIErr && Array.isArray(recentAI)) {
-            // Récupérer les profils séparément et les associer
             let recentAIWithProfiles = recentAI;
             if (recentAI.length > 0) {
               const userIds = Array.from(new Set(recentAI.map((t: any) => t.generation?.user_id).filter(Boolean)));
@@ -145,7 +144,6 @@ export async function GET(request: NextRequest) {
                 
                 const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
                 
-                // Associer les profils aux tracks
                 recentAIWithProfiles = recentAI.map(t => ({
                   ...t,
                   generation: {
@@ -173,7 +171,7 @@ export async function GET(request: NextRequest) {
                 audioUrl: t.audio_url,
                 genre: Array.isArray(t.tags) ? t.tags : [],
                 likes: [],
-                plays: 0,
+                plays: t.play_count || 0,
                 createdAt: t.created_at,
                 isFeatured: false,
                 isVerified: t.generation?.profiles?.is_verified || false,
@@ -250,7 +248,7 @@ export async function GET(request: NextRequest) {
           const { data } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, created_at, image_url, audio_url, duration, tags,
+              id, title, created_at, image_url, audio_url, duration, tags, play_count,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
@@ -260,7 +258,6 @@ export async function GET(request: NextRequest) {
             .in('id', aiIds as any);
           aiTracks = (data || []).map((t: any) => ({ ...t, _aiPrefixedId: `ai-${t.id}` }));
           
-          // Récupérer les profils séparément et les associer
           if (aiTracks.length > 0) {
             const userIds = Array.from(new Set(aiTracks.map(t => t.generation?.user_id).filter(Boolean)));
             if (userIds.length > 0) {
@@ -271,7 +268,6 @@ export async function GET(request: NextRequest) {
               
               const profilesMap = new Map((profiles || []).map(p => [p.id, p]));
               
-              // Associer les profils aux tracks
               aiTracks = aiTracks.map(t => ({
                 ...t,
                 generation: {
@@ -346,7 +342,7 @@ export async function GET(request: NextRequest) {
             audioUrl: t.audio_url,
             genre: Array.isArray(t.tags) ? t.tags : [],
             likes: [],
-            plays: 0,
+            plays: t.play_count || 0,
             createdAt: t.created_at,
             isFeatured: false,
             isVerified: t.generation?.profiles?.is_verified || false,
@@ -442,7 +438,7 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, created_at, image_url, audio_url, duration, tags,
+            id, title, created_at, image_url, audio_url, duration, tags, play_count,
             generation:ai_generations!inner (
               user_id, is_public, status
             )
@@ -790,7 +786,7 @@ export async function GET(request: NextRequest) {
         audioUrl: t.audio_url,
         genre: Array.isArray(t.tags) ? t.tags : [],
         likes: [],
-        plays: 0,
+        plays: t.play_count || 0,
         createdAt: t.created_at,
         isFeatured: false,
         isVerified: t.generation?.profiles?.is_verified || false,

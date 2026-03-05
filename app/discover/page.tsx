@@ -30,9 +30,19 @@ async function getBaseUrl() {
   return `${proto}://${host}`;
 }
 
-async function fetchTracks(baseUrl: string, params: string): Promise<DiscoverTrackLite[]> {
+async function fetchFromFeed(baseUrl: string, params: string): Promise<DiscoverTrackLite[]> {
   try {
     const res = await fetch(`${baseUrl}/api/ranking/feed?${params}`, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    return Array.isArray(json?.tracks) ? json.tracks : [];
+  } catch {
+    return [];
+  }
+}
+
+async function fetchFromApi(baseUrl: string, path: string): Promise<DiscoverTrackLite[]> {
+  try {
+    const res = await fetch(`${baseUrl}${path}`, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
     return Array.isArray(json?.tracks) ? json.tracks : [];
   } catch {
@@ -83,11 +93,9 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   const baseUrl = await getBaseUrl();
 
   const [trendingData, forYouData, recentData, playlistsData, artistsData] = await Promise.all([
-    fetchTracks(baseUrl, `limit=30&ai=1&strategy=trending${genreParam}`),
-    userId
-      ? fetchTracks(baseUrl, `limit=30&ai=1&strategy=reco${genreParam}`)
-      : fetchTracks(baseUrl, `limit=30&ai=1&strategy=reco${genreParam}`),
-    fetchTracks(baseUrl, `limit=30&ai=1${genreParam}`),
+    fetchFromApi(baseUrl, `/api/tracks/trending?limit=30`),
+    fetchFromFeed(baseUrl, `limit=30&ai=1&strategy=reco${genreParam}`),
+    fetchFromApi(baseUrl, `/api/tracks/recent?limit=30`),
     fetchPlaylists(baseUrl),
     fetchArtists(baseUrl),
   ]);

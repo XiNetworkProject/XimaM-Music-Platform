@@ -6,107 +6,88 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, ArrowLeft, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 
+const ERROR_MESSAGES: Record<string, string> = {
+  'AccessDenied': "Accès refusé. Vérifiez que vous avez autorisé l'application à accéder à votre compte.",
+  'Configuration': "Erreur de configuration du service d'authentification.",
+  'Verification': 'Le token de vérification est invalide ou expiré.',
+  'OAuthSignin': "Erreur lors de l'initialisation de la connexion OAuth.",
+  'OAuthCallback': "Erreur lors du retour de la connexion OAuth.",
+  'Default': "Une erreur inattendue s'est produite.",
+};
+
 function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get('error');
-  const [errorDetails, setErrorDetails] = useState<string>('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    // Détails des erreurs courantes
-    const errorMessages: { [key: string]: string } = {
-      'AccessDenied': 'Accès refusé. Vérifiez que vous avez autorisé l\'application à accéder à votre compte Google.',
-      'Configuration': 'Erreur de configuration. Vérifiez les paramètres OAuth dans Google Cloud Console.',
-      'Verification': 'Erreur de vérification. Le token de vérification est invalide ou expiré.',
-      'Default': 'Une erreur inattendue s\'est produite lors de l\'authentification.',
-    };
-
-    setErrorDetails(errorMessages[error || ''] || errorMessages['Default']);
+    setErrorMessage(ERROR_MESSAGES[error || ''] || ERROR_MESSAGES['Default']);
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Bouton retour */}
-        <Link
-          href="/auth/signin"
-          className="absolute top-6 left-6 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-        >
-          <ArrowLeft size={24} />
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="w-full max-w-[420px]"
+    >
+      <div className="text-center mb-8">
+        <Link href="/" className="inline-block">
+          <h1 className="text-3xl font-black tracking-tight text-white">Synaura</h1>
         </Link>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="glass-effect rounded-2xl p-8 text-center"
-        >
-          {/* Icône d'erreur */}
-          <div className="flex justify-center mb-6">
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center">
-              <AlertTriangle size={32} className="text-red-400" />
-            </div>
-          </div>
-
-          {/* Titre */}
-          <h1 className="text-2xl font-bold mb-4">Erreur d'authentification</h1>
-
-          {/* Détails de l'erreur */}
-          <div className="mb-6">
-            <p className="text-white/60 mb-2">Code d'erreur :</p>
-            <code className="bg-red-500/20 text-red-400 px-3 py-1 rounded text-sm">
-              {error || 'Unknown'}
-            </code>
-          </div>
-
-          {/* Message d'erreur */}
-          <p className="text-white/80 mb-8 leading-relaxed">
-            {errorDetails}
-          </p>
-
-          {/* Actions */}
-          <div className="space-y-3">
-            <button
-              onClick={() => window.location.reload()}
-              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center space-x-2"
-            >
-              <RefreshCw size={20} />
-              <span>Réessayer</span>
-            </button>
-
-            <Link
-              href="/auth/signin"
-              className="block w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-xl transition-colors"
-            >
-              Retour à la connexion
-            </Link>
-          </div>
-
-          {/* Informations de débogage */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-6 p-4 bg-white/5 rounded-lg">
-              <p className="text-xs text-white/40 mb-2">Informations de débogage :</p>
-              <p className="text-xs text-white/60">
-                NEXTAUTH_URL: {process.env.NEXTAUTH_URL || 'Non défini'}
-              </p>
-              <p className="text-xs text-white/60">
-                NODE_ENV: {process.env.NODE_ENV || 'Non défini'}
-              </p>
-            </div>
-          )}
-        </motion.div>
       </div>
-    </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8 text-center">
+        <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-5">
+          <AlertTriangle className="w-7 h-7 text-red-400" />
+        </div>
+
+        <h2 className="text-lg font-bold text-white mb-2">Erreur d'authentification</h2>
+
+        {error && (
+          <div className="inline-block px-2.5 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-[11px] font-mono text-white/40 mb-3">
+            {error}
+          </div>
+        )}
+
+        <p className="text-sm text-white/50 mb-6 leading-relaxed">{errorMessage}</p>
+
+        <div className="space-y-2.5">
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all inline-flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Réessayer
+          </button>
+
+          <Link
+            href="/auth/signin"
+            className="block w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/60 hover:text-white hover:bg-white/[0.1] transition text-center leading-[44px]"
+          >
+            Retour à la connexion
+          </Link>
+        </div>
+      </div>
+
+      <div className="mt-6 text-center">
+        <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition">
+          <ArrowLeft className="w-3 h-3" />
+          Retour à l'accueil
+        </Link>
+      </div>
+    </motion.div>
   );
 }
 
 export default function AuthErrorPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center">
-        <div className="text-white">Chargement...</div>
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
       </div>
     }>
       <AuthErrorContent />
     </Suspense>
   );
-} 
+}
