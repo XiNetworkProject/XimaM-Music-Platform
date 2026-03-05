@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useEffect, useRef } from "react";
 import styles from "./PrimeStageBackground.module.css";
 
 const PARTICLE_COLORS = [
@@ -31,22 +30,7 @@ export interface PrimeStageBackgroundProps {
 export function PrimeStageBackground({ intensity = 1 }: PrimeStageBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const [portalTarget, setPortalTarget] = useState<HTMLDivElement | null>(null);
-
   useEffect(() => {
-    const el = document.createElement("div");
-    el.id = "prime-stage-background-portal";
-    document.body.appendChild(el);
-    setPortalTarget(el);
-    return () => {
-      document.body.removeChild(el);
-      setPortalTarget(null);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!portalTarget) return;
-
     const init = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -153,7 +137,7 @@ export function PrimeStageBackground({ intensity = 1 }: PrimeStageBackgroundProp
       };
     }
     return cleanup;
-  }, [portalTarget]);
+  }, []);
 
   const opacity = (base: number) => Math.min(1, base * intensity);
 
@@ -207,20 +191,18 @@ export function PrimeStageBackground({ intensity = 1 }: PrimeStageBackgroundProp
     </>
   );
 
-  if (!portalTarget || typeof document === "undefined") return null;
-
-  return createPortal(
+  // Rendu inline fixed (pas de portal) — couvre le fond global de l'app
+  return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        zIndex: 1,
+        zIndex: 10,
         pointerEvents: "none",
       }}
       aria-hidden
     >
       {layers}
-    </div>,
-    portalTarget
+    </div>
   );
 }
