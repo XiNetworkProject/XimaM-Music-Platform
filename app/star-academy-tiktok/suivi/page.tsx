@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { PrimeStageBackground } from "@/components/PrimeStageBackground";
@@ -66,7 +66,23 @@ function getTimelineState(status: Application["status"]) {
   return { activeIdx: idx, rejected: false };
 }
 
+// Export default avec Suspense boundary (requis par Next.js pour useSearchParams)
 export default function SuiviPage() {
+  return (
+    <Suspense fallback={
+      <div className="relative min-h-screen text-white overflow-x-hidden">
+        <PrimeStageBackground intensity={0.7} />
+        <div className="relative z-20 flex min-h-screen items-center justify-center">
+          <div className="text-white/40 text-sm">Chargement…</div>
+        </div>
+      </div>
+    }>
+      <SuiviContent />
+    </Suspense>
+  );
+}
+
+function SuiviContent() {
   const searchParams = useSearchParams();
   const [tokenInput, setTokenInput] = useState(searchParams.get("token") ?? "");
   const [emailInput, setEmailInput] = useState("");
