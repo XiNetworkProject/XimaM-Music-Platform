@@ -2,8 +2,9 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import DiscoverPlayButton, { type DiscoverTrackLite } from './DiscoverPlayButton';
+import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { useAudioPlayer } from '@/app/providers';
+import { type DiscoverTrackLite } from './DiscoverPlayButton';
 
 export type DiscoverPlaylistLite = {
   _id: string;
@@ -23,234 +24,295 @@ export type DiscoverArtistLite = {
   isTrending?: boolean;
 };
 
-function initials(name: string) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-  const a = parts[0]?.[0] || '?';
-  const b = parts.length > 1 ? parts[1]?.[0] : parts[0]?.[1];
-  return `${a}${b || ''}`.toUpperCase();
-}
+const formatK = (n: number) => {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
+};
 
-function colorFromSeed(seed: string) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  // map to a small palette (stable)
-  const palette = [
-    'from-violet-500/35 to-fuchsia-500/20',
-    'from-sky-500/35 to-indigo-500/20',
-    'from-emerald-500/30 to-teal-500/15',
-    'from-amber-500/30 to-orange-500/15',
-    'from-pink-500/30 to-rose-500/15',
-  ];
-  return palette[h % palette.length];
-}
-
-function ArtistAvatar({ username, name, avatar }: { username: string; name: string; avatar?: string }) {
-  const [broken, setBroken] = useState(false);
-  const showImg = Boolean(avatar && !broken);
-  if (showImg) {
-    return (
-      <img
-        src={avatar}
-        className="w-12 h-12 rounded-full object-cover border border-border-secondary"
-        alt=""
-        loading="lazy"
-        onError={() => setBroken(true)}
-      />
-    );
-  }
-  const bg = colorFromSeed(username || name || 'artist');
-  return (
-    <div
-      className={`w-12 h-12 rounded-full border border-border-secondary bg-gradient-to-br ${bg} grid place-items-center text-sm font-bold text-white`}
-      aria-label={name}
-      title={name}
-    >
-      {initials(name || username)}
-    </div>
-  );
-}
-
+/* ─── Section Title ─── */
 export function SectionHeader({
   title,
   subtitle,
   actionHref,
   actionLabel,
+  onAction,
 }: {
   title: string;
   subtitle?: string;
   actionHref?: string;
   actionLabel?: string;
+  onAction?: () => void;
 }) {
   return (
-    <div className="flex items-end justify-between gap-3">
+    <div className="flex items-center justify-between mb-3">
       <div className="min-w-0">
-        <div className="text-lg md:text-xl font-bold tracking-tight">{title}</div>
-        {subtitle ? <div className="text-xs md:text-sm text-foreground-tertiary mt-1">{subtitle}</div> : null}
+        <h2 className="text-base font-black text-white">{title}</h2>
+        {subtitle && <p className="text-[11px] text-white/30 mt-0.5">{subtitle}</p>}
       </div>
       {actionHref && actionLabel ? (
-        <Link href={actionHref} className="text-sm text-foreground-secondary hover:text-foreground-primary transition shrink-0">
-          {actionLabel} →
+        <Link href={actionHref} className="text-xs font-semibold text-white/40 hover:text-white transition">
+          {actionLabel} &rsaquo;
         </Link>
+      ) : actionLabel && onAction ? (
+        <button onClick={onAction} className="text-xs font-semibold text-white/40 hover:text-white transition">
+          {actionLabel} &rsaquo;
+        </button>
       ) : null}
     </div>
   );
 }
 
+/* ─── Horizontal Scroller (homepage style) ─── */
 export function HorizontalScroller({ children }: { children: React.ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [canLeft, setCanLeft] = useState(false);
-  const [canRight, setCanRight] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [showLeft, setShowLeft] = useState(false);
+  const [showRight, setShowRight] = useState(true);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
+      setShowLeft(scrollLeft > 0);
+      setShowRight(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  const scroll = (dir: 'left' | 'right') => {
+    if (scrollRef.current) {
+      const amount = scrollRef.current.clientWidth * 0.8;
+      scrollRef.current.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' });
+    }
+  };
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const update = () => {
-      setCanLeft(el.scrollLeft > 8);
-      setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 8);
-    };
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-    window.addEventListener('resize', update);
-    return () => {
-      el.removeEventListener('scroll', update as any);
-      window.removeEventListener('resize', update);
-    };
-  }, []);
-
-  const scrollBy = (dir: 'left' | 'right') => {
-    const el = ref.current;
-    if (!el) return;
-    const dx = Math.max(260, Math.floor(el.clientWidth * 0.7)) * (dir === 'left' ? -1 : 1);
-    el.scrollBy({ left: dx, behavior: 'smooth' });
-  };
+    const el = scrollRef.current;
+    if (el) {
+      handleScroll();
+      el.addEventListener('scroll', handleScroll);
+      return () => el.removeEventListener('scroll', handleScroll);
+    }
+  }, [children]);
 
   return (
     <div className="relative group">
-      {canLeft ? (
+      {showLeft && (
         <button
-          type="button"
-          onClick={() => scrollBy('left')}
-          className="hidden md:grid absolute left-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 place-items-center rounded-full border border-border-secondary bg-background-tertiary/80 backdrop-blur opacity-0 group-hover:opacity-100 transition"
-          aria-label="Défiler à gauche"
+          onClick={() => scroll('left')}
+          className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg"
         >
-          <ChevronLeft className="h-5 w-5" />
+          <ChevronLeft className="w-5 h-5 text-white" />
         </button>
-      ) : null}
-
-      <div ref={ref} className="flex gap-3 overflow-x-auto no-scrollbar pb-1 pr-1" style={{ scrollSnapType: 'x mandatory' }}>
+      )}
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto no-scrollbar pb-2 pr-1 -mx-1"
+        style={{ scrollSnapType: 'x mandatory' }}
+        onScroll={handleScroll}
+      >
         {children}
       </div>
-
-      {canRight ? (
+      {showRight && (
         <button
-          type="button"
-          onClick={() => scrollBy('right')}
-          className="hidden md:grid absolute right-0 top-1/2 -translate-y-1/2 z-10 h-10 w-10 place-items-center rounded-full border border-border-secondary bg-background-tertiary/80 backdrop-blur opacity-0 group-hover:opacity-100 transition"
-          aria-label="Défiler à droite"
+          onClick={() => scroll('right')}
+          className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg"
         >
-          <ChevronRight className="h-5 w-5" />
+          <ChevronRight className="w-5 h-5 text-white" />
         </button>
-      ) : null}
+      )}
     </div>
   );
 }
 
-export function TrackTile({ track }: { track: DiscoverTrackLite }) {
-  const artistLabel =
-    track.artist?.artistName || track.artist?.name || track.artist?.username || (track.isAI ? 'Créateur IA' : 'Artiste');
+/* ─── Track Card (homepage style) ─── */
+export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: boolean }) {
+  const { playTrack } = useAudioPlayer();
+  const artistLabel = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
+  const plays = track.plays || 0;
+  const dur = track.duration || 0;
+  const durStr = dur > 0 ? `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}` : '';
+  const genre = Array.isArray((track as any)?.genre) ? (track as any).genre[0] : (track as any)?.genre;
+
+  const handlePlay = () => {
+    if (track.audioUrl) {
+      playTrack(track as any);
+    }
+  };
 
   return (
     <div
-      className="w-[170px] md:w-[190px] lg:w-[210px] shrink-0 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
-      style={{ scrollSnapAlign: 'start' }}
+      className={`rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card ${grid ? 'w-full' : 'min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] shrink-0'}`}
+      style={{ scrollSnapAlign: grid ? undefined : 'start' }}
     >
-      <div className="relative">
+      <div className="relative group/cover">
+        <img
+          src={track.coverUrl || '/default-cover.jpg'}
+          alt={track.title}
+          className="w-full aspect-square object-cover rounded-lg"
+          loading="lazy"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+        />
+        {durStr && (
+          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
+            {durStr}
+          </span>
+        )}
+        <button
+          onClick={handlePlay}
+          className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110"
+        >
+          <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+        </button>
+      </div>
+
+      <div className="mt-2">
+        <p className="text-[13px] font-semibold line-clamp-1 text-white">{track.title}</p>
+        {genre && <p className="text-[10px] text-white/30 truncate mt-0.5">{genre}</p>}
+      </div>
+
+      <div className="mt-1.5 flex items-center gap-2.5 text-[10px] text-white/35">
+        <span className="flex items-center gap-0.5">&#9654; {formatK(plays)}</span>
+      </div>
+
+      {track.artist && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <img
+            src={track.artist.avatar || '/default-avatar.png'}
+            className="w-4 h-4 rounded-full object-cover shrink-0"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+            alt=""
+          />
+          <span className="text-[11px] text-white/40 truncate">{artistLabel}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Track Row (compact list item) ─── */
+export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: number }) {
+  const { playTrack } = useAudioPlayer();
+  const artistLabel = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
+
+  return (
+    <div
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.06] transition-all group/row cursor-pointer"
+      onClick={() => track.audioUrl && playTrack(track as any)}
+    >
+      {typeof index === 'number' && (
+        <span className="w-5 text-center text-xs font-semibold text-white/25 tabular-nums shrink-0">
+          {index + 1}
+        </span>
+      )}
+      <div className="relative shrink-0">
         <img
           src={track.coverUrl || '/default-cover.jpg'}
           alt=""
-          className="w-full aspect-square object-cover rounded-xl border border-border-secondary/60"
+          className="w-11 h-11 rounded-md object-cover"
           loading="lazy"
         />
-        <div className="absolute bottom-2 right-2">
-          <DiscoverPlayButton
-            track={track}
-            compact
-            className="h-10 w-10 rounded-2xl border border-border-secondary bg-background-tertiary/80 hover:bg-background-tertiary backdrop-blur grid place-items-center"
-          />
+        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-md opacity-0 group-hover/row:opacity-100 transition-opacity">
+          <Play className="w-4 h-4 text-white fill-white" />
         </div>
       </div>
-      <div className="mt-2 min-w-0">
-        <div className="text-sm font-semibold truncate">{track.title}</div>
-        <div className="text-xs text-foreground-tertiary truncate">{artistLabel}</div>
-      </div>
-    </div>
-  );
-}
-
-export function TrackRow({ track }: { track: DiscoverTrackLite }) {
-  const artistLabel =
-    track.artist?.artistName || track.artist?.name || track.artist?.username || (track.isAI ? 'Créateur IA' : 'Artiste');
-
-  return (
-    <div className="rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3 flex items-center gap-3">
-      <img
-        src={track.coverUrl || '/default-cover.jpg'}
-        className="w-12 h-12 rounded-xl object-cover border border-border-secondary"
-        alt=""
-        loading="lazy"
-      />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold truncate">{track.title}</div>
-        <div className="text-xs text-foreground-tertiary truncate">{artistLabel}</div>
+        <p className="text-[13px] font-semibold truncate text-white">{track.title}</p>
+        <p className="text-[11px] text-white/40 truncate">{artistLabel}</p>
       </div>
-      <DiscoverPlayButton
-        track={track}
-        compact
-        className="h-10 w-10 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition grid place-items-center"
-      />
+      <span className="text-[11px] text-white/25 tabular-nums shrink-0">
+        {formatK(track.plays || 0)}
+      </span>
     </div>
   );
 }
 
+/* ─── Playlist Tile ─── */
 export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
   return (
     <Link
       href={`/playlists/${encodeURIComponent(playlist._id)}`}
-      className="w-[220px] md:w-[240px] lg:w-[260px] shrink-0 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3 flex gap-3"
+      className="min-w-[200px] md:min-w-[240px] max-w-[200px] md:max-w-[240px] rounded-xl p-2 hover:bg-white/[0.06] transition-all group/card shrink-0"
       style={{ scrollSnapAlign: 'start' }}
     >
       <img
         src={playlist.coverUrl || '/default-cover.jpg'}
-        className="w-14 h-14 rounded-xl object-cover border border-border-secondary"
-        alt=""
+        alt={playlist.name}
+        className="w-full aspect-square object-cover rounded-lg"
         loading="lazy"
+        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
       />
-      <div className="min-w-0">
-        <div className="text-sm font-semibold truncate">{playlist.name}</div>
-        <div className="text-xs text-foreground-tertiary line-clamp-2">{playlist.description || 'Playlist'}</div>
+      <div className="mt-2">
+        <p className="text-[13px] font-semibold line-clamp-1 text-white">{playlist.name}</p>
+        <p className="text-[11px] text-white/40 line-clamp-1">{playlist.description || 'Playlist'}</p>
       </div>
     </Link>
   );
 }
 
+/* ─── Artist Tile ─── */
 export function ArtistTile({ artist }: { artist: DiscoverArtistLite }) {
+  const [imgError, setImgError] = useState(false);
+
   return (
     <Link
       href={`/profile/${encodeURIComponent(artist.username)}`}
-      className="w-[160px] md:w-[180px] shrink-0 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3"
+      className="min-w-[140px] md:min-w-[160px] max-w-[140px] md:max-w-[160px] rounded-xl p-3 hover:bg-white/[0.06] transition-all group/card text-center shrink-0"
       style={{ scrollSnapAlign: 'start' }}
     >
-      <div className="flex items-center gap-3">
-        <ArtistAvatar username={artist.username} name={artist.name} avatar={artist.avatar} />
-        <div className="min-w-0">
-          <div className="text-sm font-semibold truncate">{artist.name}</div>
-          <div className="text-xs text-foreground-tertiary truncate">@{artist.username}</div>
+      {artist.avatar && !imgError ? (
+        <img
+          src={artist.avatar}
+          alt={artist.name}
+          className="w-20 h-20 rounded-full object-cover mx-auto border-2 border-white/10 group-hover/card:border-indigo-500/50 transition-colors"
+          loading="lazy"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500/40 to-violet-500/30 mx-auto border-2 border-white/10 flex items-center justify-center text-lg font-bold text-white">
+          {(artist.name || artist.username || '?')[0].toUpperCase()}
         </div>
-      </div>
-      <div className="mt-2 text-xs text-foreground-tertiary">
-        {typeof artist.trackCount === 'number' ? `${artist.trackCount} tracks` : 'Artiste'}
-      </div>
+      )}
+      <p className="mt-2 text-[13px] font-semibold text-white truncate">{artist.name}</p>
+      <p className="text-[10px] text-white/30">
+        {typeof artist.trackCount === 'number' ? `${artist.trackCount} titres` : '@' + artist.username}
+      </p>
     </Link>
   );
 }
 
+/* ─── Genre Card ─── */
+const GENRE_COLORS: Record<string, string> = {
+  'pop': 'from-pink-500 to-rose-600',
+  'hip-hop': 'from-amber-500 to-orange-600',
+  'rap': 'from-amber-500 to-orange-600',
+  'rock': 'from-red-500 to-red-700',
+  'electronic': 'from-cyan-400 to-blue-600',
+  'r&b': 'from-purple-500 to-violet-700',
+  'jazz': 'from-yellow-500 to-amber-700',
+  'lo-fi': 'from-teal-400 to-emerald-600',
+  'classical': 'from-slate-400 to-slate-600',
+  'indie': 'from-emerald-400 to-green-600',
+  'soul': 'from-orange-400 to-red-500',
+  'funk': 'from-fuchsia-500 to-pink-600',
+  'ambient': 'from-sky-400 to-indigo-500',
+  'metal': 'from-zinc-500 to-zinc-800',
+  'country': 'from-yellow-600 to-amber-800',
+  'reggae': 'from-green-500 to-emerald-700',
+  'latin': 'from-red-400 to-orange-500',
+  'afro': 'from-amber-400 to-yellow-600',
+};
+
+export function GenreCard({ genre, onClick }: { genre: string; onClick?: () => void }) {
+  const gradient = GENRE_COLORS[genre.toLowerCase()] || 'from-indigo-500 to-violet-600';
+
+  return (
+    <button
+      onClick={onClick}
+      className={`relative overflow-hidden rounded-xl aspect-[4/3] md:aspect-square w-full bg-gradient-to-br ${gradient} group/genre transition-all hover:scale-[1.03] hover:shadow-xl active:scale-[0.97]`}
+    >
+      <div className="absolute inset-0 bg-black/10 group-hover/genre:bg-black/0 transition-colors" />
+      <div className="absolute bottom-3 left-3">
+        <span className="text-sm md:text-base font-black text-white drop-shadow-lg">{genre}</span>
+      </div>
+    </button>
+  );
+}

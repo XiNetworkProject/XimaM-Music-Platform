@@ -6,13 +6,14 @@ import { authOptions } from '@/lib/authOptions';
 import DiscoverPlayButton, { type DiscoverTrackLite } from './DiscoverPlayButton';
 import DiscoverAuthedClient from './DiscoverAuthedClient';
 import type { DiscoverArtistLite, DiscoverPlaylistLite } from './DiscoverTiles';
+import { Play, Sparkles, Music2, TrendingUp, Users } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Découvrir — Synaura',
   description:
-    'Découvre des tracks tendance et des nouveautés. Écoute instantanément, enchaîne, puis connecte-toi pour liker, créer des playlists et accéder au Studio IA.',
+    'Découvre des tracks tendance et des nouveautés sur Synaura. Écoute instantanément, puis connecte-toi pour liker, créer des playlists et accéder au Studio IA.',
   alternates: { canonical: '/discover' },
   openGraph: {
     title: 'Découvrir — Synaura',
@@ -22,103 +23,64 @@ export const metadata: Metadata = {
   },
 };
 
-async function fetchPublicFeed(params: string): Promise<DiscoverTrackLite[]> {
-  try {
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') || 'https';
-    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
-    const baseUrl = `${proto}://${host}`;
+async function getBaseUrl() {
+  const h = await headers();
+  const proto = h.get('x-forwarded-proto') || 'https';
+  const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
+  return `${proto}://${host}`;
+}
 
+async function fetchFeed(baseUrl: string, params: string): Promise<DiscoverTrackLite[]> {
+  try {
     const res = await fetch(`${baseUrl}/api/ranking/feed?${params}`, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
-    const tracks = Array.isArray((json as any)?.tracks) ? ((json as any).tracks as DiscoverTrackLite[]) : [];
-      return tracks;
+    return Array.isArray((json as any)?.tracks) ? (json as any).tracks : [];
   } catch {
     return [];
   }
 }
 
-async function fetchPublicPlaylists(): Promise<DiscoverPlaylistLite[]> {
-  try {
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') || 'https';
-    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
-    const baseUrl = `${proto}://${host}`;
-    const res = await fetch(`${baseUrl}/api/playlists/popular?limit=8`, { cache: 'no-store' });
-    const json = await res.json().catch(() => ({}));
-    const items = Array.isArray((json as any)?.playlists) ? ((json as any).playlists as any[]) : [];
-    return items
-      .map(
-        (p): DiscoverPlaylistLite => ({
-          _id: String(p?._id || p?.id || ''),
-          name: String(p?.name || 'Playlist'),
-          description: typeof p?.description === 'string' ? p.description : '',
-          coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
-        }),
-      )
-      .filter((p) => p._id);
-  } catch {
-    return [];
-  }
-}
+const GENRES = [
+  { name: 'Pop', color: 'from-pink-500 to-rose-600' },
+  { name: 'Hip-Hop', color: 'from-amber-500 to-orange-600' },
+  { name: 'Rock', color: 'from-red-500 to-red-700' },
+  { name: 'Electronic', color: 'from-cyan-400 to-blue-600' },
+  { name: 'R&B', color: 'from-purple-500 to-violet-700' },
+  { name: 'Jazz', color: 'from-yellow-500 to-amber-700' },
+  { name: 'Lo-Fi', color: 'from-teal-400 to-emerald-600' },
+  { name: 'Classical', color: 'from-slate-400 to-slate-600' },
+];
 
-async function fetchPublicArtists(): Promise<DiscoverArtistLite[]> {
-  try {
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') || 'https';
-    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
-    const baseUrl = `${proto}://${host}`;
-    const res = await fetch(`${baseUrl}/api/artists?sort=trending&limit=10`, { cache: 'no-store' });
-    const json = await res.json().catch(() => ({}));
-    const items = Array.isArray((json as any)?.artists) ? ((json as any).artists as any[]) : [];
-    return items
-      .map(
-        (a): DiscoverArtistLite => ({
-          _id: String(a?._id || a?.id || ''),
-          username: String(a?.username || ''),
-          name: String(a?.name || a?.username || 'Artiste'),
-          avatar: typeof a?.avatar === 'string' ? a.avatar : '',
-          totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
-          totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
-          trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
-          isTrending: Boolean(a?.isTrending),
-        }),
-      )
-      .filter((a) => a._id && a.username);
-  } catch {
-    return [];
-  }
-}
-
-function TrackCard({ track }: { track: DiscoverTrackLite }) {
+function GuestTrackCard({ track }: { track: DiscoverTrackLite }) {
   const artistLabel =
-    track.artist?.artistName || track.artist?.name || track.artist?.username || (track.isAI ? 'Créateur IA' : 'Artiste');
+    track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
+  const plays = track.plays || 0;
 
-    return (
-    <div className="rounded-2xl border border-border-secondary bg-white/5 p-3 flex gap-3">
-      <img
-        src={track.coverUrl || '/default-cover.jpg'}
-        className="w-14 h-14 rounded-xl object-cover border border-border-secondary"
-        alt=""
-        loading="lazy"
-      />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold truncate">{track.title}</div>
-            <div className="text-xs text-foreground-tertiary truncate">{artistLabel}</div>
-                              </div>
-          <div className="shrink-0">
-            <DiscoverPlayButton track={track} />
-                          </div>
-                          </div>
-        {track.audioUrl ? (
-          <audio className="mt-2 w-full" controls preload="none" src={track.audioUrl} />
-        ) : (
-          <div className="mt-2 text-xs text-foreground-tertiary">Audio indisponible</div>
-        )}
-                          </div>
-                        </div>
+  return (
+    <div className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card shrink-0">
+      <div className="relative group/cover">
+        <img
+          src={track.coverUrl || '/default-cover.jpg'}
+          alt={track.title}
+          className="w-full aspect-square object-cover rounded-lg"
+          loading="lazy"
+        />
+        <div className="absolute bottom-2 right-2">
+          <DiscoverPlayButton
+            track={track}
+            compact
+            className="w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110"
+          />
+        </div>
+      </div>
+      <div className="mt-2">
+        <p className="text-[13px] font-semibold line-clamp-1 text-white">{track.title}</p>
+        <p className="text-[11px] text-white/40 truncate">{artistLabel}</p>
+      </div>
+      <div className="mt-1 text-[10px] text-white/25">
+        &#9654; {plays >= 1000 ? `${(plays / 1000).toFixed(1)}K` : plays}
+      </div>
+    </div>
   );
 }
 
@@ -129,57 +91,45 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
 
   const session = await getServerSession(authOptions).catch(() => null);
   const userId = (session?.user as any)?.id as string | undefined;
+  const baseUrl = await getBaseUrl();
 
-  // Logged-in experience (Spotify-like)
   if (userId) {
-    const h = await headers();
-    const proto = h.get('x-forwarded-proto') || 'https';
-    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
-    const baseUrl = `${proto}://${host}`;
-
     const [forYouRes, trendingRes, newRes, playlistsRes, artistsRes] = await Promise.all([
-      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=reco${genreParam}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=trending${genreParam}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      fetch(`${baseUrl}/api/recommendations/personal?limit=24`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/ranking/feed?limit=36&ai=1&strategy=reco${genreParam}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/ranking/feed?limit=36&ai=1&strategy=trending${genreParam}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/tracks/recent?limit=36`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      fetch(`${baseUrl}/api/artists?sort=trending&limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/artists?sort=trending&limit=16`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
     ]);
-
-    const initialForYou = Array.isArray((forYouRes as any)?.tracks) ? ((forYouRes as any).tracks as DiscoverTrackLite[]) : [];
-    const initialTrending = Array.isArray((trendingRes as any)?.tracks) ? ((trendingRes as any).tracks as DiscoverTrackLite[]) : [];
-    const initialNew = Array.isArray((newRes as any)?.tracks) ? ((newRes as any).tracks as DiscoverTrackLite[]) : [];
-    const initialPlaylists = Array.isArray((playlistsRes as any)?.playlists) ? ((playlistsRes as any).playlists as any[]) : [];
-    const initialArtists = Array.isArray((artistsRes as any)?.artists) ? ((artistsRes as any).artists as any[]) : [];
 
     const displayName =
       (session?.user as any)?.name ||
       (session?.user as any)?.username ||
-      (session?.user as any)?.email ||
+      (session?.user as any)?.email?.split?.('@')?.[0] ||
       'toi';
 
     return (
       <DiscoverAuthedClient
         displayName={String(displayName)}
         genreFilter={genreFilter}
-        initialForYou={initialForYou}
-        initialTrending={initialTrending}
-        initialNew={initialNew}
-        initialPlaylists={initialPlaylists.map(
-          (p): DiscoverPlaylistLite => ({
+        initialForYou={Array.isArray((forYouRes as any)?.tracks) ? (forYouRes as any).tracks : []}
+        initialTrending={Array.isArray((trendingRes as any)?.tracks) ? (trendingRes as any).tracks : []}
+        initialNew={Array.isArray((newRes as any)?.tracks) ? (newRes as any).tracks : []}
+        initialPlaylists={(Array.isArray((playlistsRes as any)?.playlists) ? (playlistsRes as any).playlists : []).map(
+          (p: any): DiscoverPlaylistLite => ({
             _id: String(p?._id || p?.id || ''),
             name: String(p?.name || 'Playlist'),
             description: typeof p?.description === 'string' ? p.description : '',
             coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
           }),
         )}
-        initialArtists={initialArtists.map(
-          (a): DiscoverArtistLite => ({
+        initialArtists={(Array.isArray((artistsRes as any)?.artists) ? (artistsRes as any).artists : []).map(
+          (a: any): DiscoverArtistLite => ({
             _id: String(a?._id || a?.id || ''),
             username: String(a?.username || ''),
             name: String(a?.name || a?.username || 'Artiste'),
             avatar: typeof a?.avatar === 'string' ? a.avatar : '',
             totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
-            totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
             trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
             isTrending: Boolean(a?.isTrending),
           }),
@@ -188,136 +138,215 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
     );
   }
 
-  // Guest experience (SEO indexable)
-  const [trending, newest, playlists, artists] = await Promise.all([
-    fetchPublicFeed(`limit=16&ai=1&strategy=trending${genreParam}`),
-    fetchPublicFeed(`limit=16&ai=1&strategy=reco${genreParam}`),
-    fetchPublicPlaylists(),
-    fetchPublicArtists(),
+  /* ─── Guest Experience (SEO-friendly server rendered) ─── */
+  const [trending, newest, playlistsRes, artistsRes] = await Promise.all([
+    fetchFeed(baseUrl, `limit=20&ai=1&strategy=trending${genreParam}`),
+    fetchFeed(baseUrl, `limit=20&ai=1&strategy=reco${genreParam}`),
+    fetch(`${baseUrl}/api/playlists/popular?limit=8`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+    fetch(`${baseUrl}/api/artists?sort=trending&limit=10`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
   ]);
 
+  const playlists: DiscoverPlaylistLite[] = (Array.isArray((playlistsRes as any)?.playlists) ? (playlistsRes as any).playlists : [])
+    .map((p: any) => ({
+      _id: String(p?._id || p?.id || ''),
+      name: String(p?.name || 'Playlist'),
+      description: typeof p?.description === 'string' ? p.description : '',
+      coverUrl: (p?.coverUrl as string | null | undefined) ?? null,
+    }))
+    .filter((p: any) => p._id);
+
+  const artists: DiscoverArtistLite[] = (Array.isArray((artistsRes as any)?.artists) ? (artistsRes as any).artists : [])
+    .map((a: any) => ({
+      _id: String(a?._id || a?.id || ''),
+      username: String(a?.username || ''),
+      name: String(a?.name || a?.username || 'Artiste'),
+      avatar: typeof a?.avatar === 'string' ? a.avatar : '',
+      totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
+      trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
+    }))
+    .filter((a: any) => a._id && a.username);
+
   return (
-    <div className="min-h-screen bg-background-primary text-foreground-primary">
-      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-10 space-y-8 md:space-y-10">
-        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-8">
-          <div className="text-xs text-foreground-tertiary">Plateforme de partage musical</div>
-          <h1 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">
-            {genreFilter ? `Genre : ${genreFilter}` : 'Découvre, écoute, enchaîne.'}
-          </h1>
-          <p className="mt-3 text-sm md:text-base text-foreground-secondary max-w-2xl">
-            Catalogue public jouable immédiatement. Connecte-toi pour liker, sauvegarder, créer des playlists et accéder
-            au Studio IA.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <Link
-              href="/auth/signup"
-              className="h-11 px-4 inline-flex items-center justify-center rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary hover:opacity-90 transition font-semibold"
-            >
-              Créer un compte
-            </Link>
-            <Link
-              href="/auth/signin"
-              className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition font-semibold"
-            >
-              Se connecter
-            </Link>
-            <Link
-              href="/studio"
-              className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
-            >
-              Studio IA
-            </Link>
-                        </div>
+    <div className="min-h-screen text-white">
+      <main className="mx-auto w-full max-w-none px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 md:py-10 space-y-8 md:space-y-10">
+
+        {/* ─── Hero ─── */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600/20 via-violet-600/10 to-transparent border border-white/[0.06] p-8 md:p-12">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(99,102,241,0.15),transparent_70%)]" />
+          <div className="relative z-10 max-w-2xl">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-xs font-semibold text-indigo-300 mb-4">
+              <Music2 className="w-3 h-3" />
+              Bibliothèque publique
+            </div>
+            <h1 className="text-3xl md:text-5xl font-black tracking-tight">
+              {genreFilter ? genreFilter : 'Découvre. Écoute. Enchaîne.'}
+            </h1>
+            <p className="mt-3 text-base md:text-lg text-white/50 max-w-xl">
+              Des milliers de titres à écouter gratuitement. Crée un compte pour sauvegarder tes favoris et générer ta propre musique avec l&apos;IA.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/auth/signup"
+                className="h-11 px-6 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold inline-flex items-center gap-2 transition-all hover:scale-[1.03] active:scale-[0.97] shadow-lg shadow-indigo-500/25"
+              >
+                <Play className="w-4 h-4 fill-current" />
+                Créer un compte gratuit
+              </Link>
+              <Link
+                href="/auth/signin"
+                className="h-11 px-6 rounded-full bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.1] text-white text-sm font-semibold inline-flex items-center gap-2 transition-all"
+              >
+                Se connecter
+              </Link>
+              <Link
+                href="/ai-generator"
+                className="h-11 px-6 rounded-full bg-white/[0.08] hover:bg-white/[0.12] border border-white/[0.1] text-white text-sm font-semibold inline-flex items-center gap-2 transition-all"
+              >
+                <Sparkles className="w-4 h-4" />
+                Studio IA
+              </Link>
+            </div>
+          </div>
         </section>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">Tendances</h2>
-            <Link href="/landing" className="text-sm text-foreground-secondary hover:text-foreground-primary transition">
-              La promesse →
-            </Link>
-                            </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {trending.length ? trending.map((t) => <TrackCard key={t._id} track={t} />) : (
-              <div className="text-sm text-foreground-tertiary">Aucune track à afficher pour le moment.</div>
-                          )}
-                        </div>
+        {/* ─── Genres Grid ─── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-black text-white">Parcourir par genre</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+            {GENRES.map((g) => (
+              <Link
+                key={g.name}
+                href={`/discover?genre=${encodeURIComponent(g.name)}`}
+                className={`relative overflow-hidden rounded-xl aspect-[4/3] sm:aspect-square bg-gradient-to-br ${g.color} group/genre transition-all hover:scale-[1.03] hover:shadow-xl active:scale-[0.97]`}
+              >
+                <div className="absolute inset-0 bg-black/10 group-hover/genre:bg-black/0 transition-colors" />
+                <div className="absolute bottom-3 left-3">
+                  <span className="text-sm font-black text-white drop-shadow-lg">{g.name}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </section>
 
-        {(playlists.length || artists.length) ? (
-          <section className="grid lg:grid-cols-2 gap-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-bold">Playlists populaires</h2>
-                <Link href="/auth/signin" className="text-sm text-foreground-secondary hover:text-foreground-primary transition">
-                  Se connecter →
-                </Link>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {playlists.map((p) => (
-                  <a
-                    key={p._id}
-                    href={`/playlists/${encodeURIComponent(p._id)}`}
-                    className="rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3 flex gap-3"
-                  >
-                    <img
-                      src={p.coverUrl || '/default-cover.jpg'}
-                      className="w-14 h-14 rounded-xl object-cover border border-border-secondary"
-                      alt=""
-                      loading="lazy"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold truncate">{p.name}</div>
-                      <div className="text-xs text-foreground-tertiary line-clamp-2">{p.description || 'Playlist'}</div>
-                    </div>
-                  </a>
-                ))}
-                {!playlists.length ? <div className="text-sm text-foreground-tertiary">Aucune playlist.</div> : null}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h2 className="text-xl font-bold">Artistes du moment</h2>
-                <Link href="/auth/signup" className="text-sm text-foreground-secondary hover:text-foreground-primary transition">
-                  Créer un compte →
-                </Link>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-3">
-                {artists.slice(0, 8).map((a) => (
-                  <a
-                    key={a._id}
-                    href={`/profile/${encodeURIComponent(a.username)}`}
-                    className="rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-3 flex items-center gap-3"
-                  >
-                    <img
-                      src={a.avatar || '/default-avatar.png'}
-                      className="w-12 h-12 rounded-full object-cover border border-border-secondary"
-                      alt=""
-                      loading="lazy"
-                    />
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold truncate">{a.name}</div>
-                      <div className="text-xs text-foreground-tertiary truncate">@{a.username}</div>
-                    </div>
-                  </a>
-                ))}
-                {!artists.length ? <div className="text-sm text-foreground-tertiary">Aucun artiste.</div> : null}
-              </div>
-            </div>
-          </section>
-        ) : null}
-
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold">Nouveautés</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3">
-            {newest.length ? newest.map((t) => <TrackCard key={t._id} track={t} />) : (
-              <div className="text-sm text-foreground-tertiary">Aucune track à afficher pour le moment.</div>
+        {/* ─── Tendances ─── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-black text-white flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-indigo-400" />
+              Tendances
+            </h2>
+            <Link href="/auth/signup" className="text-xs font-semibold text-white/40 hover:text-white transition">
+              Voir plus &rsaquo;
+            </Link>
+          </div>
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2" style={{ scrollSnapType: 'x mandatory' }}>
+            {trending.length > 0 ? (
+              trending.map((t) => <GuestTrackCard key={t._id} track={t} />)
+            ) : (
+              <p className="text-sm text-white/20 py-8">Aucun titre disponible pour le moment.</p>
             )}
-                        </div>
+          </div>
+        </section>
+
+        {/* ─── Artistes + Playlists side by side ─── */}
+        {(artists.length > 0 || playlists.length > 0) && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Artistes */}
+            {artists.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-black text-white flex items-center gap-2">
+                    <Users className="w-4 h-4 text-indigo-400" />
+                    Artistes du moment
+                  </h2>
+                </div>
+                <div className="space-y-1">
+                  {artists.slice(0, 6).map((a) => (
+                    <a
+                      key={a._id}
+                      href={`/profile/${encodeURIComponent(a.username)}`}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.06] transition-all"
+                    >
+                      <img
+                        src={a.avatar || '/default-avatar.png'}
+                        alt={a.name}
+                        className="w-11 h-11 rounded-full object-cover border border-white/10"
+                        loading="lazy"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-white truncate">{a.name}</p>
+                        <p className="text-[11px] text-white/30 truncate">@{a.username}</p>
+                      </div>
+                      {typeof a.trackCount === 'number' && (
+                        <span className="text-[10px] text-white/20 shrink-0">{a.trackCount} titres</span>
+                      )}
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Playlists */}
+            {playlists.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-base font-black text-white flex items-center gap-2">
+                    <Music2 className="w-4 h-4 text-indigo-400" />
+                    Playlists populaires
+                  </h2>
+                </div>
+                <div className="space-y-1">
+                  {playlists.slice(0, 6).map((p) => (
+                    <a
+                      key={p._id}
+                      href={`/playlists/${encodeURIComponent(p._id)}`}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.06] transition-all"
+                    >
+                      <img
+                        src={p.coverUrl || '/default-cover.jpg'}
+                        alt={p.name}
+                        className="w-11 h-11 rounded-md object-cover"
+                        loading="lazy"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-white truncate">{p.name}</p>
+                        <p className="text-[11px] text-white/30 line-clamp-1">{p.description || 'Playlist'}</p>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* ─── Nouveautés ─── */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-black text-white">Nouveautés</h2>
+          </div>
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-2" style={{ scrollSnapType: 'x mandatory' }}>
+            {newest.length > 0 ? (
+              newest.map((t) => <GuestTrackCard key={t._id} track={t} />)
+            ) : (
+              <p className="text-sm text-white/20 py-8">Aucun titre disponible pour le moment.</p>
+            )}
+          </div>
+        </section>
+
+        {/* CTA bottom */}
+        <section className="text-center py-8">
+          <p className="text-white/30 text-sm mb-4">Inscris-toi pour accéder à toutes les fonctionnalités</p>
+          <Link
+            href="/auth/signup"
+            className="h-11 px-8 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold inline-flex items-center gap-2 transition-all hover:scale-[1.03] shadow-lg shadow-indigo-500/25"
+          >
+            Commencer gratuitement
+          </Link>
         </section>
       </main>
     </div>
   );
-} 
-
+}
