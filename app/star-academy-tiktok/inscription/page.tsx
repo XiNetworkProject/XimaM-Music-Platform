@@ -1,26 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { PrimeStageBackground } from "@/components/PrimeStageBackground";
 
 // ─── Types ────────────────────────────────────────────────
-type SubmitState = "idle" | "uploading" | "success" | "error";
+type Step = 1 | 2 | 3 | 4 | 5;
 
 interface FormFields {
-  fullName: string;
-  age: string;
-  email: string;
-  phone: string;
-  location: string;
-  tiktok: string;
-  category: string;
-  level: string;
-  link: string;
-  bio: string;
-  availability: string;
-  synauraUsername: string;
-  synauraPassword: string;
+  fullName: string; age: string; email: string;
+  phone: string; location: string; tiktok: string;
+  category: string; level: string; link: string;
+  bio: string; availability: string;
+  synauraUsername: string; synauraPassword: string;
   consent: boolean;
 }
 
@@ -28,462 +20,551 @@ const EMPTY: FormFields = {
   fullName: "", age: "", email: "", phone: "", location: "",
   tiktok: "", category: "", level: "", link: "",
   bio: "", availability: "",
-  synauraUsername: "", synauraPassword: "",
-  consent: false,
+  synauraUsername: "", synauraPassword: "", consent: false,
 };
 
-function humanMb(bytes: number) {
-  return (bytes / (1024 * 1024)).toFixed(1);
-}
+function humanMb(b: number) { return (b / 1048576).toFixed(1); }
 
-// ─── Component ────────────────────────────────────────────
-export default function StarAcademyInscriptionPage() {
-  const audioInputRef = useRef<HTMLInputElement>(null);
+const STEPS = [
+  { n: 1, label: "Identité",    icon: "👤" },
+  { n: 2, label: "Artiste",     icon: "🎤" },
+  { n: 3, label: "Présentation",icon: "💬" },
+  { n: 4, label: "CV Vocal",    icon: "🎵" },
+  { n: 5, label: "Compte",      icon: "⭐" },
+];
+
+// ─── Main Component ───────────────────────────────────────
+export default function InscriptionPage() {
+  const [step, setStep] = useState<Step>(1);
   const [fields, setFields] = useState<FormFields>(EMPTY);
   const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | null>(null);
-  const [drag, setDrag] = useState(false);
-  const [submitState, setSubmitState] = useState<SubmitState>("idle");
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [trackingToken, setTrackingToken] = useState("");
+  const [audioUrl, setAudioUrl]   = useState<string | null>(null);
+  const [drag, setDrag]           = useState(false);
+  const [error, setError]         = useState("");
+  const [loading, setLoading]     = useState(false);
+  const [progress, setProgress]   = useState(0);
+  const [token, setToken]         = useState("");
+  const [done, setDone]           = useState(false);
+  const audioRef = useRef<HTMLInputElement>(null);
 
-  const set = useCallback(<K extends keyof FormFields>(k: K, v: FormFields[K]) => {
-    setFields((f) => ({ ...f, [k]: v }));
-  }, []);
+  const set = useCallback(<K extends keyof FormFields>(k: K, v: FormFields[K]) =>
+    setFields(f => ({ ...f, [k]: v })), []);
 
   const setFile = useCallback((f: File | null) => {
-    if (!f) {
-      setAudioFile(null);
-      if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
-      setAudioPreviewUrl(null);
-      return;
-    }
-    if (!f.type.startsWith("audio/")) {
-      setErrorMsg("Le fichier doit être un format audio (MP3, WAV, M4A…).");
-      return;
-    }
-    if (f.size > 30 * 1024 * 1024) {
-      setErrorMsg("Fichier trop lourd (max 30MB).");
-      return;
-    }
-    if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
-    setAudioFile(f);
-    setAudioPreviewUrl(URL.createObjectURL(f));
-    setErrorMsg("");
-  }, [audioPreviewUrl]);
+    if (!f) { setAudioFile(null); if (audioUrl) URL.revokeObjectURL(audioUrl); setAudioUrl(null); return; }
+    if (!f.type.startsWith("audio/")) { setError("Fichier audio requis (MP3, WAV, M4A…)"); return; }
+    if (f.size > 30 * 1024 * 1024) { setError("Max 30 MB"); return; }
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioFile(f); setAudioUrl(URL.createObjectURL(f)); setError("");
+  }, [audioUrl]);
 
-  useEffect(() => {
-    return () => { if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl); };
-  }, [audioPreviewUrl]);
+  useEffect(() => () => { if (audioUrl) URL.revokeObjectURL(audioUrl); }, [audioUrl]);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg("");
+  // ── Validation par step ───────────────────────────────
+  const canNext = useCallback((): boolean => {
+    switch (step) {
+      case 1: return !!(fields.fullName && fields.age && fields.email && fields.location);
+      case 2: return !!(fields.tiktok && fields.category);
+      case 3: return !!fields.bio;
+      case 4: return !!audioFile;
+      case 5: return fields.consent;
+      default: return false;
+    }
+  }, [step, fields, audioFile]);
 
-    if (!fields.fullName || !fields.email || !fields.age || !fields.location || !fields.tiktok || !fields.category || !fields.bio) {
-      setErrorMsg("Merci de remplir tous les champs obligatoires (*).");
-      return;
-    }
-    if (!audioFile) {
-      setErrorMsg("Un fichier audio (CV vocal) est requis.");
-      return;
-    }
-    if (!fields.consent) {
-      setErrorMsg("Tu dois accepter les conditions pour envoyer ta candidature.");
-      return;
-    }
-    if (fields.synauraUsername && !fields.synauraPassword) {
-      setErrorMsg("Renseigne un mot de passe pour créer ton compte Synaura.");
-      return;
-    }
-    if (fields.synauraPassword && fields.synauraPassword.length < 8) {
-      setErrorMsg("Le mot de passe Synaura doit contenir au moins 8 caractères.");
-      return;
-    }
+  const next = () => { setError(""); if (canNext()) setStep(s => Math.min(5, s + 1) as Step); else setError("Remplis les champs obligatoires."); };
+  const prev = () => { setError(""); setStep(s => Math.max(1, s - 1) as Step); };
 
-    setSubmitState("uploading");
-    setUploadProgress(0);
-
-    const formData = new FormData();
-    formData.append("fullName",        fields.fullName);
-    formData.append("age",             fields.age);
-    formData.append("email",           fields.email);
-    formData.append("phone",           fields.phone);
-    formData.append("location",        fields.location);
-    formData.append("tiktok",          fields.tiktok);
-    formData.append("category",        fields.category);
-    formData.append("level",           fields.level);
-    formData.append("link",            fields.link);
-    formData.append("bio",             fields.bio);
-    formData.append("availability",    fields.availability);
-    formData.append("synauraUsername", fields.synauraUsername);
-    formData.append("synauraPassword", fields.synauraPassword);
-    formData.append("audio",           audioFile, audioFile.name);
+  // ── Submit ─────────────────────────────────────────────
+  const submit = useCallback(async () => {
+    setError(""); setLoading(true); setProgress(0);
+    if (fields.synauraUsername && fields.synauraPassword.length < 8) {
+      setError("Mot de passe Synaura : 8 caractères minimum."); setLoading(false); return;
+    }
+    const fd = new FormData();
+    Object.entries(fields).forEach(([k, v]) => { if (typeof v === "string") fd.append(k, v); });
+    if (audioFile) fd.append("audio", audioFile, audioFile.name);
 
     try {
-      // XHR pour le suivi de progression
-      const token = await new Promise<string>((resolve, reject) => {
+      const t = await new Promise<string>((res, rej) => {
         const xhr = new XMLHttpRequest();
         xhr.open("POST", "/api/star-academy/apply");
-
-        xhr.upload.addEventListener("progress", (ev) => {
-          if (ev.lengthComputable) {
-            setUploadProgress(Math.round((ev.loaded / ev.total) * 90));
-          }
-        });
-
-        xhr.addEventListener("load", () => {
-          setUploadProgress(100);
+        xhr.upload.onprogress = e => { if (e.lengthComputable) setProgress(Math.round(e.loaded / e.total * 90)); };
+        xhr.onload = () => {
+          setProgress(100);
           try {
-            const data = JSON.parse(xhr.responseText);
-            if (xhr.status >= 200 && xhr.status < 300 && data.ok) {
-              resolve(data.trackingToken);
-            } else {
-              reject(new Error(data.error || "Erreur serveur."));
-            }
-          } catch {
-            reject(new Error("Réponse invalide du serveur."));
-          }
-        });
-
-        xhr.addEventListener("error", () => reject(new Error("Erreur réseau. Vérifie ta connexion.")));
-        xhr.send(formData);
+            const d = JSON.parse(xhr.responseText);
+            xhr.status < 300 && d.ok ? res(d.trackingToken) : rej(new Error(d.error || "Erreur serveur"));
+          } catch { rej(new Error("Réponse invalide")); }
+        };
+        xhr.onerror = () => rej(new Error("Erreur réseau"));
+        xhr.send(fd);
       });
-
-      setTrackingToken(token);
-      setSubmitState("success");
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : "Erreur inattendue.");
-      setSubmitState("error");
+      setToken(t); setDone(true);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Erreur inattendue");
+    } finally {
+      setLoading(false);
     }
   }, [fields, audioFile]);
 
-  // ─── Success State ────────────────────────────────────────
-  if (submitState === "success") {
-    return (
-      <div className="relative min-h-screen text-white overflow-x-hidden">
-        <PrimeStageBackground intensity={0.7} />
-        <div className="relative z-20 flex min-h-screen flex-col items-center justify-center px-6 py-16 text-center">
-          <div
-            className="w-full max-w-md rounded-3xl border border-[#ffd47a]/30 p-8 md:p-10 backdrop-blur-xl"
-            style={{ background: "linear-gradient(135deg,rgba(124,58,237,0.15),rgba(0,242,234,0.08))" }}
-          >
-            <div className="text-5xl mb-4">🎉</div>
-            <h1 className="text-2xl font-black text-white mb-2">Candidature envoyée !</h1>
-            <p className="text-white/60 text-sm mb-6 leading-relaxed">
-              Un email de confirmation a été envoyé à <strong className="text-white">{fields.email}</strong>.
-              Utilise ton lien de suivi pour suivre l'évolution de ta candidature.
-            </p>
-
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-6 text-left">
-              <div className="text-xs text-white/40 mb-1">Ton lien de suivi</div>
-              <code className="text-xs text-[#00f2ea] break-all">
-                /star-academy-tiktok/suivi?token={trackingToken}
-              </code>
-            </div>
-
-            <div className="flex flex-col gap-3">
-              <Link
-                href={`/star-academy-tiktok/suivi?token=${trackingToken}`}
-                className="rounded-2xl py-3 font-bold text-white transition hover:opacity-90"
-                style={{ background: "linear-gradient(90deg,#7c3aed,#00f2ea)" }}
-              >
-                Suivre ma candidature →
-              </Link>
-              <Link
-                href="/star-academy-tiktok"
-                className="rounded-2xl border border-white/15 bg-white/5 py-3 text-sm font-semibold text-white/70 hover:bg-white/10 transition"
-              >
-                ← Retour à Star Academy
-              </Link>
-            </div>
-          </div>
+  // ─────────────────────────────────────────────────────────
+  // SUCCESS SCREEN
+  // ─────────────────────────────────────────────────────────
+  if (done) return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "radial-gradient(ellipse at 30% 50%, #2d0a4e 0%, #0a0014 60%)" }}>
+      <div className="w-full max-w-md text-center space-y-6">
+        {/* Confetti stars */}
+        <div className="text-6xl animate-bounce">🌟</div>
+        <div>
+          <h1 className="text-3xl font-black text-white mb-2">Candidature envoyée !</h1>
+          <p className="text-white/60 text-sm leading-relaxed">
+            Un email de confirmation arrive sur <strong className="text-white">{fields.email}</strong>.
+            Utilise ton token pour suivre ta candidature.
+          </p>
         </div>
-      </div>
-    );
-  }
 
-  // ─── Render ───────────────────────────────────────────────
-  const inputCls = "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-[#7c3aed]/60 focus:ring-1 focus:ring-[#7c3aed]/30 transition";
-  const labelCls = "block text-xs font-semibold text-white/60 mb-1.5";
-  const reqMark  = <span className="text-[#ff2d55] ml-0.5">*</span>;
+        {/* Token box */}
+        <div className="rounded-2xl border border-[#f59e0b]/30 bg-[#f59e0b]/10 p-5">
+          <p className="text-xs text-[#f59e0b] font-bold uppercase tracking-widest mb-2">Ton lien de suivi</p>
+          <code className="text-xs text-white/80 break-all">{token}</code>
+        </div>
 
-  return (
-    <div className="relative min-h-screen text-white overflow-x-hidden">
-      <PrimeStageBackground intensity={0.8} />
-
-      <div className="relative z-20 max-w-4xl mx-auto px-4 py-8">
-
-        {/* ── Nav ─────────────────────────────────────────── */}
-        <nav className="flex items-center justify-between mb-8">
-          <Link href="/star-academy-tiktok" className="text-sm text-white/50 hover:text-white transition">
-            ← Star Academy TikTok
+        <div className="flex flex-col gap-3">
+          <Link href={`/star-academy-tiktok/suivi?token=${token}`}
+            className="block rounded-2xl py-3.5 font-black text-white text-center"
+            style={{ background: "linear-gradient(90deg,#9333ea,#ec4899)" }}>
+            Suivre ma candidature →
           </Link>
-          <span className="text-xs text-[#ffd47a] font-bold uppercase tracking-widest">★ Auditions ouvertes</span>
-        </nav>
-
-        {/* ── Header ──────────────────────────────────────── */}
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#ff2d55]/30 bg-[#ff2d55]/10 px-4 py-1.5 mb-4">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ff2d55] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ff2d55]" />
-            </span>
-            <span className="text-xs font-bold text-[#ff2d55] tracking-widest uppercase">Live · Candidature officielle</span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-black text-white mb-2">Inscription Star Academy TikTok</h1>
-          <p className="text-white/50 text-sm max-w-lg mx-auto">
-            Remplis ce formulaire et uploade ton CV vocal (20–60s). Tu t'inscris simultanément sur Synaura.
-          </p>
+          <Link href="/star-academy-tiktok"
+            className="block rounded-2xl border border-white/15 py-3.5 text-sm text-white/60 text-center hover:text-white transition">
+            ← Retour à Star Academy
+          </Link>
         </div>
-
-        <form onSubmit={handleSubmit} noValidate>
-
-          {/* ── Section 1 : Identité ─────────────────────── */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 mb-4">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#ffd47a] mb-5">01 — Identité</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Nom / Prénom {reqMark}</label>
-                <input className={inputCls} placeholder="Marie Dupont" value={fields.fullName} onChange={(e) => set("fullName", e.target.value)} required />
-              </div>
-              <div>
-                <label className={labelCls}>Âge {reqMark}</label>
-                <input className={inputCls} type="number" min={13} max={99} placeholder="18" value={fields.age} onChange={(e) => set("age", e.target.value)} required />
-              </div>
-              <div>
-                <label className={labelCls}>Email {reqMark}</label>
-                <input className={inputCls} type="email" placeholder="email@exemple.com" value={fields.email} onChange={(e) => set("email", e.target.value)} required />
-              </div>
-              <div>
-                <label className={labelCls}>Téléphone</label>
-                <input className={inputCls} placeholder="+33 6…" value={fields.phone} onChange={(e) => set("phone", e.target.value)} />
-              </div>
-              <div className="sm:col-span-2">
-                <label className={labelCls}>Ville / Pays {reqMark}</label>
-                <input className={inputCls} placeholder="Paris, France" value={fields.location} onChange={(e) => set("location", e.target.value)} required />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Section 2 : Profil artistique ───────────── */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 mb-4">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#00f2ea] mb-5">02 — Profil artistique</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Pseudo TikTok {reqMark}</label>
-                <input className={inputCls} placeholder="@tonpseudo" value={fields.tiktok} onChange={(e) => set("tiktok", e.target.value)} required />
-              </div>
-              <div>
-                <label className={labelCls}>Catégorie {reqMark}</label>
-                <select
-                  className={`${inputCls} cursor-pointer`}
-                  value={fields.category}
-                  onChange={(e) => set("category", e.target.value)}
-                  required
-                >
-                  <option value="">Sélectionner…</option>
-                  <option value="Chant">🎤 Chant</option>
-                  <option value="Rap">🎤 Rap</option>
-                  <option value="Mix / DJ">🎛️ Mix / DJ</option>
-                  <option value="Performance / Danse">💃 Performance / Danse</option>
-                  <option value="Autre">✨ Autre</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Niveau</label>
-                <select className={`${inputCls} cursor-pointer`} value={fields.level} onChange={(e) => set("level", e.target.value)}>
-                  <option value="">Sélectionner…</option>
-                  <option value="Débutant">Débutant</option>
-                  <option value="Intermédiaire">Intermédiaire</option>
-                  <option value="Confirmé">Confirmé</option>
-                  <option value="Pro">Pro</option>
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Lien portfolio (optionnel)</label>
-                <input className={inputCls} placeholder="TikTok / Insta / YouTube / Synaura" value={fields.link} onChange={(e) => set("link", e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Section 3 : Présentation ─────────────────── */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 mb-4">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#7c3aed] mb-5">03 — Présentation</h2>
-            <div className="space-y-4">
-              <div>
-                <label className={labelCls}>Présente-toi {reqMark}</label>
-                <textarea
-                  className={`${inputCls} resize-none`}
-                  rows={4}
-                  placeholder="Ton univers, ton style, ce que tu veux montrer en live…"
-                  value={fields.bio}
-                  onChange={(e) => set("bio", e.target.value)}
-                  required
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Disponibilités (optionnel)</label>
-                <input className={inputCls} placeholder="Soirs, week-ends, vacances…" value={fields.availability} onChange={(e) => set("availability", e.target.value)} />
-              </div>
-            </div>
-          </div>
-
-          {/* ── Section 4 : CV Vocal ─────────────────────── */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 mb-4">
-            <h2 className="text-sm font-black uppercase tracking-widest text-[#ff2d55] mb-5">04 — CV Vocal {reqMark}</h2>
-            <p className="text-xs text-white/40 mb-4">Upload un fichier audio (20–60s conseillé). MP3, WAV, M4A — max 30MB.</p>
-
-            <div
-              className={`relative rounded-2xl border-2 border-dashed p-6 cursor-pointer transition text-center ${drag ? "border-[#00f2ea] bg-[#00f2ea]/10" : "border-white/15 hover:border-white/30"}`}
-              onClick={() => audioInputRef.current?.click()}
-              onDragEnter={(e) => { e.preventDefault(); setDrag(true); }}
-              onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
-              onDragLeave={(e) => { e.preventDefault(); setDrag(false); }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDrag(false);
-                const f = e.dataTransfer.files?.[0];
-                if (f) setFile(f);
-              }}
-            >
-              <input
-                ref={audioInputRef}
-                type="file"
-                accept="audio/*"
-                style={{ position: "absolute", width: 1, height: 1, opacity: 0 }}
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) setFile(f); }}
-              />
-
-              {!audioFile ? (
-                <>
-                  <div className="text-3xl mb-2">🎵</div>
-                  <p className="text-sm text-white/60">Glisse ton fichier ici ou <span className="text-[#00f2ea] underline">clique pour choisir</span></p>
-                </>
-              ) : (
-                <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                  <div className="flex items-center justify-between">
-                    <div className="text-left">
-                      <div className="text-sm font-semibold text-white truncate max-w-xs">{audioFile.name}</div>
-                      <div className="text-xs text-white/40">{humanMb(audioFile.size)} MB · {audioFile.type}</div>
-                    </div>
-                    <button
-                      type="button"
-                      className="rounded-xl border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/60 hover:text-white hover:bg-white/10 transition"
-                      onClick={(e) => { e.stopPropagation(); setFile(null); }}
-                    >
-                      Retirer
-                    </button>
-                  </div>
-                  {audioPreviewUrl && (
-                    <audio className="w-full h-10 rounded-xl" controls src={audioPreviewUrl} />
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ── Section 5 : Compte Synaura ───────────────── */}
-          <div
-            className="rounded-3xl border border-[#7c3aed]/30 p-6 mb-4 backdrop-blur-sm"
-            style={{ background: "linear-gradient(135deg,rgba(124,58,237,0.1),rgba(0,242,234,0.05))" }}
-          >
-            <div className="flex items-start gap-3 mb-5">
-              <div>
-                <h2 className="text-sm font-black uppercase tracking-widest text-[#a78bfa]">05 — Compte Synaura</h2>
-                <p className="text-xs text-white/40 mt-1">
-                  Tu t'inscris simultanément sur Synaura. Si tu as déjà un compte, laisse vide — on liera ta candidature à ton email.
-                </p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className={labelCls}>Pseudonyme Synaura</label>
-                <input
-                  className={inputCls}
-                  placeholder="@tonpseudo"
-                  value={fields.synauraUsername}
-                  onChange={(e) => set("synauraUsername", e.target.value.replace(/\s/g, ""))}
-                  autoComplete="username"
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Mot de passe</label>
-                <input
-                  className={inputCls}
-                  type="password"
-                  placeholder="Min. 8 caractères"
-                  value={fields.synauraPassword}
-                  onChange={(e) => set("synauraPassword", e.target.value)}
-                  autoComplete="new-password"
-                />
-              </div>
-            </div>
-            <div className="mt-3 rounded-xl border border-[#7c3aed]/20 bg-[#7c3aed]/10 px-4 py-3 text-xs text-[#c4b5fd]">
-              🏆 Les candidats retenus reçoivent <strong>3 mois de Premium Synaura</strong> offerts, directement activés sur leur compte.
-            </div>
-          </div>
-
-          {/* ── Consentement ─────────────────────────────── */}
-          <div className="rounded-2xl border border-white/8 bg-white/3 p-5 mb-4">
-            <label className="flex items-start gap-3 cursor-pointer">
-              <input
-                type="checkbox"
-                className="mt-0.5 h-4 w-4 rounded accent-violet-500 cursor-pointer"
-                checked={fields.consent}
-                onChange={(e) => set("consent", e.target.checked)}
-              />
-              <span className="text-xs text-white/50 leading-relaxed">
-                Je confirme disposer des droits nécessaires sur l'enregistrement audio envoyé,
-                j'accepte d'être recontacté(e) par Synaura dans le cadre de ce concours et
-                j'accepte les{" "}
-                <Link href="/legal/cgu" className="text-[#7c3aed] hover:underline" target="_blank">CGU</Link>.
-              </span>
-            </label>
-          </div>
-
-          {/* ── Erreur ───────────────────────────────────── */}
-          {errorMsg && (
-            <div className="rounded-2xl border border-[#ff2d55]/30 bg-[#ff2d55]/10 px-4 py-3 text-sm text-[#ff2d55] mb-4">
-              ⚠️ {errorMsg}
-            </div>
-          )}
-
-          {/* ── Progress bar ─────────────────────────────── */}
-          {submitState === "uploading" && (
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4 mb-4">
-              <div className="flex justify-between text-xs text-white/60 mb-2">
-                <span>Envoi en cours…</span>
-                <span>{uploadProgress}%</span>
-              </div>
-              <div className="h-2 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-300"
-                  style={{
-                    width: `${uploadProgress}%`,
-                    background: "linear-gradient(90deg,#7c3aed,#00f2ea)",
-                  }}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* ── Submit ───────────────────────────────────── */}
-          <button
-            type="submit"
-            disabled={submitState === "uploading"}
-            className="w-full rounded-2xl py-4 font-black text-base text-white transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(90deg,#7c3aed,#ff2d55)" }}
-          >
-            {submitState === "uploading" ? "Envoi en cours…" : "🎤 Envoyer ma candidature"}
-          </button>
-
-          <p className="text-center text-xs text-white/25 mt-4">
-            Inscription gratuite · CV vocal requis · Résultats par email
-          </p>
-        </form>
       </div>
     </div>
   );
+
+  // ─────────────────────────────────────────────────────────
+  // MAIN LAYOUT
+  // ─────────────────────────────────────────────────────────
+
+  const inputCls = "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#9333ea]/70 focus:bg-white/8 transition";
+  const labelCls = "block text-xs font-bold text-white/50 uppercase tracking-wider mb-2";
+
+  return (
+    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#0a0014" }}>
+
+      {/* ══════════════════════════════════════════════════
+          PANNEAU GAUCHE — Visuel immersif (desktop fixe)
+          ══════════════════════════════════════════════════ */}
+      <div className="relative lg:sticky lg:top-0 lg:h-screen lg:w-[44%] xl:w-[42%] shrink-0 overflow-hidden">
+
+        {/* Photo de fond : mansion + foule */}
+        <Image
+          src="/StarAcRes/sa-hero-mansion.jpg"
+          alt="Star Academy TikTok — La Mansion"
+          fill
+          className="object-cover object-center"
+          priority
+          sizes="44vw"
+        />
+
+        {/* Calque concert (overlay additionnel) */}
+        <div className="absolute inset-0"
+          style={{ background: "linear-gradient(180deg, rgba(10,0,20,0.25) 0%, rgba(10,0,20,0.1) 40%, rgba(10,0,20,0.7) 80%, rgba(10,0,20,0.97) 100%)" }} />
+
+        {/* Halo violet + gold */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full opacity-40"
+            style={{ background: "radial-gradient(circle, rgba(147,51,234,0.5) 0%, transparent 70%)", filter: "blur(60px)" }} />
+          <div className="absolute bottom-[20%] right-[-5%] w-[50%] h-[40%] rounded-full opacity-30"
+            style={{ background: "radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)", filter: "blur(50px)" }} />
+        </div>
+
+        {/* Contenu du panneau gauche */}
+        <div className="absolute inset-0 flex flex-col justify-between p-6 md:p-8 z-10">
+
+          {/* Top : Logo + badge */}
+          <div className="flex items-start justify-between">
+            <Link href="/star-academy-tiktok" className="opacity-90 hover:opacity-100 transition">
+              <Image
+                src="/StarAcRes/sa-logo.png"
+                alt="Star Academy TikTok"
+                width={160}
+                height={60}
+                className="object-contain drop-shadow-lg"
+                style={{ filter: "drop-shadow(0 0 12px rgba(147,51,234,0.6)) brightness(1.2)" }}
+              />
+            </Link>
+            <div className="flex items-center gap-2 rounded-full border border-[#ec4899]/40 bg-[#ec4899]/15 px-3 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ec4899] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ec4899]" />
+              </span>
+              <span className="text-[10px] font-black text-[#ec4899] uppercase tracking-widest">Live</span>
+            </div>
+          </div>
+
+          {/* Centre : Titre principal */}
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-bold text-[#f59e0b] uppercase tracking-widest mb-3">★ Nouvelle Saison 2026</p>
+              <h1 className="text-4xl md:text-5xl font-black leading-none text-white" style={{ textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
+                Inscription<br/>
+                <span style={{ background: "linear-gradient(90deg,#f59e0b,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  Auditions
+                </span>
+              </h1>
+            </div>
+
+            {/* Info pills */}
+            <div className="flex flex-wrap gap-2">
+              {["🎤 Chant / Rap", "🎛️ Mix / DJ", "💃 Danse", "✨ Autre"].map(c => (
+                <span key={c} className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs text-white/70">{c}</span>
+              ))}
+            </div>
+
+            {/* Prize highlight */}
+            <div className="rounded-2xl border border-[#f59e0b]/25 bg-[#f59e0b]/10 p-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">🏆</span>
+                <div>
+                  <p className="text-sm font-black text-[#f59e0b]">3 mois Premium Synaura</p>
+                  <p className="text-xs text-white/50">offerts aux candidats retenus</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom : step en cours (mobile hidden, affiché ici sur desktop) */}
+          <div className="hidden lg:block">
+            <p className="text-xs text-white/30 mb-3">Étape {step} sur 5</p>
+            <div className="flex gap-1.5">
+              {STEPS.map(s => (
+                <div key={s.n} className="flex-1 h-1 rounded-full transition-all duration-500"
+                  style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.12)" }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════════════════════════════════════════════════
+          PANNEAU DROIT — Formulaire multi-étapes
+          ══════════════════════════════════════════════════ */}
+      <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 lg:overflow-y-auto">
+        <div className="flex-1 flex flex-col justify-center px-5 py-10 md:px-10 max-w-xl mx-auto w-full">
+
+          {/* Progress mobile */}
+          <div className="lg:hidden mb-8">
+            <div className="flex gap-1.5 mb-3">
+              {STEPS.map(s => (
+                <div key={s.n} className="flex-1 h-1 rounded-full transition-all duration-500"
+                  style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.1)" }} />
+              ))}
+            </div>
+            <p className="text-xs text-white/40">Étape {step} sur 5</p>
+          </div>
+
+          {/* Step indicator pills */}
+          <div className="flex gap-2 mb-8 overflow-x-auto pb-1 scrollbar-hide">
+            {STEPS.map(s => (
+              <div key={s.n}
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all duration-300 cursor-default"
+                style={{
+                  background: s.n === step ? "linear-gradient(90deg,rgba(147,51,234,0.3),rgba(236,72,153,0.3))"
+                    : s.n < step ? "rgba(147,51,234,0.15)" : "rgba(255,255,255,0.04)",
+                  border: `1px solid ${s.n === step ? "rgba(147,51,234,0.6)" : s.n < step ? "rgba(147,51,234,0.25)" : "rgba(255,255,255,0.08)"}`,
+                  color: s.n <= step ? "#fff" : "rgba(255,255,255,0.3)"
+                }}>
+                {s.n < step ? "✓" : s.icon} {s.label}
+              </div>
+            ))}
+          </div>
+
+          {/* ── STEP 1 : Identité ─────────────────────── */}
+          {step === 1 && (
+            <FormCard title="Qui es-tu ?" subtitle="Les informations de base sur ta candidature.">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className={labelCls}>Nom / Prénom <Req /></label>
+                  <input className={inputCls} placeholder="Marie Dupont" value={fields.fullName} onChange={e => set("fullName", e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Âge <Req /></label>
+                  <input className={inputCls} type="number" min={13} max={99} placeholder="18" value={fields.age} onChange={e => set("age", e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Téléphone</label>
+                  <input className={inputCls} placeholder="+33 6…" value={fields.phone} onChange={e => set("phone", e.target.value)} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Email <Req /></label>
+                  <input className={inputCls} type="email" placeholder="email@exemple.com" value={fields.email} onChange={e => set("email", e.target.value)} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Ville / Pays <Req /></label>
+                  <input className={inputCls} placeholder="Paris, France" value={fields.location} onChange={e => set("location", e.target.value)} />
+                </div>
+              </div>
+            </FormCard>
+          )}
+
+          {/* ── STEP 2 : Profil artistique ────────────── */}
+          {step === 2 && (
+            <FormCard title="Ton profil artistique" subtitle="Dis-nous ce que tu fais et où te trouver.">
+              <div className="space-y-4">
+                <div>
+                  <label className={labelCls}>Pseudo TikTok <Req /></label>
+                  <input className={inputCls} placeholder="@tonpseudo" value={fields.tiktok} onChange={e => set("tiktok", e.target.value)} />
+                </div>
+                <div>
+                  <label className={labelCls}>Catégorie <Req /></label>
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {[["Chant","🎤"],["Rap","🎤"],["Mix / DJ","🎛️"],["Performance / Danse","💃"],["Autre","✨"]].map(([v,ic]) => (
+                      <button key={v} type="button"
+                        onClick={() => set("category", v)}
+                        className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold text-left transition-all duration-200"
+                        style={{
+                          background: fields.category === v ? "linear-gradient(90deg,rgba(147,51,234,0.3),rgba(236,72,153,0.2))" : "rgba(255,255,255,0.04)",
+                          borderColor: fields.category === v ? "rgba(147,51,234,0.6)" : "rgba(255,255,255,0.08)",
+                          color: fields.category === v ? "#fff" : "rgba(255,255,255,0.5)"
+                        }}>
+                        <span>{ic}</span> {v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Niveau</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {["Débutant","Intermédiaire","Confirmé","Pro"].map(l => (
+                      <button key={l} type="button"
+                        onClick={() => set("level", fields.level === l ? "" : l)}
+                        className="rounded-full border px-4 py-1.5 text-xs font-semibold transition-all"
+                        style={{
+                          background: fields.level === l ? "rgba(147,51,234,0.25)" : "rgba(255,255,255,0.04)",
+                          borderColor: fields.level === l ? "rgba(147,51,234,0.5)" : "rgba(255,255,255,0.1)",
+                          color: fields.level === l ? "#fff" : "rgba(255,255,255,0.4)"
+                        }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className={labelCls}>Lien portfolio (optionnel)</label>
+                  <input className={inputCls} placeholder="TikTok / Instagram / YouTube / Synaura" value={fields.link} onChange={e => set("link", e.target.value)} />
+                </div>
+              </div>
+            </FormCard>
+          )}
+
+          {/* ── STEP 3 : Présentation ─────────────────── */}
+          {step === 3 && (
+            <FormCard title="Présente-toi" subtitle="Parle-nous de toi, ton univers, ce que tu veux montrer.">
+              <div className="space-y-4">
+                <div>
+                  <label className={labelCls}>Ta présentation <Req /></label>
+                  <textarea className={`${inputCls} resize-none`} rows={6}
+                    placeholder="Mon univers, mon style, ce que j'ai envie de montrer en live, pourquoi Star Academy TikTok…"
+                    value={fields.bio} onChange={e => set("bio", e.target.value)} />
+                  <p className="text-right text-xs text-white/25 mt-1">{fields.bio.length} / 500</p>
+                </div>
+                <div>
+                  <label className={labelCls}>Disponibilités (optionnel)</label>
+                  <input className={inputCls} placeholder="Soirs, week-ends, vacances d'été…"
+                    value={fields.availability} onChange={e => set("availability", e.target.value)} />
+                </div>
+              </div>
+            </FormCard>
+          )}
+
+          {/* ── STEP 4 : CV Vocal ─────────────────────── */}
+          {step === 4 && (
+            <FormCard title="CV Vocal" subtitle="20 à 60 secondes suffisent. Montre-toi au meilleur de ta forme.">
+              <div className="space-y-4">
+                {/* Upload zone */}
+                <div
+                  onClick={() => !audioFile && audioRef.current?.click()}
+                  onDragEnter={e => { e.preventDefault(); setDrag(true); }}
+                  onDragOver={e => { e.preventDefault(); setDrag(true); }}
+                  onDragLeave={e => { e.preventDefault(); setDrag(false); }}
+                  onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setFile(f); }}
+                  className="relative rounded-3xl border-2 border-dashed cursor-pointer overflow-hidden transition-all duration-300"
+                  style={{
+                    borderColor: drag ? "#9333ea" : audioFile ? "rgba(147,51,234,0.4)" : "rgba(255,255,255,0.12)",
+                    background: drag ? "rgba(147,51,234,0.1)" : audioFile ? "rgba(147,51,234,0.06)" : "rgba(255,255,255,0.02)"
+                  }}>
+                  <input ref={audioRef} type="file" accept="audio/*" className="sr-only"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f); }} />
+
+                  {!audioFile ? (
+                    <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                      <div className="text-5xl mb-4">🎵</div>
+                      <p className="text-sm font-semibold text-white/60">Glisse ton fichier ici</p>
+                      <p className="text-xs text-white/30 mt-1">MP3 · WAV · M4A — max 30 MB</p>
+                      <button type="button"
+                        onClick={e => { e.stopPropagation(); audioRef.current?.click(); }}
+                        className="mt-4 rounded-full border border-white/20 bg-white/5 px-5 py-2 text-xs font-bold text-white/70 hover:text-white hover:bg-white/10 transition">
+                        Choisir un fichier
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-5 space-y-4" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-10 w-10 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center shrink-0">
+                            <span>🎵</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-white truncate">{audioFile.name}</p>
+                            <p className="text-xs text-white/40">{humanMb(audioFile.size)} MB</p>
+                          </div>
+                        </div>
+                        <button type="button" onClick={() => setFile(null)}
+                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 hover:text-white transition shrink-0">
+                          Retirer
+                        </button>
+                      </div>
+                      {audioUrl && <audio className="w-full h-10 rounded-xl" controls src={audioUrl} />}
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-2xl border border-[#f59e0b]/20 bg-[#f59e0b]/8 p-4 text-xs text-[#f59e0b]/80 leading-relaxed">
+                  💡 <strong>Conseil :</strong> Commence par ton passage le plus fort. Les 10 premières secondes sont décisives. Pas besoin d'un studio — un bon smartphone suffit.
+                </div>
+              </div>
+            </FormCard>
+          )}
+
+          {/* ── STEP 5 : Compte Synaura + Consent ──────── */}
+          {step === 5 && (
+            <FormCard title="Compte Synaura" subtitle="Tu rejoins Synaura en même temps que tu candidatures.">
+              <div className="space-y-5">
+                {/* Synaura promo */}
+                <div className="rounded-2xl overflow-hidden border border-violet-500/25"
+                  style={{ background: "linear-gradient(135deg,rgba(147,51,234,0.12),rgba(236,72,153,0.08))" }}>
+                  <div className="p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">🏆</span>
+                      <div>
+                        <p className="text-sm font-black text-white">3 mois Premium offerts</p>
+                        <p className="text-xs text-white/50">Activé automatiquement si tu es retenu(e)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className={labelCls}>Pseudonyme Synaura <span className="text-white/30 normal-case font-normal">(optionnel si tu as déjà un compte)</span></label>
+                    <input className={inputCls} placeholder="@tonpseudo" value={fields.synauraUsername}
+                      onChange={e => set("synauraUsername", e.target.value.replace(/\s/g, ""))} autoComplete="username" />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Mot de passe <span className="text-white/30 normal-case font-normal">(min. 8 caractères)</span></label>
+                    <input className={inputCls} type="password" placeholder="••••••••"
+                      value={fields.synauraPassword} onChange={e => set("synauraPassword", e.target.value)} autoComplete="new-password" />
+                  </div>
+                </div>
+
+                {/* Consent */}
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="relative mt-0.5 shrink-0">
+                    <input type="checkbox" className="sr-only" checked={fields.consent} onChange={e => set("consent", e.target.checked)} />
+                    <div className="h-5 w-5 rounded-lg border-2 transition-all"
+                      style={{
+                        borderColor: fields.consent ? "#9333ea" : "rgba(255,255,255,0.2)",
+                        background: fields.consent ? "linear-gradient(135deg,#9333ea,#ec4899)" : "transparent"
+                      }}>
+                      {fields.consent && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-black">✓</span>}
+                    </div>
+                  </div>
+                  <span className="text-xs text-white/40 leading-relaxed group-hover:text-white/60 transition">
+                    Je confirme avoir les droits sur mon enregistrement audio, j'accepte d'être recontacté(e) par Synaura dans le cadre de ce concours et j'accepte les{" "}
+                    <Link href="/legal/cgu" target="_blank" className="text-violet-400 hover:underline">Conditions Générales d'Utilisation</Link>.
+                  </span>
+                </label>
+
+                {/* Submit */}
+                {error && <div className="rounded-2xl border border-[#ec4899]/30 bg-[#ec4899]/10 px-4 py-3 text-sm text-[#ec4899]">⚠️ {error}</div>}
+
+                {loading && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-xs text-white/40">
+                      <span>Envoi en cours…</span><span>{progress}%</span>
+                    </div>
+                    <div className="h-2 rounded-full overflow-hidden bg-white/8">
+                      <div className="h-full rounded-full transition-all duration-300"
+                        style={{ width: `${progress}%`, background: "linear-gradient(90deg,#9333ea,#ec4899)" }} />
+                    </div>
+                  </div>
+                )}
+
+                <button type="button" disabled={loading || !fields.consent} onClick={submit}
+                  className="w-full rounded-2xl py-4 font-black text-base text-white transition hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                  style={{ background: loading ? "rgba(147,51,234,0.4)" : "linear-gradient(90deg,#9333ea,#ec4899)", boxShadow: "0 0 30px rgba(147,51,234,0.3)" }}>
+                  {loading ? "Envoi en cours…" : "🌟 Envoyer ma candidature"}
+                </button>
+              </div>
+            </FormCard>
+          )}
+
+          {/* ── Error global (hors step 5) ─────────────── */}
+          {error && step !== 5 && (
+            <div className="mt-4 rounded-2xl border border-[#ec4899]/30 bg-[#ec4899]/10 px-4 py-3 text-sm text-[#ec4899]">
+              ⚠️ {error}
+            </div>
+          )}
+
+          {/* ── Navigation Prev / Next ─────────────────── */}
+          {step < 5 && (
+            <div className="flex gap-3 mt-6">
+              {step > 1 && (
+                <button type="button" onClick={prev}
+                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-3.5 text-sm font-semibold text-white/60 hover:text-white hover:bg-white/10 transition">
+                  ← Retour
+                </button>
+              )}
+              <button type="button" onClick={next}
+                className="flex-1 rounded-2xl py-3.5 font-black text-white transition hover:opacity-90"
+                style={{ background: "linear-gradient(90deg,#9333ea,#ec4899)", boxShadow: "0 0 20px rgba(147,51,234,0.25)" }}>
+                Continuer →
+              </button>
+            </div>
+          )}
+
+          {/* ── Back on step 5 ────────────────────────── */}
+          {step === 5 && (
+            <button type="button" onClick={prev}
+              className="mt-4 w-full rounded-2xl border border-white/8 py-3 text-sm text-white/40 hover:text-white/70 transition">
+              ← Modifier ma présentation
+            </button>
+          )}
+
+          <p className="text-center text-xs text-white/20 mt-6">Gratuit · Aucun engagement · Résultats par email</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Sub-components ───────────────────────────────────────
+function FormCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-black text-white">{title}</h2>
+        <p className="text-sm text-white/40 mt-1">{subtitle}</p>
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
+
+function Req() {
+  return <span className="text-[#ec4899] ml-0.5">*</span>;
 }
