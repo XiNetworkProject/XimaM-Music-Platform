@@ -46,10 +46,10 @@ export default function StarAcademyLandingPage() {
   ];
 
   const prizes = [
-    { icon: "🏆", label: "3 mois Premium Synaura", sub: "Offerts aux candidats retenus" },
+    { icon: "🥇", label: "3 mois Premium Synaura", sub: "Offerts aux gagnants du Live" },
+    { icon: "🏅", label: "1 mois Premium Synaura", sub: "Offert aux candidats retenus" },
     { icon: "📱", label: "Visibilité TikTok Live", sub: "Audience en direct garantie" },
-    { icon: "🎵", label: "Studio IA Synaura", sub: "Accès illimité pendant le concours" },
-    { icon: "🌟", label: "Mise en avant Artist", sub: "Profil boosté sur la plateforme" },
+    { icon: "🌟", label: "Mise en avant Artiste", sub: "Profil boosté sur la plateforme" },
   ];
 
   return (
@@ -230,8 +230,26 @@ export default function StarAcademyLandingPage() {
         </section>
 
         {/* ── Footer ───────────────────────────────────────── */}
-        <footer className="px-6 py-8 text-center text-xs text-white/20">
-          Star Academy TikTok × Synaura · {new Date().getFullYear()} · Organisé par Synaura
+        <footer className="px-6 py-8 text-center space-y-2">
+          <div className="text-xs text-white/20">
+            Star Academy TikTok × Synaura · {new Date().getFullYear()} · Organisé par Synaura
+          </div>
+          <div className="flex items-center justify-center gap-4">
+            <Link href="/star-academy-tiktok/reglement"
+              className="text-[11px] text-white/30 hover:text-violet-400 underline-offset-2 hover:underline transition">
+              Règlement officiel
+            </Link>
+            <span className="text-white/15">·</span>
+            <Link href="/legal/cgu"
+              className="text-[11px] text-white/30 hover:text-violet-400 underline-offset-2 hover:underline transition">
+              CGU
+            </Link>
+            <span className="text-white/15">·</span>
+            <Link href="/legal/confidentialite"
+              className="text-[11px] text-white/30 hover:text-violet-400 underline-offset-2 hover:underline transition">
+              Confidentialité
+            </Link>
+          </div>
         </footer>
       </div>
     </div>

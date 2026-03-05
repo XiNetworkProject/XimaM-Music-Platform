@@ -1107,7 +1107,9 @@ export default function InscriptionPage() {
                     </div>
                   </div>
                   <span className="text-xs text-white/35 leading-relaxed group-hover:text-white/55 transition">
-                    Je confirme avoir les droits sur mon enregistrement audio, j&apos;accepte d&apos;etre recontacte(e) par Synaura dans le cadre de ce concours et j&apos;accepte les{" "}
+                    Je confirme avoir les droits sur mon enregistrement audio, j&apos;accepte d&apos;etre recontacte(e) par Synaura dans le cadre de ce concours, et j&apos;ai lu et j&apos;accepte le{" "}
+                    <Link href="/star-academy-tiktok/reglement" target="_blank" className="text-violet-400 underline-offset-2 hover:underline font-semibold">règlement officiel</Link>{" "}
+                    ainsi que les{" "}
                     <Link href="/legal/cgu" target="_blank" className="text-violet-400 underline-offset-2 hover:underline">CGU</Link>.
                   </span>
                 </label>
