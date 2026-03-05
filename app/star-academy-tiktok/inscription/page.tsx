@@ -608,7 +608,7 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
               fontSize: "11px", color: "rgba(255,255,255,0.3)",
               letterSpacing: "2px", textTransform: "uppercase",
             }}>
-              Les gagnants recevront 3 mois Premium Synaura
+              Retenus : 1 mois Premium · Gagnants : 3 mois Premium
             </div>
           </div>
         </div>
@@ -697,36 +697,87 @@ export default function InscriptionPage() {
   if (phase === "done")  return <SuccessScreen email={fields.email} token={token} />;
 
   // ── Form phase ────────────────────────────────────────
-  const inputCls = "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white placeholder-white/30 outline-none focus:border-[#9333ea]/70 focus:bg-white/8 transition";
-  const labelCls = "block text-xs font-bold text-white/50 uppercase tracking-wider mb-2";
+  const inputCls = [
+    "w-full rounded-2xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all duration-200",
+    "border border-white/10 bg-white/[0.05]",
+    "focus:border-violet-500/60 focus:bg-violet-900/10 focus:shadow-[0_0_0_3px_rgba(147,51,234,0.15)]",
+  ].join(" ");
+  const labelCls = "block text-[11px] font-bold text-white/40 uppercase tracking-widest mb-2";
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#0a0014" }}>
+    <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#07000f" }}>
       <style>{KEYFRAMES}</style>
 
-      {/* ══════ PANNEAU GAUCHE ══════ */}
-      <div className="relative lg:sticky lg:top-0 lg:h-screen lg:w-[44%] xl:w-[42%] shrink-0 overflow-hidden">
+      {/* ══════ BANNIÈRE MOBILE (cachée sur lg) ══════ */}
+      <div className="relative lg:hidden h-48 shrink-0 overflow-hidden">
+        <Image
+          src="/StarAcRes/sa-hero-mansion.jpg"
+          alt="Star Academy TikTok"
+          fill className="object-cover object-top" priority sizes="100vw"
+        />
+        {/* gradient bas → fond */}
+        <div className="absolute inset-0"
+          style={{ background: "linear-gradient(to bottom, rgba(7,0,15,0.1) 0%, rgba(7,0,15,0.55) 60%, rgba(7,0,15,1) 100%)" }} />
+        {/* halo violet */}
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(147,51,234,0.35) 0%, transparent 65%)" }} />
+
+        {/* Contenu bannière */}
+        <div className="absolute inset-0 flex items-end justify-between px-5 pb-4 z-10">
+          <div>
+            <Link href="/star-academy-tiktok">
+              <Image src="/StarAcRes/sa-logo.png" alt="Star Academy TikTok" width={110} height={42}
+                className="object-contain mb-1"
+                style={{ filter: "drop-shadow(0 0 10px rgba(147,51,234,0.7)) brightness(1.2)" }} />
+            </Link>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] font-bold text-[#f59e0b] uppercase tracking-widest">Auditions 2026</span>
+              <span className="text-white/20">·</span>
+              <span className="text-[10px] text-white/40">Etape {step} / 5</span>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1.5 rounded-full border border-[#ec4899]/40 bg-[#ec4899]/15 px-2.5 py-1">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ec4899] opacity-75" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#ec4899]" />
+              </span>
+              <span className="text-[9px] font-black text-[#ec4899] uppercase tracking-widest">Live</span>
+            </div>
+            {/* mini progress */}
+            <div className="flex gap-1">
+              {STEPS.map(s => (
+                <div key={s.n} className="h-1 w-5 rounded-full transition-all duration-500"
+                  style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.2)" }} />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══════ PANNEAU GAUCHE desktop (caché sur mobile) ══════ */}
+      <div className="hidden lg:block relative lg:sticky lg:top-0 lg:h-screen lg:w-[44%] xl:w-[42%] shrink-0 overflow-hidden">
         <Image
           src="/StarAcRes/sa-hero-mansion.jpg"
           alt="Star Academy TikTok"
           fill className="object-cover object-center" priority sizes="44vw"
         />
         <div className="absolute inset-0"
-          style={{ background: "linear-gradient(180deg, rgba(10,0,20,0.25) 0%, rgba(10,0,20,0.1) 40%, rgba(10,0,20,0.7) 80%, rgba(10,0,20,0.97) 100%)" }} />
+          style={{ background: "linear-gradient(180deg, rgba(7,0,15,0.2) 0%, rgba(7,0,15,0.05) 35%, rgba(7,0,15,0.65) 75%, rgba(7,0,15,0.98) 100%)" }} />
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full opacity-40"
             style={{ background: "radial-gradient(circle, rgba(147,51,234,0.5) 0%, transparent 70%)", filter: "blur(60px)" }} />
           <div className="absolute bottom-[20%] right-[-5%] w-[50%] h-[40%] rounded-full opacity-30"
-            style={{ background: "radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)", filter: "blur(50px)" }} />
+            style={{ background: "radial-gradient(circle, rgba(245,158,11,0.4) 0%, transparent 70%)", filter: "blur(50px)" }} />
         </div>
 
-        <div className="absolute inset-0 flex flex-col justify-between p-6 md:p-8 z-10">
+        <div className="absolute inset-0 flex flex-col justify-between p-8 z-10">
           {/* Top */}
           <div className="flex items-start justify-between">
             <Link href="/star-academy-tiktok" className="opacity-90 hover:opacity-100 transition">
               <Image src="/StarAcRes/sa-logo.png" alt="Star Academy TikTok"
-                width={160} height={60} className="object-contain drop-shadow-lg"
-                style={{ filter: "drop-shadow(0 0 12px rgba(147,51,234,0.6)) brightness(1.2)" }} />
+                width={160} height={60} className="object-contain"
+                style={{ filter: "drop-shadow(0 0 14px rgba(147,51,234,0.6)) brightness(1.2)" }} />
             </Link>
             <div className="flex items-center gap-2 rounded-full border border-[#ec4899]/40 bg-[#ec4899]/15 px-3 py-1.5">
               <span className="relative flex h-2 w-2">
@@ -738,10 +789,10 @@ export default function InscriptionPage() {
           </div>
 
           {/* Centre */}
-          <div className="space-y-4">
+          <div className="space-y-5">
             <div>
               <p className="text-xs font-bold text-[#f59e0b] uppercase tracking-widest mb-3">Nouvelle Saison 2026</p>
-              <h1 className="text-4xl md:text-5xl font-black leading-none text-white" style={{ textShadow: "0 2px 20px rgba(0,0,0,0.8)" }}>
+              <h1 className="text-5xl font-black leading-[1.05] text-white" style={{ textShadow: "0 2px 24px rgba(0,0,0,0.9)" }}>
                 Inscription<br />
                 <span style={{ background: "linear-gradient(90deg,#f59e0b,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   Auditions
@@ -750,30 +801,35 @@ export default function InscriptionPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {["Chant / Rap", "Mix / DJ", "Danse", "Autre"].map(c => (
-                <span key={c} className="rounded-full border border-white/15 bg-white/8 px-3 py-1 text-xs text-white/70">{c}</span>
+                <span key={c} className="rounded-full border border-white/12 bg-black/20 backdrop-blur-sm px-3 py-1 text-xs text-white/60">{c}</span>
               ))}
             </div>
-            <div className="rounded-2xl border border-[#f59e0b]/25 bg-[#f59e0b]/10 p-4">
+            {/* Prize card */}
+            <div className="rounded-2xl border border-[#f59e0b]/20 p-4"
+              style={{ background: "rgba(245,158,11,0.07)", backdropFilter: "blur(12px)" }}>
               <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
+                <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 text-white text-xs font-black"
                   style={{ background: "linear-gradient(135deg,#f59e0b,#ec4899)" }}>
-                  <span className="text-xs font-black text-white">3M</span>
+                  SA
                 </div>
                 <div>
-                  <p className="text-sm font-black text-[#f59e0b]">3 mois Premium Synaura</p>
-                  <p className="text-xs text-white/50">offerts aux candidats retenus</p>
+                  <p className="text-sm font-black text-[#fbbf24]">Premium Synaura offert</p>
+                  <p className="text-xs text-white/45 mt-0.5">1 mois si retenu · 3 mois si gagnant</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Bottom : step progress */}
-          <div className="hidden lg:block">
-            <p className="text-xs text-white/30 mb-3">Etape {step} sur 5</p>
+          <div>
+            <div className="flex items-center justify-between mb-2.5">
+              <p className="text-xs text-white/30 font-medium">Etape {step} sur 5</p>
+              <p className="text-xs text-white/30">{STEPS[step - 1]?.label}</p>
+            </div>
             <div className="flex gap-1.5">
               {STEPS.map(s => (
-                <div key={s.n} className="flex-1 h-1 rounded-full transition-all duration-500"
-                  style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.12)" }} />
+                <div key={s.n} className="flex-1 h-[3px] rounded-full transition-all duration-500"
+                  style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.1)" }} />
               ))}
             </div>
           </div>
@@ -781,41 +837,57 @@ export default function InscriptionPage() {
       </div>
 
       {/* ══════ PANNEAU DROIT — Formulaire ══════ */}
-      <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 lg:overflow-y-auto">
-        <div className="flex-1 flex flex-col justify-center px-5 py-10 md:px-10 max-w-xl mx-auto w-full">
+      <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 lg:overflow-y-auto relative">
 
-          {/* Progress mobile */}
-          <div className="lg:hidden mb-8">
-            <div className="flex gap-1.5 mb-3">
-              {STEPS.map(s => (
-                <div key={s.n} className="flex-1 h-1 rounded-full transition-all duration-500"
-                  style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.1)" }} />
+        {/* Lumières d'ambiance */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] rounded-full opacity-20"
+            style={{ background: "radial-gradient(circle, rgba(147,51,234,0.8) 0%, transparent 70%)", filter: "blur(80px)" }} />
+          <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-12"
+            style={{ background: "radial-gradient(circle, rgba(236,72,153,0.7) 0%, transparent 70%)", filter: "blur(80px)" }} />
+        </div>
+
+        <div className="relative z-10 flex-1 flex flex-col justify-center px-5 py-8 sm:py-12 md:px-8 max-w-lg mx-auto w-full">
+
+          {/* ── Step tracker ──────────────────────────── */}
+          <div className="mb-8">
+            <div className="flex items-center gap-1.5 mb-3">
+              {STEPS.map((s, i) => (
+                <div key={s.n} className="flex items-center gap-1.5">
+                  <div
+                    className="flex items-center justify-center rounded-full text-[11px] font-black transition-all duration-300"
+                    style={{
+                      width: s.n === step ? "28px" : "22px",
+                      height: s.n === step ? "28px" : "22px",
+                      background: s.n < step
+                        ? "linear-gradient(135deg,#9333ea,#ec4899)"
+                        : s.n === step
+                        ? "linear-gradient(135deg,#9333ea,#ec4899)"
+                        : "rgba(255,255,255,0.07)",
+                      border: s.n === step ? "none" : s.n < step ? "none" : "1px solid rgba(255,255,255,0.12)",
+                      color: s.n <= step ? "#fff" : "rgba(255,255,255,0.25)",
+                      boxShadow: s.n === step ? "0 0 0 3px rgba(147,51,234,0.25)" : "none",
+                    }}>
+                    {s.n < step ? (
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                    ) : s.n}
+                  </div>
+                  {i < STEPS.length - 1 && (
+                    <div className="flex-1 h-px w-6 sm:w-8 transition-all duration-500"
+                      style={{ background: i + 1 < step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.1)" }} />
+                  )}
+                </div>
               ))}
+              <span className="ml-2 text-xs text-white/35 font-medium whitespace-nowrap">{STEPS[step - 1]?.label}</span>
             </div>
-            <p className="text-xs text-white/40">Etape {step} sur 5</p>
-          </div>
-
-          {/* Step pills */}
-          <div className="flex gap-2 mb-8 overflow-x-auto pb-1 scrollbar-hide">
-            {STEPS.map(s => (
-              <div key={s.n}
-                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold whitespace-nowrap transition-all duration-300 cursor-default"
-                style={{
-                  background: s.n === step
-                    ? "linear-gradient(90deg,rgba(147,51,234,0.3),rgba(236,72,153,0.3))"
-                    : s.n < step ? "rgba(147,51,234,0.15)" : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${s.n === step ? "rgba(147,51,234,0.6)" : s.n < step ? "rgba(147,51,234,0.25)" : "rgba(255,255,255,0.08)"}`,
-                  color: s.n <= step ? "#fff" : "rgba(255,255,255,0.3)"
-                }}>
-                {s.n < step ? "OK" : s.n} — {s.label}
-              </div>
-            ))}
           </div>
 
           {/* ── STEP 1 : Identité ─────────────────────── */}
           {step === 1 && (
-            <FormCard title="Qui es-tu ?" subtitle="Les informations de base sur ta candidature.">
-              <div className="grid grid-cols-2 gap-4">
+            <FormCard step={1} title="Qui es-tu ?" subtitle="Les informations de base sur ta candidature.">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2">
                   <label className={labelCls}>Nom / Prenom <Req /></label>
                   <input className={inputCls} placeholder="Marie Dupont" value={fields.fullName} onChange={e => set("fullName", e.target.value)} />
@@ -842,7 +914,7 @@ export default function InscriptionPage() {
 
           {/* ── STEP 2 : Profil artistique ────────────── */}
           {step === 2 && (
-            <FormCard title="Ton profil artistique" subtitle="Dis-nous ce que tu fais et ou te trouver.">
+            <FormCard step={2} title="Ton profil artistique" subtitle="Dis-nous ce que tu fais et ou te trouver.">
               <div className="space-y-4">
                 <div>
                   <label className={labelCls}>Pseudo TikTok <Req /></label>
@@ -850,16 +922,23 @@ export default function InscriptionPage() {
                 </div>
                 <div>
                   <label className={labelCls}>Categorie <Req /></label>
-                  <div className="grid grid-cols-2 gap-2 mt-1">
+                  <div className="grid grid-cols-2 gap-2">
                     {[["Chant", "Voix"], ["Rap", "Rap"], ["Mix / DJ", "DJ"], ["Performance / Danse", "Scene"], ["Autre", "Autre"]].map(([v, short]) => (
                       <button key={v} type="button" onClick={() => set("category", v)}
                         className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold text-left transition-all duration-200"
                         style={{
-                          background: fields.category === v ? "linear-gradient(90deg,rgba(147,51,234,0.3),rgba(236,72,153,0.2))" : "rgba(255,255,255,0.04)",
-                          borderColor: fields.category === v ? "rgba(147,51,234,0.6)" : "rgba(255,255,255,0.08)",
-                          color: fields.category === v ? "#fff" : "rgba(255,255,255,0.5)"
+                          background: fields.category === v
+                            ? "linear-gradient(135deg,rgba(147,51,234,0.25),rgba(236,72,153,0.15))"
+                            : "rgba(255,255,255,0.03)",
+                          borderColor: fields.category === v ? "rgba(147,51,234,0.55)" : "rgba(255,255,255,0.07)",
+                          color: fields.category === v ? "#fff" : "rgba(255,255,255,0.45)",
+                          boxShadow: fields.category === v ? "0 0 0 1px rgba(147,51,234,0.2) inset" : "none",
                         }}>
-                        <span className="text-xs font-black opacity-60">{short}</span> {v}
+                        <span className="w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0"
+                          style={{ background: fields.category === v ? "rgba(147,51,234,0.3)" : "rgba(255,255,255,0.05)", color: fields.category === v ? "#c4b5fd" : "rgba(255,255,255,0.25)" }}>
+                          {short.slice(0,2)}
+                        </span>
+                        {v}
                       </button>
                     ))}
                   </div>
@@ -869,11 +948,11 @@ export default function InscriptionPage() {
                   <div className="flex gap-2 flex-wrap">
                     {["Debutant", "Intermediaire", "Confirme", "Pro"].map(l => (
                       <button key={l} type="button" onClick={() => set("level", fields.level === l ? "" : l)}
-                        className="rounded-full border px-4 py-1.5 text-xs font-semibold transition-all"
+                        className="rounded-full border px-4 py-1.5 text-xs font-semibold transition-all duration-200"
                         style={{
-                          background: fields.level === l ? "rgba(147,51,234,0.25)" : "rgba(255,255,255,0.04)",
+                          background: fields.level === l ? "rgba(147,51,234,0.2)" : "rgba(255,255,255,0.04)",
                           borderColor: fields.level === l ? "rgba(147,51,234,0.5)" : "rgba(255,255,255,0.1)",
-                          color: fields.level === l ? "#fff" : "rgba(255,255,255,0.4)"
+                          color: fields.level === l ? "#c4b5fd" : "rgba(255,255,255,0.35)",
                         }}>
                         {l}
                       </button>
@@ -890,14 +969,19 @@ export default function InscriptionPage() {
 
           {/* ── STEP 3 : Présentation ─────────────────── */}
           {step === 3 && (
-            <FormCard title="Presente-toi" subtitle="Parle-nous de toi, ton univers, ce que tu veux montrer.">
+            <FormCard step={3} title="Presente-toi" subtitle="Ton univers, ton style, pourquoi Star Academy TikTok.">
               <div className="space-y-4">
                 <div>
                   <label className={labelCls}>Ta presentation <Req /></label>
                   <textarea className={`${inputCls} resize-none`} rows={6}
                     placeholder="Mon univers, mon style, ce que j'ai envie de montrer en live, pourquoi Star Academy TikTok..."
-                    value={fields.bio} onChange={e => set("bio", e.target.value)} />
-                  <p className="text-right text-xs text-white/25 mt-1">{fields.bio.length} / 500</p>
+                    value={fields.bio} onChange={e => set("bio", e.target.value)} maxLength={500} />
+                  <div className="flex justify-end mt-1.5">
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full"
+                      style={{ background: "rgba(255,255,255,0.05)", color: fields.bio.length > 400 ? "#f59e0b" : "rgba(255,255,255,0.2)" }}>
+                      {fields.bio.length} / 500
+                    </span>
+                  </div>
                 </div>
                 <div>
                   <label className={labelCls}>Disponibilites (optionnel)</label>
@@ -910,7 +994,7 @@ export default function InscriptionPage() {
 
           {/* ── STEP 4 : CV Vocal ─────────────────────── */}
           {step === 4 && (
-            <FormCard title="CV Vocal" subtitle="20 a 60 secondes suffisent. Montre-toi au meilleur de ta forme.">
+            <FormCard step={4} title="CV Vocal" subtitle="20 a 60 secondes suffisent. Montre-toi au meilleur de ta forme.">
               <div className="space-y-4">
                 <div
                   onClick={() => !audioFile && audioRef.current?.click()}
@@ -920,23 +1004,25 @@ export default function InscriptionPage() {
                   onDrop={e => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files?.[0]; if (f) setFile(f); }}
                   className="relative rounded-3xl border-2 border-dashed cursor-pointer overflow-hidden transition-all duration-300"
                   style={{
-                    borderColor: drag ? "#9333ea" : audioFile ? "rgba(147,51,234,0.4)" : "rgba(255,255,255,0.12)",
-                    background: drag ? "rgba(147,51,234,0.1)" : audioFile ? "rgba(147,51,234,0.06)" : "rgba(255,255,255,0.02)"
+                    borderColor: drag ? "#9333ea" : audioFile ? "rgba(147,51,234,0.45)" : "rgba(255,255,255,0.1)",
+                    background: drag ? "rgba(147,51,234,0.12)" : audioFile ? "rgba(147,51,234,0.05)" : "rgba(255,255,255,0.015)",
+                    boxShadow: drag ? "0 0 0 4px rgba(147,51,234,0.15)" : "none",
                   }}>
                   <input ref={audioRef} type="file" accept="audio/*" className="sr-only"
                     onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f); }} />
                   {!audioFile ? (
                     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-                      <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="2">
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4 border border-white/10"
+                        style={{ background: "rgba(147,51,234,0.1)" }}>
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="rgba(167,139,250,0.7)" strokeWidth="1.5">
                           <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                         </svg>
                       </div>
                       <p className="text-sm font-semibold text-white/60">Glisse ton fichier ici</p>
-                      <p className="text-xs text-white/30 mt-1">MP3 · WAV · M4A — max 30 MB</p>
+                      <p className="text-xs text-white/25 mt-1">MP3 · WAV · M4A — max 30 MB</p>
                       <button type="button"
                         onClick={e => { e.stopPropagation(); audioRef.current?.click(); }}
-                        className="mt-4 rounded-full border border-white/20 bg-white/5 px-5 py-2 text-xs font-bold text-white/70 hover:text-white hover:bg-white/10 transition">
+                        className="mt-5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-5 py-2 text-xs font-bold text-violet-300 hover:bg-violet-500/20 transition">
                         Choisir un fichier
                       </button>
                     </div>
@@ -944,27 +1030,30 @@ export default function InscriptionPage() {
                     <div className="p-5 space-y-4" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-10 w-10 rounded-2xl bg-violet-600/20 border border-violet-500/30 flex items-center justify-center shrink-0">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(147,51,234,0.8)" strokeWidth="2">
+                          <div className="h-11 w-11 rounded-2xl flex items-center justify-center shrink-0"
+                            style={{ background: "linear-gradient(135deg,rgba(147,51,234,0.3),rgba(236,72,153,0.2))", border: "1px solid rgba(147,51,234,0.3)" }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(196,181,253,0.9)" strokeWidth="2">
                               <path d="M9 18V5l12-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="18" cy="16" r="3" />
                             </svg>
                           </div>
                           <div className="min-w-0">
                             <p className="text-sm font-semibold text-white truncate">{audioFile.name}</p>
-                            <p className="text-xs text-white/40">{humanMb(audioFile.size)} MB</p>
+                            <p className="text-xs text-white/35 mt-0.5">{humanMb(audioFile.size)} MB</p>
                           </div>
                         </div>
                         <button type="button" onClick={() => setFile(null)}
-                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/50 hover:text-white transition shrink-0">
+                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/45 hover:text-white hover:bg-white/10 transition shrink-0">
                           Retirer
                         </button>
                       </div>
-                      {audioUrl && <audio className="w-full h-10 rounded-xl" controls src={audioUrl} />}
+                      {audioUrl && <audio className="w-full rounded-xl" controls src={audioUrl} />}
                     </div>
                   )}
                 </div>
-                <div className="rounded-2xl border border-[#f59e0b]/20 bg-[#f59e0b]/8 p-4 text-xs text-[#f59e0b]/80 leading-relaxed">
-                  Conseil : Commence par ton passage le plus fort. Les 10 premieres secondes sont decisives. Pas besoin d&apos;un studio — un bon smartphone suffit.
+                <div className="rounded-2xl border border-[#f59e0b]/15 px-4 py-3 text-xs leading-relaxed"
+                  style={{ background: "rgba(245,158,11,0.05)" }}>
+                  <span className="text-[#f59e0b]/70">Conseil :</span>{" "}
+                  <span className="text-white/45">Commence par ton passage le plus fort. Les 10 premieres secondes sont decisives. Un bon smartphone suffit.</span>
                 </div>
               </div>
             </FormCard>
@@ -972,90 +1061,109 @@ export default function InscriptionPage() {
 
           {/* ── STEP 5 : Compte Synaura ────────────────── */}
           {step === 5 && (
-            <FormCard title="Compte Synaura" subtitle="Tu rejoins Synaura en meme temps que tu candidatures.">
+            <FormCard step={5} title="Compte Synaura" subtitle="Tu rejoins Synaura au meme moment que tu candidatures.">
               <div className="space-y-5">
-                <div className="rounded-2xl overflow-hidden border border-violet-500/25"
-                  style={{ background: "linear-gradient(135deg,rgba(147,51,234,0.12),rgba(236,72,153,0.08))" }}>
-                  <div className="p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full shrink-0 flex items-center justify-center"
-                        style={{ background: "linear-gradient(135deg,#9333ea,#ec4899)" }}>
-                        <span className="text-xs font-black text-white">3M</span>
-                      </div>
-                      <div>
-                        <p className="text-sm font-black text-white">3 mois Premium offerts</p>
-                        <p className="text-xs text-white/50">Active automatiquement si tu es retenu(e)</p>
-                      </div>
+                {/* Prize reminder */}
+                <div className="rounded-2xl p-4 border border-violet-500/20"
+                  style={{ background: "linear-gradient(135deg,rgba(147,51,234,0.1),rgba(236,72,153,0.06))" }}>
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-xl shrink-0 flex items-center justify-center text-xs font-black text-white"
+                      style={{ background: "linear-gradient(135deg,#9333ea,#ec4899)" }}>
+                      SA
+                    </div>
+                    <div>
+                      <p className="text-sm font-black text-white">Premium Synaura offert</p>
+                      <p className="text-xs text-white/45 mt-0.5">1 mois si retenu(e) · 3 mois si gagnant(e)</p>
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 gap-4">
+
+                <div className="space-y-3">
                   <div>
-                    <label className={labelCls}>Pseudonyme Synaura <span className="text-white/30 normal-case font-normal">(optionnel si deja un compte)</span></label>
+                    <label className={labelCls}>Pseudonyme Synaura <span className="text-white/25 normal-case font-normal tracking-normal">(optionnel si deja un compte)</span></label>
                     <input className={inputCls} placeholder="@tonpseudo" value={fields.synauraUsername}
                       onChange={e => set("synauraUsername", e.target.value.replace(/\s/g, ""))} autoComplete="username" />
                   </div>
                   <div>
-                    <label className={labelCls}>Mot de passe <span className="text-white/30 normal-case font-normal">(min. 8 caracteres)</span></label>
+                    <label className={labelCls}>Mot de passe <span className="text-white/25 normal-case font-normal tracking-normal">(min. 8 caracteres)</span></label>
                     <input className={inputCls} type="password" placeholder="••••••••"
                       value={fields.synauraPassword} onChange={e => set("synauraPassword", e.target.value)} autoComplete="new-password" />
                   </div>
                 </div>
-                <label className="flex items-start gap-3 cursor-pointer group">
+
+                {/* Consent */}
+                <label className="flex items-start gap-3 cursor-pointer group py-1">
                   <div className="relative mt-0.5 shrink-0">
                     <input type="checkbox" className="sr-only" checked={fields.consent} onChange={e => set("consent", e.target.checked)} />
-                    <div className="h-5 w-5 rounded-lg border-2 transition-all"
+                    <div className="h-5 w-5 rounded-lg border-2 transition-all duration-200"
                       style={{
-                        borderColor: fields.consent ? "#9333ea" : "rgba(255,255,255,0.2)",
-                        background: fields.consent ? "linear-gradient(135deg,#9333ea,#ec4899)" : "transparent"
+                        borderColor: fields.consent ? "#9333ea" : "rgba(255,255,255,0.18)",
+                        background: fields.consent ? "linear-gradient(135deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.03)",
+                        boxShadow: fields.consent ? "0 0 0 3px rgba(147,51,234,0.2)" : "none",
                       }}>
-                      {fields.consent && <span className="absolute inset-0 flex items-center justify-center text-white text-xs font-black">OK</span>}
+                      {fields.consent && (
+                        <svg className="absolute inset-0 m-auto" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                          <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
                     </div>
                   </div>
-                  <span className="text-xs text-white/40 leading-relaxed group-hover:text-white/60 transition">
+                  <span className="text-xs text-white/35 leading-relaxed group-hover:text-white/55 transition">
                     Je confirme avoir les droits sur mon enregistrement audio, j&apos;accepte d&apos;etre recontacte(e) par Synaura dans le cadre de ce concours et j&apos;accepte les{" "}
-                    <Link href="/legal/cgu" target="_blank" className="text-violet-400 hover:underline">Conditions Generales d&apos;Utilisation</Link>.
+                    <Link href="/legal/cgu" target="_blank" className="text-violet-400 underline-offset-2 hover:underline">CGU</Link>.
                   </span>
                 </label>
 
-                {error && <div className="rounded-2xl border border-[#ec4899]/30 bg-[#ec4899]/10 px-4 py-3 text-sm text-[#ec4899]">— {error}</div>}
+                {error && (
+                  <div className="rounded-2xl border border-[#ec4899]/25 bg-[#ec4899]/8 px-4 py-3 text-sm text-[#f9a8d4]">
+                    {error}
+                  </div>
+                )}
                 {loading && (
                   <div className="space-y-2">
-                    <div className="flex justify-between text-xs text-white/40">
+                    <div className="flex justify-between text-xs text-white/35 font-medium">
                       <span>Envoi en cours...</span><span>{progress}%</span>
                     </div>
-                    <div className="h-2 rounded-full overflow-hidden bg-white/8">
+                    <div className="h-1.5 rounded-full overflow-hidden bg-white/8">
                       <div className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${progress}%`, background: "linear-gradient(90deg,#9333ea,#ec4899)" }} />
                     </div>
                   </div>
                 )}
                 <button type="button" disabled={loading || !fields.consent} onClick={submit}
-                  className="w-full rounded-2xl py-4 font-black text-base text-white transition hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{ background: loading ? "rgba(147,51,234,0.4)" : "linear-gradient(90deg,#9333ea,#ec4899)", boxShadow: "0 0 30px rgba(147,51,234,0.3)" }}>
+                  className="w-full rounded-2xl py-4 font-black text-base text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  style={{
+                    background: loading ? "rgba(147,51,234,0.4)" : "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
+                    boxShadow: fields.consent && !loading ? "0 0 30px rgba(147,51,234,0.35), 0 4px 15px rgba(0,0,0,0.4)" : "none",
+                  }}>
                   {loading ? "Envoi en cours..." : "Envoyer ma candidature"}
                 </button>
               </div>
             </FormCard>
           )}
 
+          {/* Error global */}
           {error && step !== 5 && (
-            <div className="mt-4 rounded-2xl border border-[#ec4899]/30 bg-[#ec4899]/10 px-4 py-3 text-sm text-[#ec4899]">
-              — {error}
+            <div className="mt-4 rounded-2xl border border-[#ec4899]/25 bg-[#ec4899]/8 px-4 py-3 text-sm text-[#f9a8d4]">
+              {error}
             </div>
           )}
 
+          {/* Navigation */}
           {step < 5 && (
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 mt-7">
               {step > 1 && (
                 <button type="button" onClick={prev}
-                  className="flex-1 rounded-2xl border border-white/10 bg-white/5 py-3.5 text-sm font-semibold text-white/60 hover:text-white hover:bg-white/10 transition">
+                  className="flex-none px-6 rounded-2xl border border-white/10 bg-white/4 py-3.5 text-sm font-semibold text-white/50 hover:text-white hover:bg-white/8 hover:border-white/20 transition-all duration-200">
                   Retour
                 </button>
               )}
               <button type="button" onClick={next}
-                className="flex-1 rounded-2xl py-3.5 font-black text-white transition hover:opacity-90"
-                style={{ background: "linear-gradient(90deg,#9333ea,#ec4899)", boxShadow: "0 0 20px rgba(147,51,234,0.25)" }}>
+                className="flex-1 rounded-2xl py-3.5 font-black text-white text-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+                style={{
+                  background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
+                  boxShadow: "0 0 24px rgba(147,51,234,0.3), 0 4px 12px rgba(0,0,0,0.35)",
+                }}>
                 Continuer
               </button>
             </div>
@@ -1063,12 +1171,12 @@ export default function InscriptionPage() {
 
           {step === 5 && (
             <button type="button" onClick={prev}
-              className="mt-4 w-full rounded-2xl border border-white/8 py-3 text-sm text-white/40 hover:text-white/70 transition">
+              className="mt-4 w-full rounded-2xl border border-white/8 py-3 text-sm text-white/30 hover:text-white/60 hover:border-white/15 transition-all duration-200">
               Modifier ma presentation
             </button>
           )}
 
-          <p className="text-center text-xs text-white/20 mt-6">Gratuit — Aucun engagement — Resultats par email</p>
+          <p className="text-center text-[11px] text-white/15 mt-8">Gratuit — Aucun engagement — Resultats par email</p>
         </div>
       </div>
     </div>
@@ -1076,12 +1184,20 @@ export default function InscriptionPage() {
 }
 
 // ─── Sub-components ───────────────────────────────────────
-function FormCard({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+function FormCard({ step, title, subtitle, children }: { step: number; title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-6">
+    <div className="rounded-3xl border border-white/[0.07] p-6 sm:p-7 space-y-6"
+      style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(24px)" }}>
       <div>
-        <h2 className="text-2xl font-black text-white">{title}</h2>
-        <p className="text-sm text-white/40 mt-1">{subtitle}</p>
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-7 w-7 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0"
+            style={{ background: "linear-gradient(135deg,#7c3aed,#db2777)" }}>
+            {step}
+          </div>
+          <div className="h-px flex-1" style={{ background: "linear-gradient(90deg,rgba(147,51,234,0.4),transparent)" }} />
+        </div>
+        <h2 className="text-xl sm:text-2xl font-black text-white leading-tight">{title}</h2>
+        <p className="text-sm text-white/35 mt-1.5">{subtitle}</p>
       </div>
       <div>{children}</div>
     </div>
