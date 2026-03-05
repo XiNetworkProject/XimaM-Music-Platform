@@ -242,22 +242,26 @@ function ActionBtn({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`group/btn relative flex flex-col items-center gap-1 transition-all duration-200 ${disabled ? 'opacity-40 pointer-events-none' : ''}`}
+      className={`group/btn relative flex flex-col items-center gap-1.5 transition-all duration-200 active:scale-90 ${disabled ? 'opacity-30 pointer-events-none' : ''}`}
     >
       <div
-        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200
+        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all duration-200
           ${active
-            ? `${activeColor || 'bg-rose-500/20 border-rose-400/30'} border shadow-[0_0_16px_rgba(244,63,94,0.15)]`
-            : 'bg-white/[0.07] border border-white/[0.08] group-hover/btn:bg-white/[0.12] group-hover/btn:border-white/[0.15]'
-          } backdrop-blur-md`}
+            ? `${activeColor || 'bg-rose-500/25 border-rose-400/40 shadow-[0_0_20px_rgba(244,63,94,0.25)]'} border`
+            : 'bg-black/30 border border-white/[0.12] backdrop-blur-xl group-hover/btn:bg-white/[0.12]'
+          }`}
       >
         <Icon
-          size={20}
-          className={`transition-all duration-200 ${active ? (activeColor ? '' : 'text-rose-400') : 'text-white/80 group-hover/btn:text-white'}`}
+          size={22}
+          className={`transition-all duration-200 drop-shadow-lg ${active ? (activeColor ? '' : 'text-rose-400') : 'text-white group-hover/btn:text-white'}`}
           fill={active ? 'currentColor' : 'none'}
         />
       </div>
-      <span className="text-[10px] font-medium text-white/60 leading-none">{typeof label === 'number' ? fmtCount(label) : label}</span>
+      {(typeof label === 'number' ? label > 0 : label) && (
+        <span className="text-[11px] font-semibold text-white/80 leading-none drop-shadow-md tabular-nums">
+          {typeof label === 'number' ? fmtCount(label) : label}
+        </span>
+      )}
     </button>
   );
 }
@@ -297,6 +301,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [coverLoadedById, setCoverLoadedById] = useState<Record<string, boolean>>({});
   const [radioMeta, setRadioMeta] = useState<{ station: 'mixx_party' | 'ximam'; title: string; artist: string } | null>(null);
+  const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -570,6 +575,29 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     lastViewedRef.current = activeTrackId;
     try { sendTrackEvents(activeTrackId, { event_type: 'view', source: 'tiktok-player', is_ai_track: String(activeTrackId).startsWith('ai-') }); } catch {}
   }, [isOpen, activeTrackId]);
+
+  // Fetch comment counts for visible tracks
+  const commentCountsFetchedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!isOpen || !tracks.length) return;
+    const ids = tracks
+      .map((t) => t._id)
+      .filter((id) => id && !id.startsWith('radio-') && !id.startsWith('ai-') && !commentCountsFetchedRef.current.has(id));
+    if (!ids.length) return;
+    ids.forEach((id) => commentCountsFetchedRef.current.add(id));
+    fetch('/api/tracks/comments-count', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trackIds: ids }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.counts && typeof data.counts === 'object') {
+          setCommentCounts((prev) => ({ ...prev, ...data.counts }));
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, tracks]);
 
   // Auto-play on index change
   useEffect(() => {
@@ -866,14 +894,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           transition={{ duration: 0.2 }}
         >
           {/* Background blur cover */}
-          <div className="absolute inset-0 -z-10">
+          <div className="absolute inset-0 -z-10 overflow-hidden">
             <AnimatePresence mode="wait">
               <motion.div
                 key={bgUrl}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: reduceMotion ? 0 : 0.3 }}
+                transition={{ duration: reduceMotion ? 0 : 0.5 }}
                 className="absolute inset-0"
               >
                 <img
@@ -881,19 +909,12 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   alt=""
                   loading="eager"
                   decoding="async"
-                  className="h-full w-full object-cover opacity-20 blur-[2px] scale-110"
+                  className="h-full w-full object-cover blur-[60px] scale-150 saturate-150 opacity-30"
                 />
               </motion.div>
             </AnimatePresence>
-            {/* Gradient overlays */}
-            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/40 to-black/80" />
-            <div
-              className="absolute inset-0"
-              style={{
-                backgroundImage:
-                  'radial-gradient(ellipse 60% 50% at 15% 20%, rgba(139,92,246,0.15), transparent 50%), radial-gradient(ellipse 60% 50% at 85% 80%, rgba(59,130,246,0.12), transparent 50%)',
-              }}
-            />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/70" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(99,102,241,0.12),transparent_60%)]" />
           </div>
 
           {/* Top bar */}
@@ -901,26 +922,22 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
             <div className="flex items-center justify-between">
               <button
                 onClick={close}
-                className="h-10 w-10 rounded-2xl bg-black/40 backdrop-blur-xl grid place-items-center border border-white/[0.08] hover:bg-white/10 transition-all"
+                className="h-10 w-10 rounded-full bg-black/40 backdrop-blur-xl grid place-items-center border border-white/[0.1] hover:bg-white/10 transition-all active:scale-90"
                 title="Fermer"
               >
-                <X size={20} className="text-white/80" />
+                <ChevronDown size={22} className="text-white/90" />
               </button>
 
               <div className="flex items-center gap-2">
                 {tracks.length > 1 && (
-                  <div className="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/[0.08] text-xs font-medium text-white/60 tabular-nums">
-                    {activeIndex + 1} / {tracks.length}
+                  <div className="px-3 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/[0.1] text-[11px] font-bold text-white/70 tabular-nums">
+                    {activeIndex + 1}<span className="text-white/30 mx-0.5">/</span>{tracks.length}
                   </div>
                 )}
                 <QueueBubble variant="pill" onClick={() => setShowQueue(true)} />
               </div>
 
-              <div className="hidden sm:flex flex-col items-center text-white/40 text-[10px] gap-0.5">
-                <ChevronUp className="w-3.5 h-3.5" />
-                <span>Scroll</span>
-                <ChevronDown className="w-3.5 h-3.5" />
-              </div>
+              <div className="w-10" />
             </div>
           </header>
 
@@ -944,7 +961,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
               const isPlayingThis = isThis && currentId === t._id && audioState.isPlaying;
               const duration = isThis && currentId === t._id ? audioState.duration || t.duration || 0 : t.duration || 0;
               const rawLikes = getLikesCount(t.likes);
-              const rawComments = getCommentsCount(t.comments);
+              const rawComments = commentCounts[t._id] ?? getCommentsCount(t.comments);
               const isRadio = String(t?._id || '').startsWith('radio-');
               const displayTitle = isThis && isRadio && radioMeta ? radioMeta.title : (t?.title || 'Titre inconnu');
               const displayArtist = isThis && isRadio && radioMeta
@@ -962,7 +979,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   style={{ scrollSnapAlign: 'start' }}
                 >
                   {/* ─── Cover area ─── */}
-                  <div className="flex-1 flex items-center justify-center px-6 pt-16 pb-4">
+                  <div className="flex-1 flex items-center justify-center px-8 pt-20 pb-6">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -976,42 +993,41 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                         toggleLike();
                         if (willLike) triggerLikeBurst();
                       }}
-                      className="relative w-[72vw] max-w-[400px] aspect-square group/cover"
+                      className="relative w-[70vw] max-w-[380px] aspect-square group/cover"
                     >
                       {/* Shadow glow behind cover */}
                       <div
-                        className="absolute inset-0 rounded-[28px] opacity-40 blur-[40px] scale-90 -z-10 transition-opacity duration-500"
+                        className="absolute -inset-4 rounded-[36px] opacity-50 blur-[50px] -z-10 transition-opacity duration-700"
                         style={{ backgroundImage: `url(${coverUrl})`, backgroundSize: 'cover' }}
                       />
                       {/* Cover image */}
-                      <div className="relative w-full h-full rounded-[28px] overflow-hidden border border-white/[0.1] shadow-2xl">
+                      <div className={`relative w-full h-full rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.12] transition-transform duration-300 ${isPlayingThis ? 'scale-[1.02]' : 'scale-100'}`}>
                         <img
                           src={coverUrl}
                           alt={t.title}
                           loading={Math.abs(i - activeIndex) <= 2 ? 'eager' : 'lazy'}
                           decoding="async"
-                          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[8000ms] ease-linear ${isPlayingThis ? 'scale-110' : 'scale-100'}`}
+                          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[10000ms] ease-linear ${isPlayingThis ? 'scale-[1.08]' : 'scale-100'}`}
                           onLoad={() => {
                             if (!t._id) return;
                             setCoverLoadedById((prev) => (prev[t._id] ? prev : { ...prev, [t._id]: true }));
                           }}
                           onError={(e) => ((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg')}
                         />
-                        {/* Overlay gradient */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/10" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
                         {/* Play/Pause indicator */}
-                        <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 ${isPlayingThis ? 'opacity-0 group-hover/cover:opacity-100' : 'opacity-100'}`}>
-                          <div className="w-16 h-16 rounded-full bg-black/50 backdrop-blur-md border border-white/[0.12] flex items-center justify-center shadow-lg">
+                        <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlayingThis ? 'opacity-0 group-hover/cover:opacity-100' : 'opacity-100'}`}>
+                          <div className="w-14 h-14 rounded-full bg-black/40 backdrop-blur-xl border border-white/[0.15] flex items-center justify-center shadow-2xl">
                             {isPlayingThis
-                              ? <Pause className="w-7 h-7 text-white" />
-                              : <Play className="w-7 h-7 text-white ml-0.5" />}
+                              ? <Pause className="w-6 h-6 text-white" />
+                              : <Play className="w-6 h-6 text-white ml-0.5" />}
                           </div>
                         </div>
                         {/* Genre tags */}
                         {genres.length > 0 && (
                           <div className="absolute top-3 left-3 flex gap-1.5">
                             {genres.map((g) => (
-                              <span key={g} className="px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-md text-[10px] font-semibold text-white/80 border border-white/[0.08]">
+                              <span key={g} className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-xl text-[10px] font-bold text-white/90 border border-white/[0.1]">
                                 {g}
                               </span>
                             ))}
@@ -1022,7 +1038,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   </div>
 
                   {/* ─── Right sidebar actions ─── */}
-                  <aside className="absolute right-3 z-20 flex flex-col items-center gap-2.5 top-1/2 -translate-y-1/2 md:top-auto md:bottom-[220px] md:translate-y-0">
+                  <aside className="absolute right-3 z-20 flex flex-col items-center gap-3 top-1/2 -translate-y-1/2 md:top-auto md:bottom-[220px] md:translate-y-0">
                     <ActionBtn
                       icon={Heart}
                       label={isThis ? likesCount : rawLikes}
@@ -1065,28 +1081,25 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
                   {/* ─── Bottom panel ─── */}
                   <footer className="relative z-20 px-4 pb-[max(env(safe-area-inset-bottom,16px),16px)]">
-                    <div className="mx-auto max-w-lg overflow-hidden rounded-[20px] border border-white/[0.08] bg-white/[0.04] backdrop-blur-2xl shadow-[0_-4px_30px_rgba(0,0,0,0.3)]">
-                      {/* Gradient accent bar */}
-                      <div className="h-[2px] w-full bg-gradient-to-r from-purple-500/60 via-indigo-500/60 to-blue-500/60" />
-
-                      <div className="p-4">
+                    <div className="mx-auto max-w-lg overflow-hidden rounded-[24px] border border-white/[0.1] bg-black/40 backdrop-blur-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.4)]">
+                      <div className="p-4 pb-3">
                         {/* Track info row */}
-                        <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-3">
                           {/* Artist avatar */}
-                          <div className="shrink-0 w-10 h-10 rounded-xl overflow-hidden border border-white/[0.1] bg-white/[0.05]">
+                          <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden ring-2 ring-white/[0.1] bg-white/[0.05]">
                             {t?.artist?.avatar ? (
                               <img src={getCdnUrl(t.artist.avatar) || t.artist.avatar} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full grid place-items-center">
-                                <User size={16} className="text-white/30" />
+                                <User size={18} className="text-white/30" />
                               </div>
                             )}
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <h2 className="text-[15px] font-semibold truncate leading-tight">{displayTitle}</h2>
-                            <div className="mt-0.5 flex items-center gap-2 text-sm flex-wrap">
-                              <span className="font-medium text-white/70 truncate">{displayArtist}</span>
+                            <h2 className="text-[15px] font-bold truncate leading-tight text-white">{displayTitle}</h2>
+                            <div className="mt-0.5 flex items-center gap-2 text-[13px] flex-wrap">
+                              <span className="font-medium text-white/60 truncate">{displayArtist}</span>
                               {t?.artist?._id && t?.artist?.username && (
                                 <span onClick={(e) => e.stopPropagation()}>
                                   <FollowButton artistId={t.artist._id} artistUsername={t.artist.username} size="sm" />
@@ -1095,7 +1108,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
+                          <div className="flex items-center gap-2 shrink-0">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1103,7 +1116,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                                 else if (audioState.isPlaying) pause();
                                 else play();
                               }}
-                              className="p-2.5 rounded-xl bg-white/[0.08] border border-white/[0.08] hover:bg-white/[0.14] transition-all active:scale-95"
+                              className="w-11 h-11 rounded-full bg-white text-black flex items-center justify-center shadow-lg shadow-white/10 hover:scale-105 transition-all active:scale-95"
                               aria-label={isPlayingThis ? 'Pause' : 'Lecture'}
                             >
                               {isPlayingThis ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5 ml-0.5" />}
@@ -1115,10 +1128,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                                   if (!isThis) return;
                                   setLyricsOpen((v) => !v);
                                 }}
-                                className={`p-2.5 rounded-xl border transition-all active:scale-95 ${
+                                className={`w-10 h-10 rounded-full border flex items-center justify-center transition-all active:scale-90 ${
                                   isThis && lyricsOpen
-                                    ? 'bg-purple-500/15 border-purple-400/25 text-purple-300'
-                                    : 'bg-white/[0.08] border-white/[0.08] hover:bg-white/[0.14] text-white/70'
+                                    ? 'bg-purple-500/20 border-purple-400/30 text-purple-300'
+                                    : 'bg-white/[0.06] border-white/[0.1] hover:bg-white/[0.12] text-white/60'
                                 }`}
                               >
                                 <FileText className="w-4 h-4" />
@@ -1128,12 +1141,12 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                         </div>
 
                         {/* Seek bar */}
-                        <div className="mt-3.5">
+                        <div className="mt-4">
                           {isThis && currentId === t._id ? (
                             <SeekBar onSeek={seek} getAudioElement={getAudioElement} />
                           ) : (
                             <div className="w-full">
-                              <div className="relative h-[6px] w-full rounded-full bg-white/[0.08] overflow-hidden" />
+                              <div className="relative h-[5px] w-full rounded-full bg-white/[0.08] overflow-hidden" />
                               <div className="mt-2 flex items-center justify-between text-[11px] text-white/40 tabular-nums font-medium">
                                 <span>{fmtTime(0)}</span>
                                 <span>{fmtTime(duration)}</span>
@@ -1149,10 +1162,10 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                               initial={{ height: 0, opacity: 0 }}
                               animate={{ height: 'auto', opacity: 1 }}
                               exit={{ height: 0, opacity: 0 }}
-                              transition={{ duration: 0.2 }}
+                              transition={{ duration: 0.25 }}
                               className="overflow-hidden"
                             >
-                              <div className="mt-3 max-h-36 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap text-white/70 border-t border-white/[0.06] pt-3 scrollbar-thin scrollbar-thumb-white/10">
+                              <div className="mt-3 max-h-36 overflow-y-auto text-[13px] leading-relaxed whitespace-pre-wrap text-white/60 border-t border-white/[0.08] pt-3 scrollbar-thin scrollbar-thumb-white/10">
                                 {t.lyrics}
                               </div>
                             </motion.div>

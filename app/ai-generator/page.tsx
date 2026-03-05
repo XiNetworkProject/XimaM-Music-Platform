@@ -4675,6 +4675,9 @@ export default function AIGenerator() {
             onRemix={useGeneratedTrackForRemix}
             onCopyLyrics={handleCopyLyrics}
             variant="overlay"
+            isPublished={selectedGenerationForVisibility?.is_public === true}
+            publishingVisibility={publishingVisibility}
+            onTogglePublish={toggleGenerationVisibility}
           />
         </div>
       </div>

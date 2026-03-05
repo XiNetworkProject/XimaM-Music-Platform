@@ -1,8 +1,9 @@
 // components/ai-studio/TrackInspector.tsx
 'use client';
 
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Play, Download, Share2, Clock, Music, Wand2, Copy, ChevronDown } from 'lucide-react';
+import { X, Play, Download, Share2, Clock, Music, Wand2, Copy, ChevronDown, Upload, EyeOff, AlertTriangle, Loader2 } from 'lucide-react';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 
 interface TrackInspectorProps {
@@ -15,6 +16,9 @@ interface TrackInspectorProps {
   onRemix: (track: GeneratedTrack) => void;
   onCopyLyrics?: (track: GeneratedTrack, copyPrompt?: boolean) => void;
   variant?: 'overlay' | 'docked';
+  isPublished?: boolean;
+  publishingVisibility?: boolean;
+  onTogglePublish?: () => void;
 }
 
 const formatSec = (sec: number) => {
@@ -76,6 +80,96 @@ const InfoCard = ({ title, text, onCopy }: { title: string; text: string; onCopy
   </div>
 );
 
+function PublishButton({
+  isPublished,
+  publishing,
+  onToggle,
+}: {
+  isPublished: boolean;
+  publishing?: boolean;
+  onToggle?: () => void;
+}) {
+  const [confirmAction, setConfirmAction] = useState<'publish' | 'unpublish' | null>(null);
+
+  const handleConfirm = () => {
+    onToggle?.();
+    setConfirmAction(null);
+  };
+
+  return (
+    <div className="space-y-2">
+      {confirmAction && (
+        <div className="rounded-xl border border-white/[0.08] bg-[#0e0e18] p-3.5 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${confirmAction === 'unpublish' ? 'text-amber-400' : 'text-indigo-400'}`} />
+            <div className="min-w-0 space-y-1">
+              <p className="text-[12px] font-semibold text-white/85">
+                {confirmAction === 'publish' ? 'Publier cette musique ?' : 'Retirer de Synaura ?'}
+              </p>
+              <p className="text-[11px] text-white/40 leading-relaxed">
+                {confirmAction === 'publish'
+                  ? 'Elle sera visible par tous les utilisateurs.'
+                  : 'La musique ne sera plus visible publiquement.'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setConfirmAction(null)} className="flex-1 h-9 rounded-lg border border-white/[0.08] bg-white/[0.04] text-[11px] font-medium text-white/50 hover:text-white/70 transition-all touch-manipulation">
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={publishing}
+              className={[
+                'flex-1 h-9 rounded-lg text-[11px] font-semibold transition-all flex items-center justify-center gap-1.5 touch-manipulation',
+                confirmAction === 'publish'
+                  ? 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20'
+                  : 'bg-amber-500/15 border border-amber-400/20 text-amber-200',
+                publishing ? 'opacity-60 cursor-not-allowed' : '',
+              ].join(' ')}
+            >
+              {publishing
+                ? <><Loader2 className="h-3 w-3 animate-spin" /> En cours...</>
+                : confirmAction === 'publish' ? 'Confirmer' : 'Retirer'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!confirmAction && (
+        <button
+          type="button"
+          onClick={() => setConfirmAction(isPublished ? 'unpublish' : 'publish')}
+          disabled={publishing}
+          className={[
+            'w-full flex items-center gap-3 rounded-xl p-3 text-left text-xs font-medium transition-all touch-manipulation active:scale-[0.98]',
+            publishing
+              ? 'border border-white/[0.06] bg-white/[0.02] text-white/30 cursor-not-allowed'
+              : isPublished
+              ? 'border border-amber-400/20 bg-amber-400/[0.07] text-amber-200 hover:bg-amber-400/[0.12]'
+              : 'border border-emerald-400/20 bg-emerald-400/[0.07] text-emerald-200 hover:bg-emerald-400/[0.12]',
+          ].join(' ')}
+        >
+          {publishing
+            ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+            : isPublished
+            ? <EyeOff className="h-4 w-4 shrink-0" />
+            : <Upload className="h-4 w-4 shrink-0" />}
+          <div className="min-w-0">
+            <span className="block">
+              {publishing ? 'Mise à jour...' : isPublished ? 'Retirer de Synaura' : 'Publier sur Synaura'}
+            </span>
+            <span className="block text-[10px] opacity-60 mt-0.5">
+              {isPublished ? 'Rendre privé' : 'Rendre visible à tous'}
+            </span>
+          </div>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function InspectorContent({
   track,
   onClose,
@@ -85,6 +179,9 @@ function InspectorContent({
   onRemix,
   onCopyLyrics,
   isMobileSheet,
+  isPublished,
+  publishingVisibility,
+  onTogglePublish,
 }: Omit<TrackInspectorProps, 'isOpen' | 'variant'> & { track: GeneratedTrack; isMobileSheet?: boolean }) {
   const promptText = track.prompt || '';
   const lyricsText = track.lyrics || '';
@@ -199,6 +296,17 @@ function InspectorContent({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Publish */}
+      {onTogglePublish && (
+        <div className="px-5 py-3 shrink-0">
+          <PublishButton
+            isPublished={isPublished ?? false}
+            publishing={publishingVisibility}
+            onToggle={onTogglePublish}
+          />
         </div>
       )}
 
