@@ -8,7 +8,6 @@ import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
   ArtistTile,
-  GenreCard,
   HorizontalScroller,
   PlaylistTile,
   SectionHeader,
@@ -19,7 +18,7 @@ import {
 } from './DiscoverTiles';
 
 const GENRES = [
-  'Pop', 'Hip-Hop', 'Rock', 'Electronic', 'R&B', 'Jazz',
+  'Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz',
   'Lo-Fi', 'Classical', 'Indie', 'Soul', 'Funk', 'Ambient',
 ];
 
@@ -29,6 +28,15 @@ function uniqById<T extends { _id: string }>(arr: T[]) {
     if (!item?._id || seen.has(item._id)) return false;
     seen.add(item._id);
     return true;
+  });
+}
+
+function filterByGenre(tracks: DiscoverTrackLite[], genre: string | null): DiscoverTrackLite[] {
+  if (!genre || genre === 'Tout') return tracks;
+  const g = genre.toLowerCase();
+  return tracks.filter(t => {
+    const genres = Array.isArray((t as any)?.genre) ? (t as any).genre : (t as any)?.genre ? [(t as any).genre] : [];
+    return genres.some((x: string) => String(x || '').toLowerCase().includes(g));
   });
 }
 
@@ -48,10 +56,11 @@ export default function DiscoverGuestClient({
   const router = useRouter();
   const { playTrack, setTracks } = useAudioPlayer();
   const [q, setQ] = useState('');
-  const [genreTracks, setGenreTracks] = useState<DiscoverTrackLite[]>([]);
-  const [activeGenre, setActiveGenre] = useState<string | null>(genreFilter || null);
-  const [loadingGenre, setLoadingGenre] = useState(false);
+  const [activeGenre, setActiveGenre] = useState<string>(genreFilter || 'Tout');
 
+  const isFiltered = activeGenre !== 'Tout';
+  const filteredTrending = useMemo(() => filterByGenre(trending, activeGenre), [trending, activeGenre]);
+  const filteredNewest = useMemo(() => filterByGenre(newest, activeGenre), [newest, activeGenre]);
   const allTracks = useMemo(() => uniqById([...trending, ...newest]), [trending, newest]);
 
   const searchResults = useMemo(() => {
@@ -66,29 +75,19 @@ export default function DiscoverGuestClient({
   }, [q, allTracks]);
 
   const topHits = useMemo(() =>
-    uniqById([...trending]).sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 8),
-  [trending]);
+    uniqById(filterByGenre(trending, activeGenre))
+      .sort((a, b) => (b.plays || 0) - (a.plays || 0))
+      .slice(0, 8),
+  [trending, activeGenre]);
 
-  const handleGenreClick = useCallback(async (genre: string) => {
-    if (activeGenre === genre) {
-      setActiveGenre(null);
-      setGenreTracks([]);
-      router.replace('/discover', { scroll: false });
-      return;
-    }
+  const handleGenreClick = useCallback((genre: string) => {
     setActiveGenre(genre);
-    setLoadingGenre(true);
-    router.replace(`/discover?genre=${encodeURIComponent(genre)}`, { scroll: false });
-    try {
-      const res = await fetch(`/api/ranking/feed?limit=40&ai=1&genre=${encodeURIComponent(genre)}`, { cache: 'no-store' });
-      const data = await res.json();
-      setGenreTracks(Array.isArray(data?.tracks) ? data.tracks : []);
-    } catch {
-      setGenreTracks([]);
-    } finally {
-      setLoadingGenre(false);
+    if (genre === 'Tout') {
+      router.replace('/discover', { scroll: false });
+    } else {
+      router.replace(`/discover?genre=${encodeURIComponent(genre)}`, { scroll: false });
     }
-  }, [activeGenre, router]);
+  }, [router]);
 
   const handlePlayAll = useCallback((tracks: DiscoverTrackLite[]) => {
     if (tracks.length) {
@@ -108,12 +107,10 @@ export default function DiscoverGuestClient({
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(99,102,241,0.15),transparent_60%)]" />
           <div className="relative">
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
-              {activeGenre ? activeGenre : 'Découvre, écoute, enchaîne.'}
+              Découvre, écoute, enchaîne.
             </h1>
             <p className="mt-2 text-sm md:text-base text-white/50 max-w-xl">
-              {activeGenre
-                ? `Les meilleurs titres ${activeGenre} de la communauté Synaura.`
-                : 'Des milliers de titres à écouter gratuitement. Crée un compte pour sauvegarder tes favoris et créer de la musique avec l\'IA.'}
+              Des milliers de titres à écouter gratuitement. Crée un compte pour sauvegarder tes favoris et créer de la musique avec l'IA.
             </p>
             <div className="mt-5 flex flex-wrap gap-2.5">
               <Link
@@ -158,6 +155,23 @@ export default function DiscoverGuestClient({
           </div>
         </div>
 
+        {/* Genre chips */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+          {GENRES.map(g => (
+            <button
+              key={g}
+              onClick={() => handleGenreClick(g)}
+              className={`shrink-0 h-8 px-4 rounded-full text-[13px] font-semibold transition-all whitespace-nowrap ${
+                activeGenre === g
+                  ? 'bg-white text-black shadow-md'
+                  : 'bg-white/[0.07] text-white/60 hover:bg-white/[0.12] hover:text-white'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+
         {isSearching ? (
           <section className="space-y-3">
             <SectionHeader title={`Résultats pour "${q}"`} />
@@ -173,47 +187,13 @@ export default function DiscoverGuestClient({
           </section>
         ) : (
           <>
-            {/* Genres */}
-            <section>
-              <SectionHeader title="Explorer par genre" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-                {GENRES.map(g => (
-                  <GenreCard key={g} genre={g} onClick={() => handleGenreClick(g)} />
-                ))}
-              </div>
-              {activeGenre && (
-                <button
-                  onClick={() => { setActiveGenre(null); setGenreTracks([]); router.replace('/discover', { scroll: false }); }}
-                  className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition font-semibold"
-                >
-                  ✕ Réinitialiser le filtre
-                </button>
-              )}
-            </section>
-
-            {activeGenre && (
-              <section>
-                <SectionHeader title={activeGenre} subtitle={`${genreTracks.length} titres`} />
-                {loadingGenre ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : genreTracks.length ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1">
-                    {genreTracks.map((t, i) => (
-                      <TrackRow key={t._id} track={t} index={i} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-white/30 py-8 text-center">Aucun titre pour ce genre.</p>
-                )}
-              </section>
-            )}
-
             {/* Top Hits */}
-            {!activeGenre && topHits.length > 0 && (
+            {topHits.length > 0 && (
               <section>
-                <SectionHeader title="Top Hits" subtitle="Les plus écoutés" />
+                <SectionHeader
+                  title={isFiltered ? `Top ${activeGenre}` : 'Top Hits'}
+                  subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus écoutés'}
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                   {topHits.map((t, i) => (
                     <TrackRow key={t._id} track={t} index={i} />
@@ -223,11 +203,14 @@ export default function DiscoverGuestClient({
             )}
 
             {/* Tendances */}
-            {!activeGenre && trending.length > 0 && (
+            {filteredTrending.length > 0 && (
               <section>
-                <SectionHeader title="Tendances" subtitle="Ce qui cartonne" />
+                <SectionHeader
+                  title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
+                  subtitle="Ce qui cartonne"
+                />
                 <HorizontalScroller>
-                  {trending.slice(0, 16).map(t => (
+                  {filteredTrending.slice(0, 16).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -235,11 +218,14 @@ export default function DiscoverGuestClient({
             )}
 
             {/* Nouveautés */}
-            {!activeGenre && newest.length > 0 && (
+            {filteredNewest.length > 0 && (
               <section>
-                <SectionHeader title="Nouveautés" subtitle="Tout juste publié" />
+                <SectionHeader
+                  title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
+                  subtitle="Tout juste publié"
+                />
                 <HorizontalScroller>
-                  {newest.slice(0, 16).map(t => (
+                  {filteredNewest.slice(0, 16).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -247,7 +233,7 @@ export default function DiscoverGuestClient({
             )}
 
             {/* Artistes */}
-            {!activeGenre && artists.length > 0 && (
+            {!isFiltered && artists.length > 0 && (
               <section>
                 <SectionHeader title="Artistes du moment" />
                 <HorizontalScroller>
@@ -259,7 +245,7 @@ export default function DiscoverGuestClient({
             )}
 
             {/* Playlists */}
-            {!activeGenre && playlists.length > 0 && (
+            {!isFiltered && playlists.length > 0 && (
               <section>
                 <SectionHeader title="Playlists populaires" />
                 <HorizontalScroller>
@@ -270,12 +256,26 @@ export default function DiscoverGuestClient({
               </section>
             )}
 
+            {/* Empty state */}
+            {isFiltered && filteredTrending.length === 0 && filteredNewest.length === 0 && (
+              <div className="py-16 text-center">
+                <p className="text-lg font-semibold text-white/50">Aucun titre {activeGenre} trouvé</p>
+                <p className="text-sm text-white/25 mt-1">Essaye un autre genre ou reviens à "Tout"</p>
+                <button
+                  onClick={() => handleGenreClick('Tout')}
+                  className="mt-4 h-9 px-5 rounded-full bg-white/10 hover:bg-white/15 text-sm font-semibold text-white transition"
+                >
+                  Voir tout
+                </button>
+              </div>
+            )}
+
             {/* CTA */}
-            {!activeGenre && (
+            {!isFiltered && (
               <div className="rounded-2xl bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-white/[0.06] p-6 text-center">
                 <h3 className="text-lg font-bold text-white">Envie de plus ?</h3>
                 <p className="text-sm text-white/40 mt-1 max-w-md mx-auto">
-                  Crée un compte pour sauvegarder tes favoris, créer des playlists et générer de la musique avec l'IA.
+                  Crée un compte pour des recommandations personnalisées et la création musicale IA.
                 </p>
                 <div className="mt-4 flex items-center justify-center gap-3">
                   <Link

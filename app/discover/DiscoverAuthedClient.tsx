@@ -2,12 +2,11 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sparkles, X, TrendingUp, Music2, Users, ListMusic, Disc3 } from 'lucide-react';
+import { Search, Sparkles, X, Disc3, Play } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
   ArtistTile,
-  GenreCard,
   HorizontalScroller,
   PlaylistTile,
   SectionHeader,
@@ -18,9 +17,9 @@ import {
 } from './DiscoverTiles';
 
 const GENRES = [
-  'Pop', 'Hip-Hop', 'Rock', 'Electronic', 'R&B', 'Jazz',
-  'Lo-Fi', 'Classical', 'Indie', 'Soul', 'Funk', 'Ambient',
-  'Metal', 'Reggae', 'Latin', 'Afro',
+  'Tout', 'Pop', 'Hip-Hop', 'Rap', 'Rock', 'Electronic', 'R&B', 'Jazz',
+  'Lo-Fi', 'Classical', 'Indie', 'Soul', 'Funk', 'Ambient', 'Metal',
+  'Reggae', 'Latin', 'Afro',
 ];
 
 function greeting() {
@@ -36,6 +35,15 @@ function uniqById<T extends { _id: string }>(arr: T[]) {
     if (!item?._id || seen.has(item._id)) return false;
     seen.add(item._id);
     return true;
+  });
+}
+
+function filterByGenre(tracks: DiscoverTrackLite[], genre: string | null): DiscoverTrackLite[] {
+  if (!genre || genre === 'Tout') return tracks;
+  const g = genre.toLowerCase();
+  return tracks.filter(t => {
+    const genres = Array.isArray((t as any)?.genre) ? (t as any).genre : (t as any)?.genre ? [(t as any).genre] : [];
+    return genres.some((x: string) => String(x || '').toLowerCase().includes(g));
   });
 }
 
@@ -60,22 +68,19 @@ export default function DiscoverAuthedClient({
   const { playTrack, setTracks } = useAudioPlayer();
 
   const [q, setQ] = useState('');
-  const [activeGenre, setActiveGenre] = useState<string | null>(genreFilter || null);
+  const [activeGenre, setActiveGenre] = useState<string>(genreFilter || 'Tout');
   const [forYou, setForYou] = useState(initialForYou);
   const [trending, setTrending] = useState(initialTrending);
   const [newest, setNewest] = useState(initialNew);
   const [playlists, setPlaylists] = useState(initialPlaylists);
   const [artists, setArtists] = useState(initialArtists);
-  const [genreTracks, setGenreTracks] = useState<DiscoverTrackLite[]>([]);
-  const [loadingGenre, setLoadingGenre] = useState(false);
 
   const refreshData = useCallback(async () => {
     try {
-      const genreParam = activeGenre ? `&genre=${encodeURIComponent(activeGenre)}` : '';
       const [fy, tr, nw, pl, ar] = await Promise.all([
-        fetch(`/api/ranking/feed?limit=36&ai=1&strategy=reco${genreParam}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
-        fetch(`/api/ranking/feed?limit=36&ai=1&strategy=trending${genreParam}`, { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
-        fetch('/api/tracks/recent?limit=36', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/ranking/feed?limit=50&ai=1&strategy=reco', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/ranking/feed?limit=50&ai=1&strategy=trending', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/tracks/recent?limit=40', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/playlists/popular?limit=18', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/artists?sort=trending&limit=16', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
       ]);
@@ -99,33 +104,27 @@ export default function DiscoverAuthedClient({
         isTrending: Boolean(a?.isTrending),
       })));
     } catch {}
-  }, [activeGenre]);
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(refreshData, 600);
     return () => clearTimeout(t);
   }, [refreshData]);
 
-  const handleGenreClick = useCallback(async (genre: string) => {
-    if (activeGenre === genre) {
-      setActiveGenre(null);
-      setGenreTracks([]);
-      router.replace('/discover', { scroll: false });
-      return;
-    }
+  const handleGenreClick = useCallback((genre: string) => {
     setActiveGenre(genre);
-    setLoadingGenre(true);
-    router.replace(`/discover?genre=${encodeURIComponent(genre)}`, { scroll: false });
-    try {
-      const res = await fetch(`/api/ranking/feed?limit=40&ai=1&genre=${encodeURIComponent(genre)}`, { cache: 'no-store' });
-      const data = await res.json();
-      setGenreTracks(Array.isArray(data?.tracks) ? data.tracks : []);
-    } catch {
-      setGenreTracks([]);
-    } finally {
-      setLoadingGenre(false);
+    if (genre === 'Tout') {
+      router.replace('/discover', { scroll: false });
+    } else {
+      router.replace(`/discover?genre=${encodeURIComponent(genre)}`, { scroll: false });
     }
-  }, [activeGenre, router]);
+  }, [router]);
+
+  const isFiltered = activeGenre !== 'Tout';
+
+  const filteredForYou = useMemo(() => filterByGenre(forYou, activeGenre), [forYou, activeGenre]);
+  const filteredTrending = useMemo(() => filterByGenre(trending, activeGenre), [trending, activeGenre]);
+  const filteredNewest = useMemo(() => filterByGenre(newest, activeGenre), [newest, activeGenre]);
 
   const allTracks = useMemo(() => uniqById([...forYou, ...trending, ...newest]), [forYou, trending, newest]);
 
@@ -140,8 +139,12 @@ export default function DiscoverAuthedClient({
       .slice(0, 20);
   }, [q, allTracks]);
 
-  const aiTracks = useMemo(() => allTracks.filter(t => Boolean(t.isAI)).slice(0, 16), [allTracks]);
-  const topHits = useMemo(() => uniqById([...trending]).sort((a, b) => (b.plays || 0) - (a.plays || 0)).slice(0, 10), [trending]);
+  const aiTracks = useMemo(() => filterByGenre(allTracks.filter(t => Boolean(t.isAI)), activeGenre).slice(0, 16), [allTracks, activeGenre]);
+  const topHits = useMemo(() =>
+    uniqById(filterByGenre(trending, activeGenre))
+      .sort((a, b) => (b.plays || 0) - (a.plays || 0))
+      .slice(0, 10),
+  [trending, activeGenre]);
 
   const handlePlayAll = useCallback((tracks: DiscoverTrackLite[]) => {
     if (tracks.length) {
@@ -160,15 +163,15 @@ export default function DiscoverAuthedClient({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="min-w-0">
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
-              {activeGenre ? activeGenre : `${greeting()}, ${displayName}`}
+              {`${greeting()}, ${displayName}`}
             </h1>
             <p className="text-sm text-white/40 mt-1">
-              {activeGenre ? `Les meilleurs titres ${activeGenre}` : 'Explore, découvre et écoute sans limites.'}
+              Explore, découvre et écoute sans limites.
             </p>
           </div>
           <div className="flex items-center gap-2.5 shrink-0">
             <button
-              onClick={() => handlePlayAll(forYou.length ? forYou : trending)}
+              onClick={() => handlePlayAll(filteredForYou.length ? filteredForYou : filteredTrending)}
               className="h-10 px-5 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white hover:scale-[1.03] active:scale-[0.97] transition-all text-sm font-bold inline-flex items-center gap-2 shadow-lg shadow-indigo-500/25"
             >
               <Disc3 className="w-4 h-4" />
@@ -191,7 +194,7 @@ export default function DiscoverAuthedClient({
             <input
               value={q}
               onChange={e => setQ(e.target.value)}
-              placeholder="Rechercher un titre, un artiste, un genre..."
+              placeholder="Rechercher un titre, un artiste..."
               className="bg-transparent outline-none w-full text-sm text-white placeholder:text-white/25"
             />
             {q && (
@@ -200,6 +203,23 @@ export default function DiscoverAuthedClient({
               </button>
             )}
           </div>
+        </div>
+
+        {/* Genre chips */}
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
+          {GENRES.map(g => (
+            <button
+              key={g}
+              onClick={() => handleGenreClick(g)}
+              className={`shrink-0 h-8 px-4 rounded-full text-[13px] font-semibold transition-all whitespace-nowrap ${
+                activeGenre === g
+                  ? 'bg-white text-black shadow-md'
+                  : 'bg-white/[0.07] text-white/60 hover:bg-white/[0.12] hover:text-white'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
         </div>
 
         {/* Search Results */}
@@ -218,54 +238,12 @@ export default function DiscoverAuthedClient({
           </section>
         ) : (
           <>
-            {/* Genres */}
-            <section>
-              <SectionHeader title="Explorer par genre" />
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
-                {GENRES.map(g => (
-                  <GenreCard
-                    key={g}
-                    genre={g}
-                    onClick={() => handleGenreClick(g)}
-                  />
-                ))}
-              </div>
-              {activeGenre && (
-                <button
-                  onClick={() => { setActiveGenre(null); setGenreTracks([]); router.replace('/discover', { scroll: false }); }}
-                  className="mt-3 text-xs text-indigo-400 hover:text-indigo-300 transition font-semibold"
-                >
-                  ✕ Réinitialiser le filtre
-                </button>
-              )}
-            </section>
-
-            {/* Genre filtered results */}
-            {activeGenre && (
-              <section>
-                <SectionHeader title={`${activeGenre}`} subtitle={`${genreTracks.length} titres trouvés`} />
-                {loadingGenre ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                  </div>
-                ) : genreTracks.length ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-1">
-                    {genreTracks.map((t, i) => (
-                      <TrackRow key={t._id} track={t} index={i} />
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-white/30 py-8 text-center">Aucun titre trouvé pour ce genre.</p>
-                )}
-              </section>
-            )}
-
-            {/* Top Hits (numbered list) */}
-            {!activeGenre && topHits.length > 0 && (
+            {/* Top Hits */}
+            {topHits.length > 0 && (
               <section>
                 <SectionHeader
-                  title="Top Hits"
-                  subtitle="Les plus écoutés en ce moment"
+                  title={isFiltered ? `Top ${activeGenre}` : 'Top Hits'}
+                  subtitle={isFiltered ? `Les meilleurs titres ${activeGenre}` : 'Les plus écoutés en ce moment'}
                   actionLabel="Tout lire"
                   onAction={() => handlePlayAll(topHits)}
                 />
@@ -278,11 +256,14 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Pour toi */}
-            {!activeGenre && forYou.length > 0 && (
+            {filteredForYou.length > 0 && (
               <section>
-                <SectionHeader title="Pour toi" subtitle="Basé sur tes goûts" actionLabel="Tout voir" actionHref="/?section=foryou" />
+                <SectionHeader
+                  title={isFiltered ? `${activeGenre} pour toi` : 'Pour toi'}
+                  subtitle="Basé sur tes goûts"
+                />
                 <HorizontalScroller>
-                  {forYou.slice(0, 16).map(t => (
+                  {filteredForYou.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -290,11 +271,14 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Tendances */}
-            {!activeGenre && trending.length > 0 && (
+            {filteredTrending.length > 0 && (
               <section>
-                <SectionHeader title="Tendances" subtitle="Ce qui cartonne maintenant" />
+                <SectionHeader
+                  title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
+                  subtitle="Ce qui cartonne maintenant"
+                />
                 <HorizontalScroller>
-                  {trending.slice(0, 16).map(t => (
+                  {filteredTrending.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -302,11 +286,14 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Nouveautés */}
-            {!activeGenre && newest.length > 0 && (
+            {filteredNewest.length > 0 && (
               <section>
-                <SectionHeader title="Nouveautés" subtitle="Tout juste publié" />
+                <SectionHeader
+                  title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
+                  subtitle="Tout juste publié"
+                />
                 <HorizontalScroller>
-                  {newest.slice(0, 16).map(t => (
+                  {filteredNewest.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
@@ -314,7 +301,7 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Créations IA */}
-            {!activeGenre && aiTracks.length > 0 && (
+            {aiTracks.length > 0 && (
               <section>
                 <SectionHeader title="Créations IA" subtitle="Généré par intelligence artificielle" actionLabel="Créer" actionHref="/ai-generator" />
                 <HorizontalScroller>
@@ -326,7 +313,7 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Artistes */}
-            {!activeGenre && artists.length > 0 && (
+            {!isFiltered && artists.length > 0 && (
               <section>
                 <SectionHeader title="Artistes du moment" subtitle="À suivre" />
                 <HorizontalScroller>
@@ -338,7 +325,7 @@ export default function DiscoverAuthedClient({
             )}
 
             {/* Playlists */}
-            {!activeGenre && playlists.length > 0 && (
+            {!isFiltered && playlists.length > 0 && (
               <section>
                 <SectionHeader title="Playlists populaires" subtitle="Compilations de la communauté" />
                 <HorizontalScroller>
@@ -348,10 +335,23 @@ export default function DiscoverAuthedClient({
                 </HorizontalScroller>
               </section>
             )}
+
+            {/* Empty state when genre has no results */}
+            {isFiltered && filteredForYou.length === 0 && filteredTrending.length === 0 && filteredNewest.length === 0 && (
+              <div className="py-16 text-center">
+                <p className="text-lg font-semibold text-white/50">Aucun titre {activeGenre} trouvé</p>
+                <p className="text-sm text-white/25 mt-1">Essaye un autre genre ou reviens à "Tout"</p>
+                <button
+                  onClick={() => handleGenreClick('Tout')}
+                  className="mt-4 h-9 px-5 rounded-full bg-white/10 hover:bg-white/15 text-sm font-semibold text-white transition"
+                >
+                  Voir tout
+                </button>
+              </div>
+            )}
           </>
         )}
 
-        {/* Spacer for mini player */}
         <div className="h-24" />
       </main>
     </div>
