@@ -747,10 +747,11 @@ export const useAudioService = () => {
       if (track) {
         await loadTrack(track);
         
-        // Mettre à jour l'historique des pistes jouées
-        const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
-        const updatedHistory = [...recentlyPlayed, track._id].slice(-10); // Garder les 10 dernières
-        localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+        try {
+          const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+          const updatedHistory = [...recentlyPlayed, track._id].slice(-10);
+          localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+        } catch {}
         
         // Incrémenter les écoutes pour la piste qui commence à jouer
         if (!isAdTrack(track)) updatePlayCount(track._id);

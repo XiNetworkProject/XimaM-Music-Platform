@@ -185,7 +185,7 @@ export default function ReglementPage() {
           {articles.map((art) => (
             <div key={art.num}
               className="rounded-3xl border border-white/[0.06] p-6 sm:p-8"
-              style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(20px)" }}>
+              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
               {/* Article header */}
               <div className="flex items-start gap-4 mb-5">
                 <div className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 text-xs font-black text-white"
@@ -244,7 +244,7 @@ export default function ReglementPage() {
         <div className="sticky bottom-0 pt-6 pb-8 mt-8" style={{ background: "linear-gradient(to top, #07000f 60%, transparent)" }}>
           {!hasRead ? (
             <div className="rounded-3xl border border-white/8 p-5 text-center"
-              style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(20px)" }}>
+              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="w-32 h-1 rounded-full overflow-hidden bg-white/10">
                   <div className="h-full rounded-full transition-all duration-300"
@@ -258,7 +258,7 @@ export default function ReglementPage() {
             </div>
           ) : !accepted ? (
             <div className="rounded-3xl border border-emerald-500/20 p-6 space-y-4"
-              style={{ background: "rgba(34,197,94,0.04)", backdropFilter: "blur(20px)" }}>
+              style={{ background: "rgba(34,197,94,0.04)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
@@ -282,7 +282,7 @@ export default function ReglementPage() {
             </div>
           ) : (
             <div className="rounded-3xl border border-emerald-500/25 p-6 space-y-4"
-              style={{ background: "rgba(34,197,94,0.06)", backdropFilter: "blur(20px)" }}>
+              style={{ background: "rgba(34,197,94,0.06)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: "linear-gradient(135deg,#22c55e,#4ade80)" }}>

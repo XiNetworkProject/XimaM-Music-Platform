@@ -207,7 +207,7 @@ export default function StarAcademyLandingPage() {
         ══════════════════════════════════════ */}
         <section className="px-5 py-14 max-w-3xl mx-auto">
           <div className="rounded-3xl border border-[#f59e0b]/15 p-7 md:p-10"
-            style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(24px)" }}>
+            style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
 
             <div className="flex items-center gap-3 mb-6">
               <div className="h-7 w-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-black text-white"
@@ -267,7 +267,7 @@ export default function StarAcademyLandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Gagnants */}
             <div className="rounded-3xl border border-[#f59e0b]/20 p-6 sm:p-8 relative overflow-hidden"
-              style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.08),rgba(236,72,153,0.05))", backdropFilter: "blur(24px)" }}>
+              style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.08),rgba(236,72,153,0.05))", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
               <div className="absolute top-0 left-0 right-0 h-px"
                 style={{ background: "linear-gradient(90deg,transparent,rgba(245,158,11,0.5),transparent)" }} />
               <div className="flex items-start gap-4">
@@ -286,7 +286,7 @@ export default function StarAcademyLandingPage() {
             </div>
             {/* Retenus */}
             <div className="rounded-3xl border border-violet-500/15 p-6 sm:p-8 relative overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(24px)" }}>
+              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
               <div className="absolute top-0 left-0 right-0 h-px"
                 style={{ background: "linear-gradient(90deg,transparent,rgba(147,51,234,0.4),transparent)" }} />
               <div className="flex items-start gap-4">
@@ -305,7 +305,7 @@ export default function StarAcademyLandingPage() {
             </div>
             {/* Visibilité */}
             <div className="rounded-3xl border border-[#00f2ea]/10 p-6 relative overflow-hidden"
-              style={{ background: "rgba(0,242,234,0.03)", backdropFilter: "blur(24px)" }}>
+              style={{ background: "rgba(0,242,234,0.03)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center"
                   style={{ background: "rgba(0,242,234,0.1)", border: "1px solid rgba(0,242,234,0.2)" }}>
@@ -321,7 +321,7 @@ export default function StarAcademyLandingPage() {
             </div>
             {/* Profil boosté */}
             <div className="rounded-3xl border border-white/[0.06] p-6 relative overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(24px)" }}>
+              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center"
                   style={{ background: "rgba(147,51,234,0.1)", border: "1px solid rgba(147,51,234,0.2)" }}>
@@ -348,7 +348,7 @@ export default function StarAcademyLandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, i) => (
               <div key={step.num} className="rounded-3xl border border-white/[0.06] p-5 relative overflow-hidden group hover:border-violet-500/20 transition-all duration-300"
-                style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(24px)" }}>
+                style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
                 {/* Top border gradient on hover */}
                 <div className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{ background: "linear-gradient(90deg,transparent,rgba(147,51,234,0.5),transparent)" }} />
@@ -384,7 +384,7 @@ export default function StarAcademyLandingPage() {
             ].map(c => (
               <span key={c.label}
                 className="rounded-full border border-white/10 px-5 py-2 text-sm font-semibold text-white/60 hover:border-violet-500/30 hover:text-white/80 transition-all cursor-default"
-                style={{ background: "rgba(255,255,255,0.03)", backdropFilter: "blur(12px)" }}>
+                style={{ background: "rgba(255,255,255,0.03)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
                 {c.label}
               </span>
             ))}

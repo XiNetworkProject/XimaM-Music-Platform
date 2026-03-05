@@ -460,7 +460,8 @@ export default function UploadPage() {
       const valid: File[] = [];
       const planMaxMb = (planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? 1000 : 80);
       for (const file of acceptedFiles) {
-        if (!file.type.startsWith('audio/')) continue;
+        const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac|aiff|opus|wma)$/i.test(file.name);
+        if (!isAudio) continue;
         const sizeMb = file.size / 1024 / 1024;
         if (sizeMb > planMaxMb) {
           notify.error('Fichier trop volumineux', `${file.name} dépasse la limite (${sizeMb.toFixed(1)} MB > ${planMaxMb} MB)`);
@@ -474,7 +475,8 @@ export default function UploadPage() {
     } else {
     const file = acceptedFiles[0];
     if (file) {
-      if (!file.type.startsWith('audio/')) {
+      const isAudioFile = file.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|ogg|flac|aiff|opus|wma)$/i.test(file.name);
+      if (!isAudioFile) {
           notify.error('Fichier invalide', 'Veuillez sélectionner un fichier audio valide');
           return;
         }
@@ -493,7 +495,8 @@ export default function UploadPage() {
   const onCoverDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
-      if (!file.type.startsWith('image/')) {
+      const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|avif)$/i.test(file.name);
+      if (!isImage) {
         notify.error('Image invalide', 'Veuillez sélectionner une image valide');
         return;
       }
@@ -609,7 +612,7 @@ export default function UploadPage() {
 
   const { getRootProps: getAudioRootProps, getInputProps: getAudioInputProps, isDragActive: isAudioDragActive } = useDropzone({
     onDrop: onAudioDrop,
-    accept: { 'audio/*': [] },
+    accept: { 'audio/*': ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.aiff', '.opus'] },
     maxFiles: uploadMode === 'album' ? 50 : 1
   });
 

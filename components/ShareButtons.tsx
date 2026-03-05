@@ -60,7 +60,7 @@ export default function ShareButtons({ url, title, compact }: ShareButtonsProps)
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(url);
+    try { await navigator.clipboard.writeText(url); } catch {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

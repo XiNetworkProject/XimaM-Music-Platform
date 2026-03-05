@@ -80,7 +80,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
   const handleCopyEmbed = () => {
     const code = `<iframe src="${typeof window !== 'undefined' ? window.location.origin : 'https://www.synaura.fr'}/embed/${track.id}" width="100%" height="152" frameBorder="0" allow="autoplay; encrypted-media" style="border-radius:12px" title="${track.title}"></iframe>`;
-    navigator.clipboard.writeText(code);
+    navigator.clipboard.writeText(code).catch(() => {});
     setEmbedCopied(true);
     setTimeout(() => setEmbedCopied(false), 2500);
   };

@@ -671,7 +671,7 @@ function MessageInputBar({
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*,video/*,audio/*"
+        accept="image/*,video/*,audio/*,.jpg,.jpeg,.png,.webp,.heic,.mp4,.mov,.mp3,.wav,.m4a,.aac,.ogg,.flac"
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -1082,11 +1082,16 @@ export default function ConversationPage() {
     // Déterminer le type automatiquement en fonction du type MIME
     let type: 'image' | 'video' | 'audio';
     
-    if (file.type.startsWith('image/')) {
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const imageExts = ['jpg','jpeg','png','gif','webp','heic','heif','avif'];
+    const videoExts = ['mp4','mov','webm','avi','mkv'];
+    const audioExts = ['mp3','wav','m4a','aac','ogg','flac','opus'];
+
+    if (file.type.startsWith('image/') || imageExts.includes(ext)) {
       type = 'image';
-    } else if (file.type.startsWith('video/')) {
+    } else if (file.type.startsWith('video/') || videoExts.includes(ext)) {
       type = 'video';
-    } else if (file.type.startsWith('audio/')) {
+    } else if (file.type.startsWith('audio/') || audioExts.includes(ext)) {
       type = 'audio';
     } else {
       toast.error('Type de fichier non supporté');
@@ -1686,7 +1691,7 @@ Paramètres Linux à vérifier :
       }, 100);
       
       // Test de niveau audio pour diagnostiquer
-      const audioContext = new AudioContext();
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       const analyser = audioContext.createAnalyser();
       const microphone = audioContext.createMediaStreamSource(stream);
       microphone.connect(analyser);

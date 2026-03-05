@@ -1352,39 +1352,41 @@ export default function AIGenerator() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('synaura.ai.shellMode', shellMode);
+    try { window.localStorage.setItem('synaura.ai.shellMode', shellMode); } catch {}
   }, [shellMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('synaura.ai.leftExplorerTab', leftExplorerTab);
+    try { window.localStorage.setItem('synaura.ai.leftExplorerTab', leftExplorerTab); } catch {}
   }, [leftExplorerTab]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('synaura.ai.consoleCollapsed', consoleCollapsed ? '1' : '0');
+    try { window.localStorage.setItem('synaura.ai.consoleCollapsed', consoleCollapsed ? '1' : '0'); } catch {}
   }, [consoleCollapsed]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('synaura.ai.defaultModel', modelVersion);
+    try { window.localStorage.setItem('synaura.ai.defaultModel', modelVersion); } catch {}
   }, [modelVersion]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('synaura.ai.defaultDuration', String(generationDuration));
+    try { window.localStorage.setItem('synaura.ai.defaultDuration', String(generationDuration)); } catch {}
   }, [generationDuration]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem('synaura.ai.leftPx', String(leftPx));
-    window.localStorage.setItem('synaura.ai.rightPx', String(rightPx));
-    window.localStorage.setItem('synaura.ai.layoutVersion', LAYOUT_VERSION);
-    const cw = getContainerWidth();
-    if (cw > 0) {
-      window.localStorage.setItem('synaura.ai.leftRatio', String(leftPx / cw));
-      window.localStorage.setItem('synaura.ai.rightRatio', String(rightPx / cw));
-    }
+    try {
+      window.localStorage.setItem('synaura.ai.leftPx', String(leftPx));
+      window.localStorage.setItem('synaura.ai.rightPx', String(rightPx));
+      window.localStorage.setItem('synaura.ai.layoutVersion', LAYOUT_VERSION);
+      const cw = getContainerWidth();
+      if (cw > 0) {
+        window.localStorage.setItem('synaura.ai.leftRatio', String(leftPx / cw));
+        window.localStorage.setItem('synaura.ai.rightRatio', String(rightPx / cw));
+      }
+    } catch {}
   }, [getContainerWidth, leftPx, rightPx]);
 
   useEffect(() => {

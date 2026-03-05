@@ -55,7 +55,7 @@ export default function OnboardingChecklist() {
 
     const onFocus = () => {
       refreshUsage();
-      setTriedStudio(!!localStorage.getItem('onboarding.triedStudio'));
+      try { setTriedStudio(!!localStorage.getItem('onboarding.triedStudio')); } catch {}
     };
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
@@ -65,7 +65,8 @@ export default function OnboardingChecklist() {
     const hasAccount = !!user?.id;
     const hasOneTrack = (usage?.tracks?.used || 0) > 0;
     const hasTriedStudio = triedStudio;
-    const hasListened = typeof window !== 'undefined' && !!localStorage.getItem('onboarding.listened');
+    let hasListened = false;
+    try { hasListened = typeof window !== 'undefined' && !!localStorage.getItem('onboarding.listened'); } catch {}
     return [
       { key: 'account', label: 'Creer un compte', done: hasAccount, icon: UserPlus, action: '/auth/signup', actionLabel: 'Creer' },
       { key: 'listen', label: 'Ecouter un titre', done: hasListened, icon: Music, action: '/discover', actionLabel: 'Ecouter' },
@@ -84,7 +85,7 @@ export default function OnboardingChecklist() {
     <div className="w-full mb-5">
       <div className="relative rounded-2xl border border-white/[0.08] bg-gradient-to-r from-violet-500/[0.06] to-fuchsia-500/[0.04] backdrop-blur-sm p-4 md:p-5">
         <button
-          onClick={() => { setDismissed(true); localStorage.setItem('onboarding.dismissed', '1'); }}
+          onClick={() => { setDismissed(true); try { localStorage.setItem('onboarding.dismissed', '1'); } catch {} }}
           className="absolute top-3 right-3 p-1 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition"
         >
           <X size={16} />
@@ -115,8 +116,10 @@ export default function OnboardingChecklist() {
               <button
                 key={step.key}
                 onClick={() => {
-                  if (step.key === 'studio') localStorage.setItem('onboarding.triedStudio', '1');
-                  if (step.key === 'listen') localStorage.setItem('onboarding.listened', '1');
+                  try {
+                    if (step.key === 'studio') localStorage.setItem('onboarding.triedStudio', '1');
+                    if (step.key === 'listen') localStorage.setItem('onboarding.listened', '1');
+                  } catch {}
                   router.push(step.action);
                 }}
                 className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all ${

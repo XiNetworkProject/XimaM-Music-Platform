@@ -398,6 +398,7 @@ function CinematicIntro({ onEnter }: { onEnter: () => void }) {
           letterSpacing: "1px",
           cursor: "pointer",
           textTransform: "uppercase",
+          WebkitBackdropFilter: "blur(10px)",
           backdropFilter: "blur(10px)",
           transition: "all 0.2s",
           zIndex: 10,
@@ -968,7 +969,7 @@ export default function InscriptionPage() {
             </div>
             {/* Prize card */}
             <div className="rounded-2xl border border-[#f59e0b]/20 p-4"
-              style={{ background: "rgba(245,158,11,0.07)", backdropFilter: "blur(12px)" }}>
+              style={{ background: "rgba(245,158,11,0.07)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 text-white text-xs font-black"
                   style={{ background: "linear-gradient(135deg,#f59e0b,#ec4899)" }}>
@@ -1351,7 +1352,7 @@ export default function InscriptionPage() {
 function FormCard({ step, title, subtitle, children }: { step: number; title: string; subtitle: string; children: React.ReactNode }) {
   return (
     <div className="rounded-3xl border border-white/[0.07] p-6 sm:p-7 space-y-6"
-      style={{ background: "rgba(255,255,255,0.025)", backdropFilter: "blur(24px)" }}>
+      style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
       <div>
         <div className="flex items-center gap-3 mb-3">
           <div className="h-7 w-7 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0"

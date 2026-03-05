@@ -728,7 +728,7 @@ export default function SettingsClient() {
                         <button
                           type="button"
                           onClick={() => {
-                            navigator.clipboard.writeText(referralData.referralLink || '');
+                            navigator.clipboard.writeText(referralData.referralLink || '').catch(() => {});
                             setReferralCopied(true);
                             setTimeout(() => setReferralCopied(false), 2000);
                           }}

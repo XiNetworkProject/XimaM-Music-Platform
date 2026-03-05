@@ -382,7 +382,8 @@ export default function MeteoDashboardClient({ user }: MeteoDashboardClientProps
     if (!file) return;
 
     // Vérifier le type
-    if (!file.type.startsWith('image/')) {
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|avif)$/i.test(file.name);
+    if (!isImage) {
       notify.error('Veuillez sélectionner un fichier image (PNG, JPG, etc.)');
       return;
     }

@@ -52,7 +52,7 @@ export default function TrackContextMenu({ track }: TrackContextMenuProps) {
         await navigator.share({ title: track?.title || 'Track', url });
       } catch { /* cancelled */ }
     } else {
-      await navigator.clipboard.writeText(url);
+      try { await navigator.clipboard.writeText(url); } catch {}
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
