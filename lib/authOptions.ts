@@ -1,6 +1,7 @@
 import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { supabase } from '@/lib/supabase';
+import GoogleProvider from 'next-auth/providers/google';
+import { supabase, supabaseAdmin } from '@/lib/supabase';
 
 // Configuration des URLs selon l'environnement
 const getAuthUrls = () => {
@@ -19,6 +20,13 @@ const { baseUrl, signInUrl, errorUrl } = getAuthUrls();
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? [
+      GoogleProvider({
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        allowDangerousEmailAccountLinking: true,
+      }),
+    ] : []),
     CredentialsProvider({
       name: 'credentials',
       credentials: {
@@ -82,6 +90,64 @@ export const authOptions: NextAuthOptions = {
     })
   ],
   callbacks: {
+    async signIn({ user, account, profile: oauthProfile }) {
+      if (account?.provider === 'google' && user?.email) {
+        try {
+          const email = user.email.toLowerCase();
+          const { data: existing } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('email', email)
+            .single();
+
+          if (!existing) {
+            const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 20);
+            let username = baseUsername;
+            let suffix = 1;
+            while (true) {
+              const { data: taken } = await supabase.from('profiles').select('id').eq('username', username).single();
+              if (!taken) break;
+              username = `${baseUsername}${suffix++}`;
+            }
+
+            const { data: authUser } = await supabaseAdmin.auth.admin.listUsers();
+            let supabaseUserId: string | undefined;
+            const existingAuth = authUser?.users?.find(u => u.email === email);
+
+            if (existingAuth) {
+              supabaseUserId = existingAuth.id;
+            } else {
+              const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+                email,
+                email_confirm: true,
+                user_metadata: { name: user.name, avatar_url: user.image },
+              });
+              if (createErr || !created.user) {
+                console.error('Google OAuth: failed to create Supabase auth user', createErr);
+                return true;
+              }
+              supabaseUserId = created.user.id;
+            }
+
+            await supabaseAdmin.from('profiles').insert({
+              id: supabaseUserId,
+              name: user.name || username,
+              username,
+              email,
+              avatar: user.image || null,
+              is_verified: true,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+            console.log('✅ Nouveau profil Google créé:', username);
+          }
+        } catch (err) {
+          console.error('Google OAuth signIn callback error:', err);
+        }
+      }
+      return true;
+    },
+
     async session({ session, token }) {
       console.log('🔄 Mise à jour de la session Supabase pour:', session.user?.email);
       
@@ -127,26 +193,43 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
       if (user) {
-        // Étendre le token avec les propriétés personnalisées
-        const extendedToken = {
-          ...token,
-          id: user.id,
-          username: user.username,
-          role: user.role,
-          isVerified: user.isVerified,
-          isArtist: user.isArtist,
-          artistName: user.artistName,
-          genre: user.genre,
-          totalPlays: user.totalPlays,
-          totalLikes: user.totalLikes,
-          lastSeen: user.lastSeen,
-        };
-        
-        // Retourner le token étendu
-        Object.assign(token, extendedToken);
-        console.log('🔑 JWT Supabase mis à jour pour:', user.email);
+        if (account?.provider === 'google' && user.email) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('email', user.email.toLowerCase())
+            .single();
+          if (profile) {
+            token.id = profile.id;
+            token.username = profile.username;
+            token.role = profile.role || 'user';
+            token.isVerified = profile.is_verified || false;
+            token.isArtist = profile.is_artist || false;
+            token.artistName = profile.artist_name;
+            token.genre = profile.genre || [];
+            token.totalPlays = profile.total_plays || 0;
+            token.totalLikes = profile.total_likes || 0;
+            token.lastSeen = profile.last_seen;
+          }
+        } else {
+          const extendedToken = {
+            ...token,
+            id: user.id,
+            username: user.username,
+            role: user.role,
+            isVerified: user.isVerified,
+            isArtist: user.isArtist,
+            artistName: user.artistName,
+            genre: user.genre,
+            totalPlays: user.totalPlays,
+            totalLikes: user.totalLikes,
+            lastSeen: user.lastSeen,
+          };
+          Object.assign(token, extendedToken);
+        }
+        console.log('🔑 JWT mis à jour pour:', user.email);
       }
       return token;
     },

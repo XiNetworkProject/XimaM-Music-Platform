@@ -73,15 +73,15 @@ export default function MentionsLegalesPage() {
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-purple-400" />
                   <span className="text-white/60">Email :</span>
-                  <a href="mailto:contact@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
-                    contact@synaura.fr
+                  <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+                    contact.syn@synaura.fr
                   </a>
                 </div>
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-purple-400" />
                   <span className="text-white/60">Support légal :</span>
-                  <a href="mailto:legal@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
-                    legal@synaura.fr
+                  <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+                    contact.syn@synaura.fr
                   </a>
                 </div>
               </div>
@@ -117,7 +117,7 @@ export default function MentionsLegalesPage() {
                 Les informations contenues sur ce site sont aussi précises que possible et le site remis à jour à 
                 différentes périodes de l'année, mais peut toutefois contenir des inexactitudes ou des omissions. 
                 Si vous constatez une lacune, erreur ou ce qui parait être un dysfonctionnement, merci de bien vouloir 
-                le signaler par email à contact@synaura.fr, en décrivant le problème de la manière la plus précise possible.
+                le signaler par email à contact.syn@synaura.fr, en décrivant le problème de la manière la plus précise possible.
               </p>
 
               <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">6. Droit applicable</h2>

@@ -29,6 +29,7 @@ import FollowButton from '@/components/FollowButton';
 import TrackContextMenu from '@/components/TrackContextMenu';
 import LikeButton from '@/components/LikeButton';
 import AdSlot from '@/components/AdSlot';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 
 interface Track {
   _id: string;
@@ -1602,6 +1603,8 @@ export default function SynauraHome() {
           onGo={onGo}
           onListenNow={onListenNow}
         />
+
+        {session && <OnboardingChecklist />}
 
         {/* Carousel en avant — visible immédiatement */}
         <section className="w-full" aria-label="À la une">

@@ -52,7 +52,7 @@ export default function CGVPage() {
                 <p className="text-sm text-blue-200">
                   Maxime VERMEULEN - Auto-entrepreneur<br />
                   SIRET : 991635194<br />
-                  Email : billing@synaura.fr
+                  Email : contact.syn@synaura.fr
                 </p>
               </div>
 

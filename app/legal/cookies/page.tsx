@@ -200,8 +200,8 @@ export default function CookiesPage() {
               </p>
               <div className="flex items-center gap-2 mb-4">
                 <Cookie className="w-4 h-4 text-purple-400" />
-                <a href="mailto:cookies@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
-                  cookies@synaura.fr
+                <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+                  contact.syn@synaura.fr
                 </a>
               </div>
 

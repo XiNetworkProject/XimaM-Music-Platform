@@ -259,7 +259,10 @@ export default function SynauraProfile(){
 
   // Gestion follow
   const handleFollow = async () => {
-    if (!session?.user) return;
+    if (!session?.user) {
+      router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`);
+      return;
+    }
     try {
       if (!usernameStr) return;
       const res = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`, { method: 'POST' });
@@ -866,6 +869,22 @@ export default function SynauraProfile(){
                 </div>
               </div>
             )}
+          </section>
+        )}
+
+        {/* CTA for guests */}
+        {!session && (
+          <section className="rounded-2xl bg-gradient-to-r from-violet-900/30 to-fuchsia-900/30 border border-violet-500/20 p-6 text-center space-y-3">
+            <h2 className="text-lg font-semibold">Rejoins Synaura gratuitement</h2>
+            <p className="text-sm text-white/60 max-w-md mx-auto">Crée ton compte pour suivre {profile.name || usernameStr}, sauvegarder tes favoris et créer de la musique avec l'IA.</p>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
+              <button onClick={() => router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`)} className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-semibold hover:brightness-110 transition-all">
+                <UserPlus className="w-4 h-4" /> Créer un compte
+              </button>
+              <button onClick={() => router.push('/auth/signin')} className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 text-sm hover:bg-white/16 transition-all">
+                Se connecter
+              </button>
+            </div>
           </section>
         )}
       </main>

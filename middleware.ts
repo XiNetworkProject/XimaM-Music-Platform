@@ -11,12 +11,16 @@ const publicPages = [
   '/auth/forgot-password',
   '/auth/reset-password',
   '/reset-password',
-  '/api/auth/count-users'
+  '/api/auth/count-users',
+  '/track',
+  '/embed',
+  '/join',
+  '/landing',
 ];
 
 // Pages protégées (nécessitent une authentification)
 const protectedPages = [
-  '/profile',
+  '/profile/edit',
   '/upload',
   '/library',
   '/messages',

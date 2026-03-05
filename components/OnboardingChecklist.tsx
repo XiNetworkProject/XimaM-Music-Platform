@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CheckCircle2, UserPlus, Upload, BarChart3 } from 'lucide-react';
+import { CheckCircle2, UserPlus, Upload, Sparkles, Music, X } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 
 interface UsageResponse {
@@ -17,7 +17,8 @@ export default function OnboardingChecklist() {
   const [usage, setUsage] = useState<UsageResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statsViewed, setStatsViewed] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+  const [triedStudio, setTriedStudio] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const refreshUsage = useCallback(async () => {
@@ -26,10 +27,7 @@ export default function OnboardingChecklist() {
       setError(null);
       const res = await fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } });
       if (res.ok) {
-        const data = await res.json();
-        setUsage(data);
-      } else {
-        setUsage(null);
+        setUsage(await res.json());
       }
     } catch {
       setError('Erreur de chargement');
@@ -38,146 +36,114 @@ export default function OnboardingChecklist() {
     }
   }, []);
 
-  // Chargement initial avec toutes les données
   useEffect(() => {
-    const loadOnboardingData = async () => {
+    const load = async () => {
       try {
         setLoading(true);
-        
-        // Charger les données d'usage
         const res = await fetch('/api/subscriptions/usage', { headers: { 'Cache-Control': 'no-store' } });
-        if (res.ok) {
-          const data = await res.json();
-          setUsage(data);
-        }
-        
-        // Charger l'état viewedStats depuis localStorage ET sessionStorage
-        const localViewed = localStorage.getItem('onboarding.viewedStats');
-        const sessionViewed = sessionStorage.getItem('onboarding.viewedStats');
-        setStatsViewed(!!(localViewed || sessionViewed));
-        
-      } catch (err) {
+        if (res.ok) setUsage(await res.json());
+        setDismissed(!!localStorage.getItem('onboarding.dismissed'));
+        setTriedStudio(!!localStorage.getItem('onboarding.triedStudio'));
+      } catch {
         setError('Erreur de chargement');
       } finally {
         setLoading(false);
-        // Marquer le chargement initial comme terminé après un délai pour éviter le flash
         setTimeout(() => setInitialLoadComplete(true), 300);
       }
     };
+    load();
 
-    loadOnboardingData();
-
-    // Écouter les changements
     const onFocus = () => {
       refreshUsage();
-      const localViewed = localStorage.getItem('onboarding.viewedStats');
-      const sessionViewed = sessionStorage.getItem('onboarding.viewedStats');
-      setStatsViewed(!!(localViewed || sessionViewed));
+      setTriedStudio(!!localStorage.getItem('onboarding.triedStudio'));
     };
-    
     window.addEventListener('focus', onFocus);
-    window.addEventListener('onboardingStatsViewed', onFocus as any);
-    return () => {
-      window.removeEventListener('focus', onFocus);
-      window.removeEventListener('onboardingStatsViewed', onFocus as any);
-    };
+    return () => window.removeEventListener('focus', onFocus);
   }, [refreshUsage]);
 
   const steps = useMemo(() => {
-    const hasAccount = !!user?.id; // connecté
+    const hasAccount = !!user?.id;
     const hasOneTrack = (usage?.tracks?.used || 0) > 0;
-    const hasViewedStats = statsViewed;
-    return {
-      hasAccount,
-      hasOneTrack,
-      hasViewedStats,
-      completedCount: [hasAccount, hasOneTrack, hasViewedStats].filter(Boolean).length,
-    };
-  }, [user?.id, usage?.tracks?.used, statsViewed]);
+    const hasTriedStudio = triedStudio;
+    const hasListened = typeof window !== 'undefined' && !!localStorage.getItem('onboarding.listened');
+    return [
+      { key: 'account', label: 'Creer un compte', done: hasAccount, icon: UserPlus, action: '/auth/signup', actionLabel: 'Creer' },
+      { key: 'listen', label: 'Ecouter un titre', done: hasListened, icon: Music, action: '/discover', actionLabel: 'Ecouter' },
+      { key: 'studio', label: 'Essayer le Studio IA', done: hasTriedStudio, icon: Sparkles, action: '/ai-generator', actionLabel: 'Essayer' },
+      { key: 'upload', label: 'Uploader ou publier', done: hasOneTrack, icon: Upload, action: '/upload', actionLabel: 'Uploader' },
+    ];
+  }, [user?.id, usage?.tracks?.used, triedStudio]);
 
-  const progress = Math.round((steps.completedCount / 3) * 100);
+  const completedCount = steps.filter(s => s.done).length;
+  const progress = Math.round((completedCount / steps.length) * 100);
 
-  // Ne rien afficher tant que le chargement initial n'est pas terminé
-  if (!initialLoadComplete) {
-    return null;
-  }
-
-  // Masquer si tout est complété
-  if (!loading && !error && steps.completedCount === 3) {
-    return null;
-  }
+  if (!initialLoadComplete || dismissed) return null;
+  if (!loading && !error && completedCount === steps.length) return null;
 
   return (
-    <div className="w-full mb-4">
-      <div className="panel-suno border border-[var(--border)] rounded-xl p-3 md:p-4 bg-white/[0.03]">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="text-green-400" size={18} />
-            <div className="text-sm md:text-base font-medium">Onboarding • Terminez ces 3 étapes</div>
+    <div className="w-full mb-5">
+      <div className="relative rounded-2xl border border-white/[0.08] bg-gradient-to-r from-violet-500/[0.06] to-fuchsia-500/[0.04] backdrop-blur-sm p-4 md:p-5">
+        <button
+          onClick={() => { setDismissed(true); localStorage.setItem('onboarding.dismissed', '1'); }}
+          className="absolute top-3 right-3 p-1 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/5 transition"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center">
+            <Sparkles size={16} className="text-white" />
           </div>
-          <div className="text-xs text-white/60 tabular-nums">{progress}%</div>
+          <div>
+            <div className="text-sm font-semibold">Bienvenue sur Synaura</div>
+            <div className="text-[11px] text-white/50">{completedCount}/{steps.length} etapes completees</div>
+          </div>
+          <div className="ml-auto text-xs font-medium text-violet-300 tabular-nums">{progress}%</div>
         </div>
 
-        <div className="w-full h-2 rounded-full bg-white/10 overflow-hidden mb-3">
-          <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500" style={{ width: `${progress}%`, transition: 'width 180ms ease' }} />
+        <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden mb-4">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+            style={{ width: `${progress}%`, transition: 'width 300ms ease' }}
+          />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {/* Step 1 */}
-          <div className={`flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2 ${steps.hasAccount ? 'bg-green-500/10 border-green-500/20' : 'bg-white/[0.02]'}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center ${steps.hasAccount ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white/80'}`}>
-                <UserPlus size={14} />
-              </div>
-              <div className="text-xs md:text-sm truncate">Créer un compte</div>
-            </div>
-            {steps.hasAccount ? (
-              <CheckCircle2 size={16} className="text-green-400" />
-            ) : (
-              <button onClick={() => router.push('/auth/signin')} className="text-xs px-2 py-1 rounded-md bg-white/10 hover:bg-white/20">Créer</button>
-            )}
-          </div>
-
-          {/* Step 2 */}
-          <div className={`flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2 ${steps.hasOneTrack ? 'bg-green-500/10 border-green-500/20' : 'bg-white/[0.02]'}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center ${steps.hasOneTrack ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white/80'}`}>
-                <Upload size={14} />
-              </div>
-              <div className="text-xs md:text-sm truncate">Uploader 1 piste</div>
-            </div>
-            {steps.hasOneTrack ? (
-              <CheckCircle2 size={16} className="text-green-400" />
-            ) : (
-              <button onClick={() => router.push('/upload')} className="text-xs px-2 py-1 rounded-md bg-white/10 hover:bg-white/20">Uploader</button>
-            )}
-          </div>
-
-          {/* Step 3 */}
-          <div className={`flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2 ${steps.hasViewedStats ? 'bg-green-500/10 border-green-500/20' : 'bg-white/[0.02]'}`}>
-            <div className="flex items-center gap-2 min-w-0">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center ${steps.hasViewedStats ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white/80'}`}>
-                <BarChart3 size={14} />
-              </div>
-              <div className="text-xs md:text-sm truncate">Voir les stats de base</div>
-            </div>
-            {steps.hasViewedStats ? (
-              <CheckCircle2 size={16} className="text-green-400" />
-            ) : (
-              <button onClick={() => router.push('/stats')} className="text-xs px-2 py-1 rounded-md bg-white/10 hover:bg-white/20">Voir</button>
-            )}
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {steps.map((step) => {
+            const Icon = step.icon;
+            return (
+              <button
+                key={step.key}
+                onClick={() => {
+                  if (step.key === 'studio') localStorage.setItem('onboarding.triedStudio', '1');
+                  if (step.key === 'listen') localStorage.setItem('onboarding.listened', '1');
+                  router.push(step.action);
+                }}
+                className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                  step.done
+                    ? 'border-emerald-500/20 bg-emerald-500/[0.06]'
+                    : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10'
+                }`}
+              >
+                <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  step.done ? 'bg-emerald-500/20' : 'bg-white/[0.06]'
+                }`}>
+                  {step.done ? (
+                    <CheckCircle2 size={14} className="text-emerald-400" />
+                  ) : (
+                    <Icon size={13} className="text-white/60" />
+                  )}
+                </div>
+                <span className={`text-xs truncate ${step.done ? 'text-emerald-300/80 line-through' : 'text-white/70'}`}>
+                  {step.label}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        {loading && (
-          <div className="mt-2 text-xs text-white/50">Chargement…</div>
-        )}
-        {error && (
-          <div className="mt-2 text-xs text-red-400">{error}</div>
-        )}
+        {error && <div className="mt-2 text-xs text-red-400">{error}</div>}
       </div>
     </div>
   );
 }
-
-

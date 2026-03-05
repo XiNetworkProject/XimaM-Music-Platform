@@ -214,8 +214,8 @@ function SubscriptionSuccessContent() {
               <h3 className="text-sm font-semibold">Merci pour ton soutien.</h3>
               <p className="mt-2 text-sm text-foreground-tertiary">
                 Si tu as un souci de facturation, écris à{' '}
-                <a className="underline" href="mailto:billing@synaura.fr">
-                  billing@synaura.fr
+                <a className="underline" href="mailto:contact.syn@synaura.fr">
+                  contact.syn@synaura.fr
                 </a>
                 .
               </p>

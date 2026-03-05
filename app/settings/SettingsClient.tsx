@@ -8,9 +8,11 @@ import {
   Bell,
   Camera,
   Check,
+  Copy,
   Crown,
   ExternalLink,
   FileText,
+  Gift,
   Loader2,
   LogOut,
   Settings,
@@ -25,7 +27,7 @@ import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
 import BottomNav from '@/components/BottomNav';
 
-type SettingsTab = 'profil' | 'compte' | 'preferences' | 'securite' | 'legal';
+type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'securite' | 'legal';
 
 type ProfileForm = {
   name: string;
@@ -158,8 +160,12 @@ export default function SettingsClient() {
 
   const initialTab = (searchParams.get('tab') || 'profil') as SettingsTab;
   const [tab, setTab] = useState<SettingsTab>(
-    (['profil', 'compte', 'preferences', 'securite', 'legal'] as SettingsTab[]).includes(initialTab) ? initialTab : 'profil'
+    (['profil', 'compte', 'parrainage', 'preferences', 'securite', 'legal'] as SettingsTab[]).includes(initialTab) ? initialTab : 'profil'
   );
+
+  const [referralData, setReferralData] = useState<any>(null);
+  const [referralLoading, setReferralLoading] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
 
   const username = (user as any)?.username as string | undefined;
   const email = (user as any)?.email as string | undefined;
@@ -470,6 +476,13 @@ export default function SettingsClient() {
               <div className="mt-2 grid gap-2">
                 <SettingsNavItem active={tab === 'profil'} icon={User} label="Profil" onClick={() => setTabAndUrl('profil')} />
                 <SettingsNavItem active={tab === 'compte'} icon={Crown} label="Compte" onClick={() => setTabAndUrl('compte')} />
+                <SettingsNavItem active={tab === 'parrainage'} icon={Gift} label="Parrainage" onClick={() => {
+                  setTabAndUrl('parrainage');
+                  if (!referralData) {
+                    setReferralLoading(true);
+                    fetch('/api/referral').then(r => r.json()).then(d => setReferralData(d)).catch(() => {}).finally(() => setReferralLoading(false));
+                  }
+                }} />
                 <SettingsNavItem active={tab === 'preferences'} icon={Sparkles} label="Préférences" onClick={() => setTabAndUrl('preferences')} />
                 <SettingsNavItem active={tab === 'securite'} icon={Shield} label="Sécurité" onClick={() => setTabAndUrl('securite')} />
                 <SettingsNavItem active={tab === 'legal'} icon={FileText} label="Légal" onClick={() => setTabAndUrl('legal')} />
@@ -687,6 +700,85 @@ export default function SettingsClient() {
                     <div className="text-sm font-semibold">{email || '—'}</div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {tab === 'parrainage' && (
+              <div className="panel-suno border border-border-secondary rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Gift className="h-5 w-5 text-violet-400" />
+                  <div className="text-base font-semibold">Programme de parrainage</div>
+                </div>
+                <div className="text-xs text-foreground-inactive mb-4">Invite tes amis et gagnez tous les deux 50 crédits IA.</div>
+
+                {referralLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-foreground-inactive" />
+                  </div>
+                ) : referralData ? (
+                  <div className="space-y-4">
+                    <div className="rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4">
+                      <div className="text-xs text-foreground-inactive mb-2">Ton lien de parrainage</div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          readOnly
+                          value={referralData.referralLink || ''}
+                          className="flex-1 text-sm bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white truncate"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(referralData.referralLink || '');
+                            setReferralCopied(true);
+                            setTimeout(() => setReferralCopied(false), 2000);
+                          }}
+                          className="px-3 py-2 rounded-lg bg-violet-500/20 border border-violet-500/30 text-violet-300 text-xs font-medium hover:bg-violet-500/30 transition flex items-center gap-1.5"
+                        >
+                          {referralCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          {referralCopied ? 'Copié !' : 'Copier'}
+                        </button>
+                      </div>
+                      <div className="mt-2 text-[11px] text-foreground-inactive">Code : <span className="text-white/70 font-mono">{referralData.referralCode}</span></div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="rounded-xl border border-border-secondary bg-background-fog-thin p-3 text-center">
+                        <div className="text-lg font-bold text-white">{referralData.totalReferrals || 0}</div>
+                        <div className="text-[11px] text-foreground-inactive">Filleuls</div>
+                      </div>
+                      <div className="rounded-xl border border-border-secondary bg-background-fog-thin p-3 text-center">
+                        <div className="text-lg font-bold text-violet-300">{referralData.totalCreditsEarned || 0}</div>
+                        <div className="text-[11px] text-foreground-inactive">Crédits gagnés</div>
+                      </div>
+                      <div className="rounded-xl border border-border-secondary bg-background-fog-thin p-3 text-center">
+                        <div className="text-lg font-bold text-emerald-300">{referralData.remainingSlots ?? 20}</div>
+                        <div className="text-[11px] text-foreground-inactive">Places restantes</div>
+                      </div>
+                    </div>
+
+                    {referralData.referrals?.length > 0 && (
+                      <div>
+                        <div className="text-sm font-semibold mb-2">Tes filleuls</div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {referralData.referrals.map((r: any) => (
+                            <div key={r.id} className="flex items-center gap-3 rounded-xl border border-border-secondary bg-background-fog-thin p-2.5">
+                              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold">
+                                {r.avatar ? <img src={r.avatar} alt="" className="w-8 h-8 rounded-full object-cover" /> : (r.username?.[0] || '?').toUpperCase()}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium truncate">@{r.username}</div>
+                                <div className="text-[11px] text-foreground-inactive">{new Date(r.date).toLocaleDateString('fr-FR')}</div>
+                              </div>
+                              <div className="text-xs text-emerald-300 font-medium">+{r.creditsGranted} cr.</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-foreground-inactive text-center py-8">Erreur de chargement</div>
+                )}
               </div>
             )}
 

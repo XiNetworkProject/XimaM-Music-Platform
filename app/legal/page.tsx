@@ -108,7 +108,7 @@ export default function LegalPage() {
               </div>
               <div>
                 <span className="text-white/60">Contact :</span>
-                <span className="text-white/90 ml-2">legal@synaura.fr</span>
+                <span className="text-white/90 ml-2">contact.syn@synaura.fr</span>
               </div>
             </div>
           </motion.div>
@@ -158,8 +158,8 @@ export default function LegalPage() {
             <p>Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</p>
             <p className="mt-2">
               Pour toute question légale :{' '}
-              <a href="mailto:legal@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
-                legal@synaura.fr
+              <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+                contact.syn@synaura.fr
               </a>
             </p>
           </motion.div>

@@ -416,8 +416,8 @@ export default function SubscriptionsPage() {
 
                 <div className="mt-4 text-xs text-foreground-tertiary">
                   Besoin d&apos;aide ?{' '}
-                  <a className="underline" href="mailto:billing@synaura.fr">
-                    billing@synaura.fr
+                  <a className="underline" href="mailto:contact.syn@synaura.fr">
+                    contact.syn@synaura.fr
                   </a>
                 </div>
               </div>
@@ -594,7 +594,7 @@ export default function SubscriptionsPage() {
                 <Check className="w-4 h-4" /> Annulation en 1 clic
               </span>
               <span className="inline-flex items-center gap-2">
-                <Check className="w-4 h-4" /> Support: billing@synaura.fr
+                <Check className="w-4 h-4" /> Support: contact.syn@synaura.fr
               </span>
             </div>
           </section>

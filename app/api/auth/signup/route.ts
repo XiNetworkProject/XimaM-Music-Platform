@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
+import { sendEmail, welcomeEmailTemplate } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, username, email, password } = await request.json();
+    const { name, username, email, password, referralCode } = await request.json();
 
-    // Validation des données
     if (!name || !username || !email || !password) {
       return NextResponse.json(
         { error: 'Tous les champs sont requis' },
@@ -48,7 +48,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier si l'email existe déjà
     const { data: existingEmail, error: emailError } = await supabase
       .from('profiles')
       .select('*')
@@ -62,7 +61,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Vérifier si le nom d'utilisateur existe déjà
     const { data: existingUsername, error: usernameError } = await supabase
       .from('profiles')
       .select('*')
@@ -76,7 +74,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer l'utilisateur dans Supabase Auth avec le client admin
     const { data: { user }, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email.trim().toLowerCase(),
       password: password,
@@ -91,7 +88,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Créer le profil dans la table profiles avec le client admin
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .insert({
@@ -108,7 +104,6 @@ export async function POST(request: NextRequest) {
 
     if (profileError) {
       console.error('❌ Erreur lors de la création du profil:', profileError);
-      // Supprimer l'utilisateur créé si le profil échoue
       await supabaseAdmin.auth.admin.deleteUser(user.id);
       return NextResponse.json(
         { error: profileError?.message || 'Erreur lors de la création du profil' },
@@ -117,6 +112,39 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('✅ Nouvel utilisateur créé:', profile.username);
+
+    // Process referral if provided
+    let referrerName: string | null = null;
+    if (referralCode) {
+      try {
+        const refRes = await fetch(
+          `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/referral`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ referralCode, newUserId: user.id }),
+          }
+        );
+        if (refRes.ok) {
+          const refData = await refRes.json();
+          referrerName = refData.referrerUsername || null;
+          console.log('✅ Parrainage appliqué:', referralCode);
+        }
+      } catch (refErr) {
+        console.warn('⚠️ Erreur parrainage (non bloquant):', refErr);
+      }
+    }
+
+    // Send welcome email (non-blocking)
+    sendEmail({
+      to: email.trim().toLowerCase(),
+      subject: 'Bienvenue sur Synaura ! 🎵',
+      html: welcomeEmailTemplate({
+        name: name.trim(),
+        username: username.trim().toLowerCase(),
+        referrerName,
+      }),
+    }).catch((err: any) => console.warn('⚠️ Erreur envoi email bienvenue:', err));
 
     return NextResponse.json(
       { 
@@ -139,4 +167,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-} 
+}

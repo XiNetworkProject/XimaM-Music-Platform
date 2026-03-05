@@ -52,7 +52,7 @@ export default function RGPDPage() {
                 <p className="text-sm text-green-200">
                   Maxime VERMEULEN - Auto-entrepreneur<br />
                   SIRET : 991635194<br />
-                  Email : dpo@synaura.fr
+                  Email : contact.syn@synaura.fr
                 </p>
               </div>
 
@@ -125,8 +125,8 @@ export default function RGPDPage() {
                   <h3 className="text-sm font-medium text-white/90 mb-2">3.2 Par email</h3>
                   <p className="text-sm text-white/70">
                     Pour des demandes spécifiques, contactez-nous à :{' '}
-                    <a href="mailto:dpo@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
-                      dpo@synaura.fr
+                    <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+                      contact.syn@synaura.fr
                     </a>
                   </p>
                 </div>
@@ -218,7 +218,7 @@ export default function RGPDPage() {
                 Si vous estimez que vos droits ne sont pas respectés, vous pouvez :
               </p>
               <ul className="text-sm text-white/70 space-y-2 mb-6">
-                <li>• Nous contacter directement à dpo@synaura.fr</li>
+                <li>• Nous contacter directement à contact.syn@synaura.fr</li>
                 <li>• Introduire une réclamation auprès de la CNIL :{' '}
                   <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:text-purple-300 transition-colors">
                     www.cnil.fr
@@ -234,8 +234,8 @@ export default function RGPDPage() {
                 </p>
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-purple-400" />
-                  <a href="mailto:dpo@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
-                    dpo@synaura.fr
+                  <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+                    contact.syn@synaura.fr
                   </a>
                 </div>
               </div>

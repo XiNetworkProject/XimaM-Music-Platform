@@ -322,7 +322,7 @@ export default function FAQPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <a
-                    href="mailto:support@synaura.fr"
+                    href="mailto:contact.syn@synaura.fr"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-xs md:text-sm font-semibold shadow-lg hover:scale-[1.03] active:scale-100 transition-transform"
                   >
                     <MessageSquare className="w-4 h-4" />

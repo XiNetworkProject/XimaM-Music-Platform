@@ -29,7 +29,7 @@ export default function SupportPage() {
 
           <div className="mt-5 flex flex-wrap gap-2">
             <a
-              href="mailto:contact@synaura.fr"
+              href="mailto:contact.syn@synaura.fr"
               className="h-11 px-4 inline-flex items-center justify-center rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary hover:opacity-90 transition font-semibold"
             >
               Contacter (email)
@@ -55,20 +55,20 @@ export default function SupportPage() {
             <div className="mt-2 text-sm text-foreground-secondary space-y-2">
               <div>
                 <span className="text-foreground-tertiary">Général :</span>{' '}
-                <a className="underline hover:text-foreground-primary" href="mailto:contact@synaura.fr">
-                  contact@synaura.fr
+                <a className="underline hover:text-foreground-primary" href="mailto:contact.syn@synaura.fr">
+                  contact.syn@synaura.fr
                 </a>
               </div>
               <div>
                 <span className="text-foreground-tertiary">Légal :</span>{' '}
-                <a className="underline hover:text-foreground-primary" href="mailto:legal@synaura.fr">
-                  legal@synaura.fr
+                <a className="underline hover:text-foreground-primary" href="mailto:contact.syn@synaura.fr">
+                  contact.syn@synaura.fr
                 </a>
               </div>
               <div>
                 <span className="text-foreground-tertiary">Facturation :</span>{' '}
-                <a className="underline hover:text-foreground-primary" href="mailto:billing@synaura.fr">
-                  billing@synaura.fr
+                <a className="underline hover:text-foreground-primary" href="mailto:contact.syn@synaura.fr">
+                  contact.syn@synaura.fr
                 </a>
               </div>
             </div>
