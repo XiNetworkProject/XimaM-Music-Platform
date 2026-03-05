@@ -26,20 +26,19 @@ export async function POST(_req: NextRequest) {
     }
 
     const status = current.status; // active, trialing, past_due, unpaid, canceled
-    let plan: 'free' | 'starter' | 'pro' | 'enterprise' = 'free';
+    let plan: 'free' | 'starter' | 'pro' = 'free';
     if (status === 'active' || status === 'trialing' || status === 'past_due' || status === 'unpaid') {
-      const env = process.env;
+      const { getPlanByPriceId } = require('@/lib/billing/pricing');
       const priceId = current.items.data[0]?.price?.id as string | undefined;
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR) plan = 'starter';
-      else if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR) plan = 'pro';
-      else if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR) plan = 'enterprise';
-      else {
+      const matched = priceId ? getPlanByPriceId(priceId) : null;
+      if (matched) {
+        plan = matched.key;
+      } else {
         const nick = (current.items.data[0]?.price?.nickname || '').toLowerCase();
         const prodName = (typeof current.items.data[0]?.price?.product === 'object' ? (current.items.data[0]?.price?.product as any)?.name : '')?.toLowerCase() || '';
         const txt = `${nick} ${prodName}`;
         if (/(starter|basic)/.test(txt)) plan = 'starter';
-        else if (/(pro|professional)/.test(txt)) plan = 'pro';
-        else if (/(enterprise)/.test(txt)) plan = 'enterprise';
+        else if (/(pro|professional|enterprise)/.test(txt)) plan = 'pro';
         else plan = 'starter';
       }
     }

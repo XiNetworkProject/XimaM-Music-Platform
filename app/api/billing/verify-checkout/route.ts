@@ -36,30 +36,22 @@ export async function POST(req: NextRequest) {
     // Déterminer le plan depuis le price ID
     const priceId = subscription.items?.data?.[0]?.price?.id;
     const priceToPlan = () => {
+      const { getPlanByPriceId } = require('@/lib/billing/pricing');
+      const matched = getPlanByPriceId(priceId);
+      if (matched) return matched.key;
+
       const env = process.env;
-      // Comparaison directe sur IDs (prix normaux + prix de lancement)
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || 
-          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR ||
-          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH_LAUNCH || 
+      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH_LAUNCH ||
           priceId === env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR_LAUNCH) return 'starter';
-      
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || 
-          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR ||
-          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH_LAUNCH || 
+      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH_LAUNCH ||
           priceId === env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR_LAUNCH) return 'pro';
-      
-      if (priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || 
-          priceId === env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR) return 'enterprise';
-      
-      // Fallback par nom du produit / nickname Stripe
+
       const item = subscription.items?.data?.[0];
       const nick = (item?.price?.nickname || '').toLowerCase();
       const prodName = (typeof item?.price?.product === 'object' ? (item?.price?.product as any)?.name : '')?.toLowerCase() || '';
       const txt = `${nick} ${prodName}`;
       if (/(starter|basic)/.test(txt)) return 'starter';
-      if (/(pro|professional)/.test(txt)) return 'pro';
-      if (/(enterprise)/.test(txt)) return 'enterprise';
-      
+      if (/(pro|professional|enterprise)/.test(txt)) return 'pro';
       return 'starter';
     };
 

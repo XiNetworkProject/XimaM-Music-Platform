@@ -83,11 +83,11 @@ export default function SubscriptionLimits() {
 
   const planKey: PlanKey = useMemo(() => {
     const p = String((usageInfo as any)?.plan || '').toLowerCase();
-    if (p === 'starter' || p === 'pro' || p === 'enterprise' || p === 'free') return p;
+    if (p === 'enterprise') return 'pro';
+    if (p === 'starter' || p === 'pro' || p === 'free') return p;
     const name = String(current?.subscription?.name || '').toLowerCase();
     if (name.includes('starter')) return 'starter';
-    if (name.includes('pro')) return 'pro';
-    if (name.includes('enterprise')) return 'enterprise';
+    if (name.includes('pro') || name.includes('enterprise')) return 'pro';
     return 'free';
   }, [current?.subscription?.name, usageInfo]);
 

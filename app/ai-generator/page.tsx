@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
+import { ACTION_COSTS, CREDITS_PER_GENERATION } from '@/lib/billing/pricing';
 import { useAIQuota } from '@/hooks/useAIQuota';
 import { useAudioPlayer } from '@/app/providers';
 import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
@@ -259,7 +260,7 @@ function ModelDropdownPortal({
               >
                 <span className="font-semibold">{m.label}</span>
                 <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${isActive ? tagMap[m.color] : 'bg-white/[0.04] text-white/30 border-white/[0.06]'}`}>{m.tag}</span>
-                <span className="ml-auto text-[10px] text-white/20 tabular-nums">12 cr.</span>
+                <span className="ml-auto text-[10px] text-white/20 tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
                 {isActive && (
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-white/40">
                     <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
@@ -2969,7 +2970,7 @@ export default function AIGenerator() {
                 )}
                 {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
                 {!isGenerating && !rateLimitActive && (
-                  <span className="text-[10px] font-semibold text-white/40 bg-white/[0.08] px-1.5 py-0.5 rounded-full tabular-nums">12 cr.</span>
+                  <span className="text-[10px] font-semibold text-white/40 bg-white/[0.08] px-1.5 py-0.5 rounded-full tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
                 )}
               </button>
 
@@ -4516,7 +4517,7 @@ export default function AIGenerator() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-white/25">Tous les modèles : 12 crédits/génération. Durée indicative.</p>
+                    <p className="text-[10px] text-white/25">Tous les modèles : {ACTION_COSTS.generation.credits} crédits/génération. Durée indicative.</p>
                   </div>
 
                   <div className="space-y-2.5">

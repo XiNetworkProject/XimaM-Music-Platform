@@ -100,9 +100,14 @@ export async function POST(req: NextRequest) {
       }, { status: 402 });
     }
 
-    // Débit des crédits (sécurisé en SQL)
+    // Débit des crédits (sécurisé en SQL, avec ledger)
     const { data: debitOk, error: debitError } = await (supabaseAdmin as any)
-      .rpc('ai_debit_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+      .rpc('ai_debit_credits', {
+        p_user_id: session.user.id,
+        p_amount: CREDITS_PER_GENERATION,
+        p_source: 'action_spend',
+        p_description: `Génération musicale (${effectiveModel})`,
+      });
     if (debitError || debitOk !== true) {
       return NextResponse.json({
         error: 'Impossible de débiter les crédits',
@@ -188,9 +193,11 @@ export async function POST(req: NextRequest) {
     
     if (!response.ok || json?.code !== 200) {
       console.error("❌ Erreur API Suno:", json);
-      // Rembourser les crédits en cas d'échec immédiat
       try {
-        await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+        await (supabaseAdmin as any).rpc('ai_add_credits', {
+          p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
+          p_source: 'refund', p_description: 'Remboursement échec API Suno',
+        });
       } catch {}
       const providerCode = Number(json?.code);
       const mappedStatus = mapProviderStatus(Number.isFinite(providerCode) ? providerCode : undefined, response.status);
@@ -204,7 +211,10 @@ export async function POST(req: NextRequest) {
     const taskId = json?.data?.taskId || json?.taskId;
     if (!taskId) {
       try {
-        await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+        await (supabaseAdmin as any).rpc('ai_add_credits', {
+          p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
+          p_source: 'refund', p_description: 'Remboursement taskId manquant',
+        });
       } catch {}
       return NextResponse.json(
         { error: "Réponse Suno invalide: taskId manquant", raw: json },

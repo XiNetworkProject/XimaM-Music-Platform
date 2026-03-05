@@ -149,7 +149,7 @@ export const useAudioService = () => {
         const j = res.ok ? await res.json().catch(() => ({})) : {};
         const raw = String(j?.subscription?.name || 'free').toLowerCase();
         const plan =
-          raw.includes('enterprise') ? 'enterprise' :
+          raw.includes('enterprise') ? 'pro' :
           raw.includes('pro') ? 'pro' :
           raw.includes('starter') ? 'starter' :
           'free';

@@ -1,8 +1,13 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, Sparkles, Coins, Check, Zap } from 'lucide-react';
-import { CREDIT_PACKS, getGenerationsFromCredits } from '@/lib/credits';
+import { X, Sparkles, Coins, Check, Zap, Info } from 'lucide-react';
+import {
+  CREDIT_PACKS,
+  CREDITS_PER_GENERATION,
+  getGenerationsFromCredits,
+  packEurPerCredit,
+} from '@/lib/billing/pricing';
 import { useState } from 'react';
 
 interface BuyCreditsModalProps {
@@ -11,10 +16,10 @@ interface BuyCreditsModalProps {
 }
 
 export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProps) {
-  const [selectedPackId, setSelectedPackId] = useState<string>('plus');
+  const [selectedPackId, setSelectedPackId] = useState<string>('populaire');
   const [loading, setLoading] = useState(false);
 
-  const selected = CREDIT_PACKS.find(p => p.id === selectedPackId) || CREDIT_PACKS[1];
+  const selected = CREDIT_PACKS.find(p => p.id === selectedPackId) || CREDIT_PACKS[2];
 
   const onCheckout = async () => {
     try {
@@ -61,7 +66,7 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                 </div>
                 <div>
                   <h2 className="text-base font-semibold text-white/90">Acheter des crédits</h2>
-                  <p className="text-[11px] text-white/35">1 génération = 12 crédits</p>
+                  <p className="text-[11px] text-white/35">1 génération = {CREDITS_PER_GENERATION} crédits</p>
                 </div>
               </div>
               <button
@@ -75,7 +80,8 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
             {/* Packs */}
             <div className="p-5 space-y-3">
               {CREDIT_PACKS.map((pack) => {
-                const gens = getGenerationsFromCredits(pack.displayedCredits);
+                const gens = getGenerationsFromCredits(pack.credits);
+                const eurPerCredit = packEurPerCredit(pack);
                 const active = selectedPackId === pack.id;
                 return (
                   <button
@@ -91,12 +97,7 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                     <div className="flex items-center justify-between">
                       <div className="space-y-0.5">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-white/90">{pack.displayedCredits.toLocaleString()} crédits</span>
-                          {pack.bonusCredits > 0 && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-400/15 text-emerald-300 border border-emerald-400/20">
-                              +{pack.bonusCredits} bonus
-                            </span>
-                          )}
+                          <span className="font-semibold text-white/90">{pack.credits.toLocaleString()} crédits</span>
                           {pack.badge && (
                             <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
                               pack.badge === 'populaire'
@@ -107,13 +108,16 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-white/35">
-                          <Zap className="w-3 h-3" />
-                          <span>≈ {gens} générations</span>
+                        <div className="flex items-center gap-3 text-[11px] text-white/35">
+                          <span className="inline-flex items-center gap-1">
+                            <Zap className="w-3 h-3" />
+                            ≈ {gens} générations
+                          </span>
+                          <span>{(eurPerCredit * 100).toFixed(2)}¢/crédit</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-lg font-bold text-white/90 tabular-nums">€{pack.priceEur.toFixed(2)}</span>
+                        <span className="text-lg font-bold text-white/90 tabular-nums">{pack.priceEur.toFixed(2)}€</span>
                         <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                           active
                             ? 'border-indigo-400 bg-indigo-400'
@@ -130,6 +134,11 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                 );
               })}
 
+              <div className="flex items-start gap-2 px-1 py-2 text-[11px] text-white/30">
+                <Info className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>Les abonnés Starter ou Pro bénéficient d&apos;un meilleur tarif par crédit avec leurs crédits mensuels inclus.</span>
+              </div>
+
               <button
                 onClick={onCheckout}
                 disabled={loading}
@@ -143,7 +152,7 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    Acheter {selected.displayedCredits.toLocaleString()} crédits — €{selected.priceEur.toFixed(2)}
+                    Acheter {selected.credits.toLocaleString()} crédits — {selected.priceEur.toFixed(2)}€
                   </>
                 )}
               </button>

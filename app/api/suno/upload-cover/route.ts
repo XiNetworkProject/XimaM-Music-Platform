@@ -28,7 +28,10 @@ export async function POST(req: NextRequest) {
   const refundCredits = async (userId: string) => {
     if (!debited) return;
     try {
-      await (supabaseAdmin as any).rpc('ai_add_credits', { p_user_id: userId, p_amount: CREDITS_PER_GENERATION });
+      await (supabaseAdmin as any).rpc('ai_add_credits', {
+        p_user_id: userId, p_amount: CREDITS_PER_GENERATION,
+        p_source: 'refund', p_description: 'Remboursement échec upload-cover',
+      });
     } catch {}
   };
 
@@ -78,7 +81,10 @@ export async function POST(req: NextRequest) {
     }
 
     const { data: debitOk, error: debitError } = await (supabaseAdmin as any)
-      .rpc('ai_debit_credits', { p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION });
+      .rpc('ai_debit_credits', {
+        p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
+        p_source: 'action_spend', p_description: `Upload cover / Remix (${effectiveModel})`,
+      });
     if (debitError || debitOk !== true) {
       return NextResponse.json({
         error: 'Impossible de débiter les crédits',

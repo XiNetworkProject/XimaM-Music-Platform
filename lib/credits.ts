@@ -1,68 +1,19 @@
-// Utilitaires de crédits Synaura (génération IA)
-// 1 génération = 12 crédits (aligné Suno, affichage psychologique via bonus)
+// ──────────────────────────────────────────────────────────────
+// lib/credits.ts — Rétro-compatibilité, ré-exporte depuis lib/billing/pricing.ts
+// ──────────────────────────────────────────────────────────────
 
-export const CREDITS_PER_GENERATION = 12;
+export {
+  CREDITS_PER_GENERATION,
+  CREDIT_PACKS,
+  getGenerationsFromCredits,
+  generationsApprox,
+  findPackById,
+  priceToCents,
+  WELCOME_CREDITS,
+  ACTION_COSTS,
+} from './billing/pricing';
 
-export type CreditPackId = 'mini' | 'plus' | 'pro' | 'studio';
-
-export interface CreditPack {
-  id: CreditPackId;
-  label: string;
-  baseCredits: number; // crédits "réels" du pack, hors bonus visuel
-  bonusCredits: number; // bonus affiché pour effet psychologique
-  displayedCredits: number; // base + bonus
-  priceEur: number; // prix TTC en EUR
-  badge?: 'populaire' | 'meilleure_valeur';
-}
-
-export const CREDIT_PACKS: CreditPack[] = [
-  {
-    id: 'mini',
-    label: 'Mini Créateur',
-    baseCredits: 500,
-    bonusCredits: 100,
-    displayedCredits: 600,
-    priceEur: 5.49,
-  },
-  {
-    id: 'plus',
-    label: 'Plus',
-    baseCredits: 1000,
-    bonusCredits: 200,
-    displayedCredits: 1200,
-    priceEur: 10.49,
-    badge: 'populaire',
-  },
-  {
-    id: 'pro',
-    label: 'Créateur Pro',
-    baseCredits: 2000,
-    bonusCredits: 400,
-    displayedCredits: 2400,
-    priceEur: 20.49,
-  },
-  {
-    id: 'studio',
-    label: 'Studio',
-    baseCredits: 4000,
-    bonusCredits: 800,
-    displayedCredits: 4800,
-    priceEur: 39.49,
-    badge: 'meilleure_valeur',
-  },
-];
-
-export function getGenerationsFromCredits(credits: number): number {
-  return Math.floor(credits / CREDITS_PER_GENERATION);
-}
-
-export function findPackById(id: CreditPackId): CreditPack | undefined {
-  return CREDIT_PACKS.find(p => p.id === id);
-}
-
-export function priceToCents(priceEur: number): number {
-  return Math.round(priceEur * 100);
-}
+export type { CreditPack, CreditPackId } from './billing/pricing';
 
 export async function fetchCreditsBalance(): Promise<{ balance: number } | null> {
   try {
@@ -73,10 +24,3 @@ export async function fetchCreditsBalance(): Promise<{ balance: number } | null>
     return { balance: 0 };
   }
 }
-
-export function generationsApprox(balance: number): number {
-  return Math.floor(balance / CREDITS_PER_GENERATION);
-}
-
-
-

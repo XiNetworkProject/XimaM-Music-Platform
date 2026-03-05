@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { stripe } from '@/lib/stripe';
-import { findPackById, priceToCents, CreditPackId } from '@/lib/credits';
+import { findPackById, priceToCents } from '@/lib/billing/pricing';
 
 export async function POST(req: NextRequest) {
   try {
@@ -12,10 +12,9 @@ export async function POST(req: NextRequest) {
     }
 
     const { packId } = await req.json();
-    const pack = findPackById((packId as CreditPackId));
+    const pack = findPackById(packId);
     if (!pack) return NextResponse.json({ error: 'Pack introuvable' }, { status: 400 });
 
-    // Créer un produit/price à la volée si nécessaire via mode payment + metadata
     const checkout = await stripe.checkout.sessions.create({
       mode: 'payment',
       customer_email: session.user.email as string,
@@ -24,14 +23,12 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: 'eur',
             product_data: {
-              name: `${pack.label} — ${pack.displayedCredits} crédits (dont bonus)`,
+              name: `${pack.label} — ${pack.credits} crédits`,
               metadata: {
-                userId: session.user.id,
-                packId: pack.id,
-                baseCredits: String(pack.baseCredits),
-                bonusCredits: String(pack.bonusCredits),
-                displayedCredits: String(pack.displayedCredits),
                 type: 'ai_credits',
+                packId: pack.id,
+                credits_amount: String(pack.credits),
+                is_pack: 'true',
               },
             },
             unit_amount: priceToCents(pack.priceEur),
@@ -44,15 +41,14 @@ export async function POST(req: NextRequest) {
       metadata: {
         userId: session.user.id,
         packId: pack.id,
-        baseCredits: String(pack.baseCredits),
-        bonusCredits: String(pack.bonusCredits),
+        credits_amount: String(pack.credits),
+        is_pack: 'true',
       },
     });
 
     return NextResponse.json({ checkoutUrl: checkout.url, sessionId: checkout.id });
   } catch (e: any) {
+    console.error('[Credits Checkout] Erreur:', e.message);
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
   }
 }
-
-

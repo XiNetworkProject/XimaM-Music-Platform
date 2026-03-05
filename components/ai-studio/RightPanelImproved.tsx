@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { ACTION_COSTS } from '@/lib/billing/pricing';
 import {
   Volume2,
   SkipBack,
@@ -396,7 +397,7 @@ export default function RightPanelImproved({
           <div className="h-full overflow-y-auto px-5 pb-6 pt-4 space-y-3">
             <div className="flex items-center gap-2 mb-1">
               <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-medium">Modèle IA</p>
-              <span className="text-[10px] text-white/25 ml-auto tabular-nums">12 crédits / génération</span>
+              <span className="text-[10px] text-white/25 ml-auto tabular-nums">{ACTION_COSTS.generation.credits} crédits / génération</span>
             </div>
             {[
               { id: 'V4_5', label: 'v4.5', desc: 'Rapide et stable — idéal pour l\'itération', tag: 'Rapide', color: 'emerald' },
@@ -432,7 +433,7 @@ export default function RightPanelImproved({
                         {m.tag}
                       </span>
                     </div>
-                    <span className="text-[10px] text-white/25 tabular-nums">12 cr.</span>
+                    <span className="text-[10px] text-white/25 tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
                   </div>
                   <p className="text-[11px] text-white/45 leading-relaxed">{m.desc}</p>
                   {isActive && (

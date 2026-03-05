@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { stripe } from '@/lib/stripe';
 import { supabaseAdmin } from '@/lib/supabase';
+import { findPackById } from '@/lib/billing/pricing';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,24 +17,32 @@ export async function POST(req: NextRequest) {
     if (cs.mode !== 'payment') return NextResponse.json({ error: 'Session non valide' }, { status: 400 });
     if (cs.payment_status !== 'paid') return NextResponse.json({ error: 'Paiement non confirmé', payment_status: cs.payment_status }, { status: 400 });
 
-    // Calculer crédits comme dans le webhook
-    const meta: any = (cs.metadata as any) || {};
-    const base = parseInt(meta.baseCredits || '0', 10);
-    const bonus = parseInt(meta.bonusCredits || '0', 10);
-    const displayed = parseInt(meta.displayedCredits || '0', 10);
+    const meta: any = cs.metadata || {};
     let creditsToAdd = 0;
-    if (displayed > 0) creditsToAdd = displayed; else if (base > 0) creditsToAdd = base + (bonus > 0 ? bonus : 0);
-    if (!creditsToAdd && typeof cs.amount_total === 'number') {
-      const eur = Math.round(cs.amount_total / 100);
-      if (eur === 5 || eur === 6) creditsToAdd = 600; else if (eur === 10 || eur === 11) creditsToAdd = 1200; else if (eur === 20 || eur === 21) creditsToAdd = 2400; else if (eur === 39 || eur === 40) creditsToAdd = 4800;
+
+    const packId = meta.packId;
+    if (packId) {
+      const pack = findPackById(packId);
+      if (pack) creditsToAdd = pack.credits;
     }
+
+    if (!creditsToAdd) {
+      const amount = parseInt(meta.credits_amount || meta.displayedCredits || '0', 10);
+      if (amount > 0) creditsToAdd = amount;
+    }
+
     if (creditsToAdd <= 0) return NextResponse.json({ error: 'Pack non déterminé' }, { status: 400 });
 
-    await supabaseAdmin.rpc('ai_add_credits', { p_user_id: session.user.id, p_amount: creditsToAdd });
+    await supabaseAdmin.rpc('ai_add_credits', {
+      p_user_id: session.user.id,
+      p_amount: creditsToAdd,
+      p_source: 'pack_purchase',
+      p_description: `Vérification achat pack ${packId || 'inconnu'} (${creditsToAdd} crédits)`,
+    });
+
     return NextResponse.json({ ok: true, added: creditsToAdd });
   } catch (e: any) {
+    console.error('[Credits Verify] Erreur:', e.message);
     return NextResponse.json({ error: e.message || 'Erreur' }, { status: 500 });
   }
 }
-
-

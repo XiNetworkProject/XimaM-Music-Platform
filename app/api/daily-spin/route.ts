@@ -51,15 +51,24 @@ async function getStatus(userId: string) {
 }
 
 async function grantCredits(userId: string, amount: number) {
-  const { data } = await supabaseAdmin
+  const safeAmount = Math.max(0, Math.floor(amount || 0));
+  if (safeAmount <= 0) return { before: 0, after: 0 };
+
+  const { data: beforeRow } = await supabaseAdmin
     .from('ai_credit_balances')
     .select('balance')
     .eq('user_id', userId)
     .maybeSingle();
-  const current = Number(data?.balance || 0);
-  const next = Math.max(0, current + Math.max(0, Math.floor(amount || 0)));
-  await supabaseAdmin.from('ai_credit_balances').upsert({ user_id: userId, balance: next }, { onConflict: 'user_id' });
-  return { before: current, after: next };
+  const before = Number(beforeRow?.balance || 0);
+
+  await supabaseAdmin.rpc('ai_add_credits', {
+    p_user_id: userId,
+    p_amount: safeAmount,
+    p_source: 'daily_spin',
+    p_description: `Roue quotidienne (+${safeAmount} crédits)`,
+  });
+
+  return { before, after: before + safeAmount };
 }
 
 async function grantBooster(userId: string, boosterKey: string) {

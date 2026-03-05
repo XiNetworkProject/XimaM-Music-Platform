@@ -17,6 +17,7 @@ import PaymentUpdateCard from './PaymentUpdateCard';
 import { PLAN_ENTITLEMENTS } from '@/lib/entitlements';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
+import { PLANS, WELCOME_CREDITS, CREDITS_PER_GENERATION, yearlyDiscount, effectiveMonthlyPrice } from '@/lib/billing/pricing';
 
 type UsageInfo = {
   tracks: { used: number; limit: number; percentage: number };
@@ -93,16 +94,12 @@ export default function SubscriptionsPage() {
   const priceMap = useMemo(
     () => ({
       Starter: {
-        month: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_MONTH || '',
-        year: process.env.NEXT_PUBLIC_STRIPE_PRICE_STARTER_YEAR || '',
+        month: PLANS.starter.stripePriceIds.month,
+        year: PLANS.starter.stripePriceIds.year,
       },
       Pro: {
-        month: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_MONTH || '',
-        year: process.env.NEXT_PUBLIC_STRIPE_PRICE_PRO_YEAR || '',
-      },
-      Enterprise: {
-        month: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_MONTH || '',
-        year: process.env.NEXT_PUBLIC_STRIPE_PRICE_ENTERPRISE_YEAR || '',
+        month: PLANS.pro.stripePriceIds.month,
+        year: PLANS.pro.stripePriceIds.year,
       },
     }),
     [],
@@ -112,29 +109,21 @@ export default function SubscriptionsPage() {
   const isFreeActive = activePlanName === 'free';
   const isStarterActive = activePlanName === 'starter';
   const isProActive = activePlanName === 'pro';
-  const isEnterpriseActive = activePlanName === 'enterprise';
 
   const selectedPlanLabel = useMemo(() => {
     if (!selectedPriceId) return null;
     if (selectedPriceId === priceMap.Starter[period]) return 'Starter';
     if (selectedPriceId === priceMap.Pro[period]) return 'Pro';
-    if (selectedPriceId === priceMap.Enterprise[period]) return 'Enterprise';
     return 'Plan';
-  }, [period, priceMap.Enterprise, priceMap.Pro, priceMap.Starter, selectedPriceId]);
+  }, [period, priceMap.Pro, priceMap.Starter, selectedPriceId]);
 
   const selectedPlanPriceText = useMemo(() => {
     if (!selectedPlanLabel) return null;
-    const baseMonthly =
-      selectedPlanLabel === 'Starter'
-        ? 4.99
-        : selectedPlanLabel === 'Pro'
-        ? 14.99
-        : 39.99;
+    const plan = selectedPlanLabel === 'Starter' ? PLANS.starter : PLANS.pro;
     if (period === 'year') {
-      const yearly = baseMonthly * 12 * 0.8;
-      return `${yearly.toFixed(2)}€ / an`;
+      return `${plan.priceYearly.toFixed(2)}€ / an`;
     }
-    return `${baseMonthly.toFixed(2)}€ / mois`;
+    return `${plan.priceMonthly.toFixed(2)}€ / mois`;
   }, [period, selectedPlanLabel]);
 
   const choosePlan = (priceId: string) => {
@@ -345,7 +334,7 @@ export default function SubscriptionsPage() {
                   Acheter des crédits
                 </button>
                 <div className="text-xs text-foreground-tertiary">
-                  1 génération = 12 crédits • Les crédits non utilisés sont conservés
+                  1 génération = {CREDITS_PER_GENERATION} crédits • Les crédits non utilisés sont conservés
                 </div>
               </div>
 
@@ -529,37 +518,24 @@ export default function SubscriptionsPage() {
               disabled={isFreeActive}
               isActive={isFreeActive}
               limits={{
-                tracks: '10/mois',
-                playlists: '5',
-                quality: `${PLAN_ENTITLEMENTS.free.audio.maxQualityKbps} kbps`,
-                credits: `${PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0} (≈ ${Math.floor(
-                  (PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0) / 12,
-                )} gen)`,
-                file: '80 MB',
+                tracks: `${PLANS.free.limits.maxTracks}/mois`,
+                playlists: `${PLANS.free.limits.maxPlaylists}`,
+                quality: `${PLANS.free.limits.audioQualityKbps} kbps`,
+                credits: `${WELCOME_CREDITS} bienvenue + 0/mois`,
+                file: `${PLANS.free.limits.maxFileMb} MB`,
               }}
-              monthlyCredits={PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0}
-              features={[
-                'Profil public et bibliothèque',
-                'Uploads limités',
-                'Lecture et découverte de base',
-                '50 crédits de bienvenue (≈ 4 gén.)',
-                'Modèle IA V4.5',
-              ]}
+              monthlyCredits={0}
+              welcomeCredits={WELCOME_CREDITS}
+              features={PLANS.free.features}
               onChoose={async () => {
                 if (isFreeActive) return;
                 if (!window.confirm('Confirmer le passage au plan gratuit ?')) return;
                 const res = await fetch('/api/billing/downgrade-to-free', { method: 'POST' });
                 if (res.ok) {
                   await fetchAll();
-                  setToast({
-                    type: 'success',
-                    msg: 'Vous êtes repassé sur le plan gratuit.',
-                  });
+                  setToast({ type: 'success', msg: 'Vous êtes repassé sur le plan gratuit.' });
                 } else {
-                  setToast({
-                    type: 'error',
-                    msg: 'Échec du passage au plan gratuit.',
-                  });
+                  setToast({ type: 'error', msg: 'Échec du passage au plan gratuit.' });
                 }
               }}
             />
@@ -568,34 +544,21 @@ export default function SubscriptionsPage() {
             <PlanCard
               title="Starter"
               highlight
-              badge={isStarterActive ? 'Actif' : 'Populaire'}
-              priceMonthly={4.99}
+              badge={isStarterActive ? 'Actif' : PLANS.starter.badge}
+              priceMonthly={PLANS.starter.priceMonthly}
+              priceYearly={PLANS.starter.priceYearly}
               period={period}
               disabled={isStarterActive}
               isActive={isStarterActive}
-              launchDiscount={0}
               limits={{
-                tracks: `${PLAN_ENTITLEMENTS.starter.uploads.maxTracks}/mois`,
-                playlists: `${PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}`,
-                quality: `${PLAN_ENTITLEMENTS.starter.audio.maxQualityKbps} kbps`,
-                credits: `${PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0} (≈ ${Math.floor(
-                  (PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0) / 12,
-                )} gen)`,
-                file: '200 MB',
+                tracks: `${PLANS.starter.limits.maxTracks}/mois`,
+                playlists: `${PLANS.starter.limits.maxPlaylists}`,
+                quality: `${PLANS.starter.limits.audioQualityKbps} kbps`,
+                credits: `${PLANS.starter.monthlyCredits} (≈ ${Math.floor(PLANS.starter.monthlyCredits / CREDITS_PER_GENERATION)} gen)`,
+                file: `${PLANS.starter.limits.maxFileMb} MB`,
               }}
-              monthlyCredits={PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0}
-              features={[
-                `${PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0} crédits / mois (≈ ${Math.floor(
-                  (PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0) / 12,
-                )} gén.)`,
-                'Modèles V4.5 et V4.5+',
-                PLAN_ENTITLEMENTS.starter.features.messaging ? 'Messagerie' : '',
-                PLAN_ENTITLEMENTS.starter.features.adFree ? 'Sans publicité' : '',
-                PLAN_ENTITLEMENTS.starter.features.analyticsBasic
-                  ? 'Statistiques de base'
-                  : '',
-                'Téléversements plus lourds',
-              ]}
+              monthlyCredits={PLANS.starter.monthlyCredits}
+              features={PLANS.starter.features}
               onChoose={() => choosePlan(priceMap.Starter[period])}
             />
 
@@ -604,35 +567,20 @@ export default function SubscriptionsPage() {
               title="Pro"
               highlight={false}
               badge={isProActive ? 'Actif' : undefined}
-              priceMonthly={14.99}
+              priceMonthly={PLANS.pro.priceMonthly}
+              priceYearly={PLANS.pro.priceYearly}
               period={period}
               disabled={isProActive}
               isActive={isProActive}
-              launchDiscount={0}
               limits={{
-                tracks: `${PLAN_ENTITLEMENTS.pro.uploads.maxTracks}/mois`,
+                tracks: `${PLANS.pro.limits.maxTracks}/mois`,
                 playlists: 'Illimité',
-                quality: `${PLAN_ENTITLEMENTS.pro.audio.maxQualityKbps} kbps`,
-                credits: `${PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0} (≈ ${Math.floor(
-                  (PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0) / 12,
-                )} gen)`,
-                file: '500 MB',
+                quality: `${PLANS.pro.limits.audioQualityKbps} kbps`,
+                credits: `${PLANS.pro.monthlyCredits.toLocaleString()} (≈ ${Math.floor(PLANS.pro.monthlyCredits / CREDITS_PER_GENERATION)} gen)`,
+                file: `${PLANS.pro.limits.maxFileMb} MB`,
               }}
-              monthlyCredits={PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0}
-              features={[
-                `${PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0} crédits / mois (≈ ${Math.floor(
-                  (PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0) / 12,
-                )} gén.)`,
-                'Tous les modèles IA (V4.5, V4.5+, V5)',
-                PLAN_ENTITLEMENTS.pro.features.messaging ? 'Messagerie' : '',
-                PLAN_ENTITLEMENTS.pro.features.collaborativePlaylists
-                  ? 'Playlists collaboratives'
-                  : '',
-                PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced
-                  ? 'Analyses avancées'
-                  : '',
-                PLAN_ENTITLEMENTS.pro.features.download ? 'Téléchargement de musique' : '',
-              ]}
+              monthlyCredits={PLANS.pro.monthlyCredits}
+              features={PLANS.pro.features}
               onChoose={() => choosePlan(priceMap.Pro[period])}
             />
 
@@ -660,7 +608,7 @@ export default function SubscriptionsPage() {
               <div className="text-lg font-semibold">Ce que tu débloques</div>
             </div>
             <div className="text-xs text-foreground-tertiary hidden sm:block">
-              1 génération = 12 crédits • Les crédits non utilisés sont conservés
+              1 génération = {CREDITS_PER_GENERATION} crédits • Les crédits non utilisés sont conservés
             </div>
           </div>
 
@@ -671,56 +619,43 @@ export default function SubscriptionsPage() {
             <div className="text-foreground-secondary font-semibold">Pro</div>
 
             <div className="text-foreground-tertiary mt-2">Pistes/mois</div>
-            <div className="mt-2">10</div>
-            <div className="mt-2">{PLAN_ENTITLEMENTS.starter.uploads.maxTracks}</div>
-            <div className="mt-2">{PLAN_ENTITLEMENTS.pro.uploads.maxTracks}</div>
+            <div className="mt-2">{PLANS.free.limits.maxTracks}</div>
+            <div className="mt-2">{PLANS.starter.limits.maxTracks}</div>
+            <div className="mt-2">{PLANS.pro.limits.maxTracks}</div>
 
             <div className="text-foreground-tertiary mt-1">Playlists</div>
-            <div className="mt-1">3</div>
-            <div className="mt-1">{PLAN_ENTITLEMENTS.starter.uploads.maxPlaylists}</div>
+            <div className="mt-1">{PLANS.free.limits.maxPlaylists}</div>
+            <div className="mt-1">{PLANS.starter.limits.maxPlaylists}</div>
             <div className="mt-1">Illimité</div>
 
             <div className="text-foreground-tertiary mt-1">Crédits/mois (≈ gen)</div>
+            <div className="mt-1">{WELCOME_CREDITS} bienvenue</div>
             <div className="mt-1">
-              {PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0} (≈{' '}
-              {Math.floor((PLAN_ENTITLEMENTS.free.ai.monthlyCredits ?? 0) / 12)})
+              {PLANS.starter.monthlyCredits} (≈ {Math.floor(PLANS.starter.monthlyCredits / CREDITS_PER_GENERATION)})
             </div>
             <div className="mt-1">
-              {PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0} (≈{' '}
-              {Math.floor((PLAN_ENTITLEMENTS.starter.ai.monthlyCredits ?? 0) / 12)})
-            </div>
-            <div className="mt-1">
-              {PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0} (≈{' '}
-              {Math.floor((PLAN_ENTITLEMENTS.pro.ai.monthlyCredits ?? 0) / 12)})
+              {PLANS.pro.monthlyCredits.toLocaleString()} (≈ {Math.floor(PLANS.pro.monthlyCredits / CREDITS_PER_GENERATION)})
             </div>
 
             <div className="text-foreground-tertiary mt-1">Qualité audio</div>
-            <div className="mt-1">{PLAN_ENTITLEMENTS.free.audio.maxQualityKbps} kbps</div>
-            <div className="mt-1">{PLAN_ENTITLEMENTS.starter.audio.maxQualityKbps} kbps</div>
-            <div className="mt-1">{PLAN_ENTITLEMENTS.pro.audio.maxQualityKbps} kbps</div>
+            <div className="mt-1">{PLANS.free.limits.audioQualityKbps} kbps</div>
+            <div className="mt-1">{PLANS.starter.limits.audioQualityKbps} kbps</div>
+            <div className="mt-1">{PLANS.pro.limits.audioQualityKbps} kbps</div>
 
             <div className="text-foreground-tertiary mt-1">Téléchargement</div>
             <div className="mt-1">—</div>
             <div className="mt-1">—</div>
-            <div className="mt-1">
-              {PLAN_ENTITLEMENTS.pro.features.download ? 'Oui' : '—'}
-            </div>
+            <div className="mt-1">{PLANS.pro.featureFlags.download ? 'Oui' : '—'}</div>
 
             <div className="text-foreground-tertiary mt-1">Messagerie</div>
             <div className="mt-1">—</div>
-            <div className="mt-1">
-              {PLAN_ENTITLEMENTS.starter.features.messaging ? 'Oui' : '—'}
-            </div>
-            <div className="mt-1">
-              {PLAN_ENTITLEMENTS.pro.features.messaging ? 'Oui' : '—'}
-            </div>
+            <div className="mt-1">{PLANS.starter.featureFlags.messaging ? 'Oui' : '—'}</div>
+            <div className="mt-1">{PLANS.pro.featureFlags.messaging ? 'Oui' : '—'}</div>
 
             <div className="text-foreground-tertiary mt-1">Statistiques avancées</div>
             <div className="mt-1">—</div>
             <div className="mt-1">—</div>
-            <div className="mt-1">
-              {PLAN_ENTITLEMENTS.pro.features.analyticsAdvanced ? 'Oui' : '—'}
-            </div>
+            <div className="mt-1">{PLANS.pro.featureFlags.analyticsAdvanced ? 'Oui' : '—'}</div>
           </div>
         </section>
 
@@ -829,7 +764,7 @@ export default function SubscriptionsPage() {
             />
             <FaqItem
               q="Combien coûte une génération ?"
-              a="Une génération consomme 12 crédits."
+              a={`Une génération consomme ${CREDITS_PER_GENERATION} crédits.`}
             />
             <FaqItem
               q="Je change de plan en cours de période ?"
@@ -999,19 +934,21 @@ function PlanCard({
   badge,
   highlight,
   priceMonthly,
+  priceYearly,
   period,
   disabled,
   isActive,
   limits,
   features,
   onChoose,
-  launchDiscount,
   monthlyCredits,
+  welcomeCredits,
 }: {
   title: string;
   badge?: string;
   highlight?: boolean;
   priceMonthly: number;
+  priceYearly?: number;
   period: 'month' | 'year';
   disabled?: boolean;
   isActive?: boolean;
@@ -1025,31 +962,30 @@ function PlanCard({
   };
   features?: string[];
   onChoose?: () => void;
-  launchDiscount?: number;
   monthlyCredits?: number;
+  welcomeCredits?: number;
 }) {
   const pricing = useMemo(() => {
-    const discountPct = launchDiscount || 0;
-
-    // base prices in euros
     const monthly = priceMonthly;
-    const yearly = priceMonthly * 12 * 0.8; // -20% yearly
-
-    const base = period === 'year' ? yearly : monthly;
-    const discounted = discountPct > 0 ? base * (1 - discountPct / 100) : base;
+    const yearly = priceYearly ?? priceMonthly * 12 * 0.8;
+    const price = period === 'year' ? yearly : monthly;
 
     const format = (n: number) =>
       n.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 
+    const yearSavings = priceMonthly > 0 ? Math.round((priceMonthly * 12 - yearly) * 100) / 100 : 0;
+    const effectiveMonthly = period === 'year' ? Math.round((yearly / 12) * 100) / 100 : monthly;
+
     return {
-      base,
-      discounted,
-      baseLabel: period === 'year' ? `${format(base)} / an` : `${format(base)} / mois`,
-      discountedLabel:
-        period === 'year' ? `${format(discounted)} / an` : `${format(discounted)} / mois`,
-      savings: base > discounted ? base - discounted : 0,
+      price,
+      label: period === 'year' ? `${format(price)} / an` : `${format(price)} / mois`,
+      yearSavings,
+      effectiveMonthly,
+      effectiveMonthlyLabel: `soit ${format(effectiveMonthly)}/mois`,
     };
-  }, [priceMonthly, period, launchDiscount]);
+  }, [priceMonthly, priceYearly, period]);
+
+  const isFree = priceMonthly === 0;
 
   return (
     <div
@@ -1073,37 +1009,33 @@ function PlanCard({
             )}
           </div>
 
-
           <div className="flex flex-col gap-1 text-white/85">
-            {title === 'Free' ? (
-              <div className="text-2xl">Gratuit</div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {pricing.savings > 0 && (
-                  <div className="text-lg text-white/50 line-through">{pricing.baseLabel}</div>
-                )}
-                <div
-                  className={
-                    pricing.savings > 0
-                      ? 'text-3xl font-bold bg-gradient-to-r from-emerald-300 to-green-400 bg-clip-text text-transparent'
-                      : 'text-2xl'
-                  }
-                >
-                  {pricing.discountedLabel}
-                </div>
-                {typeof monthlyCredits === 'number' && monthlyCredits > 0 && (
-                  <div className="text-xs text-white/70">
-                    {monthlyCredits} crédits / mois (≈ {Math.floor(monthlyCredits / 12)} gén.)
+            {isFree ? (
+              <>
+                <div className="text-2xl">Gratuit</div>
+                {typeof welcomeCredits === 'number' && welcomeCredits > 0 && (
+                  <div className="text-xs text-emerald-400 font-medium">
+                    {welcomeCredits} crédits de bienvenue (≈ {Math.floor(welcomeCredits / CREDITS_PER_GENERATION)} gén.) + 0/mois ensuite
                   </div>
                 )}
-              </div>
-            )}
-            {title === 'Free' ? null : pricing.savings > 0 ? (
-              <div className="text-xs text-white/60">
-                Économisez {pricing.savings.toFixed(2)}€ / période
-              </div>
+              </>
             ) : (
-              <div className="text-xs text-white/50">Taxes calculées au paiement</div>
+              <div className="flex flex-col gap-1">
+                <div className="text-2xl">{pricing.label}</div>
+                {typeof monthlyCredits === 'number' && monthlyCredits > 0 && (
+                  <div className="text-xs text-white/70">
+                    {monthlyCredits.toLocaleString()} crédits / mois (≈ {Math.floor(monthlyCredits / CREDITS_PER_GENERATION)} gén.)
+                  </div>
+                )}
+                {period === 'year' && pricing.yearSavings > 0 && (
+                  <div className="text-xs text-emerald-400 font-medium">
+                    {pricing.effectiveMonthlyLabel} — Économise {pricing.yearSavings.toFixed(2)}€/an
+                  </div>
+                )}
+                {period === 'month' && (
+                  <div className="text-xs text-white/50">Taxes calculées au paiement</div>
+                )}
+              </div>
             )}
           </div>
 
@@ -1119,14 +1051,12 @@ function PlanCard({
 
           {features && features.length > 0 && (
             <ul className="mt-3 space-y-1 text-sm text-white/75">
-              {features
-                .filter(Boolean)
-                .map((f, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-purple-400 to-cyan-300" />
-                    <span>{f}</span>
-                  </li>
-                ))}
+              {features.filter(Boolean).map((f, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="mt-1 h-1.5 w-1.5 rounded-full bg-gradient-to-r from-purple-400 to-cyan-300" />
+                  <span>{f}</span>
+                </li>
+              ))}
             </ul>
           )}
 
