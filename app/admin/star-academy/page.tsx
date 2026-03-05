@@ -67,7 +67,7 @@ function InlineAudioPlayer({ appId, filename, compact }: { appId: string; filena
     setLoading(true);
     setError(false);
     try {
-      const res = await fetch(`/api/admin/star-academy/audio/${appId}`);
+      const res = await fetch(`/api/admin/star-academy/${appId}?audio=1`);
       if (res.ok) {
         const json = await res.json();
         const signedUrl = json.signedUrl ?? null;
