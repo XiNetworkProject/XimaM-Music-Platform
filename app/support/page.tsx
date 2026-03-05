@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { BookOpen, HelpCircle, Scale, Music, Handshake } from 'lucide-react';
+import { BookOpen, HelpCircle, Scale, Music, Link2 } from 'lucide-react';
 import { SupportHero, NoBookingNotice, RevealEmailButton, SupportForm } from './SupportForm';
 
 export const dynamic = 'force-dynamic';
@@ -48,7 +48,7 @@ export default function SupportPage() {
             {[
               { href: '/community/faq', icon: HelpCircle, label: 'FAQ', sub: 'Réponses aux questions fréquentes' },
               { href: '/publish', icon: Music, label: 'Publier ma musique', sub: 'Guide en 3 étapes pour artistes' },
-              { href: '/partnerships', icon: Handshake, label: 'Partenariats', sub: 'Collaborations & presse' },
+              { href: '/partnerships', icon: Link2, label: 'Partenariats', sub: 'Collaborations & presse' },
               { href: '/legal', icon: Scale, label: 'Centre légal', sub: 'CGU, CGV, RGPD, Cookies' },
             ].map(({ href, icon: Icon, label, sub }) => (
               <Link

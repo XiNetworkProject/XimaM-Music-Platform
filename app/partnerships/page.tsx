@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Ban, CheckCircle2, Handshake, ArrowRight, Music2 } from 'lucide-react';
+import { Ban, CheckCircle2, Link2, ArrowRight, Music2 } from 'lucide-react';
 import { RevealEmailButton } from '@/app/support/SupportForm';
 
 export const metadata: Metadata = {
@@ -41,7 +41,7 @@ export default function PartnershipsPage() {
         {/* ── Header ───────────────────────────────────────── */}
         <section className="space-y-3">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300">
-            <Handshake size={12} />
+            <Link2 size={12} />
             Partenariats & Presse
           </div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">

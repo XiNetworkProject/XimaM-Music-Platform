@@ -25,7 +25,7 @@ import {
   User,
   CreditCard,
   Music2,
-  Handshake,
+  Link2,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useSidebar } from '@/app/providers';
@@ -45,7 +45,7 @@ const NAV_ITEMS = [
 
 const BOTTOM_ITEMS = [
   { href: '/support', label: 'Support', icon: LifeBuoy },
-  { href: '/partnerships', label: 'Partenariats', icon: Handshake },
+  { href: '/partnerships', label: 'Partenariats', icon: Link2 },
   { href: '/legal', label: 'Légal', icon: Scale },
 ];
 
