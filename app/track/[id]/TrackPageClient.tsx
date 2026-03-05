@@ -30,11 +30,12 @@ const fmt = new Intl.NumberFormat('fr-FR', { notation: 'compact' });
 export default function TrackPageClient({ track }: { track: TrackData | null }) {
   const { data: session } = useSession();
   const router = useRouter();
-  const { playTrack, audioState, togglePlayPause, setShowPlayer, setIsMinimized } = useAudioPlayer();
+  const { playTrack, audioState, play, pause, setShowPlayer, setIsMinimized } = useAudioPlayer();
   const [showShare, setShowShare] = useState(false);
   const [embedCopied, setEmbedCopied] = useState(false);
 
-  const isCurrentTrack = audioState.currentTrack?._id === track?.id;
+  const currentTrack = audioState.tracks?.[audioState.currentTrackIndex];
+  const isCurrentTrack = currentTrack?._id === track?.id;
   const isPlaying = isCurrentTrack && audioState.isPlaying;
 
   if (!track) {
@@ -52,7 +53,7 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
 
   const handlePlay = async () => {
     if (isCurrentTrack) {
-      togglePlayPause();
+      if (audioState.isPlaying) pause(); else play();
     } else {
       const normalized = {
         _id: track.id,
