@@ -10,8 +10,7 @@ function isHiddenRoute(pathname: string | null) {
   return (
     pathname.includes('/meteo/login') ||
     pathname.includes('/meteo/dashboard') ||
-    pathname.startsWith('/auth') ||
-    pathname.startsWith('/star-academy-tiktok')
+    pathname.startsWith('/auth')
   );
 }
 
