@@ -358,45 +358,31 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return idx * h;
   }, []);
 
+  const programmaticScrollRef = useRef(false);
+
   const scrollToIndex = useCallback(
-    (i: number, behavior: ScrollBehavior = 'auto') => {
+    (i: number, behavior: ScrollBehavior = 'smooth') => {
       const el = containerRef.current;
       if (!el) return;
       const idx = clamp(i, 0, Math.max(0, tracks.length - 1));
       const top = getItemTop(idx);
       if (Math.abs(el.scrollTop - top) < 2) return;
+      programmaticScrollRef.current = true;
       el.scrollTo({ top, behavior });
+      window.setTimeout(() => { programmaticScrollRef.current = false; }, behavior === 'smooth' ? 500 : 100);
     },
     [getItemTop, tracks.length],
   );
 
-  const snapToNearest = useCallback(
-    (behavior: ScrollBehavior = 'auto') => {
-      const el = containerRef.current;
-      if (!el) return;
-      const maxIdx = Math.max(0, tracks.length - 1);
-      const st = el.scrollTop;
-      const center = clamp(activeIndex, 0, maxIdx);
-      const start = Math.max(0, center - 4);
-      const end = Math.min(maxIdx, center + 4);
-      let best = center;
-      let bestDist = Number.POSITIVE_INFINITY;
-      for (let i = start; i <= end; i++) {
-        const it = itemRefs.current[i];
-        if (!it) continue;
-        const d = Math.abs(it.offsetTop - st);
-        if (d < bestDist) {
-          bestDist = d;
-          best = i;
-        }
-      }
-      if (!isCoarseRef.current) {
-        el.scrollTo({ top: getItemTop(best), behavior });
-      }
-      return best;
-    },
-    [activeIndex, getItemTop, tracks.length],
-  );
+  const computeVisibleIndex = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return activeIndex;
+    const h = el.clientHeight;
+    if (h <= 0) return activeIndex;
+    const st = el.scrollTop;
+    const idx = Math.round(st / h);
+    return clamp(idx, 0, Math.max(0, tracks.length - 1));
+  }, [activeIndex, tracks.length]);
 
   const playIndexFromGesture = useCallback(
     async (i: number, source: string) => {
@@ -555,7 +541,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return () => { mounted = false; };
   }, [isOpen, setTracks, setCurrentTrackIndex, scrollToIndex]);
 
-  // Boot sync
+  // Boot sync — instant scroll on first load
   useEffect(() => {
     if (!isOpen || !tracks.length || didBootRef.current) return;
     const seed = openSeedIdRef.current;
@@ -564,9 +550,14 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (idx >= 0) {
       didBootRef.current = true;
       setActiveIndex(idx);
-      requestAnimationFrame(() => scrollToIndex(idx, 'auto'));
+      const el = containerRef.current;
+      if (el) {
+        programmaticScrollRef.current = true;
+        el.scrollTo({ top: getItemTop(idx), behavior: 'auto' });
+        window.setTimeout(() => { programmaticScrollRef.current = false; }, 100);
+      }
     }
-  }, [isOpen, tracks, scrollToIndex]);
+  }, [isOpen, tracks, getItemTop]);
 
   // View analytics
   useEffect(() => {
@@ -688,18 +679,19 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     };
   }, [activeIndex, isOpen, tracks]);
 
-  // Sync playing track → scroll
+  // Sync playing track → scroll (only when track changes externally, not during gestures)
   useEffect(() => {
     if (!isOpen || !tracks.length) return;
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
-    if (Date.now() - (lastUserScrollAtRef.current || 0) < 400) return;
+    if (isTouchingRef.current) return;
+    if (Date.now() - (lastUserScrollAtRef.current || 0) < 800) return;
     const idx = audioState.currentTrackIndex;
     if (!Number.isFinite(idx) || idx < 0 || idx === activeIndex) return;
     setActiveIndex(idx);
-    requestAnimationFrame(() => scrollToIndex(idx, 'auto'));
+    requestAnimationFrame(() => scrollToIndex(idx, 'smooth'));
   }, [activeIndex, audioState.currentTrackIndex, commentsOpen, isOpen, lyricsOpen, scrollToIndex, showDownloadDialog, tracks.length]);
 
-  // Non-passive wheel handler (desktop)
+  // Non-passive wheel handler (desktop) — one track per wheel gesture
   useEffect(() => {
     if (!isOpen) return;
     const el = containerRef.current;
@@ -712,9 +704,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       const next = clamp(activeIndex + dir, 0, tracks.length - 1);
       if (next === activeIndex) return;
       wheelLockRef.current = true;
-      scrollToIndex(next, 'auto');
+      scrollToIndex(next, 'smooth');
       playIndexFromGesture(next, 'tiktok-player-wheel');
-      window.setTimeout(() => { wheelLockRef.current = false; }, 250);
+      window.setTimeout(() => { wheelLockRef.current = false; }, 600);
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
@@ -730,13 +722,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       if (e.key === 'ArrowDown' || e.key === 'PageDown') {
         e.preventDefault();
         const next = Math.min(tracks.length - 1, activeIndex + 1);
-        scrollToIndex(next, 'auto');
+        scrollToIndex(next, 'smooth');
         playIndexFromGesture(next, 'tiktok-player-key');
       }
       if (e.key === 'ArrowUp' || e.key === 'PageUp') {
         e.preventDefault();
         const next = Math.max(0, activeIndex - 1);
-        scrollToIndex(next, 'auto');
+        scrollToIndex(next, 'smooth');
         playIndexFromGesture(next, 'tiktok-player-key');
       }
       if (e.key === ' ' || e.key === 'Spacebar') {
@@ -749,37 +741,38 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return () => window.removeEventListener('keydown', handler);
   }, [isOpen, activeIndex, tracks.length, scrollToIndex, audioState.isPlaying, pause, play, close, commentsOpen, showDownloadDialog, lyricsOpen, playIndexFromGesture]);
 
-  // Touch end → snap + play
+  // Touch end → let CSS snap handle it, then detect final position
   const onTouchEnd = useCallback(() => {
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
     isTouchingRef.current = false;
-    const idx = snapToNearest('auto');
-    if (idx === undefined || !Number.isFinite(idx)) return;
-    if (idx === activeIndex) {
-      if (tracks[idx]?._id && currentId !== tracks[idx]._id) {
-        playIndexFromGesture(idx, 'tiktok-player-touchend');
+    // CSS scroll-snap will animate to the correct position.
+    // We detect the final index after the snap settles.
+    if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = window.setTimeout(() => {
+      const idx = computeVisibleIndex();
+      if (idx !== activeIndex) {
+        playIndexFromGesture(idx, 'tiktok-player-touch');
+      } else if (tracks[idx]?._id && currentId !== tracks[idx]._id) {
+        playIndexFromGesture(idx, 'tiktok-player-touch');
       }
-      return;
-    }
-    playIndexFromGesture(idx, 'tiktok-player-touchend');
-  }, [activeIndex, commentsOpen, currentId, lyricsOpen, playIndexFromGesture, showDownloadDialog, tracks, snapToNearest]);
+    }, 300) as unknown as number;
+  }, [activeIndex, commentsOpen, computeVisibleIndex, currentId, lyricsOpen, playIndexFromGesture, showDownloadDialog, tracks]);
 
-  // onScroll → detect active index (mobile)
+  // onScroll → debounced index detection (CSS snap handles the actual snapping)
   const onScroll = useCallback(() => {
     lastUserScrollAtRef.current = Date.now();
-    if (isCoarseRef.current) {
-      const idx = snapToNearest('auto');
-      if (idx !== undefined && idx !== activeIndex) setActiveIndex(idx);
-      return;
-    }
+    if (programmaticScrollRef.current) return;
+    if (isTouchingRef.current) return;
     if (wheelLockRef.current) return;
     if (commentsOpen || showDownloadDialog || lyricsOpen) return;
     if (snapTimerRef.current) window.clearTimeout(snapTimerRef.current);
     snapTimerRef.current = window.setTimeout(() => {
-      const idx = snapToNearest('auto');
-      if (idx !== undefined && idx !== activeIndex) setActiveIndex(idx);
-    }, 160) as unknown as number;
-  }, [commentsOpen, lyricsOpen, showDownloadDialog, snapToNearest, activeIndex]);
+      const idx = computeVisibleIndex();
+      if (idx !== activeIndex) {
+        setActiveIndex(idx);
+      }
+    }, 200) as unknown as number;
+  }, [commentsOpen, lyricsOpen, showDownloadDialog, computeVisibleIndex, activeIndex]);
 
   useEffect(() => {
     return () => {
@@ -976,7 +969,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                   ref={(el) => { itemRefs.current[i] = el; }}
                   data-index={i}
                   className="relative h-[100dvh] w-full flex flex-col"
-                  style={{ scrollSnapAlign: 'start' }}
+                  style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
                 >
                   {/* ─── Cover area ─── */}
                   <div className="flex-1 flex items-center justify-center px-8 pt-20 pb-6">
