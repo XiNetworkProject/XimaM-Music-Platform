@@ -2,25 +2,70 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
-import { X, Sparkles, Crown, Cloud, Bot } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  Heart,
+  ListMusic,
+  Play,
+  MessageCircle,
+  TrendingUp,
+  ArrowRight,
+  Zap,
+  Music2,
+} from 'lucide-react';
 import React, { useMemo, useState } from 'react';
 
-const gridVariants = {
-  hidden: {},
-  show: {
-    transition: { staggerChildren: 0.08, delayChildren: 0.04 },
+const updates = [
+  {
+    icon: <Play className="w-5 h-5" />,
+    title: 'Player TikTok repensé',
+    desc: 'Scroll fluide, cover animée avec glow dynamique, sidebar glassmorphism, barre de progression améliorée, tags de genre et compteur de pistes.',
+    color: 'from-violet-500/20 to-indigo-500/20',
+    borderColor: 'border-violet-400/15',
+    iconBg: 'bg-violet-500/10 text-violet-300',
   },
-};
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 14, filter: 'blur(6px)' },
-  show: {
-    opacity: 1,
-    y: 0,
-    filter: 'blur(0px)',
-    transition: { type: 'spring', stiffness: 260, damping: 22, mass: 0.7 },
+  {
+    icon: <Heart className="w-5 h-5" />,
+    title: 'Likes universels',
+    desc: 'Les favoris sont maintenant synchronisés partout : mini player, cartes, TikTok player et pistes IA. Un cœur, un seul état.',
+    color: 'from-rose-500/20 to-pink-500/20',
+    borderColor: 'border-rose-400/15',
+    iconBg: 'bg-rose-500/10 text-rose-300',
   },
-};
+  {
+    icon: <ListMusic className="w-5 h-5" />,
+    title: 'File d\'attente améliorée',
+    desc: 'Ajout rapide via le menu contextuel avec feedback toast, activation automatique, covers dans la file et lecture directe.',
+    color: 'from-blue-500/20 to-cyan-500/20',
+    borderColor: 'border-blue-400/15',
+    iconBg: 'bg-blue-500/10 text-blue-300',
+  },
+  {
+    icon: <TrendingUp className="w-5 h-5" />,
+    title: 'Algorithmes plus intelligents',
+    desc: 'Détection des skips, filtrage collaboratif, boost de fraîcheur, recommandations par heure du jour et sections personnalisées.',
+    color: 'from-emerald-500/20 to-teal-500/20',
+    borderColor: 'border-emerald-400/15',
+    iconBg: 'bg-emerald-500/10 text-emerald-300',
+  },
+  {
+    icon: <Music2 className="w-5 h-5" />,
+    title: 'Nouvelles sections accueil',
+    desc: 'Sélection du jour, Montée en puissance, Redécouvre, artistes similaires et découverte sociale — le feed qui te comprend.',
+    color: 'from-amber-500/20 to-orange-500/20',
+    borderColor: 'border-amber-400/15',
+    iconBg: 'bg-amber-500/10 text-amber-300',
+  },
+  {
+    icon: <MessageCircle className="w-5 h-5" />,
+    title: 'Commentaires redessinés',
+    desc: 'Bottom sheet fluide, design glassmorphism, réponses indentées, bouton d\'envoi violet et meilleure UX mobile.',
+    color: 'from-fuchsia-500/20 to-purple-500/20',
+    borderColor: 'border-fuchsia-400/15',
+    iconBg: 'bg-fuchsia-500/10 text-fuchsia-300',
+  },
+];
 
 export default function WhatsNewModal({
   isOpen,
@@ -38,158 +83,187 @@ export default function WhatsNewModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[400] flex items-end sm:items-center justify-center p-3 sm:p-4"
+          className="fixed inset-0 z-[400] flex items-end sm:items-center justify-center p-0 sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
         >
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
+
+          {/* Modal */}
           <motion.div
-            initial={{ scale: 0.96, opacity: 0, y: 12 }}
+            initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.96, opacity: 0, y: 12 }}
-            transition={{ duration: 0.18 }}
-            className="relative z-10 w-full sm:w-[94vw] max-w-3xl rounded-t-3xl sm:rounded-[28px] border border-border-secondary bg-[var(--surface)]/95 shadow-2xl overflow-hidden"
+            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+            className="relative z-10 w-full sm:max-w-2xl rounded-t-[28px] sm:rounded-[24px] overflow-hidden"
             onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="relative h-28 sm:h-36 w-full bg-[#121212] overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(70%_110%_at_18%_28%,rgba(110,86,207,0.38),transparent_62%),radial-gradient(80%_110%_at_85%_78%,rgba(34,211,238,0.18),transparent_65%),radial-gradient(70%_100%_at_20%_92%,rgba(139,92,246,0.18),transparent_65%)]" />
-              {/* Aurora animée (subtile) */}
-              <motion.div
-                aria-hidden="true"
-                className="absolute -top-10 -left-10 h-48 w-48 rounded-full blur-3xl opacity-35"
-                style={{ background: 'radial-gradient(circle at 30% 30%, rgba(34,211,238,0.55), transparent 60%)' }}
-                animate={{ x: [0, 18, -8, 0], y: [0, 10, 16, 0], opacity: [0.26, 0.38, 0.30, 0.26] }}
-                transition={{ duration: 7.5, ease: 'easeInOut', repeat: Infinity }}
-              />
-              <motion.div
-                aria-hidden="true"
-                className="absolute -bottom-14 -right-16 h-56 w-56 rounded-full blur-3xl opacity-35"
-                style={{ background: 'radial-gradient(circle at 60% 40%, rgba(110,86,207,0.65), transparent 62%)' }}
-                animate={{ x: [0, -14, 10, 0], y: [0, -10, -18, 0], opacity: [0.26, 0.40, 0.32, 0.26] }}
-                transition={{ duration: 8.5, ease: 'easeInOut', repeat: Infinity }}
-              />
-              <div className="absolute top-3 right-3">
-                <button
-                  aria-label="Fermer"
-                  onClick={onClose}
-                  className="relative inline-flex items-center justify-center rounded-full p-2.5 text-white/90 hover:bg-white/10 border border-white/10 bg-black/10"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  className="inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 p-3 text-accent-brand"
-                  initial={{ scale: 0.96, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ delay: 0.08, duration: 0.25 }}
-                >
-                  <Sparkles className="w-6 h-6" />
-                </motion.div>
-              </div>
-            </div>
+            {/* Glass background */}
+            <div className="absolute inset-0 bg-[#0c0c16]/[0.97] backdrop-blur-2xl" />
+            <div className="absolute inset-0 border border-white/[0.06] rounded-t-[28px] sm:rounded-[24px] pointer-events-none" />
 
-            {/* Title */}
-            <div className="px-6 sm:px-8 -mt-10 text-center">
-              <motion.div
-                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1 text-[11px] tracking-widest uppercase text-white/70"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.06, duration: 0.22 }}
-              >
-                Nouveautés
-                <span className="h-1 w-1 rounded-full bg-white/30" />
-                Synaura
-              </motion.div>
-              <motion.h2
-                className="mt-3 text-3xl sm:text-[40px] font-semibold tracking-tight text-white/90"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.10, duration: 0.24 }}
-              >
-                Nouveautés Synaura
-              </motion.h2>
-              <motion.p
-                className="mt-2 text-white/60 text-sm"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.13, duration: 0.24 }}
-              >
-                Nouveau Studio, création & partage, et remix — en progression constante.
-              </motion.p>
-            </div>
+            <div className="relative">
+              {/* ─── Header ─── */}
+              <div className="relative h-32 sm:h-36 overflow-hidden">
+                {/* Gradient background */}
+                <div className="absolute inset-0">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/20 via-indigo-600/10 to-blue-600/15" />
+                  <motion.div
+                    aria-hidden="true"
+                    className="absolute -top-16 -left-16 h-48 w-48 rounded-full blur-[60px]"
+                    style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.4), transparent 60%)' }}
+                    animate={{ x: [0, 20, -10, 0], y: [0, 12, 20, 0] }}
+                    transition={{ duration: 8, ease: 'easeInOut', repeat: Infinity }}
+                  />
+                  <motion.div
+                    aria-hidden="true"
+                    className="absolute -bottom-12 -right-12 h-40 w-40 rounded-full blur-[50px]"
+                    style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.35), transparent 60%)' }}
+                    animate={{ x: [0, -15, 12, 0], y: [0, -10, -18, 0] }}
+                    transition={{ duration: 9, ease: 'easeInOut', repeat: Infinity }}
+                  />
+                </div>
 
-            {/* Content */}
-            <motion.div
-              className="px-5 sm:px-8 py-5 sm:py-6 grid gap-3 sm:gap-6 grid-cols-1 sm:grid-cols-3 max-h-[70vh] overflow-y-auto"
-              variants={gridVariants}
-              initial="hidden"
-              animate="show"
-            >
-              <FeatureCard
-                icon={<Crown className="w-5 h-5" />}
-                title="Nouveau Studio"
-                desc="En cours de développement, mais déjà presque entièrement fonctionnel. Timeline, pré-écoute et outils de prod."
-                href="/studio"
-                cta="Ouvrir le Studio"
-                index={0}
-              />
-              <FeatureCard
-                icon={<Bot className="w-5 h-5" />}
-                title="Créer & partager tes musiques"
-                desc="Crée des tracks, publie-les et partage-les à la communauté. Tout est pensé pour passer de l’idée au partage."
-                href="/upload"
-                cta="Partager"
-                index={1}
-              />
-              <FeatureCard
-                icon={<Cloud className="w-5 h-5" />}
-                title="Remixer des musiques"
-                desc="Remix rapide depuis le Studio : variations, arrangements et nouvelles vibes, sans repartir de zéro."
-                href="/studio"
-                cta="Remixer"
-                index={2}
-              />
-            </motion.div>
-
-            {/* Footer actions */}
-            <div className="px-5 sm:px-8 pb-5 sm:pb-6 flex flex-col items-stretch gap-3 sm:gap-4">
-              <label
-                htmlFor={checkboxId}
-                className="flex items-start gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/75 cursor-pointer select-none"
-              >
-                <input
-                  id={checkboxId}
-                  type="checkbox"
-                  checked={dontShow}
-                  onChange={(e) => setDontShow(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 accent-[var(--accent-brand)]"
+                {/* Dot pattern overlay */}
+                <div
+                  className="absolute inset-0 opacity-[0.03]"
+                  style={{
+                    backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+                    backgroundSize: '20px 20px',
+                  }}
                 />
-                <span className="leading-snug">
-                  Ne plus afficher <span className="text-white/90 font-semibold">jusqu&apos;à la prochaine mise à jour</span>
-                </span>
-              </label>
 
-              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 justify-center">
-              <Link
-                href="/ai-generator"
-                className="inline-flex items-center justify-center px-5 py-3 rounded-full text-white bg-accent-brand hover:opacity-90 font-semibold w-full sm:w-auto"
-              >
-                Découvrir maintenant
-              </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  if (dontShow) onDontShowUntilNextUpdate();
-                  else onClose();
+                {/* Close button */}
+                <div className="absolute top-3 right-3 z-10">
+                  <button
+                    aria-label="Fermer"
+                    onClick={onClose}
+                    className="h-9 w-9 rounded-xl bg-black/30 backdrop-blur-md grid place-items-center text-white/70 hover:text-white hover:bg-white/10 border border-white/[0.08] transition-all"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Center icon + version badge */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                  <motion.div
+                    className="h-14 w-14 rounded-2xl bg-white/[0.06] border border-white/[0.1] grid place-items-center backdrop-blur-md shadow-[0_0_30px_rgba(139,92,246,0.2)]"
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
+                  >
+                    <Sparkles className="w-6 h-6 text-violet-300" />
+                  </motion.div>
+                  <motion.div
+                    className="px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-[10px] font-semibold uppercase tracking-[0.15em] text-white/50"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                  >
+                    Mars 2026
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* ─── Title section ─── */}
+              <div className="px-6 sm:px-8 pt-5 pb-1 text-center">
+                <motion.h2
+                  className="text-2xl sm:text-[28px] font-bold tracking-tight text-white"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.12 }}
+                >
+                  Quoi de neuf ?
+                </motion.h2>
+                <motion.p
+                  className="mt-1.5 text-[13px] text-white/40 max-w-md mx-auto leading-relaxed"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.16 }}
+                >
+                  Player repensé, likes synchronisés, algorithmes plus intelligents et bien plus encore.
+                </motion.p>
+              </div>
+
+              {/* ─── Feature cards ─── */}
+              <motion.div
+                className="px-4 sm:px-6 py-4 space-y-2 max-h-[50vh] overflow-y-auto overscroll-contain scrollbar-thin scrollbar-thumb-white/5"
+                initial="hidden"
+                animate="show"
+                variants={{
+                  hidden: {},
+                  show: { transition: { staggerChildren: 0.06, delayChildren: 0.2 } },
                 }}
-                className="inline-flex items-center justify-center px-5 py-3 rounded-full text-white/80 border border-white/10 hover:bg-white/5 w-full sm:w-auto"
               >
-                {dontShow ? 'Ne plus afficher' : 'Fermer'}
-              </button>
+                {updates.map((u, i) => (
+                  <motion.div
+                    key={i}
+                    variants={{
+                      hidden: { opacity: 0, x: -12 },
+                      show: { opacity: 1, x: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } },
+                    }}
+                    className={`group relative flex items-start gap-3.5 p-3.5 rounded-2xl border ${u.borderColor} bg-gradient-to-r ${u.color} hover:border-white/[0.12] transition-all duration-200`}
+                  >
+                    <div className={`shrink-0 h-10 w-10 rounded-xl ${u.iconBg} border border-white/[0.06] grid place-items-center`}>
+                      {u.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-[14px] font-semibold text-white/90 leading-tight">
+                        {u.title}
+                      </h3>
+                      <p className="mt-0.5 text-[12px] text-white/45 leading-relaxed">
+                        {u.desc}
+                      </p>
+                    </div>
+                    <Zap className="shrink-0 w-3.5 h-3.5 text-white/10 mt-1 group-hover:text-white/20 transition-colors" />
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* ─── Footer ─── */}
+              <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-2 space-y-3">
+                {/* Separator */}
+                <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
+
+                {/* Checkbox */}
+                <label
+                  htmlFor={checkboxId}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] text-white/40 cursor-pointer select-none hover:text-white/50 transition-colors"
+                >
+                  <input
+                    id={checkboxId}
+                    type="checkbox"
+                    checked={dontShow}
+                    onChange={(e) => setDontShow(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded accent-violet-500"
+                  />
+                  Ne plus afficher jusqu&apos;à la prochaine mise à jour
+                </label>
+
+                {/* Buttons */}
+                <div className="flex items-center gap-2.5">
+                  <Link
+                    href="/ai-generator"
+                    onClick={onClose}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-[13px] font-semibold hover:from-violet-500 hover:to-indigo-500 transition-all shadow-lg shadow-violet-500/20 active:scale-[0.98]"
+                  >
+                    Découvrir
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (dontShow) onDontShowUntilNextUpdate();
+                      else onClose();
+                    }}
+                    className="px-5 py-2.5 rounded-xl text-white/50 text-[13px] font-medium bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:text-white/70 transition-all active:scale-[0.98]"
+                  >
+                    {dontShow ? 'Masquer' : 'Fermer'}
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -198,64 +272,3 @@ export default function WhatsNewModal({
     </AnimatePresence>
   );
 }
-
-function FeatureCard({
-  icon,
-  title,
-  desc,
-  href,
-  cta,
-  index,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  desc: string;
-  href: string;
-  cta: string;
-  index: number;
-}) {
-  return (
-    <motion.div
-      variants={cardVariants}
-      custom={index}
-      whileHover={{ y: -4, scale: 1.01 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 22, mass: 0.7 }}
-      className="group relative rounded-2xl border border-border-secondary bg-[var(--surface-2)] p-4 sm:p-5 flex flex-col gap-3 text-white/85 overflow-hidden transition-colors hover:border-white/15"
-    >
-      {/* Fond au survol (cadré) */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <div
-          className="absolute inset-0 rounded-2xl blur-xl"
-          style={{
-            background:
-              'radial-gradient(60% 60% at 22% 26%, rgba(110,86,207,0.18), transparent 62%), radial-gradient(55% 55% at 78% 72%, rgba(34,211,238,0.12), transparent 66%)',
-          }}
-        />
-        <div className="absolute inset-0 rounded-2xl bg-white/[0.02]" />
-      </div>
-
-      <div className="relative z-10 h-1 w-full rounded-full bg-[linear-gradient(90deg,rgba(110,86,207,0.95),rgba(139,92,246,0.75),rgba(34,211,238,0.55))]" />
-      <div className="relative z-10 flex items-start gap-2 text-white/90 min-w-0 text-left">
-        <motion.span
-          className="mt-0.5 inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 p-2 text-accent-brand shrink-0"
-          animate={{ y: [0, -1.2, 0] }}
-          transition={{ duration: 3.2, ease: 'easeInOut', repeat: Infinity, delay: 0.2 + index * 0.15 }}
-        >
-          {icon}
-        </motion.span>
-        <span className="min-w-0 font-semibold leading-snug tracking-tight text-[15px] text-white/90">
-          {title}
-        </span>
-      </div>
-      <p className="relative z-10 text-sm text-white/60 leading-snug text-left">{desc}</p>
-      <Link
-        href={href}
-        className="relative z-10 mt-auto inline-flex items-center justify-center px-3 py-2 rounded-full border border-white/10 bg-white/5 text-white/90 text-sm font-semibold hover:bg-white/10 transition"
-      >
-        {cta}
-      </Link>
-    </motion.div>
-  );
-}
-
-

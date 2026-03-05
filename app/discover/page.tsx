@@ -122,7 +122,11 @@ function TrackCard({ track }: { track: DiscoverTrackLite }) {
   );
 }
 
-export default async function DiscoverPage() {
+export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ genre?: string }> }) {
+  const sp = await searchParams;
+  const genreFilter = sp?.genre || null;
+  const genreParam = genreFilter ? `&genre=${encodeURIComponent(genreFilter)}` : '';
+
   const session = await getServerSession(authOptions).catch(() => null);
   const userId = (session?.user as any)?.id as string | undefined;
 
@@ -134,8 +138,8 @@ export default async function DiscoverPage() {
     const baseUrl = `${proto}://${host}`;
 
     const [forYouRes, trendingRes, newRes, playlistsRes, artistsRes] = await Promise.all([
-      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=reco`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=trending`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=reco${genreParam}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch(`${baseUrl}/api/ranking/feed?limit=24&ai=1&strategy=trending${genreParam}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/recommendations/personal?limit=24`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch(`${baseUrl}/api/artists?sort=trending&limit=12`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
@@ -156,6 +160,7 @@ export default async function DiscoverPage() {
     return (
       <DiscoverAuthedClient
         displayName={String(displayName)}
+        genreFilter={genreFilter}
         initialForYou={initialForYou}
         initialTrending={initialTrending}
         initialNew={initialNew}
@@ -185,8 +190,8 @@ export default async function DiscoverPage() {
 
   // Guest experience (SEO indexable)
   const [trending, newest, playlists, artists] = await Promise.all([
-    fetchPublicFeed('limit=16&ai=1&strategy=trending'),
-    fetchPublicFeed('limit=16&ai=1&strategy=reco'),
+    fetchPublicFeed(`limit=16&ai=1&strategy=trending${genreParam}`),
+    fetchPublicFeed(`limit=16&ai=1&strategy=reco${genreParam}`),
     fetchPublicPlaylists(),
     fetchPublicArtists(),
   ]);
@@ -196,7 +201,9 @@ export default async function DiscoverPage() {
       <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-10 space-y-8 md:space-y-10">
         <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-8">
           <div className="text-xs text-foreground-tertiary">Plateforme de partage musical</div>
-          <h1 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">Découvre, écoute, enchaîne.</h1>
+          <h1 className="mt-2 text-3xl md:text-4xl font-bold tracking-tight">
+            {genreFilter ? `Genre : ${genreFilter}` : 'Découvre, écoute, enchaîne.'}
+          </h1>
           <p className="mt-3 text-sm md:text-base text-foreground-secondary max-w-2xl">
             Catalogue public jouable immédiatement. Connecte-toi pour liker, sauvegarder, créer des playlists et accéder
             au Studio IA.

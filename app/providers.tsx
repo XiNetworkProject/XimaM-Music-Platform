@@ -9,7 +9,7 @@ import { useCapacitorMediaSession, type MediaTrack as MSMediaTrack } from '@/hoo
 import { toArtworkList } from '@/lib/mediaArtwork';
 import { useSession } from 'next-auth/react';
 import { useAudioService } from '@/hooks/useAudioService';
-import { LikeProvider } from '@/contexts/LikeContext';
+import { LikeProvider, useLikeContext } from '@/contexts/LikeContext';
 import { PlaysProvider } from '@/contexts/PlaysContext';
 import { usePlaysSync } from '@/hooks/usePlaysSync';
 import { PreloadProvider } from '@/contexts/PreloadContext';
@@ -111,6 +111,7 @@ const AudioTimeContext = createContext<AudioTimeState | undefined>(undefined);
 export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const { data: session } = useSession();
   const audioService = useAudioService();
+  const { syncLikeState: syncLikeCtx } = useLikeContext();
   
   const [audioState, setAudioState] = useState<AudioPlayerState>({
     tracks: [],
@@ -366,19 +367,22 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
         return mode === 'next' ? [track, ...without] : [...without, track];
       });
 
-      // If enabled, re-apply merge so the queue updates immediately
-      if (upNextEnabled) {
-        applyingUpNextRef.current = true;
-        try {
-          const currentId =
-            ((audioService.state.currentTrack as any)?._id as string | undefined) ||
-            audioState.tracks[audioState.currentTrackIndex]?._id ||
-            null;
-          const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
-          rawSetQueueOnly(merged.tracks, merged.currentIndex);
-        } finally {
-          applyingUpNextRef.current = false;
-        }
+      // Auto-enable when adding a track
+      if (!upNextEnabled) {
+        setUpNextEnabled(true);
+      }
+
+      // Re-apply merge so the queue updates immediately
+      applyingUpNextRef.current = true;
+      try {
+        const currentId =
+          ((audioService.state.currentTrack as any)?._id as string | undefined) ||
+          audioState.tracks[audioState.currentTrackIndex]?._id ||
+          null;
+        const merged = mergeQueueWithUpNext(audioState.tracks, currentId);
+        rawSetQueueOnly(merged.tracks, merged.currentIndex);
+      } finally {
+        applyingUpNextRef.current = false;
       }
     },
     [audioService.state.currentTrack, audioState.currentTrackIndex, audioState.tracks, mergeQueueWithUpNext, rawSetQueueOnly, upNextEnabled],
@@ -550,10 +554,9 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, [audioService.allTracks, audioState.tracks.length]);
 
   const setTracks = useCallback((tracks: Track[]) => {
-    // Initialiser l'état isLiked pour chaque piste
     const tracksWithLikes = tracks.map(track => ({
       ...track,
-      isLiked: false // track.likes est un nombre dans Supabase, pas un tableau
+      isLiked: track.isLiked ?? false,
     }));
     setAudioState(prev => ({ ...prev, tracks: tracksWithLikes }));
   }, [session?.user?.id]);
@@ -594,26 +597,37 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   // Synchronisation de l'état du service audio avec le provider
   useEffect(() => {
-    if (audioService.state.currentTrack && audioState.tracks.length > 0) {
-      const trackIndex = audioState.tracks.findIndex(track => track._id === audioService.state.currentTrack?._id);
-      if (trackIndex !== -1 && trackIndex !== audioState.currentTrackIndex) {
+    const raw = audioService.state.currentTrack;
+    if (!raw || !(raw as any)?._id) return;
+    const svcTrack = raw as Track;
+
+    const trackIndex = audioState.tracks.findIndex(t => t._id === svcTrack._id);
+
+    if (trackIndex !== -1) {
+      if (trackIndex !== audioState.currentTrackIndex) {
         setCurrentTrackIndex(trackIndex);
       }
+    } else if (audioState.tracks.length > 0) {
+      setAudioState(prev => {
+        const already = prev.tracks.findIndex(t => t._id === svcTrack._id);
+        if (already !== -1) return { ...prev, currentTrackIndex: already };
+        const newTracks: Track[] = [...prev.tracks, svcTrack];
+        return { ...prev, tracks: newTracks, currentTrackIndex: newTracks.length - 1, showPlayer: true };
+      });
     }
   }, [audioService.state.currentTrack, audioState.tracks, audioState.currentTrackIndex, setCurrentTrackIndex]);
 
-  // Mettre à jour l'état isLiked quand la session change
+  // Réinitialiser isLiked uniquement quand l'utilisateur se déconnecte
+  const prevUserId = useRef(session?.user?.id);
   useEffect(() => {
-    if (audioState.tracks.length > 0) {
+    if (prevUserId.current && !session?.user?.id && audioState.tracks.length > 0) {
       setAudioState(prev => ({
         ...prev,
-        tracks: prev.tracks.map(track => ({
-          ...track,
-          isLiked: false // track.likes est un nombre dans Supabase, pas un tableau
-        }))
+        tracks: prev.tracks.map(track => ({ ...track, isLiked: false }))
       }));
     }
-  }, [session?.user?.id, audioState.tracks.length]);
+    prevUserId.current = session?.user?.id;
+  }, [session?.user?.id]);
 
   const updatePlayCount = useCallback(async (trackId: string) => {
     
@@ -682,30 +696,28 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Si la piste n'est pas dans la liste et qu'on a les données, l'ajouter
     if (trackIndex === -1 && trackData) {
-      const newTracks = [...audioState.tracks, trackData];
-      setAudioState(prev => ({
-        ...prev,
-        tracks: newTracks,
-        currentTrackIndex: newTracks.length - 1,
-        showPlayer: true,
-        isMinimized: false,
-      }));
-      
-      // Utiliser directement le service audio
+      const addedTrack = trackData;
+      setAudioState(prev => {
+        const newTracks: Track[] = [...prev.tracks, addedTrack];
+        return {
+          ...prev,
+          tracks: newTracks,
+          currentTrackIndex: newTracks.length - 1,
+          showPlayer: true,
+          isMinimized: false,
+        };
+      });
+
       try {
+        // Sync the audio service queue so auto-next works correctly
+        const mergedQueue = [...audioState.tracks, trackData];
+        audioService.actions.setQueueOnly(mergedQueue, mergedQueue.length - 1);
+
         await audioService.actions.loadTrack(trackData);
         await audioService.actions.play();
-        
-        // Incrémenter le nombre d'écoutes
         await updatePlayCount(trackData._id);
-        
-        // Forcer la mise à jour de la notification
-        setTimeout(() => {
-          audioService.actions.forceUpdateNotification();
-        }, 100);
-      } catch (error) {
-        // On évite une rejection non catchée ici.
-      }
+        setTimeout(() => { audioService.actions.forceUpdateNotification(); }, 100);
+      } catch {}
       return;
     }
     
@@ -729,93 +741,92 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     
     // Sinon, changer de piste et jouer
     const trackToPlay = trackData || audioState.tracks[trackIndex];
-    
-    // Mettre à jour l'état du player
+
     setAudioState(prev => ({
       ...prev,
       currentTrackIndex: trackIndex,
       showPlayer: true,
       isMinimized: false,
     }));
-    
-    // Forcer le chargement et la lecture de la nouvelle piste
+
+    // Keep audio service queue in sync so auto-next works
+    audioService.actions.setQueueOnly(audioState.tracks, trackIndex);
+
     try {
       await audioService.actions.loadTrack(trackToPlay);
       await audioService.actions.play();
-      
-      // Incrémenter le nombre d'écoutes
       await updatePlayCount(trackToPlay._id);
-      
-      // Forcer la mise à jour de la notification
-      setTimeout(() => {
-        audioService.actions.forceUpdateNotification();
-      }, 100);
-    } catch (error) {
-      // Erreur silencieuse
-    }
+      setTimeout(() => { audioService.actions.forceUpdateNotification(); }, 100);
+    } catch {}
   }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setShowPlayer, setIsMinimized, updatePlayCount]);
 
   const handleLike = useCallback(async (trackId: string) => {
-    // Optimistic update pour une meilleure UX
+    const isAI = trackId.startsWith('ai-');
+    const realAIId = isAI ? trackId.slice(3) : '';
+
     setAudioState(prev => {
       const newTracks = prev.tracks.map((track) => {
         if (track._id !== trackId) return track;
-        const isLiked = !track.isLiked;
-        const likes = isLiked
+        const liked = !track.isLiked;
+        const likes = liked
           ? [...track.likes, session?.user?.id || '']
           : track.likes.filter(id => id !== session?.user?.id);
-        return { ...track, isLiked, likes };
+        return { ...track, isLiked: liked, likes };
       });
       return { ...prev, tracks: newTracks };
     });
 
-    // Appel API pour liker/unliker
     try {
-      const response = await fetch(`/api/tracks/${trackId}/like`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error('Erreur lors du like');
-      }
-      
-      // Récupérer la réponse pour synchroniser les vraies données
-      const data = await response.json();
-      
-      // Mettre à jour avec les vraies données de l'API
-      setAudioState(prev => {
-        const newTracks = prev.tracks.map((track) => {
-          if (track._id !== trackId) return track;
-          return { 
-            ...track, 
-            isLiked: data.isLiked,
-            likes: data.likes || track.likes // Utiliser les likes retournés par l'API
-          };
+      if (isAI) {
+        const currentTrack = audioState.tracks.find(t => t._id === trackId);
+        const wantFav = !(currentTrack?.isLiked);
+        const response = await fetch(`/api/ai/tracks/${realAIId}/favorite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_favorite: wantFav }),
         });
-        return { ...prev, tracks: newTracks };
-      });
-      
+        if (!response.ok) throw new Error('Erreur favori IA');
+        const data = await response.json();
+        setAudioState(prev => ({
+          ...prev,
+          tracks: prev.tracks.map(t =>
+            t._id !== trackId ? t : { ...t, isLiked: data.is_favorite }
+          ),
+        }));
+        syncLikeCtx(trackId, data.is_favorite, data.is_favorite ? 1 : 0);
+      } else {
+        const currentTrack = audioState.tracks.find(t => t._id === trackId);
+        const response = await fetch(`/api/tracks/${trackId}/like`, {
+          method: currentTrack?.isLiked ? 'DELETE' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        if (!response.ok) throw new Error('Erreur lors du like');
+        const data = await response.json();
+        setAudioState(prev => ({
+          ...prev,
+          tracks: prev.tracks.map(t =>
+            t._id !== trackId ? t : { ...t, isLiked: data.isLiked, likes: data.likes || t.likes }
+          ),
+        }));
+        syncLikeCtx(trackId, data.isLiked, data.likesCount ?? 0);
+      }
     } catch (error) {
       console.error('Erreur like:', error);
-      // En cas d'erreur, revenir à l'état précédent
-      setAudioState(prev => {
-        const newTracks = prev.tracks.map((track) => {
-          if (track._id !== trackId) return track;
-          return { 
-            ...track, 
-            isLiked: !track.isLiked, // Inverser pour revenir à l'état précédent
-            likes: track.isLiked 
-              ? track.likes.filter(id => id !== session?.user?.id)
-              : [...track.likes, session?.user?.id || '']
+      setAudioState(prev => ({
+        ...prev,
+        tracks: prev.tracks.map(t => {
+          if (t._id !== trackId) return t;
+          return {
+            ...t,
+            isLiked: !t.isLiked,
+            likes: t.isLiked
+              ? t.likes.filter(id => id !== session?.user?.id)
+              : [...t.likes, session?.user?.id || '']
           };
-        });
-        return { ...prev, tracks: newTracks };
-      });
+        }),
+      }));
     }
-  }, [session?.user?.id]);
+  }, [session?.user?.id, audioState.tracks, syncLikeCtx]);
 
   const closePlayer = useCallback(() => {
     setShowPlayer(false);
@@ -840,7 +851,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const currentTrackId = audioState.tracks[audioState.currentTrackIndex]?._id || null;
+    const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
+    const currentTrackId = currentTrack?._id || null;
     localStorage.setItem('audioPlayerState', JSON.stringify({
       currentTrackIndex: audioState.currentTrackIndex,
       currentTrackId,
@@ -851,7 +863,35 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       shuffle: audioState.shuffle,
       repeat: audioState.repeat,
     }));
-  }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat]);
+    if (currentTrack?._id) {
+      try {
+        localStorage.setItem('synaura.lastTrack', JSON.stringify({
+          track: currentTrack,
+          position: 0,
+          timestamp: Date.now(),
+        }));
+      } catch {}
+    }
+  }, [audioState.currentTrackIndex, audioState.isPlaying, audioState.showPlayer, audioState.isMinimized, audioState.volume, audioState.shuffle, audioState.repeat, audioState.tracks]);
+
+  // Persist playback position every 3s so "Écouter" can resume mid-track
+  useEffect(() => {
+    if (!audioState.isPlaying) return;
+    const interval = setInterval(() => {
+      const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+      if (!currentTrack?._id) return;
+      try {
+        const audioEl = ((audioService as any).audioElement ?? null) as HTMLAudioElement | null;
+        const position = audioEl && Number.isFinite(audioEl.currentTime) ? audioEl.currentTime : 0;
+        localStorage.setItem('synaura.lastTrack', JSON.stringify({
+          track: currentTrack,
+          position,
+          timestamp: Date.now(),
+        }));
+      } catch {}
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [audioState.isPlaying, audioState.currentTrackIndex, audioState.tracks]);
 
   // Rehydration: si on a un currentTrackId sauvegardé, retrouver l'index quand les tracks sont dispo
   useEffect(() => {
@@ -1147,7 +1187,7 @@ function NativeFeaturesWrapper({ children }: { children: React.ReactNode }) {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const WhatsNewModal = dynamic(() => import('@/components/WhatsNewModal'), { ssr: false });
-  const WHATSNEW_VERSION = (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v1';
+  const WHATSNEW_VERSION = (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v2-mars2026';
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const storageKey = `whatsnew.${WHATSNEW_VERSION}.dontShowUntilNextUpdate`;
 

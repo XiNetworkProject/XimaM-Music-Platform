@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload } from 'lucide-react';
@@ -14,9 +15,12 @@ import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
 import { GenerationTimeline } from '@/components/ai-studio/GenerationTimeline';
 import { TrackInspector } from '@/components/ai-studio/TrackInspector';
 import { RemixDropzone } from '@/components/ai-studio/RemixDropzone';
-import { LibraryClipsList } from '@/components/ai-studio/LibraryClipsList';
+import { UploadConfirmModal } from '@/components/ai-studio/UploadConfirmModal';
+import { UploadProgressModal } from '@/components/ai-studio/UploadProgressModal';
+import { LibraryMiddlePanel } from '@/components/ai-studio/LibraryMiddlePanel';
 import { aiStudioPresets } from '@/lib/aiStudioPresets';
 import StudioBackground from '@/components/StudioBackground';
+import RightPanelImproved from '@/components/ai-studio/RightPanelImproved';
 import type { GeneratedTrack, AIStudioPreset } from '@/lib/aiStudioTypes';
 import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO_PILL_SOLID, SUNO_PANEL } from '@/components/ui/sunoClasses';
 import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
@@ -172,6 +176,105 @@ function StudioStatusOrb({
   );
 }
 
+/* ── Portal-based model dropdown (matches library ContextMenu style) ── */
+function ModelDropdownPortal({
+  modelVersion,
+  disabled,
+  open,
+  onToggle,
+  onSelect,
+  onClose,
+}: {
+  modelVersion: string;
+  disabled: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 6, left: Math.max(8, r.right - 220) });
+    const close = (e: MouseEvent) => {
+      if (btnRef.current?.contains(e.target as Node)) return;
+      onClose();
+    };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const t = setTimeout(() => {
+      document.addEventListener('click', close);
+      document.addEventListener('keydown', esc);
+    }, 0);
+    return () => { clearTimeout(t); document.removeEventListener('click', close); document.removeEventListener('keydown', esc); };
+  }, [open, onClose]);
+
+  const models = [
+    { id: 'V5', label: 'v5', tag: 'Beta', color: 'indigo' },
+    { id: 'V4_5PLUS', label: 'v4.5+', tag: 'Pro', color: 'violet' },
+    { id: 'V4_5', label: 'v4.5', tag: 'Rapide', color: 'emerald' },
+  ];
+
+  const activeLabel = models.find(m => m.id === modelVersion)?.label || 'v4.5';
+
+  return (
+    <div className="relative">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={onToggle}
+        disabled={disabled}
+        className="flex items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-white/60 hover:bg-white/[0.06] hover:text-white/80 disabled:opacity-50 transition-all"
+      >
+        {activeLabel}
+        <ChevronRight className={`w-3 h-3 opacity-40 transition-transform ${open ? 'rotate-90' : ''}`} />
+      </button>
+      {open && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed z-[9999] w-[220px] rounded-xl border border-white/[0.08] bg-[#121218]/98 backdrop-blur-2xl py-1.5 shadow-[0_16px_64px_rgba(0,0,0,.7)]"
+          style={{ top: pos.top, left: pos.left }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-white/25 uppercase tracking-wider">Modèle IA</div>
+          {models.map((m) => {
+            const isActive = modelVersion === m.id;
+            const colorMap: Record<string, string> = {
+              indigo: isActive ? 'text-indigo-300 bg-indigo-500/10' : '',
+              violet: isActive ? 'text-violet-300 bg-violet-500/10' : '',
+              emerald: isActive ? 'text-emerald-300 bg-emerald-500/10' : '',
+            };
+            const tagMap: Record<string, string> = {
+              indigo: 'bg-indigo-400/15 text-indigo-300 border-indigo-400/25',
+              violet: 'bg-violet-400/15 text-violet-300 border-violet-400/25',
+              emerald: 'bg-emerald-400/15 text-emerald-300 border-emerald-400/25',
+            };
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => onSelect(m.id)}
+                className={`w-full px-3 py-2 text-left text-xs transition-colors flex items-center gap-2 ${isActive ? colorMap[m.color] : 'text-white/70 hover:bg-white/[0.05]'}`}
+              >
+                <span className="font-semibold">{m.label}</span>
+                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${isActive ? tagMap[m.color] : 'bg-white/[0.04] text-white/30 border-white/[0.06]'}`}>{m.tag}</span>
+                <span className="ml-auto text-[10px] text-white/20 tabular-nums">12 cr.</span>
+                {isActive && (
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-white/40">
+                    <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
+                  </svg>
+                )}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 export default function AIGenerator() {
   const { data: session } = useSession();
   const { quota, loading: quotaLoading } = useAIQuota();
@@ -202,6 +305,8 @@ export default function AIGenerator() {
   const [modelVersion, setModelVersion] = useState('V4_5');
   const [generationDuration, setGenerationDuration] = useState<60 | 120 | 180>(120);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
+  const [likedTrackIds, setLikedTrackIds] = useState<Set<string>>(new Set());
+  const [trashedTrackIds, setTrashedTrackIds] = useState<Set<string>>(new Set());
 
   const formatTime = (seconds: number) => {
     const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
@@ -213,9 +318,9 @@ export default function AIGenerator() {
   // États pour la bibliothèque des générations
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'title'>('newest');
-  const [filterBy, setFilterBy] = useState<'all' | 'instrumental' | 'with-lyrics'>('all');
+  const [filterBy, setFilterBy] = useState<'all' | 'instrumental' | 'with-lyrics' | 'liked' | 'trashed'>('all');
+  const [isInstrumental, setIsInstrumental] = useState(false);
   const [selectedGeneration, setSelectedGeneration] = useState<AIGeneration | null>(null);
-  const [showLibrarySortDropdown, setShowLibrarySortDropdown] = useState(false);
   
   // États pour le panneau de track sélectionnée
   const [selectedTrack, setSelectedTrack] = useState<GeneratedTrack | null>(null);
@@ -232,6 +337,11 @@ export default function AIGenerator() {
   const [remixSourceDurationSec, setRemixSourceDurationSec] = useState<number | undefined>(undefined);
   const [remixUploading, setRemixUploading] = useState<boolean>(false);
   const [remixSourceLabel, setRemixSourceLabel] = useState<string | null>(null);
+  const [remixSourceTrackId, setRemixSourceTrackId] = useState<string | null>(null);
+  const [pendingRemixFile, setPendingRemixFile] = useState<File | null>(null);
+  const [remixUploadModalOpen, setRemixUploadModalOpen] = useState(false);
+  const [uploadingRemixTitle, setUploadingRemixTitle] = useState<string | null>(null);
+  const uploadAbortRef = useRef<AbortController | null>(null);
   
   // Génération IA activée
   const isGenerationDisabled = false;
@@ -263,6 +373,64 @@ export default function AIGenerator() {
   const [isGeneratingLyrics, setIsGeneratingLyrics] = useState(false);
   const activeGenerationCount = activeGenerations.size;
   const isRemixMode = generationModeKind === 'remix';
+
+  // ── Persistence des préférences studio dans Supabase ──
+  const prefsLoadedRef = useRef(false);
+  const prefsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!session?.user?.id || prefsLoadedRef.current) return;
+    prefsLoadedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/user/preferences');
+        if (!res.ok) return;
+        const { preferences: p } = await res.json();
+        if (!p?.aiStudio) return;
+        const s = p.aiStudio;
+        if (s.shellMode) setShellMode(s.shellMode);
+        if (s.modelVersion) setModelVersion(s.modelVersion);
+        if (s.generationDuration) setGenerationDuration(s.generationDuration);
+        if (s.generationModeKind) {
+          setGenerationModeKind(s.generationModeKind);
+          setCustomMode(s.generationModeKind !== 'simple');
+        }
+        if (s.sortBy) setSortBy(s.sortBy);
+        if (s.filterBy) setFilterBy(s.filterBy);
+        if (typeof s.isInstrumental === 'boolean') setIsInstrumental(s.isInstrumental);
+      } catch {}
+    })();
+  }, [session?.user?.id]);
+
+  const savePrefs = useCallback((overrides?: Record<string, any>) => {
+    if (!session?.user?.id) return;
+    if (prefsSaveTimerRef.current) clearTimeout(prefsSaveTimerRef.current);
+    prefsSaveTimerRef.current = setTimeout(async () => {
+      try {
+        await fetch('/api/user/preferences', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            aiStudio: {
+              shellMode,
+              modelVersion,
+              generationDuration,
+              generationModeKind,
+              sortBy,
+              filterBy,
+              isInstrumental,
+              ...overrides,
+            },
+          }),
+        });
+      } catch {}
+    }, 1500);
+  }, [session?.user?.id, shellMode, modelVersion, generationDuration, generationModeKind, sortBy, filterBy, isInstrumental]);
+
+  useEffect(() => {
+    if (!prefsLoadedRef.current) return;
+    savePrefs();
+  }, [shellMode, modelVersion, generationDuration, generationModeKind, sortBy, filterBy, isInstrumental]);
   const selectGenerationMode = useCallback((mode: 'simple' | 'custom' | 'remix') => {
     setGenerationModeKind(mode);
     setCustomMode(mode !== 'simple');
@@ -272,6 +440,9 @@ export default function AIGenerator() {
       setRemixSourceDurationSec(undefined);
       setRemixUploading(false);
       setRemixSourceLabel(null);
+      setRemixSourceTrackId(null);
+      setPendingRemixFile(null);
+      setRemixUploadModalOpen(false);
     } else {
       setOpenStyleSection(true);
     }
@@ -385,17 +556,6 @@ export default function AIGenerator() {
     };
   }, [normalizePanelWidths]);
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      if (target.closest('.library-sort-dropdown-container')) return;
-      setShowLibrarySortDropdown(false);
-    };
-    document.addEventListener('mousedown', onDown);
-    return () => document.removeEventListener('mousedown', onDown);
-  }, []);
-
   const pushLog = useCallback((level: LogLine['level'], msg: string) => {
     const at = new Date().toLocaleTimeString('fr-FR', { hour12: false });
     setLogs((prev) => [{ id: makeId(), at, level, msg }, ...prev].slice(0, 120));
@@ -428,8 +588,11 @@ export default function AIGenerator() {
 
       if (trRes.ok) {
         const trJson = await trRes.json().catch(() => ({}));
-        setAllTracks(trJson.tracks || []);
-        pushLog('info', `Assets synchronisés: ${(trJson.tracks || []).length} tracks`);
+        const loadedTracks: AITrack[] = trJson.tracks || [];
+        setAllTracks(loadedTracks);
+        setLikedTrackIds(new Set(loadedTracks.filter((t: any) => t.generation?.is_favorite || t.is_favorite).map((t: AITrack) => t.id)));
+        setTrashedTrackIds(new Set(loadedTracks.filter((t: any) => t.generation?.is_trashed).map((t: AITrack) => t.id)));
+        pushLog('info', `Assets synchronisés: ${loadedTracks.length} tracks`);
       } else {
         setAllTracks([]);
       }
@@ -517,8 +680,8 @@ export default function AIGenerator() {
           model: genInfo.model || firstTrack.model_name || 'V4_5',
           status: (genInfo.status || 'completed') as 'pending' | 'completed' | 'failed',
           created_at: genInfo.created_at || firstTrack.created_at,
-          is_favorite: firstTrack.is_favorite || false,
-          is_public: false,
+          is_favorite: genInfo.is_favorite ?? firstTrack.is_favorite ?? false,
+          is_public: genInfo.is_public ?? false,
           play_count: firstTrack.play_count || 0,
           like_count: firstTrack.like_count || 0,
           share_count: 0,
@@ -546,6 +709,10 @@ export default function AIGenerator() {
     generations.forEach((g) => byId.set(String(g.id), g)); // l’API écrase si doublon (métadonnées plus complètes)
     return Array.from(byId.values()).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [generations, generationsFromTracks]);
+  const visibleGenerations = React.useMemo(
+    () => recentGenerationsSorted.filter((g) => !g.is_trashed),
+    [recentGenerationsSorted]
+  );
 
   const generationsById = React.useMemo(() => {
     const m = new Map<string, AIGeneration>();
@@ -779,6 +946,7 @@ export default function AIGenerator() {
       plays: track.play_count || 0,
       likes: [],
       comments: [],
+      isLiked: generation.is_favorite || likedTrackIds.has(track.id),
       // @ts-ignore - player Track accepte lyrics via providers
       lyrics: (track.prompt || generation.prompt || '').trim(),
     };
@@ -896,6 +1064,13 @@ export default function AIGenerator() {
 
   // Fonction pour jouer une génération
   const handlePlayGeneration = (generation: AIGeneration) => {
+    if (generation.tracks?.length) {
+      const firstTrack = generation.tracks[0];
+      const converted = convertAITrackToGenerated(firstTrack as any);
+      setSelectedTrack(converted);
+      setGeneratedTrack(converted);
+    }
+    setSelectedGeneration(generation);
     playGenerationQueue(generation);
   };
 
@@ -949,6 +1124,145 @@ export default function AIGenerator() {
       console.error('Erreur toggle favori:', error);
     }
   };
+
+  const toggleTrackLikeRef = React.useRef(false);
+  const toggleTrackLike = async (track: AITrack) => {
+    if (toggleTrackLikeRef.current) return;
+    toggleTrackLikeRef.current = true;
+    const trackId = track.id;
+    const wasLiked = likedTrackIds.has(trackId);
+    const wantFav = !wasLiked;
+
+    setLikedTrackIds((prev) => {
+      const next = new Set(prev);
+      if (wantFav) next.add(trackId); else next.delete(trackId);
+      return next;
+    });
+    try {
+      const res = await fetch(`/api/ai/tracks/${trackId}/favorite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_favorite: wantFav }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.generation_id) {
+          setGenerations(prev => prev.map(g =>
+            g.id === data.generation_id ? { ...g, is_favorite: data.is_favorite } : g
+          ));
+          const gen = generations.find(g => g.id === data.generation_id);
+          if (gen?.tracks) {
+            setLikedTrackIds(prev => {
+              const next = new Set(prev);
+              for (const t of gen.tracks!) {
+                if (data.is_favorite) next.add(t.id); else next.delete(t.id);
+              }
+              return next;
+            });
+          }
+        }
+      } else {
+        setLikedTrackIds((prev) => {
+          const next = new Set(prev);
+          if (wasLiked) next.add(trackId); else next.delete(trackId);
+          return next;
+        });
+      }
+    } catch {
+      setLikedTrackIds((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) next.add(trackId); else next.delete(trackId);
+        return next;
+      });
+    } finally {
+      toggleTrackLikeRef.current = false;
+    }
+  };
+
+  const toggleTrackTrashRef = React.useRef(false);
+  const toggleTrackTrash = async (track: AITrack) => {
+    if (toggleTrackTrashRef.current) return;
+    toggleTrackTrashRef.current = true;
+    const trackId = track.id;
+    const genId = (track as any).generation_id || (track as any).generation?.id;
+    if (!genId) { toggleTrackTrashRef.current = false; return; }
+    const wasTrashed = trashedTrackIds.has(trackId);
+    const wantTrash = !wasTrashed;
+
+    setTrashedTrackIds((prev) => {
+      const next = new Set(prev);
+      if (wantTrash) next.add(trackId); else next.delete(trackId);
+      return next;
+    });
+    try {
+      const res = await fetch(`/api/ai/generations/${genId}/trash`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_trashed: wantTrash }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGenerations(prev => prev.map(g =>
+          g.id === data.generation_id ? { ...g, is_trashed: data.is_trashed } : g
+        ));
+        const gen = generations.find(g => g.id === genId);
+        if (gen?.tracks) {
+          setTrashedTrackIds(prev => {
+            const next = new Set(prev);
+            for (const t of gen.tracks!) {
+              if (data.is_trashed) next.add(t.id); else next.delete(t.id);
+            }
+            return next;
+          });
+        }
+      } else {
+        setTrashedTrackIds((prev) => {
+          const next = new Set(prev);
+          if (wasTrashed) next.add(trackId); else next.delete(trackId);
+          return next;
+        });
+      }
+    } catch {
+      setTrashedTrackIds((prev) => {
+        const next = new Set(prev);
+        if (wasTrashed) next.add(trackId); else next.delete(trackId);
+        return next;
+      });
+    } finally {
+      toggleTrackTrashRef.current = false;
+    }
+  };
+
+  const playLibraryQueue = useCallback((filteredTracks: AITrack[], startIndex: number) => {
+    const playable = filteredTracks
+      .map((t) => {
+        const genId = (t as any).generation_id || (t as any).generation?.id;
+        const gen = genId ? generationsById.get(String(genId)) : null;
+        const fakeGen: AIGeneration = gen || {
+          id: genId || 'unknown',
+          prompt: (t as any).prompt || '',
+          created_at: (t as any).created_at || new Date().toISOString(),
+          status: 'completed',
+          model: (t as any).model_name || 'V4_5',
+          user_id: (session?.user?.id as string) || '',
+          task_id: '',
+          tracks: [],
+          is_favorite: false,
+          is_public: false,
+          is_trashed: false,
+          play_count: 0,
+          like_count: 0,
+          share_count: 0,
+          metadata: {},
+        };
+        return aiTrackToPlayerTrack(t, fakeGen);
+      })
+      .filter(Boolean) as any[];
+
+    if (playable.length > 0) {
+      setQueueAndPlay(playable, startIndex);
+    }
+  }, [generationsById, session?.user?.id, aiTrackToPlayerTrack, setQueueAndPlay]);
 
   // Télécharger une track (même logique que ai-library)
   const downloadTrack = async (track: AITrack) => {
@@ -1110,7 +1424,6 @@ export default function AIGenerator() {
   const [title, setTitle] = useState('');
   const [style, setStyle] = useState('');
   const [lyrics, setLyrics] = useState('');
-  const [isInstrumental, setIsInstrumental] = useState(false);
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [weirdness, setWeirdness] = useState<number>(50);
@@ -1410,9 +1723,31 @@ export default function AIGenerator() {
     setSelectedTrack(null);
   };
 
+  const handleCopyLyrics = useCallback((track: GeneratedTrack, copyPrompt?: boolean) => {
+    const text = (copyPrompt ? track.prompt : (track.lyrics || track.prompt) || '').trim();
+    if (!text) {
+      notify.warning(copyPrompt ? 'Prompt' : 'Paroles', copyPrompt ? 'Aucun prompt à copier.' : 'Aucune parole à copier pour cette piste.');
+      return;
+    }
+    navigator.clipboard.writeText(text).then(
+      () => notify.success('Presse-papier', copyPrompt ? 'Prompt copié.' : 'Paroles copiées dans le presse-papier'),
+      () => pushLog('warn', 'Impossible de copier dans le presse-papier')
+    );
+  }, [pushLog]);
+
+  const handleReuseTrackInfo = useCallback((track: GeneratedTrack) => {
+    setTitle(track.title || '');
+    setStyle(track.style || '');
+    setLyrics(track.lyrics || track.prompt || '');
+    setCustomMode(true);
+    notify.success('Formulaire', 'Titre, style et paroles réutilisés.');
+    closeTrackPanel();
+  }, []);
+
   const useLibraryTrackForRemix = (track: AITrack) => {
     const media = resolveTrackMedia(track as any);
     const sourceUrl = media.audioUrl || media.streamUrl || media.playableUrl;
+    setRemixSourceTrackId(track.id);
     if (!sourceUrl) {
       notify.error('Remix', 'Aucune URL audio exploitable pour cette piste.');
       return;
@@ -1425,6 +1760,12 @@ export default function AIGenerator() {
     setRemixSourceDurationSec(Number((track as any)?.duration || 0) || undefined);
     const label = getUploadedAssetName(track);
     setRemixSourceLabel(label);
+
+    if (track.title) setTitle(track.title);
+    if (track.style) setStyle(track.style);
+    else if (track.prompt) setStyle(track.prompt);
+    if (track.lyrics) setLyrics(track.lyrics);
+
     pushLog('info', `Source remix sélectionnée: ${label}`);
   };
 
@@ -1448,6 +1789,13 @@ export default function AIGenerator() {
     setRemixSourceDurationSec(Number(track.duration || 0) || undefined);
     const label = track.title || 'Piste générée';
     setRemixSourceLabel(label);
+    setRemixSourceTrackId(null);
+
+    if (track.title) setTitle(track.title);
+    if (track.style) setStyle(track.style);
+    else if (track.prompt) setStyle(track.prompt);
+    if (track.lyrics) setLyrics(track.lyrics);
+
     pushLog('info', `Source remix sélectionnée: ${label}`);
   };
 
@@ -1456,8 +1804,76 @@ export default function AIGenerator() {
     setRemixUploadUrl(null);
     setRemixSourceDurationSec(undefined);
     setRemixSourceLabel(null);
+    setRemixSourceTrackId(null);
     pushLog('info', 'Source remix désélectionnée');
   };
+
+  const performRemixUpload = useCallback(async (file: File, uploadTitle: string) => {
+    setRemixUploading(true);
+    setUploadingRemixTitle(uploadTitle);
+    uploadAbortRef.current = new AbortController();
+    const signal = uploadAbortRef.current.signal;
+    try {
+      const timestamp = Math.round(new Date().getTime() / 1000);
+      const publicId = `remix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const sigRes = await fetch('/api/upload/signature', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timestamp, publicId, resourceType: 'video' })
+      });
+      if (!sigRes.ok) throw new Error('Erreur signature Cloudinary');
+      const { signature, apiKey, cloudName } = await sigRes.json();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'ximam/audio');
+      formData.append('public_id', publicId);
+      formData.append('resource_type', 'video');
+      formData.append('timestamp', String(timestamp));
+      formData.append('api_key', apiKey);
+      formData.append('signature', signature);
+      const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
+        method: 'POST',
+        body: formData,
+        signal,
+      });
+      if (!uploadResponse.ok) throw new Error('Erreur upload Cloudinary');
+      const uploaded = await uploadResponse.json();
+      const secureUrl = uploaded?.secure_url as string;
+      const uploadedPublicId = uploaded?.public_id as string | undefined;
+      const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
+      if (!secureUrl) throw new Error('URL de fichier manquante');
+      setRemixUploading(false);
+      setRemixUploadUrl(secureUrl);
+      setRemixSourceDurationSec(uploadedDuration);
+      setRemixSourceLabel(file.name);
+      setRemixSourceTrackId(null);
+      if (typeof uploadedDuration === 'number' && uploadedDuration > 8 * 60) {
+        notify.warning('Durée audio', 'Suno accepte au maximum 8 minutes. Ton fichier est plus long et pourrait être refusé.');
+      }
+      setTitle(uploadTitle);
+      try {
+        const res = await fetch('/api/ai/upload-source', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            audioUrl: secureUrl,
+            publicId: uploadedPublicId,
+            title: uploadTitle,
+            duration: uploadedDuration,
+            fileName: file.name,
+          })
+        });
+        if (res.ok) window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+      } catch {}
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
+      setRemixUploading(false);
+      notify.error('Upload audio', e?.message || 'Erreur upload');
+    } finally {
+      setUploadingRemixTitle(null);
+      uploadAbortRef.current = null;
+    }
+  }, []);
 
   // Fonction pour convertir AITrack en GeneratedTrack
   const convertAITrackToGenerated = (aiTrack: AITrack): GeneratedTrack => {
@@ -1819,14 +2235,6 @@ export default function AIGenerator() {
       setTimestampedWords(words);
       setTimestampedWaveform(wave);
       if (words.length > 0) {
-        const plainLyrics = words
-          .map((w) => String(w.word || '').trim())
-          .filter(Boolean)
-          .join(' ')
-          .replace(/\s+([,.;!?])/g, '$1');
-        if (!lyrics.trim() && plainLyrics.trim()) {
-          setLyrics(plainLyrics);
-        }
         if (!silent) {
           notify.success('Lyrics', `Paroles synchronisées chargées (${words.length} mots).`);
         }
@@ -1842,7 +2250,7 @@ export default function AIGenerator() {
     } finally {
       setTimestampedLoading(false);
     }
-  }, [effectiveTrackContext, lyrics, pushLog, selectedTrack?.isInstrumental]);
+  }, [effectiveTrackContext, pushLog, selectedTrack?.isInstrumental]);
 
   /** Charger waveform + paroles synchronisées pour la piste effective (en lecture ou sélectionnée) */
   React.useEffect(() => {
@@ -2382,478 +2790,270 @@ export default function AIGenerator() {
             <Music className="w-16 h-16 mx-auto mb-4 text-green-400" />
             <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
             <p className="text-gray-400">Connectez-vous pour accéder à votre générateur IA</p>
-        </div>
           </div>
-    </div>
-  );
-}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="studio-pro min-h-screen bg-[#07070a] text-white font-sans selection:bg-indigo-500/30">
       <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
-      <header className="sticky top-0 z-30 h-14 min-h-[56px] border-b border-white/10 bg-[#07070a]/75 backdrop-blur flex items-center justify-between px-3 sm:px-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <div className="flex items-center gap-2 text-indigo-400 min-w-0">
-            <Zap className="w-5 h-5" fill="currentColor" />
-            <span className="font-bold tracking-tight text-lg truncate">
-              SYNAURA <span className="text-zinc-600 font-normal text-xs align-top">STUDIO</span>
-            </span>
-          </div>
-
-          <div className="h-6 w-[1px] bg-white/10 hidden sm:block" />
-
-          {/* Global Playback Controls */}
-          <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg border border-white/5">
-            <button
-              type="button"
-              onClick={() => previousTrack()}
-              className="p-2.5 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:text-white text-zinc-500 transition-colors rounded"
-              aria-label="Piste précédente"
-            >
-              <SkipBack className="w-5 h-5 sm:w-4 sm:h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={async () => {
-                if (audioState.isPlaying) {
-                  pause();
-                  return;
-                }
-                // si une piste est déjà chargée, reprendre; sinon jouer la dernière sélection IA si dispo
-                const cur = (audioState.tracks || [])[audioState.currentTrackIndex || 0];
-                if (cur) {
-                  await play();
-                  return;
-                }
-                if (generatedTrack) {
-                  playGenerated(generatedTrack);
-                }
-              }}
-              className="p-2.5 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white rounded shadow-lg shadow-indigo-900/20 transition-all"
-              aria-label={audioState.isPlaying ? 'Pause' : 'Lecture'}
-            >
-              {audioState.isPlaying ? <Pause className="w-5 h-5 sm:w-4 sm:h-4" /> : <Play className="w-5 h-5 sm:w-4 sm:h-4 fill-current" />}
-            </button>
-            <button
-              type="button"
-              onClick={() => nextTrack()}
-              className="p-2.5 sm:p-1.5 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:text-white text-zinc-500 transition-colors rounded"
-              aria-label="Piste suivante"
-            >
-              <SkipForward className="w-5 h-5 sm:w-4 sm:h-4" />
-            </button>
-          </div>
-
-          {/* Time Display */}
-          <div className="font-mono text-xs text-indigo-300 bg-indigo-950/30 px-3 py-1.5 rounded border border-indigo-500/10 hidden md:block">
-            {formatTime(audioState.currentTime)} <span className="text-zinc-600">/ {formatTime(audioState.duration || 0)}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setCmdOpen(true)}
-            className="hidden md:inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition text-xs text-zinc-300"
-          >
-            <Command className="w-3.5 h-3.5" />
-            Palette
-            <span className="text-zinc-500">Ctrl+K</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowBuyCredits(true)}
-            className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 min-h-[44px] bg-zinc-900 rounded-full border border-white/5 hover:border-white/10 transition"
-            aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
-          >
-            <Coins className="w-4 h-4 text-indigo-300 shrink-0" />
-            <span className="text-[10px] font-semibold text-zinc-300 tabular-nums">{creditsBalance}</span>
-            <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider hidden sm:inline">Crédits</span>
-            {sunoCredits !== null ? (
-              <span className="text-[10px] text-zinc-500 hidden lg:inline">Suno {sunoCredits}</span>
-            ) : null}
-          </button>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-zinc-900 rounded-full border border-white/5">
-            <div className={`w-2 h-2 rounded-full ${isGenerating || activeGenerationCount > 0 ? 'bg-indigo-500' : 'bg-emerald-500'} shadow-[0_0_8px_rgba(99,102,241,0.4)]`} />
-            <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">
-              {isGenerating || activeGenerationCount > 0 ? `Generating (${activeGenerationCount || 1})` : 'Ready'}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSettingsOpen(true)}
-            className="p-2.5 sm:p-2 min-w-[44px] min-h-[44px] sm:min-w-0 sm:min-h-0 flex items-center justify-center hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors"
-            aria-label="Paramètres"
-          >
-            <Settings className="w-5 h-5" />
-          </button>
-          <div className="hidden md:inline-flex items-center rounded-full border border-white/10 bg-black/30 p-1">
-            <button
-              type="button"
-              onClick={() => setShellMode('ide')}
-              className={`px-2 py-1 text-[11px] rounded-full ${shellMode === 'ide' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
-            >
-              IDE
-            </button>
-            <button
-              type="button"
-              onClick={() => setShellMode('classic')}
-              className={`px-2 py-1 text-[11px] rounded-full ${shellMode === 'classic' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'}`}
-            >
-              Classic
-            </button>
-          </div>
-          {session?.user ? (
-            <a
-              href="/settings"
-              className="hidden sm:block w-8 h-8 rounded-full border border-white/10 overflow-hidden bg-white/5 hover:ring-2 hover:ring-white/20 transition-all"
-              title="Paramètres du compte"
-              aria-label="Ouvrir les paramètres du compte"
-            >
-              <img
-                src={(session.user as any)?.image ?? (session.user as any)?.avatar ?? '/default-avatar.png'}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            </a>
-          ) : (
-            <a
-              href="/auth/signin"
-              className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[10px] font-medium transition-all"
-              title="Se connecter"
-              aria-label="Se connecter"
-            >
-              Compte
-            </a>
-          )}
-        </div>
-      </header>
-
-      <div className="relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 pb-[max(7rem,calc(4rem+env(safe-area-inset-bottom,0px)))] lg:pb-4">
-        {/* (ancien header: gardé SR-only pour accessibilité) */}
-        <header className="sr-only">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-2xl blur-xl bg-accent-brand/70 opacity-60" />
-              <div className="relative w-10 h-10 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
-                <Sparkles className="w-5 h-5 text-accent-brand" />
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#07070a]/80 backdrop-blur-xl">
+        <div className="flex items-center justify-between h-14 px-3 sm:px-5">
+          {/* Left: Logo + Play */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex items-center gap-2 text-white min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Zap className="w-4 h-4" fill="currentColor" />
               </div>
+              <span className="font-bold tracking-tight text-sm hidden sm:block">
+                SYNAURA <span className="text-white/30 font-medium">STUDIO</span>
+              </span>
             </div>
-            <div className="leading-tight">
-              <p className="text-[10px] uppercase tracking-[0.28em] text-white/45">Synaura</p>
-              <h1 className="text-lg sm:text-xl font-semibold text-white title-suno">Studio IA</h1>
-              <p className="text-[11px] text-white/55 hidden sm:block">
-                Génère, remix et organise tes créations comme dans un vrai studio.
-              </p>
+
+            <div className="h-5 w-px bg-white/[0.06] hidden sm:block" />
+
+            <div className="flex items-center gap-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] p-0.5">
+              <button
+                type="button"
+                onClick={() => previousTrack()}
+                className="p-2 sm:p-1.5 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/[0.06]"
+                aria-label="Piste précédente"
+              >
+                <SkipBack className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (audioState.isPlaying) { pause(); return; }
+                  const cur = (audioState.tracks || [])[audioState.currentTrackIndex || 0];
+                  if (cur) { await play(); return; }
+                  if (generatedTrack) playGenerated(generatedTrack);
+                }}
+                className="w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center bg-white text-black rounded-full shadow-lg shadow-white/10 hover:scale-105 transition-all"
+                aria-label={audioState.isPlaying ? 'Pause' : 'Lecture'}
+              >
+                {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => nextTrack()}
+                className="p-2 sm:p-1.5 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center text-white/40 hover:text-white transition-colors rounded-full hover:bg-white/[0.06]"
+                aria-label="Piste suivante"
+              >
+                <SkipForward className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="hidden md:flex items-center gap-2.5 min-w-0">
+              <span className="font-mono text-[11px] text-white/50 tabular-nums whitespace-nowrap">
+                {formatTime(audioState.currentTime)}
+              </span>
+              <div className="w-28 lg:w-40 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-300"
+                  style={{ width: `${Math.min(100, ((audioState.currentTime || 0) / Math.max(1, audioState.duration || 1)) * 100)}%` }}
+                />
+              </div>
+              <span className="font-mono text-[11px] text-white/30 tabular-nums whitespace-nowrap">
+                {formatTime(audioState.duration || 0)}
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 lg:justify-end">
-            {/* Credits pill */}
+          {/* Right: Credits + Status + Settings */}
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => setShowBuyCredits(true)}
-              className={`${SUNO_BTN_BASE} cursor-pointer py-2 rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary disabled:after:bg-background-primary disabled:after:opacity-50 px-3 transition-all duration-200`}
-              aria-label="Acheter des crédits"
+              className="flex items-center gap-1.5 px-3 py-1.5 min-h-[40px] sm:min-h-0 rounded-full bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] transition-all"
+              aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
             >
-              <Coins className="w-4 h-4 text-accent-brand" />
-              <span className="text-xs font-medium">{creditsBalance}</span>
-              <span className="text-[11px] text-foreground-tertiary">crédits</span>
+              <Coins className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+              <span className="text-xs font-semibold text-white/80 tabular-nums">{creditsBalance}</span>
+              <span className="text-[10px] text-white/30 hidden sm:inline">cr.</span>
             </button>
 
-            {/* Modèle */}
-            <div className="relative model-dropdown-container">
-              <button
-                type="button"
-                onClick={() => setShowModelDropdown(!showModelDropdown)}
-                disabled={isGenerationDisabled}
-                className={SUNO_PILL_SOLID}
-              >
-                <span className="text-foreground-tertiary">Modèle</span>
-                <span className="font-semibold">
-                  {modelVersion === 'V5'
-                    ? 'V5 (Beta)'
-                    : modelVersion === 'V4_5PLUS'
-                    ? 'V4.5+'
-                    : modelVersion.replace('_', '.')}
-                </span>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className={`w-3 h-3 transition-transform ${showModelDropdown ? 'rotate-180' : ''}`}
-                  viewBox="0 0 24 24"
-                >
-                  <path fill="currentColor" d="m6 9 6 6 6-6" />
-                </svg>
-              </button>
-
-              <AnimatePresence>
-                {showModelDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                    transition={{ duration: 0.18, ease: 'easeOut' }}
-                    className="absolute right-0 top-full mt-2 w-56 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
-                  >
-                    <div className="py-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModelVersion('V5');
-                          setShowModelDropdown(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${
-                          modelVersion === 'V5' ? 'bg-accent-blue/20 text-accent-blue' : 'text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">V5</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-blue/20 text-accent-blue border border-accent-blue/30">
-                            Beta
-                          </span>
-                          {modelVersion === 'V5' && (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              className="ml-auto text-accent-blue"
-                            >
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModelVersion('V4_5PLUS');
-                          setShowModelDropdown(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${
-                          modelVersion === 'V4_5PLUS' ? 'bg-accent-purple/20 text-accent-purple' : 'text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">V4.5+</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-purple/20 text-accent-purple border border-accent-purple/30">
-                            Pro
-                          </span>
-                          {modelVersion === 'V4_5PLUS' && (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              className="ml-auto text-accent-purple"
-                            >
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setModelVersion('V4_5');
-                          setShowModelDropdown(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm ${
-                          modelVersion === 'V4_5' ? 'bg-accent-success/20 text-accent-success' : 'text-white'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">V4.5</span>
-                          <span className="px-1.5 py-0.5 rounded text-xs font-medium bg-accent-success/20 text-accent-success border border-accent-success/30">
-                            Free
-                          </span>
-                          {modelVersion === 'V4_5' && (
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              className="ml-auto text-accent-success"
-                            >
-                              <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
-                            </svg>
-                          )}
-                        </div>
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
+              <div className={`w-2 h-2 rounded-full ${isGenerating || activeGenerationCount > 0 ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'} shadow-[0_0_6px_currentColor]`} />
+              <span className="text-[10px] font-medium text-white/50">
+                {isGenerating || activeGenerationCount > 0 ? `${activeGenerationCount || 1} en cours` : 'Prêt'}
+              </span>
             </div>
 
-            {/* Switch de mode Simple / Custom / Remix */}
-            <div className="inline-flex bg-background-tertiary border border-border-primary rounded-full p-1">
+            <div className="hidden md:inline-flex items-center rounded-full border border-white/[0.06] bg-white/[0.03] p-0.5">
               <button
                 type="button"
-                onClick={() => selectGenerationMode('simple')}
-                disabled={isGenerationDisabled}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  generationModeKind === 'simple' ? 'bg-white text-black shadow' : 'text-foreground-tertiary hover:text-foreground-primary'
-                } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => setShellMode('ide')}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-all ${shellMode === 'ide' ? 'bg-white text-black shadow-sm' : 'text-white/40 hover:text-white/70'}`}
               >
-                Simple
+                IDE
               </button>
               <button
                 type="button"
-                onClick={() => selectGenerationMode('custom')}
-                disabled={isGenerationDisabled}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  generationModeKind === 'custom'
-                    ? 'bg-accent-brand text-white shadow-[0_0_25px_rgba(129,140,248,0.75)]'
-                    : 'text-foreground-tertiary hover:text-foreground-primary'
-                } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={() => setShellMode('classic')}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-all ${shellMode === 'classic' ? 'bg-white text-black shadow-sm' : 'text-white/40 hover:text-white/70'}`}
               >
-                Custom
-              </button>
-              <button
-                type="button"
-                onClick={() => selectGenerationMode('remix')}
-                disabled={isGenerationDisabled}
-                className={`px-3 py-1 rounded-full text-[11px] font-medium transition-all ${
-                  generationModeKind === 'remix'
-                    ? 'bg-cyan-300 text-black shadow-[0_0_25px_rgba(34,211,238,0.55)]'
-                    : 'text-foreground-tertiary hover:text-foreground-primary'
-                } ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                Remix
+                Classic
               </button>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
+              className="p-2 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition-all"
+              aria-label="Paramètres"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
           </div>
+        </div>
+      </header>
+
+      <div className={`relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 lg:pb-4 ${audioState.showPlayer && audioState.tracks.length > 0 ? 'pb-[calc(10rem+env(safe-area-inset-bottom,0px))]' : 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))]'}`}>
+        <header className="sr-only">
+          <h1>Studio IA Synaura</h1>
         </header>
+
+        {/* Mobile studio tabs (inline, top) */}
+        <div className="lg:hidden flex items-center gap-1 mb-3 bg-white/[0.04] rounded-2xl p-1 border border-white/[0.06]">
+          {([
+            { key: 'studio' as const, label: 'Studio', icon: Layers },
+            { key: 'generate' as const, label: 'Créer', icon: Wand2 },
+            { key: 'library' as const, label: 'Bibliothèque', icon: ListMusic },
+          ]).map((tab) => {
+            const active = mobileTab === tab.key;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setMobileTab(tab.key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold transition-all active:scale-[0.97] ${
+                  active
+                    ? 'bg-white/[0.1] text-white shadow-sm'
+                    : 'text-white/40 hover:text-white/60'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
 
         {/* LAYOUT "Studio Pro" : panneaux fixes (scroll interne uniquement) ; sur mobile onglets Générer / Bibliothèque */}
         <div ref={containerRef} className="grid grid-cols-12 gap-3 lg:flex lg:items-stretch lg:gap-3">
           {/* LEFT PANEL: Generator / Remixer — sur mobile visible quand onglet "Générer" */}
           <aside
-            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
+            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
             style={isDesktopLayout ? { width: leftPx } : { width: '100%', maxWidth: '100%' }}
           >
-            <div className="flex-1 overflow-y-auto pr-1 space-y-3 pb-24 lg:pb-0">
+            {/* Sticky Generate Button + Mode Switch */}
+            <div className="sticky top-0 z-20 shrink-0 border-b border-white/[0.06] bg-[#0c0c14]/95 backdrop-blur-2xl p-3 space-y-2.5">
+              <button
+                type="button"
+                onClick={generateMusic}
+                disabled={isGenerationDisabled || isGenerating || rateLimitActive}
+                className="group w-full flex items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-bold text-white bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 hover:from-indigo-400 hover:via-violet-400 hover:to-purple-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99]"
+                aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Créer'}
+              >
+                {isGenerating ? (
+                  <span className="w-4 h-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" />
+                ) : rateLimitActive ? (
+                  <Clock3 className="w-4 h-4" />
+                ) : (
+                  <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
+                )}
+                {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
+                {!isGenerating && !rateLimitActive && (
+                  <span className="text-[10px] font-semibold text-white/40 bg-white/[0.08] px-1.5 py-0.5 rounded-full tabular-nums">12 cr.</span>
+                )}
+              </button>
+
+              <div className="flex items-center gap-2">
+                <div className="flex-1 flex rounded-lg bg-white/[0.03] border border-white/[0.06] p-0.5">
+                  {([
+                    { key: 'simple' as const, label: 'Simple', activeClass: 'bg-white text-black shadow-sm' },
+                    { key: 'custom' as const, label: 'Custom', activeClass: 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20' },
+                    { key: 'remix' as const, label: 'Remix', activeClass: 'bg-cyan-500/20 text-cyan-200 shadow-sm' },
+                  ]).map((m) => (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => selectGenerationMode(m.key)}
+                      disabled={isGenerationDisabled}
+                      className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-all ${generationModeKind === m.key ? m.activeClass : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+
+                <ModelDropdownPortal
+                  modelVersion={modelVersion}
+                  disabled={isGenerationDisabled}
+                  open={showModelDropdown}
+                  onToggle={() => setShowModelDropdown(!showModelDropdown)}
+                  onSelect={(id) => { setModelVersion(id); setShowModelDropdown(false); }}
+                  onClose={() => setShowModelDropdown(false)}
+                />
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 space-y-3 pb-24 lg:pb-3 pt-3">
               {shellMode === 'ide' && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
-                  <div className="flex items-center justify-between px-1 pb-1.5">
-                    <span className="text-[11px] text-white/60 inline-flex items-center gap-1">
+                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
+                  <div className="flex items-center justify-between px-1 pb-2">
+                    <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-semibold inline-flex items-center gap-1.5">
                       <Layers className="w-3 h-3" />
                       Explorer
                     </span>
-                    <button type="button" onClick={() => setCmdOpen(true)} className="rounded-lg bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white/70 hover:bg-white/15">
+                    <button type="button" onClick={() => setCmdOpen(true)} className="rounded-md bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-white/35 hover:bg-white/[0.08] hover:text-white/50 transition-all">
                       Ctrl+K
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button type="button" onClick={() => setLeftExplorerTab('builder')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'builder' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><SlidersHorizontal className="w-3 h-3" /> Editor</button>
-                    <button type="button" onClick={() => setLeftExplorerTab('presets')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'presets' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><Sparkles className="w-3 h-3" /> Presets</button>
-                    <button type="button" onClick={() => setLeftExplorerTab('assets')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'assets' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><Library className="w-3 h-3" /> Assets</button>
-                    <button type="button" onClick={() => setLeftExplorerTab('history')} className={`h-8 rounded-xl text-[11px] inline-flex items-center justify-center gap-1 ${leftExplorerTab === 'history' ? 'border border-white/20 bg-white text-black font-medium' : 'border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] text-zinc-400'}`}><History className="w-3 h-3" /> History</button>
+                  <div className="grid grid-cols-4 gap-1">
+                    {([
+                      { key: 'builder' as const, label: 'Editor', Icon: SlidersHorizontal },
+                      { key: 'presets' as const, label: 'Presets', Icon: Sparkles },
+                      { key: 'assets' as const, label: 'Assets', Icon: Library },
+                      { key: 'history' as const, label: 'History', Icon: History },
+                    ]).map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => setLeftExplorerTab(key)}
+                        className={`h-8 rounded-lg text-[10px] inline-flex items-center justify-center gap-1 font-medium transition-all ${
+                          leftExplorerTab === key
+                            ? 'bg-indigo-500/15 text-indigo-200 border border-indigo-400/20'
+                            : 'bg-white/[0.03] border border-white/[0.06] text-white/35 hover:bg-white/[0.06] hover:text-white/55'
+                        }`}
+                      >
+                        <Icon className="w-3 h-3" />
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </div>
               )}
               {(shellMode !== 'ide' || leftExplorerTab === 'builder') && (
               <section className="space-y-3 flex flex-col min-h-0">
-                {/* Barre : crédits + mode Simple/Custom/Remix + modèle */}
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setShowBuyCredits(true)}
-                      className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/80 hover:bg-white/[0.06]"
-                      aria-label={`Crédits: ${creditsBalance}`}
-                    >
-                      <Coins className="w-3.5 h-3.5" />
-                      <span className="w-[4ch] text-center">{formatCreditsCompact(creditsBalance)}</span>
-                    </button>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      {/* Mode Simple / Custom / Remix — zones tactiles 44px sur mobile */}
-                      <div className="inline-flex rounded-xl border border-white/10 bg-white/[0.04] p-0.5 min-h-[44px] sm:min-h-0">
-                        <button
-                          type="button"
-                          onClick={() => selectGenerationMode('simple')}
-                          disabled={isGenerationDisabled}
-                          className={`rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5 min-h-[40px] sm:min-h-0 text-[11px] font-medium transition ${generationModeKind === 'simple' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title="Description seule, l’IA génère titre et paroles"
-                        >
-                          Simple
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => selectGenerationMode('custom')}
-                          disabled={isGenerationDisabled}
-                          className={`rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5 min-h-[40px] sm:min-h-0 text-[11px] font-medium transition ${generationModeKind === 'custom' ? 'bg-white text-black shadow-sm' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title="Titre, style et paroles personnalisés"
-                        >
-                          Custom
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => selectGenerationMode('remix')}
-                          disabled={isGenerationDisabled}
-                          className={`rounded-lg px-3 py-2 sm:px-2.5 sm:py-1.5 min-h-[40px] sm:min-h-0 text-[11px] font-medium transition ${generationModeKind === 'remix' ? 'bg-cyan-500/20 text-cyan-100 border border-cyan-400/30' : 'text-white/70 hover:text-white hover:bg-white/10'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                          title="Remix à partir d’un fichier audio"
-                        >
-                          Remix
-                        </button>
-                      </div>
-
-                      <div className="relative model-dropdown-container">
-                        <button
-                          type="button"
-                          onClick={() => setShowModelDropdown(!showModelDropdown)}
-                          disabled={isGenerationDisabled}
-                          className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-medium text-white/90 hover:bg-white/[0.06] disabled:opacity-50"
-                        >
-                          <span>{modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}</span>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-ml-0.5 h-3.5 w-3.5">
-                              <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
-                            </svg>
-                        </button>
-
-                        <AnimatePresence>
-                          {showModelDropdown && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                              transition={{ duration: 0.18, ease: 'easeOut' }}
-                              className="absolute right-0 top-full mt-2 w-44 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
-                            >
-                              <div className="py-1">
-                                <button type="button" onClick={() => { setModelVersion('V5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V5</button>
-                                <button type="button" onClick={() => { setModelVersion('V4_5PLUS'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5+</button>
-                                <button type="button" onClick={() => { setModelVersion('V4_5'); setShowModelDropdown(false); }} className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white">V4.5</button>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
                 {/* Formulaire : Titre dans "Titre & sortie" (Custom) ou implicite (Simple) */}
                 <div className="space-y-3 px-0">
                   {/* Lien rapide source Remix (uniquement Custom / Remix) */}
                   {customMode && (
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2">
+                    <div className="rounded-2xl border border-cyan-400/20 bg-cyan-500/[0.04] p-2.5">
                       <button
                         type="button"
                         onClick={() => {
                           remixSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                           setOpenStyleSection(true);
                         }}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] py-2 text-xs text-white/80 hover:bg-white/[0.06]"
+                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-500/[0.06] py-2.5 text-xs text-cyan-200/90 hover:bg-cyan-500/10 transition"
                         aria-label="Aller à la section Audio / Remix"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 shrink-0">
@@ -2880,7 +3080,7 @@ export default function AIGenerator() {
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Ex: Summer Vibes"
                       disabled={isGenerationDisabled}
-                      className="w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
                   </SunoAccordionSection>
 
@@ -2910,41 +3110,44 @@ export default function AIGenerator() {
                       rows={2}
                       maxLength={1000}
                       disabled={isGenerationDisabled}
-                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
                     <div className="text-[10px] text-white/40 mt-1 text-right">{style.length}/1000</div>
 
                     <div className="mt-2">
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[10px] text-foreground-tertiary">Tags style</span>
+                        <span className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Tags style</span>
                         {selectedTags.length > 0 && (
                           <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-white/50 hover:text-white">
                             Tout effacer
                           </button>
                         )}
                       </div>
-                      <div className="max-h-[180px] overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02]">
+                      <div className="flex flex-wrap gap-1.5">
                         {tagCategories.map((cat) => (
-                          <div key={cat.id} className="border-b border-white/5 last:border-0">
-                            <div className="sticky top-0 z-[0] border-b border-white/5 bg-black/60 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white/40">{cat.label}</div>
-                            <div className="divide-y divide-white/5">
-                              {cat.tags.map((tag) => {
-                                const active = selectedTags.includes(tag);
-                                return (
-                                  <button
-                                    key={`${cat.id}-${tag}`}
-                                    type="button"
-                                    onClick={() => handleTagClick(tag)}
-                                    disabled={isGenerationDisabled}
-                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${active ? 'bg-white/15 text-white' : 'text-white/70 hover:bg-white/5 hover:text-white'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  >
-                                    <span className="truncate">{tag}</span>
-                                    {active && <span className="text-[10px] text-white/80">✓</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <React.Fragment key={cat.id}>
+                            {cat.tags.map((tag) => {
+                              const active = selectedTags.includes(tag);
+                              const colorMap: Record<string, string> = {
+                                genre: active ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                mood: active ? 'bg-blue-500/20 text-blue-200 border-blue-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                production: active ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                vocal: active ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                              };
+                              return (
+                                <button
+                                  key={`${cat.id}-${tag}`}
+                                  type="button"
+                                  onClick={() => handleTagClick(tag)}
+                                  disabled={isGenerationDisabled}
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${colorMap[cat.id] || colorMap.genre} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  {tag}
+                                  {active && <span className="text-[9px] ml-0.5">✕</span>}
+                                </button>
+                              );
+                            })}
+                          </React.Fragment>
                         ))}
                       </div>
                     </div>
@@ -2959,68 +3162,40 @@ export default function AIGenerator() {
                         </span>
                         {isRemixMode && <span className="text-[10px] text-cyan-200/80">Requis</span>}
                       </div>
+                      <p className="text-[10px] text-white/50 mb-1.5">
+                        Utilise uniquement un enregistrement dont tu détiens les droits. Suno bloque les contenus protégés par le droit d&apos;auteur.
+                      </p>
                       <RemixDropzone
                         file={remixFile}
                         uploading={remixUploading}
-                        onFileSelected={async (file: File) => {
+                        onFileSelected={(file: File) => {
                           setRemixFile(file);
-                          setRemixSourceLabel(file.name);
-                          try {
-                            setRemixUploading(true);
-                            // Signature Cloudinary
-                            const timestamp = Math.round(new Date().getTime() / 1000);
-                            const publicId = `remix_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-                            const sigRes = await fetch('/api/upload/signature', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ timestamp, publicId, resourceType: 'video' })
-                            });
-                            if (!sigRes.ok) throw new Error('Erreur signature Cloudinary');
-                            const { signature, apiKey, cloudName } = await sigRes.json();
-
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('folder', 'ximam/audio');
-                            formData.append('public_id', publicId);
-                            formData.append('resource_type', 'video');
-                            formData.append('timestamp', String(timestamp));
-                            formData.append('api_key', apiKey);
-                            formData.append('signature', signature);
-
-                            const uploadResponse = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/video/upload`, {
-                              method: 'POST',
-                              body: formData,
-                            });
-                            if (!uploadResponse.ok) throw new Error('Erreur upload Cloudinary');
-                            const uploaded = await uploadResponse.json();
-                            const secureUrl = uploaded?.secure_url as string;
-                            const uploadedPublicId = uploaded?.public_id as string | undefined;
-                            const uploadedDuration = typeof uploaded?.duration === 'number' ? uploaded.duration : undefined;
-                            if (!secureUrl) throw new Error('URL de fichier manquante');
-
-                            setRemixUploading(false);
-                            setRemixUploadUrl(secureUrl);
-                            setRemixSourceDurationSec(uploadedDuration);
-                            try {
-                              const res = await fetch('/api/ai/upload-source', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                  audioUrl: secureUrl,
-                                  publicId: uploadedPublicId,
-                                  title,
-                                  duration: uploadedDuration,
-                                  fileName: file.name,
-                                })
-                              });
-                              if (res.ok) {
-                                window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
-                              }
-                            } catch {}
-                          } catch (e: any) {
-                            setRemixUploading(false);
-                            notify.error('Upload audio', e?.message || 'Erreur upload');
-                          }
+                          setPendingRemixFile(file);
+                          setRemixUploadModalOpen(true);
+                        }}
+                      />
+                      <UploadConfirmModal
+                        isOpen={remixUploadModalOpen && !!pendingRemixFile}
+                        file={pendingRemixFile}
+                        onConfirm={(uploadTitle) => {
+                          const f = pendingRemixFile;
+                          setRemixUploadModalOpen(false);
+                          setPendingRemixFile(null);
+                          if (f) performRemixUpload(f, uploadTitle);
+                        }}
+                        onCancel={() => {
+                          setRemixUploadModalOpen(false);
+                          setPendingRemixFile(null);
+                          setRemixFile(null);
+                        }}
+                      />
+                      <UploadProgressModal
+                        isOpen={remixUploading}
+                        title={uploadingRemixTitle}
+                        onCancel={() => {
+                          uploadAbortRef.current?.abort();
+                          setRemixUploading(false);
+                          setUploadingRemixTitle(null);
                         }}
                       />
                       {remixUploadUrl && (
@@ -3088,7 +3263,7 @@ export default function AIGenerator() {
                       rows={4}
                       maxLength={5000}
                       disabled={isGenerationDisabled}
-                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
                   </SunoAccordionSection>
                   {/* Options avancées */}
@@ -3165,10 +3340,16 @@ export default function AIGenerator() {
                         sunoState={sunoState}
                         sunoError={sunoError}
                         onOpenTrack={openTrackPanel}
-                        onPlayTrack={playGenerated}
+                        onPlayTrack={(track) => {
+                          setSelectedTrack(track);
+                          setGeneratedTrack(track);
+                          playGenerated(track);
+                        }}
                         onDownloadTrack={downloadGenerated}
                         onShareTrack={shareGenerated}
                         onRemixTrack={useGeneratedTrackForRemix}
+                        onReuseTrack={handleReuseTrackInfo}
+                        onCopyLyrics={handleCopyLyrics}
                       />
                     </SunoAccordionSection>
                   )}
@@ -3190,7 +3371,7 @@ export default function AIGenerator() {
                       rows={3}
                       maxLength={199}
                       disabled={isGenerationDisabled}
-                      className="w-full resize-none rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
                     />
                     <div className="text-[10px] text-white/40 mt-1 text-right">{description.length}/199</div>
                     <div className="mt-2">
@@ -3202,28 +3383,31 @@ export default function AIGenerator() {
                           </button>
                         )}
                       </div>
-                      <div className="max-h-[180px] overflow-y-auto rounded-lg border border-white/10 bg-white/[0.02]">
+                      <div className="flex flex-wrap gap-1.5">
                         {tagCategories.map((cat) => (
-                          <div key={cat.id} className="border-b border-white/5 last:border-0">
-                            <div className="sticky top-0 z-[0] border-b border-white/5 bg-black/60 px-2 py-1 text-[10px] font-medium uppercase tracking-wider text-white/40">{cat.label}</div>
-                            <div className="divide-y divide-white/5">
-                              {cat.tags.map((tag) => {
-                                const active = selectedTags.includes(tag);
-                                return (
-                                  <button
-                                    key={`${cat.id}-s-${tag}`}
-                                    type="button"
-                                    onClick={() => handleTagClick(tag)}
-                                    disabled={isGenerationDisabled}
-                                    className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${active ? 'bg-amber-500/15 text-amber-100' : 'text-white/70 hover:bg-white/5 hover:text-white'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  >
-                                    <span className="truncate">{tag}</span>
-                                    {active && <span className="text-[10px] text-amber-200/90">✓</span>}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          <React.Fragment key={cat.id}>
+                            {cat.tags.map((tag) => {
+                              const active = selectedTags.includes(tag);
+                              const colorMap: Record<string, string> = {
+                                genre: active ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                mood: active ? 'bg-blue-500/20 text-blue-200 border-blue-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                production: active ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                vocal: active ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                              };
+                              return (
+                                <button
+                                  key={`${cat.id}-s-${tag}`}
+                                  type="button"
+                                  onClick={() => handleTagClick(tag)}
+                                  disabled={isGenerationDisabled}
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${colorMap[cat.id] || colorMap.genre} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                  {tag}
+                                  {active && <span className="text-[9px] ml-0.5">✕</span>}
+                                </button>
+                              );
+                            })}
+                          </React.Fragment>
                         ))}
                       </div>
                     </div>
@@ -3352,27 +3536,7 @@ export default function AIGenerator() {
               )}
                 </div>
 
-                {/* Bouton Créer */}
-                <div className="sticky bottom-0 pt-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5">
-                    <button
-                      type="button"
-                      onClick={generateMusic}
-                      disabled={isGenerationDisabled || isGenerating || rateLimitActive}
-                      className="w-full flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white bg-white/15 hover:bg-white/20 disabled:opacity-50 disabled:cursor-not-allowed transition"
-                      aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Créer'}
-                    >
-                      {isGenerating ? (
-                        <span className="w-4 h-4 rounded-full border-2 border-white/40 border-t-transparent animate-spin" />
-                      ) : rateLimitActive ? (
-                        <Clock3 className="w-4 h-4" />
-                      ) : (
-                        <Sparkles className="w-4 h-4" />
-                      )}
-                      {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
-                    </button>
-                  </div>
-                </div>
+                {/* Bouton Créer déplacé en sticky top */}
 
                 {/* Mobile : Inspector / Models / Export */}
                 <div className="lg:hidden mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
@@ -3522,7 +3686,7 @@ export default function AIGenerator() {
                             } as any as AIGeneration;
                             playAITrack(track as any, fakeGen);
                           }}
-                          className="h-7 px-2 rounded-lg text-[11px] bg-accent-brand/20 hover:bg-accent-brand/30"
+                          className="h-7 px-2 rounded-lg text-[11px] bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 transition-colors"
                         >
                           Play
                         </button>
@@ -3545,7 +3709,7 @@ export default function AIGenerator() {
               {shellMode === 'ide' && leftExplorerTab === 'history' && (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
                   <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><History className="w-3.5 h-3.5" /> Historique</div>
-                  {recentGenerationsSorted.slice(0, 20).map((g) => (
+                  {visibleGenerations.slice(0, 20).map((g) => (
                     <button
                       key={g.id}
                       type="button"
@@ -3559,7 +3723,7 @@ export default function AIGenerator() {
                       <div className="text-[11px] text-zinc-400 inline-flex items-center gap-1"><Clock3 className="w-3 h-3" /> {new Date(g.created_at).toLocaleString('fr-FR')}</div>
                     </button>
                   ))}
-                  {recentGenerationsSorted.length === 0 && <div className="text-xs text-zinc-500">Pas d'historique.</div>}
+                  {visibleGenerations.length === 0 && <div className="text-xs text-zinc-500">Pas d'historique.</div>}
                 </div>
               )}
             </div>
@@ -3576,64 +3740,69 @@ export default function AIGenerator() {
           </div>
 
           {/* CENTER PANEL: Library — sur mobile visible quand onglet "Bibliothèque" */}
-          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden ${(mobileTab === 'library' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}>
-            <div className="flex-1 overflow-y-auto pl-1 space-y-3 min-h-0 pb-24 lg:pb-0">
+          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${(mobileTab === 'library' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}>
+            <div className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0 pb-24 lg:pb-0">
               {shellMode === 'ide' && (
                 <div className="w-full min-w-0 space-y-3 p-2">
-                  <div className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-white/80">Timeline & bibliothèque</span>
+                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-white/60 inline-flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-indigo-400/60" />
+                      Workspace
+                    </span>
                     <button
                       type="button"
                       onClick={refreshGenerations}
-                      className="h-8 px-3 rounded-xl border border-white/10 bg-white/[0.03] text-[11px] hover:bg-white/[0.08] inline-flex items-center gap-1.5"
+                      className="h-7 px-2.5 rounded-lg border border-white/[0.06] bg-white/[0.03] text-[10px] hover:bg-white/[0.08] inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-all"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Rafraîchir
+                      <RefreshCw className="w-3 h-3" />
+                      Actualiser
                     </button>
                   </div>
 
                 <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-12">
                   <div className="min-w-0 space-y-3 lg:col-span-7">
-                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="text-sm font-semibold">Prompt</div>
-                        <div className="inline-flex items-center gap-2">
-                          <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">
+                    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                      <div className="mb-2.5 flex items-center justify-between">
+                        <div className="text-[13px] font-semibold text-white/90">Prompt</div>
+                        <div className="inline-flex items-center gap-1.5">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/20">
                             {modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
-                          </div>
-                          <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">
+                          </span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 border border-white/[0.06]">
                             {generationDuration}s
-                          </div>
+                          </span>
                         </div>
                       </div>
                       <textarea
                         value={idePromptValue}
                         onChange={(e) => (customMode ? setStyle(e.target.value) : setDescription(e.target.value))}
-                        className="min-h-[140px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
+                        className="min-h-[120px] w-full resize-none rounded-xl border border-white/[0.06] bg-[#07070a]/60 px-3.5 py-3 text-sm outline-none placeholder:text-white/25 focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
                         placeholder="Décris le style, l’ambiance, les instruments, la structure…"
                       />
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-zinc-400">
-                        <span>{customMode ? 'Mode custom: style + lyrics influencent fortement le rendu.' : 'Mode simple: ce prompt pilote la génération.'}</span>
-                        <span>{idePromptValue.length} car.</span>
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-white/30">
+                        <span>{customMode ? 'Custom : style + lyrics' : 'Simple : ce prompt pilote tout'}</span>
+                        <span className="tabular-nums">{idePromptValue.length}</span>
                       </div>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {selectedTags.slice(0, 12).map((tag) => (
-                          <button
-                            key={tag}
-                            type="button"
-                            onClick={() => setSelectedTags((x) => x.filter((t) => t !== tag))}
-                            className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/75 hover:bg-white/15"
-                          >
-                            {tag} <X className="w-3 h-3" />
-                          </button>
-                        ))}
-                      </div>
+                      {selectedTags.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {selectedTags.slice(0, 12).map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => setSelectedTags((x) => x.filter((t) => t !== tag))}
+                              className="inline-flex items-center gap-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 text-[10px] text-indigo-200/80 hover:bg-indigo-500/20 transition"
+                            >
+                              {tag} <X className="w-2.5 h-2.5" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="mb-2 flex items-center justify-between">
-                        <div className="text-sm font-semibold">Timeline</div>
-                        <div className="text-[10px] text-white/60">
+                    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                      <div className="mb-2.5 flex items-center justify-between">
+                        <div className="text-[13px] font-semibold text-white/90">Timeline</div>
+                        <div className="font-mono text-[10px] text-white/40 tabular-nums">
                           {formatTime(playbackCurrentTime)} / {formatTime(playbackDuration || generatedTrack?.duration || 0)}
                         </div>
                       </div>
@@ -3648,11 +3817,11 @@ export default function AIGenerator() {
                         showTimeLabel
                         showProgressBar
                       />
-                      <div className="mt-2 flex items-center gap-2">
+                      <div className="mt-2.5 flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => seek(Math.max(0, playbackCurrentTime - 10))}
-                          className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] hover:bg-white/[0.08]"
+                          className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-white/50 hover:bg-white/[0.08] hover:text-white/80 transition-all"
                         >
                           -10s
                         </button>
@@ -3669,40 +3838,40 @@ export default function AIGenerator() {
                             }
                             await play().catch(() => {});
                           }}
-                          className="rounded-xl bg-white px-3 py-1 text-[11px] font-semibold text-black hover:bg-white/90"
+                          className="rounded-full bg-white w-8 h-8 flex items-center justify-center text-black hover:scale-105 shadow-lg shadow-white/10 transition-all"
                         >
-                          {audioState.isPlaying ? 'Pause' : 'Play'}
+                          {audioState.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
                         </button>
                         <button
                           type="button"
                           onClick={() => seek(Math.min(playbackDuration || 0, playbackCurrentTime + 10))}
-                          className="rounded-xl border border-white/10 bg-white/[0.03] px-2 py-1 text-[11px] hover:bg-white/[0.08]"
+                          className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-white/50 hover:bg-white/[0.08] hover:text-white/80 transition-all"
                         >
                           +10s
                         </button>
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={Math.round(playbackProgress * 100)}
-                          onChange={(e) => seekByRatio(Number(e.target.value || 0) / 100)}
-                          className="ml-auto w-[45%] accent-cyan-300"
-                        />
+                        <div className="ml-auto flex-1 max-w-[45%]">
+                          <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-300"
+                              style={{ width: `${Math.round(playbackProgress * 100)}%` }}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="min-w-0 w-full space-y-3 lg:col-span-5">
-                    <div className="flex h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-white/10 bg-white/[0.03] p-3">
-                      <div className="mb-2 flex shrink-0 items-center justify-between">
-                        <div className="text-sm font-semibold">Lyrics</div>
-                        <div className="text-[10px] px-2 py-1 rounded-full bg-white/10 text-white/70">{isInstrumental ? 'Instrumental' : 'Voix'}</div>
+                    <div className="flex h-[420px] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                      <div className="mb-2.5 flex shrink-0 items-center justify-between">
+                        <div className="text-[13px] font-semibold text-white/90">Lyrics</div>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full border ${isInstrumental ? 'bg-emerald-500/10 text-emerald-300/80 border-emerald-500/20' : 'bg-violet-500/10 text-violet-300/80 border-violet-500/20'}`}>{isInstrumental ? 'Instrumental' : 'Voix'}</span>
                       </div>
                       <div className="min-h-0 flex-1 overflow-y-auto">
                         <textarea
                           value={lyrics}
                           onChange={(e) => setLyrics(e.target.value)}
-                          className="min-h-[180px] w-full resize-none rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-3 text-sm outline-none placeholder:text-white/30 focus:border-white/20"
+                          className="min-h-[180px] w-full resize-none rounded-xl border border-white/[0.06] bg-[#07070a]/60 px-3.5 py-3 text-sm outline-none placeholder:text-white/25 focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
                           placeholder="Colle tes paroles ici (ou laisse vide pour auto)."
                         />
                         <div className="mt-2 flex gap-2">
@@ -3831,25 +4000,25 @@ export default function AIGenerator() {
 
                   {/* Versions A/B : ligne pleine largeur */}
                   <div className="w-full min-w-0 lg:col-span-12">
-                    <div className="w-full rounded-3xl border border-white/10 bg-white/[0.03] p-3">
+                    <div className="w-full rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
                       <div className="mb-3 w-full">
-                        <div className="mb-2 text-sm font-semibold">Versions A/B</div>
+                        <div className="mb-2.5 text-[13px] font-semibold text-white/90">Versions A/B</div>
                         <div className="grid w-full grid-cols-2 gap-2 lg:grid-cols-3">
-                          <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                            <div className="text-[10px] font-medium uppercase tracking-wider text-white/50">Slot A</div>
-                            <div className="truncate text-xs text-white/90">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || abA.slice(0, 8)) : '—'}</div>
+                          <div className="min-w-0 rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] px-3 py-2.5">
+                            <div className="text-[10px] font-medium uppercase tracking-wider text-indigo-300/50 mb-0.5">Slot A</div>
+                            <div className="truncate text-xs text-white/90 font-medium">{abA ? (recentGenerationsSorted.find((x) => x.id === abA)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abA)?.tracks?.[0]?.title || abA.slice(0, 8)) : '—'}</div>
                           </div>
-                          <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                            <div className="text-[10px] font-medium uppercase tracking-wider text-white/50">Slot B</div>
-                            <div className="truncate text-xs text-white/90">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || abB.slice(0, 8)) : '—'}</div>
+                          <div className="min-w-0 rounded-xl border border-violet-500/15 bg-violet-500/[0.04] px-3 py-2.5">
+                            <div className="text-[10px] font-medium uppercase tracking-wider text-violet-300/50 mb-0.5">Slot B</div>
+                            <div className="truncate text-xs text-white/90 font-medium">{abB ? (recentGenerationsSorted.find((x) => x.id === abB)?.metadata?.title || recentGenerationsSorted.find((x) => x.id === abB)?.tracks?.[0]?.title || abB.slice(0, 8)) : '—'}</div>
                           </div>
                           <button
                             type="button"
                             onClick={toggleABPlay}
-                            className="col-span-2 w-full rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs font-medium hover:bg-white/[0.06] lg:col-span-1"
+                            className="col-span-2 w-full rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-xs font-medium hover:bg-white/[0.06] lg:col-span-1 transition-all text-white/70 hover:text-white"
                             title="Basculer A/B"
                           >
-                            Écouter {abSide === 'A' ? 'B' : 'A'} (actuel : {abSide})
+                            Écouter {abSide === 'A' ? 'B' : 'A'} <span className="text-white/30">({abSide})</span>
                           </button>
                         </div>
                       </div>
@@ -3910,7 +4079,7 @@ export default function AIGenerator() {
                           })}
 
                         <div className="flex w-full flex-col gap-2">
-                        {recentGenerationsSorted.slice(0, 50).map((g) => (
+                        {visibleGenerations.slice(0, 50).map((g) => (
                           <div
                             key={g.id}
                             onClick={() => selectGenerationInIde(g)}
@@ -3922,10 +4091,10 @@ export default function AIGenerator() {
                             }}
                             role="button"
                             tabIndex={0}
-                            className={`w-full text-left flex min-w-0 flex-wrap items-center gap-2 rounded-2xl border px-3 py-2.5 transition sm:flex-nowrap ${
+                            className={`w-full text-left flex min-w-0 flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 transition-all sm:flex-nowrap ${
                               selectedGeneration?.id === g.id
-                                ? 'border-cyan-300/40 bg-cyan-400/10'
-                                : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                                ? 'border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 shadow-sm shadow-indigo-500/5'
+                                : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.10]'
                             }`}
                           >
                             <div className="min-w-0 flex-1">
@@ -3937,17 +4106,17 @@ export default function AIGenerator() {
                             }`}>
                               {g.status}
                             </span>
-                            <div className="flex shrink-0 items-center gap-2 border-l border-white/10 pl-2">
+                            <div className="flex shrink-0 items-center gap-1.5 border-l border-white/[0.06] pl-2">
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handlePlayGeneration(g);
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-1.5 text-xs font-medium text-white hover:from-indigo-400 hover:to-violet-400 shadow-sm shadow-indigo-500/20 transition-all"
                                 title="Lire ce titre"
                               >
-                                <Play className="w-3.5 h-3.5" />
+                                <Play className="w-3 h-3 fill-current" />
                                 <span className="hidden sm:inline">Lire</span>
                               </button>
                               <button
@@ -3956,10 +4125,10 @@ export default function AIGenerator() {
                                   e.stopPropagation();
                                   assignABSlot('A', g.id);
                                 }}
-                                className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
-                                  abA === g.id ? 'bg-white text-black' : 'border border-white/15 bg-white/5 text-white/90 hover:bg-white/15'
+                                className={`inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-2 text-[11px] font-bold transition-all ${
+                                  abA === g.id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/20' : 'border border-white/[0.08] bg-white/[0.03] text-white/60 hover:bg-white/[0.08]'
                                 }`}
-                                title="Mettre en slot A (puis utiliser le bouton Écouter A/B)"
+                                title="Mettre en slot A"
                               >
                                 A
                               </button>
@@ -3969,10 +4138,10 @@ export default function AIGenerator() {
                                   e.stopPropagation();
                                   assignABSlot('B', g.id);
                                 }}
-                                className={`inline-flex h-8 min-w-[2rem] items-center justify-center rounded-lg px-2 text-xs font-semibold transition ${
-                                  abB === g.id ? 'bg-white text-black' : 'border border-white/15 bg-white/5 text-white/90 hover:bg-white/15'
+                                className={`inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-2 text-[11px] font-bold transition-all ${
+                                  abB === g.id ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/20' : 'border border-white/[0.08] bg-white/[0.03] text-white/60 hover:bg-white/[0.08]'
                                 }`}
-                                title="Mettre en slot B (puis utiliser le bouton Écouter A/B)"
+                                title="Mettre en slot B"
                               >
                                 B
                               </button>
@@ -3991,10 +4160,10 @@ export default function AIGenerator() {
                           </div>
                         ))}
                         </div>
-                        {recentGenerationsSorted.length === 0 && (
+                        {visibleGenerations.length === 0 && (
                           <div className="w-full py-4 text-center text-xs text-zinc-500">Aucune version pour le moment.</div>
                         )}
-                        {recentGenerationsSorted.length > 50 && (
+                        {visibleGenerations.length > 50 && (
                           <div className="w-full py-2 text-center text-[10px] text-zinc-500">50 plus récentes affichées. Utilise la bibliothèque pour voir tout l’historique.</div>
                         )}
                       </div>
@@ -4005,502 +4174,164 @@ export default function AIGenerator() {
               )}
 
               {shellMode !== 'ide' && (
-              <>
-              <div className="panel-suno p-3">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 flex-1 px-4 py-2 rounded-full bg-background-tertiary">
-                  <Search className="w-4 h-4 text-foreground-tertiary" />
-                  <input
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search"
-                    aria-label="Search clips"
-                    className={SUNO_INPUT}
-                  />
-                  {searchQuery.trim().length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="p-1 rounded-full hover:bg-overlay-on-primary text-foreground-tertiary"
-                      aria-label="Effacer la recherche"
-                      title="Effacer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-                <button
-                  type="button"
-                  onClick={refreshGenerations}
-                  className={SUNO_PILL_SOLID}
-                  title="Rafraîchir"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col min-h-0 flex-1 overflow-visible">
+                <LibraryMiddlePanel
+                  tracks={allTracks}
+                  generationsById={generationsById}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  filterBy={filterBy === 'with-lyrics' ? 'voix' : filterBy}
+                  onFilterByChange={(v) => setFilterBy(v === 'voix' ? 'with-lyrics' : v)}
+                  sortBy={sortBy}
+                  onSortByChange={setSortBy}
+                  onRefresh={refreshGenerations}
+                  remixMode={isRemixMode}
+                  onRemixModeToggle={() => selectGenerationMode(isRemixMode ? 'simple' : 'remix')}
+                  remixSourceTrackId={remixSourceTrackId}
+                  onSetRemixSource={(track) => useLibraryTrackForRemix(track)}
+                  onClearRemixSource={clearRemixSource}
+                  onPickTrack={(track, gen) => {
+                    const converted = convertAITrackToGenerated(track as any);
+                    setSelectedTrack(converted);
+                    setGeneratedTrack(converted);
+                    setShowTrackPanel(true);
+                    if (gen) setSelectedGeneration(gen);
+                  }}
+                  onPlayTrack={(track, gen) => {
+                    const converted = convertAITrackToGenerated(track as any);
+                    setSelectedTrack(converted);
+                    setGeneratedTrack(converted);
+                    if (gen) setSelectedGeneration(gen);
+                    playGenerated(converted);
+                  }}
+                  onPlayQueue={playLibraryQueue}
+                  onRemixTrack={(track) => useLibraryTrackForRemix(track)}
+                  onReuseTrack={(track, gen) => {
+                    const converted = convertAITrackToGenerated(track as any);
+                    handleReuseTrackInfo(converted);
+                  }}
+                  onCopyLyrics={(track, gen) => {
+                    const converted = convertAITrackToGenerated(track as any);
+                    handleCopyLyrics(converted);
+                  }}
+                  onToggleLike={toggleTrackLike}
+                  onTrashTrack={toggleTrackTrash}
+                  likedTrackIds={likedTrackIds}
+                  trashedTrackIds={trashedTrackIds}
+                  loading={generationsLoading}
+                  error={generationsError}
+                />
               </div>
-
-              <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    type="button"
-                    onClick={() => setFilterBy('all')}
-                    className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
-                      filterBy === 'all' ? 'bg-background-tertiary' : ''
-                    }`}
-                  >
-                    <span className="relative">Tout</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterBy('instrumental')}
-                    className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
-                      filterBy === 'instrumental' ? 'bg-background-tertiary' : ''
-                    }`}
-                  >
-                    <span className="relative">Instrumental</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setFilterBy('with-lyrics')}
-                    className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
-                      filterBy === 'with-lyrics' ? 'bg-background-tertiary' : ''
-                    }`}
-                  >
-                    <span className="relative">Voix</span>
-                  </button>
-                </div>
-
-                <div className="relative library-sort-dropdown-container">
-                  <button
-                    type="button"
-                    onClick={() => setShowLibrarySortDropdown((v) => !v)}
-                    className={`${SUNO_PILL_SOLID} px-4 py-2`}
-                  >
-                    <span className="relative flex flex-row items-center justify-center gap-2">
-                      <SlidersHorizontal className="h-4 w-4" />
-                      {sortBy === 'newest' ? 'Newest' : sortBy === 'oldest' ? 'Oldest' : 'Title'}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="currentColor" className="-mx-1 h-5 w-5">
-                        <g><path d="M16.657 9c.89 0 1.337 1.077.707 1.707l-4.657 4.657a1 1 0 0 1-1.414 0l-4.657-4.657C6.006 10.077 6.452 9 7.343 9z"></path></g>
-                      </svg>
-                    </span>
-                  </button>
-
-                  <AnimatePresence>
-                    {showLibrarySortDropdown && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -6, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -6, scale: 0.98 }}
-                        transition={{ duration: 0.16, ease: 'easeOut' }}
-                        className="absolute right-0 top-full mt-2 w-44 bg-[#0a0812]/90 backdrop-blur-md border border-border-primary rounded-xl shadow-2xl overflow-hidden z-50"
-                      >
-                        <div className="py-1">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSortBy('newest');
-                              setShowLibrarySortDropdown(false);
-                            }}
-                            className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white"
-                          >
-                            Newest
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSortBy('oldest');
-                              setShowLibrarySortDropdown(false);
-                            }}
-                            className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white"
-                          >
-                            Oldest
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSortBy('title');
-                              setShowLibrarySortDropdown(false);
-                            }}
-                            className="w-full px-3 py-2 text-left hover:bg-white/10 transition-colors text-sm text-white"
-                          >
-                            Title
-                          </button>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => selectGenerationMode('remix')}
-                  className={`${SUNO_BTN_BASE} cursor-pointer rounded-full text-foreground-primary bg-transparent before:border-border-primary enabled:hover:before:bg-overlay-on-primary px-3 py-1.5 text-[11px] ${
-                    isRemixMode ? 'bg-background-tertiary' : ''
-                  }`}
-                >
-                  <span className="relative">Mode Remix</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={clearRemixSource}
-                  disabled={!remixUploadUrl}
-                  className={`rounded-full px-3 py-1.5 text-[11px] border ${
-                    remixUploadUrl
-                      ? 'border-red-300/30 bg-red-500/10 text-red-200 hover:bg-red-500/20'
-                      : 'border-white/10 bg-white/[0.03] text-white/35 cursor-not-allowed'
-                  }`}
-                >
-                  Retirer source remix
-                </button>
-                {remixSourceLabel && (
-                  <span className="text-[10px] text-cyan-200/90 truncate max-w-[260px]">
-                    Source: {remixSourceLabel}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {generations.length > 0 &&
-              !generationsLoading &&
-              filteredAndSortedGenerations.length === 0 && (
-                <div className="panel-suno p-3">
-                  <p className="text-[12px] text-foreground-secondary">
-                    Aucune génération ne correspond à tes filtres.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSearchQuery('');
-                      setFilterBy('all');
-                      setSortBy('newest');
-                    }}
-                    className={`${SUNO_PILL_SOLID} mt-3 w-full`}
-                  >
-                    <span className="relative">Réinitialiser les filtres</span>
-                  </button>
-                </div>
-              )}
-
-            <LibraryClipsList
-              tracks={allTracks}
-              generationsById={generationsById}
-              searchQuery={searchQuery}
-              sortBy={sortBy}
-              filterBy={filterBy}
-              loading={generationsLoading}
-              error={generationsError}
-              onResetFilters={() => {
-                setSearchQuery('');
-                setFilterBy('all');
-                setSortBy('newest');
-              }}
-              onPickTrack={(track, gen) => {
-                const converted = convertAITrackToGenerated(track as any);
-                setSelectedTrack(converted);
-                setGeneratedTrack(converted);
-                setShowTrackPanel(true);
-                if (gen) setSelectedGeneration(gen);
-              }}
-              onPlayTrack={(track, gen) => {
-                if (gen) {
-                  playAITrack(track as any, gen);
-                  return;
-                }
-                // fallback: play without generation context
-                const fakeGen = {
-                  id: (track as any).generation_id || (track as any).generation?.id || 'unknown',
-                  prompt: (track as any).prompt || '',
-                  created_at: (track as any).created_at || new Date().toISOString(),
-                  status: 'completed',
-                  model: (track as any).model_name || 'V4_5',
-                  user_id: (session?.user?.id as string) || '',
-                  task_id: '',
-                  tracks: [],
-                } as any as AIGeneration;
-                playAITrack(track as any, fakeGen);
-              }}
-              onRemixTrack={(track) => useLibraryTrackForRemix(track as any)}
-            />
-            </>
             )}
             </div>
           </main>
 
-          {showDesktopRightPanel && (
-            <div
-              role="separator"
-              aria-orientation="vertical"
-              onPointerDown={beginDrag('right')}
-              className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-white/10"
-              title="Redimensionner panneau droit"
-            >
-              <div className="h-16 w-[2px] rounded-full bg-white/20" />
-            </div>
-          )}
-
-          {/* RIGHT PANEL: Inspector */}
-          {showDesktopRightPanel && (
+          {/* RIGHT PANEL: Desktop aside + Mobile sheet */}
+          {/* Desktop aside */}
           <aside
-            className="col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 hidden lg:flex flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden"
+            className="hidden lg:flex col-span-12 lg:col-span-3 lg:shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden w-[409px]"
             style={{ width: rightPx }}
           >
-            {/* Visualizer placeholder (studio feel) — masqué sur mobile pour garder Générer + Bibliothèque utilisables */}
-            <div
-              className="h-40 bg-black/60 border-b border-white/5 relative overflow-hidden cursor-ew-resize"
-              title="Cliquer/drag pour se déplacer dans la piste"
-              onPointerDown={handleWavePointerDown}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-950/30 via-black/20 to-cyan-950/20" />
-              <div className="absolute left-3 top-3 right-24 z-10 min-w-0">
-                <div className="truncate text-[11px] font-semibold text-white/90">
-                  {activeInspectorTrack?.title || activeQueueTrack?.title || 'Sélectionne un son pour activer l’inspector'}
-                </div>
-                <div className="text-[10px] text-white/60">
-                  {formatTime(audioState.currentTime || 0)} / {formatTime(inspectorDuration || 0)}
-                </div>
-              </div>
-              <div className="absolute top-3 right-3 z-10">
-                <span className="flex items-center gap-1.5 text-[10px] font-mono text-indigo-300 bg-indigo-900/20 px-2 py-1 rounded border border-indigo-500/20">
-                  <Volume2 className="w-3 h-3" /> {Math.round(inspectorProgress * 100)}%
-                </span>
-              </div>
-              <div className="absolute inset-x-3 top-14 bottom-8 rounded-xl border border-white/5 bg-black/25 overflow-hidden">
-                <div className="absolute inset-0 pointer-events-none">
-                  <div className="absolute left-0 right-0 top-1/2 h-px bg-white/5" />
-                  <div className="absolute left-0 right-0 top-[28%] h-px bg-white/[0.035]" />
-                  <div className="absolute left-0 right-0 top-[72%] h-px bg-white/[0.035]" />
-                </div>
-                <div
-                  className="absolute inset-0 px-2 py-2"
-                  onPointerMove={(e) => {
-                    const host = e.currentTarget as HTMLDivElement;
-                    const ratio = getWaveRatioFromClientX(e.clientX, host);
-                    setWaveHoverRatio(ratio);
-                    if (waveScrubbing) seekWithWaveRatio(ratio);
-                  }}
-                  onPointerLeave={() => {
-                    if (!waveScrubbing) setWaveHoverRatio(null);
-                  }}
-                >
-                  <SynauraWaveform
-                    waveformData={timestampedWaveform}
-                    progress={isWaveformForPlayingTrack ? inspectorProgress : 0}
-                    onSeek={seekWithWaveRatio}
-                    variant="studio"
-                    heightClass="h-full min-h-[72px]"
-                    idPrefix="ide-inspector-wave"
-                    duration={inspectorDuration || 0}
-                    showTimeLabel
-                    showProgressBar
-                  />
-                </div>
-                {waveHoverRatio !== null && (
-                  <div
-                    className="absolute top-0 bottom-0 w-px bg-cyan-200/60"
-                    style={{ left: `${waveHoverRatio * 100}%` }}
-                  >
-                    <div className="absolute -top-6 -translate-x-1/2 rounded-md border border-cyan-300/30 bg-black/80 px-1.5 py-0.5 text-[10px] text-cyan-100">
-                      {formatTime((inspectorDuration || 0) * waveHoverRatio)}
-                    </div>
+            <React.Suspense fallback={null}>
+              <RightPanelImproved
+                track={selectedTrack as any}
+                stylePrompt={selectedGeneration?.prompt}
+                lyrics={(selectedTrack as any)?.lyrics}
+                onRemix={() => (selectedTrack ? useGeneratedTrackForRemix(selectedTrack) : undefined)}
+                onDownload={() => (generatedTrack ? downloadGenerated(generatedTrack) : undefined)}
+                modelVersion={modelVersion}
+                onSetModelVersion={(id: string) => setModelVersion(id)}
+                selectedGenerationForVisibility={selectedGenerationForVisibility}
+                publishingVisibility={publishingVisibility}
+                toggleGenerationVisibility={toggleGenerationVisibility}
+              />
+            </React.Suspense>
+          </aside>
+
+          {/* Mini-player flottant mobile */}
+          <div className="lg:hidden fixed left-3 right-3 z-[41]" style={{ bottom: 'calc(52px + env(safe-area-inset-bottom, 0px) + 8px)' }}>
+            {generatedTrack ? (
+              <div
+                onClick={() => setShowTrackPanel(true)}
+                className="w-full flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0a0a]/90 backdrop-blur-xl px-3 py-2.5 shadow-[0_18px_70px_rgba(0,0,0,.6)] cursor-pointer"
+              >
+                {generatedTrack.imageUrl ? (
+                  <img src={generatedTrack.imageUrl} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 shrink-0 flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-indigo-300" />
                   </div>
                 )}
-              </div>
-              <div className="absolute inset-x-3 bottom-2 h-[3px] rounded-full bg-white/10 overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-indigo-400 to-cyan-300" style={{ width: `${inspectorProgress * 100}%` }} />
-              </div>
-              <div
-                className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 rounded-full border border-white/10 bg-black/45 px-2 py-1 backdrop-blur-sm"
-                onClick={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-              >
-                <button type="button" onClick={() => previousTrack()} className="rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white" title="Précédent">
-                  <SkipBack className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="truncate text-sm font-medium text-white/90">{generatedTrack.title || 'Piste'}</div>
+                  <div className="text-[10px] text-white/40">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack.duration || 0)}</div>
+                </div>
                 <button
                   type="button"
-                  onClick={async () => {
-                    if (audioState.isPlaying) {
-                      pause();
-                      return;
-                    }
-                    const cur = (audioState.tracks || [])[audioState.currentTrackIndex || 0];
-                    if (cur) {
-                      await play();
-                      return;
-                    }
-                    if (generatedTrack) playGenerated(generatedTrack);
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    audioState.isPlaying ? pause() : playGenerated(generatedTrack);
                   }}
-                  className="rounded-full bg-white p-1.5 text-black hover:bg-white/90"
-                  title={audioState.isPlaying ? 'Pause' : 'Play'}
+                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-black shadow-lg"
                 >
-                  {audioState.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                </button>
-                <button type="button" onClick={() => nextTrack()} className="rounded-full p-1.5 text-white/80 hover:bg-white/10 hover:text-white" title="Suivant">
-                  <SkipForward className="w-3.5 h-3.5" />
+                  {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                 </button>
               </div>
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowTrackPanel(true)}
+                className="w-full rounded-2xl border border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/60 shadow-[0_18px_70px_rgba(0,0,0,.6)] flex items-center justify-center gap-2"
+              >
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                Inspecteur
+              </button>
+            )}
+          </div>
 
-            <div className="px-2 pt-2 pb-1 border-b border-white/10 inline-flex gap-1">
+          {/* Mobile bottom sheet */}
+          {showTrackPanel && (
+            <div className="lg:hidden fixed inset-0 z-50">
               <button
-                type="button"
-                onClick={() => setRightTab('inspector')}
-                className={`h-7 px-2 rounded-lg text-[11px] ${rightTab === 'inspector' ? 'bg-white text-black' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
-              >
-                Inspector
-              </button>
-              <button
-                type="button"
-                onClick={() => setRightTab('models')}
-                className={`h-7 px-2 rounded-lg text-[11px] ${rightTab === 'models' ? 'bg-white text-black' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
-              >
-                Models
-              </button>
-              <button
-                type="button"
-                onClick={() => setRightTab('export')}
-                className={`h-7 px-2 rounded-lg text-[11px] ${rightTab === 'export' ? 'bg-white text-black' : 'bg-white/5 text-zinc-300 hover:bg-white/10'}`}
-              >
-                Export
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              {rightTab === 'inspector' && (
-                <TrackInspector
-                  track={selectedTrack}
-                  isOpen={showTrackPanel}
-                  onClose={closeTrackPanel}
-                  onPlay={playGenerated}
-                  onDownload={downloadGenerated}
-                  onShare={shareGenerated}
-                  onRemix={useGeneratedTrackForRemix}
-                  variant="docked"
-                />
-              )}
-              {rightTab === 'models' && (
-                <div className="p-3 space-y-2">
-                  {[
-                    { id: 'V4_5', label: 'v4.5', desc: 'Rapide et stable' },
-                    { id: 'V4_5PLUS', label: 'v4.5+', desc: 'Plus de détails voix' },
-                    { id: 'V5', label: 'v5', desc: 'Qualité premium' },
-                  ].map((m) => (
-                    <button
-                      key={m.id}
-                      type="button"
-                      onClick={() => {
-                        setModelVersion(m.id as any);
-                        pushLog('info', `Model: ${m.label}`);
-                      }}
-                      className={`w-full text-left rounded-xl border p-2 ${modelVersion === m.id ? 'border-emerald-400/30 bg-emerald-400/10' : 'border-white/10 bg-white/5 hover:bg-white/10'}`}
-                    >
-                      <div className="text-xs font-semibold">{m.label}</div>
-                      <div className="text-[11px] text-zinc-400">{m.desc}</div>
-                    </button>
-                  ))}
+                aria-label="Fermer"
+                className="absolute inset-0 bg-black/60"
+                onClick={() => setShowTrackPanel(false)}
+              />
+              <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl border-t border-white/[0.08] bg-[#05030b]/98 backdrop-blur-2xl shadow-[0_-30px_90px_rgba(0,0,0,.8)] overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
+                  <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
+                  <button
+                    onClick={() => setShowTrackPanel(false)}
+                    className="absolute right-3 top-3 rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              )}
-              {rightTab === 'export' && (
-                <div className="p-3 space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!generatedTrack) {
-                        notify.error('Export', 'Aucune piste sélectionnée');
-                        return;
-                      }
-                      downloadGenerated(generatedTrack);
-                    }}
-                    className="w-full h-9 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-xs"
-                  >
-                    Export MP3
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="w-full h-9 rounded-xl border border-white/10 bg-white/5 text-xs opacity-60 cursor-not-allowed"
-                  >
-                    WAV (bientôt)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={toggleGenerationVisibility}
-                    disabled={!selectedGenerationForVisibility || publishingVisibility}
-                    className={`w-full h-9 rounded-xl text-xs inline-flex items-center justify-center gap-2 ${
-                      !selectedGenerationForVisibility || publishingVisibility
-                        ? 'border border-white/10 bg-white/5 text-white/40 cursor-not-allowed'
-                        : selectedGenerationForVisibility.is_public
-                        ? 'border border-amber-300/30 bg-amber-400/10 text-amber-100 hover:bg-amber-400/20'
-                        : 'bg-white text-black hover:bg-white/90'
-                    }`}
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    {publishingVisibility
-                      ? 'Mise à jour...'
-                      : selectedGenerationForVisibility
-                      ? selectedGenerationForVisibility.is_public
-                        ? 'Rendre privé sur Synaura'
-                        : 'Publier sur Synaura'
-                      : 'Sélectionne une génération'}
-                  </button>
-                  <div className="text-[10px] text-zinc-400">
-                    Visibilité actuelle: {selectedGenerationForVisibility ? (selectedGenerationForVisibility.is_public ? 'publique' : 'privée') : 'non définie'}
-                  </div>
+                <div className="h-full">
+                  <RightPanelImproved
+                    track={selectedTrack as any}
+                    stylePrompt={selectedGeneration?.prompt}
+                    lyrics={(selectedTrack as any)?.lyrics}
+                    onRemix={() => (selectedTrack ? useGeneratedTrackForRemix(selectedTrack) : undefined)}
+                    onDownload={() => (generatedTrack ? downloadGenerated(generatedTrack) : undefined)}
+                    modelVersion={modelVersion}
+                    onSetModelVersion={(id: string) => setModelVersion(id)}
+                    selectedGenerationForVisibility={selectedGenerationForVisibility}
+                    publishingVisibility={publishingVisibility}
+                    toggleGenerationVisibility={toggleGenerationVisibility}
+                  />
                 </div>
-              )}
+              </div>
             </div>
-          </aside>
           )}
 
-          {/* Barre onglets mobile : Studio | Générer | Bibliothèque — adaptée tactile + safe-area */}
-          <nav
-            className="lg:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-white/10 bg-[#0a0a0a]/98 backdrop-blur-md"
-            style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom, 0px))' }}
-          >
-            <div className="flex items-stretch h-16 min-h-[56px] px-2 gap-1">
-              <button
-                type="button"
-                onClick={() => setMobileTab('studio')}
-                className={`flex-1 min-h-[48px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-t-xl text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${
-                  mobileTab === 'studio'
-                    ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Layers className="w-5 h-5 shrink-0" />
-                <span>Studio</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileTab('generate')}
-                className={`flex-1 min-h-[48px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-t-xl text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${
-                  mobileTab === 'generate'
-                    ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Wand2 className="w-5 h-5 shrink-0" />
-                <span>Générer</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMobileTab('library')}
-                className={`flex-1 min-h-[48px] flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-t-xl text-sm font-medium transition-colors touch-manipulation active:scale-[0.98] ${
-                  mobileTab === 'library'
-                    ? 'bg-indigo-600/90 text-white border-t-2 border-indigo-400'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <ListMusic className="w-5 h-5 shrink-0" />
-                <span>Bibliothèque</span>
-              </button>
-            </div>
-          </nav>
+
+          {/* Bottom nav spacer for global BottomNav on mobile */}
         </div>
 
         {shellMode === 'ide' && (
-          <footer className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#07070a]/85 backdrop-blur">
+          <footer className="hidden lg:block fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#07070a]/85 backdrop-blur">
             <div className="mx-auto max-w-[1600px] px-4 py-3">
               <div className="grid grid-cols-12 gap-3 lg:flex lg:items-start lg:gap-3">
               <div className="hidden lg:block shrink-0" style={{ width: leftPx }} />
@@ -4610,131 +4441,180 @@ export default function AIGenerator() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm p-4 flex items-center justify-center"
+              className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md p-4 flex items-center justify-center"
               onClick={() => setSettingsOpen(false)}
             >
               <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.16, ease: 'easeOut' }}
-                className="w-full max-w-md rounded-2xl border border-white/10 bg-[#0f0f14] shadow-xl"
+                initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="w-full max-w-lg rounded-3xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)]"
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                  <h2 className="text-base font-semibold text-white">Paramètres</h2>
+                <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
+                      <Settings className="h-4 w-4 text-indigo-300" />
+                    </div>
+                    <h2 className="text-base font-semibold text-white/90">Paramètres du studio</h2>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setSettingsOpen(false)}
-                    className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                    className="rounded-xl p-2 text-white/30 hover:bg-white/[0.06] hover:text-white/60 transition-all"
                     aria-label="Fermer"
                   >
                     <X className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="p-4 space-y-4 max-h-[70vh] overflow-y-auto">
-                  <div>
-                    <div className="text-xs font-medium text-zinc-400 mb-2">Mode interface</div>
+                <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Interface</p>
                     <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setShellMode('ide')}
-                        className={`flex-1 py-2 rounded-xl text-sm font-medium ${shellMode === 'ide' ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
-                      >
-                        IDE
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShellMode('classic')}
-                        className={`flex-1 py-2 rounded-xl text-sm font-medium ${shellMode === 'classic' ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
-                      >
-                        Classic
-                      </button>
-                    </div>
-                    <p className="mt-1.5 text-[11px] text-zinc-500">IDE : explorateur, onglets, timeline. Classic : panneau unique.</p>
-                  </div>
-
-                  <div>
-                    <div className="text-xs font-medium text-zinc-400 mb-2">Onglet explorateur au démarrage</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {(['builder', 'presets', 'assets', 'history'] as const).map((tab) => (
+                      {([
+                        { key: 'ide' as const, label: 'IDE', desc: 'Explorateur, onglets, timeline' },
+                        { key: 'classic' as const, label: 'Classic', desc: 'Panneau unique' },
+                      ]).map((m) => (
                         <button
-                          key={tab}
+                          key={m.key}
                           type="button"
-                          onClick={() => setLeftExplorerTab(tab)}
-                          className={`py-2 rounded-xl text-xs font-medium capitalize ${leftExplorerTab === tab ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                          onClick={() => setShellMode(m.key)}
+                          className={`flex-1 p-3 rounded-xl text-left transition-all ${
+                            shellMode === m.key
+                              ? 'bg-white text-black shadow-lg shadow-white/10'
+                              : 'bg-white/[0.04] border border-white/[0.06] text-white/70 hover:bg-white/[0.08]'
+                          }`}
                         >
-                          {tab === 'builder' ? 'Editor' : tab === 'presets' ? 'Presets' : tab === 'assets' ? 'Assets' : 'History'}
+                          <span className="text-sm font-semibold block">{m.label}</span>
+                          <span className={`text-[10px] block mt-0.5 ${shellMode === m.key ? 'text-black/50' : 'text-white/30'}`}>{m.desc}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-xs font-medium text-zinc-400 mb-2">Modèle par défaut</div>
-                    <div className="flex gap-2">
-                      {(['V4_5', 'V4_5PLUS', 'V5'] as const).map((m) => (
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Onglet au démarrage</p>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {([
+                        { key: 'builder' as const, label: 'Editor' },
+                        { key: 'presets' as const, label: 'Presets' },
+                        { key: 'assets' as const, label: 'Assets' },
+                        { key: 'history' as const, label: 'Historique' },
+                      ]).map((tab) => (
                         <button
-                          key={m}
+                          key={tab.key}
                           type="button"
-                          onClick={() => setModelVersion(m)}
-                          className={`flex-1 py-2 rounded-xl text-xs font-medium ${modelVersion === m ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                          onClick={() => setLeftExplorerTab(tab.key)}
+                          className={`py-2 rounded-lg text-[11px] font-medium transition-all ${
+                            leftExplorerTab === tab.key
+                              ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/20'
+                              : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                          }`}
                         >
-                          {m === 'V5' ? 'V5' : m === 'V4_5PLUS' ? 'V4.5+' : 'V4.5'}
+                          {tab.label}
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  <div>
-                    <div className="text-xs font-medium text-zinc-400 mb-2">Durée par défaut</div>
-                    <div className="flex gap-2">
-                      {([60, 120, 180] as const).map((d) => (
-                        <button
-                          key={d}
-                          type="button"
-                          onClick={() => setGenerationDuration(d)}
-                          className={`flex-1 py-2 rounded-xl text-xs font-medium ${generationDuration === d ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
-                        >
-                          {d === 60 ? '1 min' : d === 120 ? '2 min' : '3 min'}
-                        </button>
-                      ))}
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Génération</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] text-white/40 font-medium">Modèle</span>
+                        <div className="flex gap-1.5">
+                          {([
+                            { id: 'V4_5' as const, label: 'v4.5' },
+                            { id: 'V4_5PLUS' as const, label: 'v4.5+' },
+                            { id: 'V5' as const, label: 'v5' },
+                          ]).map((m) => (
+                            <button
+                              key={m.id}
+                              type="button"
+                              onClick={() => setModelVersion(m.id)}
+                              className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                                modelVersion === m.id
+                                  ? 'bg-white text-black shadow-sm'
+                                  : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <span className="text-[11px] text-white/40 font-medium">Durée cible</span>
+                        <div className="flex gap-1.5">
+                          {([60, 120, 180] as const).map((d) => (
+                            <button
+                              key={d}
+                              type="button"
+                              onClick={() => setGenerationDuration(d)}
+                              className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
+                                generationDuration === d
+                                  ? 'bg-white text-black shadow-sm'
+                                  : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                              }`}
+                            >
+                              {d === 60 ? '1m' : d === 120 ? '2m' : '3m'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-1.5 text-[11px] text-zinc-500">Indication envoyée à Suno (résultat non garanti — l’API ne fixe pas la durée exacte).</p>
+                    <p className="text-[10px] text-white/25">Tous les modèles : 12 crédits/génération. Durée indicative.</p>
                   </div>
 
-                  <div>
-                    <div className="text-xs font-medium text-zinc-400 mb-2">Console repliée au démarrage</div>
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Console</p>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setConsoleCollapsed(false)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-medium ${!consoleCollapsed ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                        className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                          !consoleCollapsed
+                            ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/20'
+                            : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                        }`}
                       >
-                        Non
+                        Visible au démarrage
                       </button>
                       <button
                         type="button"
                         onClick={() => setConsoleCollapsed(true)}
-                        className={`flex-1 py-2 rounded-xl text-xs font-medium ${consoleCollapsed ? 'bg-white text-black' : 'bg-white/10 text-zinc-300 hover:bg-white/15'}`}
+                        className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${
+                          consoleCollapsed
+                            ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/20'
+                            : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                        }`}
                       >
-                        Oui
+                        Repliée au démarrage
                       </button>
                     </div>
                   </div>
-
-                  <div>
-                    <div className="text-xs font-medium text-zinc-400 mb-2">Raccourcis clavier</div>
-                    <ul className="text-xs text-zinc-400 space-y-1.5">
-                      <li className="flex justify-between gap-4"><span>Palette de commandes</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Ctrl+K</kbd></li>
-                      <li className="flex justify-between gap-4"><span>Lecture / Pause</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Espace</kbd></li>
-                      <li className="flex justify-between gap-4"><span>Fermer (palette / paramètres)</span><kbd className="rounded px-1.5 py-0.5 bg-white/10 font-mono text-[10px]">Échap</kbd></li>
-                    </ul>
+                  <div className="space-y-2.5">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Raccourcis clavier</p>
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.04]">
+                      <div className="flex items-center justify-between px-3.5 py-2.5">
+                        <span className="text-[11px] text-white/50">Palette de commandes</span>
+                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Ctrl+K</kbd>
+                      </div>
+                      <div className="flex items-center justify-between px-3.5 py-2.5">
+                        <span className="text-[11px] text-white/50">Lecture / Pause</span>
+                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Espace</kbd>
+                      </div>
+                      <div className="flex items-center justify-between px-3.5 py-2.5">
+                        <span className="text-[11px] text-white/50">Fermer</span>
+                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Échap</kbd>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5">
-                    <p className="text-[11px] text-zinc-500">
-                      Les fichiers générés par Suno sont conservés <strong className="text-zinc-400">15 jours</strong>. Pensez à télécharger ou à garder vos créations dans la bibliothèque.
+                  <div className="rounded-xl border border-amber-400/10 bg-amber-500/[0.04] px-4 py-3">
+                    <p className="text-[11px] text-amber-200/60 leading-relaxed">
+                      Les fichiers générés par Suno sont conservés <strong className="text-amber-200/80">15 jours</strong>. Pensez à télécharger ou publier vos créations.
                     </p>
                   </div>
                 </div>
@@ -4749,74 +4629,79 @@ export default function AIGenerator() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[120] bg-black/65 backdrop-blur-sm p-4 pt-20 flex items-start justify-center"
+              className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md p-4 pt-[12vh] flex items-start justify-center"
               onClick={() => setCmdOpen(false)}
             >
               <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                initial={{ opacity: 0, y: -12, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                transition={{ duration: 0.16, ease: 'easeOut' }}
-                className="w-full max-w-[720px] rounded-3xl border border-white/10 bg-[#0b0b10] p-3 shadow-[0_30px_120px_rgba(0,0,0,0.7)]"
+                exit={{ opacity: 0, y: -12, scale: 0.97 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="w-full max-w-[640px] rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)] overflow-hidden"
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
               >
-                <div className="inline-flex items-center gap-2 text-xs text-zinc-400 mb-3">
-                  <Command className="w-3.5 h-3.5" /> Command Palette
+                <div className="flex items-center gap-2 px-4 pt-4 pb-2">
+                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
+                    <Command className="w-3 h-3 text-indigo-300" />
+                  </div>
+                  <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">Palette de commandes</span>
                 </div>
-                <input
-                  ref={cmdInputRef}
-                  placeholder="Tape: generate, refresh, mode ide, mode classic, preset..."
-                  value={cmdQuery}
-                  onChange={(e) => setCmdQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'ArrowDown') {
-                      e.preventDefault();
-                      setCmdIndex((i) => Math.min(i + 1, Math.max(0, filteredCommandItems.length - 1)));
-                      return;
-                    }
-                    if (e.key === 'ArrowUp') {
-                      e.preventDefault();
-                      setCmdIndex((i) => Math.max(i - 1, 0));
-                      return;
-                    }
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (filteredCommandItems[cmdIndex]) filteredCommandItems[cmdIndex].run();
-                      else executePaletteCommand(cmdQuery);
-                    }
-                  }}
-                  className="w-full h-10 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none focus:border-white/20"
-                />
-                <div className="mt-3 space-y-2 text-xs max-h-[280px] overflow-auto pr-1">
+                <div className="px-4 pb-3">
+                  <input
+                    ref={cmdInputRef}
+                    placeholder="Rechercher une commande..."
+                    value={cmdQuery}
+                    onChange={(e) => setCmdQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setCmdIndex((i) => Math.min(i + 1, Math.max(0, filteredCommandItems.length - 1)));
+                        return;
+                      }
+                      if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setCmdIndex((i) => Math.max(i - 1, 0));
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (filteredCommandItems[cmdIndex]) filteredCommandItems[cmdIndex].run();
+                        else executePaletteCommand(cmdQuery);
+                      }
+                    }}
+                    className="w-full h-10 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 text-sm text-white/80 outline-none placeholder:text-white/25 focus:border-indigo-400/30 focus:bg-white/[0.05] transition-all"
+                  />
+                </div>
+                <div className="border-t border-white/[0.04] max-h-[320px] overflow-auto">
                   {filteredCommandItems.map((cmd, idx) => (
                     <button
                       key={cmd.id}
                       onClick={cmd.run}
-                      className={`w-full rounded-2xl border p-3 text-left transition ${
+                      className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${
                         idx === cmdIndex
-                          ? 'border-white/20 bg-white/10'
-                          : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                          ? 'bg-indigo-500/10'
+                          : 'hover:bg-white/[0.04]'
                       }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <div className="text-sm font-semibold">{cmd.label}</div>
-                          <div className="text-[11px] text-zinc-400">{cmd.desc}</div>
-                        </div>
-                        <span className="rounded-lg bg-white/10 px-2 py-1 text-[10px] font-semibold text-white/70">
-                          {idx === 0 ? 'Enter' : idx === 1 ? 'P' : idx === 5 ? 'E' : '⌘'}
-                        </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-white/80">{cmd.label}</div>
+                        <div className="text-[11px] text-white/30 truncate">{cmd.desc}</div>
                       </div>
+                      {idx === cmdIndex && (
+                        <kbd className="shrink-0 rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/35">Enter</kbd>
+                      )}
                     </button>
                   ))}
                   {filteredCommandItems.length === 0 && (
-                    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-zinc-500">
-                      Aucune commande trouvée.
+                    <div className="px-4 py-6 text-center text-[12px] text-white/25">
+                      Aucune commande trouvée
                     </div>
                   )}
                 </div>
-                <div className="mt-3 text-[11px] text-zinc-500">
-                  Exemples: <span className="text-zinc-400">model v5</span>, <span className="text-zinc-400">mode remix</span>, <span className="text-zinc-400">ab toggle</span>, <span className="text-zinc-400">credits refresh</span>
+                <div className="border-t border-white/[0.04] px-4 py-2.5 flex items-center gap-4 text-[10px] text-white/20">
+                  <span><kbd className="font-mono bg-white/[0.06] px-1.5 py-0.5 rounded text-white/30">↑↓</kbd> naviguer</span>
+                  <span><kbd className="font-mono bg-white/[0.06] px-1.5 py-0.5 rounded text-white/30">Enter</kbd> valider</span>
+                  <span><kbd className="font-mono bg-white/[0.06] px-1.5 py-0.5 rounded text-white/30">Esc</kbd> fermer</span>
                 </div>
               </motion.div>
             </motion.div>
@@ -4836,6 +4721,7 @@ export default function AIGenerator() {
             onDownload={downloadGenerated}
             onShare={shareGenerated}
             onRemix={useGeneratedTrackForRemix}
+            onCopyLyrics={handleCopyLyrics}
             variant="overlay"
           />
         </div>

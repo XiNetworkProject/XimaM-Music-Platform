@@ -17,7 +17,7 @@ async function handleTracks(
 
   const { data: generations, error } = await supabaseAdmin
     .from('ai_generations')
-    .select('id, user_id, task_id, model, prompt, status, created_at, tracks:ai_tracks(*)')
+    .select('*, tracks:ai_tracks(*)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(200);
@@ -42,6 +42,9 @@ async function handleTracks(
           prompt: gTyped.prompt,
           status: gTyped.status,
           task_id: gTyped.task_id,
+          is_public: (g as any).is_public ?? false,
+          is_favorite: (g as any).is_favorite ?? false,
+          is_trashed: (g as any).is_trashed ?? false,
         },
       });
     }

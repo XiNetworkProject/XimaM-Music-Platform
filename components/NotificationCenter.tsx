@@ -137,6 +137,49 @@ const NotificationIcon = ({ type }: { type: NotificationType }) => {
 };
 
 function NotificationItem({ notification, onRemove }: { notification: Notification; onRemove: () => void }) {
+  const isError = notification.type === 'error';
+
+  if (isError) {
+    return (
+      <motion.div
+        role="status"
+        aria-atomic="true"
+        initial={{ opacity: 0, y: -12, scale: 0.96 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.96 }}
+        transition={{ duration: 0.2 }}
+        className="relative flex flex-row rounded-[20px] border-2 border-transparent bg-accent-error p-4 font-sans text-lg text-white shadow-lg max-w-[450px] w-full overflow-hidden"
+      >
+        <button
+          type="button"
+          onClick={onRemove}
+          className="absolute top-2 right-2 rounded-full p-1.5 text-white/90 hover:bg-white/10 transition-colors"
+          aria-label="Fermer"
+        >
+          <X className="w-4 h-4" />
+        </button>
+        <div className="flex flex-1 flex-col justify-center pr-10">
+          <h3 className="font-sans text-base font-medium text-white">
+            {notification.title}
+          </h3>
+          {notification.message && (
+            <span className="font-sans text-sm opacity-80">
+              {notification.message}
+            </span>
+          )}
+        </div>
+        {notification.duration && notification.duration > 0 && (
+          <motion.div
+            initial={{ scaleX: 1 }}
+            animate={{ scaleX: 0 }}
+            transition={{ duration: notification.duration / 1000, ease: 'linear' }}
+            className="absolute bottom-0 left-0 right-0 h-0.5 bg-white/30 rounded-b-[20px] origin-left"
+          />
+        )}
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -20, scale: 0.95 }}

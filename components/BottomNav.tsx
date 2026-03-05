@@ -1,339 +1,230 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { 
-  Home, 
-  Search, 
-  Library, 
-  Settings,
-  Plus,
-  Music,
-  Sparkles,
-  Heart,
-  TrendingUp,
-  Compass,
+import {
+  Home,
+  Search,
   BookOpen,
+  Sparkles,
+  Plus,
+  Settings,
+  TrendingUp,
   Users,
-  MoreHorizontal,
   Cloud,
+  Gift,
   LifeBuoy,
-  Scale
+  Scale,
+  X,
+  User,
 } from 'lucide-react';
-import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 import { useAudioPlayer } from '@/app/providers';
 
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { audioState } = useAudioPlayer();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const { notifications } = useMessageNotifications();
-  const { audioState, setShowPlayer } = useAudioPlayer();
-  const [hoveredItem, setHoveredItem] = useState<string | null>(null);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
-  // Navigation principale - max 5 boutons (Accueil, Découvrir, Upload, Bibliothèque, Plus)
-  const mainNavItems = [
-    {
-      icon: Home,
-      label: 'Accueil',
-      path: '/',
-      active: pathname === '/',
-      public: true
-    },
-    {
-      icon: Compass,
-      label: 'Découvrir',
-      path: '/discover',
-      active: pathname === '/discover',
-      public: true
-    },
-    {
-      icon: BookOpen,
-      label: 'Bibliothèque',
-      path: '/library',
-      active: pathname === '/library',
-      public: false
-    }
-  ];
-
-  // Répartition dynamique pour avoir l'upload centré
-  const splitIndex = Math.ceil(mainNavItems.length / 2);
-  const leftNavItems = mainNavItems.slice(0, splitIndex);
-  const rightNavItems = mainNavItems.slice(splitIndex);
-
-  // Types nav items (badge optionnel)
-  type BottomNavItem = {
-    icon: any;
-    label: string;
-    path: string;
-    active: boolean;
-    public: boolean;
-    badge?: number;
-  };
-
-  // Navigation secondaire - dans le menu plus
-  const secondaryNavItems: BottomNavItem[] = [
-    {
-      icon: TrendingUp,
-      label: 'Stats',
-      path: '/stats',
-      active: pathname === '/stats',
-      public: false
-    },
-    {
-      icon: Settings,
-      label: 'Abonnements',
-      path: '/subscriptions',
-      active: pathname === '/subscriptions',
-      public: true
-    },
-    {
-      icon: Cloud,
-      label: 'Météo',
-      path: '/meteo',
-      active: pathname === '/meteo',
-      public: true
-    },
-    {
-      icon: Sparkles,
-      label: 'Boosters',
-      path: '/boosters',
-      active: pathname === '/boosters',
-      public: false
-    },
-    {
-      icon: Users,
-      label: 'Communauté',
-      path: '/community',
-      active: pathname.startsWith('/community'),
-      public: true
-    },
-    {
-      icon: Settings,
-      label: 'Paramètres',
-      path: '/settings',
-      active: pathname === '/settings',
-      public: false
-    },
-    {
-      icon: LifeBuoy,
-      label: 'Support',
-      path: '/support',
-      active: pathname === '/support',
-      public: true
-    },
-    {
-      icon: Scale,
-      label: 'Légal',
-      path: '/legal',
-      active: pathname.startsWith('/legal'),
-      public: true
-    }
-  ];
-
-  const handleProfileClick = () => {
-    if (session?.user?.username) {
-      router.push(`/profile/${session.user.username}`, { scroll: false });
-    } else {
-      router.push('/auth/signin', { scroll: false });
-    }
-  };
-
-  const handleNavClick = (path: string, isPublic: boolean) => {
-    // Si c'est une page privée et que l'utilisateur n'est pas connecté, rediriger vers la connexion
-    if (!isPublic && !session) {
-      router.push('/auth/signin', { scroll: false });
-      return;
-    }
-    // Navigation immédiate sans blocage ni transition
-    router.push(path, { scroll: false });
-  };
+  useEffect(() => { setIsClient(true); }, []);
 
   useEffect(() => {
-    const load = async () => {
+    (async () => {
       try {
         const username = (session?.user as any)?.username;
         if (!username) return;
         const res = await fetch(`/api/users/${encodeURIComponent(username)}`);
         if (!res.ok) return;
         const data = await res.json();
-        const candidate = data?.user?.avatar || data?.user?.image || data?.avatar || data?.image;
-        if (candidate && typeof candidate === 'string') {
-          setAvatarUrl(candidate);
-        }
+        const c = data?.user?.avatar || data?.user?.image || data?.avatar || data?.image;
+        if (c && typeof c === 'string') setAvatarUrl(c);
       } catch {}
-    };
-    load();
+    })();
   }, [session?.user]);
+
+  const isActive = (p: string) => p === '/' ? pathname === '/' : pathname?.startsWith(p);
+
+  const go = useCallback((path: string, needsAuth = false) => {
+    if (needsAuth && !session) { router.push('/auth/signin', { scroll: false }); return; }
+    router.push(path, { scroll: false });
+    setShowMore(false);
+  }, [router, session]);
+
+  const playerVisible = audioState.showPlayer && audioState.tracks.length > 0;
+
+  const tabs = [
+    { icon: Home, label: 'Accueil', path: '/' },
+    { icon: Search, label: 'Explorer', path: '/discover' },
+    { icon: Sparkles, label: 'Studio', path: '/ai-generator' },
+    { icon: BookOpen, label: 'Biblio', path: '/library', auth: true },
+  ];
+
+  const drawerItems = [
+    { icon: Plus, label: 'Uploader', path: '/upload', auth: true },
+    { icon: Gift, label: 'Boosters', path: '/boosters', auth: true },
+    { icon: TrendingUp, label: 'Stats', path: '/stats', auth: true },
+    { icon: Users, label: 'Communauté', path: '/community' },
+    { icon: Cloud, label: 'Météo', path: '/meteo' },
+    { icon: Settings, label: 'Paramètres', path: '/settings', auth: true },
+    { icon: LifeBuoy, label: 'Support', path: '/support' },
+    { icon: Scale, label: 'Légal', path: '/legal' },
+  ];
 
   return (
     <>
-      {/* Bottom Navigation - Design Suno épuré */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 lg:hidden">
-        {/* Crédit partenaire discret */}
-        <div className="px-3 pb-1">
-          <div className="mx-auto max-w-md">
-            <div className="inline-flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--surface)]/70 backdrop-blur-md px-2.5 py-1 text-[11px] text-white/80">
-              <img src="/channels4_profile%20(2).jpg" alt="CIEUX INSTABLES" className="w-4 h-4 rounded-full object-cover" />
-              <span className="uppercase tracking-wide text-[var(--text-muted)]">Partenaire</span>
-              <span className="font-semibold">CIEUX INSTABLES</span>
-            </div>
+      <nav
+        className="fixed left-0 right-0 bottom-0 z-40 lg:hidden"
+        style={{ marginBottom: playerVisible ? 56 : 0, transition: 'margin-bottom 200ms ease' }}
+      >
+        <div
+          className="bg-[#0a0a0e] border-t border-white/[0.06]"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        >
+          <div className="flex items-center justify-around h-14">
+            {tabs.map((tab) => {
+              const active = isActive(tab.path);
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.path}
+                  type="button"
+                  onClick={() => go(tab.path, tab.auth)}
+                  className="flex flex-col items-center justify-center gap-0.5 w-16 h-full active:opacity-70 transition-opacity"
+                  aria-label={tab.label}
+                >
+                  <Icon
+                    className={`w-6 h-6 ${active ? 'text-white' : 'text-neutral-500'}`}
+                    strokeWidth={active ? 2.2 : 1.6}
+                  />
+                  <span className={`text-[10px] ${active ? 'text-white font-semibold' : 'text-neutral-500 font-medium'}`}>
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={() => session ? setShowMore(v => !v) : go('/auth/signin')}
+              className="flex flex-col items-center justify-center gap-0.5 w-16 h-full active:opacity-70 transition-opacity"
+              aria-label="Profil"
+            >
+              {session && avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt=""
+                  className={`w-6 h-6 rounded-full object-cover ${showMore ? 'ring-2 ring-white' : ''}`}
+                  onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
+                />
+              ) : (
+                <User className={`w-6 h-6 ${showMore ? 'text-white' : 'text-neutral-500'}`} strokeWidth={1.6} />
+              )}
+              <span className={`text-[10px] ${showMore ? 'text-white font-semibold' : 'text-neutral-500 font-medium'}`}>
+                {session ? 'Profil' : 'Connexion'}
+              </span>
+            </button>
           </div>
         </div>
-        <div className="bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--border)]">
-          <div className="@container flex w-full flex-row items-center justify-between gap-0 px-2 py-2.5">
-            {/* Groupe gauche */}
-            <div className="flex flex-1 items-center justify-evenly">
-              {leftNavItems.map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => handleNavClick(item.path, item.public)}
-                  className={`rounded-full py-2 px-3 text-center transition-all duration-200 ${
-                    item.active 
-                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300' 
-                      : 'bg-transparent text-white/70 hover:text-white/90'
-                  } ${!item.public && !session ? 'opacity-50' : ''}`}
-                  disabled={!item.public && !session}
-                  aria-label={item.label}
-                >
-                  <item.icon className="w-6 h-6" />
-                </button>
-              ))}
-            </div>
-
-            {/* Upload centré */}
-            {session && (
-              <button
-                onClick={() => router.push('/upload', { scroll: false })}
-                className="rounded-full py-2 px-3 text-center bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white shadow-lg transition-all duration-200"
-                aria-label="Upload"
-              >
-                <Plus className="w-6 h-6" />
-              </button>
-            )}
-
-            {/* Groupe droit */}
-            <div className="flex flex-1 items-center justify-evenly">
-              {rightNavItems.map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => handleNavClick(item.path, item.public)}
-                  className={`rounded-full py-2 px-3 text-center transition-all duration-200 ${
-                    item.active 
-                      ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300' 
-                      : 'bg-transparent text-white/70 hover:text-white/90'
-                  } ${!item.public && !session ? 'opacity-50' : ''}`}
-                  disabled={!item.public && !session}
-                  aria-label={item.label}
-                >
-                  <item.icon className="w-6 h-6" />
-                </button>
-              ))}
-              {/* Menu Plus (intégré au groupe droit pour espacement égal) */}
-              <button
-                onClick={() => setShowMoreMenu(!showMoreMenu)}
-                className={`rounded-full py-2 px-3 text-center transition-all duration-200 ${
-                  showMoreMenu ? 'bg-purple-500/20 text-purple-300' : 'bg-transparent text-white/70 hover:text-white/90'
-                }`}
-                aria-label="Plus d'options"
-              >
-                <MoreHorizontal className="w-6 h-6" />
-              </button>
-            </div>
-
-          </div>
-        </div>
-
-        {/* Tiroir secondaire rendu via Portal (au-dessus de tout) */}
       </nav>
 
-      {/* Overlay + Drawer (Portal) */}
       {isClient && createPortal(
-        (
-          <AnimatePresence>
-            {showMoreMenu && (
-              <>
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[2147483646] lg:hidden bg-black/40 backdrop-blur-sm"
-                  onClick={() => setShowMoreMenu(false)}
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: 40 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 40 }}
-                  className="fixed inset-x-0 bottom-0 z-[2147483647]"
+        <AnimatePresence>
+          {showMore && (
+            <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="fixed inset-0 z-[9998] lg:hidden bg-black/60"
+                onClick={() => setShowMore(false)}
+              />
+              <motion.div
+                initial={{ y: '100%' }}
+                animate={{ y: 0 }}
+                exit={{ y: '100%' }}
+                transition={{ type: 'spring', damping: 30, stiffness: 380 }}
+                className="fixed inset-x-0 bottom-0 z-[9999] lg:hidden"
+              >
+                <div
+                  className="rounded-t-2xl bg-neutral-900 border-t border-neutral-800"
+                  style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
                 >
-                  <div className="bg-[var(--surface)]/95 backdrop-blur-xl border-t border-[var(--border)] rounded-t-2xl p-4">
-                    <div className="mx-auto max-w-md">
-                      <div className="h-1.5 w-12 rounded-full bg-white/15 mx-auto mb-4" />
-                      {/* Studio IA en avant — accès rapide sans prendre une place dans la barre */}
-                      <button
-                        onClick={() => {
-                          router.push('/ai-generator', { scroll: false });
-                          setShowMoreMenu(false);
-                        }}
-                        className={`w-full flex items-center justify-center gap-3 rounded-xl px-4 py-3.5 mb-4 transition-all ${
-                          pathname?.startsWith('/ai-generator')
-                            ? 'bg-gradient-to-r from-purple-500/30 to-pink-500/30 text-purple-200 ring-1 ring-purple-500/50'
-                            : 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 text-white ring-1 ring-white/10'
-                        }`}
-                      >
-                        <Sparkles className="w-5 h-5 shrink-0" />
-                        <span className="font-semibold text-sm">Studio IA</span>
-                      </button>
-                      <div className="grid grid-cols-3 gap-3">
-                        {secondaryNavItems.map((item) => (
+                  <div className="flex justify-center pt-3 pb-1">
+                    <div className="w-9 h-1 rounded-full bg-neutral-700" />
+                  </div>
+
+                  <div className="flex items-center justify-between px-5 py-3">
+                    <button
+                      type="button"
+                      onClick={() => go(`/profile/${(session?.user as any)?.username || ''}`, true)}
+                      className="flex items-center gap-3 min-w-0"
+                    >
+                      <img
+                        src={avatarUrl || (session?.user as any)?.image || '/default-avatar.png'}
+                        alt=""
+                        className="w-11 h-11 rounded-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).src = '/default-avatar.png'; }}
+                      />
+                      <div className="text-left min-w-0">
+                        <div className="text-[15px] font-bold text-white truncate">
+                          {(session?.user as any)?.username || (session?.user as any)?.name || 'Profil'}
+                        </div>
+                        <div className="text-[12px] text-neutral-400">Voir le profil</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMore(false)}
+                      className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400"
+                      aria-label="Fermer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="h-px bg-neutral-800 mx-4 my-1" />
+
+                  <div className="px-4 py-3">
+                    <div className="grid grid-cols-4 gap-2">
+                      {drawerItems.map((item) => {
+                        const active = isActive(item.path);
+                        const Icon = item.icon;
+                        const disabled = item.auth && !session;
+                        return (
                           <button
                             key={item.path}
-                            onClick={() => {
-                              handleNavClick(item.path, item.public);
-                              setShowMoreMenu(false);
-                            }}
-                            className={`flex flex-col items-center justify-center rounded-xl px-3 py-4 transition-all duration-200 ${
-                              item.active 
-                                ? 'bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 ring-1 ring-purple-500/40' 
-                                : 'bg-white/5 text-white/90 ring-1 ring-[var(--border)] hover:bg-white/10'
-                            } ${!item.public && !session ? 'opacity-50' : ''}`}
-                            disabled={!item.public && !session}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => go(item.path, item.auth)}
+                            className={`flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all active:scale-95 ${
+                              active
+                                ? 'bg-neutral-800 text-white'
+                                : disabled
+                                  ? 'opacity-25 text-neutral-500'
+                                  : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                            }`}
                           >
-                            <item.icon size={20} />
-                            <span className="text-xs mt-2 font-medium text-center">{item.label}</span>
-                            {item.badge && item.badge > 0 && (
-                              <span className="absolute top-2 right-2 bg-red-500 text-white text-[10px] rounded-full min-w-[18px] h-[18px] px-1 flex items-center justify-center">
-                                {item.badge}
-                              </span>
-                            )}
+                            <Icon className="w-5 h-5" />
+                            <span className="text-[10px] font-semibold">{item.label}</span>
                           </button>
-                        ))}
-                      </div>
-                      <button
-                        onClick={() => setShowMoreMenu(false)}
-                        className="w-full mt-4 py-2 rounded-lg text-sm font-medium bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 transition-colors"
-                      >
-                        Fermer
-                      </button>
+                        );
+                      })}
                     </div>
                   </div>
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        ),
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>,
         document.body
       )}
     </>
   );
-} 
+}

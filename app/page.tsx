@@ -5,26 +5,20 @@ import {
   Play,
   Pause,
   Heart,
-  Upload,
   Radio,
   Sparkles,
   Music2,
   Users,
-  Library,
   ChevronLeft,
   ChevronRight,
-  List,
-  Plus,
-  Headphones,
-  Mic2,
-  Wand2,
   Disc3,
-  Repeat,
-  Star,
   Clock,
   TrendingUp,
   Crown,
-  Gift,
+  Repeat,
+  Flame,
+  RotateCcw,
+  UserPlus,
 } from "lucide-react";
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -32,6 +26,7 @@ import { useAudioPlayer } from './providers';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import Avatar from '@/components/Avatar';
 import FollowButton from '@/components/FollowButton';
+import TrackContextMenu from '@/components/TrackContextMenu';
 import LikeButton from '@/components/LikeButton';
 import AdSlot from '@/components/AdSlot';
 
@@ -69,6 +64,8 @@ interface PublicPlaylist {
   name: string;
   description?: string;
   coverUrl?: string | null;
+  trackCount?: number;
+  user?: { username?: string; name?: string; avatar?: string };
 }
 
 const normalizeScoresMap = (map: Map<string, number>) => {
@@ -136,7 +133,7 @@ const scoreTrackForProfile = (
 
   let personalization = 0;
   if (track.artist?._id && profile.artistScores[track.artist._id]) {
-    personalization += 2 * profile.artistScores[track.artist._id];
+    personalization += 3.5 * profile.artistScores[track.artist._id];
   }
 
   const genres = Array.isArray(track.genre)
@@ -147,7 +144,7 @@ const scoreTrackForProfile = (
   genres.forEach((genre) => {
     const key = genre?.trim()?.toLowerCase();
     if (key && profile.genreScores[key]) {
-      personalization += 1.3 * profile.genreScores[key];
+      personalization += 2.2 * profile.genreScores[key];
     }
   });
 
@@ -155,7 +152,7 @@ const scoreTrackForProfile = (
     const now = Date.now();
     const days = (now - new Date(track.createdAt).getTime()) / (1000 * 60 * 60 * 24);
     const recencyBoost = Math.max(0, 1 - days / 180);
-    personalization += recencyBoost * profile.recencyPreference;
+    personalization += recencyBoost * profile.recencyPreference * 1.5;
   }
 
   return basePopularity + personalization;
@@ -181,34 +178,115 @@ const scoreCreatorForProfile = (
   );
 };
 
+const diversifyClientList = (tracks: Track[], maxConsecutive = 2): Track[] => {
+  if (tracks.length <= maxConsecutive) return tracks;
+  const result: Track[] = [];
+  const deferred: Track[] = [];
+  for (const track of tracks) {
+    const artistId = track.artist?._id;
+    if (!artistId) { result.push(track); continue; }
+    let consecutive = 0;
+    for (let i = result.length - 1; i >= 0 && i >= result.length - maxConsecutive; i--) {
+      if (result[i].artist?._id === artistId) consecutive++;
+      else break;
+    }
+    if (consecutive >= maxConsecutive) deferred.push(track);
+    else result.push(track);
+  }
+  for (const track of deferred) {
+    let inserted = false;
+    for (let i = maxConsecutive; i < result.length; i++) {
+      let safe = true;
+      for (let j = Math.max(0, i - maxConsecutive + 1); j < i; j++) {
+        if (result[j].artist?._id === track.artist?._id) { safe = false; break; }
+      }
+      if (safe) { result.splice(i, 0, track); inserted = true; break; }
+    }
+    if (!inserted) result.push(track);
+  }
+  return result;
+};
+
+const shuffleLight = <T,>(arr: T[], intensity = 0.3): T[] => {
+  const copy = [...arr];
+  const swaps = Math.floor(copy.length * intensity);
+  for (let s = 0; s < swaps; s++) {
+    const i = Math.floor(Math.random() * copy.length);
+    const range = Math.min(5, copy.length - 1);
+    const j = Math.min(copy.length - 1, i + Math.floor(Math.random() * range));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
+const dailySeedHash = (userId: string): number => {
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `${userId}-${today}`;
+  let h = 0;
+  for (let i = 0; i < key.length; i++) {
+    h = ((h << 5) - h + key.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+};
+
+const pickDailyTracks = (
+  allTracks: Track[],
+  userId: string,
+  profile: PreferenceProfile | null,
+  count = 3,
+): Track[] => {
+  if (allTracks.length <= count) return allTracks;
+  const seed = dailySeedHash(userId);
+
+  const scored = allTracks.map((t) => {
+    const pScore = profile ? scoreTrackForProfile(t, profile) : 0;
+    const tId = t._id || '';
+    let idHash = 0;
+    for (let i = 0; i < tId.length; i++) {
+      idHash = ((idHash << 5) - idHash + tId.charCodeAt(i)) | 0;
+    }
+    const dayVariance = ((Math.abs(idHash) ^ seed) % 1000) / 1000;
+    return { track: t, score: pScore * 0.6 + dayVariance * 0.4 };
+  });
+
+  scored.sort((a, b) => b.score - a.score);
+
+  const picks: Track[] = [];
+  const usedArtists = new Set<string>();
+  for (const { track } of scored) {
+    if (picks.length >= count) break;
+    const aId = track.artist?._id;
+    if (aId && usedArtists.has(aId)) continue;
+    picks.push(track);
+    if (aId) usedArtists.add(aId);
+  }
+  return picks;
+};
+
 // Cache pour les données
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
-const CACHE_DURATION = 30 * 1000;
+const CACHE_DURATION = 15 * 1000;
+const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000;
 
 const SectionTitle = ({
-  icon: Icon,
+  icon: _Icon,
   title,
   actionLabel,
   onAction,
 }: {
-  icon: any;
+  icon?: any;
   title: string;
   actionLabel?: string;
   onAction?: () => void;
 }) => (
-  <div className="flex items-center justify-between mb-3 md:mb-4">
-    <div className="flex items-center gap-3">
-      <div className="h-10 w-10 rounded-xl bg-white/[0.06] border border-white/[0.06] grid place-items-center">
-        <Icon className="w-5 h-5 text-foreground-secondary" />
-      </div>
-      <h3 className="text-lg md:text-xl font-bold tracking-tight text-foreground-primary">{title}</h3>
-    </div>
+  <div className="flex items-center justify-between mb-3">
+    <h2 className="text-base font-black text-white">{title}</h2>
     {actionLabel && (
       <button
         onClick={onAction}
-        className="text-sm font-medium text-foreground-tertiary hover:text-foreground-primary transition"
+        className="text-xs font-semibold text-white/40 hover:text-white transition"
       >
-        {actionLabel}
+        {actionLabel} &rsaquo;
       </button>
     )}
   </div>
@@ -254,7 +332,7 @@ const HorizontalScroller = ({ children }: { children: React.ReactNode }) => {
           className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg"
           aria-label="Défiler vers la gauche"
         >
-          <ChevronLeft className="w-5 h-5 text-foreground-primary" />
+          <ChevronLeft className="w-5 h-5 text-white" />
         </button>
       )}
 
@@ -273,11 +351,17 @@ const HorizontalScroller = ({ children }: { children: React.ReactNode }) => {
           className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 items-center justify-center rounded-full bg-black/60 hover:bg-black/80 border border-white/10 opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm shadow-lg"
           aria-label="Défiler vers la droite"
         >
-          <ChevronRight className="w-5 h-5 text-foreground-primary" />
+          <ChevronRight className="w-5 h-5 text-white" />
         </button>
       )}
     </div>
   );
+};
+
+const formatK = (n: number) => {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
+  return String(n);
 };
 
 const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => void }) => {
@@ -286,104 +370,73 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
       onPlay(track._original);
     }
   };
-  
+
+  const orig = track._original;
+  const plays = orig?.plays || 0;
+  const likesCount = Array.isArray(orig?.likes) ? orig.likes.length : 0;
+  const dur = track.duration || 0;
+  const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+  const genre = Array.isArray(orig?.genre) ? orig.genre[0] : orig?.genre;
+
   return (
     <div
-      className="min-w-[150px] md:min-w-[180px] max-w-[150px] md:max-w-[180px] bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] rounded-xl p-2.5 transition-all duration-200 hover:scale-[1.02]"
-      style={{ scrollSnapAlign: "start" }}
+      className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card"
+      style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative group/cover">
         <img
           src={track.cover}
           alt={track.title}
-          className="w-full h-36 md:h-44 object-cover rounded-lg border border-white/[0.06]"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-          }}
+          className="w-full aspect-square object-cover rounded-lg"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
         />
+        {dur > 0 && (
+          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
+            {durStr}
+          </span>
+        )}
+        <div className="absolute top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
+          <TrackContextMenu track={orig} />
+        </div>
         <button
           onClick={handlePlay}
-          className="absolute bottom-2 right-2 p-2 rounded-2xl bg-background-tertiary/80 hover:bg-background-tertiary border border-border-secondary backdrop-blur"
+          className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110"
         >
-          <Play className="w-4 h-4 text-foreground-primary" />
+          <Play className="w-4 h-4 text-white fill-white ml-0.5" />
         </button>
       </div>
-      <div className="mt-1.5 md:mt-2">
-        <p className="text-xs md:text-sm font-medium line-clamp-1 text-foreground-primary">{track.title}</p>
-        <p className="text-[10px] md:text-xs text-foreground-tertiary line-clamp-1">{track.artist}</p>
-      </div>
-      <div className="mt-1.5 md:mt-2 flex items-center justify-between text-[10px] md:text-xs">
-        <span className="text-foreground-tertiary flex items-center gap-0.5 md:gap-1">
-          <Clock className="w-2.5 h-2.5 md:w-3 md:h-3" />
-          {Math.floor(track.duration / 60)}:{String(track.duration % 60).padStart(2, "0")}
-        </span>
-        {track._original && (
-          <LikeButton
-            trackId={track._original._id}
-            initialLikesCount={Array.isArray(track._original.likes) ? track._original.likes.length : 0}
-            initialIsLiked={track._original.isLiked || false}
-            size="sm"
-            variant="minimal"
-            showCount={false}
-            className="p-0"
-          />
+
+      <div className="mt-2">
+        <p className="text-[13px] font-semibold line-clamp-1 text-white">{track.title}</p>
+        {genre && (
+          <p className="text-[10px] text-white/30 truncate mt-0.5">{genre}</p>
         )}
       </div>
+
+      <div className="mt-1.5 flex items-center gap-2.5 text-[10px] text-white/35">
+        <span className="flex items-center gap-0.5">&#9654; {formatK(plays)}</span>
+        {likesCount > 0 && (
+          <span className="flex items-center gap-0.5">
+            <Heart className="w-2.5 h-2.5" /> {formatK(likesCount)}
+          </span>
+        )}
+      </div>
+
+      {orig?.artist && (
+        <div className="mt-1.5 flex items-center gap-1.5">
+          <img
+            src={orig.artist.avatar || '/default-avatar.png'}
+            className="w-4 h-4 rounded-full object-cover shrink-0"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+            alt=""
+          />
+          <span className="text-[11px] text-white/40 truncate">{orig.artist.name || orig.artist.username}</span>
+        </div>
+      )}
     </div>
   );
 };
 
-const CreatorCard = ({ c, onClick }: { c: any; onClick: () => void }) => (
-  <div
-    className="min-w-[190px] bg-background-fog-thin border border-border-secondary rounded-2xl p-3 hover:bg-overlay-on-primary transition"
-    style={{ scrollSnapAlign: "start" }}
-  >
-    <div onClick={onClick} className="cursor-pointer">
-      <div className="flex items-center gap-3">
-        <Avatar
-          src={c.avatar}
-          name={c.name}
-          username={c.username}
-          size="md"
-          className="w-12 h-12"
-        />
-        <div>
-          <p className="text-sm font-semibold line-clamp-1 text-foreground-primary">{c.name}</p>
-          <p className="text-xs text-foreground-tertiary">{Intl.NumberFormat().format(c.followers)} abonnés</p>
-        </div>
-      </div>
-    </div>
-    <div className="mt-3" onClick={(e) => e.stopPropagation()}>
-      <FollowButton
-        artistId={c.id}
-        artistUsername={c.username}
-        size="sm"
-        className="w-full text-xs py-1.5 rounded-lg"
-      />
-    </div>
-  </div>
-);
-
-const AIGenCard = ({ g }: { g: any }) => (
-  <div
-    className="min-w-[180px] md:min-w-[220px] bg-gradient-to-br from-overlay-on-primary/18 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-2.5 md:p-3 hover:bg-overlay-on-primary transition"
-    style={{ scrollSnapAlign: "start" }}
-  >
-    <img src={g.cover} alt={g.prompt} className="w-full h-32 md:h-36 object-cover rounded-lg md:rounded-xl" />
-    <div className="mt-1.5 md:mt-2 flex items-start gap-1.5 md:gap-2">
-      <Wand2 className="w-3.5 h-3.5 md:w-4 md:h-4 mt-0.5 flex-shrink-0" />
-      <p className="text-[10px] md:text-xs text-foreground-secondary line-clamp-2">{g.prompt}</p>
-    </div>
-    <div className="mt-1.5 md:mt-2 flex items-center gap-1.5 md:gap-2">
-      <button className="text-[10px] md:text-xs px-3 py-1.5 rounded-2xl bg-background-fog-thin border border-border-secondary hover:bg-overlay-on-primary transition text-foreground-primary">
-        Générer
-      </button>
-      <button className="text-[10px] md:text-xs px-3 py-1.5 rounded-2xl bg-background-tertiary border border-border-secondary hover:bg-overlay-on-primary transition text-foreground-secondary">
-        Varier
-      </button>
-    </div>
-  </div>
-);
 
 const LiveRadioCard = ({
   title,
@@ -401,28 +454,28 @@ const LiveRadioCard = ({
   available?: boolean;
 }) => {
   return (
-    <div className="bg-gradient-to-r from-overlay-on-primary/15 via-background-fog-thin to-overlay-on-primary/10 border border-border-secondary rounded-2xl p-4 flex items-center justify-between">
+    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="p-2 rounded-2xl bg-background-tertiary border border-border-secondary">
+        <div className="p-2 rounded-xl bg-white/[0.06]">
           {logoSrc ? (
             <img src={logoSrc} alt={title} className="w-12 h-8 object-contain" />
           ) : (
-            <Radio className="w-8 h-8 text-foreground-primary" />
+            <Radio className="w-8 h-8 text-white" />
           )}
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground-primary">{title}</p>
-          <p className="text-xs text-foreground-tertiary line-clamp-1">
-            {available ? currentTrack : 'Indisponible — Problème serveur'}
+          <p className="text-sm font-bold text-white">{title}</p>
+          <p className="text-xs text-white/40 line-clamp-1">
+            {available ? currentTrack : 'Indisponible'}
           </p>
         </div>
       </div>
       <button
         onClick={available ? onToggle : undefined}
         disabled={!available}
-        className="px-3 py-2 text-sm rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-background-fog-thin"
+        className="h-9 w-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center transition shadow-lg shadow-indigo-500/20 disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        {isPlaying ? (<><Pause className="w-4 h-4" /> Pause</>) : (<><Play className="w-4 h-4" /> Écouter</>)}
+        {isPlaying ? (<Pause className="w-4 h-4 text-white" />) : (<Play className="w-4 h-4 text-white fill-white ml-0.5" />)}
       </button>
     </div>
   );
@@ -538,9 +591,9 @@ const HeroCarousel = ({
       {/* Toggle auto/pause */}
       <button
         onClick={() => setIsAuto((v) => !v)}
-        className="absolute top-3 right-3 z-10 px-3 py-2 rounded-2xl bg-background-tertiary/70 hover:bg-background-tertiary border border-border-secondary text-xs flex items-center gap-2 backdrop-blur"
+        className="absolute top-3 right-3 z-10 px-3 py-2 rounded-full bg-black/50 hover:bg-black/70 border border-white/10 text-xs flex items-center gap-2 backdrop-blur-sm text-white/80"
       >
-        <Repeat className="w-4 h-4" />
+        <Repeat className="w-3.5 h-3.5" />
         {isAuto ? "Auto" : "Pause"}
       </button>
 
@@ -554,11 +607,11 @@ const HeroCarousel = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4 md:left-6 md:right-6">
             <div className="flex items-center gap-2 text-xs mb-2">
-              <span className="px-2 py-1 rounded-full bg-background-tertiary/70 border border-border-secondary backdrop-blur">
+              <span className="px-2.5 py-1 rounded-full bg-indigo-500/30 border border-indigo-400/20 backdrop-blur-sm text-indigo-200 font-medium">
                 {s.tag}
               </span>
               {s.genre && (
-                <span className="px-2 py-1 rounded-full bg-background-tertiary/70 border border-border-secondary backdrop-blur">
+                <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 backdrop-blur-sm text-white/80">
                   {s.genre}
                 </span>
               )}
@@ -568,10 +621,10 @@ const HeroCarousel = ({
             {s.actionLabel && onAction && (
               <button 
                 onClick={() => onAction(s.actionType, s.actionData ?? s.track)} 
-                className="mt-3 px-4 py-2 bg-background-tertiary/70 backdrop-blur-md rounded-2xl hover:bg-background-tertiary transition flex items-center gap-2 border border-border-secondary"
+                className="mt-3 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 rounded-full transition-all flex items-center gap-2 text-white font-semibold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] active:scale-[0.98]"
               >
                 {s.actionIcon && <s.actionIcon className="w-4 h-4" />}
-                <span className="text-sm font-medium">{s.actionLabel}</span>
+                <span className="text-sm">{s.actionLabel}</span>
               </button>
             )}
           </div>
@@ -608,13 +661,8 @@ const HeroCarousel = ({
   );
 };
 
-// Icons used in the Library section (kept outside render for stability)
-const LIB_ICONS = [Heart, Disc3, Clock, Library, Mic2, Repeat];
-
 const Skeleton = ({ className = "" }: { className?: string }) => (
-  <div
-    className={`animate-pulse rounded-2xl bg-background-fog-thin border border-border-secondary ${className}`}
-  />
+  <div className={`animate-pulse rounded-2xl bg-white/[0.06] border border-white/[0.08] ${className}`} />
 );
 
 const getGreeting = () => {
@@ -625,271 +673,61 @@ const getGreeting = () => {
   return "Bonsoir";
 };
 
-const ActionPill = ({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: any;
-  label: string;
-  onClick: () => void;
-}) => (
-  <button
-    onClick={onClick}
-    className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary text-sm whitespace-nowrap transition text-foreground-secondary"
-  >
-    <Icon className="w-4 h-4" />
-    <span className="font-medium text-foreground-primary">{label}</span>
-  </button>
-);
-
 const WelcomeHeader = ({
   session,
   onGo,
-  stats,
-  listenList,
-  listenTrack,
-  nextUp,
   onListenNow,
 }: {
   session: any;
   onGo: (path: string) => void;
-  stats?: { playlists: number; favorites: number; queue: number };
-  listenList: any[];
-  listenTrack: any | null;
-  nextUp: any[];
   onListenNow: () => void;
 }) => {
   const name =
     session?.user?.name ||
     session?.user?.username ||
     session?.user?.email?.split?.("@")?.[0] ||
-    "sur Synaura";
+    "";
 
   return (
-    <div className="rounded-2xl bg-gradient-to-b from-white/[0.06] to-transparent border border-white/[0.06] p-4 md:p-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-foreground-tertiary text-xs">
-            {session ? `${getGreeting()}, ${name}` : 'Découvrir'}
-          </p>
-          <h1 className="mt-0.5 text-xl md:text-2xl font-bold tracking-tight text-foreground-primary">
-            Écoute des sons créés par la communauté.
-          </h1>
-          <p className="text-foreground-secondary text-xs mt-1 max-w-xl">
-            Lance un son. Si tu kiffes, crée ton profil en 10 secondes.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          <button
-            onClick={onListenNow}
-            className="h-9 px-4 rounded-full bg-white text-black hover:scale-[1.02] active:scale-[0.98] transition text-xs font-semibold inline-flex items-center gap-1.5"
-          >
-            <Play className="w-3.5 h-3.5 fill-current" />
-            Écouter maintenant
-          </button>
-          {!session ? (
-            <button
-              onClick={() => onGo("/auth/signup")}
-              className="h-9 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.08] transition text-xs font-semibold"
-            >
-              Créer un compte
-            </button>
-          ) : (
-            <button
-              onClick={() => onGo("/boosters")}
-              className="h-9 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.08] transition text-xs font-semibold"
-            >
-              Boosters
-            </button>
-          )}
-        </div>
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
+          {session ? `${getGreeting()}, ${name}` : 'Bienvenue sur Synaura'}
+        </h1>
       </div>
-
-      {/* Lecteur instantané + mini file */}
-      <div className="mt-6 grid lg:grid-cols-12 gap-4">
-        <div className="lg:col-span-8 rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
-          <div className="flex items-center gap-3">
-            <img
-              src={listenTrack?.coverUrl || '/default-cover.jpg'}
-              className="w-11 h-11 rounded-lg object-cover border border-white/[0.06] shrink-0"
-              onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-              alt=""
-            />
-            <div className="min-w-0 flex-1">
-              <div className="text-[10px] text-foreground-tertiary">Lecteur instantané</div>
-              <div className="text-sm font-semibold text-foreground-primary truncate">
-                {listenTrack?.title || 'Choisis une track et lance la lecture'}
-              </div>
-              <div className="text-xs text-foreground-tertiary truncate">
-                {listenTrack?.artist?.name || listenTrack?.artist?.username || '—'}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onListenNow}
-              className="h-9 px-3 rounded-full bg-white text-black hover:scale-[1.02] transition text-xs font-medium inline-flex items-center gap-1.5 shrink-0"
-            >
-              <Play className="w-3.5 h-3.5 fill-current" />
-              Play
-            </button>
-          </div>
-        </div>
-
-        <div className="lg:col-span-4 rounded-xl bg-white/[0.04] border border-white/[0.06] p-3">
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <span className="text-xs font-semibold text-foreground-primary">3 suivants</span>
-            <span className="text-[10px] text-foreground-tertiary">{nextUp.length ? `${nextUp.length}/3` : '—'}</span>
-          </div>
-          <div className="grid gap-1.5">
-            {nextUp.length ? (
-              nextUp.slice(0, 3).map((t) => (
-                <div key={t._id} className="flex items-center gap-2 rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition py-1.5 px-2">
-                  <img
-                    src={t.coverUrl || '/default-cover.jpg'}
-                    className="w-8 h-8 rounded-md object-cover border border-white/[0.06] shrink-0"
-                    onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-                    alt=""
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[12px] font-medium text-foreground-primary truncate">{t.title}</div>
-                    <div className="text-[10px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="text-[11px] text-foreground-tertiary py-1">Lance la lecture pour remplir la file.</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Actions mini (mobile) */}
-      <div className="mt-3 flex gap-2 overflow-x-auto no-scrollbar pb-1 md:hidden">
+      <div className="flex items-center gap-2.5 shrink-0">
         <button
-          onClick={() => onGo("/ai-generator")}
-          className="h-10 px-4 rounded-xl bg-gradient-to-r from-purple-500/25 to-pink-500/25 hover:from-purple-500/35 hover:to-pink-500/35 border border-purple-500/30 text-white transition text-sm font-medium inline-flex items-center gap-2 whitespace-nowrap shrink-0"
+          onClick={onListenNow}
+          className="h-10 px-5 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white hover:scale-[1.03] active:scale-[0.97] transition-all text-sm font-bold inline-flex items-center gap-2 shadow-lg shadow-indigo-500/25"
         >
-          <Sparkles className="w-4 h-4" />
-          Studio IA
+          <Play className="w-4 h-4 fill-current" />
+          Écouter
         </button>
         {!session ? (
-          <>
-            <button
-              onClick={() => onGo("/auth/signin")}
-              className="h-10 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.06] transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
-            >
-              Se connecter
-            </button>
-            <button
-              onClick={() => onGo("/auth/signup")}
-              className="h-10 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.06] transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
-            >
-              Créer un compte
-            </button>
-          </>
-        ) : null}
-        <button
-          onClick={() => onGo("/trending")}
-          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
-        >
-          <TrendingUp className="w-4 h-4" />
-          Explorer
-        </button>
-        <button
-          onClick={() => onGo("/boosters")}
-          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
-        >
-          <Gift className="w-4 h-4" />
-          Boosters
-        </button>
-        {session ? (
           <button
-            onClick={() => onGo("/upload")}
-            className="h-10 px-4 rounded-full border border-white/20 bg-transparent hover:bg-white/[0.06] transition text-sm text-foreground-secondary inline-flex items-center gap-2 whitespace-nowrap"
+            onClick={() => onGo("/auth/signup")}
+            className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white"
           >
-            <Upload className="w-4 h-4" />
-            Uploader
+            Créer un compte
           </button>
-        ) : null}
+        ) : (
+          <button
+            onClick={() => onGo("/ai-generator")}
+            className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white inline-flex items-center gap-2"
+          >
+            <Sparkles className="w-4 h-4" />
+            Studio IA
+          </button>
+        )}
       </div>
     </div>
   );
 };
 
-const ContinueListening = ({
-  track,
-  isPlaying,
-  onToggle,
-}: {
-  track: any;
-  isPlaying: boolean;
-  onToggle: () => void;
-}) => {
-  if (!track?._id) return null;
-
-  return (
-    <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5 flex items-center justify-between gap-3">
-      <div className="flex items-center gap-3 min-w-0">
-        <img
-          src={track.coverUrl || "/default-cover.jpg"}
-          className="w-12 h-12 rounded-2xl object-cover border border-border-secondary"
-          onError={(e) =>
-            ((e.currentTarget as HTMLImageElement).src = "/default-cover.jpg")
-          }
-          alt=""
-        />
-        <div className="min-w-0">
-          <p className="text-xs text-foreground-tertiary">Reprendre l’écoute</p>
-          <p className="text-sm font-semibold line-clamp-1 text-foreground-primary">{track.title}</p>
-          <p className="text-xs text-foreground-tertiary line-clamp-1">
-            {track.artist?.name || track.artist?.username}
-          </p>
-        </div>
-      </div>
-
-      <button
-        onClick={onToggle}
-        className="shrink-0 px-3 py-2 rounded-2xl bg-background-fog-thin hover:bg-overlay-on-primary border border-border-secondary flex items-center gap-2 transition"
-      >
-        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-        <span className="text-sm font-medium text-foreground-primary">{isPlaying ? "Pause" : "Lire"}</span>
-      </button>
-    </div>
-  );
-};
-
-const SidebarCard = ({
-  title,
-  subtitle,
-  icon: Icon,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  icon: any;
-  children: React.ReactNode;
-}) => (
-  <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-    <div className="flex items-start justify-between gap-3">
-      <div className="flex items-start gap-2 min-w-0">
-        <div className="h-10 w-10 rounded-xl bg-white/[0.06] border border-white/[0.06] grid place-items-center shrink-0">
-          <Icon className="h-5 w-5 text-foreground-secondary" />
-        </div>
-        <div className="min-w-0">
-          <div className="text-sm font-semibold text-foreground-primary truncate">{title}</div>
-          {subtitle && <div className="text-xs text-foreground-tertiary line-clamp-2">{subtitle}</div>}
-        </div>
-      </div>
-    </div>
-    <div className="mt-3">{children}</div>
-  </div>
-);
 
 export default function SynauraHome() {
   const { data: session } = useSession();
-  const { audioState, playTrack, play, pause, setTracks, upNextEnabled, upNextTracks, toggleUpNextEnabled } = useAudioPlayer();
+  const { audioState, playTrack, play, pause, setTracks, seek, upNextEnabled, upNextTracks, toggleUpNextEnabled } = useAudioPlayer();
   const [loading, setLoading] = useState(true);
   const [showHomeMore, setShowHomeMore] = useState(true); // conservé pour compat, toujours true
   const [featuredTracks, setFeaturedTracks] = useState<Track[]>([]);
@@ -919,6 +757,14 @@ export default function SynauraHome() {
   const rafRef = useRef<number | null>(null);
   const carouselRef = useRef<HTMLDivElement>(null);
   
+  // États pour les nouvelles sections
+  const [risingTracks, setRisingTracks] = useState<Track[]>([]);
+  const [similarTracks, setSimilarTracks] = useState<Track[]>([]);
+  const [similarSourceTitle, setSimilarSourceTitle] = useState('');
+  const [rediscoverTracks, setRediscoverTracks] = useState<Track[]>([]);
+  const [newArtists, setNewArtists] = useState<any[]>([]);
+  const [socialDiscovery, setSocialDiscovery] = useState<any[]>([]);
+
   // États pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
   const [radioInfo, setRadioInfo] = useState({
@@ -955,7 +801,7 @@ export default function SynauraHome() {
     }
 
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { cache: 'no-store' });
       if (response.ok) {
         const data = await response.json();
         if (data.tracks && Array.isArray(data.tracks)) {
@@ -1048,21 +894,39 @@ export default function SynauraHome() {
 
   const fetchUserPreferenceProfile = useCallback(async () => {
     if (!session?.user?.id) {
-      setPreferenceProfile(null);
-          return;
-        }
+      if (forYouTracks.length || recentTracks.length) {
+        const guestPool = [...forYouTracks.slice(0, 40), ...recentTracks.slice(0, 40)];
+        setPreferenceProfile(buildPreferenceProfile(guestPool));
+      } else {
+        setPreferenceProfile(null);
+      }
+      return;
+    }
         
     try {
-      const likedRes = await fetch('/api/tracks?liked=true&limit=150', { cache: 'no-store' });
+      const [likedRes, recentListenRes] = await Promise.all([
+        fetch('/api/tracks?liked=true&limit=150', { cache: 'no-store' }),
+        fetch('/api/tracks?recent=true&limit=80', { cache: 'no-store' }).catch(() => null),
+      ]);
       let likedTracks: Track[] = [];
       if (likedRes.ok) {
         const likedJson = await likedRes.json();
         likedTracks = likedJson?.tracks || [];
       }
+      let recentListened: Track[] = [];
+      if (recentListenRes?.ok) {
+        const recentJson = await recentListenRes.json();
+        recentListened = recentJson?.tracks || [];
+      }
 
-      const seedPool = likedTracks.length
-        ? likedTracks
-        : [...forYouTracks.slice(0, 60), ...recentTracks.slice(0, 60)];
+      let seedPool: Track[];
+      if (likedTracks.length >= 5) {
+        seedPool = [...likedTracks, ...recentListened.slice(0, 30)];
+      } else if (recentListened.length >= 5) {
+        seedPool = [...recentListened, ...likedTracks];
+      } else {
+        seedPool = [...likedTracks, ...recentListened, ...forYouTracks.slice(0, 60), ...recentTracks.slice(0, 60)];
+      }
 
       const profile = buildPreferenceProfile(seedPool);
       setPreferenceProfile(profile);
@@ -1071,51 +935,143 @@ export default function SynauraHome() {
     }
   }, [session?.user?.id, forYouTracks, recentTracks]);
 
-  // Charger toutes les données au montage
-  useEffect(() => {
-    const loadData = async () => {
-    setLoading(true);
-      const [featured, trending, recent, forYou, users] = await Promise.all([
-        fetchCategoryData('featured', '/api/tracks/featured?limit=10'),
-        fetchCategoryData('trending', '/api/tracks/trending?limit=30'),
-        fetchCategoryData('recent', '/api/tracks/recent?limit=30'),
-        fetchCategoryData('forYou', '/api/ranking/feed?limit=50&ai=1'),
-        fetch('/api/users?limit=12').then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
-      ]);
-      
-      setFeaturedTracks(featured);
-      setTrendingTracks(trending);
-      setRecentTracks(recent);
-      setForYouTracks(forYou);
-      setPopularUsers(users);
-      setLoading(false);
-      
-      // Charger les stats de bibliothèque et créateurs suggérés en parallèle
-      fetchLibraryStats();
-      fetchSuggestedCreators();
-    };
-    
-    loadData();
-  }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators]);
+  const loadExtraSections = useCallback(async () => {
+    const uid = (session?.user as any)?.id;
+    const fetches: Promise<void>[] = [];
 
-  // Guest: playlists populaires (3)
+    fetches.push(
+      fetch('/api/tracks/rising?limit=10', { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : { tracks: [] })
+        .then(d => setRisingTracks(applyCdnToTracks(d.tracks || [])))
+        .catch(() => {})
+    );
+
+    if (uid) {
+      fetches.push(
+        fetch('/api/tracks/rediscover?limit=8', { cache: 'no-store' })
+          .then(r => r.ok ? r.json() : { tracks: [] })
+          .then(d => setRediscoverTracks(applyCdnToTracks(d.tracks || [])))
+          .catch(() => {})
+      );
+
+      fetches.push(
+        fetch('/api/tracks?liked=true&limit=1&sort=recent', { cache: 'no-store' })
+          .then(r => r.ok ? r.json() : { tracks: [] })
+          .then(async (d) => {
+            const lastLiked = d.tracks?.[0];
+            if (lastLiked?._id) {
+              const simRes = await fetch(`/api/tracks/similar?trackId=${lastLiked._id}&limit=8`, { cache: 'no-store' });
+              if (simRes.ok) {
+                const simData = await simRes.json();
+                setSimilarTracks(applyCdnToTracks(simData.tracks || []));
+                setSimilarSourceTitle(simData.sourceTitle || lastLiked.title || '');
+              }
+            }
+          })
+          .catch(() => {})
+      );
+
+      // Social discovery: what followed artists are listening to
+      fetches.push(
+        (async () => {
+          try {
+            const followRes = await fetch('/api/users/following?limit=20', { cache: 'no-store' });
+            if (!followRes.ok) return;
+            const followData = await followRes.json();
+            const followedIds: string[] = (followData.following || followData.users || []).map((u: any) => u._id || u.id).filter(Boolean);
+            if (!followedIds.length) return;
+
+            const evRes = await fetch(`/api/tracks/trending?limit=20`, { cache: 'no-store' });
+            if (!evRes.ok) return;
+            const evData = await evRes.json();
+            const trendingAll: any[] = evData.tracks || [];
+
+            const socialItems = trendingAll
+              .filter((t: any) => followedIds.includes(t.artist?._id))
+              .slice(0, 6)
+              .map((t: any) => ({ ...t, socialArtist: t.artist }));
+            setSocialDiscovery(applyCdnToTracks(socialItems));
+          } catch {}
+        })()
+      );
+
+      // New artists (recent profiles with quality tracks)
+      fetches.push(
+        fetch('/api/users?limit=30&sort=recent', { cache: 'no-store' })
+          .then(r => r.ok ? r.json() : { users: [] })
+          .then(d => {
+            const thirtyDaysAgo = Date.now() - 30 * 24 * 3600 * 1000;
+            const fresh = (d.users || []).filter((u: any) => {
+              const created = u.created_at || u.createdAt;
+              return created && new Date(created).getTime() > thirtyDaysAgo && (u.totalPlays > 0 || u.trackCount > 0);
+            }).slice(0, 6);
+            setNewArtists(fresh);
+          })
+          .catch(() => {})
+      );
+    }
+
+    await Promise.allSettled(fetches);
+  }, [session?.user]);
+
+  const loadData = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
+    dataCache.clear();
+    const [featured, trending, recent, forYou, users] = await Promise.all([
+      fetchCategoryData('featured', '/api/tracks/featured?limit=10'),
+      fetchCategoryData('trending', '/api/tracks/trending?limit=30'),
+      fetchCategoryData('recent', '/api/tracks/recent?limit=30'),
+      fetchCategoryData('forYou', '/api/ranking/feed?limit=50&ai=1'),
+      fetch('/api/users?limit=12', { cache: 'no-store' }).then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
+    ]);
+    
+    setFeaturedTracks(featured);
+    setTrendingTracks(trending);
+    setRecentTracks(recent);
+    setForYouTracks(forYou);
+    setPopularUsers(users);
+    if (showLoader) setLoading(false);
+    
+    fetchLibraryStats();
+    fetchSuggestedCreators();
+    loadExtraSections();
+  }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators, loadExtraSections]);
+
   useEffect(() => {
-    const loadGuest = async () => {
-      if (session) return;
+    loadData(true);
+  }, [loadData]);
+
+  useEffect(() => {
+    const interval = setInterval(() => loadData(false), AUTO_REFRESH_INTERVAL);
+    return () => clearInterval(interval);
+  }, [loadData]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(false);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [loadData]);
+
+  useEffect(() => {
+    const loadPlaylists = async () => {
       try {
         setGuestPlaylistsLoading(true);
-        const res = await fetch('/api/playlists/popular?limit=3', { cache: 'no-store' });
+        const res = await fetch('/api/playlists/popular?limit=10', { cache: 'no-store' });
         const json = await res.json();
         const list = Array.isArray(json?.playlists) ? (json.playlists as PublicPlaylist[]) : [];
-        setGuestPlaylists(list.slice(0, 3));
+        setGuestPlaylists(list.slice(0, 10));
       } catch {
         setGuestPlaylists([]);
       } finally {
         setGuestPlaylistsLoading(false);
       }
     };
-    loadGuest();
-  }, [session]);
+    loadPlaylists();
+  }, []);
 
   useEffect(() => {
     fetchUserPreferenceProfile();
@@ -1139,23 +1095,40 @@ export default function SynauraHome() {
   }, [trendingTracks, forYouList]);
   
   const personalizedForYouList = useMemo(() => {
-    if (!preferenceProfile) return forYouList;
-    return [...forYouList].sort(
+    const sorted = !preferenceProfile ? forYouList : [...forYouList].sort(
       (a, b) =>
         scoreTrackForProfile(b, preferenceProfile) -
         scoreTrackForProfile(a, preferenceProfile),
     );
+    return diversifyClientList(sorted, 2);
   }, [forYouList, preferenceProfile]);
 
   const trendingList = useMemo(() => {
-    if (!preferenceProfile) return trendingUnique;
-    return [...trendingUnique].sort(
+    const sorted = !preferenceProfile ? trendingUnique : [...trendingUnique].sort(
       (a, b) =>
         scoreTrackForProfile(b, preferenceProfile) -
         scoreTrackForProfile(a, preferenceProfile),
     );
+    return diversifyClientList(sorted, 2);
   }, [trendingUnique, preferenceProfile]);
   
+  // Sélection du jour : 3 tracks personnalisées, stables pour la journée
+  const dailyPicks = useMemo(() => {
+    const pool = [...trendingList, ...personalizedForYouList, ...recentTracks];
+    const unique = Array.from(new Map(pool.map(t => [t._id, t])).values());
+    const uid = session?.user?.id || 'guest';
+    const picks = pickDailyTracks(unique, uid, preferenceProfile, 3);
+    return picks.map(t => ({
+      id: t._id,
+      title: t.title,
+      artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
+      cover: t.coverUrl || '/default-cover.jpg',
+      duration: t.duration || 0,
+      liked: false,
+      _original: t,
+    }));
+  }, [trendingList, personalizedForYouList, recentTracks, session?.user?.id, preferenceProfile]);
+
   // Convertir les vraies données en format attendu par les composants
   const mockTracks = useMemo(() => trendingList.map(t => ({
     id: t._id,
@@ -1196,32 +1169,11 @@ export default function SynauraHome() {
     _original: t
   })), [recentTracks]);
   
-  const mockCreators = useMemo(() => popularUsers.map((u, i) => ({
-    id: u._id || u.id || i,
-    name: u.name || u.username,
-    avatar: u.avatar || '/default-avatar.png',
-    followers: u.followerCount || 0,
-    username: u.username
-  })), [popularUsers]);
   
-  // Mock AI generations (garder les données factices pour l'instant)
-  const mockAIGens = useMemo(() => Array.from({ length: 10 }).map((_, i) => ({
-    id: i + 1,
-    prompt: [
-      "EDM euphorique 128 BPM, pads aériens, drop lumineux",
-      "Lo-fi pluie douce, piano granuleux, vinyle",
-      "Synthwave rétro 84 BPM, arpèges analogiques",
-      "Trap sombre, 808 lourdes, choir spectral",
-      "Orchestral épique + drums ciné",
-    ][i % 5],
-    cover: `https://picsum.photos/seed/ai_${i}/400/400`,
-  })), []);
-  
-  // Heroslides basées sur les vraies données
+  // Heroslides basées sur les vraies données + trending + pour toi
   const heroSlides = useMemo(() => {
-    const slides = [];
+    const slides: any[] = [];
     
-    // Slide: Abonnements
     slides.push({
       id: 'subscriptions',
       title: 'Débloquez tout Synaura',
@@ -1234,7 +1186,6 @@ export default function SynauraHome() {
       actionData: '/subscriptions'
     });
     
-    // Slide: Générateur IA
     slides.push({
       id: 'ai',
       title: 'Générateur de Musique IA',
@@ -1246,27 +1197,40 @@ export default function SynauraHome() {
       actionIcon: Sparkles,
       actionData: '/ai-generator'
     });
-    
-    // Ajouter les featured tracks (jusqu'à 5)
-    if (featuredTracks.length > 0) {
-      featuredTracks.slice(0, 5).forEach(track => {
-        slides.push({
-          id: track._id,
-          title: track.title,
-          subtitle: `${track.artist?.name || track.artist?.username}`,
-          image: track.coverUrl || '/default-cover.jpg',
-          tag: 'En vedette',
-          genre: track.genre?.[0],
-          actionLabel: 'Écouter',
-          actionType: 'play',
-          actionIcon: Play,
-          track: track
-        });
+
+    const usedIds = new Set<string>();
+    const addTrackSlide = (track: Track, tag: string) => {
+      if (usedIds.has(track._id)) return;
+      usedIds.add(track._id);
+      slides.push({
+        id: track._id,
+        title: track.title,
+        subtitle: `${track.artist?.name || track.artist?.username}`,
+        image: track.coverUrl || '/default-cover.jpg',
+        tag,
+        genre: track.genre?.[0],
+        actionLabel: 'Écouter',
+        actionType: 'play',
+        actionIcon: Play,
+        track,
       });
-    }
-    
-    return slides;
-  }, [featuredTracks]);
+    };
+
+    featuredTracks.slice(0, 3).forEach(t => addTrackSlide(t, 'En vedette'));
+
+    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    const weekHit = trendingTracks.find(t =>
+      !usedIds.has(t._id) && t.createdAt && new Date(t.createdAt).getTime() > weekAgo
+    );
+    if (weekHit) addTrackSlide(weekHit, 'Nouveauté de la semaine');
+
+    trendingTracks.slice(0, 4).forEach(t => addTrackSlide(t, 'Tendance'));
+    personalizedForYouList.slice(0, 2).forEach(t => addTrackSlide(t, 'Pour toi'));
+
+    const promo = slides.slice(0, 2);
+    const trackSlides = shuffleLight(slides.slice(2), 0.3);
+    return [...promo, ...trackSlides];
+  }, [featuredTracks, trendingTracks, personalizedForYouList]);
 
   const router = useRouter();
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -1570,7 +1534,7 @@ export default function SynauraHome() {
 
   const onGo = (path: string) => router.push(path, { scroll: false });
 
-  // File instantanée pour "Écouter maintenant"
+  // File instantanée pour "Écouter maintenant" — reprend la dernière piste si disponible
   const listenBase =
     (session && personalizedForYouList?.length ? personalizedForYouList : null) ||
     (trendingList?.length ? trendingList : null) ||
@@ -1578,9 +1542,22 @@ export default function SynauraHome() {
     (featuredTracks?.length ? featuredTracks : null) ||
     [];
   const listenList = listenBase.slice(0, 30);
-  const listenTrack = listenList[0] || null;
-  const listenNextUp = listenList.slice(1, 4);
-  const onListenNow = () => {
+  const onListenNow = async () => {
+    // 1) Try to resume the last played track (saved in localStorage by providers)
+    try {
+      const raw = localStorage.getItem('synaura.lastTrack');
+      if (raw) {
+        const { track, position } = JSON.parse(raw) as { track: any; position?: number; timestamp?: number };
+        if (track?._id) {
+          await playTrack(track);
+          if (position && position > 0) {
+            setTimeout(() => seek(position), 300);
+          }
+          return;
+        }
+      }
+    } catch {}
+    // 2) Fallback: play from recommended list
     if (!listenList.length) return;
     setTracks(listenList as any);
     playTrack(listenList[0] as any);
@@ -1588,25 +1565,20 @@ export default function SynauraHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background-primary text-foreground-primary">
+      <div className="min-h-screen text-white bg-[#0a0a0e]">
         <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-8 space-y-4 md:space-y-6">
           <WelcomeHeader
             session={session}
             onGo={onGo}
-            stats={{ playlists: 0, favorites: 0, queue: 0 }}
-            listenList={[]}
-            listenTrack={null}
-            nextUp={[]}
             onListenNow={() => {}}
           />
 
-          <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
-            <Skeleton className="lg:col-span-8 h-[240px] md:h-[300px]" />
-            <div className="lg:col-span-4 space-y-3">
-              <Skeleton className="h-[88px]" />
-              <Skeleton className="h-[88px]" />
-              <Skeleton className="h-[88px]" />
-            </div>
+          <Skeleton className="h-[240px] md:h-[300px] w-full" />
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Skeleton className="h-[200px]" />
+            <Skeleton className="h-[200px]" />
+            <Skeleton className="h-[200px]" />
           </div>
 
           <Skeleton className="h-[160px]" />
@@ -1617,19 +1589,17 @@ export default function SynauraHome() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-foreground-primary">
+    <div className="min-h-screen text-white relative overflow-hidden bg-[#0a0a0e]">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-5%] w-[50vw] h-[50vw] rounded-full opacity-[0.15] blur-[130px] animate-[synaura-blob1_20s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }} />
+        <div className="absolute top-[30%] right-[-10%] w-[45vw] h-[45vw] rounded-full opacity-[0.12] blur-[130px] animate-[synaura-blob2_25s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)' }} />
+        <div className="absolute bottom-[-5%] left-[20%] w-[40vw] h-[40vw] rounded-full opacity-[0.13] blur-[130px] animate-[synaura-blob3_22s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, #4f46e5 0%, transparent 70%)' }} />
+      </div>
+
       <main className="mx-auto w-full max-w-none px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 md:py-10 space-y-6 md:space-y-8">
         <WelcomeHeader
           session={session}
           onGo={onGo}
-          stats={{
-            playlists: libraryStats.playlists || 0,
-            favorites: libraryStats.favorites || 0,
-            queue: upNextTracks?.length || 0,
-          }}
-          listenList={listenList as any[]}
-          listenTrack={listenTrack as any}
-          nextUp={listenNextUp as any[]}
           onListenNow={onListenNow}
         />
 
@@ -1638,800 +1608,548 @@ export default function SynauraHome() {
           <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
         </section>
 
-        {/* ✅ Guest: ancien bloc (désactivé) */}
-        {false && !session ? (
-          <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3 md:p-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="text-sm font-semibold text-foreground-primary">Écoute maintenant</div>
-                <div className="text-xs text-foreground-tertiary">
-                  Top tendances • playlists • nouveautés. Écoute en 1 clic.
-                </div>
-              </div>
-              <div className="hidden md:flex items-center gap-2">
-                <button
-                  onClick={() => onGo('/auth/signin')}
-                  className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm"
-                >
-                  Se connecter
-                </button>
-                <button
-                  onClick={() => onGo('/auth/signup')}
-                  className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm"
-                >
-                  Créer un compte
-                </button>
-              </div>
+        {/* 3 colonnes style Suno : Tendances / Nouveautés / Créateurs */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {/* Tendances */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-white">Tendances</h2>
+              <button onClick={() => onGo('/trending')} className="text-xs font-semibold text-white/40 hover:text-white transition">Voir tout &rsaquo;</button>
             </div>
-
-            <div className="mt-3 grid md:grid-cols-12 gap-3">
-              {/* Top 10 tendances */}
-              <div className="md:col-span-6 rounded-3xl border border-border-secondary bg-background-fog-thin p-3">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                  <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-foreground-secondary" />
-                    Top 10 tendances
-                  </div>
+            <div className="space-y-0.5">
+              {trendingList.slice(0, 5).map((t) => (
+                <div
+                  key={t._id}
+                  className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.06] transition p-2 group"
+                >
                   <button
-                    onClick={() => {
-                      const list = trendingList.slice(0, 10);
-                      if (!list.length) return;
-                      setTracks(list as any);
-                      playTrack(list[0] as any);
-                    }}
-                    className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs inline-flex items-center gap-1"
+                    onClick={() => { setTracks(trendingList.slice(0, 30) as any); playTrack(t as any); }}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
-                    <Play className="w-4 h-4" />
-                    Play all
-                  </button>
-                </div>
-                <div className="grid gap-2">
-                  {trendingList.slice(0, 10).map((t, i) => (
-                    <button
-                      key={t._id}
-                      onClick={() => {
-                        const list = trendingList.slice(0, 10);
-                        setTracks(list as any);
-                        playTrack(t as any);
-                      }}
-                      className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
-                    >
-                      <div className="w-7 text-xs text-foreground-tertiary font-semibold">#{i + 1}</div>
-                      <img
-                        src={t.coverUrl || '/default-cover.jpg'}
-                        className="w-10 h-10 rounded-xl object-cover border border-border-secondary"
-                        onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-                        alt=""
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
-                        <div className="text-[11px] text-foreground-tertiary truncate">
-                          {t.artist?.name || t.artist?.username}
-                        </div>
+                    <img src={t.coverUrl || '/default-cover.jpg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} alt="" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[13px] font-semibold text-white truncate">{t.title}</div>
+                      <div className="text-[11px] text-white/30 truncate">{Array.isArray(t.genre) ? t.genre[0] : t.genre || ''}</div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-white/25">
+                        <span>&#9654; {formatK(t.plays || 0)}</span>
+                        <span className="flex items-center gap-0.5"><Heart className="w-2.5 h-2.5" /> {formatK(Array.isArray(t.likes) ? t.likes.length : 0)}</span>
                       </div>
-                      <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
-                        <Play className="w-4 h-4 text-foreground-primary" />
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Playlists + nouveautés */}
-              <div className="md:col-span-6 grid gap-3">
-                <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
-                      <Disc3 className="w-4 h-4 text-foreground-secondary" />
-                      Playlists
                     </div>
-                    <button
-                      onClick={() => onGo('/discover')}
-                      className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
-                    >
-                      Découvrir
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    {(guestPlaylistsLoading ? Array.from({ length: 3 }) : guestPlaylists).map((p: any, idx: number) =>
-                      p ? (
-                        <button
-                          key={p._id}
-                          onClick={() => onGo(`/playlists/${encodeURIComponent(p._id)}`)}
-                          className="text-left rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
-                        >
-                          <img
-                            src={p.coverUrl || '/default-cover.jpg'}
-                            className="w-full h-20 rounded-xl object-cover border border-border-secondary"
-                            onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-                            alt=""
-                          />
-                          <div className="mt-2 text-[13px] font-semibold text-foreground-primary truncate">{p.name}</div>
-                          <div className="text-[11px] text-foreground-tertiary line-clamp-1">{p.description || 'Playlist'}</div>
-                        </button>
-                      ) : (
-                        <div key={`sk-${idx}`} className="rounded-2xl border border-border-secondary bg-white/5 p-2 animate-pulse">
-                          <div className="h-20 rounded-xl bg-white/10" />
-                          <div className="mt-2 h-4 w-3/4 bg-white/10 rounded" />
-                          <div className="mt-1 h-3 w-full bg-white/10 rounded" />
-                        </div>
-                      )
-                    )}
+                  </button>
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <TrackContextMenu track={t} />
                   </div>
                 </div>
-
-                <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-3">
-                  <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2 mb-2">
-                    <Clock className="w-4 h-4 text-foreground-secondary" />
-                    Nouveautés (6)
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {recentTracks.slice(0, 6).map((t) => (
-                      <button
-                        key={t._id}
-                        onClick={() => {
-                          const list = recentTracks.slice(0, 30);
-                          setTracks(list as any);
-                          playTrack(t as any);
-                        }}
-                        className="w-full text-left flex items-center gap-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2"
-                      >
-                        <img
-                          src={t.coverUrl || '/default-cover.jpg'}
-                          className="w-10 h-10 rounded-xl object-cover border border-border-secondary"
-                          onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-                          alt=""
-                        />
-                        <div className="min-w-0 flex-1">
-                          <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
-                          <div className="text-[11px] text-foreground-tertiary truncate">
-                            {t.artist?.name || t.artist?.username}
-                          </div>
-                        </div>
-                        <div className="shrink-0 p-2 rounded-xl border border-border-secondary bg-background-fog-thin">
-                          <Play className="w-4 h-4 text-foreground-primary" />
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
-        ) : null}
 
-        {/* ✅ Home “je comprends + j’écoute en 5 secondes” */}
-        <div className="grid lg:grid-cols-12 gap-3 md:gap-4">
-          <div className="lg:col-span-8 space-y-4 md:space-y-6">
-            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="text-base font-bold text-foreground-primary flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-foreground-secondary" />
-                  Tendances du jour
-                </div>
-                <button
-                  onClick={() => {
-                    const list = trendingList.slice(0, 30);
-                    if (!list.length) return;
-                    setTracks(list as any);
-                    playTrack(list[0] as any);
-                  }}
-                  className="h-9 px-4 rounded-full bg-white text-black hover:scale-[1.02] transition text-xs font-semibold inline-flex items-center gap-1.5"
+          {/* Nouveautés */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-white">Nouveautés</h2>
+              <button onClick={() => onGo('/discover')} className="text-xs font-semibold text-white/40 hover:text-white transition">Voir tout &rsaquo;</button>
+            </div>
+            <div className="space-y-0.5">
+              {recentTracks.slice(0, 5).map((t) => (
+                <div
+                  key={t._id}
+                  className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.06] transition p-2 group"
                 >
-                  <Play className="w-4 h-4 fill-current" />
-                  Play
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {trendingList.slice(0, 4).map((t) => (
                   <button
-                    key={t._id}
-                    onClick={() => {
-                      const list = trendingList.slice(0, 30);
-                      setTracks(list as any);
-                      playTrack(t as any);
-                    }}
-                    className="w-full text-left flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition p-2.5"
+                    onClick={() => { setTracks(recentTracks.slice(0, 30) as any); playTrack(t as any); }}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
-                    <img
-                      src={t.coverUrl || '/default-cover.jpg'}
-                      className="w-12 h-12 rounded-lg object-cover border border-white/[0.06]"
-                      onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-                      alt=""
-                    />
+                    <img src={t.coverUrl || '/default-cover.jpg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} alt="" />
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
-                      <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
-                    </div>
-                    <div className="shrink-0 p-2 rounded-full bg-white/[0.08] hover:bg-white/20 transition">
-                      <Play className="w-4 h-4 text-foreground-primary" />
+                      <div className="text-[13px] font-semibold text-white truncate">{t.title}</div>
+                      <div className="text-[11px] text-white/30 truncate">{Array.isArray(t.genre) ? t.genre[0] : t.genre || ''}</div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <img src={t.artist?.avatar || '/default-avatar.png'} className="w-3.5 h-3.5 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
+                        <span className="text-[10px] text-white/25 truncate">{t.artist?.name || t.artist?.username}</span>
+                      </div>
                     </div>
                   </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="text-base font-bold text-foreground-primary flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-foreground-secondary" />
-                  Nouveautés
+                  <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <TrackContextMenu track={t} />
+                  </div>
                 </div>
-                <button
-                  onClick={() => onGo('/discover')}
-                  className="text-sm font-medium text-foreground-tertiary hover:text-foreground-primary transition"
-                >
-                  Voir plus
-                </button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {recentTracks.slice(0, 4).map((t) => (
-                  <button
-                    key={t._id}
-                    onClick={() => {
-                      const list = recentTracks.slice(0, 30);
-                      setTracks(list as any);
-                      playTrack(t as any);
-                    }}
-                    className="w-full text-left flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition p-2.5"
-                  >
-                    <img
-                      src={t.coverUrl || '/default-cover.jpg'}
-                      className="w-12 h-12 rounded-lg object-cover border border-white/[0.06]"
-                      onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'))}
-                      alt=""
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
-                      <div className="text-[11px] text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username}</div>
-                    </div>
-                    <div className="shrink-0 p-2 rounded-full bg-white/[0.08] hover:bg-white/20 transition">
-                      <Play className="w-4 h-4 text-foreground-primary" />
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </section>
+              ))}
+            </div>
           </div>
 
-          <aside className="lg:col-span-4 space-y-4">
-            {!session ? (
-              <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-                <div className="text-base font-bold text-foreground-primary">Pourquoi créer un compte ?</div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
-                    <div className="text-[12px] font-semibold text-foreground-primary">Likes & playlists</div>
-                    <div className="text-[11px] text-foreground-tertiary">Sauvegarde et organise</div>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
-                    <div className="text-[12px] font-semibold text-foreground-primary">Historique</div>
-                    <div className="text-[11px] text-foreground-tertiary">Reprendre facilement</div>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
-                    <div className="text-[12px] font-semibold text-foreground-primary">IA Studio</div>
-                    <div className="text-[11px] text-foreground-tertiary">Créer des sons</div>
-                  </div>
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-3 hover:bg-white/[0.06] transition">
-                    <div className="text-[12px] font-semibold text-foreground-primary">Boosters</div>
-                    <div className="text-[11px] text-foreground-tertiary">Gains & bonus</div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => onGo('/auth/signup')}
-                  className="mt-4 h-11 w-full rounded-full bg-white text-black hover:scale-[1.01] transition text-sm font-semibold"
-                >
-                  Créer un compte
-                </button>
-              </section>
-            ) : null}
-
-            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3 md:p-4">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="text-base font-bold text-foreground-primary flex items-center gap-2">
-                  <Users className="w-5 h-5 text-foreground-secondary" />
-                  Créateurs à suivre
-                </div>
-                <button
-                  onClick={() => onGo('/discover')}
-                  className="text-sm font-medium text-foreground-tertiary hover:text-foreground-primary transition"
-                >
-                  Explorer
-                </button>
-              </div>
-
-              <div className="grid gap-2">
-                {personalizedCreators.slice(0, 3).map((creator: any) => (
-                  <div
-                    key={creator._id || creator.id}
-                    className="rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] transition p-2.5 flex items-center gap-3"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onGo(`/profile/${encodeURIComponent(creator.username)}`)}
-                      className="flex items-center gap-3 min-w-0 flex-1 text-left"
-                    >
-                      <img
-                        src={creator.avatar || '/default-avatar.png'}
-                        className="w-11 h-11 rounded-full object-cover border border-border-secondary"
-                        onError={(e) => (((e.currentTarget as HTMLImageElement).src = '/default-avatar.png'))}
-                        alt=""
-                      />
-                      <div className="min-w-0">
-                        <div className="text-[13px] font-semibold text-foreground-primary truncate">
-                          {creator.name || creator.username}
-                        </div>
-                        <div className="text-[11px] text-foreground-tertiary truncate">@{creator.username}</div>
+          {/* Créateurs */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-black text-white">Créateurs</h2>
+              <button onClick={() => onGo('/community')} className="text-xs font-semibold text-white/40 hover:text-white transition">Explorer &rsaquo;</button>
+            </div>
+            <div className="space-y-0.5">
+              {personalizedCreators.slice(0, 5).map((creator: any) => (
+                <div key={creator._id || creator.id} className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.06] transition p-2">
+                  <button type="button" onClick={() => onGo(`/profile/${encodeURIComponent(creator.username)}`)} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+                    <img src={creator.avatar || '/default-avatar.png'} className="w-11 h-11 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-white truncate">{creator.name || creator.username}</div>
+                      <div className="text-[11px] text-white/30 truncate">
+                        {creator.followerCount ? `${formatK(creator.followerCount)} abonnés` : `@${creator.username}`}
                       </div>
-                    </button>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <FollowButton
-                        artistId={creator._id}
-                        artistUsername={creator.username}
-                        size="sm"
-                        className="text-xs py-1.5 rounded-lg"
-                      />
                     </div>
+                  </button>
+                  <div onClick={(e) => e.stopPropagation()}>
+                    <FollowButton artistId={creator._id} artistUsername={creator.username} size="sm" className="text-xs py-1.5 rounded-lg" />
                   </div>
-                ))}
-              </div>
-            </section>
-          </aside>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* Colonne principale + sidebar (toujours visible) */}
-        <div className="grid lg:grid-cols-12 gap-4 md:gap-5">
-          <div className="lg:col-span-8 space-y-3 md:space-y-4">
-            <ContinueListening
-              track={currentTrack}
-              isPlaying={audioState.isPlaying}
-              onToggle={async () => {
-                if (!currentTrack?._id) return;
-                if (audioState.isPlaying) pause();
-                else await play(); // reprend sans restart
-              }}
-            />
-
-            {/* Raccourcis */}
-            <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="text-sm font-semibold text-foreground-primary">Raccourcis</div>
-                <div className="text-xs text-foreground-tertiary">Tout au même endroit</div>
-                </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-2">
-              <button
-                  onClick={() => onGo('/boosters')}
-                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-              >
-                  <Gift className="h-4 w-4 text-foreground-secondary" />
-                  Boosters
-              </button>
-              <button
-                  onClick={() => onGo('/community')}
-                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-              >
-                  <Users className="h-4 w-4 text-foreground-secondary" />
-                  Communauté
-              </button>
-              <button
-                  onClick={() => onGo('/library')}
-                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-                >
-                  <Library className="h-4 w-4 text-foreground-secondary" />
-                  Bibliothèque
-              </button>
-              <button
-                  onClick={() => onGo('/trending')}
-                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-                >
-                  <TrendingUp className="h-4 w-4 text-foreground-secondary" />
-                  Trending
-              </button>
-              <button
-                  onClick={() => onGo('/upload')}
-                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-                >
-                  <Upload className="h-4 w-4 text-foreground-secondary" />
-                  Uploader
-              </button>
-              <button
-                  onClick={() => onGo('/subscriptions')}
-                  className="h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.08] transition text-sm text-foreground-primary inline-flex items-center justify-center gap-2"
-                    >
-                  <Crown className="h-4 w-4" />
-                  Premium
-              </button>
-                  </div>
-                      </div>
-
-            {/* Pub visuelle non intrusive (house ad) */}
-            <div className="mt-3">
-              <AdSlot placement="home_card" />
+        {/* Sélection du jour */}
+        {!loading && dailyPicks.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Sparkles className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">Sélection du jour</h2>
+                <p className="text-[11px] text-white/30">3 titres choisis pour toi &middot; change chaque jour</p>
+              </div>
             </div>
-
-            {/* En direct (déplacé depuis la sidebar) */}
-            <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-              <div className="flex items-center justify-between gap-2 mb-3">
-                <div className="text-sm font-semibold text-foreground-primary flex items-center gap-2">
-                  <Radio className="w-4 h-4 text-foreground-secondary" />
-                  En direct
-                </div>
-                <button
-                  onClick={() => onGo('/discover')}
-                  className="text-xs font-medium text-foreground-tertiary hover:text-foreground-primary transition"
-                >
-                  Explorer
-                </button>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-2">
-                <LiveRadioCard
-                  title="Mixx Party — Radio en direct"
-                  logoSrc="/mixxpartywhitelog.png"
-                  isPlaying={isRadioPlaying}
-                  currentTrack={radioInfo.currentTrack}
-                  onToggle={handleRadioToggle}
-                  available={radioInfo.available}
-                />
-                <LiveRadioCard
-                  title="XimaM — Radio en direct"
-                  logoSrc="/ximam-radio-x.svg"
-                  isPlaying={isXimamRadioPlaying}
-                  currentTrack={ximamRadioInfo.currentTrack}
-                  onToggle={handleXimamRadioToggle}
-                  available={ximamRadioInfo.available}
-                />
-              </div>
-            </section>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {dailyPicks.map((pick, idx) => {
+                const orig = pick._original;
+                const dur = pick.duration || 0;
+                const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+                const genre = Array.isArray(orig?.genre) ? orig.genre[0] : orig?.genre;
+                const plays = orig?.plays || 0;
+                const gradients = [
+                  'from-indigo-600/20 to-violet-600/10',
+                  'from-violet-600/20 to-fuchsia-600/10',
+                  'from-fuchsia-600/20 to-indigo-600/10',
+                ];
+                return (
+                  <div
+                    key={pick.id}
+                    className={`relative group rounded-xl overflow-hidden bg-gradient-to-br ${gradients[idx]} border border-white/[0.06] hover:border-white/[0.12] transition-all duration-300 hover:scale-[1.02]`}
+                  >
+                    <div className="flex gap-3 p-3">
+                      <div className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden">
+                        <img src={pick.cover} alt={pick.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                        <button
+                          onClick={() => { setTracks([orig] as any); playTrack(orig as any); }}
+                          className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <div className="w-9 h-9 rounded-full bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                            <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                          </div>
+                        </button>
+                        {dur > 0 && (
+                          <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded text-[9px] font-semibold text-white bg-black/60 backdrop-blur-sm tabular-nums">{durStr}</span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                        <div>
+                          <p className="text-[13px] font-bold text-white line-clamp-1">{pick.title}</p>
+                          {genre && <p className="text-[10px] text-white/30 mt-0.5 truncate">{genre}</p>}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <img src={orig?.artist?.avatar || '/default-avatar.png'} className="w-4 h-4 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
+                            <span className="text-[11px] text-white/40 truncate">{orig?.artist?.name || orig?.artist?.username}</span>
+                          </div>
+                          <span className="text-[10px] text-white/25 tabular-nums flex items-center gap-0.5">&#9654; {formatK(plays)}</span>
+                        </div>
+                      </div>
                     </div>
-                    
-          <div className="lg:col-span-4 space-y-3">
-            <SidebarCard title="À suivre" subtitle="Ta liste d’attente (ordre respecté)" icon={List}>
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-xs text-foreground-tertiary">
-                  {upNextTracks?.length || 0} titre{(upNextTracks?.length || 0) > 1 ? 's' : ''}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toggleUpNextEnabled()}
-                  className={[
-                    'h-7 w-12 rounded-full border border-border-secondary transition relative',
-                    upNextEnabled ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
-                  ].join(' ')}
-                  aria-label="Activer À suivre"
-                >
-                  <span
-                    className={[
-                      'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
-                      upNextEnabled ? 'left-6' : 'left-1',
-                    ].join(' ')}
-                  />
-                </button>
-              </div>
-
-              {(upNextTracks || []).slice(0, 3).map((t: any) => (
-                <div key={t._id} className="mt-2 flex items-center gap-2">
-                  <div className="h-10 w-10 rounded-2xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
-                    <img
-                      src={t.coverUrl || '/default-cover.jpg'}
-                      className="h-full w-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                      }}
-                      alt=""
-                    />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm text-foreground-primary truncate">{t.title}</div>
-                    <div className="text-xs text-foreground-tertiary truncate">{t.artist?.name || t.artist?.username || ''}</div>
-                  </div>
-                </div>
-              ))}
-
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => onGo('/library?tab=queue')}
-                  className="h-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
-                >
-                  Ouvrir
-                </button>
-                <button
-                  onClick={() => onGo('/boosters')}
-                  className="h-10 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm"
-                >
-                  Missions
-                </button>
-              </div>
-            </SidebarCard>
-
-            <SidebarCard title="Boosters" subtitle="Packs • pity • streak • missions" icon={Gift}>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => onGo('/boosters')}
-                  className="h-10 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
-                >
-                  Ouvrir
-                </button>
-                <button
-                  onClick={() => onGo('/boosters?tab=shop')}
-                  className="h-10 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm"
-                >
-                  Shop
-                </button>
-              </div>
-            </SidebarCard>
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <TrackContextMenu track={orig} />
                     </div>
                   </div>
-
-        {/* Pour toi */}
-        {!loading && forYouCards.length > 0 && (
-          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-            <SectionTitle icon={Sparkles} title="Pour toi" actionLabel="Tout voir" onAction={() => router.push('/for-you', { scroll: false })} />
-            <HorizontalScroller>
-              {forYouCards.map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
-            </HorizontalScroller>
-        </section>
+                );
+              })}
+            </div>
+          </section>
         )}
 
-        {/* Trending */}
-        {!loading && trendingList.length > 0 && (
-          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-            <SectionTitle icon={TrendingUp} title="Les plus écoutées" actionLabel="Voir le top 50" onAction={() => router.push('/trending', { scroll: false })} />
-            <HorizontalScroller>
-              {trendingList.slice(0, 10).map((track, i) => (
-                <div
-                  key={track._id}
-                  className="min-w-[190px] md:min-w-[230px] bg-white/[0.04] border border-white/[0.06] rounded-xl p-2.5 md:p-3 hover:bg-white/[0.08] transition-all duration-200 hover:scale-[1.02]"
-                  style={{ scrollSnapAlign: "start" }}
-                >
-                  <div className="relative">
-                    <img
-                      src={track.coverUrl || '/default-cover.jpg'}
-                      className="w-full h-32 md:h-36 object-cover rounded-xl border border-border-secondary/60"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
-                      }}
-                    />
-                    <div className="absolute top-2 left-2 px-2 py-1 rounded-full bg-background-tertiary/80 border border-border-secondary text-[10px] md:text-xs backdrop-blur text-foreground-primary">
-                      #{i + 1}
-                  </div>
-                    <button
-                      onClick={() => playTrack(track)}
-                      className="absolute bottom-2 right-2 p-2 rounded-2xl bg-background-tertiary/80 border border-border-secondary hover:bg-background-tertiary transition backdrop-blur"
-                    >
-                      <Play className="w-4 h-4 text-foreground-primary" />
-                    </button>
-                  </div>
-                  <p className="mt-2 text-xs md:text-sm font-semibold line-clamp-1 text-foreground-primary">{track.title}</p>
-                  <p className="text-[10px] md:text-xs text-foreground-tertiary">{track.artist?.name || track.artist?.username}</p>
-                  <div className="mt-2 flex items-center gap-2 text-[10px] md:text-xs text-foreground-tertiary">
-                    <span className="flex items-center gap-1">
-                      <Headphones className="w-3 h-3" />
-                      {formatNumber(track.plays || 0)}
-                    </span>
-                      <LikeButton
-                        trackId={track._id}
-                      initialLikesCount={Array.isArray(track.likes) ? track.likes.length : 0}
-                        initialIsLiked={track.isLiked || false}
-                        size="sm"
-                        variant="minimal"
-                      showCount={true}
-                      className="flex items-center gap-1"
-                      />
+        {/* Montée en puissance */}
+        {risingTracks.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
+                <Flame className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">Montée en puissance</h2>
+                <p className="text-[11px] text-white/30">Les titres qui explosent en ce moment</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+              {risingTracks.slice(0, 6).map((t: any, idx: number) => {
+                const dur = t.duration || 0;
+                const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+                const growth = t.growthPercent || 0;
+                return (
+                  <div key={t._id} className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-white/[0.06] transition group">
+                    <span className="text-lg font-black text-white/15 w-6 text-center tabular-nums">{idx + 1}</span>
+                    <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0">
+                      <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                      <button onClick={() => { setTracks(risingTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-white truncate">{t.title}</p>
+                      <p className="text-[11px] text-white/30 truncate">{t.artist?.name || t.artist?.username}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {growth > 0 && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-400">
+                          <TrendingUp className="w-3 h-3" />+{growth}%
+                        </span>
+                      )}
+                      {dur > 0 && <span className="text-[10px] text-white/20 tabular-nums">{durStr}</span>}
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                        <TrackContextMenu track={t} />
+                      </div>
                     </div>
                   </div>
-                ))}
-            </HorizontalScroller>
-        </section>
+                );
+              })}
+            </div>
+          </section>
         )}
 
-        {/* Nouveaux créateurs */}
-        {!loading && mockCreators.length > 0 && (
-          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-            <SectionTitle icon={Users} title="Nouveaux créateurs" actionLabel="Explorer" />
-            <HorizontalScroller>
-              {mockCreators.map(c => (
-                <CreatorCard 
-                  key={c.id} 
-                  c={c} 
-                  onClick={() => router.push(`/profile/${c.username}`, { scroll: false })}
-                />
-              ))}
-            </HorizontalScroller>
-        </section>
+        {/* Rejoins Synaura (guest) */}
+        {!session && (
+          <section className="rounded-2xl overflow-hidden relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/15 via-violet-600/8 to-transparent -z-[1]" />
+            <div className="border border-indigo-500/15 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <div className="text-lg font-black text-white">Rejoins Synaura</div>
+                <p className="text-sm text-white/40 mt-0.5">Crée ton compte gratuitement et accède au Studio IA, likes, playlists et plus.</p>
+              </div>
+              <button onClick={() => onGo('/auth/signup')} className="h-11 px-6 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-500/25 shrink-0 whitespace-nowrap">
+                Créer un compte
+              </button>
+            </div>
+          </section>
         )}
 
-        {/* Génération IA - Section masquée */}
-        {false && (
-          <section className="hidden">
-            <SectionTitle icon={Wand2} title="Génération IA" actionLabel="Ouvrir le studio" />
+        {/* Bibliothèque — style "Jump Back In" */}
+        {session && (
+          <section>
+            <h2 className="text-base font-black text-white mb-3">Reprends là où tu en étais</h2>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              <button onClick={() => router.push('/library?tab=favorites', { scroll: false })} className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-indigo-600/25 to-indigo-600/10 hover:from-indigo-600/35 hover:to-indigo-600/15 transition min-w-[200px] p-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-500 flex items-center justify-center shrink-0">
+                  <Heart className="w-5 h-5 text-white fill-white" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-sm font-bold text-white">Favoris</div>
+                  <div className="text-[11px] text-white/40">{libraryStats.favorites} titres</div>
+                </div>
+              </button>
+              <button onClick={() => router.push('/library?tab=playlists', { scroll: false })} className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-violet-600/25 to-violet-600/10 hover:from-violet-600/35 hover:to-violet-600/15 transition min-w-[200px] p-3">
+                <div className="w-10 h-10 rounded-lg bg-violet-500 flex items-center justify-center shrink-0">
+                  <Disc3 className="w-5 h-5 text-white" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-sm font-bold text-white">Playlists</div>
+                  <div className="text-[11px] text-white/40">{libraryStats.playlists} dossiers</div>
+                </div>
+              </button>
+              <button onClick={() => router.push('/library?tab=recent', { scroll: false })} className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-emerald-600/25 to-emerald-600/10 hover:from-emerald-600/35 hover:to-emerald-600/15 transition min-w-[200px] p-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-white" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <div className="text-sm font-bold text-white">Historique</div>
+                  <div className="text-[11px] text-white/40">Récemment jouées</div>
+                </div>
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Genres */}
+        <section>
+          <SectionTitle title="Genres" actionLabel="Tout voir" onAction={() => router.push('/discover', { scroll: false })} />
+          <HorizontalScroller>
+            {[
+              { name: 'Pop', img: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=300&h=300&fit=crop', color: 'from-pink-600/40' },
+              { name: 'Hip-Hop', img: 'https://images.unsplash.com/photo-1546427660-eb346c344ba5?w=300&h=300&fit=crop', color: 'from-amber-600/40' },
+              { name: 'Rock', img: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=300&h=300&fit=crop', color: 'from-red-600/40' },
+              { name: 'Electronic', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=300&h=300&fit=crop', color: 'from-cyan-600/40' },
+              { name: 'R&B', img: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=300&h=300&fit=crop', color: 'from-purple-600/40' },
+              { name: 'Jazz', img: 'https://images.unsplash.com/photo-1415201364774-f6f0bb35f28f?w=300&h=300&fit=crop', color: 'from-amber-700/40' },
+              { name: 'Lo-Fi', img: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&h=300&fit=crop', color: 'from-indigo-600/40' },
+              { name: 'Classical', img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=300&h=300&fit=crop', color: 'from-emerald-600/40' },
+            ].map((g) => (
+              <button
+                key={g.name}
+                onClick={() => router.push(`/discover?genre=${encodeURIComponent(g.name)}`, { scroll: false })}
+                className="relative min-w-[130px] md:min-w-[160px] aspect-square rounded-xl overflow-hidden group shrink-0"
+                style={{ scrollSnapAlign: 'start' }}
+              >
+                <img src={g.img} alt={g.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
+                <div className={`absolute inset-0 bg-gradient-to-t ${g.color} to-black/60`} />
+                <span className="absolute bottom-3 left-3 text-sm font-bold text-white">{g.name}</span>
+              </button>
+            ))}
+          </HorizontalScroller>
+        </section>
+
+        {/* Redécouvre */}
+        {session && rediscoverTracks.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500 to-orange-400 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                <RotateCcw className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">Redécouvre</h2>
+                <p className="text-[11px] text-white/30">Des titres que tu aimais &middot; ça fait longtemps</p>
+              </div>
+            </div>
             <HorizontalScroller>
-              {mockAIGens.map(g => <AIGenCard key={g.id} g={g} />)}
+              {rediscoverTracks.map((t: any) => {
+                const dur = t.duration || 0;
+                const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+                const genre = Array.isArray(t.genre) ? t.genre[0] : t.genre;
+                return (
+                  <div key={t._id} className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card" style={{ scrollSnapAlign: 'start' }}>
+                    <div className="relative group/cover">
+                      <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover rounded-lg sepia-[.15] group-hover/card:sepia-0 transition-all duration-300" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                      {dur > 0 && <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">{durStr}</span>}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity"><TrackContextMenu track={t} /></div>
+                      <button onClick={() => { setTracks(rediscoverTracks as any); playTrack(t as any); }} className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-amber-500/30 hover:scale-110">
+                        <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                      </button>
+                    </div>
+                    <div className="mt-2">
+                      <p className="text-[13px] font-semibold line-clamp-1 text-white">{t.title}</p>
+                      {genre && <p className="text-[10px] text-white/30 truncate mt-0.5">{genre}</p>}
+                    </div>
+                    {t.completions && <p className="text-[10px] text-amber-400/60 mt-1">Écouté {t.completions} fois</p>}
+                    {t.artist && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <img src={t.artist.avatar || '/default-avatar.png'} className="w-4 h-4 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
+                        <span className="text-[11px] text-white/40 truncate">{t.artist.name || t.artist.username}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </HorizontalScroller>
           </section>
         )}
 
-        {/* Bibliothèque */}
-        {session && (
-          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-            <SectionTitle icon={Library} title="Ta bibliothèque" actionLabel="Gérer" onAction={() => router.push('/library', { scroll: false })} />
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4">
-              <div 
-                onClick={() => router.push('/library?tab=favorites', { scroll: false })}
-                className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 md:p-4 hover:bg-white/[0.08] transition cursor-pointer"
-              >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/18 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
-                  <Heart className="w-4 h-4 md:w-5 md:h-5 text-foreground-secondary" />
-                  </div>
-                <p className="text-xs md:text-sm font-semibold text-foreground-primary">Favoris</p>
-                <p className="text-[10px] md:text-xs text-foreground-tertiary">{libraryStats.favorites} tracks</p>
-                  </div>
-            
-              <div 
-                onClick={() => router.push('/library?tab=playlists', { scroll: false })}
-                className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 md:p-4 hover:bg-white/[0.08] transition cursor-pointer"
-              >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/20 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
-                  <Disc3 className="w-5 h-5 text-foreground-secondary" />
-                </div>
-                <p className="text-sm font-semibold text-foreground-primary">Playlists</p>
-                <p className="text-xs text-foreground-tertiary">{libraryStats.playlists} dossiers</p>
-              </div>
-
-              <div 
-                onClick={() => router.push('/library?tab=recent', { scroll: false })}
-                className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 md:p-4 hover:bg-white/[0.08] transition cursor-pointer"
-              >
-                <div className="w-8 h-8 md:w-10 md:h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/16 to-overlay-on-primary/7 border border-border-secondary flex items-center justify-center mb-2 md:mb-3">
-                  <Clock className="w-5 h-5 text-foreground-secondary" />
-                </div>
-                <p className="text-sm font-semibold text-foreground-primary">Historique</p>
-                <p className="text-xs text-foreground-tertiary">Récemment écoutées</p>
-                    </div>
-                    
-              {/* Générations IA - Carte masquée */}
-              {false && (
-                <div 
-                  onClick={() => router.push('/ai-generator', { scroll: false })}
-                  className="bg-background-fog-thin border border-border-secondary rounded-2xl p-4 hover:bg-overlay-on-primary transition cursor-pointer"
-                >
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-overlay-on-primary/18 to-overlay-on-primary/8 border border-border-secondary flex items-center justify-center mb-3">
-                    <Sparkles className="w-5 h-5 text-foreground-secondary" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground-primary">Générations IA</p>
-                  <p className="text-xs text-foreground-tertiary">{libraryStats.aiGenerations} créations</p>
-                          </div>
-            )}
-          </div>
-        </section>
+        {/* Pour toi */}
+        {!loading && forYouCards.length > 0 && (
+          <section>
+            <SectionTitle title="Pour toi" actionLabel="Tout voir" onAction={() => router.push('/for-you', { scroll: false })} />
+            <HorizontalScroller>
+              {forYouCards.map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+            </HorizontalScroller>
+          </section>
         )}
 
-        {/* Créateurs suggérés */}
-        {!loading && personalizedCreators.length > 0 && (
-          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-            <SectionTitle icon={Star} title="Créateurs suggérés" actionLabel="Actualiser" onAction={fetchSuggestedCreators} />
+        {/* Parce que tu as aimé */}
+        {session && similarTracks.length > 0 && similarSourceTitle && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-500/20">
+                <Heart className="w-4 h-4 text-white fill-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">
+                  Parce que tu as aimé <span className="text-indigo-400">{similarSourceTitle}</span>
+                </h2>
+              </div>
+            </div>
             <HorizontalScroller>
-              {personalizedCreators.map(creator => (
-                <div 
-                  key={creator._id} 
-                  onClick={() => router.push(`/profile/${creator.username}`, { scroll: false })}
-                  className="min-w-[190px] md:min-w-[230px] bg-white/[0.04] border border-white/[0.06] rounded-xl p-2.5 md:p-3 hover:bg-white/[0.08] transition-all duration-200 hover:scale-[1.02] cursor-pointer" 
-                  style={{ scrollSnapAlign: "start" }}
-                >
-                  <div className="flex items-center gap-2 md:gap-3">
-                    <Avatar
-                      src={creator.avatar}
-                      name={creator.name}
-                      username={creator.username}
-                        size="sm"
-                      className="w-10 h-10 md:w-12 md:h-12"
-                      />
-                  <div className="flex-1 min-w-0">
-                      <p className="text-xs md:text-sm font-semibold line-clamp-1 text-foreground-primary">{creator.name}</p>
-                      <p className="text-[10px] md:text-xs text-foreground-tertiary">{formatNumber(creator.totalPlays)} écoutes</p>
-                    </div>
-                    </div>
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    {creator.tracks.slice(0, 3).map((track: Track, j: number) => (
-                      <div key={j} className="relative">
-                          <img
-                            src={track.coverUrl || '/default-cover.jpg'}
-                          className="w-full h-16 object-cover rounded-xl border border-border-secondary/60" 
-                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
-                        />
-                        {String(track._id || '').startsWith('ai-') && (
-                          <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded-full text-[8px] font-semibold bg-overlay-on-primary text-foreground-primary border border-border-secondary">
-                            IA
-                          </span>
-                        )}
-                        </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                        playTrack(creator.tracks[0]);
-                      }}
-                      className="text-xs py-2 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition flex items-center justify-center gap-1"
-                    >
-                      <Play className="w-3 h-3" />
-                      Écouter
-                          </button>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <FollowButton
-                        artistId={creator._id}
-                        artistUsername={creator.username}
-                              size="sm"
-                        className="w-full text-xs py-1.5 rounded-lg"
-                      />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+              {similarTracks.map((t: any) => (
+                <TrackCard
+                  key={t._id}
+                  track={{
+                    id: t._id,
+                    title: t.title,
+                    artist: t.artist?.name || t.artist?.username || '',
+                    cover: t.coverUrl || '/default-cover.jpg',
+                    duration: t.duration || 0,
+                    liked: false,
+                    _original: t,
+                  }}
+                  onPlay={playTrack}
+                />
+              ))}
             </HorizontalScroller>
-            </section>
+          </section>
         )}
 
         {/* Nouvelles musiques */}
         {!loading && recentCards.length > 0 && (
-          <section className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-4 md:p-5">
-            <SectionTitle icon={Music2} title="Nouvelles musiques" actionLabel="Tout voir" />
+          <section>
+            <SectionTitle title="Nouvelles musiques" actionLabel="Tout voir" />
             <HorizontalScroller>
               {recentCards.slice(0, 12).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
             </HorizontalScroller>
           </section>
         )}
 
+        {/* Les artistes que tu suis écoutent */}
+        {session && socialDiscovery.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-blue-500 flex items-center justify-center shadow-lg shadow-sky-500/20">
+                <Users className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">Tes artistes écoutent aussi</h2>
+                <p className="text-[11px] text-white/30">Tendances parmi les artistes que tu suis</p>
+              </div>
+            </div>
+            <HorizontalScroller>
+              {socialDiscovery.map((t: any) => (
+                <TrackCard
+                  key={t._id}
+                  track={{
+                    id: t._id,
+                    title: t.title,
+                    artist: t.artist?.name || t.artist?.username || '',
+                    cover: t.coverUrl || '/default-cover.jpg',
+                    duration: t.duration || 0,
+                    liked: false,
+                    _original: t,
+                  }}
+                  onPlay={playTrack}
+                />
+              ))}
+            </HorizontalScroller>
+          </section>
+        )}
+
+        {/* Playlists populaires */}
+        {guestPlaylists.length > 0 && (
+          <section>
+            <SectionTitle title="Playlists populaires" actionLabel="Explorer" onAction={() => router.push('/discover?tab=playlists', { scroll: false })} />
+            <HorizontalScroller>
+              {guestPlaylists.map((pl) => (
+                <button
+                  key={pl._id}
+                  onClick={() => router.push(`/playlist/${pl._id}`, { scroll: false })}
+                  className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all group/pl text-left"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  <div className="relative aspect-square rounded-lg overflow-hidden bg-white/[0.06]">
+                    <img
+                      src={pl.coverUrl || '/default-cover.jpg'}
+                      alt={pl.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+                    />
+                    <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center opacity-0 group-hover/pl:opacity-100 transition-all shadow-lg shadow-indigo-500/30">
+                      <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-sm font-semibold text-white truncate">{pl.name}</div>
+                    <div className="text-[11px] text-white/40 truncate">
+                      {pl.trackCount ? `${pl.trackCount} titres` : ''}
+                      {pl.user?.username ? ` · ${pl.user.name || pl.user.username}` : ''}
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </HorizontalScroller>
+          </section>
+        )}
+
+        {/* Nouveaux artistes à découvrir */}
+        {newArtists.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <UserPlus className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">Nouveaux artistes</h2>
+                <p className="text-[11px] text-white/30">Fraîchement arrivés sur Synaura</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {newArtists.map((artist: any) => (
+                <button
+                  key={artist._id || artist.id}
+                  onClick={() => router.push(`/profile/${encodeURIComponent(artist.username)}`, { scroll: false })}
+                  className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/[0.06] transition group text-center"
+                >
+                  <div className="relative">
+                    <img
+                      src={artist.avatar || '/default-avatar.png'}
+                      alt={artist.name || artist.username}
+                      className="w-16 h-16 rounded-full object-cover ring-2 ring-emerald-500/30 group-hover:ring-emerald-500/60 transition"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
+                    />
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center ring-2 ring-[#0a0a0f]">
+                      <Sparkles className="w-2.5 h-2.5 text-white" />
+                    </div>
+                  </div>
+                  <div className="min-w-0 w-full">
+                    <p className="text-[13px] font-semibold text-white truncate">{artist.name || artist.username}</p>
+                    <p className="text-[10px] text-white/30 truncate">
+                      {artist.trackCount ? `${artist.trackCount} titres` : artist.totalPlays ? `${formatK(artist.totalPlays)} écoutes` : 'Nouveau'}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* En direct */}
+        <section>
+          <div className="flex items-center gap-2 mb-3">
+            <h2 className="text-base font-black text-white">En direct</h2>
+            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <LiveRadioCard title="Mixx Party" logoSrc="/mixxpartywhitelog.png" isPlaying={isRadioPlaying} currentTrack={radioInfo.currentTrack} onToggle={handleRadioToggle} available={radioInfo.available} />
+            <LiveRadioCard title="XimaM Radio" logoSrc="/ximam-radio-x.svg" isPlaying={isXimamRadioPlaying} currentTrack={ximamRadioInfo.currentTrack} onToggle={handleXimamRadioToggle} available={ximamRadioInfo.available} />
+          </div>
+        </section>
+
+        <AdSlot placement="home_card" />
+
         {/* Tests (dev only) */}
         {process.env.NODE_ENV !== "production" && <DevTests />}
 
-        {/* Footer mini-nav */}
-          <footer className="pt-8 pb-10 text-xs text-foreground-tertiary">
-            <div className="flex flex-wrap items-center gap-3 justify-center">
-              <a href="/support" className="hover:text-foreground-primary transition">Support / Contact</a>
-              <span className="opacity-40">•</span>
-              <a href="/legal/mentions-legales" className="hover:text-foreground-primary transition">Mentions légales</a>
-              <span className="opacity-40">•</span>
-              <a href="/legal/confidentialite" className="hover:text-foreground-primary transition">Confidentialité</a>
-              <span className="opacity-40">•</span>
-              <a href="/legal/cgu" className="hover:text-foreground-primary transition">CGU</a>
-              <span className="opacity-40">•</span>
-              <a href="/legal/cgv" className="hover:text-foreground-primary transition">CGV</a>
-              <span className="opacity-40">•</span>
-              <a href="/legal/cookies" className="hover:text-foreground-primary transition">Cookies</a>
-              <span className="opacity-40">•</span>
-              <a href="/legal/rgpd" className="hover:text-foreground-primary transition">RGPD</a>
-              <span className="opacity-40">•</span>
-              <span>© {new Date().getFullYear()} Synaura. Tous droits réservés.</span>
-            </div>
-          </footer>
+        <footer className="pt-8 pb-10 text-xs text-white/40">
+          <div className="flex flex-wrap items-center gap-3 justify-center">
+            <a href="/support" className="hover:text-white transition">Support / Contact</a>
+            <span className="opacity-40">&middot;</span>
+            <a href="/legal/mentions-legales" className="hover:text-white transition">Mentions légales</a>
+            <span className="opacity-40">&middot;</span>
+            <a href="/legal/confidentialite" className="hover:text-white transition">Confidentialité</a>
+            <span className="opacity-40">&middot;</span>
+            <a href="/legal/cgu" className="hover:text-white transition">CGU</a>
+            <span className="opacity-40">&middot;</span>
+            <a href="/legal/cgv" className="hover:text-white transition">CGV</a>
+            <span className="opacity-40">&middot;</span>
+            <a href="/legal/cookies" className="hover:text-white transition">Cookies</a>
+            <span className="opacity-40">&middot;</span>
+            <a href="/legal/rgpd" className="hover:text-white transition">RGPD</a>
+            <span className="opacity-40">&middot;</span>
+            <span>&copy; {new Date().getFullYear()} Synaura. Tous droits réservés.</span>
+          </div>
+        </footer>
       </main>
-
-                              </div>
+    </div>
   );
 }
 
-
-/**
- * DevTests — mini batteries de tests runtime
- * - Vérifie le rendu des 6 icônes de la section Bibliothèque
- * - Log des assertions
- */
-function DevTests(){
-  useEffect(() => {
-    try {
-      LIB_ICONS.forEach((Icon, idx) => {
-        const el = <Icon className="w-5 h-5" />;
-        console.assert(!!el, `Icon index ${idx} should render`);
-      });
-      console.log("[DevTests] Icons render test: OK");
-    } catch (e) {
-      console.error("[DevTests] Icons render test FAILED", e);
-    }
-  }, []);
-
-          return (
-    <div className="sr-only">
-      {LIB_ICONS.map((Icon, idx) => (<Icon key={idx} className="w-4 h-4" />))}
-    </div>
-  );
-} 
+function DevTests() {
+  return null;
+}

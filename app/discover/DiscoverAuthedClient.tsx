@@ -39,6 +39,7 @@ function uniqById<T extends { _id: string }>(arr: T[]) {
 
 export default function DiscoverAuthedClient({
   displayName,
+  genreFilter,
   initialForYou,
   initialTrending,
   initialNew,
@@ -46,6 +47,7 @@ export default function DiscoverAuthedClient({
   initialArtists,
 }: {
   displayName: string;
+  genreFilter?: string | null;
   initialForYou: DiscoverTrackLite[];
   initialTrending: DiscoverTrackLite[];
   initialNew: DiscoverTrackLite[];
@@ -143,10 +145,10 @@ export default function DiscoverAuthedClient({
             <div className="min-w-0">
               <div className="text-xs text-foreground-tertiary">Découvrir</div>
               <h1 className="mt-1 text-2xl md:text-3xl font-bold tracking-tight">
-                {greeting()}, {displayName}.
+                {genreFilter ? `Genre : ${genreFilter}` : `${greeting()}, ${displayName}.`}
               </h1>
               <p className="mt-2 text-sm text-foreground-secondary">
-                Tendances, nouveautés, artistes, playlists — et lecture en 1 clic.
+                {genreFilter ? `Découvre les meilleures tracks ${genreFilter}.` : 'Tendances, nouveautés, artistes, playlists — et lecture en 1 clic.'}
               </p>
             </div>
 

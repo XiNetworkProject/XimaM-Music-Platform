@@ -7,6 +7,38 @@ import { authOptions } from '@/lib/authOptions';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+function diversifyConsecutiveArtists(tracks: any[], maxConsecutive = 3): any[] {
+  if (tracks.length <= maxConsecutive) return tracks;
+  const result: any[] = [];
+  const deferred: any[] = [];
+  for (const track of tracks) {
+    const artistId = track.artist?._id;
+    let consecutive = 0;
+    for (let i = result.length - 1; i >= 0 && i >= result.length - maxConsecutive; i--) {
+      if (result[i].artist?._id === artistId) consecutive++;
+      else break;
+    }
+    if (consecutive >= maxConsecutive) {
+      deferred.push(track);
+    } else {
+      result.push(track);
+    }
+  }
+  for (const track of deferred) {
+    let inserted = false;
+    for (let i = maxConsecutive; i < result.length; i++) {
+      const artistId = track.artist?._id;
+      let safe = true;
+      for (let j = Math.max(0, i - maxConsecutive + 1); j < i; j++) {
+        if (result[j].artist?._id === artistId) { safe = false; break; }
+      }
+      if (safe) { result.splice(i, 0, track); inserted = true; break; }
+    }
+    if (!inserted) result.push(track);
+  }
+  return result;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,6 +46,7 @@ export async function GET(request: NextRequest) {
     const includeAi = searchParams.get('ai') === '1';
     const cursor = Math.max(0, parseInt(searchParams.get('cursor') || '0', 10) || 0);
     const strategy = (searchParams.get('strategy') || 'reco').toLowerCase(); // reco | trending
+    const genreFilter = searchParams.get('genre')?.trim().toLowerCase() || null;
     
     // Récupérer l'utilisateur connecté
     const session = await getServerSession(authOptions).catch(() => null);
@@ -534,11 +567,26 @@ export async function GET(request: NextRequest) {
           .select('track_id, event_type, created_at')
           .eq('user_id', userId)
           .gte('created_at', sinceIso)
-          .in('event_type', ['play_start', 'play_complete', 'favorite', 'like'])
+          .in('event_type', ['play_start', 'play_complete', 'favorite', 'like', 'skip'])
           .order('created_at', { ascending: false })
-          .limit(300);
+          .limit(500);
         const recentTrackIds = (recentEvents || []).map((e: any) => String(e.track_id)).filter(Boolean);
-        const avoid = new Set<string>(recentTrackIds.slice(0, 20)); // éviter les 20 derniers
+        const avoid = new Set<string>(recentTrackIds.slice(0, 50));
+
+        // 2b) Signal de skip — tracks skippées = pénalité forte
+        const skippedIds = new Set<string>();
+        const startedIds = new Map<string, number>();
+        const completedIds = new Set<string>();
+        for (const ev of recentEvents || []) {
+          const tid = String(ev.track_id);
+          if (ev.event_type === 'play_start') startedIds.set(tid, (startedIds.get(tid) || 0) + 1);
+          if (ev.event_type === 'play_complete') completedIds.add(tid);
+          if (ev.event_type === 'skip') skippedIds.add(tid);
+        }
+        // Tracks started but never completed and not liked = implicit skip
+        startedIds.forEach((starts, tid) => {
+          if (starts >= 2 && !completedIds.has(tid)) skippedIds.add(tid);
+        });
 
         // 3) Goûts (genres) à partir des pistes likées / terminées
         const likedOrCompleted = Array.from(
@@ -574,17 +622,88 @@ export async function GET(request: NextRequest) {
             .map(([k]) => k);
         }
 
-        // Appliquer un boost multiplicatif (léger, stable)
+        const listenedArtists = new Map<string, number>();
+        for (const ev of (recentEvents || []).filter((e: any) => e.event_type === 'play_start' || e.event_type === 'play_complete')) {
+          const tid = String(ev.track_id);
+          const matched = scoredNormal.find((t: any) => String(t._id) === tid);
+          if (matched?.artist?._id) {
+            listenedArtists.set(matched.artist._id, (listenedArtists.get(matched.artist._id) || 0) + 1);
+          }
+        }
+
+        // 2c) Filtrage collaboratif simple : utilisateurs similaires
+        const collabBoostIds = new Set<string>();
+        try {
+          const userLikedIds = Array.from(
+            new Set((recentEvents || []).filter((e: any) => e.event_type === 'like' || e.event_type === 'favorite').map((e: any) => String(e.track_id)))
+          ).filter(id => id && !id.startsWith('ai-')).slice(0, 30);
+
+          if (userLikedIds.length >= 3) {
+            const { data: otherLikers } = await supabaseAdmin
+              .from('track_likes')
+              .select('user_id')
+              .in('track_id', userLikedIds)
+              .neq('user_id', userId)
+              .limit(200);
+
+            const likerCounts = new Map<string, number>();
+            for (const l of otherLikers || []) {
+              likerCounts.set(l.user_id, (likerCounts.get(l.user_id) || 0) + 1);
+            }
+            // Users who liked at least 2 of the same tracks
+            const similarUsers = Array.from(likerCounts.entries())
+              .filter(([, c]) => c >= 2)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 10)
+              .map(([uid]) => uid);
+
+            if (similarUsers.length) {
+              const { data: theirLikes } = await supabaseAdmin
+                .from('track_likes')
+                .select('track_id')
+                .in('user_id', similarUsers)
+                .limit(200);
+              const userLikedSet = new Set(userLikedIds);
+              for (const l of theirLikes || []) {
+                if (!userLikedSet.has(l.track_id)) collabBoostIds.add(l.track_id);
+              }
+            }
+          }
+        } catch {}
+
+        // 2d) Conscience temporelle — boost genres selon l'heure
+        const currentHour = new Date().getHours();
+        let timeSlot: 'morning' | 'afternoon' | 'evening' | 'night';
+        if (currentHour >= 6 && currentHour < 12) timeSlot = 'morning';
+        else if (currentHour >= 12 && currentHour < 18) timeSlot = 'afternoon';
+        else if (currentHour >= 18 && currentHour < 24) timeSlot = 'evening';
+        else timeSlot = 'night';
+
+        const timeGenreBoosts: Record<string, string[]> = {
+          morning: ['pop', 'indie', 'folk', 'acoustic', 'funk'],
+          afternoon: ['hip-hop', 'rap', 'rock', 'electronic', 'dance'],
+          evening: ['r&b', 'soul', 'jazz', 'lo-fi', 'chill'],
+          night: ['ambient', 'lo-fi', 'classical', 'chill', 'downtempo'],
+        };
+        const timeBoostGenres = new Set(timeGenreBoosts[timeSlot] || []);
+
         scoredNormal = scoredNormal
           .map((t: any) => {
             let mult = 1;
-            if (followingIds.has(t.artist?._id)) mult *= 1.22;
-            if (avoid.has(String(t._id))) mult *= 0.55;
+            if (followingIds.has(t.artist?._id)) mult *= 1.5;
+            const artistListens = listenedArtists.get(t.artist?._id) || 0;
+            if (!followingIds.has(t.artist?._id) && artistListens >= 3) mult *= 1.25;
+            if (avoid.has(String(t._id))) mult *= 0.4;
+            if (skippedIds.has(String(t._id))) mult *= 0.3;
+            if (collabBoostIds.has(String(t._id))) mult *= 1.35;
             if (preferredGenres.length && Array.isArray(t.genre)) {
               const gset = new Set((t.genre || []).map((x: any) => String(x || '').trim().toLowerCase()).filter(Boolean));
               const overlap = preferredGenres.filter((g) => gset.has(g)).length;
-              if (overlap >= 2) mult *= 1.18;
-              else if (overlap === 1) mult *= 1.10;
+              if (overlap >= 2) mult *= 1.4;
+              else if (overlap === 1) mult *= 1.2;
+              // Time-of-day genre boost
+              const timeOverlap = Array.from(gset).filter(g => timeBoostGenres.has(g as string)).length;
+              if (timeOverlap > 0) mult *= 1.1;
             }
             return { ...t, rankingScore: (t.rankingScore || 0) * mult };
           })
@@ -636,7 +755,14 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const combinedAll = [...scoredNormal, ...scoredAI].sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+    let combinedAll = [...scoredNormal, ...scoredAI].sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
+    if (genreFilter) {
+      combinedAll = combinedAll.filter((t: any) => {
+        const genres = Array.isArray(t.genre) ? t.genre : t.genre ? [t.genre] : [];
+        return genres.some((g: string) => String(g || '').trim().toLowerCase().includes(genreFilter));
+      });
+    }
+    combinedAll = diversifyConsecutiveArtists(combinedAll, 3);
     const combined = combinedAll.slice(cursor, cursor + limit);
     const nextCursor = cursor + combined.length;
     return NextResponse.json({ tracks: combined, nextCursor, hasMore: nextCursor < combinedAll.length });

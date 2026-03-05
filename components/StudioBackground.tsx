@@ -28,7 +28,7 @@ export default function StudioBackground() {
         }}
       />
       <div
-        className="absolute w-[520px] h-[520px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-[40%] rounded-full blur-[120px] opacity-[0.45]"
+        className="absolute w-[520px] h-[520px] top-1/2 left-1/2 -translate-x-1/2 -translate-y-[40%] rounded-full blur-[120px] opacity-[0.45] transform-gpu will-change-transform bg-no-repeat pointer-events-none"
         style={{
           background:
             'radial-gradient(circle, rgba(235,102,255,0.95) 0%, rgba(235,102,255,0.35) 38%, transparent 72%)',

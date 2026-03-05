@@ -1,25 +1,15 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, AlertTriangle, ChevronDown } from "lucide-react";
-import { useAudioPlayer, useAudioTime } from '@/app/providers';
+import { usePathname } from "next/navigation";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, ChevronUp, ChevronDown, X } from "lucide-react";
+import { useAudioPlayer, useAudioTime, useSidebar } from '@/app/providers';
 import LikeButton from './LikeButton';
 import TikTokPlayer from './TikTokPlayer';
 
-/**
- * SynauraMiniPlayer v3 — Minimal, clean, accessible
- *
- * Goals:
- *  - Simple, calm visuals (no neon/glow/rotation)
- *  - Clear hierarchy, subtle borders, soft hover
- *  - Safe HLS strategy (no dynamic import)
- *  - Integration with existing useAudioPlayer context
- */
-
 export default function SynauraMiniPlayer() {
-  const { 
-    audioState, 
-    setIsPlaying, 
+  const {
+    audioState,
     setShowPlayer,
     play,
     pause,
@@ -32,15 +22,24 @@ export default function SynauraMiniPlayer() {
     addToUpNext,
   } = useAudioPlayer();
   const { currentTime, duration } = useAudioTime();
+  const { isSidebarOpen } = useSidebar();
+  const pathname = usePathname();
 
   const progressRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLParagraphElement>(null);
-  const artistRef = useRef<HTMLParagraphElement>(null);
-
   const [showTikTok, setShowTikTok] = useState(false);
-  const [hlsUnsupported, setHlsUnsupported] = useState(false);
-  const [titleOverflows, setTitleOverflows] = useState(false);
-  const [artistOverflows, setArtistOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [isLg, setIsLg] = useState(false);
+  
+  const sidebarWidth = isSidebarOpen ? 220 : 72;
+  const isStudioPage = pathname?.startsWith('/ai-generator');
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    setIsLg(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsLg(e.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
   const track = useMemo(() => ({
@@ -51,32 +50,12 @@ export default function SynauraMiniPlayer() {
     src: currentTrack?.audioUrl || '',
   }), [currentTrack]);
 
-  // Detect HLS by extension
   const isHls = useMemo(() => Boolean(track?.src?.toLowerCase?.().endsWith?.(".m3u8")), [track?.src]);
   const isLive = useMemo(() => isHls || /\blive\b|radio|stream/i.test(track?.title || ''), [isHls, track?.title]);
 
-  // Check if text overflows
-  useEffect(() => {
-    const checkOverflow = () => {
-      if (titleRef.current) {
-        setTitleOverflows(titleRef.current.scrollWidth > titleRef.current.offsetWidth);
-      }
-      if (artistRef.current) {
-        setArtistOverflows(artistRef.current.scrollWidth > artistRef.current.offsetWidth);
-      }
-    };
-    
-    checkOverflow();
-    window.addEventListener('resize', checkOverflow);
-    return () => window.removeEventListener('resize', checkOverflow);
-  }, [track.title, track.artist]);
-
   const togglePlay = async () => {
-    if (audioState.isPlaying) {
-      pause();
-    } else {
-      await play();
-    }
+    if (audioState.isPlaying) pause();
+    else await play();
   };
 
   const toTime = (s: number) => {
@@ -87,25 +66,21 @@ export default function SynauraMiniPlayer() {
 
   const seekTo = (fraction: number) => {
     if (!duration) return;
-    const newTime = Math.max(0, Math.min(duration, fraction * duration));
-    seek(newTime);
+    seek(Math.max(0, Math.min(duration, fraction * duration)));
   };
 
   const seekBy = (deltaSec: number) => {
-    const newTime = Math.max(0, Math.min((currentTime || 0) + deltaSec, duration));
-    seek(newTime);
+    seek(Math.max(0, Math.min((currentTime || 0) + deltaSec, duration)));
   };
 
-  // Keyboard shortcuts (skip when typing or when TikTok is open)
   useEffect(() => {
-    if (showTikTok) return; // ❗️ Ne rien attacher si TikTok est ouvert
-    
+    if (showTikTok) return;
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      if (e.code === 'ArrowRight') { seekBy(5); }
-      if (e.code === 'ArrowLeft') { seekBy(-5); }
+      if (e.code === 'ArrowRight') seekBy(5);
+      if (e.code === 'ArrowLeft') seekBy(-5);
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -115,22 +90,20 @@ export default function SynauraMiniPlayer() {
     const bar = progressRef.current;
     if (!bar) return;
     const rect = bar.getBoundingClientRect();
-    const frac = (e.clientX - rect.left) / rect.width;
-    seekTo(frac);
+    seekTo((e.clientX - rect.left) / rect.width);
   };
 
   const handleRepeat = () => {
     const modes: ('none' | 'all' | 'one')[] = ['none', 'all', 'one'];
-    const currentIndex = modes.indexOf(audioState.repeat);
-    const nextMode = modes[(currentIndex + 1) % modes.length];
-    setRepeat(nextMode);
+    setRepeat(modes[(modes.indexOf(audioState.repeat) + 1) % modes.length]);
   };
+
+  const progressPct = duration ? ((currentTime || 0) / duration) * 100 : 0;
 
   if (!currentTrack || !audioState.showPlayer) return null;
 
   return (
     <>
-      {/* TikTok Player Modal */}
       {showTikTok && (
         <TikTokPlayer
           isOpen={showTikTok}
@@ -139,169 +112,216 @@ export default function SynauraMiniPlayer() {
         />
       )}
 
-      {/* Mini Player Bar */}
       {!showTikTok && (
-        <div className={`fixed bottom-20 lg:bottom-3 left-0 lg:left-1/2 lg:-translate-x-1/2 z-[60] lg:z-50 w-full sm:w-[760px] lg:w-[980px] ${showTikTok ? 'pointer-events-none' : ''}`}>
-          <div className="rounded-xl border border-white/10 bg-[#0c0c14]/85 backdrop-blur-xl shadow-lg">
-            {/* top row */}
-            <div className="px-3 py-2 flex items-center gap-3">
-              <img 
-                src={track.cover} 
-                className="w-12 h-12 rounded-md object-cover border border-white/10 cursor-pointer hover:opacity-80 transition" 
-                alt={track.title}
-                onClick={() => setShowTikTok(true)}
+        <div
+          className={`fixed bottom-0 right-0 pointer-events-none z-[50] ${isStudioPage ? 'hidden lg:block' : ''}`}
+          style={{ left: isLg ? sidebarWidth : 0, transition: 'left 200ms ease' }}
+        >
+          {/* Spacer for mobile BottomNav */}
+          <div className="lg:hidden h-[68px]" />
+
+          <div className="pointer-events-auto">
+            {/* ── Progress bar — top edge, always visible ── */}
+            <div
+              ref={progressRef}
+              onClick={onProgressClick}
+              className="h-1 bg-white/[0.06] cursor-pointer relative group"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={duration || 0}
+              aria-valuenow={currentTime || 0}
+            >
+              <div
+                className="absolute left-0 top-0 h-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-[width] duration-150"
+                style={{ width: `${progressPct}%` }}
               />
-              <div className="min-w-0 flex-1 overflow-hidden" onClick={() => setShowTikTok(true)}>
-                <div className="relative w-full overflow-hidden">
-                  <div 
-                    ref={titleRef}
-                    className={`text-sm font-semibold flex items-center gap-2 cursor-pointer hover:underline whitespace-nowrap ${titleOverflows ? 'animate-marquee' : ''}`}
-                  >
-                    <span>{track.title}</span>
-                    {isLive && (
-                      <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-white/20 text-white/80 flex-shrink-0">
-                        <Radio className="w-3 h-3"/> LIVE
-                      </span>
-                    )}
-                    {titleOverflows && (
-                      <>
-                        <span className="ml-4">{track.title}</span>
-                        {isLive && (
-                          <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border border-white/20 text-white/80 flex-shrink-0">
-                            <Radio className="w-3 h-3"/> LIVE
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-                <div className="relative w-full overflow-hidden">
-                  <div 
-                    ref={artistRef}
-                    className={`text-xs text-white/60 whitespace-nowrap ${artistOverflows ? 'animate-marquee' : ''}`}
-                  >
-                    <span>{track.artist}</span>
-                    {artistOverflows && <span className="ml-4">{track.artist}</span>}
-                  </div>
-                </div>
-              </div>
-
-              <button onClick={previousTrack} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Previous">
-                <SkipBack className="w-5 h-5"/>
-              </button>
-              <button onClick={togglePlay} disabled={audioState.isLoading} className="p-2 rounded-md bg-white/10 hover:bg-white/15 border border-white/10 transition" aria-label={audioState.isPlaying? 'Pause':'Play'}>
-                {audioState.isPlaying ? <Pause className="w-5 h-5"/> : <Play className="w-5 h-5"/>}
-              </button>
-              <button onClick={nextTrack} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Next">
-                <SkipForward className="w-5 h-5"/>
-              </button>
-
-              {currentTrack && (
-                <LikeButton
-                  trackId={currentTrack._id}
-                  initialIsLiked={currentTrack.isLiked || false}
-                  initialLikesCount={typeof currentTrack.likes === 'number' ? currentTrack.likes : (Array.isArray(currentTrack.likes) ? currentTrack.likes.length : 0)}
-                  showCount={false}
-                  size="md"
-                />
-              )}
-
-              <button
-                onClick={() => {
-                  if (!currentTrack) return;
-                  if (isLive) return;
-                  if (String(currentTrack._id || '').startsWith('radio-')) return;
-                  addToUpNext(currentTrack as any, 'end');
-                }}
-                disabled={!currentTrack || isLive || String(currentTrack?._id || '').startsWith('radio-')}
-                className={`hidden sm:inline-flex p-2 rounded-md border transition ${
-                  (!currentTrack || isLive || String(currentTrack?._id || '').startsWith('radio-'))
-                    ? 'opacity-50 cursor-not-allowed border-transparent'
-                    : 'hover:bg-white/5 border-transparent'
-                }`}
-                title="Ajouter à “À suivre”"
-                aria-label="Ajouter à la liste d'attente"
-              >
-                <ListPlus className="w-5 h-5"/>
-              </button>
-              
-              <button 
-                onClick={handleRepeat} 
-                className={`hidden sm:inline-flex p-2 rounded-md border transition relative ${
-                  audioState.repeat !== 'none' ? 'bg-white/10 border-white/20' : 'hover:bg-white/5 border-transparent'
-                }`} 
-                title={audioState.repeat === 'one' ? 'Répéter un' : audioState.repeat === 'all' ? 'Répéter tout' : 'Répétition désactivée'} 
-                aria-pressed={audioState.repeat !== 'none'}
-              >
-                <Repeat className="w-5 h-5"/>
-                {audioState.repeat === 'one' && <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full text-[8px] flex items-center justify-center">1</span>}
-              </button>
-
-              <div className="hidden sm:flex items-center gap-2 ml-2">
-                {audioState.isMuted || audioState.volume === 0 ? (
-                  <button onClick={toggleMute} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Unmute">
-                    <VolumeX className="w-5 h-5"/>
-                  </button>
-                ) : (
-                  <button onClick={toggleMute} className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" aria-label="Mute">
-                    <Volume2 className="w-5 h-5"/>
-                  </button>
-                )}
-                <input
-                  type="range" min={0} max={1} step={0.01}
-                  value={audioState.isMuted ? 0 : audioState.volume}
-                  onChange={(e) => setVolume(parseFloat(e.target.value))}
-                  className="w-24 accent-white/90"
-                  aria-label="Volume"
-                />
-              </div>
-
-              <button 
-                onClick={() => setShowTikTok(true)} 
-                className="hidden sm:flex p-2 rounded-md hover:bg-white/5 border border-transparent ml-1 transition" 
-                title="Ouvrir le player complet" 
-                aria-label="Player complet"
-              >
-                <ListMusic className="w-5 h-5"/>
-              </button>
-
-              <button 
-                onClick={() => setShowPlayer(false)} 
-                className="p-2 rounded-md hover:bg-white/5 border border-transparent transition" 
-                aria-label="Fermer"
-              >
-                <ChevronDown className="w-5 h-5"/>
-              </button>
+              <div
+                className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ left: `${progressPct}%`, marginLeft: -6 }}
+              />
             </div>
 
-            {/* progress bar */}
-            <div className="px-3 pb-2">
-              <div className="flex items-center gap-2 text-[11px] text-white/70">
-                <span className="tabular-nums w-10 text-right">{toTime(currentTime || 0)}</span>
+            {/* ── Player bar ── */}
+            <div className="bg-[#0a0a12]/95 backdrop-blur-2xl border-t border-white/[0.04]">
+              {/* Main row — always visible */}
+              <div className="flex items-center gap-3 px-3 lg:px-5 h-[58px] lg:h-[56px]">
+                {/* Cover + info */}
                 <div
-                  ref={progressRef}
-                  onClick={onProgressClick}
-                  className="flex-1 h-2 rounded-md bg-white/8 cursor-pointer relative overflow-hidden"
-                  title="Seek"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={duration || 0}
-                  aria-valuenow={currentTime || 0}
+                  className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
+                  onClick={() => setShowTikTok(true)}
                 >
-                  {/* progress */}
-                  <div
-                    className="absolute left-0 top-0 h-2 bg-white/70 transition-all"
-                    style={{ width: `${duration ? ((currentTime || 0) / duration) * 100 : 0}%` }}
-                  />
+                  <div className="relative shrink-0">
+                    <img
+                      src={track.cover}
+                      className="w-10 h-10 rounded-lg object-cover ring-1 ring-white/[0.08]"
+                      alt={track.title}
+                    />
+                    {isLive && (
+                      <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-red-500 text-white text-[7px] font-bold uppercase px-1 py-px rounded-full tracking-wider">
+                        <Radio className="w-2 h-2" /> Live
+                      </span>
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-white/90 truncate leading-tight">{track.title}</p>
+                    <p className="text-[11px] text-white/40 truncate leading-tight">{track.artist}</p>
+                  </div>
                 </div>
-                <span className="tabular-nums w-10">{toTime(duration || 0)}</span>
+
+                {/* Controls — center */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={previousTrack}
+                    className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all hidden sm:flex"
+                    aria-label="Précédent"
+                  >
+                    <SkipBack className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={togglePlay}
+                    disabled={audioState.isLoading}
+                    className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 shadow-lg shadow-white/10 transition-all"
+                    aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {audioState.isPlaying
+                      ? <Pause className="w-4 h-4" />
+                      : <Play className="w-4 h-4 fill-current ml-0.5" />
+                    }
+                  </button>
+                  <button
+                    onClick={nextTrack}
+                    className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all hidden sm:flex"
+                    aria-label="Suivant"
+                  >
+                    <SkipForward className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Time — desktop only */}
+                <div className="hidden md:flex items-center gap-2 text-[10px] font-mono text-white/30 tabular-nums shrink-0">
+                  <span>{toTime(currentTime || 0)}</span>
+                  <span>/</span>
+                  <span>{toTime(duration || 0)}</span>
+                </div>
+
+                {/* Right actions */}
+                <div className="flex items-center gap-0.5 shrink-0">
+                  {currentTrack && (
+                    <LikeButton
+                      key={currentTrack._id}
+                      trackId={currentTrack._id}
+                      initialIsLiked={currentTrack.isLiked || false}
+                      initialLikesCount={typeof currentTrack.likes === 'number' ? currentTrack.likes : (Array.isArray(currentTrack.likes) ? currentTrack.likes.length : 0)}
+                      showCount={false}
+                      size="md"
+                    />
+                  )}
+
+                  {/* Expand toggle — mobile */}
+                  <button
+                    onClick={() => setExpanded((v) => !v)}
+                    className="p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all sm:hidden"
+                    aria-label={expanded ? 'Réduire' : 'Plus d\'options'}
+                  >
+                    {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
+                  </button>
+
+                  {/* Desktop extras */}
+                  <button
+                    onClick={() => {
+                      if (!currentTrack || isLive || String(currentTrack._id || '').startsWith('radio-')) return;
+                      addToUpNext(currentTrack as any, 'end');
+                    }}
+                    disabled={!currentTrack || isLive || String(currentTrack?._id || '').startsWith('radio-')}
+                    className="hidden sm:flex p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="À suivre"
+                    aria-label="Ajouter à la liste d'attente"
+                  >
+                    <ListPlus className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={handleRepeat}
+                    className={`hidden sm:flex p-2 rounded-full transition-all relative ${
+                      audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/30 hover:text-white/60 hover:bg-white/[0.06]'
+                    }`}
+                    aria-pressed={audioState.repeat !== 'none'}
+                    aria-label="Répéter"
+                  >
+                    <Repeat className="w-4 h-4" />
+                    {audioState.repeat === 'one' && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-indigo-500 rounded-full text-[8px] font-bold flex items-center justify-center text-white">1</span>
+                    )}
+                  </button>
+
+                  {/* Volume — desktop */}
+                  <div className="hidden lg:flex items-center gap-1 ml-1">
+                    <button
+                      onClick={toggleMute}
+                      className="p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                      aria-label={audioState.isMuted ? 'Unmute' : 'Mute'}
+                    >
+                      {audioState.isMuted || audioState.volume === 0
+                        ? <VolumeX className="w-4 h-4" />
+                        : <Volume2 className="w-4 h-4" />
+                      }
+                    </button>
+                    <input
+                      type="range" min={0} max={1} step={0.01}
+                      value={audioState.isMuted ? 0 : audioState.volume}
+                      onChange={(e) => setVolume(parseFloat(e.target.value))}
+                      className="w-20 accent-white/70 h-1"
+                      aria-label="Volume"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => setShowTikTok(true)}
+                    className="hidden sm:flex p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                    title="Player complet"
+                    aria-label="Player complet"
+                  >
+                    <ListMusic className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() => setShowPlayer(false)}
+                    className="p-2 rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.06] transition-all"
+                    aria-label="Fermer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
-              {/* HLS hint (non-blocking) */}
-              {hlsUnsupported && (
-                <div className="mt-2 text-[11px] text-white/70 flex items-center gap-1">
-                  <AlertTriangle className="w-3.5 h-3.5"/>
-                  Lecture live non supportée. Utilise MP3/OGG ou charge Hls.js globalement.
+              {/* Expanded row — mobile only */}
+              {expanded && (
+                <div className="flex items-center justify-center gap-3 px-3 pb-3 sm:hidden">
+                  <button onClick={previousTrack} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/[0.06] transition-all" aria-label="Précédent">
+                    <SkipBack className="w-5 h-5" />
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (!currentTrack || isLive || String(currentTrack._id || '').startsWith('radio-')) return;
+                      addToUpNext(currentTrack as any, 'end');
+                    }}
+                    disabled={!currentTrack || isLive}
+                    className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-30"
+                    aria-label="À suivre"
+                  >
+                    <ListPlus className="w-5 h-5" />
+                  </button>
+
+                  <button onClick={handleRepeat} className={`p-2.5 rounded-full transition-all ${audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/50 hover:text-white hover:bg-white/[0.06]'}`} aria-label="Répéter">
+                    <Repeat className="w-5 h-5" />
+                  </button>
+
+                  <button onClick={nextTrack} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/[0.06] transition-all" aria-label="Suivant">
+                    <SkipForward className="w-5 h-5" />
+                  </button>
+
+                  <span className="text-[10px] font-mono text-white/30 tabular-nums ml-1">{toTime(currentTime || 0)} / {toTime(duration || 0)}</span>
                 </div>
               )}
             </div>
@@ -310,20 +330,4 @@ export default function SynauraMiniPlayer() {
       )}
     </>
   );
-}
-
-/** Runtime tests (console) */
-if (typeof window !== 'undefined') {
-  (() => {
-    try {
-      const toTime = (s: number) => `${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,'0')}`;
-      console.assert(toTime(0) === '0:00', 'toTime 0 OK');
-      console.assert(toTime(125) === '2:05', 'toTime 125 OK');
-      const frac = (x: number, left: number, width: number) => (x-left)/width;
-      console.assert(Math.abs(frac(25, 0, 100) - 0.25) < 1e-6, 'progress fraction 0.25 OK');
-      console.log('[DevTests] SynauraMiniPlayer v3 basic tests OK');
-    } catch (e) {
-      console.warn('[DevTests] Failed', e);
-    }
-  })();
 }

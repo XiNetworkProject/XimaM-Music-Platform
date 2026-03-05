@@ -13,6 +13,7 @@ export interface AIGeneration {
   completed_at?: string;
   is_favorite: boolean;
   is_public: boolean;
+  is_trashed?: boolean;
   play_count: number;
   like_count: number;
   share_count: number;

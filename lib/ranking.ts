@@ -41,6 +41,9 @@ export function computeRankingScore(stats: TrackStats, ageHours: number, sourceB
   const halfLifeH = 12;
   const decay = Math.exp(-Math.max(0, ageHours) * Math.LN2 / halfLifeH);
 
+  // Freshness boost: tracks < 48h get extra visibility (linearly decays from +2.0 to 0)
+  const freshnessBoost = ageHours < 48 ? 2.0 * (1 - ageHours / 48) : 0;
+
   const score = (
     w1 * playsNorm +
     w2 * completesNorm +
@@ -49,7 +52,8 @@ export function computeRankingScore(stats: TrackStats, ageHours: number, sourceB
     w5 * likesNorm +
     w6 * sharesNorm +
     w7 * favsNorm +
-    sourceBonus
+    sourceBonus +
+    freshnessBoost
   ) * decay;
 
   return Number(score.toFixed(6));
