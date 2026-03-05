@@ -20,6 +20,7 @@ import {
   Scale,
   X,
   User,
+  Music2,
 } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 
@@ -69,6 +70,7 @@ export default function BottomNav() {
 
   const drawerItems = [
     { icon: Plus, label: 'Uploader', path: '/upload', auth: true },
+    { icon: Music2, label: 'Publier', path: '/publish' },
     { icon: Gift, label: 'Boosters', path: '/boosters', auth: true },
     { icon: TrendingUp, label: 'Stats', path: '/stats', auth: true },
     { icon: Users, label: 'Communauté', path: '/community' },

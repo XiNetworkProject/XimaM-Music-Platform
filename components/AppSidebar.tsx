@@ -24,6 +24,8 @@ import {
   LogOut,
   User,
   CreditCard,
+  Music2,
+  Handshake,
 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import { useSidebar } from '@/app/providers';
@@ -34,6 +36,7 @@ const NAV_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
   { href: '/library', label: 'Bibliothèque', icon: BookOpen },
+  { href: '/publish', label: 'Publier', icon: Music2 },
   { href: '/community', label: 'Communauté', icon: Users },
   { href: '/stats', label: 'Stats', icon: TrendingUp },
   { href: '/boosters', label: 'Boosters', icon: Gift },
@@ -42,6 +45,7 @@ const NAV_ITEMS = [
 
 const BOTTOM_ITEMS = [
   { href: '/support', label: 'Support', icon: LifeBuoy },
+  { href: '/partnerships', label: 'Partenariats', icon: Handshake },
   { href: '/legal', label: 'Légal', icon: Scale },
 ];
 
