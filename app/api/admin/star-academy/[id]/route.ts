@@ -124,7 +124,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
   const { searchParams } = req.nextUrl;
 
-  // ?audio=1 → retourne un signed URL pour le fichier audio
+  // ?audio=1 → retourne l'URL Cloudinary de l'audio
   if (searchParams.get('audio') === '1') {
     const { data: app, error: dbError } = await supabaseAdmin
       .from('star_academy_applications')
@@ -135,24 +135,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     if (dbError || !app) return NextResponse.json({ error: 'Introuvable.' }, { status: 404 });
     if (!app.audio_url) return NextResponse.json({ error: 'Aucun audio.' }, { status: 404 });
 
-    const marker = '/star-academy-audio/';
-    const idx = app.audio_url.indexOf(marker);
-
-    if (idx === -1) {
-      return NextResponse.json({ signedUrl: app.audio_url, filename: app.audio_filename });
-    }
-
-    const storagePath = app.audio_url.slice(idx + marker.length);
-    const { data: signed, error: signError } = await supabaseAdmin.storage
-      .from('star-academy-audio')
-      .createSignedUrl(storagePath, 3600);
-
-    if (signError || !signed?.signedUrl) {
-      console.error('[admin/audio] signed URL error:', signError?.message);
-      return NextResponse.json({ signedUrl: app.audio_url, filename: app.audio_filename });
-    }
-
-    return NextResponse.json({ signedUrl: signed.signedUrl, filename: app.audio_filename });
+    return NextResponse.json({ signedUrl: app.audio_url, filename: app.audio_filename });
   }
 
   const { data, error } = await supabaseAdmin

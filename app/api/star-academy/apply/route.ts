@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
+import { uploadAudio } from '@/lib/cloudinary';
 import { sendEmail, saConfirmationTemplate } from '@/lib/email';
 
 const ALLOWED_CATEGORIES = ['Chant', 'Rap', 'Mix / DJ', 'Performance / Danse', 'Autre'];
@@ -81,27 +82,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Une candidature existe déjà pour cet email.' }, { status: 409 });
     }
 
-    // ── Upload audio → Supabase Storage ───────────────────
+    // ── Upload audio → Cloudinary ──────────────────────────
     const applicationId = crypto.randomUUID();
-    const safeFilename  = audioFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const storagePath   = `${applicationId}/${safeFilename}`;
     const audioBuffer   = Buffer.from(await audioFile.arrayBuffer());
 
-    const { error: storageError } = await supabaseAdmin.storage
-      .from('star-academy-audio')
-      .upload(storagePath, audioBuffer, {
-        contentType: audioFile.type,
-        upsert: false,
-      });
-
     let audioUrl: string | null = null;
-    if (!storageError) {
-      const { data: urlData } = supabaseAdmin.storage
-        .from('star-academy-audio')
-        .getPublicUrl(storagePath);
-      audioUrl = urlData?.publicUrl ?? null;
-    } else {
-      console.warn('[star-academy/apply] Storage upload failed:', storageError.message);
+    try {
+      const result = await uploadAudio(audioBuffer, {
+        folder: 'ximam/star-academy',
+        public_id: `sa_${applicationId}`,
+        resource_type: 'video',
+      });
+      audioUrl = result.secure_url;
+    } catch (uploadErr) {
+      console.warn('[star-academy/apply] Cloudinary upload failed:', uploadErr);
     }
 
     // ── Créer compte Synaura (optionnel) ───────────────────
