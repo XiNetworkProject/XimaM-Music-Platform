@@ -353,8 +353,8 @@ export default function AIGenerator() {
   const [openAdvancedSection, setOpenAdvancedSection] = useState(false);
   const [openResultsSection, setOpenResultsSection] = useState(true);
 
-  // Onglet mobile : Studio (complet) | Générer | Bibliothèque
-  const [mobileTab, setMobileTab] = useState<'studio' | 'generate' | 'library'>('studio');
+  // Onglet mobile : Créer | Bibliothèque
+  const [mobileTab, setMobileTab] = useState<'generate' | 'library'>('generate');
   const [shellMode, setShellMode] = useState<'ide' | 'classic'>('ide');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [cmdOpen, setCmdOpen] = useState(false);
@@ -2913,15 +2913,14 @@ export default function AIGenerator() {
         </div>
       </header>
 
-      <div className={`relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 lg:pb-4 ${audioState.showPlayer && audioState.tracks.length > 0 ? 'pb-[calc(10rem+env(safe-area-inset-bottom,0px))]' : 'pb-[calc(5rem+env(safe-area-inset-bottom,0px))]'}`}>
+      <div className="relative z-10 mx-auto max-w-[1600px] px-3 sm:px-4 py-4 lg:pb-4 pb-[calc(140px+env(safe-area-inset-bottom,0px))]">
         <header className="sr-only">
           <h1>Studio IA Synaura</h1>
         </header>
 
-        {/* Mobile studio tabs (inline, top) */}
-        <div className="lg:hidden flex items-center gap-1 mb-3 bg-white/[0.04] rounded-2xl p-1 border border-white/[0.06]">
+        {/* Mobile studio tabs */}
+        <div className="lg:hidden flex items-center gap-1.5 mb-3 bg-[#0e0e18]/80 rounded-2xl p-1 border border-white/[0.08] backdrop-blur-xl shadow-lg shadow-black/20">
           {([
-            { key: 'studio' as const, label: 'Studio', icon: Layers },
             { key: 'generate' as const, label: 'Créer', icon: Wand2 },
             { key: 'library' as const, label: 'Bibliothèque', icon: ListMusic },
           ]).map((tab) => {
@@ -2932,13 +2931,13 @@ export default function AIGenerator() {
                 key={tab.key}
                 type="button"
                 onClick={() => setMobileTab(tab.key)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-[12px] font-semibold transition-all active:scale-[0.97] ${
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold transition-all active:scale-[0.97] ${
                   active
-                    ? 'bg-white/[0.1] text-white shadow-sm'
-                    : 'text-white/40 hover:text-white/60'
+                    ? 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-white border border-indigo-500/20 shadow-sm shadow-indigo-500/10'
+                    : 'text-white/40 hover:text-white/60 border border-transparent'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 ${active ? 'text-indigo-400' : ''}`} />
                 {tab.label}
               </button>
             );
@@ -2947,9 +2946,9 @@ export default function AIGenerator() {
 
         {/* LAYOUT "Studio Pro" : panneaux fixes (scroll interne uniquement) ; sur mobile onglets Générer / Bibliothèque */}
         <div ref={containerRef} className="grid grid-cols-12 gap-3 lg:flex lg:items-stretch lg:gap-3">
-          {/* LEFT PANEL: Generator / Remixer — sur mobile visible quand onglet "Générer" */}
+          {/* LEFT PANEL: Generator / Remixer */}
           <aside
-            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${(mobileTab === 'generate' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
+            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${mobileTab === 'generate' ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
             style={isDesktopLayout ? { width: leftPx } : { width: '100%', maxWidth: '100%' }}
           >
             {/* Sticky Generate Button + Mode Switch */}
@@ -3004,7 +3003,7 @@ export default function AIGenerator() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 space-y-3 pb-24 lg:pb-3 pt-3">
+            <div className="flex-1 overflow-y-auto px-3 space-y-3 pb-4 lg:pb-3 pt-3">
               {shellMode === 'ide' && (
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
                   <div className="flex items-center justify-between px-1 pb-2">
@@ -3739,9 +3738,9 @@ export default function AIGenerator() {
             <div className="h-16 w-[2px] rounded-full bg-white/20" />
           </div>
 
-          {/* CENTER PANEL: Library — sur mobile visible quand onglet "Bibliothèque" */}
-          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${(mobileTab === 'library' || mobileTab === 'studio') ? 'flex' : 'hidden'} lg:!flex`}>
-            <div className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0 pb-24 lg:pb-0">
+          {/* CENTER PANEL: Library */}
+          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${mobileTab === 'library' ? 'flex' : 'hidden'} lg:!flex`}>
+            <div className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0 pb-4 lg:pb-0">
               {shellMode === 'ide' && (
                 <div className="w-full min-w-0 space-y-3 p-2">
                   <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center justify-between gap-2">
@@ -4248,23 +4247,23 @@ export default function AIGenerator() {
             </React.Suspense>
           </aside>
 
-          {/* Mini-player flottant mobile */}
-          <div className="lg:hidden fixed left-3 right-3 z-[41]" style={{ bottom: 'calc(52px + env(safe-area-inset-bottom, 0px) + 8px)' }}>
+          {/* Mini-player flottant mobile — positioned above BottomNav (56px + safe-area + gap) */}
+          <div className="lg:hidden fixed left-3 right-3 z-[41]" style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px) + 12px)' }}>
             {generatedTrack ? (
               <div
                 onClick={() => setShowTrackPanel(true)}
-                className="w-full flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0a0a0a]/90 backdrop-blur-xl px-3 py-2.5 shadow-[0_18px_70px_rgba(0,0,0,.6)] cursor-pointer"
+                className="w-full flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-[#0c0c14]/95 backdrop-blur-2xl px-3.5 py-3 shadow-[0_12px_40px_rgba(0,0,0,.5)] cursor-pointer active:scale-[0.98] transition-transform"
               >
                 {generatedTrack.imageUrl ? (
-                  <img src={generatedTrack.imageUrl} alt="" className="w-10 h-10 rounded-xl object-cover shrink-0" />
+                  <img src={generatedTrack.imageUrl} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-white/[0.08]" />
                 ) : (
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 shrink-0 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 shrink-0 flex items-center justify-center">
                     <Zap className="w-4 h-4 text-indigo-300" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0 text-left">
-                  <div className="truncate text-sm font-medium text-white/90">{generatedTrack.title || 'Piste'}</div>
-                  <div className="text-[10px] text-white/40">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack.duration || 0)}</div>
+                  <div className="truncate text-sm font-semibold text-white/90">{generatedTrack.title || 'Piste'}</div>
+                  <div className="text-[11px] text-white/40 mt-0.5">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack.duration || 0)}</div>
                 </div>
                 <button
                   type="button"
@@ -4272,60 +4271,13 @@ export default function AIGenerator() {
                     e.stopPropagation();
                     audioState.isPlaying ? pause() : playGenerated(generatedTrack);
                   }}
-                  className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-black shadow-lg"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black shadow-lg active:scale-95 transition-transform"
                 >
                   {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                 </button>
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setShowTrackPanel(true)}
-                className="w-full rounded-2xl border border-white/[0.06] bg-[#0a0a0a]/90 backdrop-blur-xl px-4 py-3 text-sm font-medium text-white/60 shadow-[0_18px_70px_rgba(0,0,0,.6)] flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                Inspecteur
-              </button>
-            )}
+            ) : null}
           </div>
-
-          {/* Mobile bottom sheet */}
-          {showTrackPanel && (
-            <div className="lg:hidden fixed inset-0 z-50">
-              <button
-                aria-label="Fermer"
-                className="absolute inset-0 bg-black/60"
-                onClick={() => setShowTrackPanel(false)}
-              />
-              <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] rounded-t-3xl border-t border-white/[0.08] bg-[#05030b]/98 backdrop-blur-2xl shadow-[0_-30px_90px_rgba(0,0,0,.8)] overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
-                  <div className="mx-auto h-1 w-10 rounded-full bg-white/20" />
-                  <button
-                    onClick={() => setShowTrackPanel(false)}
-                    className="absolute right-3 top-3 rounded-full p-2 text-white/70 hover:bg-white/10 hover:text-white"
-                    aria-label="Fermer"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-                <div className="h-full">
-                  <RightPanelImproved
-                    track={selectedTrack as any}
-                    stylePrompt={selectedGeneration?.prompt}
-                    lyrics={(selectedTrack as any)?.lyrics}
-                    onRemix={() => (selectedTrack ? useGeneratedTrackForRemix(selectedTrack) : undefined)}
-                    onDownload={() => (generatedTrack ? downloadGenerated(generatedTrack) : undefined)}
-                    modelVersion={modelVersion}
-                    onSetModelVersion={(id: string) => setModelVersion(id)}
-                    selectedGenerationForVisibility={selectedGenerationForVisibility}
-                    publishingVisibility={publishingVisibility}
-                    toggleGenerationVisibility={toggleGenerationVisibility}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
 
           {/* Bottom nav spacer for global BottomNav on mobile */}
         </div>

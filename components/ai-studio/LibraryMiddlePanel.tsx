@@ -101,15 +101,25 @@ function ContextMenu({
   children: React.ReactNode;
 }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 640);
+  }, [open]);
 
   useEffect(() => {
     if (!open || !anchorRef.current) return;
+    if (isMobile) return;
     const rect = anchorRef.current.getBoundingClientRect();
     const menuW = 220;
+    const menuH = 280;
     let left = rect.right - menuW;
     if (left < 8) left = 8;
-    setPos({ top: rect.bottom + 6, left });
-  }, [open, anchorRef]);
+    let top = rect.bottom + 6;
+    if (top + menuH > window.innerHeight) top = rect.top - menuH - 6;
+    if (top < 8) top = 8;
+    setPos({ top, left });
+  }, [open, anchorRef, isMobile]);
 
   useEffect(() => {
     if (!open) return;
@@ -122,6 +132,22 @@ function ContextMenu({
   }, [open, onClose]);
 
   if (!open || typeof document === 'undefined') return null;
+
+  if (isMobile) {
+    return createPortal(
+      <>
+        <div className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm" onClick={onClose} />
+        <div
+          className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-2xl border-t border-white/[0.08] bg-[#0e0e18]/98 backdrop-blur-2xl py-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] shadow-[0_-16px_64px_rgba(0,0,0,.7)]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/20" />
+          {children}
+        </div>
+      </>,
+      document.body
+    );
+  }
 
   return createPortal(
     <div
@@ -215,10 +241,10 @@ function TrackRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onPlay(); }}
-          className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/0 group-hover:bg-black/40 transition-all"
+          className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-black/30 sm:bg-black/0 sm:group-hover:bg-black/40 transition-all touch-manipulation active:scale-95"
           aria-label="Play"
         >
-          <Play className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 fill-current drop-shadow-lg transition-all scale-90 group-hover:scale-100" />
+          <Play className="w-5 h-5 text-white opacity-80 sm:opacity-0 sm:group-hover:opacity-100 fill-current drop-shadow-lg transition-all" />
         </button>
       </div>
 
@@ -244,28 +270,28 @@ function TrackRow({
         ) : null}
       </div>
 
-      {/* Actions */}
+      {/* Actions — like & menu always visible on mobile (touch), remix on hover only */}
       <div className="flex items-center gap-1 shrink-0">
         {onToggleLike && (
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
             className={cn(
-              'w-8 h-8 flex items-center justify-center rounded-full transition-all',
+              'w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all touch-manipulation',
               isLiked
                 ? 'text-rose-400 hover:text-rose-300'
-                : 'text-white/20 hover:text-rose-400 hover:bg-white/[0.08] opacity-0 group-hover:opacity-100'
+                : 'text-white/30 sm:text-white/20 hover:text-rose-400 hover:bg-white/[0.08] sm:opacity-0 sm:group-hover:opacity-100'
             )}
             aria-label={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             title={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
           >
-            <Heart className={cn('w-3.5 h-3.5', isLiked && 'fill-current')} />
+            <Heart className={cn('w-4 h-4 sm:w-3.5 sm:h-3.5', isLiked && 'fill-current')} />
           </button>
         )}
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onRemix(); }}
-          className="w-8 h-8 flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-all opacity-0 group-hover:opacity-100"
+          className="w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-white/30 hover:text-white/70 hover:bg-white/[0.08] transition-all opacity-0 group-hover:opacity-100"
           aria-label="Remix"
           title="Remix"
         >
@@ -278,10 +304,10 @@ function TrackRow({
           aria-label="Plus d'options"
           onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
           className={cn(
-            'w-8 h-8 flex items-center justify-center rounded-full transition-all',
+            'w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all touch-manipulation',
             menuOpen
               ? 'bg-white/[0.12] text-white'
-              : 'text-white/30 hover:text-white/70 hover:bg-white/[0.08] opacity-0 group-hover:opacity-100'
+              : 'text-white/40 sm:text-white/30 hover:text-white/70 hover:bg-white/[0.08] sm:opacity-0 sm:group-hover:opacity-100'
           )}
         >
           <MoreHorizontal className="w-4 h-4" />

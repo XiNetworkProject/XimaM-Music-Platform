@@ -31,6 +31,7 @@ export default function BottomNav() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const isStudioPage = pathname?.startsWith('/ai-generator');
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -56,7 +57,8 @@ export default function BottomNav() {
     setShowMore(false);
   }, [router, session]);
 
-  const playerVisible = audioState.showPlayer && audioState.tracks.length > 0;
+  // On studio page, global mini player is hidden on mobile, so don't shift the nav up
+  const playerVisible = !isStudioPage && audioState.showPlayer && audioState.tracks.length > 0;
 
   const tabs = [
     { icon: Home, label: 'Accueil', path: '/' },
