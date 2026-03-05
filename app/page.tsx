@@ -796,7 +796,10 @@ export default function SynauraHome() {
 
   // Fonction pour charger les données
   const fetchCategoryData = useCallback(async (key: string, url: string) => {
-    const cached = dataCache.get(key);
+    // La clé de cache inclut l'userId pour éviter que deux comptes différents partagent le même cache
+    const uid = session?.user?.id || 'guest';
+    const cacheKey = `${uid}:${key}`;
+    const cached = dataCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       return cached.tracks;
     }
@@ -807,7 +810,7 @@ export default function SynauraHome() {
         const data = await response.json();
         if (data.tracks && Array.isArray(data.tracks)) {
           const cdnTracks = applyCdnToTracks(data.tracks);
-          dataCache.set(key, { tracks: cdnTracks, timestamp: Date.now() });
+          dataCache.set(cacheKey, { tracks: cdnTracks, timestamp: Date.now() });
           return cdnTracks;
         }
       }
@@ -815,7 +818,7 @@ export default function SynauraHome() {
       console.error(`Erreur chargement ${key}:`, error);
     }
     return [];
-  }, []);
+  }, [session?.user?.id]);
 
   // Fonction pour charger les statistiques de la bibliothèque
   const fetchLibraryStats = useCallback(async () => {
@@ -1018,11 +1021,17 @@ export default function SynauraHome() {
   const loadData = useCallback(async (showLoader = false) => {
     if (showLoader) setLoading(true);
     dataCache.clear();
+    const uid = session?.user?.id;
+    // Pour les endpoints personnalisés, on passe userId dans l'URL afin que
+    // l'API puisse l'utiliser et que le cache côté serveur soit différencié par user
+    const forYouUrl = uid
+      ? `/api/ranking/feed?limit=50&ai=1&userId=${uid}`
+      : '/api/ranking/feed?limit=50&ai=1';
     const [featured, trending, recent, forYou, users] = await Promise.all([
       fetchCategoryData('featured', '/api/tracks/featured?limit=10'),
       fetchCategoryData('trending', '/api/tracks/trending?limit=30'),
       fetchCategoryData('recent', '/api/tracks/recent?limit=30'),
-      fetchCategoryData('forYou', '/api/ranking/feed?limit=50&ai=1'),
+      fetchCategoryData('forYou', forYouUrl),
       fetch('/api/users?limit=12', { cache: 'no-store' }).then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
     ]);
     
@@ -1036,11 +1045,22 @@ export default function SynauraHome() {
     fetchLibraryStats();
     fetchSuggestedCreators();
     loadExtraSections();
-  }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators, loadExtraSections]);
+  }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators, loadExtraSections, session?.user?.id]);
 
   useEffect(() => {
     loadData(true);
   }, [loadData]);
+
+  // Rechargement forcé quand le compte utilisateur change (connexion / déconnexion / changement de compte)
+  const prevUserIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const uid = session?.user?.id;
+    if (uid !== prevUserIdRef.current) {
+      prevUserIdRef.current = uid;
+      // Vider le cache global pour s'assurer qu'aucune donnée d'un autre compte ne subsiste
+      dataCache.clear();
+    }
+  }, [session?.user?.id]);
 
   useEffect(() => {
     const interval = setInterval(() => loadData(false), AUTO_REFRESH_INTERVAL);

@@ -48,9 +48,9 @@ export async function GET(request: NextRequest) {
     const strategy = (searchParams.get('strategy') || 'reco').toLowerCase(); // reco | trending
     const genreFilter = searchParams.get('genre')?.trim().toLowerCase() || null;
     
-    // Récupérer l'utilisateur connecté
+    // Récupérer l'utilisateur connecté (session cookie > fallback query param)
     const session = await getServerSession(authOptions).catch(() => null);
-    const userId = (session?.user as any)?.id || null;
+    const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
 
     // Récupérer dernières 30j stats + infos track minimales
     const { data: statsRows, error: statsErr } = await supabaseAdmin
