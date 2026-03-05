@@ -782,26 +782,69 @@ export default function InscriptionPage() {
     if (fields.synauraUsername && fields.synauraPassword.length < 8) {
       setError("Mot de passe Synaura : 8 caractères minimum."); setLoading(false); return;
     }
-    const fd = new FormData();
-    Object.entries(fields).forEach(([k, v]) => { if (typeof v === "string") fd.append(k, v); });
-    if (audioFile) fd.append("audio", audioFile, audioFile.name);
+    if (!audioFile) { setError("Fichier audio requis."); setLoading(false); return; }
 
     try {
-      const t = await new Promise<string>((res, rej) => {
+      // 1. Upload audio vers Cloudinary
+      setProgress(5);
+      const timestamp = Math.round(Date.now() / 1000);
+      const publicId = `sa_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
+      const sigRes = await fetch("/api/star-academy/signature", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ timestamp, publicId }),
+      });
+      if (!sigRes.ok) throw new Error("Impossible de préparer l'upload audio.");
+      const { signature, apiKey, cloudName } = await sigRes.json();
+
+      setProgress(10);
+
+      const cloudinaryUrl = await new Promise<string>((resolve, reject) => {
+        const fd = new FormData();
+        fd.append("file", audioFile);
+        fd.append("folder", "ximam/star-academy");
+        fd.append("public_id", publicId);
+        fd.append("resource_type", "video");
+        fd.append("timestamp", timestamp.toString());
+        fd.append("api_key", apiKey);
+        fd.append("signature", signature);
+
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/star-academy/apply");
-        xhr.upload.onprogress = e => { if (e.lengthComputable) setProgress(Math.round(e.loaded / e.total * 90)); };
-        xhr.onload = () => {
-          setProgress(100);
-          try {
-            const d = JSON.parse(xhr.responseText);
-            xhr.status < 300 && d.ok ? res(d.trackingToken) : rej(new Error(d.error || "Erreur serveur"));
-          } catch { rej(new Error("Réponse invalide")); }
+        xhr.open("POST", `https://api.cloudinary.com/v1_1/${cloudName}/video/upload`);
+        xhr.upload.onprogress = e => {
+          if (e.lengthComputable) setProgress(10 + Math.round((e.loaded / e.total) * 70));
         };
-        xhr.onerror = () => rej(new Error("Erreur réseau"));
+        xhr.onload = () => {
+          try {
+            const data = JSON.parse(xhr.responseText);
+            if (xhr.status < 300 && data.secure_url) resolve(data.secure_url);
+            else reject(new Error(data.error?.message || "Erreur upload audio"));
+          } catch { reject(new Error("Réponse Cloudinary invalide")); }
+        };
+        xhr.onerror = () => reject(new Error("Erreur réseau lors de l'upload audio"));
         xhr.send(fd);
       });
-      setToken(t); setPhase("done");
+
+      setProgress(85);
+
+      // 2. Envoyer la candidature en JSON
+      const payload: Record<string, string> = {};
+      Object.entries(fields).forEach(([k, v]) => { if (typeof v === "string") payload[k] = v; });
+      payload.audioUrl = cloudinaryUrl;
+      payload.audioFilename = audioFile.name;
+
+      const res = await fetch("/api/star-academy/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setProgress(95);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Erreur serveur");
+
+      setProgress(100);
+      setToken(data.trackingToken); setPhase("done");
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Erreur inattendue");
     } finally {

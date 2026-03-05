@@ -1,29 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
-import { uploadAudio } from '@/lib/cloudinary';
 import { sendEmail, saConfirmationTemplate } from '@/lib/email';
 
 const ALLOWED_CATEGORIES = ['Chant', 'Rap', 'Mix / DJ', 'Performance / Danse', 'Autre'];
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
+    const body = await req.json();
 
-    // ── Extraire les champs texte ──────────────────────────
-    const fullName     = (formData.get('fullName')    as string | null)?.trim() ?? '';
-    const age          = parseInt(formData.get('age') as string ?? '0', 10);
-    const email        = (formData.get('email')       as string | null)?.trim().toLowerCase() ?? '';
-    const phone        = (formData.get('phone')       as string | null)?.trim() || null;
-    const location     = (formData.get('location')    as string | null)?.trim() ?? '';
-    const tiktokHandle = (formData.get('tiktok')      as string | null)?.trim() ?? '';
-    const category     = (formData.get('category')    as string | null)?.trim() ?? '';
-    const level        = (formData.get('level')       as string | null)?.trim() || null;
-    const link         = (formData.get('link')        as string | null)?.trim() || null;
-    const bio          = (formData.get('bio')         as string | null)?.trim() ?? '';
-    const availability = (formData.get('availability')as string | null)?.trim() || null;
-    const synauraUsername = (formData.get('synauraUsername') as string | null)?.trim() || null;
-    const synauraPassword = (formData.get('synauraPassword') as string | null) || null;
-    const audioFile    = formData.get('audio') as File | null;
+    const fullName     = (body.fullName    as string | undefined)?.trim() ?? '';
+    const age          = parseInt(body.age ?? '0', 10);
+    const email        = (body.email       as string | undefined)?.trim().toLowerCase() ?? '';
+    const phone        = (body.phone       as string | undefined)?.trim() || null;
+    const location     = (body.location    as string | undefined)?.trim() ?? '';
+    const tiktokHandle = (body.tiktok      as string | undefined)?.trim() ?? '';
+    const category     = (body.category    as string | undefined)?.trim() ?? '';
+    const level        = (body.level       as string | undefined)?.trim() || null;
+    const link         = (body.link        as string | undefined)?.trim() || null;
+    const bio          = (body.bio         as string | undefined)?.trim() ?? '';
+    const availability = (body.availability as string | undefined)?.trim() || null;
+    const synauraUsername = (body.synauraUsername as string | undefined)?.trim() || null;
+    const synauraPassword = (body.synauraPassword as string | undefined) || null;
+    const audioUrl     = (body.audioUrl    as string | undefined)?.trim() || null;
+    const audioFilename = (body.audioFilename as string | undefined)?.trim() || null;
 
     // ── Validation ─────────────────────────────────────────
     if (!fullName || !email || !location || !tiktokHandle || !bio || !category) {
@@ -38,11 +37,8 @@ export async function POST(req: NextRequest) {
     if (!ALLOWED_CATEGORIES.includes(category)) {
       return NextResponse.json({ error: 'Catégorie invalide.' }, { status: 400 });
     }
-    if (!audioFile || !audioFile.type.startsWith('audio/')) {
+    if (!audioUrl) {
       return NextResponse.json({ error: 'Un fichier audio est requis.' }, { status: 400 });
-    }
-    if (audioFile.size > 30 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Fichier audio trop volumineux (max 30MB).' }, { status: 400 });
     }
 
     // ── Vérifier si le concours est ouvert ─────────────────
@@ -82,27 +78,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Une candidature existe déjà pour cet email.' }, { status: 409 });
     }
 
-    // ── Upload audio → Cloudinary ──────────────────────────
     const applicationId = crypto.randomUUID();
-    const audioBuffer   = Buffer.from(await audioFile.arrayBuffer());
-
-    let audioUrl: string | null = null;
-    try {
-      const result = await uploadAudio(audioBuffer, {
-        folder: 'ximam/star-academy',
-        public_id: `sa_${applicationId}`,
-        resource_type: 'video',
-      });
-      audioUrl = result.secure_url;
-    } catch (uploadErr) {
-      console.warn('[star-academy/apply] Cloudinary upload failed:', uploadErr);
-    }
 
     // ── Créer compte Synaura (optionnel) ───────────────────
     let userId: string | null = null;
 
     if (synauraUsername && synauraPassword) {
-      // Chercher si l'email existe déjà en tant qu'utilisateur Synaura
       const { data: { users: existingUsers } } = await supabaseAdmin.auth.admin.listUsers();
       const existingUser = existingUsers?.find((u) => u.email === email);
 
@@ -118,7 +99,6 @@ export async function POST(req: NextRequest) {
 
         if (!authError && newUser.user) {
           userId = newUser.user.id;
-          // Créer le profil
           await supabaseAdmin.from('profiles').upsert({
             id: userId,
             username: synauraUsername,
@@ -150,7 +130,7 @@ export async function POST(req: NextRequest) {
         bio,
         availability,
         audio_url:        audioUrl,
-        audio_filename:   audioFile.name,
+        audio_filename:   audioFilename,
         synaura_username: synauraUsername,
         user_id:          userId,
         status:           'pending',
@@ -169,7 +149,7 @@ export async function POST(req: NextRequest) {
     try {
       await sendEmail({
         to: email,
-        subject: '🌟 Candidature Star Academy TikTok × Synaura reçue !',
+        subject: 'Candidature Star Academy TikTok reçue !',
         html: saConfirmationTemplate({ name: fullName, trackingToken, tiktokHandle }),
       });
       await supabaseAdmin
