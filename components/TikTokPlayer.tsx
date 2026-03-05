@@ -300,7 +300,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   const [burstVisible, setBurstVisible] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [coverLoadedById, setCoverLoadedById] = useState<Record<string, boolean>>({});
-  const [radioMeta, setRadioMeta] = useState<{ station: 'mixx_party' | 'ximam'; title: string; artist: string } | null>(null);
+  const [radioMeta, setRadioMeta] = useState<{ station: 'mixx_party' | 'ximam'; title: string; artist: string; listeners: number } | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({});
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -425,11 +425,12 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         const json = await res.json().catch(() => null);
         const title = String(json?.data?.currentTrack?.title || '').trim();
         const artist = String(json?.data?.currentTrack?.artist || '').trim();
+        const listeners = parseInt(json?.data?.stats?.listeners ?? 0) || 0;
         if (cancelled) return;
-        if (title && artist) {
+        if (title) {
           setRadioMeta((prev) => {
-            if (prev && prev.station === activeRadioStation && prev.title === title && prev.artist === artist) return prev;
-            return { station: activeRadioStation, title, artist };
+            if (prev && prev.station === activeRadioStation && prev.title === title && prev.artist === artist && prev.listeners === listeners) return prev;
+            return { station: activeRadioStation, title, artist, listeners };
           });
         }
       } catch {}
@@ -500,10 +501,41 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         const cdnTracks = applyCdnToTracks(list as any) as any;
         if (!mounted) return;
 
+        // Radios injectées en tête du feed
+        const RADIO_TRACKS: Track[] = [
+          {
+            _id: 'radio-mixx-party',
+            title: 'Mixx Party Radio',
+            artist: { _id: 'radio-artist-mixx', name: 'Mixx Party', username: 'mixxparty', avatar: '' },
+            audioUrl: 'https://manager11.streamradio.fr:2425/stream',
+            coverUrl: '/mixxpartywhitelog.png',
+            duration: -1,
+            likes: [],
+            comments: [],
+            plays: 0,
+            isLiked: false,
+            genre: ['Electronic', 'Dance'],
+          },
+          {
+            _id: 'radio-ximam',
+            title: 'XimaM Music Radio',
+            artist: { _id: 'radio-artist-ximam', name: 'XimaM', username: 'ximam', avatar: '' },
+            audioUrl: 'https://manager11.streamradio.fr:2745/stream',
+            coverUrl: '/ximam-radio-x.svg',
+            duration: -1,
+            likes: [],
+            comments: [],
+            plays: 0,
+            isLiked: false,
+            genre: ['Electronic'],
+          },
+        ];
+
         const prev = prevQueueRef.current;
         const prevCurrent = prev?.tracks?.[prev.currentTrackIndex] || null;
         const prevId = getTrackId(prevCurrent);
-        const merged: any[] = Array.isArray(cdnTracks) ? [...cdnTracks] : [];
+        const regularTracks = Array.isArray(cdnTracks) ? cdnTracks : [];
+        const merged: any[] = [...RADIO_TRACKS, ...regularTracks];
         if (prevCurrent && prevId && !merged.some((t) => getTrackId(t) === prevId)) {
           merged.unshift(prevCurrent);
         }
@@ -1016,14 +1048,21 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                               : <Play className="w-6 h-6 text-white ml-0.5" />}
                           </div>
                         </div>
-                        {/* Genre tags */}
-                        {genres.length > 0 && (
+                        {/* Genre tags (masqués pour radio) */}
+                        {genres.length > 0 && !isRadio && (
                           <div className="absolute top-3 left-3 flex gap-1.5">
                             {genres.map((g) => (
                               <span key={g} className="px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-xl text-[10px] font-bold text-white/90 border border-white/[0.1]">
                                 {g}
                               </span>
                             ))}
+                          </div>
+                        )}
+                        {/* LIVE badge pour radio */}
+                        {isRadio && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/80 backdrop-blur-sm border border-red-400/30 shadow-lg">
+                            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                            <span className="text-[11px] font-black text-white uppercase tracking-widest">Live</span>
                           </div>
                         )}
                       </div>
@@ -1078,9 +1117,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       <div className="p-4 pb-3">
                         {/* Track info row */}
                         <div className="flex items-center gap-3">
-                          {/* Artist avatar */}
+                          {/* Artist avatar / Radio logo */}
                           <div className="shrink-0 w-11 h-11 rounded-full overflow-hidden ring-2 ring-white/[0.1] bg-white/[0.05]">
-                            {t?.artist?.avatar ? (
+                            {isRadio ? (
+                              <div className="w-full h-full bg-gradient-to-br from-indigo-600 to-violet-700 grid place-items-center">
+                                <img src={t.coverUrl || ''} alt="" className="w-8 h-6 object-contain" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                              </div>
+                            ) : t?.artist?.avatar ? (
                               <img src={getCdnUrl(t.artist.avatar) || t.artist.avatar} alt="" className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full grid place-items-center">
@@ -1133,9 +1176,23 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                           </div>
                         </div>
 
-                        {/* Seek bar */}
+                        {/* Seek bar / Live indicator */}
                         <div className="mt-4">
-                          {isThis && currentId === t._id ? (
+                          {isRadio ? (
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+                                <span className="text-[11px] font-bold text-red-400 uppercase tracking-widest">En direct</span>
+                              </div>
+                              {isThis && radioMeta && radioMeta.listeners > 0 && (
+                                <span className="text-[11px] text-white/35 tabular-nums">
+                                  {radioMeta.listeners >= 1000
+                                    ? `${(radioMeta.listeners / 1000).toFixed(1)}k`
+                                    : radioMeta.listeners} auditeurs
+                                </span>
+                              )}
+                            </div>
+                          ) : isThis && currentId === t._id ? (
                             <SeekBar onSeek={seek} getAudioElement={getAudioElement} />
                           ) : (
                             <div className="w-full">

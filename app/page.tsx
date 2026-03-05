@@ -460,45 +460,111 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
 };
 
 
+const EqBars = () => (
+  <div className="flex items-end gap-[2px] h-4">
+    {[40, 80, 55, 100, 65, 85, 45, 70, 50].map((h, i) => (
+      <div
+        key={i}
+        className="w-[3px] rounded-full bg-indigo-400/70 animate-bounce"
+        style={{
+          height: `${h}%`,
+          animationDelay: `${i * 0.07}s`,
+          animationDuration: `${0.45 + (i % 3) * 0.15}s`,
+        }}
+      />
+    ))}
+  </div>
+);
+
 const LiveRadioCard = ({
   title,
   logoSrc,
   isPlaying,
   currentTrack,
+  currentArtist = '',
+  listeners = 0,
   onToggle,
-  available = true,
+  onOpenPlayer,
 }: {
   title: string;
   logoSrc?: string;
   isPlaying: boolean;
   currentTrack: string;
+  currentArtist?: string;
+  listeners?: number;
   onToggle: () => void;
-  available?: boolean;
+  onOpenPlayer?: () => void;
 }) => {
+  const fmtListeners = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+
   return (
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-white/[0.06]">
-          {logoSrc ? (
-            <img src={logoSrc} alt={title} className="w-12 h-8 object-contain" />
-          ) : (
-            <Radio className="w-8 h-8 text-white" />
+    <div
+      className={`relative overflow-hidden rounded-2xl border cursor-pointer transition-all duration-300 group
+        ${isPlaying
+          ? 'bg-gradient-to-br from-indigo-500/[0.12] to-violet-500/[0.06] border-indigo-500/25'
+          : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12]'
+        }`}
+      onClick={onOpenPlayer}
+    >
+      {/* Subtle animated glow when playing */}
+      {isPlaying && (
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(99,102,241,0.08),transparent_60%)] pointer-events-none" />
+      )}
+
+      <div className="p-4">
+        {/* Top row */}
+        <div className="flex items-start gap-3 mb-3">
+          {/* Logo */}
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 transition-all
+            ${isPlaying ? 'ring-2 ring-indigo-400/30 shadow-lg shadow-indigo-500/15' : 'bg-white/[0.06] border border-white/[0.08]'}`}
+          >
+            {logoSrc ? (
+              <img src={logoSrc} alt={title} className="w-10 h-7 object-contain" />
+            ) : (
+              <Radio className="w-5 h-5 text-white/50" />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <span className="text-sm font-bold text-white leading-tight">{title}</span>
+              <span className="inline-flex items-center gap-1 px-1.5 py-[2px] rounded bg-red-500/15 border border-red-400/20 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
+                <span className="text-[9px] font-black text-red-300 uppercase tracking-wider">Live</span>
+              </span>
+            </div>
+            {listeners > 0 && (
+              <p className="text-[11px] text-white/35">{fmtListeners(listeners)} auditeurs</p>
+            )}
+          </div>
+
+          {/* Play/Pause */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle(); }}
+            className="h-9 w-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/20 shrink-0"
+            aria-label={isPlaying ? 'Pause' : 'Lecture'}
+          >
+            {isPlaying
+              ? <Pause className="w-4 h-4 text-white" />
+              : <Play className="w-4 h-4 text-white fill-white ml-0.5" />}
+          </button>
+        </div>
+
+        {/* Current track info */}
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-white/75 truncate">{currentTrack || title}</p>
+          {currentArtist && (
+            <p className="text-[11px] text-white/40 truncate mt-0.5">{currentArtist}</p>
           )}
         </div>
-        <div>
-          <p className="text-sm font-bold text-white">{title}</p>
-          <p className="text-xs text-white/40 line-clamp-1">
-            {available ? currentTrack : 'Indisponible'}
-          </p>
-        </div>
+
+        {/* Equalizer when playing */}
+        {isPlaying && (
+          <div className="mt-2.5">
+            <EqBars />
+          </div>
+        )}
       </div>
-      <button
-        onClick={available ? onToggle : undefined}
-        disabled={!available}
-        className="h-9 w-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center transition shadow-lg shadow-indigo-500/20 disabled:opacity-30 disabled:cursor-not-allowed"
-      >
-        {isPlaying ? (<Pause className="w-4 h-4 text-white" />) : (<Play className="w-4 h-4 text-white fill-white ml-0.5" />)}
-      </button>
     </div>
   );
 };
@@ -793,6 +859,7 @@ export default function SynauraHome() {
     name: 'Mixx Party Radio',
     description: 'Radio tous styles musicaux en continu 24h/24',
     currentTrack: 'Mixx Party Radio',
+    currentArtist: '',
     listeners: 0,
     bitrate: 128,
     quality: 'Standard',
@@ -807,6 +874,7 @@ export default function SynauraHome() {
     name: 'XimaM Radio',
     description: 'Radio XimaM en continu 24h/24',
     currentTrack: 'XimaM Radio',
+    currentArtist: '',
     listeners: 0,
     bitrate: 128,
     quality: 'Standard',
@@ -1304,8 +1372,8 @@ export default function SynauraHome() {
     return num.toString();
   }, []);
 
-  const MIXX_PARTY_STREAM_URL = 'http://manager11.streamradio.fr:2420/stream';
-  const XIMAM_STREAM_URL = 'http://manager11.streamradio.fr:2740/stream';
+  const MIXX_PARTY_STREAM_URL = 'https://manager11.streamradio.fr:2425/stream';
+  const XIMAM_STREAM_URL = 'https://manager11.streamradio.fr:2745/stream';
 
   // Fonction pour récupérer les métadonnées du flux radio
   const fetchRadioMetadata = useCallback(async () => {
@@ -1329,6 +1397,7 @@ export default function SynauraHome() {
             name: radioData.name,
             description: radioData.description,
             currentTrack: radioData.currentTrack.title,
+            currentArtist: radioData.currentTrack.artist || '',
             listeners: radioData.stats.listeners,
             bitrate: radioData.stats.bitrate,
             quality: radioData.stats.quality,
@@ -1393,6 +1462,7 @@ export default function SynauraHome() {
             name: radioData.name,
             description: radioData.description,
             currentTrack: radioData.currentTrack.title,
+            currentArtist: radioData.currentTrack.artist || '',
             listeners: radioData.stats.listeners,
             bitrate: radioData.stats.bitrate,
             quality: radioData.stats.quality,
@@ -2160,8 +2230,8 @@ export default function SynauraHome() {
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <LiveRadioCard title="Mixx Party" logoSrc="/mixxpartywhitelog.png" isPlaying={isRadioPlaying} currentTrack={radioInfo.currentTrack} onToggle={handleRadioToggle} available={true} />
-            <LiveRadioCard title="XimaM Radio" logoSrc="/ximam-radio-x.svg" isPlaying={isXimamRadioPlaying} currentTrack={ximamRadioInfo.currentTrack} onToggle={handleXimamRadioToggle} available={true} />
+            <LiveRadioCard title="Mixx Party" logoSrc="/mixxpartywhitelog.png" isPlaying={isRadioPlaying} currentTrack={radioInfo.currentTrack} currentArtist={radioInfo.currentArtist} listeners={radioInfo.listeners} onToggle={handleRadioToggle} onOpenPlayer={() => { if (!isRadioPlaying) handleRadioToggle(); }} />
+            <LiveRadioCard title="XimaM Radio" logoSrc="/ximam-radio-x.svg" isPlaying={isXimamRadioPlaying} currentTrack={ximamRadioInfo.currentTrack} currentArtist={ximamRadioInfo.currentArtist} listeners={ximamRadioInfo.listeners} onToggle={handleXimamRadioToggle} onOpenPlayer={() => { if (!isXimamRadioPlaying) handleXimamRadioToggle(); }} />
           </div>
         </section>
 

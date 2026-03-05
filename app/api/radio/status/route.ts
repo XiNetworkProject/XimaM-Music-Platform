@@ -20,16 +20,16 @@ const STATIONS: Record<string, {
   mixx_party: {
     name: 'Mixx Party Radio',
     description: 'Radio tous styles musicaux en continu 24h/24',
-    streamUrl: 'http://manager11.streamradio.fr:2420/stream',
+    streamUrl: 'https://manager11.streamradio.fr:2425/stream',
     host: 'manager11.streamradio.fr',
-    shoutcastPort: 2420,
+    shoutcastPort: 2425,
   },
   ximam: {
     name: 'XimaM Music Radio',
     description: 'Radio XimaM en continu 24h/24',
-    streamUrl: 'http://manager11.streamradio.fr:2740/stream',
+    streamUrl: 'https://manager11.streamradio.fr:2745/stream',
     host: 'manager11.streamradio.fr',
-    shoutcastPort: 2740,
+    shoutcastPort: 2745,
   },
 };
 
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
   const stationKey = (req.nextUrl.searchParams.get('station') || 'mixx_party').toLowerCase();
   const stationCfg = STATIONS[stationKey] ?? STATIONS['mixx_party'];
   const { host, shoutcastPort } = stationCfg;
-  const base = `http://${host}:${shoutcastPort}`;
+  const base = `https://${host}:${shoutcastPort}`;
 
   // Ordre de tentative : Shoutcast v1 (7.html) → Shoutcast v2 JSON → Icecast JSON → fallback simulé
   const attempts: Array<{ url: string; parser: 'v1html' | 'v2json' | 'icecast' }> = [
