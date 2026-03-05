@@ -232,20 +232,18 @@ function CinematicIntro({ onEnter }: { onEnter: () => void }) {
             }} />
           </div>
 
-          {/* Mixx Party */}
+          {/* Mixx Party logo */}
           <div style={{ animation: "sa-fade-up 1s ease-out 0.6s both" }}>
-            <span style={{
-              fontSize: "clamp(32px, 6vw, 64px)",
-              fontWeight: 900,
-              letterSpacing: "-1px",
-              background: "linear-gradient(90deg, #00f2ea, #69c9d0, #ffffff)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 16px rgba(0,242,234,0.5))",
-              textTransform: "uppercase",
-            }}>
-              Mixx Party
-            </span>
+            <Image
+              src="/StarAcRes/mixxpartywhitelog.png"
+              alt="Mixx Party"
+              width={220}
+              height={88}
+              style={{
+                objectFit: "contain",
+                filter: "brightness(0) invert(1) drop-shadow(0 0 20px rgba(255,255,255,0.25)) drop-shadow(0 0 40px rgba(0,242,234,0.2))",
+              }}
+            />
           </div>
 
           {/* Subtitle */}
