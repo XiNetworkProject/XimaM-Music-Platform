@@ -42,7 +42,7 @@ export async function OPTIONS() {
  */
 function parseShoutcastV1(html: string): { listeners: number; bitrate: number; title: string; artist: string; isOnline: boolean } | null {
   try {
-    const match = html.match(/<body[^>]*>(.*?)<\/body>/is);
+    const match = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
     if (!match) return null;
     const body = match[1].trim();
     // SongTitle peut contenir des virgules, donc on split en 7 parties max
