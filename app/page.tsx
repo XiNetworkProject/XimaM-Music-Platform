@@ -462,43 +462,128 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
 
 const LiveRadioCard = ({
   title,
+  subtitle,
   logoSrc,
   isPlaying,
   currentTrack,
+  listeners,
   onToggle,
-  available = true,
+  accent = 'indigo',
 }: {
   title: string;
+  subtitle?: string;
   logoSrc?: string;
   isPlaying: boolean;
   currentTrack: string;
+  listeners?: number;
   onToggle: () => void;
-  available?: boolean;
+  accent?: 'indigo' | 'violet' | 'cyan' | 'fuchsia';
 }) => {
+  const accentMap = {
+    indigo: {
+      bg: 'from-indigo-600/30 via-indigo-500/10 to-transparent',
+      border: 'border-indigo-500/20',
+      btn: 'bg-indigo-500 hover:bg-indigo-400 shadow-indigo-500/30',
+      bar: 'bg-indigo-400',
+      dot: 'bg-indigo-400',
+    },
+    violet: {
+      bg: 'from-violet-600/30 via-violet-500/10 to-transparent',
+      border: 'border-violet-500/20',
+      btn: 'bg-violet-500 hover:bg-violet-400 shadow-violet-500/30',
+      bar: 'bg-violet-400',
+      dot: 'bg-violet-400',
+    },
+    cyan: {
+      bg: 'from-cyan-600/30 via-cyan-500/10 to-transparent',
+      border: 'border-cyan-500/20',
+      btn: 'bg-cyan-500 hover:bg-cyan-400 shadow-cyan-500/30',
+      bar: 'bg-cyan-400',
+      dot: 'bg-cyan-400',
+    },
+    fuchsia: {
+      bg: 'from-fuchsia-600/30 via-fuchsia-500/10 to-transparent',
+      border: 'border-fuchsia-500/20',
+      btn: 'bg-fuchsia-500 hover:bg-fuchsia-400 shadow-fuchsia-500/30',
+      bar: 'bg-fuchsia-400',
+      dot: 'bg-fuchsia-400',
+    },
+  };
+  const colors = accentMap[accent];
+
   return (
-    <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-white/[0.06]">
+    <div className={`relative overflow-hidden rounded-2xl border ${colors.border} bg-gradient-to-br ${colors.bg} bg-white/[0.02] backdrop-blur-sm p-4 flex flex-col gap-3 group transition-all hover:bg-white/[0.04]`}>
+      {/* Top row: logo + LIVE badge */}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-2.5">
           {logoSrc ? (
-            <img src={logoSrc} alt={title} className="w-12 h-8 object-contain" />
+            <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center overflow-hidden">
+              <img src={logoSrc} alt={title} className="w-8 h-6 object-contain" />
+            </div>
           ) : (
-            <Radio className="w-8 h-8 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-white/[0.06] flex items-center justify-center">
+              <Radio className="w-5 h-5 text-white/60" />
+            </div>
           )}
+          <div>
+            <p className="text-sm font-bold text-white leading-tight">{title}</p>
+            {subtitle && <p className="text-[10px] text-white/35 mt-0.5">{subtitle}</p>}
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-bold text-white">{title}</p>
-          <p className="text-xs text-white/40 line-clamp-1">
-            {available ? currentTrack : 'Indisponible'}
-          </p>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-red-500/15 border border-red-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-[10px] font-bold text-red-400 tracking-wide uppercase">Live</span>
         </div>
       </div>
-      <button
-        onClick={available ? onToggle : undefined}
-        disabled={!available}
-        className="h-9 w-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center transition shadow-lg shadow-indigo-500/20 disabled:opacity-30 disabled:cursor-not-allowed"
-      >
-        {isPlaying ? (<Pause className="w-4 h-4 text-white" />) : (<Play className="w-4 h-4 text-white fill-white ml-0.5" />)}
-      </button>
+
+      {/* Waveform animation */}
+      <div className="flex items-center gap-[3px] h-5">
+        {[0.4, 0.7, 1, 0.6, 0.9, 0.5, 0.8, 0.3, 0.95, 0.6, 0.75, 0.4].map((h, i) => (
+          <span
+            key={i}
+            className={`w-[3px] rounded-full ${colors.bar} transition-all`}
+            style={{
+              height: isPlaying ? `${Math.round(h * 20)}px` : '4px',
+              opacity: isPlaying ? 0.7 + h * 0.3 : 0.25,
+              animation: isPlaying ? `wave ${0.6 + (i % 4) * 0.15}s ease-in-out infinite alternate` : 'none',
+              animationDelay: `${i * 0.07}s`,
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Current track */}
+      <div className="min-w-0">
+        <p className="text-[11px] text-white/35 mb-0.5">En cours</p>
+        <p className="text-[13px] text-white/80 font-medium truncate leading-tight">{currentTrack}</p>
+      </div>
+
+      {/* Bottom row: listeners + play button */}
+      <div className="flex items-center justify-between">
+        {listeners !== undefined && listeners > 0 ? (
+          <p className="text-[11px] text-white/30">
+            <span className="text-white/50 font-semibold">{listeners.toLocaleString()}</span> auditeurs
+          </p>
+        ) : (
+          <p className="text-[11px] text-white/20">Radio en direct</p>
+        )}
+        <button
+          onClick={onToggle}
+          className={`w-9 h-9 rounded-full ${colors.btn} flex items-center justify-center transition-all shadow-lg active:scale-95 hover:scale-105`}
+        >
+          {isPlaying
+            ? <Pause className="w-4 h-4 text-white" />
+            : <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+          }
+        </button>
+      </div>
+
+      <style jsx>{`
+        @keyframes wave {
+          from { transform: scaleY(0.4); }
+          to { transform: scaleY(1); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -1454,7 +1539,6 @@ export default function SynauraHome() {
 
   // Fonction pour gérer la lecture/arrêt de la radio
   const handleRadioToggle = useCallback(async () => {
-    if (!radioInfo.available) return;
     if (isRadioPlaying) {
       if (audioState.isPlaying && currentTrack?._id === 'radio-mixx-party') {
         pause();
@@ -1493,7 +1577,6 @@ export default function SynauraHome() {
 
   // Fonction pour gérer la lecture/arrêt de la radio XimaM
   const handleXimamRadioToggle = useCallback(async () => {
-    if (!ximamRadioInfo.available) return;
     if (isXimamRadioPlaying) {
       if (audioState.isPlaying && currentTrack?._id === 'radio-ximam') {
         pause();
@@ -2175,12 +2258,30 @@ export default function SynauraHome() {
         {/* En direct */}
         <section>
           <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-base font-black text-white">En direct</h2>
+            <h2 className="text-base font-black text-white">Radios en direct</h2>
             <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
           </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <LiveRadioCard title="Mixx Party" logoSrc="/mixxpartywhitelog.png" isPlaying={isRadioPlaying} currentTrack={radioInfo.currentTrack} onToggle={handleRadioToggle} available={radioInfo.available} />
-            <LiveRadioCard title="XimaM Radio" logoSrc="/ximam-radio-x.svg" isPlaying={isXimamRadioPlaying} currentTrack={ximamRadioInfo.currentTrack} onToggle={handleXimamRadioToggle} available={ximamRadioInfo.available} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <LiveRadioCard
+              title="Mixx Party"
+              subtitle="Tous styles · 24h/24"
+              logoSrc="/mixxpartywhitelog.png"
+              isPlaying={isRadioPlaying}
+              currentTrack={radioInfo.currentTrack}
+              listeners={radioInfo.listeners}
+              onToggle={handleRadioToggle}
+              accent="indigo"
+            />
+            <LiveRadioCard
+              title="XimaM Music"
+              subtitle="XimaM · 24h/24"
+              logoSrc="/ximam-radio-x.svg"
+              isPlaying={isXimamRadioPlaying}
+              currentTrack={ximamRadioInfo.currentTrack}
+              listeners={ximamRadioInfo.listeners}
+              onToggle={handleXimamRadioToggle}
+              accent="violet"
+            />
           </div>
         </section>
 
