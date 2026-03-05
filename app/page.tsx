@@ -1307,20 +1307,20 @@ export default function SynauraHome() {
   // Fonction pour récupérer l'URL de streaming
   const fetchStreamUrl = async () => {
     try {
-      const streamUrl = 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3';
+      const streamUrl = 'http://manager11.streamradio.fr:2420/stream';
       return streamUrl;
     } catch (error) {
-      return 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3';
+      return 'http://manager11.streamradio.fr:2420/stream';
     }
   };
 
   // Fonction pour récupérer l'URL de streaming (XimaM)
   const fetchXimamStreamUrl = async () => {
     try {
-      const streamUrl = 'https://stream.mixx-party.fr/listen/ximam/radio.mp3';
+      const streamUrl = 'http://manager11.streamradio.fr:2740/stream';
       return streamUrl;
     } catch (error) {
-      return 'https://stream.mixx-party.fr/listen/ximam/radio.mp3';
+      return 'http://manager11.streamradio.fr:2740/stream';
     }
   };
 

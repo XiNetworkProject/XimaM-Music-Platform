@@ -20,22 +20,14 @@ export async function GET(req: NextRequest) {
     mixx_party: {
       name: 'Mixx Party Radio',
       description: 'Radio électronique en continu 24h/24',
-      streamUrl: 'https://stream.mixx-party.fr/listen/mixx_party/radio.mp3',
-      metadataUrls: [
-        // AzuraCast (now playing / listeners / bitrate)
-        'https://stream.mixx-party.fr/api/nowplaying/mixx_party',
-        // fallback global nowplaying (array de stations)
-        'https://stream.mixx-party.fr/api/nowplaying'
-      ]
+      streamUrl: 'http://manager11.streamradio.fr:2420/stream',
+      metadataUrls: []
     },
     ximam: {
-      name: 'XimaM Radio',
+      name: 'XimaM Music Radio',
       description: 'Radio XimaM en continu 24h/24',
-      streamUrl: 'https://stream.mixx-party.fr/listen/ximam/radio.mp3',
-      metadataUrls: [
-        'https://stream.mixx-party.fr/api/nowplaying/ximam',
-        'https://stream.mixx-party.fr/api/nowplaying'
-      ]
+      streamUrl: 'http://manager11.streamradio.fr:2740/stream',
+      metadataUrls: []
     }
   };
 
