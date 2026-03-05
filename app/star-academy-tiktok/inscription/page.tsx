@@ -755,7 +755,9 @@ export default function InscriptionPage() {
 
   const setFile = useCallback((f: File | null) => {
     if (!f) { setAudioFile(null); if (audioUrl) URL.revokeObjectURL(audioUrl); setAudioUrl(null); return; }
-    if (!f.type.startsWith("audio/")) { setError("Fichier audio requis (MP3, WAV, M4A…)"); return; }
+    const isAudio = f.type.startsWith("audio/") || f.type.startsWith("video/") ||
+      /\.(mp3|wav|m4a|aac|ogg|flac|wma|aiff|opus|webm|mp4|mov)$/i.test(f.name);
+    if (!isAudio) { setError("Fichier audio requis (MP3, WAV, M4A…)"); return; }
     if (f.size > 30 * 1024 * 1024) { setError("Max 30 MB"); return; }
     if (audioUrl) URL.revokeObjectURL(audioUrl);
     setAudioFile(f); setAudioUrl(URL.createObjectURL(f)); setError("");
@@ -1168,7 +1170,7 @@ export default function InscriptionPage() {
                     background: drag ? "rgba(147,51,234,0.12)" : audioFile ? "rgba(147,51,234,0.05)" : "rgba(255,255,255,0.015)",
                     boxShadow: drag ? "0 0 0 4px rgba(147,51,234,0.15)" : "none",
                   }}>
-                  <input ref={audioRef} type="file" accept="audio/*" className="sr-only"
+                  <input ref={audioRef} type="file" accept="audio/*,video/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.aiff,.opus,.mp4,.mov,.webm" className="sr-only"
                     onChange={e => { const f = e.target.files?.[0]; if (f) setFile(f); }} />
                   {!audioFile ? (
                     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
