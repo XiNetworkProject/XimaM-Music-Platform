@@ -603,16 +603,26 @@ export async function GET(request: NextRequest) {
           if (starts >= 2 && !completedIds.has(tid)) skippedIds.add(tid);
         });
 
-        // 3) Goûts (genres) à partir des pistes likées / terminées
-        const likedOrCompleted = Array.from(
-          new Set(
-            (recentEvents || [])
-              .filter((e: any) => e.event_type === 'like' || e.event_type === 'favorite' || e.event_type === 'play_complete')
-              .map((e: any) => String(e.track_id))
-          )
-        )
+        // 3) Goûts (genres) — combiner track_events ET track_likes pour couvrir les deux sources
+        const eventLikedIds = new Set(
+          (recentEvents || [])
+            .filter((e: any) => e.event_type === 'like' || e.event_type === 'favorite' || e.event_type === 'play_complete')
+            .map((e: any) => String(e.track_id))
+        );
+
+        // Récupérer aussi les likes directs (table track_likes) — plus fiable que les events
+        const { data: directLikes } = await supabaseAdmin
+          .from('track_likes')
+          .select('track_id')
+          .eq('user_id', userId)
+          .limit(200);
+        for (const l of directLikes || []) {
+          if (l.track_id) eventLikedIds.add(String(l.track_id));
+        }
+
+        const likedOrCompleted = Array.from(eventLikedIds)
           .filter((id) => id && !id.startsWith('ai-'))
-          .slice(0, 80);
+          .slice(0, 120);
 
         let preferredGenres: string[] = [];
         if (likedOrCompleted.length) {
@@ -705,20 +715,26 @@ export async function GET(request: NextRequest) {
         scoredNormal = scoredNormal
           .map((t: any) => {
             let mult = 1;
-            if (followingIds.has(t.artist?._id)) mult *= 1.5;
+            // Artistes suivis : boost massif pour que les follows aient un vrai impact
+            if (followingIds.has(t.artist?._id)) mult *= 3.0;
+            // Artiste souvent écouté (non suivi) : boost fort
             const artistListens = listenedArtists.get(t.artist?._id) || 0;
-            if (!followingIds.has(t.artist?._id) && artistListens >= 3) mult *= 1.25;
-            if (avoid.has(String(t._id))) mult *= 0.4;
-            if (skippedIds.has(String(t._id))) mult *= 0.3;
-            if (collabBoostIds.has(String(t._id))) mult *= 1.35;
+            if (!followingIds.has(t.artist?._id) && artistListens >= 3) mult *= 2.0;
+            else if (!followingIds.has(t.artist?._id) && artistListens >= 1) mult *= 1.4;
+            // Pistes récemment écoutées : pénalité pour éviter la répétition
+            if (avoid.has(String(t._id))) mult *= 0.25;
+            // Pistes skippées : pénalité sévère
+            if (skippedIds.has(String(t._id))) mult *= 0.15;
+            // Filtrage collaboratif : boost fort
+            if (collabBoostIds.has(String(t._id))) mult *= 2.5;
             if (preferredGenres.length && Array.isArray(t.genre)) {
               const gset = new Set((t.genre || []).map((x: any) => String(x || '').trim().toLowerCase()).filter(Boolean));
               const overlap = preferredGenres.filter((g) => gset.has(g)).length;
-              if (overlap >= 2) mult *= 1.4;
-              else if (overlap === 1) mult *= 1.2;
-              // Time-of-day genre boost
+              // Genre match : boost très fort pour que les goûts comptent vraiment
+              if (overlap >= 2) mult *= 2.5;
+              else if (overlap === 1) mult *= 1.8;
               const timeOverlap = Array.from(gset).filter(g => timeBoostGenres.has(g as string)).length;
-              if (timeOverlap > 0) mult *= 1.1;
+              if (timeOverlap > 0) mult *= 1.15;
             }
             return { ...t, rankingScore: (t.rankingScore || 0) * mult };
           })

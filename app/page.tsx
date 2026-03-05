@@ -127,16 +127,19 @@ const scoreTrackForProfile = (
   track: Track,
   profile?: PreferenceProfile | null,
 ) => {
-  const basePopularity =
-    Math.log10((track.plays || 0) + 1) * 0.6 +
-    ((track.likes?.length || 0) * 0.002);
+  // Popularité normalisée (log-scale, plafonnée) : contribue ~30% au score total
+  const rawPop = Math.log10((track.plays || 0) + 1) * 0.4 + ((track.likes?.length || 0) * 0.001);
+  const basePopularity = Math.min(rawPop, 3.0); // Plafond pour que la popularité ne domine pas
   if (!profile) return basePopularity;
 
   let personalization = 0;
+
+  // Artiste préféré : poids très fort — un artiste écouté/liké doit remonter significativement
   if (track.artist?._id && profile.artistScores[track.artist._id]) {
-    personalization += 3.5 * profile.artistScores[track.artist._id];
+    personalization += 8.0 * profile.artistScores[track.artist._id];
   }
 
+  // Genre préféré : poids fort — les goûts musicaux doivent compter
   const genres = Array.isArray(track.genre)
     ? track.genre
     : track.genre
@@ -145,7 +148,7 @@ const scoreTrackForProfile = (
   genres.forEach((genre) => {
     const key = genre?.trim()?.toLowerCase();
     if (key && profile.genreScores[key]) {
-      personalization += 2.2 * profile.genreScores[key];
+      personalization += 5.0 * profile.genreScores[key];
     }
   });
 
@@ -153,9 +156,10 @@ const scoreTrackForProfile = (
     const now = Date.now();
     const days = (now - new Date(track.createdAt).getTime()) / (1000 * 60 * 60 * 24);
     const recencyBoost = Math.max(0, 1 - days / 180);
-    personalization += recencyBoost * profile.recencyPreference * 1.5;
+    personalization += recencyBoost * profile.recencyPreference * 2.0;
   }
 
+  // La personnalisation pèse ~70% du score total quand l'utilisateur a de l'historique
   return basePopularity + personalization;
 };
 
@@ -1269,7 +1273,10 @@ export default function SynauraHome() {
       });
     };
 
-    featuredTracks.slice(0, 3).forEach(t => addTrackSlide(t, 'En vedette'));
+    // Pour toi en priorité (personnalisé) — occupe la majorité du carousel
+    personalizedForYouList.slice(0, 5).forEach(t => addTrackSlide(t, 'Pour toi'));
+
+    featuredTracks.slice(0, 2).forEach(t => addTrackSlide(t, 'En vedette'));
 
     const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
     const weekHit = trendingTracks.find(t =>
@@ -1277,13 +1284,14 @@ export default function SynauraHome() {
     );
     if (weekHit) addTrackSlide(weekHit, 'Nouveauté de la semaine');
 
-    trendingTracks.slice(0, 4).forEach(t => addTrackSlide(t, 'Tendance'));
-    personalizedForYouList.slice(0, 2).forEach(t => addTrackSlide(t, 'Pour toi'));
+    trendingTracks.slice(0, 2).forEach(t => addTrackSlide(t, 'Tendance'));
 
     const promo = slides.slice(0, 2);
-    const trackSlides = shuffleLight(slides.slice(2), 0.3);
+    const trackSlides = session?.user?.id
+      ? seededShuffle(slides.slice(2), dailySeedHash(session.user.id) + 42)
+      : shuffleLight(slides.slice(2), 0.3);
     return [...promo, ...trackSlides];
-  }, [featuredTracks, trendingTracks, personalizedForYouList]);
+  }, [featuredTracks, trendingTracks, personalizedForYouList, session?.user?.id]);
 
   const router = useRouter();
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
