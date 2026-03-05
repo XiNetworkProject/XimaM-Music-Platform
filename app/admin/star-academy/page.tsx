@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, ChevronUp, Search, RefreshCw, ExternalLink, Play, X, Check, Eye, Music } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronDown, ChevronUp, Search, RefreshCw, ExternalLink, Play, Pause, Square, X, Check, Eye, Music } from 'lucide-react';
 
 interface Application {
   id: string;
@@ -51,6 +51,190 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
+function InlineAudioPlayer({ appId, filename, compact }: { appId: string; filename?: string | null; compact?: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [error, setError] = useState(false);
+
+  const [autoPlay, setAutoPlay] = useState(false);
+
+  const loadAudio = useCallback(async () => {
+    if (url) return url;
+    setLoading(true);
+    setError(false);
+    try {
+      const res = await fetch(`/api/admin/star-academy/audio/${appId}`);
+      if (res.ok) {
+        const json = await res.json();
+        const signedUrl = json.signedUrl ?? null;
+        setUrl(signedUrl);
+        return signedUrl;
+      } else {
+        setError(true);
+        return null;
+      }
+    } catch {
+      setError(true);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [appId, url]);
+
+  // Auto-play after URL is set
+  useEffect(() => {
+    if (autoPlay && url && audioRef.current) {
+      audioRef.current.play().then(() => setPlaying(true)).catch(() => setError(true));
+      setAutoPlay(false);
+    }
+  }, [autoPlay, url]);
+
+  const toggle = async () => {
+    if (!url) {
+      setAutoPlay(true);
+      await loadAudio();
+      return;
+    }
+    const el = audioRef.current;
+    if (!el) return;
+    if (playing) {
+      el.pause();
+      setPlaying(false);
+    } else {
+      el.play().catch(() => setError(true));
+      setPlaying(true);
+    }
+  };
+
+  const stop = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.pause();
+    el.currentTime = 0;
+    setPlaying(false);
+    setProgress(0);
+  };
+
+  useEffect(() => {
+    const el = audioRef.current;
+    if (!el) return;
+    const onTime = () => {
+      setProgress(el.currentTime);
+      setDuration(el.duration || 0);
+    };
+    const onEnd = () => { setPlaying(false); setProgress(0); };
+    const onErr = () => { setError(true); setPlaying(false); };
+    el.addEventListener('timeupdate', onTime);
+    el.addEventListener('ended', onEnd);
+    el.addEventListener('error', onErr);
+    return () => {
+      el.removeEventListener('timeupdate', onTime);
+      el.removeEventListener('ended', onEnd);
+      el.removeEventListener('error', onErr);
+    };
+  }, [url]);
+
+  const fmtTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={toggle}
+          disabled={loading}
+          className="rounded-lg p-1.5 text-foreground-tertiary hover:text-violet-400 hover:bg-violet-500/10 transition"
+          title={playing ? 'Pause' : 'Écouter le CV vocal'}
+        >
+          {loading ? <RefreshCw size={14} className="animate-spin" /> : playing ? <Pause size={14} /> : <Play size={14} />}
+        </button>
+        {url && <audio ref={audioRef} src={url} preload="metadata" />}
+        {error && <span className="text-[10px] text-red-400">Erreur</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">
+      <div className="flex items-center gap-2 text-xs text-foreground-tertiary mb-3">
+        <Music size={13} />
+        CV Vocal — {filename ?? 'audio'}
+      </div>
+
+      {error && <p className="text-xs text-red-400 mb-2">Impossible de charger l&apos;audio.</p>}
+
+      {!url && !loading && !error && (
+        <button
+          onClick={loadAudio}
+          className="flex items-center gap-2 rounded-xl bg-violet-600/20 border border-violet-500/30 px-4 py-2.5 text-sm font-semibold text-violet-300 hover:bg-violet-600/30 transition w-full justify-center"
+        >
+          <Play size={14} />
+          Charger et écouter
+        </button>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-foreground-tertiary py-2">
+          <RefreshCw size={13} className="animate-spin" />
+          Chargement…
+        </div>
+      )}
+
+      {url && (
+        <>
+          <audio ref={audioRef} src={url} preload="metadata" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggle}
+              className="rounded-full w-9 h-9 flex items-center justify-center bg-violet-600 hover:bg-violet-500 text-white transition shrink-0"
+            >
+              {playing ? <Pause size={16} /> : <Play size={16} className="ml-0.5" />}
+            </button>
+
+            <div className="flex-1 min-w-0">
+              {/* Progress bar */}
+              <div
+                className="h-1.5 rounded-full bg-white/10 cursor-pointer overflow-hidden"
+                onClick={(e) => {
+                  const el = audioRef.current;
+                  if (!el || !duration) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  el.currentTime = pct * duration;
+                }}
+              >
+                <div
+                  className="h-full rounded-full bg-violet-500 transition-[width] duration-150"
+                  style={{ width: duration ? `${(progress / duration) * 100}%` : '0%' }}
+                />
+              </div>
+              <div className="flex justify-between mt-1 text-[10px] text-foreground-tertiary">
+                <span>{fmtTime(progress)}</span>
+                <span>{duration ? fmtTime(duration) : '--:--'}</span>
+              </div>
+            </div>
+
+            <button
+              onClick={stop}
+              className="rounded-lg p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition"
+              title="Arrêter"
+            >
+              <Square size={14} />
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AdminStarAcademyPage() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [total, setTotal] = useState(0);
@@ -63,8 +247,6 @@ export default function AdminStarAcademyPage() {
   const [notes, setNotes]               = useState('');
   const [newStatus, setNewStatus]       = useState('');
   const [expandedId, setExpandedId]     = useState<string | null>(null);
-  const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
-  const [audioLoading, setAudioLoading]     = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -85,30 +267,13 @@ export default function AdminStarAcademyPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const openDetail = async (app: Application) => {
+  const openDetail = (app: Application) => {
     setSelected(app);
     setNotes(app.admin_notes ?? '');
     setNewStatus(app.status);
-    setAudioSignedUrl(null);
-    if (app.audio_url) {
-      setAudioLoading(true);
-      try {
-        const res = await fetch(`/api/admin/star-academy/audio/${app.id}`);
-        if (res.ok) {
-          const json = await res.json();
-          setAudioSignedUrl(json.signedUrl ?? app.audio_url);
-        } else {
-          setAudioSignedUrl(app.audio_url);
-        }
-      } catch {
-        setAudioSignedUrl(app.audio_url);
-      } finally {
-        setAudioLoading(false);
-      }
-    }
   };
 
-  const closeDetail = () => { setSelected(null); setNotes(''); setNewStatus(''); setAudioSignedUrl(null); };
+  const closeDetail = () => { setSelected(null); setNotes(''); setNewStatus(''); };
 
   const handleUpdate = async () => {
     if (!selected) return;
@@ -237,16 +402,7 @@ export default function AdminStarAcademyPage() {
               <div className="text-xs text-foreground-tertiary">{fmt(app.created_at)}</div>
               <StatusBadge status={app.status} />
               <div className="flex items-center gap-2">
-                {app.audio_url && (
-                  <a
-                    href={app.audio_url}
-                    target="_blank"
-                    title="Écouter l'audio"
-                    className="rounded-lg p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition"
-                  >
-                    <Music size={14} />
-                  </a>
-                )}
+                <InlineAudioPlayer appId={app.id} compact />
                 <button
                   onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
                   className="rounded-lg p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition"
@@ -265,26 +421,31 @@ export default function AdminStarAcademyPage() {
 
             {/* Expanded row */}
             {expandedId === app.id && (
-              <div className="border-t border-border-secondary/30 bg-white/[0.02] px-4 py-4 grid md:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-2">
-                  <div><span className="text-foreground-tertiary">Âge :</span> <span className="text-foreground-secondary">{app.age} ans</span></div>
-                  <div><span className="text-foreground-tertiary">Ville :</span> <span className="text-foreground-secondary">{app.location}</span></div>
-                  {app.phone && <div><span className="text-foreground-tertiary">Tél :</span> <span className="text-foreground-secondary">{app.phone}</span></div>}
-                  <div><span className="text-foreground-tertiary">Niveau :</span> <span className="text-foreground-secondary">{app.level ?? '—'}</span></div>
-                  {app.link && <div><span className="text-foreground-tertiary">Lien :</span> <a href={app.link} target="_blank" className="text-violet-400 underline">{app.link}</a></div>}
-                  {app.synaura_username && <div><span className="text-foreground-tertiary">Synaura :</span> <span className="text-foreground-secondary">@{app.synaura_username}</span></div>}
-                  {app.availability && <div><span className="text-foreground-tertiary">Dispos :</span> <span className="text-foreground-secondary">{app.availability}</span></div>}
-                  {app.notification_sent_at && <div><span className="text-foreground-tertiary">Email envoyé :</span> <span className="text-foreground-secondary">{fmt(app.notification_sent_at)}</span></div>}
-                </div>
-                <div>
-                  <div className="text-foreground-tertiary mb-1">Présentation :</div>
-                  <p className="text-foreground-secondary leading-relaxed whitespace-pre-wrap">{app.bio}</p>
-                  {app.admin_notes && (
-                    <div className="mt-3 rounded-xl border border-border-secondary bg-white/5 p-3">
-                      <div className="text-foreground-tertiary mb-1">Notes admin :</div>
-                      <p className="text-foreground-secondary">{app.admin_notes}</p>
-                    </div>
-                  )}
+              <div className="border-t border-border-secondary/30 bg-white/[0.02] px-4 py-4 space-y-4 text-xs">
+                {/* Audio player */}
+                <InlineAudioPlayer appId={app.id} filename={app.audio_filename} />
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div><span className="text-foreground-tertiary">Âge :</span> <span className="text-foreground-secondary">{app.age} ans</span></div>
+                    <div><span className="text-foreground-tertiary">Ville :</span> <span className="text-foreground-secondary">{app.location}</span></div>
+                    {app.phone && <div><span className="text-foreground-tertiary">Tél :</span> <span className="text-foreground-secondary">{app.phone}</span></div>}
+                    <div><span className="text-foreground-tertiary">Niveau :</span> <span className="text-foreground-secondary">{app.level ?? '—'}</span></div>
+                    {app.link && <div><span className="text-foreground-tertiary">Lien :</span> <a href={app.link} target="_blank" className="text-violet-400 underline">{app.link}</a></div>}
+                    {app.synaura_username && <div><span className="text-foreground-tertiary">Synaura :</span> <span className="text-foreground-secondary">@{app.synaura_username}</span></div>}
+                    {app.availability && <div><span className="text-foreground-tertiary">Dispos :</span> <span className="text-foreground-secondary">{app.availability}</span></div>}
+                    {app.notification_sent_at && <div><span className="text-foreground-tertiary">Email envoyé :</span> <span className="text-foreground-secondary">{fmt(app.notification_sent_at)}</span></div>}
+                  </div>
+                  <div>
+                    <div className="text-foreground-tertiary mb-1">Présentation :</div>
+                    <p className="text-foreground-secondary leading-relaxed whitespace-pre-wrap">{app.bio}</p>
+                    {app.admin_notes && (
+                      <div className="mt-3 rounded-xl border border-border-secondary bg-white/5 p-3">
+                        <div className="text-foreground-tertiary mb-1">Notes admin :</div>
+                        <p className="text-foreground-secondary">{app.admin_notes}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -330,24 +491,7 @@ export default function AdminStarAcademyPage() {
             </div>
 
             {/* Audio player */}
-            {selected.audio_url && (
-              <div className="rounded-2xl border border-border-secondary bg-white/5 p-4">
-                <div className="flex items-center gap-2 text-xs text-foreground-tertiary mb-3">
-                  <Music size={13} />
-                  CV Vocal — {selected.audio_filename ?? 'audio'}
-                </div>
-                {audioLoading ? (
-                  <div className="flex items-center gap-2 text-xs text-foreground-tertiary py-2">
-                    <RefreshCw size={13} className="animate-spin" />
-                    Chargement du lecteur…
-                  </div>
-                ) : audioSignedUrl ? (
-                  <audio key={audioSignedUrl} className="w-full h-10" controls src={audioSignedUrl} />
-                ) : (
-                  <p className="text-xs text-foreground-tertiary">Audio indisponible.</p>
-                )}
-              </div>
-            )}
+            <InlineAudioPlayer appId={selected.id} filename={selected.audio_filename} />
 
             {/* Bio */}
             <div className="rounded-2xl border border-border-secondary bg-white/3 p-4">
