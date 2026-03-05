@@ -220,6 +220,23 @@ const shuffleLight = <T,>(arr: T[], intensity = 0.3): T[] => {
   return copy;
 };
 
+/**
+ * Mélange déterministe de Fisher-Yates seedé par un entier.
+ * Même seed → même ordre ; seeds différents → ordres différents.
+ */
+const seededShuffle = <T,>(arr: T[], seed: number): T[] => {
+  const copy = [...arr];
+  let s = (seed >>> 0) || 1;
+  for (let i = copy.length - 1; i > 0; i--) {
+    s = Math.imul(s ^ (s >>> 15), s | 1);
+    s ^= s + Math.imul(s ^ (s >>> 7), s | 61);
+    s = (s ^ (s >>> 14)) >>> 0;
+    const j = s % (i + 1);
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
 const dailySeedHash = (userId: string): number => {
   const today = new Date().toISOString().slice(0, 10);
   const key = `${userId}-${today}`;
@@ -1116,22 +1133,37 @@ export default function SynauraHome() {
   }, [trendingTracks, forYouList]);
   
   const personalizedForYouList = useMemo(() => {
-    const sorted = !preferenceProfile ? forYouList : [...forYouList].sort(
-      (a, b) =>
-        scoreTrackForProfile(b, preferenceProfile) -
-        scoreTrackForProfile(a, preferenceProfile),
-    );
+    let sorted: Track[];
+    if (preferenceProfile) {
+      // Tri par score de préférences (historique existant)
+      sorted = [...forYouList].sort(
+        (a, b) => scoreTrackForProfile(b, preferenceProfile) - scoreTrackForProfile(a, preferenceProfile),
+      );
+    } else if (session?.user?.id) {
+      // Pas encore d'historique : shuffle déterministe par userId → chaque compte voit un ordre différent
+      const seed = dailySeedHash(session.user.id);
+      sorted = seededShuffle(forYouList, seed);
+    } else {
+      sorted = forYouList;
+    }
     return diversifyClientList(sorted, 2);
-  }, [forYouList, preferenceProfile]);
+  }, [forYouList, preferenceProfile, session?.user?.id]);
 
   const trendingList = useMemo(() => {
-    const sorted = !preferenceProfile ? trendingUnique : [...trendingUnique].sort(
-      (a, b) =>
-        scoreTrackForProfile(b, preferenceProfile) -
-        scoreTrackForProfile(a, preferenceProfile),
-    );
+    let sorted: Track[];
+    if (preferenceProfile) {
+      sorted = [...trendingUnique].sort(
+        (a, b) => scoreTrackForProfile(b, preferenceProfile) - scoreTrackForProfile(a, preferenceProfile),
+      );
+    } else if (session?.user?.id) {
+      // Seed décalé (+1) pour que trending et forYou ne soient pas dans le même ordre
+      const seed = dailySeedHash(session.user.id) + 1;
+      sorted = seededShuffle(trendingUnique, seed);
+    } else {
+      sorted = trendingUnique;
+    }
     return diversifyClientList(sorted, 2);
-  }, [trendingUnique, preferenceProfile]);
+  }, [trendingUnique, preferenceProfile, session?.user?.id]);
   
   // Sélection du jour : 3 tracks personnalisées, stables pour la journée
   const dailyPicks = useMemo(() => {

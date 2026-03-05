@@ -7,6 +7,21 @@ import { authOptions } from '@/lib/authOptions';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+/**
+ * Jitter déterministe : même userId + trackId → même valeur, différente entre users.
+ * Permet de différencier l'ordre des tracks entre comptes sans historique.
+ * Retourne une valeur entre -0.20 et +0.20 (±20% du score).
+ */
+function userTrackJitter(userId: string, trackId: string): number {
+  const key = `${userId}\x00${trackId}`;
+  let h = 2166136261; // FNV-1a 32bit
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = (h * 16777619) >>> 0;
+  }
+  return ((h % 1000) / 1000) * 0.40 - 0.20; // [-0.20, +0.20]
+}
+
 function diversifyConsecutiveArtists(tracks: any[], maxConsecutive = 3): any[] {
   if (tracks.length <= maxConsecutive) return tracks;
   const result: any[] = [];
@@ -711,6 +726,19 @@ export async function GET(request: NextRequest) {
       } catch (e) {
         // silencieux: on reste sur le ranking global si algo perso échoue
       }
+    }
+
+    // Jitter déterministe par userId — différencie l'ordre entre comptes même sans historique.
+    // Le jitter (±20%) est assez fort pour réordonner des tracks au score similaire
+    // mais pas assez pour reléguer une track très populaire derrière une médiocre.
+    if (userId) {
+      scoredNormal = scoredNormal
+        .map((t: any) => {
+          const jitter = userTrackJitter(userId, String(t._id));
+          const base = t.rankingScore || 0;
+          return { ...t, rankingScore: base * (1 + jitter) };
+        })
+        .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0));
     }
 
     // Scoring + formatage pour pistes IA
