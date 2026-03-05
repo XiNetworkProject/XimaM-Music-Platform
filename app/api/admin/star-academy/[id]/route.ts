@@ -4,6 +4,7 @@ import { supabaseAdmin } from '@/lib/supabase';
 import {
   sendEmail,
   saAcceptedTemplate,
+  saWinnerTemplate,
   saRejectedTemplate,
   saReviewingTemplate,
 } from '@/lib/email';
@@ -16,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   const body = await req.json() as { status?: string; admin_notes?: string };
   const { status, admin_notes } = body;
 
-  const VALID_STATUSES = ['pending', 'reviewing', 'accepted', 'rejected'];
+  const VALID_STATUSES = ['pending', 'reviewing', 'accepted', 'winner', 'rejected'];
   if (status && !VALID_STATUSES.includes(status)) {
     return NextResponse.json({ error: 'Statut invalide.' }, { status: 400 });
   }
@@ -37,9 +38,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   if (status) updatePayload.status = status;
   if (admin_notes !== undefined) updatePayload.admin_notes = admin_notes;
 
-  // ── Activer le premium si accepté + compte Synaura lié ──
-  if (status === 'accepted' && current.user_id) {
-    const premiumUntil = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
+  // ── Activer le premium selon le statut ──────────────────
+  // accepted (retenu) = 1 mois ; winner (gagnant) = 3 mois
+  if ((status === 'accepted' || status === 'winner') && current.user_id) {
+    const days = status === 'winner' ? 90 : 30;
+    const premiumUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
     await supabaseAdmin
       .from('profiles')
       .update({
@@ -71,8 +74,16 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       let emailSubject = '';
 
       if (status === 'accepted') {
-        emailSubject = '🌟 Tu es retenu(e) pour Star Academy TikTok × Synaura !';
+        emailSubject = 'Tu es retenu(e) pour Star Academy TikTok × Synaura !';
         emailHtml = saAcceptedTemplate({
+          name:             current.full_name,
+          trackingToken:    current.tracking_token,
+          tiktokHandle:     current.tiktok_handle,
+          synauraUsername:  current.synaura_username,
+        });
+      } else if (status === 'winner') {
+        emailSubject = 'Felicitations, tu es Gagnant(e) de Star Academy TikTok × Synaura !';
+        emailHtml = saWinnerTemplate({
           name:             current.full_name,
           trackingToken:    current.tracking_token,
           tiktokHandle:     current.tiktok_handle,

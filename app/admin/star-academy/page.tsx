@@ -22,7 +22,7 @@ interface Application {
   audio_filename: string | null;
   synaura_username: string | null;
   user_id: string | null;
-  status: 'pending' | 'reviewing' | 'accepted' | 'rejected';
+  status: 'pending' | 'reviewing' | 'accepted' | 'winner' | 'rejected';
   admin_notes: string | null;
   tracking_token: string;
   notification_sent_at: string | null;
@@ -32,10 +32,11 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   pending:   { label: 'En attente',        color: 'text-amber-400',   bg: 'bg-amber-500/15 border-amber-500/30' },
   reviewing: { label: "En cours d'écoute", color: 'text-cyan-400',    bg: 'bg-cyan-500/15 border-cyan-500/30' },
   accepted:  { label: 'Retenu(e)',          color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/30' },
+  winner:    { label: 'Gagnant(e)',         color: 'text-yellow-400',  bg: 'bg-yellow-500/15 border-yellow-500/30' },
   rejected:  { label: 'Non retenu(e)',      color: 'text-red-400',     bg: 'bg-red-500/15 border-red-500/30' },
 };
 
-const STATUSES = ['all', 'pending', 'reviewing', 'accepted', 'rejected'] as const;
+const STATUSES = ['all', 'pending', 'reviewing', 'accepted', 'winner', 'rejected'] as const;
 
 function fmt(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -62,6 +63,8 @@ export default function AdminStarAcademyPage() {
   const [notes, setNotes]               = useState('');
   const [newStatus, setNewStatus]       = useState('');
   const [expandedId, setExpandedId]     = useState<string | null>(null);
+  const [audioSignedUrl, setAudioSignedUrl] = useState<string | null>(null);
+  const [audioLoading, setAudioLoading]     = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -82,13 +85,30 @@ export default function AdminStarAcademyPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const openDetail = (app: Application) => {
+  const openDetail = async (app: Application) => {
     setSelected(app);
     setNotes(app.admin_notes ?? '');
     setNewStatus(app.status);
+    setAudioSignedUrl(null);
+    if (app.audio_url) {
+      setAudioLoading(true);
+      try {
+        const res = await fetch(`/api/admin/star-academy/audio/${app.id}`);
+        if (res.ok) {
+          const json = await res.json();
+          setAudioSignedUrl(json.signedUrl ?? app.audio_url);
+        } else {
+          setAudioSignedUrl(app.audio_url);
+        }
+      } catch {
+        setAudioSignedUrl(app.audio_url);
+      } finally {
+        setAudioLoading(false);
+      }
+    }
   };
 
-  const closeDetail = () => { setSelected(null); setNotes(''); setNewStatus(''); };
+  const closeDetail = () => { setSelected(null); setNotes(''); setNewStatus(''); setAudioSignedUrl(null); };
 
   const handleUpdate = async () => {
     if (!selected) return;
@@ -144,7 +164,7 @@ export default function AdminStarAcademyPage() {
 
       {/* ── Stats ───────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {(['pending', 'reviewing', 'accepted', 'rejected'] as const).map((s) => {
+        {(['pending', 'reviewing', 'accepted', 'winner', 'rejected'] as const).map((s) => {
           const cfg = STATUS_LABELS[s];
           const cnt = counts[s] ?? 0;
           return (
@@ -316,7 +336,16 @@ export default function AdminStarAcademyPage() {
                   <Music size={13} />
                   CV Vocal — {selected.audio_filename ?? 'audio'}
                 </div>
-                <audio className="w-full h-10" controls src={selected.audio_url} />
+                {audioLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-foreground-tertiary py-2">
+                    <RefreshCw size={13} className="animate-spin" />
+                    Chargement du lecteur…
+                  </div>
+                ) : audioSignedUrl ? (
+                  <audio key={audioSignedUrl} className="w-full h-10" controls src={audioSignedUrl} />
+                ) : (
+                  <p className="text-xs text-foreground-tertiary">Audio indisponible.</p>
+                )}
               </div>
             )}
 
@@ -330,7 +359,7 @@ export default function AdminStarAcademyPage() {
             <div className="space-y-3">
               <label className="text-xs font-semibold text-foreground-tertiary block">Statut</label>
               <div className="grid grid-cols-2 gap-2">
-                {(['pending', 'reviewing', 'accepted', 'rejected'] as const).map((s) => {
+                {(['pending', 'reviewing', 'accepted', 'winner', 'rejected'] as const).map((s) => {
                   const cfg = STATUS_LABELS[s];
                   return (
                     <button
@@ -346,7 +375,12 @@ export default function AdminStarAcademyPage() {
               </div>
               {newStatus === 'accepted' && selected.user_id && (
                 <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-400">
-                  ✓ 3 mois Premium Synaura seront automatiquement activés sur son compte.
+                  1 mois Premium Synaura sera automatiquement active sur son compte.
+                </div>
+              )}
+              {newStatus === 'winner' && selected.user_id && (
+                <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/10 px-3 py-2 text-xs text-yellow-400">
+                  3 mois Premium Synaura seront automatiquement actives sur son compte (recompense gagnant).
                 </div>
               )}
             </div>

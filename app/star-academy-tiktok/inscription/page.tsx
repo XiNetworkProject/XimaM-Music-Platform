@@ -596,11 +596,130 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
             </Link>
           </div>
 
+          {/* Synaura discovery section — invitiation */}
+          <div style={{
+            marginTop: "32px",
+            borderRadius: "24px",
+            border: "1px solid rgba(124,58,237,0.3)",
+            background: "linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(0,242,234,0.06) 100%)",
+            padding: "24px 20px",
+            animation: "sa-fade-up 0.8s ease-out 1.6s both",
+            textAlign: "center",
+            position: "relative",
+            overflow: "hidden",
+          }}>
+            {/* Glow background */}
+            <div style={{
+              position: "absolute", inset: 0, pointerEvents: "none",
+              background: "radial-gradient(ellipse at top left, rgba(124,58,237,0.18) 0%, transparent 70%)",
+            }} />
+
+            <div style={{ position: "relative", zIndex: 1 }}>
+              {/* Badge */}
+              <div style={{
+                display: "inline-block",
+                borderRadius: "100px",
+                padding: "4px 14px",
+                background: "rgba(0,242,234,0.1)",
+                border: "1px solid rgba(0,242,234,0.25)",
+                marginBottom: "14px",
+              }}>
+                <span style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "3px", color: "#00f2ea", textTransform: "uppercase" }}>
+                  En attendant
+                </span>
+              </div>
+
+              {/* Logo */}
+              <div style={{ marginBottom: "12px" }}>
+                <Image
+                  src="/synaura_logotype.svg"
+                  alt="Synaura"
+                  width={110}
+                  height={28}
+                  style={{ filter: "brightness(0) invert(1)", opacity: 0.9, display: "inline-block" }}
+                />
+              </div>
+
+              <h3 style={{
+                fontSize: "18px", fontWeight: 800, color: "#fff",
+                margin: "0 0 10px", lineHeight: 1.25,
+              }}>
+                Fais un tour sur Synaura
+              </h3>
+              <p style={{
+                fontSize: "13px", color: "rgba(255,255,255,0.5)",
+                lineHeight: 1.65, margin: "0 0 20px",
+              }}>
+                Crée ton espace artiste, publie ta musique et rejoins<br />
+                des milliers d&apos;artistes qui partagent leur univers.
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {/* Primary CTA — compte */}
+                <Link
+                  href="/auth/register"
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "10px",
+                    borderRadius: "14px",
+                    padding: "14px 24px",
+                    background: "linear-gradient(90deg, #7c3aed, #00b4d8)",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: "14px",
+                    textDecoration: "none",
+                    boxShadow: "0 4px 24px rgba(124,58,237,0.35)",
+                  }}
+                >
+                  <span>Créer mon compte gratuit</span>
+                  <span style={{ fontSize: "18px" }}>→</span>
+                </Link>
+
+                {/* Secondary CTA — discover */}
+                <Link
+                  href="/discover"
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                    borderRadius: "14px",
+                    padding: "13px 24px",
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    color: "rgba(255,255,255,0.7)",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    textDecoration: "none",
+                  }}
+                >
+                  <span>Explorer la musique</span>
+                  <span style={{ fontSize: "16px" }}>→</span>
+                </Link>
+
+                {/* Publish CTA */}
+                <Link
+                  href="/publish"
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                    borderRadius: "14px",
+                    padding: "13px 24px",
+                    background: "rgba(0,242,234,0.06)",
+                    border: "1px solid rgba(0,242,234,0.2)",
+                    color: "#00f2ea",
+                    fontWeight: 600,
+                    fontSize: "13px",
+                    textDecoration: "none",
+                  }}
+                >
+                  <span>Publier ma musique</span>
+                  <span style={{ fontSize: "16px" }}>→</span>
+                </Link>
+              </div>
+            </div>
+          </div>
+
           {/* Promo badge */}
           <div style={{
-            marginTop: "24px",
+            marginTop: "20px",
             display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
-            animation: "sa-fade-up 0.8s ease-out 1.6s both",
+            animation: "sa-fade-up 0.8s ease-out 1.8s both",
           }}>
             <div style={{
               fontSize: "11px", color: "rgba(255,255,255,0.3)",

@@ -176,12 +176,18 @@ export function saConfirmationTemplate({
   const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr';
   const trackUrl = `${baseUrl}/star-academy-tiktok/suivi?token=${trackingToken}`;
   return SA_BASE(`
-    <h1 style="margin:16px 0 8px;font-size:22px;text-align:center">Candidature reçue ! 🎤</h1>
+    <h1 style="margin:16px 0 8px;font-size:22px;text-align:center">Candidature reçue !</h1>
     <p style="color:#94a3b8;text-align:center;margin:0 0 24px;font-size:14px">Bonjour <strong style="color:#fff">${name}</strong>, ta candidature Star Academy TikTok a bien été enregistrée.</p>
 
     <div style="background:rgba(255,212,122,0.08);border:1px solid rgba(255,212,122,0.25);border-radius:12px;padding:16px;margin-bottom:20px;text-align:center">
       <div style="font-size:13px;color:#ffd47a;margin-bottom:4px">Ton pseudo TikTok</div>
       <div style="font-size:18px;font-weight:700;color:#fff">${tiktokHandle}</div>
+    </div>
+
+    <div style="background:rgba(124,58,237,0.12);border:2px solid rgba(124,58,237,0.35);border-radius:16px;padding:20px;margin-bottom:20px;text-align:center">
+      <div style="font-size:12px;color:#a78bfa;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px;font-weight:600">Ton numéro de suivi</div>
+      <div style="font-size:20px;font-weight:800;color:#fff;letter-spacing:3px;font-family:monospace;background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 16px;display:inline-block">${trackingToken}</div>
+      <div style="font-size:11px;color:#64748b;margin-top:10px">Conserve ce code précieusement — il te permet de suivre ta candidature à tout moment</div>
     </div>
 
     <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 16px">Notre équipe va écouter ton CV vocal et examiner ton profil. Tu recevras un email dès que ta candidature change de statut.</p>
@@ -190,12 +196,16 @@ export function saConfirmationTemplate({
       <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(90deg,#7c3aed,#00f2ea);color:#fff;text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:700;font-size:14px">Suivre ma candidature →</a>
     </div>
 
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:10px;padding:12px 14px;margin-bottom:8px;font-size:11px;color:#64748b;word-break:break-all">
+      Lien direct : <a href="${trackUrl}" style="color:#7c3aed">${trackUrl}</a>
+    </div>
+
     <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;font-size:12px;color:#94a3b8">
-      <strong style="color:#fff;display:block;margin-bottom:6px">📋 Prochaines étapes</strong>
+      <strong style="color:#fff;display:block;margin-bottom:6px">Prochaines étapes</strong>
       01 — Écoute de ton audio par notre équipe<br/>
       02 — Validation de ton profil<br/>
       03 — Invitation en Live TikTok si tu es retenu(e)<br/>
-      04 — Épreuves progressives & prime
+      04 — Épreuves progressives &amp; prime
     </div>
   `);
 }
@@ -215,13 +225,13 @@ export function saAcceptedTemplate({
   const trackUrl = `${baseUrl}/star-academy-tiktok/suivi?token=${trackingToken}`;
   const premiumBlock = synauraUsername
     ? `<div style="background:linear-gradient(135deg,rgba(139,92,246,0.2),rgba(0,242,234,0.1));border:1px solid rgba(124,58,237,0.4);border-radius:12px;padding:18px;margin:20px 0;text-align:center">
-        <div style="font-size:22px;margin-bottom:6px">🏆 3 mois Premium offerts</div>
-        <div style="color:#c4b5fd;font-size:13px">Activé sur ton compte Synaura <strong style="color:#fff">@${synauraUsername}</strong></div>
+        <div style="font-size:14px;font-weight:700;color:#c4b5fd;margin-bottom:4px">1 mois Premium Synaura offert</div>
+        <div style="color:#94a3b8;font-size:13px">Activ&eacute; sur ton compte <strong style="color:#fff">@${synauraUsername}</strong></div>
       </div>`
     : '';
   return SA_BASE(`
-    <h1 style="margin:16px 0 8px;font-size:24px;text-align:center">Félicitations, tu es retenu(e) ! 🌟</h1>
-    <p style="color:#94a3b8;text-align:center;margin:0 0 20px;font-size:14px">Bonjour <strong style="color:#fff">${name}</strong>, nous avons le plaisir de t'annoncer que ta candidature a été <strong style="color:#ffd47a">acceptée</strong> !</p>
+    <h1 style="margin:16px 0 8px;font-size:24px;text-align:center">F&eacute;licitations, tu es retenu(e) !</h1>
+    <p style="color:#94a3b8;text-align:center;margin:0 0 20px;font-size:14px">Bonjour <strong style="color:#fff">${name}</strong>, ta candidature a &eacute;t&eacute; <strong style="color:#ffd47a">retenue</strong> pour Star Academy TikTok &times; Synaura.</p>
 
     <div style="background:rgba(255,212,122,0.1);border:1px solid rgba(255,212,122,0.35);border-radius:12px;padding:16px;margin-bottom:20px;text-align:center">
       <div style="font-size:13px;color:#ffd47a;margin-bottom:4px">Candidat retenu</div>
@@ -230,10 +240,57 @@ export function saAcceptedTemplate({
 
     ${premiumBlock}
 
-    <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 16px">Un membre de notre équipe te contactera très bientôt pour t'indiquer la date et l'heure de ton passage en Live TikTok. Reste disponible et prépare-toi !</p>
+    <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 16px">Un membre de notre &eacute;quipe te contactera tr&egrave;s bient&ocirc;t pour t'indiquer la date et l'heure de ton passage en Live TikTok. Reste disponible et pr&eacute;pare-toi !</p>
+
+    <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:14px;font-size:12px;color:#94a3b8;margin-bottom:20px">
+      <strong style="color:#fff;display:block;margin-bottom:6px">Et si tu gagnes ?</strong>
+      Les gagnants du Live TikTok recevront 3 mois d'abonnement Premium Synaura en plus.
+    </div>
 
     <div style="text-align:center;margin:24px 0">
-      <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(90deg,#ffd47a,#ff2d55);color:#fff;text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:700;font-size:14px">Voir ma candidature →</a>
+      <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(90deg,#ffd47a,#ff2d55);color:#fff;text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:700;font-size:14px">Voir ma candidature &rarr;</a>
+    </div>
+  `);
+}
+
+export function saWinnerTemplate({
+  name,
+  trackingToken,
+  tiktokHandle,
+  synauraUsername,
+}: {
+  name: string;
+  trackingToken: string;
+  tiktokHandle: string;
+  synauraUsername?: string | null;
+}) {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr';
+  const trackUrl = `${baseUrl}/star-academy-tiktok/suivi?token=${trackingToken}`;
+  const premiumBlock = synauraUsername
+    ? `<div style="background:linear-gradient(135deg,rgba(245,158,11,0.25),rgba(236,72,153,0.15));border:1px solid rgba(245,158,11,0.5);border-radius:12px;padding:20px;margin:20px 0;text-align:center">
+        <div style="font-size:32px;margin-bottom:8px">3 MOIS</div>
+        <div style="font-size:14px;font-weight:700;color:#fcd34d;margin-bottom:4px">Premium Synaura offerts</div>
+        <div style="color:#94a3b8;font-size:13px">Activ&eacute;s sur ton compte <strong style="color:#fff">@${synauraUsername}</strong></div>
+      </div>`
+    : `<div style="background:linear-gradient(135deg,rgba(245,158,11,0.15),rgba(236,72,153,0.1));border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:16px;margin:20px 0;text-align:center">
+        <div style="font-size:14px;font-weight:700;color:#fcd34d;">3 mois Premium Synaura offerts</div>
+        <div style="color:#94a3b8;font-size:12px;margin-top:4px">Contacte-nous pour activer ta r&eacute;compense.</div>
+      </div>`;
+  return SA_BASE(`
+    <h1 style="margin:16px 0 8px;font-size:26px;text-align:center;background:linear-gradient(90deg,#fbbf24,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent">Tu as gagn&eacute; !</h1>
+    <p style="color:#94a3b8;text-align:center;margin:0 0 20px;font-size:14px">Bonjour <strong style="color:#fff">${name}</strong>, tu es <strong style="color:#fbbf24">Gagnant(e)</strong> de Star Academy TikTok &times; Synaura. Bravo !</p>
+
+    <div style="background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.4);border-radius:12px;padding:16px;margin-bottom:20px;text-align:center">
+      <div style="font-size:13px;color:#fbbf24;margin-bottom:4px">Gagnant(e)</div>
+      <div style="font-size:18px;font-weight:700;color:#fff">${tiktokHandle}</div>
+    </div>
+
+    ${premiumBlock}
+
+    <p style="color:#cbd5e1;font-size:14px;line-height:1.6;margin:0 0 16px">Toute l'&eacute;quipe Synaura et Mixx Party te f&eacute;licite. Ta r&eacute;compense sera activ&eacute;e dans les prochaines heures. Merci pour ta performance en live !</p>
+
+    <div style="text-align:center;margin:24px 0">
+      <a href="${trackUrl}" style="display:inline-block;background:linear-gradient(90deg,#f59e0b,#ec4899);color:#fff;text-decoration:none;padding:12px 28px;border-radius:12px;font-weight:700;font-size:14px">Voir ma candidature &rarr;</a>
     </div>
   `);
 }

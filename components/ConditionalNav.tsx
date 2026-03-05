@@ -10,7 +10,8 @@ function isHiddenRoute(pathname: string | null) {
   return (
     pathname.includes('/meteo/login') ||
     pathname.includes('/meteo/dashboard') ||
-    pathname.startsWith('/auth')
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/star-academy-tiktok')
   );
 }
 
@@ -31,6 +32,7 @@ export function ConditionalNavbar() {
   if (pathname?.startsWith('/ai-generator')) return null;
   if (pathname?.startsWith('/library')) return null;
   if (pathname?.startsWith('/boosters')) return null;
+  if (pathname?.startsWith('/star-academy-tiktok')) return null;
   return <TopSearchBar />;
 }
 

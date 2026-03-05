@@ -12,7 +12,7 @@ interface Application {
   full_name: string;
   tiktok_handle: string;
   category: string;
-  status: "pending" | "reviewing" | "accepted" | "rejected";
+  status: "pending" | "reviewing" | "accepted" | "winner" | "rejected";
   synaura_username: string | null;
   tracking_token: string;
   notification_sent_at: string | null;
@@ -37,16 +37,24 @@ const STATUS_CONFIG = {
     desc: "Notre équipe écoute actuellement ton CV vocal et examine ton profil. Tu recevras une réponse bientôt.",
   },
   accepted: {
-    label: "Retenu(e) ! 🌟",
+    label: "Retenu(e) !",
     icon: "✅",
     color: "text-emerald-400",
     border: "border-emerald-500/30",
     bg: "bg-emerald-500/10",
-    desc: "Félicitations ! Ta candidature a été acceptée. Tu vas recevoir un email avec les détails de ton passage en live.",
+    desc: "Félicitations ! Ta candidature a été retenue. Tu vas participer au Live TikTok — reste disponible, un email t'indiquera la date. Tu bénéficies d'1 mois Premium Synaura.",
+  },
+  winner: {
+    label: "Gagnant(e) !",
+    icon: "★",
+    color: "text-yellow-400",
+    border: "border-yellow-500/30",
+    bg: "bg-yellow-500/10",
+    desc: "Incroyable ! Tu as remporté Star Academy TikTok × Synaura. Bravo ! Tu bénéficies de 3 mois Premium Synaura offerts.",
   },
   rejected: {
     label: "Non retenu(e)",
-    icon: "❌",
+    icon: "○",
     color: "text-white/50",
     border: "border-white/10",
     bg: "bg-white/5",
@@ -55,9 +63,10 @@ const STATUS_CONFIG = {
 };
 
 const TIMELINE_STEPS = [
-  { key: "pending",   icon: "📋", label: "Candidature reçue" },
-  { key: "reviewing", icon: "🎧", label: "En cours d'écoute" },
-  { key: "accepted",  icon: "✅", label: "Retenu(e)" },
+  { key: "pending",   icon: "○", label: "Candidature reçue" },
+  { key: "reviewing", icon: "◎", label: "En cours d'écoute" },
+  { key: "accepted",  icon: "✓", label: "Retenu(e)" },
+  { key: "winner",    icon: "★", label: "Gagnant(e)" },
 ];
 
 function getTimelineState(status: Application["status"]) {
