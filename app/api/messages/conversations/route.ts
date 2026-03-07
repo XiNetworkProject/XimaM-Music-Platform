@@ -170,7 +170,6 @@ export async function POST(request: NextRequest) {
       .insert({
         name: name || null,
         type,
-        created_by: userId,
       })
       .select()
       .single();

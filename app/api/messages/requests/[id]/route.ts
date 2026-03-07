@@ -41,7 +41,7 @@ export async function POST(
     if (action === 'accept') {
       const { data: conv, error: convError } = await supabaseAdmin
         .from('conversations')
-        .insert({ type: 'direct', created_by: req.target_id })
+        .insert({ type: 'direct' })
         .select()
         .single();
 

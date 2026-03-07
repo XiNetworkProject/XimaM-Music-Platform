@@ -158,7 +158,7 @@ async function acceptAndCreateConversation(
 ): Promise<string> {
   const { data: conv } = await supabaseAdmin
     .from('conversations')
-    .insert({ type: 'direct', created_by: userId1 })
+    .insert({ type: 'direct' })
     .select()
     .single();
 
