@@ -50,7 +50,7 @@ export async function GET(
       readMap.set(r.message_id, arr);
     });
 
-    const senderIds = [...new Set((rawMessages || []).map((m) => m.sender_id))];
+    const senderIds = Array.from(new Set((rawMessages || []).map((m) => m.sender_id)));
     const profileMap = new Map<string, any>();
 
     for (const sid of senderIds) {
