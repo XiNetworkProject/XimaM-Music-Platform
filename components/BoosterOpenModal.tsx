@@ -15,547 +15,388 @@ interface BoosterOpenModalProps {
   item?: { inventoryId: string; booster: InventoryItem['booster'] } | null;
 }
 
-export default function BoosterOpenModal({ 
-  isOpen, 
-  onClose, 
-  onOpenBooster, 
-  isOpening = false, 
-  openedBooster,
-  item
+type Phase = 'idle' | 'anticipation' | 'buildup' | 'explosion' | 'revealed';
+
+const RARITY_CFG = {
+  common: { gradient: 'from-zinc-400 to-zinc-600', color: '#a1a1aa', particles: '#a1a1aa', icon: Sparkles, label: 'Commun', glowColor: 'rgba(161,161,170,0.4)' },
+  rare: { gradient: 'from-blue-400 to-indigo-600', color: '#60a5fa', particles: '#60a5fa', icon: Star, label: 'Rare', glowColor: 'rgba(96,165,250,0.5)' },
+  epic: { gradient: 'from-purple-400 to-fuchsia-600', color: '#a855f7', particles: '#a855f7', icon: Crown, label: 'Epique', glowColor: 'rgba(168,85,247,0.5)' },
+  legendary: { gradient: 'from-amber-400 via-orange-500 to-red-500', color: '#f59e0b', particles: '#f59e0b', icon: Gem, label: 'Legendaire', glowColor: 'rgba(245,158,11,0.6)' },
+} as const;
+
+const KEYFRAMES = `
+  @keyframes bo-converge {
+    0% { opacity: 0; transform: translate(var(--sx), var(--sy)) scale(0.5); }
+    80% { opacity: 1; }
+    100% { opacity: 0; transform: translate(0, 0) scale(0); }
+  }
+  @keyframes bo-crack-pulse {
+    0%, 100% { opacity: 0.3; filter: blur(2px); }
+    50% { opacity: 1; filter: blur(0); }
+  }
+  @keyframes bo-shake {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-4px, -2px); }
+    20% { transform: translate(3px, 3px); }
+    30% { transform: translate(-3px, 1px); }
+    40% { transform: translate(4px, -3px); }
+    50% { transform: translate(-2px, 4px); }
+    60% { transform: translate(3px, -2px); }
+    70% { transform: translate(-4px, 3px); }
+    80% { transform: translate(2px, -4px); }
+    90% { transform: translate(-3px, 2px); }
+  }
+  @keyframes bo-flash {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes bo-foil {
+    0% { transform: translateX(-150%) rotate(25deg); }
+    100% { transform: translateX(250%) rotate(25deg); }
+  }
+  @keyframes bo-burst {
+    0% { transform: scale(0); opacity: 1; }
+    100% { transform: scale(3); opacity: 0; }
+  }
+  @keyframes bo-descend {
+    0% { transform: translateY(-60px) scale(0.8); opacity: 0; filter: blur(8px); }
+    100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+  }
+`;
+
+export default function BoosterOpenModal({
+  isOpen, onClose, onOpenBooster, isOpening = false, openedBooster, item
 }: BoosterOpenModalProps) {
-  const [phase, setPhase] = useState<'idle' | 'shaking' | 'opening' | 'revealed' | 'tearing'>('idle');
-  const [isHovered, setIsHovered] = useState(false);
-  const [viewport, setViewport] = useState({ w: 800, h: 600 });
+  const [phase, setPhase] = useState<Phase>('idle');
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) {
-      setPhase('idle');
-      return;
-    }
-    
-    // Si on a déjà un booster ouvert, aller directement à la phase révélée
-    if (openedBooster || item) {
-      setPhase('revealed');
-    } else {
-      setPhase('idle');
-    }
+    if (!isOpen) { setPhase('idle'); return; }
+    if (openedBooster || item) setPhase('revealed');
+    else setPhase('idle');
   }, [isOpen, openedBooster, item]);
 
-  const handleOpenBooster = async () => {
+  const handleOpen = async () => {
     if (!onOpenBooster) return;
-    
-    // Effet de vibration simulé
-    if (navigator.vibrate) {
-      navigator.vibrate([100, 50, 100, 50, 200]);
-    }
-    
-    setPhase('shaking');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setPhase('tearing');
-    await new Promise(resolve => setTimeout(resolve, 800));
-    setPhase('opening');
-    await new Promise(resolve => setTimeout(resolve, 1200));
+    if (navigator.vibrate) navigator.vibrate([50, 30, 50, 30, 100, 50, 200]);
+
+    setPhase('anticipation');
+    await new Promise(r => setTimeout(r, 1500));
+    setPhase('buildup');
+
+    onOpenBooster();
+
+    await new Promise(r => setTimeout(r, 1500));
+    setPhase('explosion');
+    await new Promise(r => setTimeout(r, 600));
     setPhase('revealed');
-    
-    // Déclencher l'ouverture du booster
-    await onOpenBooster();
   };
 
-  const rarityConfig = useMemo(() => {
-    const r = openedBooster?.booster?.rarity || item?.booster?.rarity || 'common';
-    const configs = {
-      common: {
-        gradient: 'from-zinc-400 via-zinc-500 to-zinc-600',
-        glow: 'shadow-zinc-500/50',
-        icon: Sparkles,
-        particles: 'bg-zinc-400',
-        name: 'Booster Commun'
-      },
-      rare: {
-        gradient: 'from-sky-400 via-blue-500 to-indigo-600',
-        glow: 'shadow-blue-500/60',
-        icon: Star,
-        particles: 'bg-blue-400',
-        name: 'Booster Rare'
-      },
-      epic: {
-        gradient: 'from-fuchsia-400 via-purple-500 to-indigo-600',
-        glow: 'shadow-purple-500/70',
-        icon: Crown,
-        particles: 'bg-purple-400',
-        name: 'Booster Épique'
-      },
-      legendary: {
-        gradient: 'from-yellow-400 via-orange-500 to-red-600',
-        glow: 'shadow-orange-500/80',
-        icon: Gem,
-        particles: 'bg-yellow-400',
-        name: 'Booster Légendaire'
-      }
-    };
-    return configs[r as keyof typeof configs] || configs.common;
-  }, [openedBooster?.booster?.rarity, item?.booster?.rarity]);
+  const rarity = (openedBooster?.booster?.rarity || item?.booster?.rarity || 'common') as keyof typeof RARITY_CFG;
+  const cfg = RARITY_CFG[rarity];
+  const Icon = cfg.icon;
+  const boosterData = openedBooster?.booster || item?.booster;
 
-  const RarityIcon = rarityConfig.icon;
-  const rarityKey = (openedBooster?.booster?.rarity || item?.booster?.rarity || 'common') as string;
-  const isFoil = rarityKey !== 'common';
-  const isLegendary = rarityKey === 'legendary';
+  const particles = useMemo(() =>
+    Array.from({ length: 60 }, (_, i) => ({
+      id: i,
+      angle: (i / 60) * Math.PI * 2,
+      dist: 100 + Math.random() * 300,
+      size: 2 + Math.random() * 4,
+      delay: Math.random() * 0.3,
+    })), []);
+
+  const convergeParticles = useMemo(() =>
+    Array.from({ length: 24 }, (_, i) => ({
+      id: i,
+      sx: (Math.random() - 0.5) * 600,
+      sy: (Math.random() - 0.5) * 600,
+      dur: 1.5 + Math.random() * 1,
+      delay: Math.random() * 1.5,
+      size: 2 + Math.random() * 3,
+    })), []);
+
+  const crackLines = useMemo(() =>
+    Array.from({ length: 8 }, (_, i) => ({
+      id: i,
+      angle: (i / 8) * 360,
+      length: 30 + Math.random() * 50,
+      width: 1 + Math.random() * 2,
+    })), []);
 
   return (
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md"
+          className="fixed inset-0 z-[200] flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
+          style={{ background: 'rgba(0,0,0,0.9)' }}
         >
-          {/* Fond avec particules flottantes */}
-          <div className="absolute inset-0 overflow-hidden">
-            {Array.from({ length: 20 }).map((_, i) => (
-              <motion.div
-                key={i}
-                className={`absolute w-1 h-1 ${rarityConfig.particles} rounded-full opacity-60`}
-                initial={{
-                  x: Math.random() * viewport.w,
-                  y: Math.random() * viewport.h,
-                  scale: 0
-                }}
-                animate={{
-                  y: [null, -100],
-                  scale: [0, 1, 0],
-                  opacity: [0, 1, 0]
-                }}
-                transition={{
-                  duration: 3 + Math.random() * 2,
-                  repeat: Infinity,
-                  delay: Math.random() * 2
-                }}
-              />
-            ))}
-          </div>
+          <style>{KEYFRAMES}</style>
 
-          <div className="absolute inset-0" onClick={onClose} />
-          
+          {/* Screen shake on explosion */}
           <motion.div
-            className="relative w-[95vw] max-w-[400px]"
-            initial={{ scale: 0.8, opacity: 0, y: 50 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.8, opacity: 0, y: 50 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+            className="absolute inset-0 flex items-center justify-center"
+            animate={phase === 'explosion' ? { x: [0, -6, 6, -4, 4, -2, 2, 0], y: [0, 4, -4, 2, -2, 3, -3, 0] } : {}}
+            transition={{ duration: 0.4 }}
           >
-            <button
-              onClick={onClose}
-              className="absolute -top-12 right-0 text-white/80 hover:text-white z-10"
-              aria-label="Fermer"
-            >
-              <X className="w-7 h-7" />
-            </button>
 
-            {/* Carte 3D avec effets avancés */}
-            <motion.div
-              className={`relative aspect-[3/4] rounded-3xl p-2 bg-gradient-to-br ${rarityConfig.gradient} ${rarityConfig.glow} shadow-2xl shadow-[0_25px_60px_rgba(0,0,0,0.55)]`}
-              animate={
-                phase === 'shaking'
-                  ? { 
-                      rotateZ: [0, -5, 5, 0],
-                      scale: [1, 1.05, 1],
-                      x: [0, -3, 3, 0],
-                      y: [0, -2, 2, 0]
-                    }
-                  : phase === 'tearing'
-                  ? { 
-                      scale: [1, 1.3],
-                      rotateY: [0, 20],
-                      rotateX: [0, -20],
-                      rotateZ: [0, 5]
-                    }
-                  : phase === 'opening'
-                  ? { 
-                      rotateY: [0, 180],
-                      scale: [1.3, 1.5],
-                      z: [0, 200],
-                      rotateX: [0, -30],
-                      rotateZ: [0, 10]
-                    }
-                  : phase === 'revealed'
-                  ? { 
-                      rotateY: 180,
-                      scale: 1.15,
-                      y: -15,
-                      rotateX: -5
-                    }
-                  : { 
-                      rotateY: isHovered ? -6 : 0,
-                      scale: isHovered ? 1.08 : 1,
-                      y: 0,
-                      rotateX: isHovered ? -3 : 0,
-                      rotateZ: 0
-                    }
-              }
-              transition={{ 
-                duration: phase === 'shaking' ? 0.6 : phase === 'tearing' ? 0.7 : phase === 'opening' ? 1.0 : 0.8,
-                repeat: phase === 'shaking' ? Infinity : 0,
-                type: 'tween',
-                ease: 'easeInOut'
-              }}
-              style={{ 
-                transformStyle: 'preserve-3d',
-                perspective: '1000px'
-              }}
-              onHoverStart={() => setIsHovered(true)}
-              onHoverEnd={() => setIsHovered(false)}
-            >
-              {/* Face avant - Booster fermé */}
-              <motion.div 
-                className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-black/80 via-black/70 to-black/80 border border-white/20 flex flex-col items-center justify-center overflow-hidden shadow-[inset_0_24px_60px_rgba(255,255,255,0.06),inset_0_-24px_60px_rgba(0,0,0,0.45)]"
-                style={{ backfaceVisibility: 'hidden' }}
-                animate={{
-                  background: phase === 'shaking' 
-                    ? ['from-black/80', 'from-red-900/60', 'from-black/80']
-                    : phase === 'tearing'
-                    ? ['from-black/80', 'from-yellow-900/40', 'from-black/80']
-                    : 'from-black/80'
-                }}
-                transition={{ duration: 0.3, repeat: phase === 'shaking' || phase === 'tearing' ? Infinity : 0 }}
-              >
-                {/* Bandeau Synaura */}
-                <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-r from-purple-600/70 via-pink-600/70 to-fuchsia-600/70 backdrop-blur-md border-b border-white/10 flex items-center justify-center">
-                  <div className="text-white/90 text-sm font-semibold tracking-wider">Synaura Booster</div>
-                </div>
-
-                {/* Texturing overlay */}
-                <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
-
-                {/* Sheen spécial légendaire (face avant) */}
-                {isLegendary && (
-                  <motion.div
-                    className="pointer-events-none absolute -inset-1 rotate-12"
-                    initial={{ x: '-150%', opacity: 0.0 }}
-                    animate={{ x: phase === 'revealed' ? '150%' : '150%', opacity: 0.18 }}
-                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+            {/* Phase: anticipation — converging particles */}
+            {(phase === 'anticipation' || phase === 'buildup') && (
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                {convergeParticles.map(p => (
+                  <div
+                    key={p.id}
+                    className="absolute left-1/2 top-1/2 rounded-full"
                     style={{
-                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.0) 30%, rgba(255,255,255,0.35) 50%, rgba(255,255,255,0.0) 70%, transparent 100%)'
+                      width: p.size,
+                      height: p.size,
+                      background: phase === 'buildup' ? cfg.color : 'rgba(255,255,255,0.6)',
+                      // @ts-expect-error CSS custom props
+                      '--sx': `${p.sx}px`,
+                      '--sy': `${p.sy}px`,
+                      animation: `bo-converge ${p.dur}s ease-in ${p.delay}s infinite`,
                     }}
                   />
-                )}
-                {/* Bandeau Synaura */}
-                <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-r from-purple-600/70 via-pink-600/70 to-fuchsia-600/70 backdrop-blur-md border-b border-white/10 flex items-center justify-center">
-                  <div className="text-white/90 text-sm font-semibold tracking-wider">Synaura Booster</div>
-                </div>
+                ))}
+              </div>
+            )}
 
-                {/* Texturing overlay */}
-                <div className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
-                {/* Effet de déchirement */}
-                {phase === 'tearing' && (
+            {/* Flash on explosion */}
+            {phase === 'explosion' && (
+              <div className="absolute inset-0 pointer-events-none z-30" style={{ background: 'white', animation: 'bo-flash 0.6s ease-out forwards' }} />
+            )}
+
+            {/* Explosion particles */}
+            {phase === 'explosion' && (
+              <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center overflow-hidden">
+                {particles.map(p => (
                   <motion.div
-                    className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                    initial={{ x: '-100%', opacity: 0 }}
-                    animate={{ x: '100%', opacity: [0, 1, 0] }}
-                    transition={{ duration: 0.8, ease: 'easeInOut' }}
+                    key={p.id}
+                    className="absolute rounded-full"
+                    style={{ width: p.size, height: p.size, background: cfg.particles, boxShadow: `0 0 ${p.size * 2}px ${cfg.particles}` }}
+                    initial={{ x: 0, y: 0, opacity: 1, scale: 1 }}
+                    animate={{ x: Math.cos(p.angle) * p.dist, y: Math.sin(p.angle) * p.dist, opacity: 0, scale: 0 }}
+                    transition={{ duration: 1.2, delay: p.delay, ease: 'easeOut' }}
                   />
-                )}
-                
-                <motion.div
-                  animate={{
-                    scale: phase === 'shaking' ? [1, 1.15, 1] : phase === 'tearing' ? [1, 1.2, 1] : 1,
-                    rotate: phase === 'shaking' ? [0, 8, -8, 0] : phase === 'tearing' ? [0, 15, -15, 0] : 0
-                  }}
-                  transition={{ duration: 0.3, repeat: phase === 'shaking' || phase === 'tearing' ? Infinity : 0, type: 'tween' }}
-                  className="flex flex-col items-center gap-4"
-                >
-                  <div style={{ transform: 'translateZ(18px)' }}>
-                  <motion.div
-                    animate={{ 
-                      rotate: phase === 'shaking' ? [0, 360] : phase === 'tearing' ? [0, 720] : 0,
-                      scale: phase === 'shaking' ? [1, 1.3, 1] : phase === 'tearing' ? [1, 1.5, 1] : 1,
-                      filter: phase === 'tearing' ? ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] : 'brightness(1)'
-                    }}
-                    transition={{ duration: 0.5, repeat: phase === 'shaking' || phase === 'tearing' ? Infinity : 0, type: 'tween' }}
-                  >
-                    <Zap className="w-16 h-16 text-white drop-shadow-lg" />
-                  </motion.div>
+                ))}
+                {/* Burst ring */}
+                <div className="absolute rounded-full border-2" style={{ width: 80, height: 80, borderColor: cfg.color, animation: 'bo-burst 0.8s ease-out forwards' }} />
+              </div>
+            )}
+
+            {/* Close button */}
+            <button onClick={onClose} className="absolute top-6 right-6 z-40 text-white/50 hover:text-white transition" aria-label="Fermer"><X className="w-7 h-7" /></button>
+
+            {/* Background click */}
+            <div className="absolute inset-0 z-0" onClick={phase === 'revealed' ? onClose : undefined} />
+
+            {/* ═══ IDLE / ANTICIPATION / BUILDUP — Card front ═══ */}
+            {(phase === 'idle' || phase === 'anticipation' || phase === 'buildup') && (
+              <motion.div
+                className="relative z-10 w-[240px] sm:w-[280px]"
+                animate={
+                  phase === 'anticipation'
+                    ? { scale: [1, 1.02, 1], rotate: [0, -1, 1, 0] }
+                    : phase === 'buildup'
+                    ? {} : {}
+                }
+                transition={phase === 'anticipation' ? { duration: 1, repeat: Infinity } : {}}
+                style={phase === 'buildup' ? { animation: 'bo-shake 0.15s linear infinite' } : undefined}
+              >
+                {/* Glow behind */}
+                <div className="absolute inset-0 -inset-x-8 -inset-y-8 rounded-3xl pointer-events-none" style={{
+                  background: `radial-gradient(ellipse, ${phase === 'buildup' ? cfg.glowColor : 'rgba(124,58,237,0.3)'} 0%, transparent 70%)`,
+                  filter: 'blur(20px)',
+                  opacity: phase === 'buildup' ? 0.9 : phase === 'anticipation' ? 0.6 : 0.3,
+                  transition: 'opacity 0.5s',
+                }} />
+
+                {/* Card */}
+                <div className="relative aspect-[3/4] rounded-2xl border border-violet-500/30 bg-gradient-to-br from-[#0f0a20] to-[#1a0a2e] overflow-hidden shadow-2xl shadow-violet-500/20">
+                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 to-pink-600/10" />
+
+                  {/* Header */}
+                  <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-r from-violet-600/50 to-pink-600/50 flex items-center justify-center border-b border-white/10">
+                    <span className="text-[11px] font-bold text-white/80 uppercase tracking-widest">Synaura Booster</span>
                   </div>
-                  
-                  <div className="text-center mt-8">
-                    <motion.div 
-                      className="text-white text-xl font-bold mb-2"
-                    animate={{
-                      color: phase === 'tearing' ? ['#ffffff', '#ffd700', '#ffffff'] : '#ffffff'
-                    }}
-                    transition={{ duration: 0.3, repeat: phase === 'tearing' ? Infinity : 0, type: 'tween' }}
+
+                  {/* Noise texture */}
+                  <div className="absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence baseFrequency=\'0.9\' numOctaves=\'3\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")' }} />
+
+                  {/* Center icon */}
+                  <div className="h-full flex items-center justify-center">
+                    <motion.div
+                      animate={phase === 'buildup' ? { scale: [1, 1.3, 1], rotate: [0, 360] } : phase === 'anticipation' ? { scale: [1, 1.1, 1] } : {}}
+                      transition={{ duration: phase === 'buildup' ? 0.4 : 2, repeat: Infinity }}
                     >
-                      Booster Synaura
+                      <Zap className="w-16 h-16 text-violet-400/70 drop-shadow-lg" />
                     </motion.div>
-                    <div className="text-white/70 text-sm mb-4">Mystère à découvrir</div>
-                    
-                    {phase === 'idle' && (
-                      <motion.button
-                        onClick={handleOpenBooster}
-                        disabled={isOpening}
-                        className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-xl hover:from-purple-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-purple-500/50 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        {isOpening ? 'Ouverture...' : 'Ouvrir le booster'}
-                      </motion.button>
-                    )}
                   </div>
 
-                {/* Logo Synaura en bas (face avant) */}
-                <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center" style={{ transform: 'rotateY(0deg)' }}>
-                  <div className="px-2 py-1 rounded-md bg-white/10 border border-white/20 backdrop-blur-sm flex items-center gap-2">
-                    <Image src="/synaura_symbol.svg" alt="Synaura" width={18} height={18} />
+                  {/* Crack lines during buildup */}
+                  {phase === 'buildup' && (
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      {crackLines.map(c => (
+                        <div key={c.id} className="absolute" style={{
+                          width: c.width,
+                          height: c.length,
+                          background: `linear-gradient(to bottom, ${cfg.color}, transparent)`,
+                          transformOrigin: 'center top',
+                          transform: `rotate(${c.angle}deg)`,
+                          animation: 'bo-crack-pulse 0.5s ease-in-out infinite',
+                          animationDelay: `${c.id * 0.1}s`,
+                        }} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Bottom text */}
+                  <div className="absolute bottom-4 left-0 right-0 text-center">
+                    <div className="text-xs text-white/40">Mystere a decouvrir</div>
+                  </div>
+
+                  {/* Foil sweep */}
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.06) 45%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 55%, transparent 60%)', animation: 'bo-foil 3s ease-in-out infinite' }} />
+                  </div>
+
+                  {/* Synaura logo */}
+                  <div className="absolute bottom-1.5 left-0 right-0 flex items-center justify-center">
+                    <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10">
+                      <Image src="/synaura_symbol.svg" alt="" width={14} height={14} style={{ filter: 'brightness(0) invert(1) opacity(0.4)' }} />
+                    </div>
                   </div>
                 </div>
+
+                {/* CTA button */}
+                {phase === 'idle' && (
+                  <motion.button
+                    onClick={handleOpen}
+                    disabled={isOpening}
+                    className="mt-6 w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:from-violet-500 hover:to-pink-500 disabled:opacity-40 transition-all shadow-lg shadow-violet-500/30"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    {isOpening ? 'Ouverture...' : 'Ouvrir le booster'}
+                  </motion.button>
+                )}
+              </motion.div>
+            )}
+
+            {/* ═══ REVEALED — Result card ═══ */}
+            {phase === 'revealed' && boosterData && (
+              <motion.div
+                className="relative z-10 w-[260px] sm:w-[300px]"
+                style={{ animation: 'bo-descend 0.8s ease-out forwards' }}
+              >
+                {/* Persistent glow */}
+                <div className="absolute -inset-10 rounded-3xl pointer-events-none" style={{
+                  background: `radial-gradient(ellipse, ${cfg.glowColor} 0%, transparent 60%)`,
+                  filter: 'blur(30px)',
+                }} />
+
+                {/* Revealed card */}
+                <div className={`relative aspect-[3/4] rounded-2xl border bg-gradient-to-br from-[#0a0a15]/90 to-[#0a0a15]/80 overflow-hidden shadow-2xl`}
+                  style={{ borderColor: cfg.color + '40' }}>
+
+                  {/* Gradient accent top */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${cfg.gradient}`} />
+
+                  {/* Foil for rare+ */}
+                  {rarity !== 'common' && (
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.08) 42%, rgba(255,255,255,0.2) 50%, rgba(255,255,255,0.08) 58%, transparent 65%)', animation: 'bo-foil 2.5s ease-in-out infinite' }} />
+                    </div>
+                  )}
+
+                  {/* Holographic shimmer for legendary */}
+                  {rarity === 'legendary' && (
+                    <motion.div className="absolute inset-0 pointer-events-none"
+                      animate={{ background: ['conic-gradient(from 0deg, rgba(255,200,0,0.05), rgba(255,100,0,0.05), rgba(255,200,0,0.05))', 'conic-gradient(from 120deg, rgba(255,200,0,0.05), rgba(255,100,0,0.05), rgba(255,200,0,0.05))', 'conic-gradient(from 240deg, rgba(255,200,0,0.05), rgba(255,100,0,0.05), rgba(255,200,0,0.05))'] }}
+                      transition={{ duration: 3, repeat: Infinity }} />
+                  )}
+
+                  {/* Header */}
+                  <div className="absolute top-0 left-0 right-0 h-9 bg-gradient-to-r from-white/5 to-white/[0.02] flex items-center justify-center border-b border-white/5">
+                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Synaura</span>
+                  </div>
+
+                  {/* Content */}
+                  <div className="h-full flex flex-col items-center justify-center p-6 pt-12 text-center gap-3">
+                    {/* Rarity badge */}
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                    >
+                      <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white/5`} style={{ borderColor: cfg.color + '40' }}>
+                        <Icon className="w-3.5 h-3.5" style={{ color: cfg.color }} />
+                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: cfg.color }}>{cfg.label}</span>
+                      </div>
+                    </motion.div>
+
+                    {/* Icon */}
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.4, type: 'spring' }}
+                      className="relative"
+                    >
+                      <div className="absolute inset-0 rounded-full blur-2xl" style={{ background: cfg.glowColor, transform: 'scale(2.5)' }} />
+                      <Icon className="relative w-16 h-16" style={{ color: cfg.color, filter: `drop-shadow(0 0 12px ${cfg.color})` }} />
+                    </motion.div>
+
+                    {/* Name */}
+                    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="space-y-1">
+                      <div className="text-xl font-black text-white">{boosterData.name}</div>
+                      <div className="text-xs text-white/40 max-w-[85%] mx-auto">{boosterData.description}</div>
+                    </motion.div>
+
+                    {/* Stats */}
+                    <motion.div
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.8 }}
+                      className="flex items-center gap-4 mt-2"
+                    >
+                      <div className="text-center">
+                        <motion.div
+                          className="text-2xl font-black text-emerald-400"
+                          animate={{ scale: [1, 1.1, 1] }}
+                          transition={{ duration: 1.5, repeat: Infinity }}
+                        >
+                          x{boosterData.multiplier?.toFixed(2)}
+                        </motion.div>
+                        <div className="text-[10px] text-white/30">Multiplicateur</div>
+                      </div>
+                      <div className="w-px h-8 bg-white/10" />
+                      <div className="text-center">
+                        <div className="text-2xl font-black text-white">{boosterData.duration_hours}h</div>
+                        <div className="text-[10px] text-white/30">Duree</div>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Synaura logo */}
+                  <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center">
+                    <Image src="/synaura_symbol.svg" alt="" width={14} height={14} style={{ filter: 'brightness(0) invert(1) opacity(0.2)' }} />
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="mt-5 flex gap-2">
+                  <button onClick={onClose} className="flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:opacity-90 transition">
+                    Fermer
+                  </button>
                 </motion.div>
               </motion.div>
-
-              {/* Face arrière - Récompense révélée */}
-              <motion.div 
-                className="absolute inset-0 rounded-[20px] bg-gradient-to-br from-black/90 via-black/80 to-black/90 border border-white/30 p-6 overflow-hidden shadow-[inset_0_24px_60px_rgba(255,255,255,0.05),inset_0_-24px_60px_rgba(0,0,0,0.45)]"
-                style={{ transform: 'rotateY(180deg)', backfaceVisibility: 'hidden' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: phase === 'revealed' ? 1 : 0 }}
-              >
-                {/* Sheen spécial légendaire (face arrière) */}
-                {isLegendary && (
-                  <motion.div
-                    className="pointer-events-none absolute -inset-1 -rotate-12"
-                    initial={{ x: '-150%', opacity: 0.0 }}
-                    animate={{ x: '150%', opacity: 0.22 }}
-                    transition={{ duration: 2.0, repeat: Infinity, ease: 'easeInOut' }}
-                    style={{
-                      background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.0) 30%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0.0) 70%, transparent 100%)'
-                    }}
-                  />
-                )}
-                {/* Effet foil (reflet métal) pour rare/épique/légendaire */}
-                {isFoil && (
-                  <motion.div
-                    className="pointer-events-none absolute inset-0"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: phase === 'revealed' ? 0.35 : 0 }}
-                    style={{
-                      background: 'conic-gradient(from 180deg at 50% 50%, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.25) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.25) 75%, rgba(255,255,255,0.05) 100%)',
-                      mixBlendMode: 'screen'
-                    }}
-                  />
-                )}
-                {/* Bandeau Synaura */}
-                <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-r from-purple-600/60 via-pink-600/60 to-fuchsia-600/60 backdrop-blur-md border-b border-white/10 flex items-center justify-center">
-                  <div className="text-white/90 text-xs font-semibold tracking-wider">Synaura</div>
-                </div>
-
-                {/* Texturing overlay */}
-                <div className="pointer-events-none absolute inset-0 opacity-[0.06] mix-blend-overlay" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'160\' height=\'160\' viewBox=\'0 0 160 160\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.8\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\' opacity=\'0.5\'/%3E%3C/svg%3E")' }} />
-                {/* Effet de brillance */}
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent"
-                  initial={{ x: '-100%', opacity: 0 }}
-                  animate={{ 
-                    x: phase === 'revealed' ? ['100%', '-100%'] : '-100%',
-                    opacity: phase === 'revealed' ? [0, 1, 0] : 0
-                  }}
-                  transition={{ duration: 2, repeat: phase === 'revealed' ? Infinity : 0, repeatDelay: 3, type: 'tween' }}
-                />
-                
-                <div className="h-full flex flex-col items-center justify-center text-center gap-4">
-                  <motion.div
-                    initial={{ scale: 0, rotate: -180 }}
-                    animate={{ 
-                      scale: phase === 'revealed' ? 1 : 0, 
-                      rotate: phase === 'revealed' ? 0 : -180,
-                      filter: phase === 'revealed' ? ['brightness(1)', 'brightness(1.5)', 'brightness(1)'] : 'brightness(1)'
-                    }}
-                    transition={{ delay: 0.3, type: 'tween', ease: 'easeOut' }}
-                  >
-                    <RarityIcon className={`w-20 h-20 ${rarityConfig.particles.replace('bg-', 'text-')} drop-shadow-2xl`} />
-                  </motion.div>
-                  
-                  <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: phase === 'revealed' ? 0 : 20, opacity: phase === 'revealed' ? 1 : 0 }}
-                    transition={{ delay: 0.5 }}
-                    className="space-y-2"
-                  >
-                    <motion.div 
-                      className="text-xs uppercase tracking-wider text-white/60 font-semibold"
-                    animate={{
-                      color: phase === 'revealed' ? ['#ffffff60', '#ffd700', '#ffffff60'] : '#ffffff60'
-                    }}
-                    transition={{ duration: 2, repeat: Infinity, repeatDelay: 1, type: 'tween' }}
-                    >
-                      {rarityConfig.name}
-                    </motion.div>
-                    <motion.div 
-                      className="text-white text-2xl font-bold"
-                    animate={{
-                      scale: phase === 'revealed' ? [1, 1.05, 1] : 1,
-                      textShadow: phase === 'revealed' ? ['0 0 0px', '0 0 20px', '0 0 0px'] : '0 0 0px'
-                    }}
-                    transition={{ duration: 1, repeat: Infinity, type: 'tween' }}
-                    >
-                      {openedBooster?.booster?.name || item?.booster?.name || 'Booster'}
-                    </motion.div>
-                    <div className="text-white/80 text-sm max-w-[80%] mx-auto">
-                      {openedBooster?.booster?.description || item?.booster?.description || 'Récompense obtenue !'}
-                    </div>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: phase === 'revealed' ? 1 : 0 }}
-                    transition={{ delay: 0.7, type: 'tween', ease: 'easeOut' }}
-                    className="bg-white/10 rounded-xl p-4 w-full backdrop-blur-sm border border-white/20"
-                  >
-                    <div className="text-white/90 text-sm mb-1">Multiplicateur</div>
-                    <motion.div 
-                      className="text-white text-xl font-bold"
-                    animate={{
-                      scale: phase === 'revealed' ? [1, 1.1, 1] : 1,
-                      color: phase === 'revealed' ? ['#ffffff', '#00ff88', '#ffffff'] : '#ffffff'
-                    }}
-                    transition={{ duration: 1.5, repeat: Infinity, type: 'tween' }}
-                    >
-                      x{openedBooster?.booster?.multiplier?.toFixed(2) || item?.booster?.multiplier?.toFixed(2) || '1.00'}
-                    </motion.div>
-                    <div className="text-white/70 text-xs mt-1">
-                      Durée: {openedBooster?.booster?.duration_hours || item?.booster?.duration_hours || 6}h
-                    </div>
-                  </motion.div>
-                </div>
-                  </motion.div>
-
-                {/* Logo Synaura en bas (face arrière) - garder lisible après flip */}
-                <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center" style={{ transform: 'rotateY(180deg)' }}>
-                  <div className="px-2 py-1 rounded-md bg-white/10 border border-white/20 backdrop-blur-sm flex items-center gap-2">
-                    <Image src="/synaura_symbol.svg" alt="Synaura" width={18} height={18} />
-                  </div>
-                </div>
-              {/* Épaisseur simulée (arêtes) */}
-              <div className="pointer-events-none absolute -right-1 top-3 bottom-3 w-2 rounded-r-2xl bg-gradient-to-b from-white/30 via-white/10 to-black/40 opacity-60" />
-              <div className="pointer-events-none absolute left-3 right-3 -bottom-1 h-2 rounded-b-2xl bg-gradient-to-r from-black/45 via-black/20 to-black/45 opacity-70" />
-            </motion.div>
-
-            {/* Effets de particules lors de la révélation */}
-            <AnimatePresence>
-              {phase === 'revealed' && (
-                <motion.div
-                  className="pointer-events-none absolute inset-0 flex items-center justify-center"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                >
-                  {/* Explosion de particules */}
-                  {[...Array(50)].map((_, i) => (
-                    <motion.div
-                      key={i}
-                      className={`absolute w-3 h-3 ${rarityConfig.particles} rounded-full shadow-lg`}
-                      initial={{
-                        x: 0,
-                        y: 0,
-                        scale: 0,
-                        opacity: 1,
-                        rotate: 0
-                      }}
-                      animate={{
-                        x: (Math.random() - 0.5) * 600,
-                        y: (Math.random() - 0.5) * 600,
-                        scale: [0, 1.5, 0],
-                        opacity: [1, 1, 0],
-                        rotate: [0, 360]
-                      }}
-                      transition={{
-                        duration: 2,
-                        delay: i * 0.01,
-                        ease: 'easeOut'
-                      }}
-                    />
-                  ))}
-                  
-                  {/* Particules en spirale */}
-                  {[...Array(20)].map((_, i) => (
-                    <motion.div
-                      key={`spiral-${i}`}
-                      className={`absolute w-2 h-2 ${rarityConfig.particles} rounded-full`}
-                      initial={{
-                        x: 0,
-                        y: 0,
-                        scale: 0,
-                        opacity: 1
-                      }}
-                      animate={{
-                        x: Math.cos(i * 0.3) * 300,
-                        y: Math.sin(i * 0.3) * 300,
-                        scale: [0, 1, 0],
-                        opacity: [1, 1, 0]
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        delay: i * 0.05,
-                        ease: 'easeOut'
-                      }}
-                    />
-                  ))}
-                  
-                  {/* Halo lumineux */}
-                  <motion.div
-                    className="absolute inset-0 rounded-3xl opacity-30"
-                    style={{
-                      background: `radial-gradient(circle, ${rarityConfig.particles.replace('bg-', '')} 0%, transparent 70%)`
-                    }}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 3, opacity: [0, 1, 0] }}
-                    transition={{ duration: 2.5, ease: 'easeOut' }}
-                  />
-                  
-                  {/* Rayons de lumière */}
-                  {[...Array(8)].map((_, i) => (
-                    <motion.div
-                      key={`ray-${i}`}
-                      className="absolute w-1 h-32 opacity-60"
-                      style={{
-                        background: `linear-gradient(to bottom, ${rarityConfig.particles.replace('bg-', '')}, transparent)`,
-                        transformOrigin: 'bottom center',
-                        left: '50%',
-                        top: '50%',
-                        marginLeft: '-0.5px',
-                        marginTop: '-64px'
-                      }}
-                      initial={{ 
-                        rotate: i * 45,
-                        scaleY: 0,
-                        opacity: 0
-                      }}
-                      animate={{ 
-                        rotate: i * 45,
-                        scaleY: [0, 1, 0],
-                        opacity: [0, 1, 0]
-                      }}
-                      transition={{
-                        duration: 1.5,
-                        delay: 0.5 + i * 0.1,
-                        ease: 'easeOut'
-                      }}
-                    />
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
+            )}
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
   );
 }
-
-
