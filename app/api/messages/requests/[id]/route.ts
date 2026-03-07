@@ -57,10 +57,11 @@ export async function POST(
 
       if (req.message) {
         await supabaseAdmin.from('messages').insert({
+          id: crypto.randomUUID(),
           conversation_id: conv.id,
           sender_id: req.requester_id,
           content: req.message,
-          message_type: 'text',
+          is_read: false,
         });
       }
 

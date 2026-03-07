@@ -69,9 +69,9 @@ export async function GET(
         sender: profile
           ? { _id: profile.id, name: profile.name, username: profile.username, avatar: profile.avatar }
           : { _id: m.sender_id, name: 'Utilisateur', username: 'user' },
-        type: m.message_type || 'text',
+        type: 'text',
         content: m.content,
-        mediaUrl: m.media_url,
+        mediaUrl: null,
         seenBy: [m.sender_id, ...(readMap.get(m.id) || [])],
         createdAt: m.created_at,
       };
@@ -113,22 +113,15 @@ export async function POST(
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });
     }
 
-    const insertData: any = {
-      conversation_id: conversationId,
-      sender_id: session.user.id,
-      content: content.trim(),
-      message_type: type,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    if (type !== 'text' && content.startsWith('http')) {
-      insertData.media_url = content;
-    }
-
     const { data: message, error: msgError } = await supabase
       .from('messages')
-      .insert(insertData)
+      .insert({
+        id: crypto.randomUUID(),
+        conversation_id: conversationId,
+        sender_id: session.user.id,
+        content: content.trim(),
+        is_read: false,
+      })
       .select()
       .single();
 
@@ -154,7 +147,7 @@ export async function POST(
         sender: profile
           ? { _id: profile.id, name: profile.name, username: profile.username, avatar: profile.avatar }
           : { _id: session.user.id, name: 'Vous', username: 'user' },
-        type: message.message_type || 'text',
+        type: type || 'text',
         content: message.content,
         duration: duration || null,
         seenBy: [session.user.id],
