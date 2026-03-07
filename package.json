@@ -85,6 +85,7 @@
     "tailwindcss": "^3.3.0",
     "uuid": "^11.1.0",
     "wavesurfer.js": "^7.0.0",
+    "web-push": "^3.6.7",
     "zustand": "^4.4.0"
   },
   "devDependencies": {
@@ -97,6 +98,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^1.4.11",
     "@types/nodemailer": "^7.0.1",
+    "@types/web-push": "^3.6.4",
     "eslint": "^8.0.0",
     "eslint-config-next": "^14.0.0",
     "typescript": "5.9.3"

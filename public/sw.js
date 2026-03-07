@@ -82,37 +82,30 @@ self.addEventListener('push', (event) => {
     }
   }
 
+  const isBoostNotif = notificationData.tag && notificationData.tag.startsWith('boost');
+  const actions = isBoostNotif
+    ? [
+        { action: 'open-boosters', title: 'Ouvrir', icon: '/android-chrome-192x192.png' },
+        { action: 'dismiss', title: 'Plus tard', icon: '/android-chrome-192x192.png' },
+      ]
+    : [
+        { action: 'play', title: 'Lire', icon: '/android-chrome-192x192.png' },
+        { action: 'pause', title: 'Pause', icon: '/android-chrome-192x192.png' },
+        { action: 'next', title: 'Suivant', icon: '/android-chrome-192x192.png' },
+        { action: 'previous', title: 'Precedent', icon: '/android-chrome-192x192.png' },
+      ];
+
   const options = {
     ...notificationData,
     vibrate: [200, 100, 200],
     data: {
       dateOfArrival: Date.now(),
       primaryKey: 1,
+      url: notificationData.url || '/',
       ...notificationData.data
     },
-    actions: [
-      {
-        action: 'play',
-        title: '▶️ Lire',
-        icon: '/android-chrome-192x192.png'
-      },
-      {
-        action: 'pause',
-        title: '⏸️ Pause',
-        icon: '/android-chrome-192x192.png'
-      },
-      {
-        action: 'next',
-        title: '⏭️ Suivant',
-        icon: '/android-chrome-192x192.png'
-      },
-      {
-        action: 'previous',
-        title: '⏮️ Précédent',
-        icon: '/android-chrome-192x192.png'
-      }
-    ],
-    requireInteraction: true,
+    actions,
+    requireInteraction: !isBoostNotif,
     silent: false,
     renotify: true
   };
@@ -126,8 +119,19 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
+  if (event.action === 'open-boosters') {
+    event.waitUntil(self.clients.openWindow('/boosters'));
+    return;
+  }
+  if (event.action === 'dismiss') return;
+
+  const notifUrl = event.notification.data?.url;
+  if (notifUrl && notifUrl !== '/') {
+    event.waitUntil(self.clients.openWindow(notifUrl));
+    return;
+  }
+
   if (event.action) {
-    // Envoyer un message au client pour contrôler la lecture
     event.waitUntil(
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
         const message = {
@@ -136,12 +140,10 @@ self.addEventListener('notificationclick', (event) => {
           timestamp: Date.now()
         };
 
-        // Envoyer à tous les clients
         clients.forEach((client) => {
           client.postMessage(message);
         });
 
-        // Si aucun client n'est ouvert, ouvrir l'application
         if (clients.length === 0) {
           return self.clients.openWindow('/');
         }

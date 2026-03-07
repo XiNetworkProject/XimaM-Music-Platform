@@ -528,9 +528,9 @@ export async function GET(request: NextRequest) {
         unique_listeners_30d: r?.unique_listeners_30d || 0,
         retention_complete_rate_30d: r?.retention_complete_rate_30d || 0,
       }, ageHours, 0);
-      // Appliquer boost actif (plafonné à x1.3)
+      // Appliquer boost actif (plafonné à x2.5)
       const boost = activeBoostsMap.get(t.id) || 1;
-      const capped = Math.min(boost, 1.3);
+      const capped = Math.min(boost, 2.5);
       score = score * capped;
       return {
         _id: t.id,
@@ -557,6 +557,8 @@ export async function GET(request: NextRequest) {
         rankingScore: score,
         isAI: false,
         isLiked: likedTrackIds.has(t.id),
+        isBoosted: capped > 1,
+        boostMultiplier: capped > 1 ? capped : undefined,
       };
     });
 

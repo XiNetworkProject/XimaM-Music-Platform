@@ -19,6 +19,7 @@ import {
   Flame,
   RotateCcw,
   UserPlus,
+  Zap,
 } from "lucide-react";
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -416,6 +417,12 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
           <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
             {durStr}
           </span>
+        )}
+        {orig?.isBoosted && (
+          <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', backdropFilter: 'blur(8px)' }}>
+            <Zap className="w-2.5 h-2.5 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
+            <span className="text-[8px] font-bold text-white/90">Boosted</span>
+          </div>
         )}
         <div className="absolute top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
           <TrackContextMenu track={orig} />
@@ -852,6 +859,7 @@ export default function SynauraHome() {
   const [rediscoverTracks, setRediscoverTracks] = useState<Track[]>([]);
   const [newArtists, setNewArtists] = useState<any[]>([]);
   const [socialDiscovery, setSocialDiscovery] = useState<any[]>([]);
+  const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
 
   // États pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
@@ -1036,6 +1044,13 @@ export default function SynauraHome() {
       fetch('/api/tracks/rising?limit=10', { cache: 'no-store' })
         .then(r => r.ok ? r.json() : { tracks: [] })
         .then(d => setRisingTracks(applyCdnToTracks(d.tracks || [])))
+        .catch(() => {})
+    );
+
+    fetches.push(
+      fetch('/api/tracks/boosted?limit=12', { cache: 'no-store' })
+        .then(r => r.ok ? r.json() : { tracks: [] })
+        .then(d => setBoostedTracks(applyCdnToTracks(d.tracks || [])))
         .catch(() => {})
     );
 
@@ -1272,7 +1287,7 @@ export default function SynauraHome() {
     cover: t.coverUrl || '/default-cover.jpg',
     duration: t.duration || 0,
     liked: false,
-    _original: t
+    _original: { ...t, isBoosted: (t as any).isBoosted, boostMultiplier: (t as any).boostMultiplier }
   })), [personalizedForYouList]);
 
   const personalizedCreators = useMemo(() => {
@@ -1880,6 +1895,51 @@ export default function SynauraHome() {
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <TrackContextMenu track={orig} />
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {/* Pistes propulsees (boostees) */}
+        {boostedTracks.length > 0 && (
+          <section>
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="h-9 w-9 rounded-xl grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.25))' }}>
+                <Zap className="h-4.5 w-4.5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-black text-white leading-tight">Pistes propulsees</h2>
+                <p className="text-[11px] text-white/30">En ce moment sur Synaura</p>
+              </div>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1">
+              {boostedTracks.slice(0, 10).map((t: any) => {
+                const dur = t.duration || 0;
+                const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+                return (
+                  <div key={t._id || t.id} className="group shrink-0 w-[160px]">
+                    <div className="relative rounded-xl overflow-hidden mb-2">
+                      {/* Boost halo */}
+                      <div className="absolute -inset-0.5 rounded-xl z-0 opacity-60" style={{
+                        background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3), rgba(236,72,153,0.3))',
+                        filter: 'blur(6px)',
+                      }} />
+                      <div className="relative z-[1]">
+                        <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover rounded-xl" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                        <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
+                          <Play className="w-8 h-8 text-white fill-white ml-0.5" />
+                        </button>
+                        {/* Boost badge */}
+                        <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', backdropFilter: 'blur(8px)' }}>
+                          <Zap className="w-2.5 h-2.5 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
+                          <span className="text-[8px] font-bold text-white/90">Boosted</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-xs font-semibold text-white truncate">{t.title}</div>
+                    <div className="text-[10px] text-white/40 truncate">{t.artist?.name || t.artist?.username || 'Artiste'} · {durStr}</div>
                   </div>
                 );
               })}

@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
       isVerified: user.is_verified || false,
       createdAt: user.created_at,
       lastSeen: user.last_seen,
-      rankScore: ((user.total_plays || 0) + (user.total_likes || 0) * 2) * Math.min(artistBoostMap.get(user.id) || 1, 1.2)
+      rankScore: ((user.total_plays || 0) + (user.total_likes || 0) * 2) * Math.min(artistBoostMap.get(user.id) || 1, 2.0)
     })) || [];
 
     // Trier par score si disponible

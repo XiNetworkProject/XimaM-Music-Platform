@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
     // Transformer les données pour correspondre au format attendu
     const formattedTracks = (tracks?.map(track => {
-      const baseScore = (track.plays || 0) * Math.min(boostMap.get(track.id) || 1, 1.3);
+      const baseScore = (track.plays || 0) * Math.min(boostMap.get(track.id) || 1, 2.5);
       let personalMult = 1;
       if (userGenreScores.size > 0 && track.genre) {
         const genres = Array.isArray(track.genre) ? track.genre : [track.genre];
@@ -132,7 +132,9 @@ export async function GET(request: NextRequest) {
         createdAt: track.created_at,
         isFeatured: track.is_featured,
         isVerified: track.profiles?.is_verified || false,
-        isLiked: likedTrackIds.has(track.id)
+        isLiked: likedTrackIds.has(track.id),
+        isBoosted: (boostMap.get(track.id) || 1) > 1,
+        boostMultiplier: (boostMap.get(track.id) || 1) > 1 ? Math.min(boostMap.get(track.id) || 1, 2.5) : undefined,
       };
     }) || []).sort((a, b) => (b.rankingScore || 0) - (a.rankingScore || 0));
 

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import AppSidebar from '@/components/AppSidebar';
 import BottomNav from '@/components/BottomNav';
 import TopSearchBar from '@/components/TopSearchBar';
+import { useBoostNotifications } from '@/hooks/useBoostNotifications';
 
 function isHiddenRoute(pathname: string | null) {
   if (!pathname) return false;
@@ -16,7 +17,8 @@ function isHiddenRoute(pathname: string | null) {
 
 export function ConditionalNav({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  
+  useBoostNotifications();
+
   return (
     <>
       {!isHiddenRoute(pathname) && <AppSidebar />}

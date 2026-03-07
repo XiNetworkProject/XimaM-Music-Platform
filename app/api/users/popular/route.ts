@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
         (user.follower_count || 0) * 3 +
         (user.total_plays || 0) * 1 +
         (user.total_likes || 0) * 2
-      ) * Math.min(artistBoostMap.get(user.id) || 1, 1.2)
+      ) * Math.min(artistBoostMap.get(user.id) || 1, 2.0)
     })) || [];
 
     // Trier par score de popularité et limiter

@@ -18,6 +18,7 @@ import {
   Music2,
   User,
   Bookmark,
+  Zap,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -531,11 +532,40 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           },
         ];
 
+        // Fetch boosted tracks to inject every 5 positions
+        let boostedList: Track[] = [];
+        try {
+          const bRes = await fetch('/api/tracks/boosted?limit=10', { cache: 'no-store' });
+          const bJson = await bRes.json();
+          boostedList = applyCdnToTracks(Array.isArray(bJson?.tracks) ? bJson.tracks : []) as any;
+          boostedList = boostedList.map((t: any) => ({ ...t, isBoosted: true }));
+        } catch {}
+
         const prev = prevQueueRef.current;
         const prevCurrent = prev?.tracks?.[prev.currentTrackIndex] || null;
         const prevId = getTrackId(prevCurrent);
         const regularTracks = Array.isArray(cdnTracks) ? cdnTracks : [];
-        const merged: any[] = [...RADIO_TRACKS, ...regularTracks];
+
+        // Inject boosted tracks every 5 positions
+        const withBoosted: any[] = [];
+        const usedBoostedIds = new Set<string>();
+        const regularIds = new Set(regularTracks.map((t: any) => getTrackId(t)));
+        const availableBoosted = boostedList.filter((bt: any) => !regularIds.has(getTrackId(bt)));
+        let boostedIdx = 0;
+        for (let i = 0; i < regularTracks.length; i++) {
+          withBoosted.push(regularTracks[i]);
+          if ((i + 1) % 5 === 0 && boostedIdx < availableBoosted.length) {
+            const bt = availableBoosted[boostedIdx];
+            const btId = getTrackId(bt);
+            if (btId && !usedBoostedIds.has(btId)) {
+              usedBoostedIds.add(btId);
+              withBoosted.push(bt);
+              boostedIdx++;
+            }
+          }
+        }
+
+        const merged: any[] = [...RADIO_TRACKS, ...withBoosted];
         if (prevCurrent && prevId && !merged.some((t) => getTrackId(t) === prevId)) {
           merged.unshift(prevCurrent);
         }
@@ -1063,6 +1093,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                           <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/80 backdrop-blur-sm border border-red-400/30 shadow-lg">
                             <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
                             <span className="text-[11px] font-black text-white uppercase tracking-widest">Live</span>
+                          </div>
+                        )}
+                        {/* Boosted badge */}
+                        {!isRadio && (t as any)?.isBoosted && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-violet-500/30 shadow-lg" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))' }}>
+                            <Zap className="w-3 h-3 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
+                            <span className="text-[11px] font-black text-white/90">Boosted</span>
                           </div>
                         )}
                       </div>

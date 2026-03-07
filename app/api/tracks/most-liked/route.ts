@@ -66,11 +66,13 @@ export async function GET(request: NextRequest) {
       genre: track.genre,
       lyrics: track.lyrics || null,
       likes: track.likes || [],
-      rankingScore: (track.likes?.length || track.likes || 0) * Math.min(boostMap.get(track.id) || 1, 1.3),
+      rankingScore: (track.likes?.length || track.likes || 0) * Math.min(boostMap.get(track.id) || 1, 2.5),
       plays: track.plays || 0,
       createdAt: track.created_at,
       isFeatured: track.is_featured,
-      isVerified: track.profiles?.is_verified || false
+      isVerified: track.profiles?.is_verified || false,
+      isBoosted: (boostMap.get(track.id) || 1) > 1,
+      boostMultiplier: (boostMap.get(track.id) || 1) > 1 ? Math.min(boostMap.get(track.id) || 1, 2.5) : undefined,
     })) || [];
 
     console.log(`✅ ${formattedTracks.length} pistes les plus aimées récupérées`);
