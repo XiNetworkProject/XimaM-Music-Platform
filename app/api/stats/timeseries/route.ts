@@ -6,28 +6,41 @@ import { supabaseAdmin } from '@/lib/supabase';
 type Point = { date: string; plays: number; uniques?: number; likes?: number };
 
 function startFromRange(range: string | null): Date {
-  const now = new Date();
-  const d = new Date(now);
+  const d = new Date();
   switch (range) {
-    case '7d':
-      d.setDate(d.getDate() - 6);
-      break;
-    case '30d':
-      d.setDate(d.getDate() - 29);
-      break;
-    case '90d':
-      d.setDate(d.getDate() - 89);
-      break;
-    case 'all':
-    default:
-      d.setDate(d.getDate() - 179);
+    case '7d': d.setDate(d.getDate() - 6); break;
+    case '30d': d.setDate(d.getDate() - 29); break;
+    case '90d': d.setDate(d.getDate() - 89); break;
+    default: d.setDate(d.getDate() - 179);
   }
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-function formatDateISO(date: Date): string {
-  return date.toISOString().slice(0, 10);
+function fmtDate(date: Date): string { return date.toISOString().slice(0, 10); }
+
+async function getUserTrackIds(userId: string): Promise<string[]> {
+  const ids: string[] = [];
+
+  const { data, error } = await supabaseAdmin
+    .from('tracks').select('id').or(`creator_id.eq.${userId},user_id.eq.${userId}`);
+  if (!error && data) {
+    for (const r of data) ids.push(r.id);
+  } else {
+    console.error('timeseries: tracks or query failed:', error?.message);
+    const { data: fb } = await supabaseAdmin.from('tracks').select('id').eq('creator_id', userId);
+    if (fb) for (const r of fb) ids.push(r.id);
+  }
+
+  try {
+    const { data: aiRows, error: aiErr } = await supabaseAdmin
+      .from('ai_tracks')
+      .select('id, generation:ai_generations!inner(user_id)')
+      .eq('generation.user_id', userId);
+    if (!aiErr && aiRows) for (const r of aiRows) ids.push(r.id);
+  } catch {}
+
+  return ids;
 }
 
 export async function GET(request: NextRequest) {
@@ -40,107 +53,66 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get('range');
     const trackParam = searchParams.get('track');
-
     const userId = session.user.id;
     const startDate = startFromRange(range);
 
-    // Récupérer les tracks de l’utilisateur
-    // Tenter par creator_id puis fallback artist_id si nécessaire
-    let allTrackIds: string[] = [];
-    {
-      const { data: rows, error } = await supabaseAdmin
-        .from('tracks')
-        .select('id')
-        .eq('creator_id', userId);
-      if (!error && rows) {
-        allTrackIds = rows.map((r: any) => r.id);
-      }
-      if ((error || allTrackIds.length === 0)) {
-        const { data: rows2, error: err2 } = await supabaseAdmin
-          .from('tracks')
-          .select('id')
-          .eq('artist_id', userId);
-        if (!err2 && rows2) {
-          allTrackIds = rows2.map((r: any) => r.id);
-        }
-      }
-    }
+    let trackIds = await getUserTrackIds(userId);
 
-    // Filtrer sur une piste si demandée et valide
-    let trackIds = allTrackIds;
-    if (trackParam && trackParam !== 'all' && allTrackIds.includes(trackParam)) {
+    if (trackParam && trackParam !== 'all' && trackIds.includes(trackParam)) {
       trackIds = [trackParam];
     }
 
     if (trackIds.length === 0) {
-      // Pas de données → renvoyer une série vide sur la plage
-      const series = buildEmptySeries(startDate, new Date());
-      return NextResponse.json(series);
+      return NextResponse.json(buildEmptySeries(startDate, new Date()));
     }
 
-    // Récupérer les vues (écoutes) dans la période
     const { data: viewRows, error: viewsErr } = await supabaseAdmin
       .from('track_views')
       .select('created_at, track_id, user_id')
       .in('track_id', trackIds)
       .gte('created_at', startDate.toISOString());
+
     if (viewsErr) {
-      // Table/colonnes possiblement manquantes: renvoyer série vide
-      const series = buildEmptySeries(startDate, new Date());
-      return NextResponse.json(series);
+      console.error('timeseries track_views error:', viewsErr.message);
+      return NextResponse.json(buildEmptySeries(startDate, new Date()));
     }
 
-    // Agréger par jour
     const counts = new Map<string, number>();
     const uniqueSets = new Map<string, Set<string>>();
     for (const row of viewRows || []) {
       const d = new Date(row.created_at);
       d.setHours(0, 0, 0, 0);
-      const key = formatDateISO(d);
+      const key = fmtDate(d);
       counts.set(key, (counts.get(key) || 0) + 1);
       if (!uniqueSets.has(key)) uniqueSets.set(key, new Set());
       if (row.user_id) uniqueSets.get(key)!.add(row.user_id);
     }
 
-    // Construire série complète avec zéros
     const series: Point[] = [];
     const today = new Date();
     const cursor = new Date(startDate);
     while (cursor <= today) {
-      const k = formatDateISO(cursor);
-      series.push({
-        date: k,
-        plays: counts.get(k) || 0,
-        uniques: (uniqueSets.get(k)?.size || 0)
-      });
+      const k = fmtDate(cursor);
+      series.push({ date: k, plays: counts.get(k) || 0, uniques: uniqueSets.get(k)?.size || 0 });
       cursor.setDate(cursor.getDate() + 1);
     }
 
-    // Likes par jour (en parallèle) pour la même plage, si table likes existe
     try {
       const { data: likeRows } = await supabaseAdmin
-        .from('track_likes')
-        .select('created_at, track_id')
-        .in('track_id', trackIds)
-        .gte('created_at', startDate.toISOString());
+        .from('track_likes').select('created_at, track_id').in('track_id', trackIds).gte('created_at', startDate.toISOString());
       const likeCounts = new Map<string, number>();
       for (const row of likeRows || []) {
         const d = new Date(row.created_at);
         d.setHours(0, 0, 0, 0);
-        const key = formatDateISO(d);
-        likeCounts.set(key, (likeCounts.get(key) || 0) + 1);
+        likeCounts.set(fmtDate(d), (likeCounts.get(fmtDate(d)) || 0) + 1);
       }
-      for (const p of series) {
-        p.likes = likeCounts.get(p.date) || 0;
-      }
+      for (const p of series) p.likes = likeCounts.get(p.date) || 0;
     } catch {}
 
     return NextResponse.json(series);
   } catch (e) {
-    // Défaut sécurisé: série vide
-    const start = startFromRange('30d');
-    const series = buildEmptySeries(start, new Date());
-    return NextResponse.json(series);
+    console.error('timeseries error:', e);
+    return NextResponse.json(buildEmptySeries(startFromRange('30d'), new Date()));
   }
 }
 
@@ -148,10 +120,8 @@ function buildEmptySeries(start: Date, end: Date): Point[] {
   const out: Point[] = [];
   const c = new Date(start);
   while (c <= end) {
-    out.push({ date: formatDateISO(c), plays: 0, uniques: 0, likes: 0 });
+    out.push({ date: fmtDate(c), plays: 0, uniques: 0, likes: 0 });
     c.setDate(c.getDate() + 1);
   }
   return out;
 }
-
-

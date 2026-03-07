@@ -1,1374 +1,746 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
-  Headphones,
-  Heart,
-  Music,
-  TrendingUp,
-  Users,
-  ArrowRight,
-  ChevronDown,
+  Headphones, Heart, Music, TrendingUp, TrendingDown,
+  Users, Clock, Target, Sparkles, ChevronDown, Search,
+  ArrowUpDown, Star, Zap, BarChart3, Play, Disc3,
+  ArrowRight, Eye, Volume2,
 } from 'lucide-react';
 import { StatsPageSkeleton } from '@/components/Skeletons';
 
-type Daily = {
-  day: string;
-  views: number;
-  plays: number;
-  completes: number;
-  likes: number;
-  shares: number;
-  favorites: number;
-  total_listen_ms: number;
-  unique_listeners: number;
-  retention_complete_rate: number;
-};
+/* ═══════════════════ Recharts (dynamic) ═══════════════════ */
 
-type TrackDetail = {
-  daily: Daily[];
-  rolling?: any;
-  sources?: {
-    source: string;
-    views: number;
-    plays: number;
-    completes: number;
-  }[];
-  funnel?: {
-    starts: number;
-    p25Rate: number;
-    p50Rate: number;
-    p75Rate: number;
-    completeRate: number;
-  };
-};
-
-// Debug manuel par track_id (garde-le si tu veux faire des tests ponctuels)
-function StatsTrackDebug() {
-  const [trackId, setTrackId] = useState<string>('');
-  const [data, setData] = useState<TrackDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStats = async () => {
-    if (!trackId) return;
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(trackId)}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Erreur chargement stats');
-      setData(json);
-    } catch (e: any) {
-      setError(e?.message || 'Erreur');
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="hidden"> {/* gardé mais non affiché, juste pour debug interne si besoin */}
-      <button onClick={fetchStats}>Debug stats</button>
-      {loading && <div>Chargement…</div>}
-      {error && <div className="text-red-400">{error}</div>}
-      {data && <pre className="text-xs">{JSON.stringify(data, null, 2)}</pre>}
-    </div>
-  );
-}
-
-function sum(arr: any[], key: string): number {
-  return (arr || []).reduce((acc, x) => acc + (Number(x?.[key]) || 0), 0);
-}
-
-function avg(arr: any[], key: string): number {
-  if (!arr || !arr.length) return 0;
-  return sum(arr, key) / arr.length;
-}
-
-function Card({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-3">
-      <div className="text-xs text-[var(--text-muted)]">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
-    </div>
-  );
-}
-
-function DonutWithLegend({
-  data,
-  topN = 6,
-}: {
-  data: Record<string, number>;
-  topN?: number;
-}) {
-  const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
-  const top = sorted.slice(0, topN);
-  const others = sorted.slice(topN);
-  const othersSum = others.reduce((s, [, v]) => s + Number(v || 0), 0);
-  const entries = (othersSum > 0
-    ? [...top, ['Autres', othersSum]]
-    : top) as Array<[string, number]>;
-  const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
-  let acc = 0;
-  const colors = [
-    '#8b5cf6',
-    '#06b6d4',
-    '#f59e0b',
-    '#10b981',
-    '#ef4444',
-    '#22c55e',
-    '#f97316',
-    '#3b82f6',
-  ];
-  return (
-    <div className="flex items-center gap-4">
-      <svg width="120" height="120" viewBox="0 0 120 120" className="shrink-0">
-        <circle
-          cx="60"
-          cy="60"
-          r="48"
-          fill="none"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth="16"
-        />
-        {entries.map(([label, value], i) => {
-          const pct = (value / total) * 100;
-          const start: number = (acc / 100) * (2 * Math.PI);
-          const end: number = ((acc + pct) / 100) * (2 * Math.PI);
-          acc += pct;
-          const x1 = 60 + 48 * Math.sin(start as number);
-          const y1 = 60 - 48 * Math.cos(start as number);
-          const x2 = 60 + 48 * Math.sin(end as number);
-          const y2 = 60 - 48 * Math.cos(end as number);
-          const largeArc = end - start > Math.PI ? 1 : 0;
-          const d = `M ${x1} ${y1} A 48 48 0 ${largeArc} 1 ${x2} ${y2}`;
-          return (
-            <path
-              key={label}
-              d={d}
-              stroke={colors[i % colors.length]}
-              strokeWidth={16}
-              fill="none"
+const RechartsArea = dynamic(
+  () => import('recharts').then((m) => {
+    const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = m;
+    return function RArea(props: any) {
+      const { data, metric, compareSeries } = props;
+      const color = metric === 'plays' ? '#6e56cf' : metric === 'uniques' ? '#00d3a7' : '#f43f5e';
+      const gid = `sg-${metric}`;
+      return (
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={data} margin={{ top: 12, right: 16, left: -10, bottom: 4 }}>
+            <defs>
+              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={color} stopOpacity={0.4} />
+                <stop offset="100%" stopColor={color} stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="sg-cmp" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#00d3a7" stopOpacity={0.2} />
+                <stop offset="100%" stopColor="#00d3a7" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+            <XAxis dataKey="date" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.3)', fontSize:10 }}
+              tickFormatter={(v: string) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth()+1}`; }}
+              interval="preserveStartEnd" minTickGap={50} />
+            <YAxis stroke="rgba(255,255,255,0.05)" tick={{ fill:'rgba(255,255,255,0.2)', fontSize:10 }} width={36} allowDecimals={false} />
+            <Tooltip
+              contentStyle={{ background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:14, color:'#f6f7fb', fontSize:12, backdropFilter:'blur(20px)', boxShadow:'0 8px 32px rgba(0,0,0,0.5)' }}
+              labelFormatter={(v: any) => new Date(String(v)).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
+              formatter={(val: any, name: any) => [val, name === 'compare' ? 'Comparaison' : metric === 'plays' ? 'Écoutes' : metric === 'uniques' ? 'Uniques' : 'Likes']}
             />
-          );
-        })}
-        <circle cx="60" cy="60" r="34" fill="rgba(0,0,0,0.5)" />
-      </svg>
-      <div className="flex-1 space-y-2">
-        {entries.map(([label, value], i) => (
-          <div key={`${label}-${i}`} className="flex items-center gap-2">
-            <span
-              className="inline-block h-2 w-2 rounded-full"
-              style={{ background: colors[i % colors.length] }}
-            />
-            <span className="text-sm text-white/80 flex-1 truncate">{label}</span>
-            <span className="text-sm text-white/70">
-              {Math.round((value / total) * 100)}%
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+            {compareSeries?.length > 0 && <Area type="monotone" dataKey="compare" stroke="#00d3a7" strokeWidth={1.5} fill="url(#sg-cmp)" dot={false} name="compare" />}
+            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2.5} fill={`url(#${gid})`} dot={false}
+              activeDot={{ r: 6, fill: color, stroke:'#fff', strokeWidth:2, filter:'drop-shadow(0 0 6px rgba(110,86,207,0.6))' }} name="main" />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-[320px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} /> }
+);
 
-type Track = {
-  id: string;
-  _id?: string;
-  title: string;
-  plays: number;
-  likes: number;
-  cover_url?: string;
-  coverUrl?: string;
-  duration?: number;
-  created_at?: string;
+const RechartsPie = dynamic(
+  () => import('recharts').then((m) => {
+    const { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } = m;
+    const C = ['#6e56cf','#00d3a7','#f59e0b','#10b981','#ef4444','#3b82f6','#f97316','#22c55e'];
+    return function RPie(props: any) {
+      const entries = Object.entries(props.data||{}).sort(([,a]: any,[,b]: any) => b-a).slice(0,8).map(([name,value]) => ({name,value:Number(value)}));
+      if (!entries.length) return <div className="text-white/30 text-sm text-center py-10">Aucune donnée</div>;
+      return (
+        <ResponsiveContainer width="100%" height={200}>
+          <PieChart>
+            <Pie data={entries} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3} dataKey="value" stroke="none">
+              {entries.map((_,i) => <Cell key={i} fill={C[i%C.length]} />)}
+            </Pie>
+            <Tooltip contentStyle={{ background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:12, color:'#f6f7fb', fontSize:12, backdropFilter:'blur(20px)' }}
+              formatter={(val: any, name: any) => [`${val}%`, name]} />
+          </PieChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-[200px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} /> }
+);
+
+const RechartsBar = dynamic(
+  () => import('recharts').then((m) => {
+    const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } = m;
+    return function RBar(props: any) {
+      return (
+        <ResponsiveContainer width="100%" height={200}>
+          <BarChart data={props.data} layout="vertical" margin={{ left: 4, right: 8 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+            <XAxis type="number" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.3)', fontSize:10 }} allowDecimals={false} />
+            <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.5)', fontSize:10 }} width={70} />
+            <Tooltip contentStyle={{ background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:12, color:'#f6f7fb', fontSize:11, backdropFilter:'blur(20px)' }} />
+            <Bar dataKey="plays" fill="#6e56cf" radius={[0,6,6,0]} name="Lectures" />
+            <Bar dataKey="completes" fill="#00d3a7" radius={[0,6,6,0]} name="Complétions" />
+          </BarChart>
+        </ResponsiveContainer>
+      );
+    };
+  }),
+  { ssr: false, loading: () => <div className="h-[200px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} /> }
+);
+
+/* ═══════════════════ Types ═══════════════════ */
+
+type OverviewData = {
+  plays: number; playsVariation: number; likes: number; likesVariation: number;
+  followers: number; totalTracks: number; normalTracks: number; aiTracks: number;
+  listenHours: number; avgRetention: number;
+  bestTrack: { id: string; title: string; plays: number } | null;
+  ai: { count: number; plays: number; likes: number };
 };
 
-export default function StatsPage() {
+type UnifiedTrack = {
+  id: string; title: string; coverUrl: string; duration: number;
+  createdAt: string; plays: number; likes: number;
+  isAI: boolean; isRemix: boolean; retention: number; trend7d: number;
+};
+
+/* ═══════════════════ Page ═══════════════════ */
+
+function StatsPageInner() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [tracks, setTracks] = useState<Track[]>([]);
-  const [range, setRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
-  const [selectedTrack, setSelectedTrack] = useState<string>('all');
-  const [compareTrack, setCompareTrack] = useState<string>('');
+  const [range, setRange] = useState<'7d'|'30d'|'90d'|'all'>('30d');
+  const [selectedTrack, setSelectedTrack] = useState('all');
+  const [compareTrack, setCompareTrack] = useState('');
+  const [metric, setMetric] = useState<'plays'|'uniques'|'likes'>('plays');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [trackSort, setTrackSort] = useState<'plays'|'likes'|'recent'|'retention'|'trend'>('plays');
+  const [activeTab, setActiveTab] = useState<'all'|'normal'|'ai'>('all');
 
-  const [audience, setAudience] = useState<{
-    countries?: Record<string, number>;
-    devices?: Record<string, number>;
-  }>({});
-  const [audienceTech, setAudienceTech] = useState<{
-    os?: Record<string, number>;
-    browsers?: Record<string, number>;
-  }>({});
-  const [series, setSeries] = useState<
-    Array<{ date: string; plays: number; uniques?: number; likes?: number }>
-  >([]);
-  const [compareSeries, setCompareSeries] = useState<
-    Array<{ date: string; plays: number; uniques?: number; likes?: number }>
-  >([]);
+  const [overview, setOverview] = useState<OverviewData|null>(null);
+  const [allTracks, setAllTracks] = useState<UnifiedTrack[]>([]);
+  const [series, setSeries] = useState<any[]>([]);
+  const [compareSeries, setCompareSeries] = useState<any[]>([]);
+  const [audience, setAudience] = useState<any>({});
+  const [audienceTech, setAudienceTech] = useState<any>({});
+  const [heatmap, setHeatmap] = useState<number[][]>([]);
+  const [trackDetail, setTrackDetail] = useState<any>(null);
+
+  const [loadingOverview, setLoadingOverview] = useState(false);
   const [loadingSeries, setLoadingSeries] = useState(false);
   const [loadingAudience, setLoadingAudience] = useState(false);
-  const [metric, setMetric] = useState<'plays' | 'uniques' | 'likes'>('plays');
-  const [heatmap, setHeatmap] = useState<number[][]>([]);
   const [loadingHeatmap, setLoadingHeatmap] = useState(false);
-  const [hoverPoint, setHoverPoint] = useState<{
-    date: string;
-    plays: number;
-    uniques?: number;
-    likes?: number;
-  } | null>(null);
+  const [loadingTracks, setLoadingTracks] = useState(false);
+  const [loadingDetail, setLoadingDetail] = useState(false);
 
-  const [trackDetail, setTrackDetail] = useState<TrackDetail | null>(null);
-  const [loadingTrackDetail, setLoadingTrackDetail] = useState(false);
+  useEffect(() => { try { localStorage.setItem('onboarding.viewedStats','1'); sessionStorage.setItem('onboarding.viewedStats','1'); window.dispatchEvent(new Event('onboardingStatsViewed')); } catch {} }, []);
 
-  // Onboarding: marquer la visite des stats
   useEffect(() => {
     try {
-      localStorage.setItem('onboarding.viewedStats', '1');
-      sessionStorage.setItem('onboarding.viewedStats', '1');
-      window.dispatchEvent(new Event('onboardingStatsViewed'));
-    } catch {}
-  }, []);
-
-  // Initialiser à partir de l'URL (track_id, range, compare)
-  useEffect(() => {
-    try {
-      const trackId = searchParams?.get('track_id');
-      if (trackId) setSelectedTrack(trackId);
-
-      const r = searchParams?.get('range');
-      if (r === '7d' || r === '30d' || r === '90d' || r === 'all') {
-        setRange(r);
-      }
-
-      const c = searchParams?.get('compare');
-      if (c) setCompareTrack(c);
+      const t = searchParams?.get('track_id'); if (t) setSelectedTrack(t);
+      const r = searchParams?.get('range'); if (r === '7d' || r === '30d' || r === '90d' || r === 'all') setRange(r);
+      const c = searchParams?.get('compare'); if (c) setCompareTrack(c);
     } catch {}
   }, [searchParams]);
 
-  // Synchroniser les filtres → URL (shareable)
   useEffect(() => {
     try {
-      const params = new URLSearchParams(window.location.search);
-      if (selectedTrack && selectedTrack !== 'all') {
-        params.set('track_id', selectedTrack);
-      } else {
-        params.delete('track_id');
-      }
-      params.set('range', range);
-      if (compareTrack) {
-        params.set('compare', compareTrack);
-      } else {
-        params.delete('compare');
-      }
-
-      const qs = params.toString();
-      router.replace(`/stats${qs ? `?${qs}` : ''}`, { scroll: false });
-    } catch {
-      // ignore
-    }
+      const p = new URLSearchParams(window.location.search);
+      if (selectedTrack && selectedTrack !== 'all') p.set('track_id', selectedTrack); else p.delete('track_id');
+      p.set('range', range);
+      if (compareTrack) p.set('compare', compareTrack); else p.delete('compare');
+      router.replace(`/stats${p.toString() ? `?${p}` : ''}`, { scroll: false });
+    } catch {}
   }, [range, selectedTrack, compareTrack, router]);
 
-  // Chargement principal (pistes + stats globales)
-  useEffect(() => {
-    const run = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        if (!session?.user?.username) {
-          setLoading(false);
-          return;
-        }
-
-        const res = await fetch(`/api/users/${session.user.username}`, {
-          headers: { 'Cache-Control': 'no-store' },
-        });
-        if (!res.ok) {
-          throw new Error('Erreur de récupération des stats');
-        }
-        const data = await res.json();
-        const userTracks: Track[] = (data?.tracks || []).map((t: any) => ({
-          id: t.id || t._id,
-          title: t.title,
-          plays: t.plays || 0,
-          likes: t.likes || 0,
-          cover_url: t.cover_url || t.coverUrl,
-          duration: t.duration,
-          created_at: t.created_at,
-        }));
-        setTracks(userTracks);
-
-        // Audience + timeseries + heatmap + détail piste en parallèle
-        setLoadingAudience(true);
+  const fetchAll = useCallback(async () => {
+    if (!session?.user?.id) { setLoading(false); return; }
+    setLoading(true);
+    const hdr = { 'Cache-Control': 'no-store' };
+    await Promise.all([
+      (async () => {
+        setLoadingOverview(true);
+        try {
+          const r = await fetch(`/api/stats/overview?range=${range}`, { headers: hdr });
+          const d = await r.json();
+          if (r.ok) { setOverview(d); console.log('[stats] overview:', d); }
+          else console.warn('[stats] overview error:', r.status, d);
+        } catch (e) { console.error('[stats] overview fetch fail:', e); }
+        finally { setLoadingOverview(false); }
+      })(),
+      (async () => {
+        setLoadingTracks(true);
+        try {
+          const r = await fetch('/api/stats/all-tracks', { headers: hdr });
+          const d = await r.json();
+          if (r.ok) { setAllTracks(d.tracks || []); console.log('[stats] all-tracks:', d.tracks?.length, 'normal:', d.debug?.normalCount, 'ai:', d.debug?.aiCount); }
+          else console.warn('[stats] all-tracks error:', r.status, d);
+        } catch (e) { console.error('[stats] all-tracks fetch fail:', e); }
+        finally { setLoadingTracks(false); }
+      })(),
+      (async () => {
         setLoadingSeries(true);
+        try {
+          const r = await fetch(`/api/stats/timeseries?range=${range}&track=${selectedTrack}`, { headers: hdr });
+          if (r.ok) { const d = await r.json(); setSeries(d); console.log('[stats] timeseries:', d.length, 'points, hasData:', d.some((p: any) => p.plays > 0)); }
+          else { setSeries([]); console.warn('[stats] timeseries error:', r.status); }
+        } catch { setSeries([]); }
+        finally { setLoadingSeries(false); }
+      })(),
+      (async () => {
+        if (compareTrack && compareTrack !== 'all' && compareTrack !== selectedTrack) {
+          try { const r = await fetch(`/api/stats/timeseries?range=${range}&track=${compareTrack}`, { headers: hdr }); if (r.ok) setCompareSeries(await r.json()); else setCompareSeries([]); } catch { setCompareSeries([]); }
+        } else setCompareSeries([]);
+      })(),
+      (async () => {
+        setLoadingAudience(true);
+        try {
+          const r = await fetch(`/api/stats/audience?range=${range}&track=${selectedTrack}`, { headers: hdr });
+          if (r.ok) { const d = await r.json(); setAudience({ countries: d.countries, devices: d.devices }); setAudienceTech({ os: d.os, browsers: d.browsers }); console.log('[stats] audience:', d); }
+        } catch {}
+        finally { setLoadingAudience(false); }
+      })(),
+      (async () => {
+        setLoadingHeatmap(true);
+        try {
+          const r = await fetch(`/api/stats/heatmap?range=${range}&track=${selectedTrack}`, { headers: hdr });
+          if (r.ok) { const d = await r.json(); setHeatmap(d.matrix || []); }
+        } catch {}
+        finally { setLoadingHeatmap(false); }
+      })(),
+      (async () => {
+        if (selectedTrack && selectedTrack !== 'all') {
+          setLoadingDetail(true);
+          try {
+            const r = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(selectedTrack)}`, { headers: hdr });
+            if (r.ok) { const d = await r.json(); setTrackDetail(d); console.log('[stats] track detail:', d); }
+            else setTrackDetail(null);
+          } catch { setTrackDetail(null); }
+          finally { setLoadingDetail(false); }
+        } else setTrackDetail(null);
+      })(),
+    ]);
+    setLoading(false);
+  }, [session?.user?.id, range, selectedTrack, compareTrack]);
 
-        await Promise.all([
-          // Audience
-          (async () => {
-            try {
-              const a = await fetch(
-                `/api/stats/audience?range=${range}&track=${selectedTrack}`,
-                { headers: { 'Cache-Control': 'no-store' } },
-              );
-              if (a.ok) {
-                const json = await a.json();
-                setAudience({ countries: json.countries, devices: json.devices });
-                setAudienceTech({ os: json.os, browsers: json.browsers });
-              } else {
-                setAudience({});
-                setAudienceTech({});
-              }
-            } catch {
-              setAudience({});
-              setAudienceTech({});
-            } finally {
-              setLoadingAudience(false);
-            }
-          })(),
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
-          // Timeseries principale
-          (async () => {
-            try {
-              const s = await fetch(
-                `/api/stats/timeseries?range=${range}&track=${selectedTrack}`,
-                { headers: { 'Cache-Control': 'no-store' } },
-              );
-              if (s.ok) setSeries(await s.json());
-              else setSeries([]);
-            } catch {
-              setSeries([]);
-            } finally {
-              setLoadingSeries(false);
-            }
-          })(),
+  const chartData = useMemo(() => {
+    const cm = new Map(compareSeries.map((p: any) => [p.date, p]));
+    return series.map((p: any) => {
+      const c = cm.get(p.date);
+      return { date: p.date, value: metric === 'plays' ? p.plays : metric === 'uniques' ? (p.uniques||0) : (p.likes||0), compare: c ? (metric === 'plays' ? c.plays : metric === 'uniques' ? (c.uniques||0) : (c.likes||0)) : undefined };
+    });
+  }, [series, compareSeries, metric]);
 
-          // Timeseries comparée
-          (async () => {
-            try {
-              if (compareTrack && compareTrack !== 'all' && compareTrack !== selectedTrack) {
-                const s2 = await fetch(
-                  `/api/stats/timeseries?range=${range}&track=${compareTrack}`,
-                  { headers: { 'Cache-Control': 'no-store' } },
-                );
-                if (s2.ok) setCompareSeries(await s2.json());
-                else setCompareSeries([]);
-              } else {
-                setCompareSeries([]);
-              }
-            } catch {
-              setCompareSeries([]);
-            }
-          })(),
-
-          // Heatmap
-          (async () => {
-            try {
-              setLoadingHeatmap(true);
-              const h = await fetch(
-                `/api/stats/heatmap?range=${range}&track=${selectedTrack}`,
-                { headers: { 'Cache-Control': 'no-store' } },
-              );
-              if (h.ok) {
-                const json = await h.json();
-                setHeatmap(json.matrix || []);
-              } else {
-                setHeatmap([]);
-              }
-            } catch {
-              setHeatmap([]);
-            } finally {
-              setLoadingHeatmap(false);
-            }
-          })(),
-
-          // Détail piste (rétention + sources + daily)
-          (async () => {
-            try {
-              if (selectedTrack && selectedTrack !== 'all') {
-                setLoadingTrackDetail(true);
-                const t = await fetch(
-                  `/api/stats/tracks?track_id=${encodeURIComponent(selectedTrack)}`,
-                  { headers: { 'Cache-Control': 'no-store' } },
-                );
-                if (t.ok) {
-                  const json = await t.json();
-                  setTrackDetail(json);
-                } else {
-                  setTrackDetail({ daily: [] });
-                }
-              } else {
-                setTrackDetail(null);
-              }
-            } catch {
-              setTrackDetail({ daily: [] });
-            } finally {
-              setLoadingTrackDetail(false);
-            }
-          })(),
-        ]);
-      } catch (e: any) {
-        setError(e.message || 'Erreur inconnue');
-      } finally {
-        setLoading(false);
+  const filteredTracks = useMemo(() => {
+    let result = [...allTracks];
+    if (activeTab === 'ai') result = result.filter(t => t.isAI);
+    else if (activeTab === 'normal') result = result.filter(t => !t.isAI);
+    if (searchQuery.trim()) { const q = searchQuery.toLowerCase(); result = result.filter(t => t.title.toLowerCase().includes(q)); }
+    result.sort((a, b) => {
+      switch (trackSort) {
+        case 'plays': return b.plays - a.plays;
+        case 'likes': return b.likes - a.likes;
+        case 'recent': return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'retention': return b.retention - a.retention;
+        case 'trend': return b.trend7d - a.trend7d;
+        default: return b.plays - a.plays;
       }
-    };
-    run();
-  }, [session?.user?.username, range, selectedTrack]);
+    });
+    return result;
+  }, [allTracks, activeTab, searchQuery, trackSort]);
 
-  const totals = useMemo(() => {
-    const totalPlays = tracks.reduce((s, t) => s + (t.plays || 0), 0);
-    const totalLikes = tracks.reduce((s, t) => s + (t.likes || 0), 0);
-    const totalTracks = tracks.length;
-    const period = series.reduce(
-      (acc: any, p: any) => {
-        acc.plays += p.plays || 0;
-        acc.uniques += p.uniques || 0;
-        acc.likes += p.likes || 0;
-        return acc;
-      },
-      { plays: 0, uniques: 0, likes: 0 },
-    );
-    return { totalPlays, totalLikes, totalTracks, period };
-  }, [tracks, series]);
+  const periodTotals = useMemo(() => series.reduce((a: any, p: any) => ({ plays: a.plays+(p.plays||0), uniques: a.uniques+(p.uniques||0), likes: a.likes+(p.likes||0) }), { plays:0, uniques:0, likes:0 }), [series]);
 
-  const topTracks = useMemo(() => {
-    return [...tracks]
-      .sort((a, b) => (b.plays || 0) - (a.plays || 0))
-      .slice(0, 10);
-  }, [tracks]);
+  if (loading && !overview) return <StatsPageSkeleton />;
 
-  const trackDaily = trackDetail?.daily || [];
-  const trackFunnel = trackDetail?.funnel;
-  const trackSources = trackDetail?.sources || [];
-  const maxTrackSourcePlays = trackSources.length
-    ? Math.max(1, ...trackSources.map((s: any) => s.plays || 0))
-    : 1;
-
-  if (loading) {
-    return <StatsPageSkeleton />;
-  }
+  const userName = (session?.user as any)?.name || (session?.user as any)?.username || '';
+  const greeting = (() => { const h = new Date().getHours(); if (h < 12) return 'Bonjour'; if (h < 18) return 'Bon après-midi'; return 'Bonsoir'; })();
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden text-[var(--text)]">
-      {/* Fond stats Synaura */}
-      <div className="pointer-events-none absolute inset-0 opacity-[0.25]" aria-hidden>
-        <div className="absolute inset-0 bg-gradient-to-br from-[#050716] via-[#05010b] to-[#020008]" />
-        <div
-          className="absolute inset-[-1px]"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
-        />
-        <div
-          className="absolute -top-32 -left-32 w-[420px] h-[420px] rounded-full blur-[120px]"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(124,58,237,0.95) 0%, rgba(124,58,237,0.15) 40%, transparent 75%)',
-          }}
-        />
-        <div
-          className="absolute -bottom-40 right-[-60px] w-[380px] h-[380px] rounded-full blur-[120px]"
-          style={{
-            background:
-              'radial-gradient(circle, rgba(34,211,238,0.95) 0%, rgba(34,211,238,0.18) 40%, transparent 75%)',
-          }}
-        />
+    <div className="relative min-h-screen w-full">
+      {/* Background effects */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -top-[200px] -left-[100px] w-[600px] h-[600px] rounded-full opacity-[0.12]"
+          style={{ background: 'radial-gradient(circle, rgba(110,86,207,1) 0%, transparent 70%)', filter:'blur(80px)' }} />
+        <div className="absolute top-[40%] -right-[150px] w-[500px] h-[500px] rounded-full opacity-[0.08]"
+          style={{ background: 'radial-gradient(circle, rgba(0,211,167,1) 0%, transparent 70%)', filter:'blur(80px)' }} />
+        <div className="absolute -bottom-[150px] left-[30%] w-[400px] h-[400px] rounded-full opacity-[0.06]"
+          style={{ background: 'radial-gradient(circle, rgba(236,72,153,1) 0%, transparent 70%)', filter:'blur(80px)' }} />
       </div>
 
-      <div className="relative z-10 px-2 sm:px-4 md:px-6 pt-10 pb-24">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-6 flex items-center justify-between gap-4">
+      <div className="relative z-10 px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 md:py-10 pb-28">
+
+        {/* ── Hero Header ── */}
+        <div className="mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
-              <h1 className="text-3xl sm:text-4xl font-bold text-white">
-                Statistiques
+              <p className="text-white/40 text-sm mb-1">{greeting}{userName ? `, ${userName}` : ''}</p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold">
+                <span className="bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent">
+                  Tes statistiques
+                </span>
               </h1>
-              <p className="text-[var(--text-muted)]">
-                Vue d’ensemble de tes performances sur Synaura
+              <p className="text-white/40 text-sm mt-2 max-w-lg">
+                Analyse les performances de tes pistes, comprends ton audience et optimise ta visibilité sur Synaura.
               </p>
             </div>
-            <Link
-              href="/profile"
-              className="hidden lg:inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 text-white/90"
-            >
-              <Users size={16} /> Voir mon profil
-            </Link>
-          </div>
-
-          {/* Filtres */}
-          <div className="panel-suno border border-[var(--border)] rounded-2xl p-3 sm:p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between bg-black/40 backdrop-blur-xl">
-            <div className="flex items-center gap-3 flex-wrap">
-              <div className="flex flex-wrap gap-2">
-                {(['7d', '30d', '90d', 'all'] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    aria-pressed={range === r}
-                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                      range === r
-                        ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white shadow'
-                        : 'bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 text-white/90'
-                    }`}
-                  >
-                    {r.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-              {(loadingSeries || loadingAudience) && (
-                <SynauraSpinner label="Mise à jour des stats" />
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="relative">
-                <select
-                  value={selectedTrack}
-                  onChange={(e) => setSelectedTrack(e.target.value)}
-                  disabled={loadingSeries || loading}
-                  className="appearance-none bg-[var(--surface-2)]/70 backdrop-blur ring-1 ring-[var(--border)] hover:ring-[var(--color-primary)] focus:ring-[var(--color-primary)] transition-colors rounded-xl pl-3 pr-10 py-2 text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed min-w-[220px]"
-                >
-                  <option value="all">Toutes les pistes</option>
-                  {tracks.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70">
-                  {loadingSeries ? (
-                    <span className="relative inline-flex h-4 w-4">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-[var(--color-primary)]/40 blur-[2px]" />
-                      <span
-                        className="relative inline-flex h-4 w-4 rounded-full border-2 border-transparent animate-spin"
-                        style={{
-                          borderTopColor: 'var(--color-accent)',
-                          borderRightColor: 'var(--color-primary)',
-                        }}
-                      />
-                    </span>
-                  ) : (
-                    <ChevronDown size={16} />
-                  )}
-                </div>
-              </div>
-              <div className="relative">
-                <select
-                  value={compareTrack}
-                  onChange={(e) => setCompareTrack(e.target.value)}
-                  disabled={loadingSeries || loading}
-                  className="appearance-none bg-[var(--surface-2)]/70 backdrop-blur ring-1 ring-[var(--border)] hover:ring-[var(--color-primary)] focus:ring-[var(--color-primary)] transition-colors rounded-xl pl-3 pr-10 py-2 text-sm text-white disabled:opacity-60 disabled:cursor-not-allowed min-w-[220px]"
-                >
-                  <option value="">Comparer à… (optionnel)</option>
-                  {tracks.map((t) => (
-                    <option
-                      key={`c-${t.id}`}
-                      value={t.id}
-                      disabled={t.id === selectedTrack}
-                    >
-                      {t.title}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/70">
-                  <ChevronDown size={16} />
-                </div>
-              </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/[0.12] text-white/80 text-sm transition-all">
+                <Users size={15} /> Mon profil
+              </Link>
+              <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] hover:shadow-[0_4px_28px_rgba(110,86,207,0.5)] transition-all">
+                <Sparkles size={15} /> Studio
+              </Link>
             </div>
           </div>
-
-          {/* Erreur globale */}
-          {error && (
-            <div className="panel-suno border border-red-500/40 rounded-2xl p-4 bg-red-500/10 text-red-100 mb-6">
-              {error}
-            </div>
-          )}
-
-          {/* Aucun titre encore */}
-          {!error && tracks.length === 0 && (
-            <EmptyStatsState />
-          )}
-
-          {!error && tracks.length > 0 && (
-            <>
-              {/* Détail piste sélectionnée (total + funnel + sources) */}
-              {selectedTrack !== 'all' && (
-                <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 mb-6 bg-black/40 backdrop-blur-xl">
-                  <div className="flex items-center justify-between mb-3">
-                    <div>
-                      <h2 className="text-xl font-semibold text-white">
-                        Stats de la piste (total)
-                      </h2>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        Vue détaillée sur l’ensemble de sa vie
-                      </p>
-                    </div>
-                    {loadingTrackDetail && (
-                      <SynauraSpinner label="Détails piste" />
-                    )}
-                  </div>
-
-                  {!loadingTrackDetail && Array.isArray(trackDaily) && (
-                    <>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-                        <Card
-                          label="Vues (total)"
-                          value={sum(trackDaily, 'views')}
-                        />
-                        <Card
-                          label="Lectures (total)"
-                          value={sum(trackDaily, 'plays')}
-                        />
-                        <Card
-                          label="Fins (total)"
-                          value={sum(trackDaily, 'completes')}
-                        />
-                        <Card
-                          label="Likes (total)"
-                          value={sum(trackDaily, 'likes')}
-                        />
-                        <Card
-                          label="Partages (total)"
-                          value={sum(trackDaily, 'shares')}
-                        />
-                        <Card
-                          label="Favoris (total)"
-                          value={sum(trackDaily, 'favorites')}
-                        />
-                        <Card
-                          label="Heures d’écoute (total)"
-                          value={(
-                            sum(trackDaily, 'total_listen_ms') / 3600000
-                          ).toFixed(1)}
-                        />
-                        <Card
-                          label="Rétention moyenne (%)"
-                          value={avg(
-                            trackDaily,
-                            'retention_complete_rate',
-                          ).toFixed(1)}
-                        />
-                      </div>
-
-                      {/* Funnel + sources + mini tendance */}
-                      <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {trackFunnel && (
-                          <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-3 sm:p-4">
-                            <h3 className="text-sm font-semibold mb-2 text-white">
-                              Funnel de rétention (30 derniers jours)
-                            </h3>
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs text-[var(--text-muted)]">
-                              <div className="p-2 bg-[var(--surface-3)] rounded-lg">
-                                <div className="text-[10px] uppercase tracking-wide">
-                                  Starts
-                                </div>
-                                <div className="text-[var(--text)] font-semibold">
-                                  {trackFunnel.starts}
-                                </div>
-                              </div>
-                              <div className="p-2 bg-[var(--surface-3)] rounded-lg">
-                                <div className="text-[10px] uppercase tracking-wide">
-                                  25%
-                                </div>
-                                <div className="text-[var(--text)] font-semibold">
-                                  {trackFunnel.p25Rate}%
-                                </div>
-                              </div>
-                              <div className="p-2 bg-[var(--surface-3)] rounded-lg">
-                                <div className="text-[10px] uppercase tracking-wide">
-                                  50%
-                                </div>
-                                <div className="text-[var(--text)] font-semibold">
-                                  {trackFunnel.p50Rate}%
-                                </div>
-                              </div>
-                              <div className="p-2 bg-[var(--surface-3)] rounded-lg">
-                                <div className="text-[10px] uppercase tracking-wide">
-                                  75%
-                                </div>
-                                <div className="text-[var(--text)] font-semibold">
-                                  {trackFunnel.p75Rate}%
-                                </div>
-                              </div>
-                              <div className="p-2 bg-[var(--surface-3)] rounded-lg">
-                                <div className="text-[10px] uppercase tracking-wide">
-                                  Complet
-                                </div>
-                                <div className="text-[var(--text)] font-semibold">
-                                  {trackFunnel.completeRate}%
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {trackSources && trackSources.length > 0 && (
-                          <div className="bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-3 sm:p-4">
-                            <h3 className="text-sm font-semibold mb-2 text-white">
-                              Sources de trafic (30 derniers jours)
-                            </h3>
-                            <div className="space-y-2 text-xs text-[var(--text-muted)]">
-                              {trackSources.map((s) => (
-                                <div
-                                  key={s.source || 'unknown'}
-                                  className="flex items-center gap-3"
-                                >
-                                  <span className="w-24 truncate">
-                                    {s.source || 'Inconnu'}
-                                  </span>
-                                  <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)]"
-                                      style={{
-                                        width: `${Math.max(
-                                          4,
-                                          (100 * (s.plays || 0)) /
-                                            maxTrackSourcePlays,
-                                        )}%`,
-                                      }}
-                                    />
-                                  </div>
-                                  <span className="text-[11px] text-white/70 whitespace-nowrap">
-                                    {s.plays} plays · {s.completes} fins
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {trackDaily.length > 0 && (
-                        <div className="mt-4 bg-[var(--surface-2)] border border-[var(--border)] rounded-xl p-3 sm:p-4">
-                          <h3 className="text-sm font-semibold mb-2 text-white">
-                            Tendance sur 7 jours pour cette piste
-                          </h3>
-                          <div className="grid grid-cols-2 md:grid-cols-7 gap-2 text-[11px] text-[var(--text-muted)]">
-                            {trackDaily.slice(-7).map((d) => (
-                              <div
-                                key={d.day}
-                                className="p-2 bg-[var(--surface-3)] rounded-lg"
-                              >
-                                <div className="text-[10px]">
-                                  {new Date(d.day).toLocaleDateString('fr-FR')}
-                                </div>
-                                <div>Plays: {d.plays}</div>
-                                <div>Fin: {d.completes}</div>
-                                <div>
-                                  Ret: {Math.round(d.retention_complete_rate)}%
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* KPIs globaux */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                <Kpi
-                  icon={<Headphones size={16} />}
-                  label="Écoutes totales"
-                  value={formatNumber(totals.totalPlays)}
-                />
-                <Kpi
-                  icon={<Heart size={16} />}
-                  label="Likes totaux"
-                  value={formatNumber(totals.totalLikes)}
-                />
-                <Kpi
-                  icon={<Music size={16} />}
-                  label="Pistes"
-                  value={formatNumber(totals.totalTracks)}
-                />
-                <Kpi
-                  icon={<TrendingUp size={16} />}
-                  label="Top (10)"
-                  value={formatNumber(topTracks.length)}
-                />
-              </div>
-
-              {/* Évolution (timeseries) */}
-              <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 mb-6 bg-black/40 backdrop-blur-xl">
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <div>
-                    <h2 className="text-xl font-semibold text-white">
-                      Évolution des écoutes
-                    </h2>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      Suis la courbe de tes performances sur la période choisie
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {(['plays', 'uniques', 'likes'] as const).map((m) => (
-                      <button
-                        key={m}
-                        onClick={() => setMetric(m)}
-                        className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                          metric === m
-                            ? 'bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white'
-                            : 'bg-white/5 ring-1 ring-[var(--border)] hover:bg-white/10 text-white/90'
-                        }`}
-                      >
-                        {m === 'plays'
-                          ? 'Écoutes'
-                          : m === 'uniques'
-                          ? 'Uniques'
-                          : 'Likes'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                {loadingSeries ? (
-                  <div className="h-48 flex items-center justify-center">
-                    <SynauraSpinner label="Évolution" />
-                  </div>
-                ) : series.length === 0 ? (
-                  <div className="text-[var(--text-muted)] text-sm text-center py-8">
-                    Les stats s’affichent après tes premières écoutes.
-                    Partage tes musiques pour commencer à voir des données.
-                  </div>
-                ) : (
-                  <TimeseriesBars
-                    series={series}
-                    compareSeries={compareSeries}
-                    metric={metric}
-                    onHover={setHoverPoint}
-                  />
-                )}
-                <div className="mt-3 text-xs text-white/70 flex flex-col gap-1">
-                  <div>
-                    Total période — Écoutes:{' '}
-                    {formatNumber(totals.period.plays)} • Uniques:{' '}
-                    {formatNumber(totals.period.uniques)} • Likes:{' '}
-                    {formatNumber(totals.period.likes)}
-                  </div>
-                  {hoverPoint && (
-                    <div className="text-white/80">
-                      {hoverPoint.date} — Écoutes:{' '}
-                      {formatNumber(hoverPoint.plays)} • Uniques:{' '}
-                      {formatNumber(hoverPoint.uniques || 0)} • Likes:{' '}
-                      {formatNumber(hoverPoint.likes || 0)}
-                      {compareSeries.length
-                        ? (() => {
-                            const m =
-                              metric === 'plays'
-                                ? 'plays'
-                                : metric === 'uniques'
-                                ? 'uniques'
-                                : 'likes';
-                            const c = (compareSeries as any).find(
-                              (x: any) => x.date === hoverPoint.date,
-                            );
-                            return c
-                              ? ` • Comparé: ${formatNumber(c[m] || 0)}`
-                              : '';
-                          })()
-                        : ''}
-                    </div>
-                  )}
-                  {compareSeries.length > 0 && series.length > 0 && (
-                    <div className="text-white/70">
-                      {(() => {
-                        const mainPlays = series.reduce(
-                          (s: any, p: any) => s + (p.plays || 0),
-                          0,
-                        );
-                        const compPlays = compareSeries.reduce(
-                          (s: any, p: any) => s + (p.plays || 0),
-                          0,
-                        );
-                        if (mainPlays === 0 && compPlays === 0) {
-                          return 'Les deux pistes n’ont pas encore d’écoutes sur cette période.';
-                        }
-                        const titleA =
-                          selectedTrack === 'all'
-                            ? 'Toutes les pistes'
-                            : tracks.find((t) => t.id === selectedTrack)?.title ||
-                              'Piste sélectionnée';
-                        const titleB =
-                          tracks.find((t) => t.id === compareTrack)?.title ||
-                          'Piste comparée';
-                        if (!compPlays) {
-                          return `${titleA} a ${formatNumber(
-                            mainPlays,
-                          )} écoutes, contre 0 pour ${titleB} sur cette période.`;
-                        }
-                        const diff = mainPlays - compPlays;
-                        const pct = (diff / compPlays) * 100;
-                        if (pct > 0) {
-                          return `${titleA} fait environ +${pct.toFixed(
-                            1,
-                          )}% d’écoutes que ${titleB} sur cette période.`;
-                        }
-                        if (pct < 0) {
-                          return `${titleA} fait environ ${pct.toFixed(
-                            1,
-                          )}% d’écoutes de moins que ${titleB} sur cette période.`;
-                        }
-                        return `${titleA} et ${titleB} sont à peu près au même niveau sur cette période.`;
-                      })()}
-                    </div>
-                  )}
-                  <TrendLine series={series as any} metric={metric} />
-                </div>
-              </div>
-
-              {/* Heatmap heures/jours */}
-              <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 mb-6 bg-black/40 backdrop-blur-xl">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl font-semibold text-white">
-                    Meilleurs créneaux (jour × heure)
-                  </h2>
-                </div>
-                {loadingHeatmap ? (
-                  <div className="h-40 flex items-center justify-center">
-                    <SynauraSpinner label="Heatmap" />
-                  </div>
-                ) : (
-                  <HeatmapGrid matrix={heatmap} />
-                )}
-              </div>
-
-              {/* Audience */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 bg-black/40 backdrop-blur-xl">
-                  <h3 className="text-lg font-semibold mb-3 text-white">
-                    Audience par pays
-                  </h3>
-                  {loadingAudience ? (
-                    <div className="h-32 flex items-center justify-center">
-                      <SynauraSpinner label="Pays" />
-                    </div>
-                  ) : audience.countries ? (
-                    <ul className="space-y-2">
-                      {Object.entries(audience.countries).map(
-                        ([country, val]) => (
-                          <li
-                            key={country}
-                            className="flex items-center gap-3"
-                          >
-                            <span className="w-28 text-white/70 text-sm truncate">
-                              {country}
-                            </span>
-                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-purple-500 to-cyan-400"
-                                style={{ width: `${val}%` }}
-                              />
-                            </div>
-                            <span className="w-10 text-right text-sm text-white/70">
-                              {Math.round(val)}%
-                            </span>
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  ) : (
-                    <div className="text-[var(--text-muted)] text-sm">
-                      Données d’audience à venir.
-                    </div>
-                  )}
-                </div>
-                <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 bg-black/40 backdrop-blur-xl">
-                  <h3 className="text-lg font-semibold mb-3 text-white">
-                    Appareils
-                  </h3>
-                  {loadingAudience ? (
-                    <div className="h-32 flex items-center justify-center">
-                      <SynauraSpinner label="Appareils" />
-                    </div>
-                  ) : audience.devices ? (
-                    <ul className="space-y-2">
-                      {Object.entries(audience.devices).map(
-                        ([device, val]) => (
-                          <li
-                            key={device}
-                            className="flex items-center gap-3"
-                          >
-                            <span className="w-28 text-white/70 text-sm truncate capitalize">
-                              {device}
-                            </span>
-                            <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-purple-500 to-cyan-400"
-                                style={{ width: `${val}%` }}
-                              />
-                            </div>
-                            <span className="w-10 text-right text-sm text-white/70">
-                              {Math.round(val)}%
-                            </span>
-                          </li>
-                        ),
-                      )}
-                    </ul>
-                  ) : (
-                    <div className="text-[var(--text-muted)] text-sm">
-                      Données appareils à venir.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Audience technique */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 bg-black/40 backdrop-blur-xl">
-                  <h3 className="text-lg font-semibold mb-3 text-white">
-                    Systèmes d’exploitation
-                  </h3>
-                  {loadingAudience ? (
-                    <div className="h-40 flex items-center justify-center">
-                      <SynauraSpinner label="OS" />
-                    </div>
-                  ) : audienceTech.os ? (
-                    <DonutWithLegend data={audienceTech.os} />
-                  ) : (
-                    <div className="text-[var(--text-muted)] text-sm">
-                      Données OS indisponibles.
-                    </div>
-                  )}
-                </div>
-                <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 bg-black/40 backdrop-blur-xl">
-                  <h3 className="text-lg font-semibold mb-3 text-white">
-                    Navigateurs
-                  </h3>
-                  {loadingAudience ? (
-                    <div className="h-40 flex items-center justify-center">
-                      <SynauraSpinner label="Navigateurs" />
-                    </div>
-                  ) : audienceTech.browsers ? (
-                    <DonutWithLegend data={audienceTech.browsers} />
-                  ) : (
-                    <div className="text-[var(--text-muted)] text-sm">
-                      Données navigateurs indisponibles.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Top tracks */}
-              <div className="panel-suno border border-[var(--border)] rounded-2xl p-4 sm:p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.07),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.06),transparent)] bg-black/60 backdrop-blur-xl">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-xl font-semibold text-white">
-                    Tes titres les plus écoutés
-                  </h2>
-                  <Link
-                    href="/library"
-                    className="hidden sm:inline-flex items-center gap-1 text-sm text-white/80 hover:underline"
-                  >
-                    Gérer <ArrowRight size={14} />
-                  </Link>
-                </div>
-                {topTracks.length === 0 ? (
-                  <div className="text-[var(--text-muted)]">
-                    Aucune piste pour le moment.
-                  </div>
-                ) : (
-                  <div className="flex flex-col divide-y divide-[var(--border)]/50">
-                    {topTracks.map((t, i) => (
-                      <div
-                        key={t.id}
-                        className="flex items-center gap-3 py-2"
-                      >
-                        <div className="w-6 text-white/70">{i + 1}</div>
-                        <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 ring-1 ring-[var(--border)]">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={(
-                              t.cover_url ||
-                              t.coverUrl ||
-                              '/default-cover.jpg'
-                            ).replace('/upload/', '/upload/f_auto,q_auto/')}
-                            alt={t.title}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                            decoding="async"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate font-medium text-white">
-                            {t.title}
-                          </div>
-                          <div className="text-xs text-white/60">
-                            {formatNumber(t.plays)} écoutes •{' '}
-                            {formatNumber(t.likes)} likes
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
         </div>
-      </div>
 
-      <StatsTrackDebug />
+        {/* ── Range + Track filters ── */}
+        <div className="panel-suno rounded-2xl border border-white/[0.06] p-3 sm:p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 flex-wrap">
+            {(['7d','30d','90d','all'] as const).map((r) => (
+              <button key={r} onClick={() => setRange(r)}
+                className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${range===r
+                  ? 'bg-gradient-to-r from-[#6e56cf] to-[#5b45be] text-white shadow-[0_2px_12px_rgba(110,86,207,0.4)]'
+                  : 'bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] text-white/60'}`}>
+                {r === 'all' ? 'Tout' : r.toUpperCase()}
+              </button>
+            ))}
+            {(loadingSeries || loadingOverview) && <Spinner />}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={selectedTrack} onChange={setSelectedTrack} options={[{ value:'all', label:'Toutes les pistes' }, ...allTracks.map(t => ({ value:t.id, label:`${t.isAI?'[IA] ':''}${t.title}` }))]} />
+            <Select value={compareTrack} onChange={setCompareTrack} options={[{ value:'', label:'Comparer...' }, ...allTracks.filter(t => t.id !== selectedTrack).map(t => ({ value:t.id, label:`${t.isAI?'[IA] ':''}${t.title}` }))]} />
+          </div>
+        </div>
+
+        {!overview && !loadingOverview && allTracks.length === 0 && <EmptyState />}
+
+        {(overview || loadingOverview) && (
+          <>
+            {/* ── KPI Grid ── */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+              <KpiCard icon={<Headphones size={18}/>} label="Écoutes" value={overview?.plays??0} variation={overview?.playsVariation} loading={loadingOverview} gradient="from-violet-500/20 to-purple-600/5" iconBg="bg-violet-500/20" />
+              <KpiCard icon={<Heart size={18}/>} label="Likes" value={overview?.likes??0} variation={overview?.likesVariation} loading={loadingOverview} gradient="from-rose-500/20 to-pink-600/5" iconBg="bg-rose-500/20" />
+              <KpiCard icon={<Users size={18}/>} label="Followers" value={overview?.followers??0} loading={loadingOverview} gradient="from-blue-500/20 to-indigo-600/5" iconBg="bg-blue-500/20" />
+              <KpiCard icon={<Music size={18}/>} label="Pistes" value={overview?.totalTracks??0} loading={loadingOverview} subtitle={overview ? `${overview.normalTracks} std + ${overview.aiTracks} IA` : undefined} gradient="from-emerald-500/20 to-teal-600/5" iconBg="bg-emerald-500/20" />
+              <KpiCard icon={<Clock size={18}/>} label="Heures d'écoute" value={overview?.listenHours??0} loading={loadingOverview} suffix="h" gradient="from-amber-500/20 to-orange-600/5" iconBg="bg-amber-500/20" />
+              <KpiCard icon={<Target size={18}/>} label="Rétention moy." value={overview?.avgRetention??0} loading={loadingOverview} suffix="%" gradient="from-cyan-500/20 to-teal-600/5" iconBg="bg-cyan-500/20" />
+            </div>
+
+            {/* ── AI / Best Track Banner ── */}
+            {overview && (overview.ai.count > 0 || overview.bestTrack) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+                {overview.ai.count > 0 && (
+                  <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 flex items-center gap-4"
+                    style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.08) 0%, rgba(0,211,167,0.04) 100%)' }}>
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6e56cf] to-[#00d3a7] flex items-center justify-center shrink-0">
+                      <Sparkles size={18} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-white">{overview.ai.count} piste{overview.ai.count > 1 ? 's' : ''} IA</div>
+                      <div className="text-xs text-white/40">{fmt(overview.ai.plays)} écoutes &middot; {fmt(overview.ai.likes)} likes</div>
+                    </div>
+                  </div>
+                )}
+                {overview.bestTrack && (
+                  <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 flex items-center gap-4"
+                    style={{ background:'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%)' }}>
+                    <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
+                      <Star size={18} className="text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-white truncate">Top : {overview.bestTrack.title}</div>
+                      <div className="text-xs text-white/40">{fmt(overview.bestTrack.plays)} écoutes sur la période</div>
+                    </div>
+                    <button onClick={() => setSelectedTrack(overview.bestTrack!.id)} className="text-xs text-[#6e56cf] hover:text-[#00d3a7] transition-colors shrink-0">
+                      Détails <ArrowRight size={12} className="inline" />
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Chart ── */}
+            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <BarChart3 size={18} className="text-[#6e56cf]" /> Évolution
+                  </h2>
+                  <p className="text-xs text-white/30 mt-0.5">Courbe interactive &mdash; survole pour détailler</p>
+                </div>
+                <div className="flex items-center gap-1.5 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
+                  {(['plays','uniques','likes'] as const).map((m) => (
+                    <button key={m} onClick={() => setMetric(m)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${metric===m
+                        ? 'bg-[#6e56cf] text-white shadow-[0_2px_8px_rgba(110,86,207,0.4)]'
+                        : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                      {m === 'plays' ? 'Écoutes' : m === 'uniques' ? 'Uniques' : 'Likes'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {loadingSeries ? (
+                <div className="h-[320px] flex items-center justify-center"><Spinner label="Chargement des données" /></div>
+              ) : chartData.length === 0 ? (
+                <div className="h-[320px] flex flex-col items-center justify-center gap-2">
+                  <BarChart3 size={32} className="text-white/10" />
+                  <p className="text-white/30 text-sm">Les données apparaîtront après les premières écoutes</p>
+                </div>
+              ) : (
+                <RechartsArea data={chartData} metric={metric} compareSeries={compareSeries} />
+              )}
+              {chartData.length > 0 && (
+                <div className="mt-4 flex gap-4 flex-wrap text-xs border-t border-white/[0.06] pt-3">
+                  <span className="text-white/30">Écoutes : <span className="text-white font-semibold">{fmt(periodTotals.plays)}</span></span>
+                  <span className="text-white/30">Uniques : <span className="text-white font-semibold">{fmt(periodTotals.uniques)}</span></span>
+                  <span className="text-white/30">Likes : <span className="text-white font-semibold">{fmt(periodTotals.likes)}</span></span>
+                </div>
+              )}
+            </div>
+
+            {/* ── Track Detail ── */}
+            {selectedTrack !== 'all' && trackDetail && <TrackDetailPanel detail={trackDetail} loading={loadingDetail} />}
+
+            {/* ── Tracks Table ── */}
+            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                  <Disc3 size={18} className="text-[#00d3a7]" /> Toutes tes pistes
+                  <span className="text-xs font-normal text-white/30 ml-1">({allTracks.length})</span>
+                </h2>
+                <div className="flex gap-1.5 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
+                  {(['all','normal','ai'] as const).map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)}
+                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${activeTab===tab
+                        ? 'bg-[#6e56cf] text-white shadow-[0_2px_8px_rgba(110,86,207,0.4)]'
+                        : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                      {tab === 'all' ? 'Toutes' : tab === 'normal' ? 'Standard' : 'IA'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 mb-3">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher..."
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-sm text-white placeholder:text-white/20 focus:border-[#6e56cf]/40 outline-none transition-colors" />
+                </div>
+                <div className="flex gap-1.5 flex-wrap">
+                  {([['plays','Écoutes'],['likes','Likes'],['recent','Récent'],['retention','Rétention'],['trend','7j']] as const).map(([key,label]) => (
+                    <button key={key} onClick={() => setTrackSort(key as any)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1 transition-all ${trackSort===key
+                        ? 'bg-[#6e56cf]/20 text-[#6e56cf] border border-[#6e56cf]/30'
+                        : 'bg-white/[0.03] border border-white/[0.06] text-white/40 hover:text-white/60 hover:bg-white/[0.05]'}`}>
+                      <ArrowUpDown size={9} /> {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {loadingTracks ? (
+                <div className="h-40 flex items-center justify-center"><Spinner /></div>
+              ) : filteredTracks.length === 0 ? (
+                <div className="text-center py-10 text-white/25 text-sm">Aucune piste trouvée</div>
+              ) : (
+                <div className="space-y-1">
+                  {filteredTracks.map((t, i) => (
+                    <div key={t.id}
+                      onClick={() => setSelectedTrack(t.id === selectedTrack ? 'all' : t.id)}
+                      className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all group ${selectedTrack === t.id
+                        ? 'bg-[#6e56cf]/10 border border-[#6e56cf]/20'
+                        : 'hover:bg-white/[0.03] border border-transparent'}`}>
+                      <span className="text-xs text-white/20 w-6 text-right shrink-0 tabular-nums">{i+1}</span>
+                      <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.04] border border-white/[0.06] shrink-0">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={t.coverUrl?.replace('/upload/','/upload/f_auto,q_auto,w_80/') || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm text-white font-medium truncate">{t.title}</span>
+                          {t.isAI && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#6e56cf]/20 text-[#6e56cf]">IA</span>}
+                          {t.isRemix && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-fuchsia-500/20 text-fuchsia-400">Remix</span>}
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-white/25 mt-0.5">
+                          <span className="flex items-center gap-0.5"><Play size={9}/> {fmt(t.plays)}</span>
+                          <span className="flex items-center gap-0.5"><Heart size={9}/> {fmt(t.likes)}</span>
+                          <span className={`${t.retention > 50 ? 'text-emerald-400/60' : ''}`}>{t.retention}%</span>
+                          {t.trend7d !== 0 && <span className={t.trend7d > 0 ? 'text-emerald-400/60' : 'text-red-400/60'}>{t.trend7d > 0 ? '+' : ''}{fmt(t.trend7d)}</span>}
+                        </div>
+                      </div>
+                      <div className="text-xs text-white/15 hidden sm:block shrink-0">{t.createdAt ? new Date(t.createdAt).toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : ''}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ── Heatmap ── */}
+            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
+                <Clock size={18} className="text-amber-400" /> Meilleurs créneaux
+              </h2>
+              {loadingHeatmap ? <div className="h-40 flex items-center justify-center"><Spinner /></div> : <HeatmapGrid matrix={heatmap} />}
+            </div>
+
+            {/* ── Audience ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <AudienceCard title="Pays" icon={<Eye size={16} className="text-blue-400"/>} data={audience.countries} loading={loadingAudience} />
+              <AudienceCard title="Appareils" icon={<Volume2 size={16} className="text-emerald-400"/>} data={audience.devices} loading={loadingAudience} />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              <AudienceCard title="Systèmes" icon={<Disc3 size={16} className="text-violet-400"/>} data={audienceTech.os} loading={loadingAudience} />
+              <AudienceCard title="Navigateurs" icon={<Search size={16} className="text-cyan-400"/>} data={audienceTech.browsers} loading={loadingAudience} />
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
 
-function EmptyStatsState() {
+export default function StatsPage() {
+  return <Suspense fallback={<StatsPageSkeleton />}><StatsPageInner /></Suspense>;
+}
+
+/* ═══════════════════ Components ═══════════════════ */
+
+function KpiCard({ icon, label, value, variation, loading, suffix, subtitle, gradient, iconBg }: {
+  icon: React.ReactNode; label: string; value: number; variation?: number; loading?: boolean; suffix?: string; subtitle?: string; gradient?: string; iconBg?: string;
+}) {
   return (
-    <div className="panel-suno border border-[var(--border)] rounded-2xl p-6 text-center bg-black/40 backdrop-blur-xl mb-8">
-      <h2 className="text-xl font-semibold mb-2 text-white">
-        Pas encore de stats
+    <div className={`relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-4 bg-gradient-to-br ${gradient || 'from-white/[0.04] to-transparent'}`}
+      style={{ background: `linear-gradient(135deg, rgba(10,10,16,0.6) 0%, rgba(10,10,16,0.3) 100%)`, backdropFilter:'blur(10px)' }}>
+      <div className="flex items-center gap-2.5 mb-2">
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg || 'bg-white/10'}`}>{icon}</div>
+        <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">{label}</span>
+      </div>
+      {loading ? <div className="h-8 w-20 bg-white/[0.04] rounded-lg animate-pulse" /> : (
+        <>
+          <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{fmt(value)}{suffix||''}</div>
+          {variation !== undefined && variation !== 0 && (
+            <div className={`flex items-center gap-1 text-[11px] mt-1.5 font-medium ${variation > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {variation > 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+              {variation > 0 ? '+' : ''}{variation}%
+            </div>
+          )}
+          {subtitle && <div className="text-[10px] text-white/25 mt-1">{subtitle}</div>}
+        </>
+      )}
+    </div>
+  );
+}
+
+function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }) {
+  if (loading) return <div className="panel-suno rounded-2xl border border-white/[0.06] p-6 mb-6 flex items-center justify-center h-40"><Spinner label="Chargement détail" /></div>;
+  const daily = detail?.daily || [];
+  const funnel = detail?.funnel;
+  const sources = detail?.sources || [];
+  const totalPlays = daily.reduce((s: number, d: any) => s+(d.plays||0), 0);
+  const totalCompletes = daily.reduce((s: number, d: any) => s+(d.completes||0), 0);
+  const totalViews = daily.reduce((s: number, d: any) => s+(d.views||0), 0);
+  const totalLikes = daily.reduce((s: number, d: any) => s+(d.likes||0), 0);
+  const avgRet = daily.length ? Math.round(daily.reduce((s: number, d: any) => s+(d.retention_complete_rate||0), 0)/daily.length*10)/10 : 0;
+  const listenH = Math.round(daily.reduce((s: number, d: any) => s+(d.total_listen_ms||0), 0)/3600000*10)/10;
+  const srcData = sources.map((s: any) => ({ name: s.source||'Direct', plays: s.plays||0, completes: s.completes||0 }));
+
+  return (
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6"
+      style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.04) 0%, rgba(0,211,167,0.02) 100%)' }}>
+      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+        <Target size={18} className="text-[#00d3a7]" /> Détail piste (30 derniers jours)
       </h2>
-      <p className="text-sm text-[var(--text-muted)] mb-4 max-w-md mx-auto">
-        Dès que tu publies ou génères tes premières musiques sur Synaura,
-        leurs performances apparaîtront ici.
-      </p>
-      <Link
-        href="/studio"
-        className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] text-white text-sm font-medium shadow-[0_4px_24px_rgba(124,58,237,0.4)]"
-      >
-        <Music size={16} />
-        Lancer le studio IA
-      </Link>
-    </div>
-  );
-}
-
-function Kpi({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="panel-suno border border-[var(--border)] rounded-2xl p-3 sm:p-4 bg-white/5 bg-black/40 backdrop-blur-xl">
-      <div className="text-white/70 text-xs flex items-center gap-2">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="text-2xl sm:text-3xl font-bold mt-1 text-white">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function formatNumber(num: number) {
-  if (!num || isNaN(num)) return '0';
-  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
-  if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K';
-  return String(num);
-}
-
-function TimeseriesBars({
-  series,
-  compareSeries = [],
-  metric = 'plays',
-  onHover,
-}: {
-  series: Array<{ date: string; plays: number; uniques?: number; likes?: number }>;
-  compareSeries?: Array<{
-    date: string;
-    plays: number;
-    uniques?: number;
-    likes?: number;
-  }>;
-  metric?: 'plays' | 'uniques' | 'likes';
-  onHover?: (
-    p:
-      | { date: string; plays: number; uniques?: number; likes?: number }
-      | null,
-  ) => void;
-}) {
-  const values = (p: any) =>
-    metric === 'plays'
-      ? p.plays
-      : metric === 'uniques'
-      ? p.uniques || 0
-      : p.likes || 0;
-  const max = Math.max(
-    1,
-    ...series.map(values),
-    ...compareSeries.map(values),
-  );
-  const ticks = 4;
-  return (
-    <div className="relative">
-      <div className="absolute inset-y-0 left-0 right-0 pointer-events-none">
-        {Array.from({ length: ticks }).map((_, i) => (
-          <div
-            key={i}
-            className="absolute left-0 right-0 border-t border-white/10"
-            style={{ top: `${(i / ticks) * 100}%` }}
-          />
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
+        {[
+          { l:'Vues', v:totalViews }, { l:'Lectures', v:totalPlays }, { l:'Complétions', v:totalCompletes },
+          { l:'Likes', v:totalLikes }, { l:'Heures', v:listenH, s:'h' }, { l:'Rétention', v:avgRet, s:'%' },
+        ].map(m => (
+          <div key={m.l} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
+            <div className="text-[10px] uppercase tracking-wider text-white/25 mb-1">{m.l}</div>
+            <div className="text-lg font-bold text-white tabular-nums">{fmt(m.v)}{m.s||''}</div>
+          </div>
         ))}
       </div>
-      <div className="relative h-48">
-        <div className="absolute inset-0 flex items-end gap-[2px]">
-          {compareSeries.map((p, i) => {
-            const value = values(p);
-            const h = (value / max) * 100;
-            return (
-              <div
-                key={`c-${i}`}
-                className="flex-1 rounded-sm bg-white/20"
-                style={{ height: `${h}%` }}
-                title={`Comparé ${p.date}: ${value}`}
-              />
-            );
-          })}
-        </div>
-        <div className="absolute inset-0 flex items-end gap-[2px]">
-          {series.map((p, i) => {
-            const value = values(p);
-            const h = (value / max) * 100;
-            return (
-              <div
-                key={i}
-                className={`flex-1 rounded-sm transition-colors ${
-                  metric === 'plays'
-                    ? 'bg-gradient-to-t from-purple-600/60 to-cyan-400/70 hover:from-purple-500/80 hover:to-cyan-300/80'
-                    : metric === 'uniques'
-                    ? 'bg-gradient-to-t from-emerald-600/60 to-lime-400/70 hover:from-emerald-500/80 hover:to-lime-300/80'
-                    : 'bg-gradient-to-t from-rose-600/60 to-orange-400/70 hover:from-rose-500/80 hover:to-orange-300/80'
-                }`}
-                style={{ height: `${h}%` }}
-                title={`${p.date}: ${value}`}
-                onMouseEnter={() => onHover && onHover(p)}
-                onMouseLeave={() => onHover && onHover(null)}
-              />
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {funnel && funnel.starts > 0 && (
+          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3 text-white">Funnel de rétention</h3>
+            <div className="space-y-2.5">
+              {[{l:'Démarrage',p:100},{l:'25%',p:funnel.p25Rate},{l:'50%',p:funnel.p50Rate},{l:'75%',p:funnel.p75Rate},{l:'Complet',p:funnel.completeRate}].map(s => (
+                <div key={s.l} className="flex items-center gap-3">
+                  <span className="w-16 text-xs text-white/40">{s.l}</span>
+                  <div className="flex-1 h-2.5 bg-white/[0.04] rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] rounded-full transition-all duration-700" style={{ width:`${Math.max(2,s.p)}%` }} />
+                  </div>
+                  <span className="w-12 text-xs text-white/50 text-right tabular-nums">{s.p}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {srcData.length > 0 && (
+          <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+            <h3 className="text-sm font-semibold mb-3 text-white">Sources de trafic</h3>
+            <RechartsBar data={srcData} />
+          </div>
+        )}
       </div>
-      <div className="mt-2 flex justify-between text-[10px] text-white/60">
-        <span>{series[0]?.date}</span>
-        <span>{series[Math.max(series.length - 1, 0)]?.date}</span>
-      </div>
+      {daily.length > 0 && (
+        <div className="mt-4 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
+          <h3 className="text-sm font-semibold mb-3 text-white">7 derniers jours</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+            {daily.slice(-7).map((d: any) => (
+              <div key={d.day} className="p-2.5 bg-white/[0.02] rounded-lg border border-white/[0.04]">
+                <div className="text-[10px] text-white/30">{new Date(d.day).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})}</div>
+                <div className="text-white text-sm font-semibold mt-1">{d.plays}</div>
+                <div className="text-[10px] text-white/25">{Math.round(d.retention_complete_rate||0)}% rét.</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function SynauraSpinner({ label }: { label?: string }) {
+function AudienceCard({ title, icon, data, loading }: { title: string; icon: React.ReactNode; data?: Record<string,number>; loading: boolean }) {
   return (
-    <div
-      className="flex items-center gap-2 text-white"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <span className="relative inline-flex h-7 w-7">
-        <span className="absolute -inset-1 rounded-full bg-gradient-to-r from-[var(--color-primary)] to-[var(--color-accent)] opacity-50 blur-[4px]" />
-        <span
-          className="relative inline-flex h-7 w-7 rounded-full border-4 border-transparent animate-spin"
-          style={{
-            borderTopColor: 'var(--color-accent)',
-            borderRightColor: 'var(--color-primary)',
-          }}
-        />
-        <span className="absolute h-2.5 w-2.5 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.6)] top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 animate-pulse" />
-      </span>
-      {label && <span className="text-sm font-semibold text-white">{label}</span>}
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5">
+      <h3 className="text-sm font-semibold mb-3 text-white flex items-center gap-2">{icon} {title}</h3>
+      {loading ? <div className="h-[200px] flex items-center justify-center"><Spinner /></div> :
+        data && Object.keys(data).length > 0 ? <><RechartsPie data={data} /><PieLegend data={data} /></> :
+        <div className="h-[200px] flex flex-col items-center justify-center gap-2"><Eye size={24} className="text-white/10" /><p className="text-white/20 text-xs">Pas encore de données</p></div>}
     </div>
   );
 }
 
 function HeatmapGrid({ matrix }: { matrix: number[][] }) {
-  const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-  const max = Math.max(1, ...matrix.flat());
+  const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+  if (!matrix.length) return <div className="text-white/20 text-sm text-center py-8">Pas encore de données</div>;
+  const flat = matrix.flat();
+  const max = Math.max(1,...flat);
+  const bestIdx = flat.indexOf(max);
+  const bestDay = Math.floor(bestIdx / (matrix[0]?.length || 24));
+  const bestHour = bestIdx % (matrix[0]?.length || 24);
   return (
-    <div className="overflow-x-auto">
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: `auto repeat(24, minmax(12px, 1fr))`,
-          gap: 4,
-        }}
-      >
-        <div />
-        {Array.from({ length: 24 }).map((_, h) => (
-          <div
-            key={h}
-            className="text-[10px] text-white/60 text-center"
-          >
-            {h}
-          </div>
-        ))}
-        {matrix.map((row, d) => (
-          <React.Fragment key={`row-${d}`}>
-            <div className="text-xs text-white/70 pr-2">
-              {days[d]}
-            </div>
-            {row.map((val, h) => {
-              const intensity = val / max;
-              const bg = `rgba(124,58,237,${0.15 + intensity * 0.85})`;
-              return (
-                <div
-                  key={`${d}-${h}`}
-                  className="h-4 rounded-sm"
-                  style={{ background: bg }}
-                  title={`${days[d]} ${h}h: ${val}`}
-                />
-              );
-            })}
-          </React.Fragment>
-        ))}
+    <div>
+      {max > 1 && (
+        <div className="mb-3 text-sm text-white/40 flex items-center gap-1.5">
+          <Zap size={14} className="text-amber-400" />
+          Meilleur créneau : <span className="text-white font-medium">{days[bestDay]} à {bestHour}h</span> <span className="text-white/25">({max} écoutes)</span>
+        </div>
+      )}
+      <div className="overflow-x-auto">
+        <div className="grid" style={{ gridTemplateColumns: `48px repeat(24, minmax(16px, 1fr))`, gap: 2 }}>
+          <div />
+          {Array.from({length:24}).map((_,h) => <div key={h} className="text-[9px] text-white/20 text-center">{h}</div>)}
+          {matrix.map((row,d) => (
+            <React.Fragment key={`r-${d}`}>
+              <div className="text-[11px] text-white/30 pr-2 flex items-center justify-end">{days[d]}</div>
+              {row.map((val,h) => {
+                const intensity = val / max;
+                return (
+                  <div key={`${d}-${h}`} className="h-[18px] rounded-[3px] relative group cursor-default transition-transform hover:scale-110"
+                    style={{ background: intensity > 0 ? `rgba(110,86,207,${0.1 + intensity * 0.9})` : 'rgba(255,255,255,0.02)' }}>
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/95 text-white text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 border border-white/10 shadow-xl">
+                      {days[d]} {h}h : {val}
+                    </div>
+                  </div>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-1 mt-3 text-[9px] text-white/20">
+        <span>Moins</span>
+        {[0.1,0.3,0.5,0.7,0.9].map(v => <div key={v} className="w-4 h-3 rounded-[2px]" style={{ background:`rgba(110,86,207,${v})` }} />)}
+        <span>Plus</span>
       </div>
     </div>
   );
 }
 
-function TrendLine({
-  series,
-  metric,
-}: {
-  series: Array<{ date: string; plays: number; uniques?: number; likes?: number }>;
-  metric: 'plays' | 'uniques' | 'likes';
-}) {
-  if (!series.length) return null;
-  const values = series.map((p) =>
-    metric === 'plays'
-      ? p.plays
-      : metric === 'uniques'
-      ? p.uniques || 0
-      : p.likes || 0,
-  );
-  const n = values.length;
-  const avgFn = (arr: number[]) =>
-    arr.reduce((s, v) => s + v, 0) / (arr.length || 1);
-  const smooth = values.map((_, i) =>
-    avgFn(values.slice(Math.max(0, i - 3), Math.min(n, i + 4))),
-  );
-  const max = Math.max(1, ...values, ...smooth);
-  const points = smooth
-    .map((v, i) => {
-      const x = (i / Math.max(1, n - 1)) * 100;
-      const y = 100 - (v / max) * 100;
-      return `${x},${y}`;
-    })
-    .join(' ');
+const PIE_COLORS = ['#6e56cf','#00d3a7','#f59e0b','#10b981','#ef4444','#3b82f6','#f97316','#22c55e'];
+
+function PieLegend({ data }: { data: Record<string,number> }) {
+  const sorted = Object.entries(data).sort(([,a],[,b]) => Number(b)-Number(a)).slice(0,8);
   return (
-    <div className="mt-1">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-10">
-        <polyline
-          fill="none"
-          stroke="rgba(255,255,255,0.7)"
-          strokeWidth="1"
-          points={points}
-        />
-      </svg>
-      <div className="text-[10px] text-white/60">
-        Ligne lissée (moyenne mobile)
+    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs">
+      {sorted.map(([name,value],i) => (
+        <div key={name} className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[i%PIE_COLORS.length] }} />
+          <span className="text-white/50">{name}</span>
+          <span className="text-white/25 tabular-nums">{Math.round(Number(value))}%</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Select({ value, onChange, options }: { value:string; onChange:(v:string)=>void; options:{value:string;label:string}[] }) {
+  return (
+    <div className="relative">
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="appearance-none bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] focus:border-[#6e56cf]/40 transition-colors rounded-xl pl-3 pr-10 py-2 text-sm text-white min-w-[180px] outline-none backdrop-blur-sm">
+        {options.map((o) => <option key={o.value} value={o.value} className="bg-[#0a0a14]">{o.label}</option>)}
+      </select>
+      <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30" />
+    </div>
+  );
+}
+
+function Spinner({ label }: { label?: string }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <div className="relative w-5 h-5">
+        <div className="absolute inset-0 rounded-full border-2 border-transparent animate-spin" style={{ borderTopColor:'#6e56cf', borderRightColor:'#00d3a7' }} />
+      </div>
+      {label && <span className="text-xs text-white/40">{label}</span>}
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-8 sm:p-12 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6e56cf]/20 to-[#00d3a7]/10 flex items-center justify-center mx-auto mb-4">
+        <BarChart3 size={28} className="text-[#6e56cf]" />
+      </div>
+      <h2 className="text-xl font-semibold mb-2 text-white">Pas encore de stats</h2>
+      <p className="text-sm text-white/40 mb-6 max-w-md mx-auto">Dès que tu publies ou génères tes premières musiques sur Synaura, leurs performances apparaîtront ici.</p>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Link href="/upload" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] text-white text-sm transition-all">
+          <Music size={16} /> Uploader une piste
+        </Link>
+        <Link href="/studio" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] transition-all">
+          <Sparkles size={16} /> Créer avec l&apos;IA
+        </Link>
       </div>
     </div>
   );
+}
+
+function fmt(num: number): string {
+  if (num === null || num === undefined || isNaN(num)) return '0';
+  if (num >= 1_000_000) return (num / 1_000_000).toFixed(1) + 'M';
+  if (num >= 1_000) return (num / 1_000).toFixed(1) + 'K';
+  return String(Math.round(num * 10) / 10);
 }

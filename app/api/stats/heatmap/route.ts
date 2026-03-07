@@ -3,7 +3,23 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 
-// Retourne une matrice 7x24: jours (0=dimanche) x heures (0..23)
+async function getUserTrackIds(userId: string): Promise<string[]> {
+  const ids: string[] = [];
+  const { data, error } = await supabaseAdmin
+    .from('tracks').select('id').or(`creator_id.eq.${userId},user_id.eq.${userId}`);
+  if (!error && data) for (const r of data) ids.push(r.id);
+  else {
+    const { data: fb } = await supabaseAdmin.from('tracks').select('id').eq('creator_id', userId);
+    if (fb) for (const r of fb) ids.push(r.id);
+  }
+  try {
+    const { data: aiRows, error: aiErr } = await supabaseAdmin
+      .from('ai_tracks').select('id, generation:ai_generations!inner(user_id)').eq('generation.user_id', userId);
+    if (!aiErr && aiRows) for (const r of aiRows) ids.push(r.id);
+  } catch {}
+  return ids;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -13,47 +29,32 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const range = searchParams.get('range');
     const trackParam = searchParams.get('track');
-
     const startDate = getStartDate(range);
 
-    // Pistes de l'utilisateur
-    let trackIds: string[] = [];
-    const { data: rows } = await supabaseAdmin.from('tracks').select('id').eq('creator_id', session.user.id);
-    if (rows) trackIds = rows.map((r: any) => r.id);
-    if (trackIds.length === 0) {
-      const { data: rows2 } = await supabaseAdmin.from('tracks').select('id').eq('artist_id', session.user.id);
-      if (rows2) trackIds = rows2.map((r: any) => r.id);
-    }
+    let trackIds = await getUserTrackIds(session.user.id);
     if (trackParam && trackParam !== 'all' && trackIds.includes(trackParam)) {
       trackIds = [trackParam];
     }
-    if (trackIds.length === 0) {
-      return NextResponse.json({ matrix: buildEmptyHeatmap() });
-    }
+    if (trackIds.length === 0) return NextResponse.json({ matrix: empty() });
 
-    const { data: views } = await supabaseAdmin
-      .from('track_views')
-      .select('created_at, track_id')
-      .in('track_id', trackIds)
-      .gte('created_at', startDate.toISOString());
+    const { data: views, error } = await supabaseAdmin
+      .from('track_views').select('created_at, track_id').in('track_id', trackIds).gte('created_at', startDate.toISOString());
 
-    const matrix = buildEmptyHeatmap();
+    if (error) return NextResponse.json({ matrix: empty() });
+
+    const matrix = empty();
     for (const v of views || []) {
       const d = new Date(v.created_at);
-      const day = d.getDay();
-      const hour = d.getHours();
-      matrix[day][hour] += 1;
+      matrix[d.getDay()][d.getHours()] += 1;
     }
-
     return NextResponse.json({ matrix });
   } catch {
-    return NextResponse.json({ matrix: buildEmptyHeatmap() });
+    return NextResponse.json({ matrix: empty() });
   }
 }
 
 function getStartDate(range: string | null) {
-  const now = new Date();
-  const d = new Date(now);
+  const d = new Date();
   if (range === '7d') d.setDate(d.getDate() - 6);
   else if (range === '30d') d.setDate(d.getDate() - 29);
   else if (range === '90d') d.setDate(d.getDate() - 89);
@@ -62,8 +63,6 @@ function getStartDate(range: string | null) {
   return d;
 }
 
-function buildEmptyHeatmap(): number[][] {
+function empty(): number[][] {
   return Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
 }
-
-
