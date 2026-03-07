@@ -285,7 +285,7 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0e] text-white flex flex-col">
+    <div className="relative bg-[#0a0a0e] text-white flex flex-col" style={{ height: '100dvh' }}>
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/[0.04] blur-[130px]" />
@@ -293,7 +293,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Header */}
-      <div className="relative z-20 sticky top-0 bg-[#0a0a0e]/80 backdrop-blur-xl border-b border-white/[0.06]">
+      <div className="relative z-20 shrink-0 bg-[#0a0a0e]/80 backdrop-blur-xl border-b border-white/[0.06]" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.push('/messages')}
@@ -324,7 +324,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Messages area */}
-      <div className="relative z-10 flex-1 overflow-y-auto">
+      <div className="relative z-10 flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-20">
@@ -413,7 +413,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Input bar */}
-      <div className="relative z-20 sticky bottom-0 bg-[#0a0a0e]/80 backdrop-blur-xl border-t border-white/[0.06]">
+      <div className="relative z-20 shrink-0 bg-[#0a0a0e]/80 backdrop-blur-xl border-t border-white/[0.06]" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         <div className="max-w-3xl mx-auto px-4 py-3">
           {recordingPreview ? (
             <div className="flex items-center gap-3">
