@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Avatar from '@/components/Avatar';
+import { useAudioPlayer } from '@/app/providers';
 
 interface Message {
   _id: string;
@@ -36,6 +37,8 @@ export default function ConversationPage() {
   const router = useRouter();
   const params = useParams();
   const conversationId = params.conversationId as string;
+  const { audioState } = useAudioPlayer();
+  const playerVisible = audioState.showPlayer && audioState.tracks.length > 0;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -285,7 +288,13 @@ export default function ConversationPage() {
   }
 
   return (
-    <div className="relative bg-[#0a0a0e] text-white flex flex-col" style={{ height: '100dvh' }}>
+    <div
+      className={`relative bg-[#0a0a0e] text-white flex flex-col ${
+        playerVisible
+          ? 'h-[calc(100dvh-120px)] lg:h-[calc(100dvh-60px)]'
+          : 'h-[calc(100dvh-56px)] lg:h-[100dvh]'
+      }`}
+    >
       {/* Background */}
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] rounded-full bg-indigo-600/[0.04] blur-[130px]" />

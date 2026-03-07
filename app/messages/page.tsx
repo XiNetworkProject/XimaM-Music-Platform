@@ -168,7 +168,7 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-24">
+    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-32 lg:pb-8">
       <div className="pointer-events-none fixed inset-0 z-0">
         <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/[0.07] blur-[130px] animate-[synaura-blob1_18s_ease-in-out_infinite]" />
         <div className="absolute bottom-[-15%] right-[-5%] w-[50vw] h-[50vw] rounded-full bg-violet-600/[0.06] blur-[130px] animate-[synaura-blob2_22s_ease-in-out_infinite]" />

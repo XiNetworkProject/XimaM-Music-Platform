@@ -32,6 +32,7 @@ export function ConditionalNavbar() {
   if (pathname?.startsWith('/library')) return null;
   if (pathname?.startsWith('/boosters')) return null;
   if (pathname?.startsWith('/star-academy-tiktok')) return null;
+  if (pathname?.startsWith('/messages')) return null;
   return <TopSearchBar />;
 }
 
