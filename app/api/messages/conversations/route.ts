@@ -33,8 +33,7 @@ export async function GET(request: NextRequest) {
       .from('conversations')
       .select('*')
       .in('id', convIds)
-      .eq('is_active', true)
-      .order('last_message_at', { ascending: false });
+      .order('updated_at', { ascending: false });
 
     if (convError) {
       console.error('Erreur recuperation conversations:', convError);
@@ -86,7 +85,7 @@ export async function GET(request: NextRequest) {
         return {
           _id: conv.id,
           name: conv.name,
-          type: conv.type,
+          type: conv.is_group ? 'group' : 'direct',
           accepted: true,
           participants: participantsInfo,
           lastMessage: lastMsg
@@ -120,7 +119,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
 
-    const { participantId, name, type = 'direct' } = await request.json();
+    const { participantId, name } = await request.json();
 
     if (!participantId) {
       return NextResponse.json({ error: 'ID du participant requis' }, { status: 400 });
@@ -128,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     const userId = session.user.id;
 
-    if (type === 'direct') {
+    {
       const { data: existingParts } = await supabase
         .from('conversation_participants')
         .select('conversation_id')
@@ -149,14 +148,14 @@ export async function POST(request: NextRequest) {
               .from('conversations')
               .select('*')
               .eq('id', op.conversation_id)
-              .eq('type', 'direct')
+              .eq('is_group', false)
               .single();
 
             if (conv) {
               return NextResponse.json({
                 _id: conv.id,
                 name: conv.name,
-                type: conv.type,
+                type: 'direct',
                 exists: true,
               });
             }
@@ -165,11 +164,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const convId = crypto.randomUUID();
     const { data: newConv, error: convError } = await supabase
       .from('conversations')
       .insert({
+        id: convId,
         name: name || null,
-        type,
+        is_group: false,
       })
       .select()
       .single();
@@ -182,7 +183,7 @@ export async function POST(request: NextRequest) {
     const { error: partError } = await supabase
       .from('conversation_participants')
       .insert([
-        { conversation_id: newConv.id, user_id: userId, is_admin: true },
+        { conversation_id: newConv.id, user_id: userId },
         { conversation_id: newConv.id, user_id: participantId },
       ]);
 
@@ -191,7 +192,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { _id: newConv.id, name: newConv.name, type: newConv.type },
+      { _id: newConv.id, name: newConv.name, type: 'direct' },
       { status: 201 },
     );
   } catch (error) {

@@ -39,8 +39,7 @@ export async function GET(request: NextRequest) {
             .from('conversations')
             .select('id')
             .eq('id', op.conversation_id)
-            .eq('type', 'direct')
-            .eq('is_active', true)
+            .eq('is_group', false)
             .single();
 
           if (conv) {

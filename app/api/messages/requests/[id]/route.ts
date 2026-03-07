@@ -41,7 +41,7 @@ export async function POST(
     if (action === 'accept') {
       const { data: conv, error: convError } = await supabaseAdmin
         .from('conversations')
-        .insert({ type: 'direct' })
+        .insert({ id: crypto.randomUUID(), is_group: false })
         .select()
         .single();
 

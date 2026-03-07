@@ -87,10 +87,9 @@ export async function POST(request: NextRequest) {
         for (const op of otherParts) {
           const { data: conv } = await supabaseAdmin
             .from('conversations')
-            .select('id, type')
+            .select('id')
             .eq('id', op.conversation_id)
-            .eq('type', 'direct')
-            .eq('is_active', true)
+            .eq('is_group', false)
             .single();
 
           if (conv) {
@@ -158,7 +157,7 @@ async function acceptAndCreateConversation(
 ): Promise<string> {
   const { data: conv } = await supabaseAdmin
     .from('conversations')
-    .insert({ type: 'direct' })
+    .insert({ id: crypto.randomUUID(), is_group: false })
     .select()
     .single();
 

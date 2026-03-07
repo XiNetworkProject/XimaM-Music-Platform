@@ -139,7 +139,7 @@ export async function POST(
 
     await supabase
       .from('conversations')
-      .update({ last_message_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .update({ updated_at: new Date().toISOString() })
       .eq('id', conversationId);
 
     const { data: profile } = await supabase
