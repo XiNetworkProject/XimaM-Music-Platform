@@ -384,6 +384,240 @@ class ApiService {
       }),
     });
   }
+
+  // ===== TRACK DETAILS =====
+  async getTrack(id: string): Promise<ApiResponse<{ track: ApiTrack }>> {
+    return this.request<{ track: ApiTrack }>(`/api/tracks/${encodeURIComponent(id)}`, { method: 'GET' });
+  }
+
+  async likeTrack(id: string): Promise<ApiResponse<{ liked: boolean }>> {
+    return this.request<{ liked: boolean }>(`/api/tracks/${encodeURIComponent(id)}/like`, { method: 'POST' });
+  }
+
+  async getTrackComments(id: string, limit = 50): Promise<ApiResponse<{ comments: TrackComment[] }>> {
+    return this.request<{ comments: TrackComment[] }>(`/api/tracks/${encodeURIComponent(id)}/comments?limit=${limit}`, { method: 'GET' });
+  }
+
+  async addTrackComment(id: string, content: string): Promise<ApiResponse<{ comment: TrackComment }>> {
+    return this.request<{ comment: TrackComment }>(`/api/tracks/${encodeURIComponent(id)}/comments`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  async getRisingTracks(limit = 20): Promise<ApiResponse<{ tracks: ApiTrack[] }>> {
+    return this.request<{ tracks: ApiTrack[] }>(`/api/tracks/rising?limit=${limit}`, { method: 'GET' });
+  }
+
+  async getRediscoverTracks(limit = 20): Promise<ApiResponse<{ tracks: ApiTrack[] }>> {
+    return this.request<{ tracks: ApiTrack[] }>(`/api/tracks/rediscover?limit=${limit}`, { method: 'GET' });
+  }
+
+  async getSimilarTracks(id: string, limit = 10): Promise<ApiResponse<{ tracks: ApiTrack[] }>> {
+    return this.request<{ tracks: ApiTrack[] }>(`/api/tracks/similar?trackId=${encodeURIComponent(id)}&limit=${limit}`, { method: 'GET' });
+  }
+
+  async recordTrackEvent(id: string, event: string): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request<{ ok: boolean }>(`/api/tracks/${encodeURIComponent(id)}/events`, {
+      method: 'POST',
+      body: JSON.stringify({ event }),
+    });
+  }
+
+  // ===== PLAYLISTS =====
+  async getPlaylists(): Promise<ApiResponse<{ playlists: ApiPlaylist[] }>> {
+    return this.request<{ playlists: ApiPlaylist[] }>('/api/playlists', { method: 'GET' });
+  }
+
+  async getPlaylist(id: string): Promise<ApiResponse<{ playlist: ApiPlaylist }>> {
+    return this.request<{ playlist: ApiPlaylist }>(`/api/playlists/${encodeURIComponent(id)}`, { method: 'GET' });
+  }
+
+  async createPlaylist(data: { name: string; description?: string; isPublic?: boolean }): Promise<ApiResponse<{ playlist: ApiPlaylist }>> {
+    return this.request<{ playlist: ApiPlaylist }>('/api/playlists', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePlaylist(id: string, data: { name?: string; description?: string; isPublic?: boolean }): Promise<ApiResponse<{ playlist: ApiPlaylist }>> {
+    return this.request<{ playlist: ApiPlaylist }>(`/api/playlists/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePlaylist(id: string): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  }
+
+  async addTrackToPlaylist(playlistId: string, trackId: string): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ trackId, action: 'add' }),
+    });
+  }
+
+  async removeTrackFromPlaylist(playlistId: string, trackId: string): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request<{ ok: boolean }>(`/api/playlists/${encodeURIComponent(playlistId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ trackId, action: 'remove' }),
+    });
+  }
+
+  async getPopularPlaylists(limit = 20): Promise<ApiResponse<{ playlists: ApiPlaylist[] }>> {
+    return this.request<{ playlists: ApiPlaylist[] }>(`/api/playlists/popular?limit=${limit}`, { method: 'GET' });
+  }
+
+  // ===== USER PROFILES =====
+  async getUserProfile(username: string): Promise<ApiResponse<{ user: UserProfile }>> {
+    return this.request<{ user: UserProfile }>(`/api/users/${encodeURIComponent(username)}`, { method: 'GET' });
+  }
+
+  async getUserTracks(username: string, limit = 50): Promise<ApiResponse<{ tracks: ApiTrack[] }>> {
+    return this.request<{ tracks: ApiTrack[] }>(`/api/users/tracks?username=${encodeURIComponent(username)}&limit=${limit}`, { method: 'GET' });
+  }
+
+  async followUser(username: string): Promise<ApiResponse<{ followed: boolean }>> {
+    return this.request<{ followed: boolean }>(`/api/users/${encodeURIComponent(username)}/follow`, { method: 'POST' });
+  }
+
+  async getFollowRequests(): Promise<ApiResponse<{ requests: FollowRequest[] }>> {
+    return this.request<{ requests: FollowRequest[] }>('/api/users/follow-requests', { method: 'GET' });
+  }
+
+  async handleFollowRequest(requestId: string, action: 'accept' | 'reject'): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request<{ ok: boolean }>('/api/users/follow-requests', {
+      method: 'POST',
+      body: JSON.stringify({ requestId, action }),
+    });
+  }
+
+  async updateProfile(data: Record<string, any>): Promise<ApiResponse<{ user: any }>> {
+    return this.request<{ user: any }>('/api/users/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // ===== MESSAGES =====
+  async getConversations(): Promise<ApiResponse<{ conversations: Conversation[] }>> {
+    return this.request<{ conversations: Conversation[] }>('/api/messages/conversations', { method: 'GET' });
+  }
+
+  async getMessages(conversationId: string, limit = 50, before?: string): Promise<ApiResponse<{ messages: Message[] }>> {
+    const qs = `limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ''}`;
+    return this.request<{ messages: Message[] }>(`/api/messages/${encodeURIComponent(conversationId)}?${qs}`, { method: 'GET' });
+  }
+
+  async sendMessage(conversationId: string, content: string, type = 'text'): Promise<ApiResponse<{ message: Message }>> {
+    return this.request<{ message: Message }>(`/api/messages/${encodeURIComponent(conversationId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ content, type }),
+    });
+  }
+
+  async getMessageRequests(): Promise<ApiResponse<{ requests: any[] }>> {
+    return this.request<{ requests: any[] }>('/api/messages/requests', { method: 'GET' });
+  }
+
+  async startConversation(userId: string): Promise<ApiResponse<{ conversation: Conversation }>> {
+    return this.request<{ conversation: Conversation }>('/api/messages/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+    });
+  }
+
+  // ===== NOTIFICATIONS =====
+  async getNotifications(limit = 50): Promise<ApiResponse<{ notifications: AppNotification[] }>> {
+    return this.request<{ notifications: AppNotification[] }>(`/api/notifications?limit=${limit}`, { method: 'GET' });
+  }
+
+  async markNotificationRead(id: string): Promise<ApiResponse<{ ok: boolean }>> {
+    return this.request<{ ok: boolean }>(`/api/notifications/${encodeURIComponent(id)}/read`, { method: 'POST' });
+  }
+
+  async getUnreadNotificationCount(): Promise<ApiResponse<{ count: number }>> {
+    return this.request<{ count: number }>('/api/notifications/unread-count', { method: 'GET' });
+  }
+
+  // ===== GENRES =====
+  async getGenres(): Promise<ApiResponse<{ genres: string[] }>> {
+    return this.request<{ genres: string[] }>('/api/genres', { method: 'GET' });
+  }
+
+  // ===== SUBSCRIPTIONS =====
+  async getMySubscription(): Promise<ApiResponse<{ subscription: any; plan: string; usage: any }>> {
+    return this.request<{ subscription: any; plan: string; usage: any }>('/api/subscriptions/my-subscription', { method: 'GET' });
+  }
+
+  async getSubscriptionUsage(): Promise<ApiResponse<{ usage: any; limits: any; plan: string }>> {
+    return this.request<{ usage: any; limits: any; plan: string }>('/api/subscriptions/usage', { method: 'GET' });
+  }
+
+  // ===== BOOSTERS =====
+  async getBoosterStatus(): Promise<ApiResponse<{ canClaim: boolean; nextClaimAt?: string; streak?: number }>> {
+    return this.request<{ canClaim: boolean; nextClaimAt?: string; streak?: number }>('/api/boosters/active', { method: 'GET' });
+  }
+
+  async claimBoosterPack(): Promise<ApiResponse<{ rewards: any[]; streak?: number }>> {
+    return this.request<{ rewards: any[]; streak?: number }>('/api/boosters/claim-pack', { method: 'POST' });
+  }
+
+  async getBoosterHistory(limit = 20): Promise<ApiResponse<{ history: any[] }>> {
+    return this.request<{ history: any[] }>(`/api/boosters/history?limit=${limit}`, { method: 'GET' });
+  }
+
+  // ===== STATS =====
+  async getCreatorStats(): Promise<ApiResponse<{ stats: any }>> {
+    return this.request<{ stats: any }>('/api/stats/audience', { method: 'GET' });
+  }
+
+  async getTrackStats(trackId: string): Promise<ApiResponse<{ stats: any }>> {
+    return this.request<{ stats: any }>(`/api/stats/audience?trackId=${encodeURIComponent(trackId)}`, { method: 'GET' });
+  }
+
+  // ===== COMMUNITY =====
+  async getCommunityPosts(limit = 20, offset = 0): Promise<ApiResponse<{ posts: CommunityPost[] }>> {
+    return this.request<{ posts: CommunityPost[] }>(`/api/community/posts?limit=${limit}&offset=${offset}`, { method: 'GET' });
+  }
+
+  async createCommunityPost(data: { title: string; content: string; category?: string }): Promise<ApiResponse<{ post: CommunityPost }>> {
+    return this.request<{ post: CommunityPost }>('/api/community/posts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getFAQ(): Promise<ApiResponse<{ faqs: any[] }>> {
+    return this.request<{ faqs: any[] }>('/api/community/faq', { method: 'GET' });
+  }
+
+  async getCommunityStats(): Promise<ApiResponse<{ stats: any }>> {
+    return this.request<{ stats: any }>('/api/stats/community', { method: 'GET' });
+  }
+
+  // ===== UPLOAD =====
+  async getUploadSignature(params: { timestamp: number; publicId: string; folder?: string }): Promise<ApiResponse<{ signature: string; timestamp: number; apiKey: string; cloudName: string }>> {
+    return this.request<{ signature: string; timestamp: number; apiKey: string; cloudName: string }>('/api/upload/signature', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  async publishTrack(data: Record<string, any>): Promise<ApiResponse<{ track: ApiTrack }>> {
+    return this.request<{ track: ApiTrack }>('/api/upload', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async checkCopyright(audioUrl: string): Promise<ApiResponse<{ hasCopyright: boolean; matches?: any[] }>> {
+    return this.request<{ hasCopyright: boolean; matches?: any[] }>('/api/upload/copyright-check', {
+      method: 'POST',
+      body: JSON.stringify({ audioUrl }),
+    });
+  }
 }
 
 export type AILibraryTrack = {
@@ -406,6 +640,102 @@ export type AILibraryTrack = {
     prompt?: string;
     status?: string;
   };
+};
+
+export type TrackComment = {
+  _id: string;
+  content: string;
+  user: { _id: string; username: string; name?: string; avatar?: string | null };
+  createdAt: string;
+};
+
+export type ApiPlaylist = {
+  _id: string;
+  name?: string;
+  title?: string;
+  description?: string | null;
+  coverUrl?: string | null;
+  isPublic?: boolean;
+  trackCount?: number;
+  totalDuration?: number;
+  tracks?: ApiTrack[];
+  creator?: { _id: string; username?: string; name?: string; avatar?: string | null };
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type UserProfile = {
+  _id: string;
+  username: string;
+  name?: string | null;
+  email?: string | null;
+  avatar?: string | null;
+  banner?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  website?: string | null;
+  isArtist?: boolean;
+  artistName?: string | null;
+  genre?: string[] | null;
+  totalPlays?: number;
+  totalLikes?: number;
+  followerCount?: number;
+  followingCount?: number;
+  trackCount?: number;
+  playlistCount?: number;
+  isVerified?: boolean;
+  isFollowing?: boolean;
+  isFollowedBy?: boolean;
+  createdAt?: string;
+  lastSeen?: string | null;
+};
+
+export type Conversation = {
+  _id: string;
+  participants: Array<{ _id: string; username: string; name?: string; avatar?: string | null }>;
+  lastMessage?: { content: string; createdAt: string; sender: string; type?: string };
+  unreadCount?: number;
+  isRequest?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type Message = {
+  _id: string;
+  content: string;
+  type?: string;
+  sender: { _id: string; username: string; name?: string; avatar?: string | null };
+  conversationId: string;
+  readBy?: string[];
+  createdAt: string;
+};
+
+export type AppNotification = {
+  _id: string;
+  type: string;
+  message: string;
+  read: boolean;
+  data?: any;
+  fromUser?: { _id: string; username: string; name?: string; avatar?: string | null };
+  createdAt: string;
+};
+
+export type FollowRequest = {
+  _id: string;
+  from: { _id: string; username: string; name?: string; avatar?: string | null };
+  status: string;
+  createdAt: string;
+};
+
+export type CommunityPost = {
+  _id: string;
+  title: string;
+  content: string;
+  category?: string;
+  author: { _id: string; username: string; name?: string; avatar?: string | null };
+  likes?: number;
+  replies?: number;
+  createdAt: string;
 };
 
 export const api = new ApiService();

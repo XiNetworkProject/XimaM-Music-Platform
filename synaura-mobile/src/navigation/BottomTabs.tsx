@@ -1,23 +1,15 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeScreen from '../screens/HomeScreen';
-import SearchScreen from '../screens/SearchScreen';
+import DiscoverScreen from '../screens/DiscoverScreen';
 import StudioScreen from '../screens/StudioScreen';
+import LibraryScreen from '../screens/LibraryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
 import { MiniPlayer } from '../components/MiniPlayer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: colors.textSecondary, fontWeight: '700' }}>{title}</Text>
-      <Text style={{ color: colors.textTertiary, marginTop: 6 }}>Bientôt disponible</Text>
-    </View>
-  );
-}
 
 const Tab = createBottomTabNavigator();
 
@@ -54,13 +46,13 @@ export function BottomTabs() {
           }}
         />
         <Tab.Screen
-          name="Search"
-          component={SearchScreen}
+          name="Discover"
+          component={DiscoverScreen}
           options={{
             tabBarIcon: ({ color, size, focused }) => (
-              <Ionicons name={focused ? 'search' : 'search-outline'} size={size} color={color} />
+              <Ionicons name={focused ? 'compass' : 'compass-outline'} size={size} color={color} />
             ),
-            title: 'Recherche',
+            title: 'Explorer',
           }}
         />
         <Tab.Screen
@@ -71,6 +63,16 @@ export function BottomTabs() {
               <Ionicons name={focused ? 'sparkles' : 'sparkles-outline'} size={size} color={color} />
             ),
             title: 'Studio',
+          }}
+        />
+        <Tab.Screen
+          name="Library"
+          component={LibraryScreen}
+          options={{
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons name={focused ? 'library' : 'library-outline'} size={size} color={color} />
+            ),
+            title: 'Biblio',
           }}
         />
         <Tab.Screen
@@ -89,5 +91,3 @@ export function BottomTabs() {
     </View>
   );
 }
-
-

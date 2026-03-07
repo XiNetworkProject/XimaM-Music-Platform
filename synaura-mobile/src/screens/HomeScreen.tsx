@@ -578,6 +578,13 @@ const HomeScreen: React.FC = () => {
   const [newUsersLoading, setNewUsersLoading] = useState(true);
   const [newUsersError, setNewUsersError] = useState<string | null>(null);
 
+  const [risingTracks, setRisingTracks] = useState<ApiTrack[]>([]);
+  const [risingLoading, setRisingLoading] = useState(true);
+  const [risingError, setRisingError] = useState<string | null>(null);
+
+  const [genres, setGenres] = useState<any[]>([]);
+  const [genresLoading, setGenresLoading] = useState(true);
+
   type SuggestedCreator = {
     _id: string;
     username: string;
@@ -670,6 +677,38 @@ const HomeScreen: React.FC = () => {
     setNewUsersLoading(false);
   }, []);
 
+  const loadRising = useCallback(async () => {
+    setRisingLoading(true);
+    setRisingError(null);
+    const r = await api.getRisingTracks(12);
+    if (!r.success) {
+      setRisingError(r.error);
+      setRisingTracks([]);
+      setRisingLoading(false);
+      return;
+    }
+    setRisingTracks(r.data.tracks || []);
+    setRisingLoading(false);
+  }, []);
+
+  const loadGenres = useCallback(async () => {
+    setGenresLoading(true);
+    const r = await api.getGenres();
+    if (!r.success) {
+      setGenres([]);
+      setGenresLoading(false);
+      return;
+    }
+    const raw: any[] = Array.isArray(r.data?.genres) ? r.data.genres : Array.isArray(r.data) ? r.data : [];
+    const parsed = raw.map((g: any) => {
+      if (typeof g === 'string') return g;
+      if (g && typeof g === 'object' && typeof g.name === 'string') return g.name;
+      return '';
+    }).filter(Boolean);
+    setGenres(parsed);
+    setGenresLoading(false);
+  }, []);
+
   const loadSuggestedCreators = useCallback(async () => {
     setSuggestedLoading(true);
     setSuggestedError(null);
@@ -720,7 +759,9 @@ const HomeScreen: React.FC = () => {
     loadTrending();
     loadNewUsers();
     loadSuggestedCreators();
-  }, [loadFeatured, loadForYou, loadNewUsers, loadRecent, loadSuggestedCreators, loadTrending]);
+    loadRising();
+    loadGenres();
+  }, [loadFeatured, loadForYou, loadNewUsers, loadRecent, loadSuggestedCreators, loadTrending, loadRising, loadGenres]);
 
   // Radio metadata (poll léger, comme web)
   useEffect(() => {
@@ -758,6 +799,7 @@ const HomeScreen: React.FC = () => {
   );
   const trendingList = useMemo(() => trendingTracks.slice(0, 12), [trendingTracks]);
   const newTracks = useMemo(() => recentTracks.slice().reverse().slice(0, 12), [recentTracks]);
+  const risingList = useMemo(() => risingTracks.slice(0, 12), [risingTracks]);
 
   const heroSlides: HeroSlide[] = useMemo(() => {
     const slides: HeroSlide[] = [
@@ -971,17 +1013,20 @@ const HomeScreen: React.FC = () => {
               <ShortcutButton
                 icon={<Ionicons name="gift-outline" size={16} color="#e5e7eb" />}
                 label="Boosters"
-                onPress={() => goPlaceholder("Boosters", "Boosters", "Boosters & missions (mobile en cours).")}
+                onPress={() => navigation.navigate("Boosters" as any)}
               />
               <ShortcutButton
                 icon={<Ionicons name="people-outline" size={16} color="#e5e7eb" />}
                 label="Communauté"
-                onPress={() => goPlaceholder("Community", "Communauté", "Forum & FAQ (mobile en cours).")}
+                onPress={() => navigation.navigate("Community" as any)}
               />
               <ShortcutButton
                 icon={<Ionicons name="library-outline" size={16} color="#e5e7eb" />}
                 label="Bibliothèque"
-                onPress={() => goPlaceholder("Library", "Bibliothèque", "Favoris, playlists, historique (mobile en cours).")}
+                onPress={() => {
+                  const parent = navigation.getParent?.();
+                  (parent || navigation).navigate("Biblio" as any);
+                }}
               />
               <ShortcutButton
                 icon={<Ionicons name="trending-up-outline" size={16} color="#e5e7eb" />}
@@ -999,13 +1044,13 @@ const HomeScreen: React.FC = () => {
               <ShortcutButton
                 icon={<Ionicons name="cloud-upload-outline" size={16} color="#e5e7eb" />}
                 label="Uploader"
-                onPress={() => goPlaceholder("Upload", "Uploader", "Upload de pistes (mobile en cours).")}
+                onPress={() => navigation.navigate("Upload" as any)}
               />
               <ShortcutButton
                 icon={<Ionicons name="diamond-outline" size={16} color="#e5e7eb" />}
                 label="Premium"
                 variant="primary"
-                onPress={() => goPlaceholder("Premium", "Premium", "Abonnements premium (mobile en cours).")}
+                onPress={() => navigation.navigate("Premium" as any)}
               />
             </View>
           </View>
@@ -1087,7 +1132,7 @@ const HomeScreen: React.FC = () => {
                   const isThis = current?._id === t._id;
                   return (
                     <TrackCard
-                      key={t._id}
+                      key={`fy-${idx}-${t._id}`}
                       title={t.title}
                       artist={artistName}
                       duration={formatDuration(t.duration)}
@@ -1147,7 +1192,7 @@ const HomeScreen: React.FC = () => {
                   const isThis = current?._id === t._id;
                   return (
                     <TrackCard
-                      key={t._id}
+                      key={`tr-${idx}-${t._id}`}
                       title={t.title}
                       artist={artistName}
                       duration={formatDuration(t.duration)}
@@ -1281,8 +1326,8 @@ const HomeScreen: React.FC = () => {
                       </View>
 
                       <View style={styles.suggestedCoversRow}>
-                        {top3.map((t) => (
-                          <View key={t._id} style={styles.suggestedCover}>
+                        {top3.map((t, ti) => (
+                          <View key={`cov-${c._id}-${ti}`} style={styles.suggestedCover}>
                             {t.coverUrl ? (
                               <Image source={{ uri: t.coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" />
                             ) : (
@@ -1343,12 +1388,12 @@ const HomeScreen: React.FC = () => {
           </View>
 
           {/* Nouvelles musiques */}
-          <View style={[styles.section, { paddingBottom: 16 }]}>
+          <View style={styles.section}>
             <SectionHeader
               icon={<Ionicons name="musical-notes-outline" size={16} color="#bfdbfe" />}
               title="Nouvelles musiques"
               action="Tout voir"
-              onActionPress={() => goPlaceholder("Community", "Découvrir", "Nouveautés & découverte (mobile en cours).")}
+              onActionPress={() => navigation.navigate("Search" as any, { initialQuery: "", filter: "tracks" })}
             />
             <ScrollView
               horizontal
@@ -1384,7 +1429,7 @@ const HomeScreen: React.FC = () => {
                     const isThis = current?._id === t._id;
                     return (
                       <TrackCard
-                        key={`new-${t._id}`}
+                        key={`new-${idx}-${t._id}`}
                         title={t.title}
                         artist={artistName}
                         duration={formatDuration(t.duration)}
@@ -1398,6 +1443,101 @@ const HomeScreen: React.FC = () => {
                   })
               )}
             </ScrollView>
+          </View>
+
+          {/* Montée en puissance */}
+          <View style={styles.section}>
+            <SectionHeader
+              icon={<Ionicons name="trending-up" size={16} color="#fbbf24" />}
+              title="Montée en puissance"
+              action="Tout voir"
+              onActionPress={() => navigation.navigate("Trending")}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalList}
+            >
+              {risingLoading ? (
+                <View style={{ paddingVertical: 18, paddingHorizontal: 12 }}>
+                  <ActivityIndicator color="#c7d2fe" />
+                </View>
+              ) : risingError ? (
+                <Pressable
+                  onPress={loadRising}
+                  style={{
+                    paddingVertical: 14,
+                    paddingHorizontal: 14,
+                    borderRadius: 16,
+                    borderWidth: StyleSheet.hairlineWidth,
+                    borderColor: "rgba(255,255,255,0.14)",
+                    backgroundColor: "rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <Text style={{ color: "rgba(255,255,255,0.85)", fontWeight: "700" }}>
+                    Impossible de charger
+                  </Text>
+                  <Text style={{ color: "rgba(255,255,255,0.55)", marginTop: 4, fontSize: 12 }}>
+                    Appuie pour réessayer
+                  </Text>
+                </Pressable>
+              ) : (
+                risingList.map((t, idx) => {
+                  const artistName = t.artist?.name || t.artist?.artistName || t.artist?.username || "Artiste";
+                  const isThis = current?._id === t._id;
+                  return (
+                    <TrackCard
+                      key={`rising-${idx}-${t._id}`}
+                      title={t.title}
+                      artist={artistName}
+                      duration={formatDuration(t.duration)}
+                      coverUrl={t.coverUrl}
+                      onPlay={() => playTrack(t)}
+                      onPress={() => openPlayer(risingList, idx, "Montée en puissance")}
+                      playing={isThis && isPlaying}
+                      loading={isThis && isLoading}
+                    />
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+
+          {/* Genres */}
+          <View style={[styles.section, { paddingBottom: 16 }]}>
+            <SectionHeader
+              icon={<Ionicons name="musical-notes" size={16} color="#a78bfa" />}
+              title="Genres"
+            />
+            {genresLoading ? (
+              <View style={{ paddingVertical: 18, alignItems: "center" }}>
+                <ActivityIndicator color="#c7d2fe" />
+              </View>
+            ) : (
+              <View style={styles.genresGrid}>
+                {genres.map((g, idx) => {
+                  const label = typeof g === "string" ? g : (g?.name || String(g));
+                  return (
+                    <Pressable
+                      key={`genre-${idx}-${label}`}
+                      onPress={() => navigation.navigate("Search" as any, { initialQuery: label, filter: "tracks" })}
+                      style={({ pressed }) => [
+                        styles.genreChip,
+                        pressed ? { opacity: 0.8, transform: [{ scale: 0.97 }] } : null,
+                      ]}
+                    >
+                      <LinearGradient
+                        colors={["rgba(139,92,246,0.55)", "rgba(56,189,248,0.35)"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      <Text style={styles.genreChipText}>{label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -2198,6 +2338,26 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
 
+  genresGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  genreChip: {
+    flexBasis: (width - 16 * 2 - 16) / 3,
+    borderRadius: 14,
+    overflow: "hidden",
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.35)",
+  },
+  genreChipText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#f9fafb",
+  },
   libraryGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

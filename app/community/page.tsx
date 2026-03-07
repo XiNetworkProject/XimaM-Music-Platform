@@ -9,14 +9,46 @@ import {
   TrendingUp,
   Clock,
   ArrowRight,
-  ChevronRight,
   ThumbsUp,
   Reply,
   Star,
+  Sparkles,
+  Flame,
+  Trophy,
+  Lightbulb,
+  Bug,
+  Send,
+  Search,
+  Zap,
+  Heart,
+  MessagesSquare,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import Avatar from '@/components/Avatar';
+
+const sectionFade = {
+  hidden: { opacity: 0, y: 30 },
+  visible: (i: number) => ({
+    opacity: 1,
+    y: 0,
+    transition: { delay: i * 0.08, duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+  }),
+};
+
+const getCategoryMeta = (cat: string) => {
+  switch (cat) {
+    case 'question':
+      return { icon: HelpCircle, color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/30' };
+    case 'suggestion':
+      return { icon: Lightbulb, color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/30' };
+    case 'bug':
+      return { icon: Bug, color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/30' };
+    default:
+      return { icon: MessageSquare, color: 'text-indigo-400', bg: 'bg-indigo-500/15 border-indigo-500/30' };
+  }
+};
 
 export default function CommunityPage() {
   const { data: session } = useSession();
@@ -30,516 +62,439 @@ export default function CommunityPage() {
   const [recentPosts, setRecentPosts] = useState<any[]>([]);
   const [popularFaqs, setPopularFaqs] = useState<any[]>([]);
 
-  // Charger les données de la communauté
   useEffect(() => {
     const fetchCommunityData = async () => {
       try {
         setLoading(true);
 
-        // Stats
-        const statsResponse = await fetch('/api/community/stats');
-        if (statsResponse.ok) {
-          const statsData = await statsResponse.json();
-          setStats(statsData);
-        }
+        const [statsRes, postsRes, faqRes] = await Promise.all([
+          fetch('/api/community/stats'),
+          fetch('/api/community/posts?limit=5&sort=recent'),
+          fetch('/api/community/faq?limit=6&sort=popular'),
+        ]);
 
-        // Posts récents
-        const postsResponse = await fetch('/api/community/posts?limit=3&sort=recent');
-        if (postsResponse.ok) {
-          const postsData = await postsResponse.json();
+        if (statsRes.ok) setStats(await statsRes.json());
+
+        if (postsRes.ok) {
+          const postsData = await postsRes.json();
           const posts = postsData.posts || [];
-
           const postsWithAuthors = await Promise.all(
             posts.map(async (post: any) => {
               try {
-                const userResponse = await fetch(`/api/users/by-id/${post.user_id}`);
-                if (userResponse.ok) {
-                  const userData = await userResponse.json();
-                  return {
-                    ...post,
-                    createdAt: post.created_at,
-                    author: {
-                      name: userData.name,
-                      username: userData.username,
-                    },
-                  };
+                const userRes = await fetch(`/api/users/by-id/${post.user_id}`);
+                if (userRes.ok) {
+                  const u = await userRes.json();
+                  return { ...post, createdAt: post.created_at, author: { name: u.name, username: u.username, avatar: u.avatar } };
                 }
-              } catch (error) {
-                console.error("Erreur lors de la récupération de l'utilisateur:", error);
-              }
-
-              return {
-                ...post,
-                createdAt: post.created_at,
-                author: {
-                  name: 'Utilisateur inconnu',
-                  username: 'unknown',
-                },
-              };
+              } catch {}
+              return { ...post, createdAt: post.created_at, author: { name: 'Utilisateur', username: 'user' } };
             }),
           );
-
           setRecentPosts(postsWithAuthors);
         }
 
-        // FAQ populaires
-        const faqResponse = await fetch('/api/community/faq?limit=8&sort=popular');
-        if (faqResponse.ok) {
-          const faqData = await faqResponse.json();
+        if (faqRes.ok) {
+          const faqData = await faqRes.json();
           setPopularFaqs(faqData.faqs || []);
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement des données:', error);
-        toast.error('Erreur lors du chargement des données de la communauté');
+      } catch {
+        toast.error('Erreur lors du chargement');
       } finally {
         setLoading(false);
       }
     };
-
     fetchCommunityData();
   }, []);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-    if (hours < 1) return "À l'instant";
-    if (hours < 24) return `Il y a ${hours}h`;
-    if (days < 7) return `Il y a ${days}j`;
-    return date.toLocaleDateString('fr-FR');
+  const formatDate = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const h = Math.floor(diff / 3600000);
+    if (h < 1) return "A l'instant";
+    if (h < 24) return `${h}h`;
+    const days = Math.floor(h / 24);
+    if (days < 7) return `${days}j`;
+    return new Date(d).toLocaleDateString('fr-FR');
   };
 
-  const getCategoryIcon = (category: string) => {
-    switch (category) {
-      case 'question':
-        return <HelpCircle size={16} className="text-blue-400" />;
-      case 'suggestion':
-        return <TrendingUp size={16} className="text-yellow-400" />;
-      case 'bug':
-        return <MessageSquare size={16} className="text-red-400" />;
-      default:
-        return <MessageSquare size={16} className="text-purple-400" />;
-    }
-  };
+  const statCards = [
+    { label: 'Membres actifs', value: stats.activeMembers, icon: Users, gradient: 'from-indigo-500 to-violet-500' },
+    { label: 'Discussions', value: stats.forumPosts, icon: MessageSquare, gradient: 'from-violet-500 to-fuchsia-500' },
+    { label: 'Resolues', value: stats.resolvedQuestions, icon: ThumbsUp, gradient: 'from-emerald-500 to-teal-500' },
+    { label: 'Idees integrees', value: stats.implementedSuggestions, icon: Star, gradient: 'from-amber-500 to-orange-500' },
+  ];
 
   if (loading) {
     return (
-      <div className="relative min-h-screen text-white flex items-center justify-center">
-        <div className="relative z-10 flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-full border-2 border-violet-400 border-t-transparent animate-spin" />
-          <p className="text-sm text-white/70">Chargement de la communauté Synaura...</p>
+      <div className="relative min-h-screen bg-[#0a0a0e] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+          <p className="text-sm text-white/50">Chargement...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen text-white pb-20">
-      <div className="relative z-10 max-w-6xl mx-auto px-3 sm:px-4 md:px-8 py-6 md:py-10">
+    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-24">
+      {/* Animated background blobs */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/[0.07] blur-[130px] animate-[synaura-blob1_18s_ease-in-out_infinite]" />
+        <div className="absolute bottom-[-15%] right-[-5%] w-[50vw] h-[50vw] rounded-full bg-violet-600/[0.06] blur-[130px] animate-[synaura-blob2_22s_ease-in-out_infinite]" />
+        <div className="absolute top-[40%] left-[50%] w-[35vw] h-[35vw] rounded-full bg-fuchsia-600/[0.04] blur-[130px] animate-[synaura-blob3_26s_ease-in-out_infinite]" />
+      </div>
+
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 md:pt-14">
         {/* HERO */}
-        <section className="flex flex-col md:flex-row items-start justify-between gap-6 mb-8">
-          <div className="space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="absolute inset-0 rounded-2xl bg-violet-500/80 blur-xl opacity-70" />
-                <div className="relative w-11 h-11 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-violet-300" />
-                </div>
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          custom={0}
+          variants={sectionFade}
+          className="mb-12"
+        >
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-4 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300">
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Centre communautaire</span>
               </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
+              <h1 className="text-4xl md:text-5xl font-black tracking-tight">
+                <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">
+                  Communaute
+                </span>{' '}
+                <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
                   Synaura
-                </p>
-                <h1 className="text-2xl md:text-3xl font-semibold">
-                  Communauté Synaura
-                </h1>
-                <p className="text-sm text-white/65 max-w-xl mt-1">
-                  Entraide, questions, idées de fonctionnalités et discussions autour
-                  de la plateforme. Ici, tout le monde peut contribuer à faire évoluer Synaura.
-                </p>
+                </span>
+              </h1>
+              <p className="text-base md:text-lg text-white/50 leading-relaxed max-w-xl">
+                Entraide, idees, discussions et suggestions. Un espace ou chaque createur
+                contribue a faire evoluer la plateforme.
+              </p>
+              <div className="flex flex-wrap gap-3 pt-2">
+                <Link
+                  href="/community/forum"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 hover:shadow-indigo-400/30 transition-all hover:scale-[1.02] active:scale-100"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Ouvrir le forum
+                </Link>
+                <Link
+                  href="/community/faq"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/[0.1] transition-colors"
+                >
+                  <HelpCircle className="w-4 h-4" />
+                  Centre d&apos;aide
+                </Link>
+                <Link
+                  href="/messages"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/[0.1] transition-colors"
+                >
+                  <MessagesSquare className="w-4 h-4" />
+                  Messagerie
+                </Link>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/60">
-              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-                Forum d&apos;entraide
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-                FAQ & support
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-white/5 border border-white/10">
-                Suggestions & roadmap
-              </span>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/community/forum"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400 text-white shadow-[0_0_24px_rgba(129,140,248,0.9)] hover:scale-[1.02] active:scale-100 transition-transform"
+            {session && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3 }}
+                className="w-full lg:w-auto"
               >
-                <MessageSquare className="w-4 h-4" />
-                <span>Accéder au forum</span>
-              </Link>
-              <Link
-                href="/community/faq"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-colors"
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span>Consulter la FAQ</span>
-              </Link>
-            </div>
+                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 backdrop-blur-sm lg:w-72">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="text-xs text-white/40 uppercase tracking-wider">Votre espace</span>
+                  </div>
+                  <p className="text-sm text-white/70 mb-3">
+                    Bienvenue,{' '}
+                    <span className="font-semibold text-white">
+                      {(session.user as any)?.name || 'membre'}
+                    </span>
+                  </p>
+                  <Link
+                    href="/community/forum"
+                    className="flex items-center justify-between w-full px-4 py-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-sm text-indigo-300 hover:bg-indigo-500/20 transition-colors group"
+                  >
+                    <span>Poser une question</span>
+                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
+              </motion.div>
+            )}
           </div>
+        </motion.section>
 
-          {/* Petit résumé stats / user */}
-          <div className="w-full md:w-72">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-[0.22em] text-white/55">
-                  En un coup d&apos;œil
+        {/* STATS */}
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          custom={1}
+          variants={sectionFade}
+          className="mb-12"
+        >
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {statCards.map((s, i) => {
+              const Icon = s.icon;
+              return (
+                <motion.div
+                  key={s.label}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 + i * 0.06 }}
+                  className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 md:p-5 hover:bg-white/[0.06] transition-colors group"
+                >
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.gradient} flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="text-2xl md:text-3xl font-black text-white">{s.value}</div>
+                  <div className="text-xs text-white/40 mt-1">{s.label}</div>
+                </motion.div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+        {/* QUICK ACCESS */}
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          custom={2}
+          variants={sectionFade}
+          className="mb-12"
+        >
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg md:text-xl font-bold text-white">Acces rapide</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Forum */}
+            <Link
+              href="/community/forum"
+              className="group relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-bl-full" />
+              <div className="relative">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
+                  <MessageSquare className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-base font-bold mb-1.5">Forum</h3>
+                <p className="text-sm text-white/50 mb-4 leading-relaxed">
+                  Posez vos questions, partagez vos idees et discutez avec la communaute.
                 </p>
-                <div className="flex items-center gap-1 text-xs text-emerald-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                  <span>Actif</span>
+                <div className="inline-flex items-center gap-1.5 text-sm text-indigo-400 font-medium group-hover:gap-2.5 transition-all">
+                  <span>Acceder</span>
+                  <ArrowRight className="w-4 h-4" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="space-y-1">
-                  <p className="text-[11px] text-white/60">Questions résolues</p>
-                  <p className="text-lg font-semibold">
-                    {stats.resolvedQuestions}
-                  </p>
+            </Link>
+
+            {/* FAQ */}
+            <Link
+              href="/community/faq"
+              className="group relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full" />
+              <div className="relative">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center mb-4 shadow-lg shadow-emerald-500/20">
+                  <HelpCircle className="w-6 h-6 text-white" />
                 </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] text-white/60">Membres actifs</p>
-                  <p className="text-lg font-semibold">
-                    {stats.activeMembers}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] text-white/60">Posts forum</p>
-                  <p className="text-lg font-semibold">
-                    {stats.forumPosts}
-                  </p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[11px] text-white/60">Idées appliquées</p>
-                  <p className="text-lg font-semibold flex items-center gap-1">
-                    {stats.implementedSuggestions}
-                    <Star className="w-3 h-3 text-yellow-300" />
-                  </p>
+                <h3 className="text-base font-bold mb-1.5">Centre d&apos;aide</h3>
+                <p className="text-sm text-white/50 mb-4 leading-relaxed">
+                  Trouvez les reponses aux questions frequentes en un instant.
+                </p>
+                <div className="inline-flex items-center gap-1.5 text-sm text-emerald-400 font-medium group-hover:gap-2.5 transition-all">
+                  <span>Consulter</span>
+                  <ArrowRight className="w-4 h-4" />
                 </div>
               </div>
-              {session && (
-                <p className="text-[11px] text-white/60">
-                  Bienvenue,{' '}
-                  <span className="font-medium text-white">
-                    {(session.user as any)?.name ||
-                      (session.user as any)?.username ||
-                      'membre'}
-                  </span>
-                  . Merci de faire partie de la communauté.
+            </Link>
+
+            {/* Messagerie */}
+            <Link
+              href="/messages"
+              className="group relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full" />
+              <div className="relative">
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center mb-4 shadow-lg shadow-violet-500/20">
+                  <Send className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-base font-bold mb-1.5">Messagerie</h3>
+                <p className="text-sm text-white/50 mb-4 leading-relaxed">
+                  Echangez directement avec les autres createurs et artistes.
                 </p>
-              )}
-            </div>
+                <div className="inline-flex items-center gap-1.5 text-sm text-violet-400 font-medium group-hover:gap-2.5 transition-all">
+                  <span>Ouvrir</span>
+                  <ArrowRight className="w-4 h-4" />
+                </div>
+              </div>
+            </Link>
           </div>
-        </section>
+        </motion.section>
 
-        {/* Accès rapide + stats détaillées */}
-        <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] mb-8">
-          {/* Accès rapide */}
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-white/90">
-              Accès rapide
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Forum */}
-              <Link
-                href="/community/forum"
-                className="group bg-gradient-to-r from-blue-500/15 via-purple-500/10 to-transparent border border-blue-500/35 rounded-2xl p-5 hover:from-blue-500/30 hover:via-purple-500/20 hover:to-transparent transition-all duration-200 backdrop-blur-md"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-blue-500 to-purple-500 shadow-[0_0_20px_rgba(59,130,246,0.6)]">
-                    <MessageSquare className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold mb-1">
-                      Forum Communauté
-                    </h3>
-                    <p className="text-xs text-white/70 mb-3">
-                      Posez vos questions, partagez vos idées et discutez avec les
-                      autres créateurs.
-                    </p>
-                    <div className="flex items-center text-blue-300 text-xs font-medium group-hover:text-blue-200">
-                      <span>Accéder au forum</span>
-                      <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </div>
-              </Link>
-
-              {/* FAQ */}
-              <Link
-                href="/community/faq"
-                className="group bg-gradient-to-r from-emerald-500/15 via-blue-500/10 to-transparent border border-emerald-500/35 rounded-2xl p-5 hover:from-emerald-500/30 hover:via-blue-500/20 hover:to-transparent transition-all duration-200 backdrop-blur-md"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-blue-500 shadow-[0_0_20px_rgba(16,185,129,0.6)]">
-                    <HelpCircle className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold mb-1">
-                      FAQ & aide rapide
-                    </h3>
-                    <p className="text-xs text-white/70 mb-3">
-                      Trouvez immédiatement les réponses aux questions les plus fréquentes.
-                    </p>
-                    <div className="flex items-center text-emerald-300 text-xs font-medium group-hover:text-emerald-200">
-                      <span>Consulter la FAQ</span>
-                      <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            </div>
-          </div>
-
-          {/* Stats détaillées */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-white/90">
-              Communauté en chiffres
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.05 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
-              >
-                <HelpCircle className="mx-auto mb-2 text-emerald-300" />
-                <div className="text-xl font-bold">{stats.resolvedQuestions}</div>
-                <div className="text-[11px] text-white/65">
-                  Questions résolues
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
-              >
-                <MessageSquare className="mx-auto mb-2 text-blue-300" />
-                <div className="text-xl font-bold">{stats.forumPosts}</div>
-                <div className="text-[11px] text-white/65">Posts du forum</div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
-              >
-                <Users className="mx-auto mb-2 text-purple-300" />
-                <div className="text-xl font-bold">{stats.activeMembers}</div>
-                <div className="text-[11px] text-white/65">
-                  Membres actifs
-                </div>
-              </motion.div>
-
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center backdrop-blur-md"
-              >
-                <TrendingUp className="mx-auto mb-2 text-orange-300" />
-                <div className="text-xl font-bold">
-                  {stats.implementedSuggestions}
-                </div>
-                <div className="text-[11px] text-white/65">
-                  Suggestions implémentées
-                </div>
-              </motion.div>
-            </div>
-          </div>
-        </section>
-
-        {/* Discussions récentes + FAQ populaire */}
-        <section className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] mb-10">
-          {/* Discussions récentes */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-sm md:text-base font-semibold">
-                  Discussions récentes
-                </h2>
-                <p className="text-xs text-white/60">
-                  Un aperçu des derniers sujets de la communauté
-                </p>
+        {/* MAIN GRID: Recent posts + FAQ */}
+        <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr] mb-12">
+          {/* Recent discussions */}
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            custom={3}
+            variants={sectionFade}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <Flame className="w-5 h-5 text-orange-400" />
+                <h2 className="text-lg md:text-xl font-bold text-white">Discussions recentes</h2>
               </div>
               <Link
                 href="/community/forum"
-                className="flex items-center gap-1 text-xs md:text-sm text-blue-300 hover:text-blue-200 font-medium"
+                className="text-sm text-white/40 hover:text-white/70 transition-colors flex items-center gap-1"
               >
-                <span>Voir tout</span>
-                <ArrowRight size={14} />
+                Tout voir <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
             <div className="space-y-3">
               {recentPosts.length > 0 ? (
-                recentPosts.map((post, index) => (
-                  <motion.div
-                    key={post.id || post._id || index}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.06 }}
-                    className="group bg-black/20 border border-white/8 rounded-xl p-3.5 hover:bg-white/5 hover:border-white/20 transition-colors cursor-default"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 text-[11px] text-white/70">
-                            {getCategoryIcon(post.category)}
-                            <span className="capitalize">{post.category}</span>
-                          </span>
-                          {post.is_resolved && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-[11px] text-emerald-200">
-                              <ThumbsUp size={12} />
-                              <span>Résolu</span>
-                            </span>
-                          )}
+                recentPosts.map((post, i) => {
+                  const meta = getCategoryMeta(post.category);
+                  const CatIcon = meta.icon;
+                  return (
+                    <motion.div
+                      key={post.id || i}
+                      initial={{ opacity: 0, x: -15 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + i * 0.05 }}
+                      className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-default group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`shrink-0 w-9 h-9 rounded-xl ${meta.bg} border flex items-center justify-center`}>
+                          <CatIcon className={`w-4 h-4 ${meta.color}`} />
                         </div>
-                        <h3 className="text-sm font-semibold mb-1 text-white group-hover:text-blue-300 line-clamp-2">
-                          {post.title}
-                        </h3>
-                        <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/55">
-                          <span>par {post.author.name}</span>
-                          <div className="flex items-center gap-1">
-                            <Clock size={12} />
-                            <span>{formatDate(post.createdAt)}</span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-sm font-semibold text-white group-hover:text-indigo-300 transition-colors line-clamp-1 mb-1">
+                            {post.title}
+                          </h3>
+                          <p className="text-xs text-white/40 line-clamp-1 mb-2">{post.content}</p>
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-white/35">
+                            <div className="flex items-center gap-1.5">
+                              {post.author?.avatar && (
+                                <Avatar src={post.author.avatar} name={post.author.name} username={post.author.username} size="xs" />
+                              )}
+                              <span>{post.author?.name || 'Anonyme'}</span>
+                            </div>
+                            <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{formatDate(post.createdAt)}</span>
+                            <span className="flex items-center gap-1"><ThumbsUp className="w-3 h-3" />{post.likes_count || 0}</span>
+                            <span className="flex items-center gap-1"><Reply className="w-3 h-3" />{post.replies_count || 0}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-2 text-[11px] text-white/60">
-                        <div className="flex items-center gap-1">
-                          <ThumbsUp size={13} />
-                          <span>{post.likes_count || 0}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Reply size={13} />
-                          <span>{post.replies_count || 0}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  );
+                })
               ) : (
-                <div className="text-center py-8 text-white/55">
-                  <MessageSquare size={40} className="mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">
-                    Aucune discussion récente pour le moment.
-                  </p>
-                  <p className="text-xs mt-1">
-                    Soyez le premier à lancer un sujet dans le forum !
-                  </p>
+                <div className="text-center py-12 text-white/30">
+                  <MessageSquare className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm font-medium mb-1">Aucune discussion</p>
+                  <p className="text-xs">Soyez le premier a lancer un sujet !</p>
                 </div>
               )}
             </div>
-          </div>
+          </motion.section>
 
-          {/* FAQ populaire */}
-          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-5 backdrop-blur-md">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-sm md:text-base font-semibold">
-                  Questions populaires
-                </h2>
-                <p className="text-xs text-white/60">
-                  Les réponses les plus consultées par la communauté
-                </p>
+          {/* FAQ populaires */}
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            custom={4}
+            variants={sectionFade}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <Zap className="w-5 h-5 text-emerald-400" />
+                <h2 className="text-lg md:text-xl font-bold text-white">FAQ populaires</h2>
               </div>
               <Link
                 href="/community/faq"
-                className="flex items-center gap-1 text-xs md:text-sm text-emerald-300 hover:text-emerald-200 font-medium"
+                className="text-sm text-white/40 hover:text-white/70 transition-colors flex items-center gap-1"
               >
-                <span>Voir toutes les FAQ</span>
-                <ArrowRight size={14} />
+                Tout voir <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
+            <div className="space-y-2.5">
               {popularFaqs.length > 0 ? (
-                popularFaqs.map((faq, index) => (
+                popularFaqs.map((faq, i) => (
                   <motion.div
-                    key={faq.id || index}
-                    initial={{ opacity: 0, y: 20 }}
+                    key={faq.id || i}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.06 }}
-                    className="bg-black/20 border border-white/8 rounded-xl p-3.5 hover:bg-white/5 hover:border-white/20 transition-colors cursor-default"
+                    transition={{ delay: 0.25 + i * 0.04 }}
+                    className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3.5 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-default"
                   >
-                    <h3 className="text-sm font-medium mb-1.5 text-white hover:text-emerald-300 line-clamp-2">
-                      {faq.question}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] text-white/60">
-                      <span className="px-2 py-0.5 rounded-full bg-white/5 capitalize">
-                        {faq.category}
-                      </span>
+                    <h3 className="text-sm font-medium text-white mb-1.5 line-clamp-2">{faq.question}</h3>
+                    <div className="flex items-center gap-2 text-[10px] text-white/35">
+                      <span className="px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.06] capitalize">{faq.category}</span>
                       {faq.helpful_count > 0 && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-200">
-                          {faq.helpful_count} utile
-                          {faq.helpful_count > 1 ? 's' : ''}
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                          {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
                         </span>
                       )}
                     </div>
                   </motion.div>
                 ))
               ) : (
-                <div className="text-center py-8 text-white/55">
-                  <HelpCircle size={40} className="mx-auto mb-3 opacity-50" />
-                  <p className="text-sm">
-                    Aucune FAQ populaire pour le moment.
-                  </p>
-                  <p className="text-xs mt-1">
-                    Les questions fréquentes apparaîtront ici automatiquement.
-                  </p>
+                <div className="text-center py-12 text-white/30">
+                  <HelpCircle className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                  <p className="text-sm">Aucune FAQ</p>
                 </div>
               )}
             </div>
-          </div>
-        </section>
+          </motion.section>
+        </div>
 
-        {/* Call to action */}
-        <section>
-          <div className="bg-gradient-to-r from-violet-500/20 via-fuchsia-500/15 to-cyan-400/15 border border-violet-400/40 rounded-2xl p-6 md:p-7 text-center backdrop-blur-md">
-            <h3 className="text-lg font-semibold mb-2">
-              Rejoignez la conversation
-            </h3>
-            <p className="text-sm text-white/70 mb-4 max-w-2xl mx-auto">
-              Une idée de fonctionnalité, un bug à signaler, ou une simple question ?
-              La communauté Synaura et l&apos;équipe sont là pour vous répondre.
-            </p>
-            <div className="flex flex-wrap gap-3 justify-center">
-              <Link
-                href="/community/forum"
-                className="px-6 py-2.5 bg-white text-black rounded-full text-sm font-semibold hover:scale-[1.03] active:scale-100 shadow-lg transition-transform inline-flex items-center gap-2"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Poser une question</span>
-              </Link>
-              <Link
-                href="/community/faq"
-                className="px-6 py-2.5 bg-black/30 border border-white/20 text-white rounded-full text-sm font-medium hover:bg-black/50 transition-colors inline-flex items-center gap-2"
-              >
-                <HelpCircle className="w-4 h-4" />
-                <span>Consulter la FAQ</span>
-              </Link>
+        {/* CTA */}
+        <motion.section
+          initial="hidden"
+          animate="visible"
+          custom={5}
+          variants={sectionFade}
+        >
+          <div className="relative rounded-2xl overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/20 via-violet-600/15 to-fuchsia-600/20" />
+            <div className="absolute inset-0 bg-[#0a0a0e]/40" />
+            <div className="relative px-6 md:px-10 py-10 md:py-14 text-center border border-white/[0.06] rounded-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.06] border border-white/[0.08] text-xs text-white/50 mb-5">
+                <Heart className="w-3 h-3 text-pink-400" />
+                <span>Contribuez a Synaura</span>
+              </div>
+              <h3 className="text-2xl md:text-3xl font-black mb-3">
+                Rejoignez la conversation
+              </h3>
+              <p className="text-sm md:text-base text-white/45 mb-7 max-w-xl mx-auto leading-relaxed">
+                Une idee de fonctionnalite, un retour, ou juste envie de discuter ?
+                La communaute et l&apos;equipe sont la pour vous.
+              </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <Link
+                  href="/community/forum"
+                  className="px-6 py-3 rounded-full text-sm font-bold bg-white text-black hover:bg-white/90 transition-colors shadow-lg inline-flex items-center gap-2"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Lancer un sujet
+                </Link>
+                <Link
+                  href="/messages"
+                  className="px-6 py-3 rounded-full text-sm font-medium bg-white/[0.06] border border-white/[0.1] text-white hover:bg-white/[0.1] transition-colors inline-flex items-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  Messagerie directe
+                </Link>
+              </div>
             </div>
           </div>
-        </section>
+        </motion.section>
       </div>
     </div>
   );

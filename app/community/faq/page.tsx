@@ -13,15 +13,17 @@ import {
   Sparkles,
   ArrowRight,
   Tag,
+  ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
+import Link from 'next/link';
 
 interface FAQItem {
   id: string;
   question: string;
   answer: string;
-  category: 'general' | 'player' | 'upload' | 'abonnement' | 'ia' | 'technique';
+  category: string;
   tags: string[];
   helpful_count: number;
   created_at: string;
@@ -29,7 +31,7 @@ interface FAQItem {
 
 const categories = [
   { id: 'all', label: 'Toutes', icon: HelpCircle },
-  { id: 'general', label: 'Général', icon: MessageSquare },
+  { id: 'general', label: 'General', icon: MessageSquare },
   { id: 'player', label: 'Player', icon: Settings },
   { id: 'upload', label: 'Upload', icon: Lightbulb },
   { id: 'abonnement', label: 'Abonnements', icon: Settings },
@@ -44,39 +46,29 @@ export default function FAQPage() {
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Charger les FAQ depuis l'API
   useEffect(() => {
     const fetchFAQs = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/community/faq?limit=100');
-        if (response.ok) {
-          const data = await response.json();
+        const res = await fetch('/api/community/faq?limit=100');
+        if (res.ok) {
+          const data = await res.json();
           setFaqs(data.faqs || []);
-        } else {
-          toast.error('Erreur lors du chargement des FAQ');
         }
-      } catch (error) {
-        console.error('Erreur:', error);
-        toast.error('Erreur lors du chargement des FAQ');
+      } catch {
+        toast.error('Erreur chargement FAQ');
       } finally {
         setLoading(false);
       }
     };
-
     fetchFAQs();
   }, []);
 
   const filteredFAQs = faqs.filter((faq) => {
-    const matchesCategory =
-      selectedCategory === 'all' || faq.category === selectedCategory;
+    const matchCat = selectedCategory === 'all' || faq.category === selectedCategory;
     const q = searchQuery.toLowerCase();
-    const matchesSearch =
-      searchQuery === '' ||
-      faq.question.toLowerCase().includes(q) ||
-      faq.answer.toLowerCase().includes(q) ||
-      faq.tags.some((tag) => tag.toLowerCase().includes(q));
-    return matchesCategory && matchesSearch;
+    const matchSearch = !q || faq.question.toLowerCase().includes(q) || faq.answer.toLowerCase().includes(q) || faq.tags.some((t) => t.toLowerCase().includes(q));
+    return matchCat && matchSearch;
   });
 
   const toggleExpanded = (id: string) => {
@@ -88,260 +80,172 @@ export default function FAQPage() {
     });
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return '';
-    return date.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-  };
-
   return (
-    <div className="relative min-h-screen text-white pb-20">
-      <div className="relative z-10 max-w-5xl mx-auto px-3 sm:px-4 md:px-8 py-6 md:py-10">
-        {/* Carte globale */}
-        <div className="rounded-3xl border border-white/10 bg-transparent backdrop-blur-xl overflow-hidden">
-          {/* HEADER */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 px-4 md:px-6 py-4 border-b border-white/10">
-            <div className="flex items-start gap-3">
-              <div className="relative mt-1">
-                <div className="absolute inset-0 rounded-2xl bg-emerald-500/75 blur-xl opacity-70" />
-                <div className="relative w-10 h-10 rounded-2xl bg-black/70 border border-white/15 flex items-center justify-center">
-                  <HelpCircle className="w-5 h-5 text-emerald-300" />
-                </div>
-              </div>
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.28em] text-white/55">
-                  Synaura
-                </p>
-                <h1 className="text-xl md:text-2xl font-semibold">Centre d&apos;aide</h1>
-                <p className="text-xs md:text-sm text-white/65 mt-1 max-w-xl">
-                  FAQ officielle de Synaura : lecture, upload, IA, abonnements et
-                  questions techniques. Commencez par une recherche ou naviguez par
-                  catégorie.
-                </p>
-              </div>
-            </div>
+    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-24">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-emerald-600/[0.05] blur-[130px] animate-[synaura-blob1_18s_ease-in-out_infinite]" />
+        <div className="absolute bottom-[-15%] right-[-5%] w-[50vw] h-[50vw] rounded-full bg-teal-600/[0.04] blur-[130px] animate-[synaura-blob2_22s_ease-in-out_infinite]" />
+      </div>
 
-            <div className="flex flex-col md:items-end gap-2 text-[11px] text-white/60">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-                <span>
-                  {faqs.length > 0
-                    ? `${faqs.length} article${faqs.length > 1 ? 's' : ''} d’aide`
-                    : 'FAQ en cours de construction'}
-                </span>
-              </div>
-              <span className="hidden md:inline">
-                Pour des échanges plus détaillés, utilisez le forum communauté.
-              </span>
+      <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pt-8 md:pt-14">
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <Link href="/community" className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center hover:bg-white/[0.08] transition-colors">
+              <ArrowLeft className="w-4 h-4 text-white/60" />
+            </Link>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Centre d&apos;aide</span>
             </div>
           </div>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight mb-1">
+            <span className="bg-gradient-to-r from-white via-white to-white/60 bg-clip-text text-transparent">FAQ</span>{' '}
+            <span className="bg-gradient-to-r from-emerald-400 to-teal-400 bg-clip-text text-transparent">Synaura</span>
+          </h1>
+          <p className="text-sm text-white/40 mt-2 flex items-center gap-2">
+            {faqs.length > 0 ? `${faqs.length} articles d'aide` : 'FAQ en construction'}
+            <span className="text-white/15">|</span>
+            <Link href="/community/forum" className="text-indigo-400 hover:text-indigo-300 transition-colors inline-flex items-center gap-1">
+              Poser sur le forum <ArrowRight className="w-3 h-3" />
+            </Link>
+          </p>
+        </motion.div>
 
-          {/* RECHERCHE */}
-          <div className="px-4 md:px-6 py-4 border-b border-white/10">
-            <div className="relative">
-              <Search className="w-4 h-4 text-white/60 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Rechercher une question (lecture, upload, IA, abonnements, bugs...)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-2xl bg-white/5 border border-white/15 text-sm text-white placeholder:text-white/50 outline-none focus:ring-2 focus:ring-emerald-400/60 focus:border-emerald-300/70"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-white/60 hover:text-white"
+        {/* Search */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="relative mb-5">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+          <input
+            type="text"
+            placeholder="Rechercher une question..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+          />
+        </motion.div>
+
+        {/* Categories */}
+        <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pb-1 mb-6">
+          {categories.map((cat) => {
+            const Icon = cat.icon;
+            const active = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all ${
+                  active
+                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                    : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:bg-white/[0.06] hover:text-white/60'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                <span>{cat.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* FAQ items */}
+        <div className="space-y-2.5">
+          {loading ? (
+            <div className="flex flex-col items-center py-16 gap-3">
+              <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+              <p className="text-sm text-white/40">Chargement...</p>
+            </div>
+          ) : filteredFAQs.length === 0 ? (
+            <div className="text-center py-16">
+              <HelpCircle className="w-10 h-10 mx-auto text-white/15 mb-3" />
+              <h3 className="text-sm font-bold mb-2">Aucun resultat</h3>
+              <p className="text-xs text-white/35 mb-5">Modifiez votre recherche ou posez la question sur le forum</p>
+              <Link href="/community/forum" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-colors shadow-lg">
+                <MessageSquare className="w-4 h-4" />
+                Poser sur le forum
+              </Link>
+            </div>
+          ) : (
+            filteredFAQs.map((faq, i) => {
+              const isExpanded = expandedItems.has(faq.id);
+              return (
+                <motion.div
+                  key={faq.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.02 }}
+                  className="rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden hover:bg-white/[0.04] transition-all"
                 >
-                  Effacer
-                </button>
-              )}
-            </div>
-            {searchQuery && (
-              <p className="mt-2 text-[11px] text-white/50">
-                Résultats pour : <span className="text-white/80">{searchQuery}</span>
-              </p>
-            )}
-          </div>
-
-          {/* CATÉGORIES */}
-          <div className="px-4 md:px-6 py-3 border-b border-white/10">
-            <div className="flex flex-wrap gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-              {categories.map((category) => {
-                const Icon = category.icon;
-                const active = selectedCategory === category.id;
-                return (
-                  <button
-                    key={category.id}
-                    onClick={() => setSelectedCategory(category.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition-all ${
-                      active
-                        ? 'bg-emerald-500/30 text-emerald-50 border border-emerald-400/70 shadow-[0_0_18px_rgba(16,185,129,0.7)]'
-                        : 'bg-white/5 text-white/60 border border-white/10 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    <Icon className="w-3.5 h-3.5" />
-                    <span>{category.label}</span>
+                  <button onClick={() => toggleExpanded(faq.id)} className="w-full px-4 md:px-5 py-4 text-left">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-sm font-semibold text-white pr-4 leading-snug">{faq.question}</h3>
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-white/30">
+                          <span className="px-2 py-0.5 rounded-md bg-white/[0.04] border border-white/[0.06] capitalize">{faq.category}</span>
+                          {faq.tags.map((tag) => (
+                            <span key={tag} className="flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-white/[0.03] border border-white/[0.04]">
+                              <Tag className="w-2.5 h-2.5" />#{tag}
+                            </span>
+                          ))}
+                          {faq.helpful_count > 0 && (
+                            <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                              {faq.helpful_count} utile{faq.helpful_count > 1 ? 's' : ''}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 mt-0.5">
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+                      </div>
+                    </div>
                   </button>
-                );
-              })}
-            </div>
-          </div>
 
-          {/* CONTENU FAQ */}
-          <div className="px-4 md:px-6 py-4">
-            {loading ? (
-              <div className="flex flex-col items-center justify-center py-10 gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-                <p className="text-sm text-white/70">
-                  Chargement des questions fréquentes...
-                </p>
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-4 md:px-5 pb-4 pt-2 border-t border-white/[0.06]">
+                          <p className="text-xs md:text-sm text-white/55 leading-relaxed whitespace-pre-wrap">{faq.answer}</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              );
+            })
+          )}
+        </div>
+
+        {/* CTA */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-10">
+          <div className="rounded-2xl bg-gradient-to-r from-emerald-600/10 via-teal-600/10 to-cyan-600/10 border border-emerald-500/10 p-6 md:p-8">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-base font-bold mb-1">Pas trouve votre reponse ?</h3>
+                <p className="text-sm text-white/40">Contactez le support ou posez votre question sur le forum.</p>
               </div>
-            ) : filteredFAQs.length === 0 ? (
-              <div className="text-center py-10">
-                <HelpCircle className="w-10 h-10 mx-auto text-white/30 mb-3" />
-                <h3 className="text-sm font-semibold mb-1">
-                  Aucune question trouvée
-                </h3>
-                <p className="text-xs text-white/60 mb-3">
-                  Essaye de modifier tes filtres ou ta recherche.
-                </p>
+              <div className="flex flex-wrap gap-3">
                 <a
-                  href="/community/forum"
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-xs font-semibold hover:scale-[1.03] active:scale-100 transition-transform shadow-lg"
+                  href="mailto:contact.syn@synaura.fr"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold shadow-lg hover:bg-white/90 transition-colors"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Poser la question sur le forum</span>
+                  Support
                 </a>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredFAQs.map((faq, index) => {
-                  const isExpanded = expandedItems.has(faq.id);
-                  const CategoryIcon =
-                    categories.find((c) => c.id === faq.category)?.icon ||
-                    HelpCircle;
-
-                  return (
-                    <motion.div
-                      key={faq.id}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.02 }}
-                      className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden"
-                    >
-                      <button
-                        onClick={() => toggleExpanded(faq.id)}
-                        className="w-full px-3.5 md:px-4 py-3 text-left hover:bg-white/8 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500/25 to-blue-500/25 border border-emerald-400/60 mt-0.5">
-                              <CategoryIcon className="w-3.5 h-3.5 text-emerald-100" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <h3 className="text-sm md:text-[15px] font-semibold text-white pr-4">
-                                  {faq.question}
-                                </h3>
-                              </div>
-                              <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] text-white/55">
-                                {faq.tags.map((tag) => (
-                                  <span
-                                    key={tag}
-                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 border border-white/15"
-                                  >
-                                    <Tag className="w-2.5 h-2.5" />
-                                    <span>#{tag}</span>
-                                  </span>
-                                ))}
-                                {faq.helpful_count > 0 && (
-                                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/25 border border-emerald-400/60 text-emerald-100">
-                                    {faq.helpful_count} utile
-                                    {faq.helpful_count > 1 ? 's' : ''}
-                                  </span>
-                                )}
-                                {faq.created_at && (
-                                  <span className="ml-auto text-[10px] text-white/40">
-                                    Maj : {formatDate(faq.created_at)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex-shrink-0 mt-1">
-                            {isExpanded ? (
-                              <ChevronUp className="w-4 h-4 text-white/60" />
-                            ) : (
-                              <ChevronDown className="w-4 h-4 text-white/60" />
-                            )}
-                          </div>
-                        </div>
-                      </button>
-
-                      <AnimatePresence initial={false}>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.18 }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-3.5 md:px-4 pb-4 pt-2 border-t border-white/10">
-                              <p className="text-xs md:text-sm text-white/75 leading-relaxed">
-                                {faq.answer}
-                              </p>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* CTA SUPPORT / FORUM */}
-          <div className="px-4 md:px-6 py-4 border-t border-white/10 bg-white/5">
-            <div className="rounded-2xl bg-gradient-to-r from-emerald-500/15 via-blue-500/15 to-purple-500/15 border border-emerald-400/40 p-4 md:p-5">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-sm md:text-base font-semibold text-white mb-1">
-                    Tu ne trouves toujours pas ta réponse ?
-                  </h3>
-                  <p className="text-xs md:text-sm text-white/70 max-w-xl">
-                    Pas de stress : contacte le support ou ouvre un sujet sur le forum.
-                    Ça nous aide aussi à améliorer la FAQ.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <a
-                    href="mailto:contact.syn@synaura.fr"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-black text-xs md:text-sm font-semibold shadow-lg hover:scale-[1.03] active:scale-100 transition-transform"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Contacter le support</span>
-                  </a>
-                  <a
-                    href="/community/forum"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 border border-white/25 text-xs md:text-sm text-white hover:bg-black/60 transition-colors"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Aller sur le forum</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </a>
-                </div>
+                <Link
+                  href="/community/forum"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-sm text-white hover:bg-white/[0.1] transition-colors"
+                >
+                  Forum <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
               </div>
             </div>
           </div>
-        </div>
-      </div>  
+        </motion.div>
+      </div>
     </div>
   );
 }

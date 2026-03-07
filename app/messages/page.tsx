@@ -5,581 +5,399 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import Avatar from '@/components/Avatar';
-import { 
-  MessageCircle, 
-  UserPlus, 
-  Check, 
-  X, 
-  Clock, 
-  Users, 
+import {
+  MessageCircle,
   Search,
-  Send,
-  Image,
+  ArrowRight,
+  Check,
+  X,
+  Image as ImageIcon,
   Video,
   Mic,
-  MoreVertical,
-  ArrowLeft,
-  Eye,
-  EyeOff,
-  Activity,
-  Wifi,
-  WifiOff,
-  Heart,
-  Smile,
-  Camera,
-  Phone,
-  Video as VideoIcon,
-  User,
-  Volume2,
-  Play,
-  Pause
+  Send,
+  UserPlus,
+  Clock,
+  Inbox,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { useMessageNotifications } from '@/hooks/useMessageNotifications';
 
 interface Conversation {
   _id: string;
-  participants: Array<{
-    _id: string;
-    name: string;
-    username: string;
-    avatar?: string;
-  }>;
+  name?: string;
+  type: string;
   accepted: boolean;
-  lastMessage?: {
-    _id: string;
-    type: 'text' | 'image' | 'video' | 'audio';
-    content: string;
-    createdAt: string;
-  };
+  participants: Array<{ _id: string; name: string; username: string; avatar?: string }>;
+  lastMessage?: { _id: string; content: string; type: string; createdAt: string; senderId: string };
+  unreadCount: number;
   createdAt: string;
   updatedAt: string;
 }
 
-interface OnlineStatus {
-  userId: string;
-  isOnline: boolean;
-  lastSeen: Date;
-  isTyping: boolean;
+interface MessageRequest {
+  _id: string;
+  from: { _id: string; name: string; username: string; avatar?: string };
+  message?: string;
+  status: string;
+  createdAt: string;
 }
-
-// Composant pour l'avatar avec statut en ligne
-const UserAvatar = ({ user, isOnline = false, isTyping = false }: { 
-  user: any; 
-  isOnline?: boolean;
-  isTyping?: boolean;
-}) => (
-  <div className="relative">
-    <motion.div
-      whileHover={{ scale: 1.05 }}
-      transition={{ duration: 0.2 }}
-      className="w-14 h-14"
-    >
-      <Avatar
-        src={user.avatar}
-        name={user.name}
-        username={user.username}
-        size="lg"
-        className="border-2 border-purple-400 shadow-lg"
-      />
-    </motion.div>
-    
-    {/* Indicateur de statut en ligne */}
-    {isOnline && (
-      <motion.div
-        className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white shadow-lg"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.3 }}
-      />
-    )}
-    
-    {/* Indicateur de frappe */}
-    {isTyping && (
-      <motion.div
-        className="absolute -top-1 -left-1 w-6 h-6 bg-purple-500 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        exit={{ scale: 0 }}
-      >
-        <Activity size={10} className="text-white animate-pulse" />
-      </motion.div>
-    )}
-  </div>
-);
-
-// Composant pour l'aperçu du dernier message
-const LastMessagePreview = ({ message }: { message?: any }) => {
-  if (!message) return <span className="text-sm text-gray-400">Aucun message</span>;
-
-  const getMessageIcon = (type: string) => {
-    switch (type) {
-      case 'image': return '📷';
-      case 'video': return '🎥';
-      case 'audio': return '🎵';
-      default: return '';
-    }
-  };
-
-  const getMessageText = (type: string, content: string) => {
-    switch (type) {
-      case 'text':
-        return content.length > 40 ? content.substring(0, 40) + '...' : content;
-      case 'image': return 'Image';
-      case 'video': return 'Vidéo';
-      case 'audio': return 'Message vocal';
-      default: return 'Nouveau message';
-    }
-  };
-
-  return (
-    <div className="flex items-center space-x-2">
-      {message.type !== 'text' && (
-        <span className="text-sm">{getMessageIcon(message.type)}</span>
-      )}
-      <span className="text-sm text-gray-300 truncate">
-        {getMessageText(message.type, message.content)}
-      </span>
-    </div>
-  );
-};
-
-// Composant pour les boutons d'action des demandes
-const RequestActions = ({ 
-  conversationId, 
-  onAccept, 
-  onDecline 
-}: { 
-  conversationId: string; 
-  onAccept: (id: string) => void; 
-  onDecline: (id: string) => void; 
-}) => (
-  <motion.div 
-    className="flex items-center space-x-2 mt-2"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.2 }}
-  >
-    <span className="text-sm text-orange-400 font-medium">Demande en attente</span>
-    <div className="flex space-x-2">
-      <motion.button
-        onClick={(e: React.MouseEvent) => {
-          e.stopPropagation();
-          onAccept(conversationId);
-        }}
-        className="p-2 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all duration-300 shadow-lg"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <Check size={16} className="text-white" />
-      </motion.button>
-      <motion.button
-        onClick={(e: React.MouseEvent) => {
-          e.stopPropagation();
-          onDecline(conversationId);
-        }}
-        className="p-2 rounded-full bg-gradient-to-br from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 transition-all duration-300 shadow-lg"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <X size={16} className="text-white" />
-      </motion.button>
-    </div>
-  </motion.div>
-);
 
 export default function MessagesPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const { isConnected, sendNotification } = useMessageNotifications();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [requests, setRequests] = useState<MessageRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [activeTab, setActiveTab] = useState<'conversations' | 'requests'>('conversations');
+  const [processingReqId, setProcessingReqId] = useState<string | null>(null);
 
-  // Charger les conversations
   useEffect(() => {
     if (session?.user) {
       fetchConversations();
-      
-      // Timeout de 10 secondes pour éviter le chargement infini
-      const timeout = setTimeout(() => {
-        if (loading) {
-          setLoading(false);
-          setError('Délai d\'attente dépassé. Vérifiez votre connexion.');
-        }
-      }, 10000);
-      
-      return () => clearTimeout(timeout);
+      fetchRequests();
     }
   }, [session]);
 
-  // Recharger les conversations quand on reçoit une notification
-  useEffect(() => {
-    if (isConnected) {
-      fetchConversations();
-    }
-  }, [isConnected]);
-
   const fetchConversations = async () => {
     try {
-      console.log('🔄 Tentative de chargement des conversations...');
-      const response = await fetch('/api/messages/conversations?user=' + (session?.user?.id || 'default-user-id'));
-      console.log('📡 Réponse conversations:', response.status);
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log('💬 Données conversations reçues:', data);
-        
-        // Vérifier si la messagerie est en maintenance
-        if (data.maintenance || data.error === 'MAINTENANCE') {
-          setError('MAINTENANCE');
-          setConversations([]);
-          return;
-        }
-        
+      setLoading(true);
+      const res = await fetch('/api/messages/conversations');
+      if (res.ok) {
+        const data = await res.json();
         setConversations(data.conversations || []);
-        setError(null); // Effacer l'erreur précédente
-      } else {
-        const errorText = await response.text();
-        console.error('❌ Erreur lors du chargement des conversations:', response.status, errorText);
-        setError('Erreur lors du chargement des conversations');
-        toast.error('Erreur lors du chargement des conversations');
       }
-    } catch (error) {
-      console.error('❌ Erreur réseau pour les conversations:', error);
-      setError('Erreur de connexion');
-      toast.error('Erreur de connexion');
-    } finally {
+    } catch {} finally {
       setLoading(false);
     }
   };
 
-  const handleAcceptRequest = async (conversationId: string) => {
+  const fetchRequests = async () => {
     try {
-      const response = await fetch('/api/messages/accept', {
+      const res = await fetch('/api/messages/requests');
+      if (res.ok) {
+        const data = await res.json();
+        setRequests(data.requests || []);
+      }
+    } catch {}
+  };
+
+  const handleRequest = async (requestId: string, action: 'accept' | 'reject') => {
+    setProcessingReqId(requestId);
+    try {
+      const res = await fetch(`/api/messages/requests/${requestId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId }),
+        body: JSON.stringify({ action }),
       });
-
-      if (response.ok) {
-        toast.success('Demande acceptée');
-        
-        // Envoyer une notification
-        const conversation = conversations.find(c => c._id === conversationId);
-        if (conversation) {
-          const otherUser = getOtherParticipant(conversation);
-          if (otherUser) {
-            await sendNotification('request_accepted', otherUser._id, conversationId);
+      if (res.ok) {
+        const data = await res.json();
+        setRequests((prev) => prev.filter((r) => r._id !== requestId));
+        if (action === 'accept') {
+          toast.success('Demande acceptee');
+          if (data.conversationId) {
+            await fetchConversations();
+            router.push(`/messages/${data.conversationId}`);
           }
+        } else {
+          toast.success('Demande refusee');
         }
-        
-        fetchConversations(); // Recharger les conversations
       } else {
-        toast.error('Erreur lors de l\'acceptation');
+        toast.error('Erreur traitement');
       }
-    } catch (error) {
+    } catch {
       toast.error('Erreur de connexion');
+    } finally {
+      setProcessingReqId(null);
     }
   };
 
-  const handleDeclineRequest = async (conversationId: string) => {
-    // TODO: Implémenter la suppression de la conversation
-    toast.success('Demande refusée');
-    fetchConversations();
+  const getOtherParticipant = (conv: Conversation) =>
+    conv.participants.find((p) => p._id !== session?.user?.id);
+
+  const formatDate = (d: string) => {
+    const diff = Date.now() - new Date(d).getTime();
+    const h = Math.floor(diff / 3600000);
+    if (h < 1) return "A l'instant";
+    if (h < 24) return `${h}h`;
+    const days = Math.floor(h / 24);
+    if (days < 7) return `${days}j`;
+    return new Date(d).toLocaleDateString('fr-FR');
   };
 
-  const getOtherParticipant = (conversation: Conversation) => {
-    return conversation.participants.find(p => p._id !== session?.user?.id);
+  const getMessagePreview = (msg?: Conversation['lastMessage']) => {
+    if (!msg) return 'Nouvelle conversation';
+    switch (msg.type) {
+      case 'image': return 'Photo';
+      case 'video': return 'Video';
+      case 'audio': return 'Message vocal';
+      default: return msg.content.length > 45 ? msg.content.slice(0, 45) + '...' : msg.content;
+    }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-    
-    if (diffInHours < 1) return 'À l\'instant';
-    if (diffInHours < 24) return `${Math.floor(diffInHours)}h`;
-    if (diffInHours < 168) return `${Math.floor(diffInHours / 24)}j`;
-    return date.toLocaleDateString('fr-FR');
+  const getMessageIcon = (type?: string) => {
+    switch (type) {
+      case 'image': return <ImageIcon className="w-3.5 h-3.5 text-white/30" />;
+      case 'video': return <Video className="w-3.5 h-3.5 text-white/30" />;
+      case 'audio': return <Mic className="w-3.5 h-3.5 text-white/30" />;
+      default: return null;
+    }
   };
+
+  const filteredConvs = conversations.filter((conv) => {
+    const other = getOtherParticipant(conv);
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return other?.name.toLowerCase().includes(q) || other?.username.toLowerCase().includes(q);
+  });
 
   if (!session?.user) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-[var(--bg)] text-[var(--text)]">
-        <motion.div 
-          className="text-center"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <motion.div
-            className="w-20 h-20 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-full flex items-center justify-center border border-purple-400/30 mx-auto mb-6"
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <MessageCircle size={32} className="text-purple-300" />
-          </motion.div>
-          <h2 className="text-xl font-semibold text-gray-300 mb-2">Connectez-vous</h2>
-          <p className="text-gray-400">Pour accéder à vos messages</p>
+      <div className="relative min-h-screen bg-[#0a0a0e] flex items-center justify-center text-white">
+        <div className="pointer-events-none fixed inset-0 z-0">
+          <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/[0.07] blur-[130px]" />
+        </div>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="relative z-10 text-center">
+          <div className="w-20 h-20 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto mb-6">
+            <MessageCircle className="w-8 h-8 text-indigo-400" />
+          </div>
+          <h2 className="text-xl font-bold mb-2">Messagerie</h2>
+          <p className="text-sm text-white/40">Connectez-vous pour acceder a vos messages</p>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen text-[var(--text)]">
-      {/* Header moderne */}
-      <motion.div 
-        className="fixed top-0 left-0 w-full z-30 flex items-center justify-between p-4 panel-suno border-b border-[var(--border)] rounded-none"
-        initial={{ y: -100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      >
-        <div className="flex items-center space-x-3">
-          <motion.button
-            onClick={() => router.back()}
-            className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-all duration-300 border border-[var(--border)]"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <ArrowLeft size={20} className="text-white" />
-          </motion.button>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Messages</h1>
-            <div className="flex items-center space-x-2 mt-1">
-              <motion.div
-                className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
-                animate={{ scale: isConnected ? [1, 1.2, 1] : 1 }}
-                transition={{ duration: 2, repeat: isConnected ? Infinity : 0 }}
-              />
-              <span className="text-xs text-white/60">
-                {isConnected ? 'Connecté' : 'Déconnecté'}
-              </span>
-            </div>
-          </div>
-        </div>
-        <motion.button 
-          className="p-3 rounded-full bg-[var(--surface-2)] hover:bg-[var(--surface-3)] transition-all duration-300 border border-[var(--border)]"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          <MoreVertical size={20} className="text-white" />
-        </motion.button>
-      </motion.div>
+    <div className="relative min-h-screen bg-[#0a0a0e] text-white overflow-hidden pb-24">
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute top-[-20%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-indigo-600/[0.07] blur-[130px] animate-[synaura-blob1_18s_ease-in-out_infinite]" />
+        <div className="absolute bottom-[-15%] right-[-5%] w-[50vw] h-[50vw] rounded-full bg-violet-600/[0.06] blur-[130px] animate-[synaura-blob2_22s_ease-in-out_infinite]" />
+      </div>
 
-      {/* Contenu principal */}
-      <div className="pt-24 pb-8 px-4">
-        {/* Barre de recherche améliorée */}
-        <motion.div 
-          className="relative mb-8 panel-suno p-2 rounded-2xl border border-[var(--border)]"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" />
-          <motion.input
-            type="text"
-            placeholder="Rechercher des conversations..."
-            value={searchQuery}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
-            className="w-full pl-12 pr-4 py-4 bg-[var(--bg)] border border-[var(--border)] rounded-2xl text-[var(--text)] placeholder-[var(--text-muted)] focus:outline-none focus:ring-0 focus:border-[var(--color-primary)] shadow-none"
-            whileFocus={{ scale: 1.02 }}
-            transition={{ duration: 0.2 }}
-          />
+      <div className="relative z-10 max-w-3xl mx-auto px-4 sm:px-6 pt-8 md:pt-14">
+        {/* Header */}
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-xs text-violet-300 mb-3">
+            <Send className="w-3.5 h-3.5" />
+            <span>Messagerie</span>
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight">Messages</h1>
         </motion.div>
 
-        {/* Liste des conversations */}
-        <div className="space-y-4">
-          <AnimatePresence>
+        {/* Tabs */}
+        <div className="flex items-center gap-2 mb-6">
+          <button
+            onClick={() => setActiveTab('conversations')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              activeTab === 'conversations'
+                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
+                : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:bg-white/[0.06]'
+            }`}
+          >
+            <MessageCircle className="w-4 h-4" />
+            Conversations
+            {conversations.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-md bg-white/[0.06] text-[10px]">{conversations.length}</span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all relative ${
+              activeTab === 'requests'
+                ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30'
+                : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:bg-white/[0.06]'
+            }`}
+          >
+            <Inbox className="w-4 h-4" />
+            Demandes
+            {requests.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-md bg-violet-500 text-white text-[10px] font-bold">{requests.length}</span>
+            )}
+          </button>
+        </div>
+
+        {/* Search (only for conversations) */}
+        {activeTab === 'conversations' && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="relative mb-6">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
+            <input
+              type="text"
+              placeholder="Rechercher une conversation..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+            />
+          </motion.div>
+        )}
+
+        {/* CONVERSATIONS TAB */}
+        {activeTab === 'conversations' && (
+          <div className="space-y-2">
             {loading ? (
-              <motion.div 
-                className="flex items-center justify-center py-12"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <div className="relative">
-                  <div className="animate-spin rounded-full h-12 w-12 border-2 border-purple-400 border-t-transparent"></div>
-                  <div className="absolute inset-0 animate-spin rounded-full h-12 w-12 border-2 border-indigo-400 border-t-transparent" style={{ animationDelay: '-0.5s' }}></div>
+              <div className="flex flex-col items-center py-16 gap-3">
+                <div className="w-10 h-10 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                <p className="text-sm text-white/40">Chargement...</p>
+              </div>
+            ) : filteredConvs.length === 0 ? (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+                <div className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-5">
+                  <MessageCircle className="w-8 h-8 text-white/20" />
                 </div>
-              </motion.div>
-            ) : error === 'MAINTENANCE' ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-center py-16"
-              >
-                <div className="w-24 h-24 bg-yellow-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-yellow-400/30">
-                  <svg className="w-12 h-12 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <h2 className="text-3xl font-bold mb-4 text-yellow-400">
-                  🚧 Messagerie en Maintenance
-                </h2>
-                <p className="text-lg text-gray-300 mb-6">
-                  La messagerie est actuellement indisponible pour une durée indéterminée.
+                <h3 className="text-base font-bold mb-2">Aucune conversation</h3>
+                <p className="text-sm text-white/35 mb-4 max-w-xs mx-auto">
+                  Envoyez une demande de message depuis le profil d&apos;un createur pour commencer a discuter.
                 </p>
-                <div className="bg-gray-800/50 rounded-lg p-6 border border-gray-700 max-w-md mx-auto">
-                  <h3 className="text-xl font-semibold mb-3 text-yellow-300">
-                    🔧 Travaux en cours
-                  </h3>
-                  <p className="text-gray-400 mb-4">
-                    Nous travaillons actuellement sur l'amélioration de notre système de messagerie.
-                  </p>
-                  <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
-                    <span>Maintenance en cours</span>
-                  </div>
-                </div>
-                <div className="mt-8">
-                  <button
-                    onClick={() => router.push('/')}
-                    className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors"
-                  >
-                    ← Retour à l'accueil
-                  </button>
-                </div>
-              </motion.div>
-            ) : error ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-center py-16"
-              >
-                <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <X size={24} className="text-red-400" />
-                </div>
-                <h2 className="text-xl font-bold mb-2 text-white">Erreur de chargement</h2>
-                <p className="text-gray-400 mb-4">{error}</p>
                 <button
-                  onClick={() => {
-                    setError(null);
-                    setLoading(true);
-                    fetchConversations();
-                  }}
-                  className="bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white px-6 py-3 rounded-lg font-medium transition-all"
+                  onClick={() => router.push('/discover')}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 transition-all"
                 >
-                  Réessayer
+                  <UserPlus className="w-4 h-4" />
+                  Decouvrir des createurs
                 </button>
               </motion.div>
-            ) : conversations.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-center py-16"
-              >
-                <motion.div
-                  className="w-24 h-24 bg-gradient-to-br from-purple-500/20 to-indigo-500/20 rounded-full flex items-center justify-center border border-purple-400/30 mx-auto mb-6"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.5 }}
-                >
-                  <MessageCircle size={32} className="text-purple-300" />
-                </motion.div>
-                <h3 className="text-xl font-semibold text-gray-300 mb-2">Aucune conversation</h3>
-                <p className="text-gray-400">Commencez à discuter avec d'autres utilisateurs</p>
-              </motion.div>
             ) : (
-              conversations
-                .filter(conv => {
-                  const otherUser = getOtherParticipant(conv);
-                  return otherUser?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         otherUser?.username.toLowerCase().includes(searchQuery.toLowerCase());
-                })
-                .map((conversation, index) => {
-                  const otherUser = getOtherParticipant(conversation);
-                  if (!otherUser) return null;
-
-                  // TODO: Implémenter de vrais statuts en ligne via WebSocket
-                  // Pour l'instant, utiliser des valeurs par défaut réalistes
-                  const isOnline = false; // Par défaut hors ligne
-                  const isTyping = false; // Par défaut pas en train de taper
-
+              <AnimatePresence>
+                {filteredConvs.map((conv, i) => {
+                  const other = getOtherParticipant(conv);
+                  if (!other) return null;
                   return (
-                                          <motion.div
-                        key={conversation._id}
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                        transition={{ 
-                          duration: 0.4, 
-                          delay: index * 0.1,
-                          ease: "easeOut"
-                        }}
-                        className="panel-suno rounded-2xl p-6 transition-all duration-300 cursor-pointer"
-                        onClick={() => {
-                          if (conversation.accepted) {
-                            router.push(`/messages/${conversation._id}`);
-                          }
-                        }}
-                        whileHover={{ scale: 1.02 }}
-                      >
-                      <div className="flex items-center space-x-4">
-                        {/* Avatar avec statut */}
-                        <UserAvatar 
-                          user={otherUser} 
-                          isOnline={isOnline}
-                          isTyping={isTyping}
+                    <motion.div
+                      key={conv._id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                      transition={{ delay: i * 0.03 }}
+                      onClick={() => router.push(`/messages/${conv._id}`)}
+                      className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-pointer group"
+                    >
+                      <div className="relative shrink-0">
+                        <Avatar
+                          src={other.avatar ? other.avatar.replace('/upload/', '/upload/f_auto,q_auto/') : null}
+                          name={other.name}
+                          username={other.username}
+                          size="lg"
                         />
-
-                        {/* Contenu de la conversation */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <h3 className="font-semibold text-white truncate">
-                                {otherUser.name}
-                              </h3>
-                              {isOnline && (
-                                <motion.div
-                                  className="w-2 h-2 bg-green-500 rounded-full"
-                                  animate={{ scale: [1, 1.2, 1] }}
-                                  transition={{ duration: 2, repeat: Infinity }}
-                                />
-                              )}
-                            </div>
-                            <span className="text-xs text-white/60 font-mono">
-                              {formatDate(conversation.updatedAt)}
-                            </span>
-                          </div>
-                          
-                          {conversation.accepted ? (
-                            <div className="space-y-1">
-                              <LastMessagePreview message={conversation.lastMessage} />
-                              {isTyping && (
-                                <motion.div
-                                  className="flex items-center space-x-1"
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                >
-                                  <Activity size={12} className="text-purple-400 animate-pulse" />
-                                  <span className="text-xs text-purple-400">écrit...</span>
-                                </motion.div>
-                              )}
-                            </div>
-                          ) : (
-                            <RequestActions
-                              conversationId={conversation._id}
-                              onAccept={handleAcceptRequest}
-                              onDecline={handleDeclineRequest}
-                            />
-                          )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <h3 className="text-sm font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
+                            {other.name}
+                          </h3>
+                          <span className="text-[11px] text-white/25 shrink-0 ml-2">
+                            {conv.lastMessage ? formatDate(conv.lastMessage.createdAt) : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          {getMessageIcon(conv.lastMessage?.type)}
+                          <p className="text-xs text-white/35 truncate">{getMessagePreview(conv.lastMessage)}</p>
                         </div>
                       </div>
+                      {conv.unreadCount > 0 && (
+                        <div className="shrink-0 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center">
+                          <span className="text-[10px] font-bold text-white">{conv.unreadCount}</span>
+                        </div>
+                      )}
                     </motion.div>
                   );
-                })
+                })}
+              </AnimatePresence>
             )}
-          </AnimatePresence>
-        </div>
+          </div>
+        )}
+
+        {/* REQUESTS TAB */}
+        {activeTab === 'requests' && (
+          <div className="space-y-3">
+            {requests.length === 0 ? (
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center py-20">
+                <div className="w-20 h-20 rounded-full bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-5">
+                  <Inbox className="w-8 h-8 text-white/20" />
+                </div>
+                <h3 className="text-base font-bold mb-2">Aucune demande</h3>
+                <p className="text-sm text-white/35 max-w-xs mx-auto">
+                  Les demandes de messages que vous recevez apparaitront ici.
+                </p>
+              </motion.div>
+            ) : (
+              <AnimatePresence>
+                {requests.map((req, i) => (
+                  <motion.div
+                    key={req._id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -100 }}
+                    transition={{ delay: i * 0.04 }}
+                    className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-all"
+                  >
+                    <div className="flex items-start gap-3.5">
+                      <div
+                        className="shrink-0 cursor-pointer"
+                        onClick={() => router.push(`/profile/${req.from.username}`)}
+                      >
+                        <Avatar
+                          src={req.from.avatar ? req.from.avatar.replace('/upload/', '/upload/f_auto,q_auto/') : null}
+                          name={req.from.name}
+                          username={req.from.username}
+                          size="lg"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div>
+                            <h3
+                              className="text-sm font-semibold text-white cursor-pointer hover:text-indigo-300 transition-colors"
+                              onClick={() => router.push(`/profile/${req.from.username}`)}
+                            >
+                              {req.from.name}
+                            </h3>
+                            <p className="text-[11px] text-white/30">@{req.from.username}</p>
+                          </div>
+                          <span className="text-[11px] text-white/20 flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {formatDate(req.createdAt)}
+                          </span>
+                        </div>
+
+                        {req.message && (
+                          <div className="mt-2 px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.04] text-xs text-white/50 italic">
+                            &ldquo;{req.message}&rdquo;
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2 mt-3">
+                          <button
+                            onClick={() => handleRequest(req._id, 'accept')}
+                            disabled={processingReqId === req._id}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-40 transition-all shadow-lg shadow-emerald-500/20"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            Accepter
+                          </button>
+                          <button
+                            onClick={() => handleRequest(req._id, 'reject')}
+                            disabled={processingReqId === req._id}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/20 disabled:opacity-40 transition-all"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            Refuser
+                          </button>
+                          <button
+                            onClick={() => router.push(`/profile/${req.from.username}`)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.06] text-white/40 hover:bg-white/[0.08] transition-all ml-auto"
+                          >
+                            Voir profil
+                            <ArrowRight className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
-} 
+}

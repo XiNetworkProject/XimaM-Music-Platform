@@ -25,7 +25,8 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-audio"
+      "./plugins/withAndroidAuto",
+      "./plugins/withMediaBrowser"
     ]
   }
 }

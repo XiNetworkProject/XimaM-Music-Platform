@@ -22,6 +22,8 @@ import {
   Sparkles,
   Calendar,
   X,
+  MessageCircle,
+  Send,
 } from "lucide-react";
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -74,6 +76,11 @@ export default function SynauraProfile(){
   const [editData, setEditData] = useState<any>({});
   const [editingTrack, setEditingTrack] = useState<any>(null);
   const [trackEditData, setTrackEditData] = useState<any>({});
+  const [showMessageModal, setShowMessageModal] = useState(false);
+  const [messageText, setMessageText] = useState('');
+  const [sendingRequest, setSendingRequest] = useState(false);
+  const [messageRequestStatus, setMessageRequestStatus] = useState<'none' | 'pending' | 'accepted'>('none');
+  const [existingConvId, setExistingConvId] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -275,6 +282,60 @@ export default function SynauraProfile(){
       }));
     } catch (e) {
       notify.error('Erreur', 'Impossible de suivre cet utilisateur');
+    }
+  };
+
+  // Verifier le statut de demande de message
+  useEffect(() => {
+    if (!session?.user?.id || !profile?.id || isOwnProfile) return;
+    const checkMessageRequest = async () => {
+      try {
+        const res = await fetch(`/api/messages/requests/status?targetId=${profile.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMessageRequestStatus(data.status || 'none');
+          if (data.conversationId) setExistingConvId(data.conversationId);
+        }
+      } catch {}
+    };
+    checkMessageRequest();
+  }, [session?.user?.id, profile?.id, isOwnProfile]);
+
+  const handleSendMessageRequest = async () => {
+    if (!session?.user) {
+      router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`);
+      return;
+    }
+    if (!profile?.id) return;
+    setSendingRequest(true);
+    try {
+      const res = await fetch('/api/messages/requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessageRequestStatus('pending');
+        setShowMessageModal(false);
+        setMessageText('');
+        notify.success('Demande envoyee', `Votre demande a ete envoyee a ${profile.name}`);
+      } else if (data.alreadyConnected) {
+        if (data.conversationId) {
+          router.push(`/messages/${data.conversationId}`);
+        } else {
+          router.push('/messages');
+        }
+      } else if (data.alreadySent) {
+        setMessageRequestStatus('pending');
+        notify.info('Deja envoyee', 'Votre demande est en attente');
+      } else {
+        notify.error('Erreur', data.error || 'Impossible d\'envoyer la demande');
+      }
+    } catch {
+      notify.error('Erreur', 'Erreur de connexion');
+    } finally {
+      setSendingRequest(false);
     }
   };
 
@@ -626,18 +687,45 @@ export default function SynauraProfile(){
                     </button>
                   </>
                 ) : (
-                  <button
-                    onClick={handleFollow}
-                    disabled={uploading}
-                    className={`h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-semibold transition ${
-                      profile.isFollowing
-                        ? 'bg-white/5 hover:bg-white/10'
-                        : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg'
-                    }`}
-                  >
-                    {profile.isFollowing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                    {profile.isFollowing ? 'Abonné' : 'Suivre'}
-                  </button>
+                  <>
+                    <button
+                      onClick={handleFollow}
+                      disabled={uploading}
+                      className={`h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-semibold transition ${
+                        profile.isFollowing
+                          ? 'bg-white/5 hover:bg-white/10'
+                          : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg'
+                      }`}
+                    >
+                      {profile.isFollowing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                      {profile.isFollowing ? 'Abonné' : 'Suivre'}
+                    </button>
+                    {messageRequestStatus === 'accepted' || existingConvId ? (
+                      <button
+                        onClick={() => router.push(existingConvId ? `/messages/${existingConvId}` : '/messages')}
+                        className="h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-medium bg-white/5 hover:bg-white/10 transition"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="hidden sm:inline">Message</span>
+                      </button>
+                    ) : messageRequestStatus === 'pending' ? (
+                      <button
+                        disabled
+                        className="h-10 px-3 rounded-2xl border border-amber-500/30 inline-flex items-center gap-2 text-sm font-medium bg-amber-500/10 text-amber-300 cursor-not-allowed"
+                      >
+                        <Send className="w-4 h-4" />
+                        <span className="hidden sm:inline">En attente</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setShowMessageModal(true)}
+                        className="h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-medium bg-white/5 hover:bg-white/10 transition"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span className="hidden sm:inline">Message</span>
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -926,6 +1014,61 @@ export default function SynauraProfile(){
             } : null}
             item={lastOpened || null}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Modal demande de message */}
+      <AnimatePresence>
+        {showMessageModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
+            onClick={() => setShowMessageModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md rounded-2xl bg-[#141418] border border-white/[0.08] p-6"
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" />
+                <div>
+                  <h2 className="text-lg font-bold">Envoyer un message</h2>
+                  <p className="text-xs text-white/40">a {profile?.name || usernameStr}</p>
+                </div>
+              </div>
+              <p className="text-sm text-white/50 mb-4">
+                {profile?.name} recevra votre demande et pourra l&apos;accepter ou la refuser.
+              </p>
+              <textarea
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                placeholder="Ajoutez un message (optionnel)..."
+                rows={3}
+                className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none mb-4"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setShowMessageModal(false); setMessageText(''); }}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleSendMessageRequest}
+                  disabled={sendingRequest}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500 text-white hover:bg-indigo-400 disabled:opacity-40 transition-colors shadow-lg shadow-indigo-500/20 inline-flex items-center justify-center gap-2"
+                >
+                  <Send className="w-4 h-4" />
+                  {sendingRequest ? 'Envoi...' : 'Envoyer'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
