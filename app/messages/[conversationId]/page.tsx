@@ -52,6 +52,7 @@ export default function ConversationPage() {
   const [recordingDuration, setRecordingDuration] = useState(0);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -84,11 +85,27 @@ export default function ConversationPage() {
     return () => clearInterval(interval);
   }, [session?.user, conversationId]);
 
+  // Scroll le conteneur interne directement (evite que le scroll externe descende la page)
   useEffect(() => {
     if (messages.length > 0) {
-      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      setTimeout(() => {
+        const container = messagesContainerRef.current;
+        if (container) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }, 100);
     }
   }, [messages.length]);
+
+  // Bloque le scroll du conteneur externe pendant la conversation
+  useEffect(() => {
+    const outer = document.querySelector('.app-scroll-container') as HTMLElement | null;
+    if (outer) {
+      const prev = outer.style.overflow;
+      outer.style.overflow = 'hidden';
+      return () => { outer.style.overflow = prev; };
+    }
+  }, []);
 
   const fetchMessages = async () => {
     try {
@@ -333,7 +350,7 @@ export default function ConversationPage() {
       </div>
 
       {/* Messages area */}
-      <div className="relative z-10 flex-1 min-h-0 overflow-y-auto">
+      <div ref={messagesContainerRef} className="relative z-10 flex-1 min-h-0 overflow-y-auto">
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-3">
           {loading ? (
             <div className="flex items-center justify-center py-20">
