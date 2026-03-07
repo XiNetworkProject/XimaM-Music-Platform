@@ -19,6 +19,7 @@ import {
   User,
   Bookmark,
   Zap,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import toast from 'react-hot-toast';
@@ -496,7 +497,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch('/api/ranking/feed?limit=50&ai=0&strategy=reco&cursor=0', { cache: 'no-store' });
+        const res = await fetch('/api/ranking/feed?limit=50&ai=1&strategy=reco&cursor=0', { cache: 'no-store' });
         const json = await res.json();
         const list: Track[] = Array.isArray(json?.tracks) ? json.tracks : [];
         const cdnTracks = applyCdnToTracks(list as any) as any;
@@ -670,31 +671,56 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     return () => window.clearTimeout(timer);
   }, [isOpen, activeIndex, tracks, playTrack, currentId]);
 
-  // Infinite loading
+  // Infinite loading — loops back to cursor 0 when API is exhausted
   useEffect(() => {
-    if (!isOpen || !hasMore || loadingMore || tracks.length === 0) return;
+    if (!isOpen || loadingMore || tracks.length === 0) return;
     if (activeIndex < tracks.length - 6) return;
     setLoadingMore(true);
     (async () => {
       try {
-        const res = await fetch(`/api/ranking/feed?limit=50&ai=0&strategy=reco&cursor=${nextCursor}`, { cache: 'no-store' });
+        const cursor = hasMore ? nextCursor : 0;
+        const res = await fetch(`/api/ranking/feed?limit=50&ai=1&strategy=reco&cursor=${cursor}`, { cache: 'no-store' });
         const json = await res.json();
         const list: Track[] = Array.isArray(json?.tracks) ? json.tracks : [];
         const cdnTracks = applyCdnToTracks(list as any) as any;
+
+        let freshBoosted: any[] = [];
+        try {
+          const bRes = await fetch('/api/tracks/boosted?limit=10', { cache: 'no-store' });
+          const bJson = await bRes.json();
+          freshBoosted = applyCdnToTracks(Array.isArray(bJson?.tracks) ? bJson.tracks : []) as any;
+          freshBoosted = freshBoosted.map((t: any) => ({ ...t, isBoosted: true }));
+        } catch {}
+
         setLocalTracks((prev) => {
           const seen = new Set(prev.map((t) => getTrackId(t)).filter(Boolean));
           const append = (cdnTracks || []).filter((t: any) => {
             const id = getTrackId(t);
-            if (!id || id.startsWith('ai-') || seen.has(id)) return false;
-            return true;
+            return id && !seen.has(id);
           });
-          const merged = [...prev, ...append];
+
+          const boostedToInject = freshBoosted.filter((bt: any) => {
+            const id = getTrackId(bt);
+            return id && !seen.has(id) && !append.some((a: any) => getTrackId(a) === id);
+          });
+
+          const withBoosted: any[] = [];
+          let bIdx = 0;
+          for (let i = 0; i < append.length; i++) {
+            withBoosted.push(append[i]);
+            if ((i + 1) % 4 === 0 && bIdx < boostedToInject.length) {
+              withBoosted.push(boostedToInject[bIdx++]);
+            }
+          }
+
+          const merged = [...prev, ...withBoosted];
           setTracks(merged as any);
           return merged as any;
         });
-        setNextCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : nextCursor + list.length);
+        const nc = typeof json?.nextCursor === 'number' ? json.nextCursor : cursor + list.length;
+        setNextCursor(nc);
         setHasMore(Boolean(json?.hasMore));
-      } catch { setHasMore(false); } finally { setLoadingMore(false); }
+      } catch {} finally { setLoadingMore(false); }
     })();
   }, [activeIndex, hasMore, isOpen, loadingMore, nextCursor, tracks.length, setTracks]);
 
@@ -1095,11 +1121,21 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                             <span className="text-[11px] font-black text-white uppercase tracking-widest">Live</span>
                           </div>
                         )}
-                        {/* Boosted badge */}
-                        {!isRadio && (t as any)?.isBoosted && (
-                          <div className="absolute top-3 right-3 flex items-center gap-1.5 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-violet-500/30 shadow-lg" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))' }}>
-                            <Zap className="w-3 h-3 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
-                            <span className="text-[11px] font-black text-white/90">Boosted</span>
+                        {/* Badges */}
+                        {!isRadio && (
+                          <div className="absolute top-3 right-3 flex flex-col gap-2 items-end">
+                            {(t as any)?.isBoosted && (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl backdrop-blur-sm border border-violet-500/30 shadow-lg" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))' }}>
+                                <Zap className="w-3 h-3 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
+                                <span className="text-[11px] font-black text-white/90">Boosted</span>
+                              </div>
+                            )}
+                            {((t as any).isAI || String(t._id || '').startsWith('ai-')) && (
+                              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-violet-600/60 backdrop-blur-sm border border-violet-400/30 shadow-lg">
+                                <Sparkles className="w-3 h-3 text-violet-200" />
+                                <span className="text-[11px] font-black text-white/90">IA</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

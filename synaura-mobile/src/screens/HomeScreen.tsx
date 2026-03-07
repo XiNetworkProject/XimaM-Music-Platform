@@ -825,13 +825,11 @@ const HomeScreen: React.FC = () => {
       },
       {
         id: "ai",
-        title: "Générateur de Musique IA",
-        subtitle: "Créez de la musique unique avec l'IA",
-        image: assetUrl(
-          "/DALL·E 2025-09-26 23.14.53 - A minimalist, abstract landscape-format illustration symbolizing AI-generated music. The image features a stylized humanoid head made of flowing digit.webp"
-        ),
-        tag: "IA Musicale",
-        actionLabel: "Ouvrir le studio",
+        title: "Synaura Studio",
+        subtitle: "Composez, remixez et publiez vos morceaux avec l'IA",
+        image: assetUrl("/studio-banner.png"),
+        tag: "Nouveau",
+        actionLabel: "Ouvrir le Studio",
         actionType: "navigate",
         actionTarget: "Studio",
       },

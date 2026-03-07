@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, ChevronUp, ChevronDown, X } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, ChevronUp, ChevronDown, X, Sparkles } from "lucide-react";
 import { useAudioPlayer, useAudioTime, useSidebar } from '@/app/providers';
 import LikeButton from './LikeButton';
 import TikTokPlayer from './TikTokPlayer';
@@ -159,6 +159,11 @@ export default function SynauraMiniPlayer() {
                     {isLive && (
                       <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-red-500 text-white text-[7px] font-bold uppercase px-1 py-px rounded-full tracking-wider">
                         <Radio className="w-2 h-2" /> Live
+                      </span>
+                    )}
+                    {!isLive && ((currentTrack as any)?.isAI || String(currentTrack?._id || '').startsWith('ai-') || String(currentTrack?._id || '').startsWith('gen-')) && (
+                      <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-violet-500 text-white text-[7px] font-bold px-1 py-px rounded-full">
+                        <Sparkles className="w-2 h-2" /> IA
                       </span>
                     )}
                   </div>

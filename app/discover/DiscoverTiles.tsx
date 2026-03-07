@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Sparkles, Zap } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 
@@ -138,27 +138,44 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
     }
   };
 
+  const isBoosted = Boolean((track as any)?.isBoosted);
+  const isAI = Boolean(track.isAI || String(track._id || '').startsWith('ai-'));
+
   return (
     <div
       className={`rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card ${grid ? 'w-full' : 'min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] shrink-0'}`}
       style={{ scrollSnapAlign: grid ? undefined : 'start' }}
     >
       <div className="relative group/cover">
+        {isBoosted && (
+          <div className="absolute -inset-[2px] rounded-lg z-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.45), rgba(245,158,11,0.35), rgba(236,72,153,0.35))', filter: 'blur(5px)', animation: 'boost-halo-pulse 3s ease-in-out infinite' }} />
+        )}
         <img
           src={track.coverUrl || '/default-cover.jpg'}
           alt={track.title}
-          className="w-full aspect-square object-cover rounded-lg"
+          className={`w-full aspect-square object-cover rounded-lg ${isBoosted ? 'relative z-[1]' : ''}`}
           loading="lazy"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
         />
         {durStr && (
-          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
+          <span className={`absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm ${isBoosted ? 'z-[2]' : ''}`}>
             {durStr}
           </span>
         )}
+        {isAI && (
+          <span className={`absolute top-2 right-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-500/70 backdrop-blur-sm text-[8px] font-bold text-white border border-violet-400/30 ${isBoosted ? 'z-[2]' : ''}`}>
+            <Sparkles className="w-2.5 h-2.5" /> IA
+          </span>
+        )}
+        {isBoosted && !isAI && (
+          <div className="absolute z-[2] top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-400/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4))', backdropFilter: 'blur(8px)' }}>
+            <Zap className="w-2.5 h-2.5 text-amber-300" style={{ fill: 'rgba(245,158,11,0.4)' }} />
+            <span className="text-[8px] font-bold text-white">Boosted</span>
+          </div>
+        )}
         <button
           onClick={handlePlay}
-          className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110"
+          className={`absolute bottom-2 right-2 w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110 ${isBoosted ? 'z-[2]' : ''}`}
         >
           <Play className="w-4 h-4 text-white fill-white ml-0.5" />
         </button>
@@ -192,6 +209,8 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
 export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: number }) {
   const { playTrack } = useAudioPlayer();
   const artistLabel = track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste';
+  const isAI = Boolean(track.isAI || String(track._id || '').startsWith('ai-'));
+  const isBoosted = Boolean((track as any)?.isBoosted);
 
   return (
     <div
@@ -215,7 +234,19 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
         </div>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] font-semibold truncate text-white">{track.title}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-[13px] font-semibold truncate text-white">{track.title}</p>
+          {isAI && (
+            <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-500/60 text-[7px] font-bold text-white">
+              <Sparkles className="w-2 h-2" /> IA
+            </span>
+          )}
+          {isBoosted && (
+            <span className="shrink-0 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[7px] font-bold text-white" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4))' }}>
+              <Zap className="w-2 h-2 text-amber-300" /> Boosted
+            </span>
+          )}
+        </div>
         <p className="text-[11px] text-white/40 truncate">{artistLabel}</p>
       </div>
       <span className="text-[11px] text-white/25 tabular-nums shrink-0">

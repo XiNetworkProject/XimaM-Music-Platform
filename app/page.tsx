@@ -407,29 +407,48 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
       style={{ scrollSnapAlign: 'start' }}
     >
       <div className="relative group/cover">
+        {orig?.isBoosted && (
+          <div className="absolute -inset-[2px] rounded-lg z-0 pointer-events-none" style={{
+            background: 'linear-gradient(135deg, rgba(168,85,247,0.45), rgba(245,158,11,0.35), rgba(236,72,153,0.35))',
+            filter: 'blur(5px)',
+            animation: 'boost-halo-pulse 3s ease-in-out infinite',
+          }} />
+        )}
         <img
           src={track.cover}
           alt={track.title}
-          className="w-full aspect-square object-cover rounded-lg"
+          className="relative z-[1] w-full aspect-square object-cover rounded-lg"
           onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
         />
         {dur > 0 && (
-          <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
+          <span className="absolute z-[2] top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
             {durStr}
           </span>
         )}
         {orig?.isBoosted && (
-          <div className="absolute bottom-2 left-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', backdropFilter: 'blur(8px)' }}>
-            <Zap className="w-2.5 h-2.5 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
-            <span className="text-[8px] font-bold text-white/90">Boosted</span>
+          <div className="absolute z-[2] bottom-2 left-2 inline-flex items-center gap-1 px-2 py-1 rounded-full border border-violet-400/40" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.35))', backdropFilter: 'blur(10px)', boxShadow: '0 0 10px rgba(168,85,247,0.2)' }}>
+            <Zap className="w-3 h-3 text-amber-300" style={{ fill: 'rgba(245,158,11,0.4)', filter: 'drop-shadow(0 0 3px rgba(245,158,11,0.5))' }} />
+            <span className="text-[9px] font-bold text-white">Boosted</span>
           </div>
         )}
-        <div className="absolute top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
+        {(orig?.isAI || String(orig?._id || '').startsWith('ai-')) && (
+          <div className="absolute z-[2] top-2 left-2 inline-flex items-center gap-1">
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-violet-500/70 backdrop-blur-sm text-[8px] font-bold text-white border border-violet-400/30">
+              <Sparkles className="w-2.5 h-2.5" /> IA
+            </span>
+            {orig?.isRemix && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-fuchsia-500/60 backdrop-blur-sm text-[8px] font-bold text-white border border-fuchsia-400/30">
+                Remix
+              </span>
+            )}
+          </div>
+        )}
+        <div className="absolute z-[2] top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity">
           <TrackContextMenu track={orig} />
         </div>
         <button
           onClick={handlePlay}
-          className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110"
+          className="absolute z-[2] bottom-2 right-2 w-9 h-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-indigo-500/30 hover:scale-110"
         >
           <Play className="w-4 h-4 text-white fill-white ml-0.5" />
         </button>
@@ -1277,7 +1296,7 @@ export default function SynauraHome() {
     cover: t.coverUrl || '/default-cover.jpg',
     duration: t.duration || 0,
     liked: false,
-    _original: t
+    _original: { ...t, isAI: (t as any).isAI || String(t._id || '').startsWith('ai-'), isRemix: (t as any).isRemix }
   })), [trendingList]);
   
   const forYouCards = useMemo(() => personalizedForYouList.slice(0, 12).map(t => ({
@@ -1287,7 +1306,7 @@ export default function SynauraHome() {
     cover: t.coverUrl || '/default-cover.jpg',
     duration: t.duration || 0,
     liked: false,
-    _original: { ...t, isBoosted: (t as any).isBoosted, boostMultiplier: (t as any).boostMultiplier }
+    _original: { ...t, isBoosted: (t as any).isBoosted, boostMultiplier: (t as any).boostMultiplier, isAI: (t as any).isAI || String(t._id || '').startsWith('ai-'), isRemix: (t as any).isRemix }
   })), [personalizedForYouList]);
 
   const personalizedCreators = useMemo(() => {
@@ -1306,7 +1325,7 @@ export default function SynauraHome() {
     cover: t.coverUrl || '/default-cover.jpg',
     duration: t.duration || 0,
     liked: false,
-    _original: t
+    _original: { ...t, isAI: (t as any).isAI || String(t._id || '').startsWith('ai-'), isRemix: (t as any).isRemix }
   })), [recentTracks]);
   
   
@@ -1328,11 +1347,11 @@ export default function SynauraHome() {
     
     slides.push({
       id: 'ai',
-      title: 'Générateur de Musique IA',
-      subtitle: 'Créez de la musique unique avec l\'intelligence artificielle',
-      image: '/DALL·E 2025-09-26 23.14.53 - A minimalist, abstract landscape-format illustration symbolizing AI-generated music. The image features a stylized humanoid head made of flowing digit.webp',
-      tag: 'IA Musicale',
-      actionLabel: 'Générer de la musique',
+      title: 'Synaura Studio',
+      subtitle: 'Composez, remixez et publiez vos propres morceaux avec notre studio de creation propulse par IA',
+      image: '/studio-banner.png',
+      tag: 'Nouveau',
+      actionLabel: 'Ouvrir le Studio',
       actionType: 'navigate',
       actionIcon: Sparkles,
       actionData: '/ai-generator'
@@ -1717,6 +1736,7 @@ export default function SynauraHome() {
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden bg-[#0a0a0e]">
+      <style>{`@keyframes boost-halo-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }`}</style>
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-[-10%] left-[-5%] w-[50vw] h-[50vw] rounded-full opacity-[0.15] blur-[130px] animate-[synaura-blob1_20s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }} />
         <div className="absolute top-[30%] right-[-10%] w-[45vw] h-[45vw] rounded-full opacity-[0.12] blur-[130px] animate-[synaura-blob2_25s_ease-in-out_infinite]" style={{ background: 'radial-gradient(circle, #7c3aed 0%, transparent 70%)' }} />
@@ -1902,47 +1922,106 @@ export default function SynauraHome() {
           </section>
         )}
 
-        {/* Pistes propulsees (boostees) */}
+        {/* ══ Le meilleur des boosts ══ */}
         {boostedTracks.length > 0 && (
-          <section>
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="h-9 w-9 rounded-xl grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.25))' }}>
-                <Zap className="h-4.5 w-4.5 text-amber-400" />
+          <section className="relative rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(245,158,11,0.08) 50%, rgba(236,72,153,0.1) 100%)' }}>
+            {/* Animated border glow */}
+            <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ border: '1px solid rgba(168,85,247,0.2)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }} />
+            <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(168,85,247,0.5), rgba(245,158,11,0.4), transparent)' }} />
+
+            <div className="p-5 sm:p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between gap-4 mb-5">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="h-11 w-11 rounded-xl grid place-items-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', boxShadow: '0 0 20px rgba(168,85,247,0.2)' }}>
+                    <Zap className="h-5 w-5 text-amber-400" style={{ filter: 'drop-shadow(0 0 6px rgba(245,158,11,0.5))' }} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-black text-white leading-tight">Le meilleur des boosts</h2>
+                    <p className="text-xs text-white/40 mt-0.5">Ces artistes boostent leurs pistes en ce moment</p>
+                  </div>
+                </div>
+                <button onClick={() => router.push('/boosters')} className="shrink-0 h-9 px-4 rounded-xl text-xs font-bold transition-all" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.25))', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                  Voir tout
+                </button>
               </div>
-              <div>
-                <h2 className="text-base font-black text-white leading-tight">Pistes propulsees</h2>
-                <p className="text-[11px] text-white/30">En ce moment sur Synaura</p>
-              </div>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none -mx-1 px-1">
-              {boostedTracks.slice(0, 10).map((t: any) => {
-                const dur = t.duration || 0;
-                const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
-                return (
-                  <div key={t._id || t.id} className="group shrink-0 w-[160px]">
-                    <div className="relative rounded-xl overflow-hidden mb-2">
-                      {/* Boost halo */}
-                      <div className="absolute -inset-0.5 rounded-xl z-0 opacity-60" style={{
-                        background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3), rgba(236,72,153,0.3))',
-                        filter: 'blur(6px)',
-                      }} />
-                      <div className="relative z-[1]">
-                        <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover rounded-xl" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
-                        <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl">
-                          <Play className="w-8 h-8 text-white fill-white ml-0.5" />
-                        </button>
-                        {/* Boost badge */}
-                        <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border border-violet-500/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', backdropFilter: 'blur(8px)' }}>
-                          <Zap className="w-2.5 h-2.5 text-amber-400" style={{ fill: 'rgba(245,158,11,0.3)' }} />
-                          <span className="text-[8px] font-bold text-white/90">Boosted</span>
+
+              {/* Track carousel */}
+              <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+                {boostedTracks.slice(0, 10).map((t: any) => {
+                  const dur = t.duration || 0;
+                  const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+                  return (
+                    <div key={t._id || t.id} className="group shrink-0 w-[155px] sm:w-[170px]">
+                      <div className="relative rounded-xl overflow-hidden mb-2">
+                        {/* Animated halo */}
+                        <div className="absolute -inset-[2px] rounded-xl z-0" style={{
+                          background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4), rgba(236,72,153,0.4), rgba(168,85,247,0.5))',
+                          filter: 'blur(6px)',
+                          animation: 'boost-halo-pulse 3s ease-in-out infinite',
+                        }} />
+                        <div className="relative z-[1] rounded-xl overflow-hidden">
+                          <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                          <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                              <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                            </div>
+                          </button>
+                          {/* Badge */}
+                          <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-violet-400/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4))', backdropFilter: 'blur(8px)' }}>
+                            <Zap className="w-2.5 h-2.5 text-amber-300" style={{ fill: 'rgba(245,158,11,0.4)' }} />
+                            <span className="text-[8px] font-bold text-white">Boosted</span>
+                          </div>
+                          {/* Multiplier */}
+                          {t.boostMultiplier && t.boostMultiplier > 1 && (
+                            <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm border border-emerald-500/20">
+                              <span className="text-[9px] font-bold text-emerald-400">x{Number(t.boostMultiplier).toFixed(1)}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
+                      <div className="text-xs font-semibold text-white truncate">{t.title}</div>
+                      <div className="text-[10px] text-white/35 truncate">{t.artist?.name || t.artist?.username || 'Artiste'} · {durStr}</div>
                     </div>
-                    <div className="text-xs font-semibold text-white truncate">{t.title}</div>
-                    <div className="text-[10px] text-white/40 truncate">{t.artist?.name || t.artist?.username || 'Artiste'} · {durStr}</div>
+                  );
+                })}
+              </div>
+
+              {/* CTA banner */}
+              <div className="mt-5 rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(10,10,21,0.6), rgba(245,158,11,0.1))', border: '1px solid rgba(168,85,247,0.15)' }}>
+                <div className="flex items-center gap-4 p-4">
+                  <div className="shrink-0 hidden sm:flex h-12 w-12 rounded-xl items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.2))', boxShadow: '0 0 15px rgba(168,85,247,0.15)' }}>
+                    <Zap className="w-6 h-6 text-amber-400" />
                   </div>
-                );
-              })}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-white">Toi aussi, boost tes musiques !</div>
+                    <div className="text-[11px] text-white/35 mt-0.5">Ouvre des boosters, utilise-les sur tes pistes et monte dans les classements.</div>
+                  </div>
+                  <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.97]" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.3)' }}>
+                    Ouvrir mes boosters
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* CTA Boosters (si aucune piste boostee, on montre quand meme le CTA) */}
+        {boostedTracks.length === 0 && session?.user && (
+          <section>
+            <div className="rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.1), rgba(10,10,21,0.5), rgba(245,158,11,0.08))', border: '1px solid rgba(168,85,247,0.12)' }}>
+              <div className="flex items-center gap-4 p-5">
+                <div className="shrink-0 h-12 w-12 rounded-xl grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.2))' }}>
+                  <Zap className="w-6 h-6 text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-white">Booste tes pistes</div>
+                  <div className="text-[11px] text-white/35 mt-0.5">Ouvre des boosters quotidiens, tourne la roue et propulse ta musique dans les recommandations.</div>
+                </div>
+                <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-xl text-xs font-bold text-white transition-all" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.25)' }}>
+                  Decouvrir
+                </button>
+              </div>
             </div>
           </section>
         )}
@@ -2170,6 +2249,34 @@ export default function SynauraHome() {
             <HorizontalScroller>
               {recentCards.slice(0, 12).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
             </HorizontalScroller>
+          </section>
+        )}
+
+        {/* Rappel boosters (second CTA) */}
+        {session?.user && (
+          <section>
+            <div className="relative rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(90deg, rgba(168,85,247,0.08) 0%, rgba(10,10,21,0.4) 40%, rgba(245,158,11,0.06) 100%)', border: '1px solid rgba(168,85,247,0.1)' }}>
+              <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent 20%, rgba(168,85,247,0.3) 50%, transparent 80%)' }} />
+              <div className="flex flex-col sm:flex-row items-center gap-4 p-5 text-center sm:text-left">
+                <div className="shrink-0">
+                  <div className="relative">
+                    <div className="absolute -inset-3 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%)', filter: 'blur(8px)' }} />
+                    <div className="relative h-14 w-14 rounded-2xl grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.2))', border: '1px solid rgba(168,85,247,0.2)' }}>
+                      <Zap className="w-7 h-7 text-amber-400" style={{ filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.4))' }} />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-base font-black text-white">Monte dans le classement</div>
+                  <div className="text-xs text-white/35 mt-1 max-w-md">Ouvre ton booster quotidien gratuit, complete des missions et utilise tes boosts pour propulser tes pistes dans les recommandations de tous les utilisateurs.</div>
+                </div>
+                <div className="shrink-0 flex flex-col sm:flex-row gap-2">
+                  <button onClick={() => router.push('/boosters')} className="h-10 px-5 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.03]" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.25)' }}>
+                    Ouvrir mes boosters
+                  </button>
+                </div>
+              </div>
+            </div>
           </section>
         )}
 

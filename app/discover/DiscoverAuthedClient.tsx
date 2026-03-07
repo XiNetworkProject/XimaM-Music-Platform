@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Sparkles, X, Disc3, Play } from 'lucide-react';
+import { Search, Sparkles, X, Disc3, Play, Zap } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
@@ -74,15 +74,17 @@ export default function DiscoverAuthedClient({
   const [newest, setNewest] = useState(initialNew);
   const [playlists, setPlaylists] = useState(initialPlaylists);
   const [artists, setArtists] = useState(initialArtists);
+  const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
 
   const refreshData = useCallback(async () => {
     try {
-      const [fy, tr, nw, pl, ar] = await Promise.all([
+      const [fy, tr, nw, pl, ar, bt] = await Promise.all([
         fetch('/api/ranking/feed?limit=50&ai=1&strategy=reco', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/tracks/trending?limit=50', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/tracks/recent?limit=40', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/playlists/popular?limit=18', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/artists?sort=trending&limit=16', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/tracks/boosted?limit=10', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
       ]);
       if (Array.isArray(fy?.tracks)) setForYou(fy.tracks);
       if (Array.isArray(tr?.tracks)) setTrending(tr.tracks);
@@ -103,6 +105,7 @@ export default function DiscoverAuthedClient({
         trackCount: a?.trackCount,
         isTrending: Boolean(a?.isTrending),
       })));
+      if (Array.isArray(bt?.tracks)) setBoostedTracks(bt.tracks);
     } catch {}
   }, []);
 
@@ -294,6 +297,77 @@ export default function DiscoverAuthedClient({
                     <TrackTile key={t._id} track={t} />
                   ))}
                 </HorizontalScroller>
+              </section>
+            )}
+
+            {/* Le meilleur des boosts */}
+            {boostedTracks.length > 0 && (
+              <section className="relative rounded-2xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12) 0%, rgba(245,158,11,0.08) 50%, rgba(236,72,153,0.1) 100%)' }}>
+                <div className="absolute inset-0 rounded-2xl pointer-events-none" style={{ border: '1px solid rgba(168,85,247,0.2)', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)' }} />
+                <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(168,85,247,0.5), rgba(245,158,11,0.4), transparent)' }} />
+                <div className="p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-4 mb-5">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="h-11 w-11 rounded-xl grid place-items-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', boxShadow: '0 0 20px rgba(168,85,247,0.2)' }}>
+                        <Zap className="h-5 w-5 text-amber-400" style={{ filter: 'drop-shadow(0 0 6px rgba(245,158,11,0.5))' }} />
+                      </div>
+                      <div className="min-w-0">
+                        <h2 className="text-lg font-black text-white leading-tight">Le meilleur des boosts</h2>
+                        <p className="text-xs text-white/40 mt-0.5">Ces artistes boostent leurs pistes en ce moment</p>
+                      </div>
+                    </div>
+                    <button onClick={() => router.push('/boosters')} className="shrink-0 h-9 px-4 rounded-xl text-xs font-bold transition-all" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.25))', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                      Voir tout
+                    </button>
+                  </div>
+                  <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+                    {boostedTracks.slice(0, 10).map((t: any) => {
+                      const dur = t.duration || 0;
+                      const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
+                      return (
+                        <div key={t._id || t.id} className="group shrink-0 w-[155px] sm:w-[170px]">
+                          <div className="relative rounded-xl overflow-hidden mb-2">
+                            <div className="absolute -inset-[2px] rounded-xl z-0" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4), rgba(236,72,153,0.4), rgba(168,85,247,0.5))', filter: 'blur(6px)', animation: 'boost-halo-pulse 3s ease-in-out infinite' }} />
+                            <div className="relative z-[1] rounded-xl overflow-hidden">
+                              <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                              <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                                  <Play className="w-5 h-5 text-white fill-white ml-0.5" />
+                                </div>
+                              </button>
+                              <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-violet-400/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4))', backdropFilter: 'blur(8px)' }}>
+                                <Zap className="w-2.5 h-2.5 text-amber-300" style={{ fill: 'rgba(245,158,11,0.4)' }} />
+                                <span className="text-[8px] font-bold text-white">Boosted</span>
+                              </div>
+                              {t.boostMultiplier && t.boostMultiplier > 1 && (
+                                <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm border border-emerald-500/20">
+                                  <span className="text-[9px] font-bold text-emerald-400">x{Number(t.boostMultiplier).toFixed(1)}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-xs font-semibold text-white truncate">{t.title}</div>
+                          <div className="text-[10px] text-white/35 truncate">{t.artist?.name || t.artist?.username || 'Artiste'} · {durStr}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-5 rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(10,10,21,0.6), rgba(245,158,11,0.1))', border: '1px solid rgba(168,85,247,0.15)' }}>
+                    <div className="flex items-center gap-4 p-4">
+                      <div className="shrink-0 hidden sm:flex h-12 w-12 rounded-xl items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.2))', boxShadow: '0 0 15px rgba(168,85,247,0.15)' }}>
+                        <Zap className="w-6 h-6 text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-white">Toi aussi, boost tes musiques !</div>
+                        <div className="text-[11px] text-white/35 mt-0.5">Ouvre des boosters, utilise-les sur tes pistes et monte dans les classements.</div>
+                      </div>
+                      <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.97]" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.3)' }}>
+                        Ouvrir mes boosters
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <style>{`@keyframes boost-halo-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }`}</style>
               </section>
             )}
 
