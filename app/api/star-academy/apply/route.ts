@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { sendEmail, saConfirmationTemplate } from '@/lib/email';
 
-const ALLOWED_CATEGORIES = ['Chant', 'Rap', 'Mix / DJ', 'Performance / Danse', 'Autre'];
+const ALLOWED_CATEGORIES = ['Chant Solo', 'Rap / Spoken Word', 'Cover / Reprise', 'Mix avec Vocal', 'Duo / Groupe', 'Chant', 'Rap', 'Mix / DJ', 'Performance / Danse', 'Autre'];
 
 export async function POST(req: NextRequest) {
   try {

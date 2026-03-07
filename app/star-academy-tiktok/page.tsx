@@ -100,7 +100,11 @@ export default function StarAcademyLandingPage() {
             <div className="flex items-center gap-2">
               <Link href="/star-academy-tiktok/suivi"
                 className="hidden sm:block text-xs text-white/45 hover:text-white transition font-medium">
-                Suivi candidature
+                Suivi
+              </Link>
+              <Link href="/star-academy-tiktok/inscription-staff"
+                className="hidden sm:block rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400 hover:bg-amber-500/20 transition">
+                Devenir Staff
               </Link>
               <Link href="/star-academy-tiktok/inscription"
                 className="rounded-xl px-4 py-2 text-xs font-black text-white transition hover:opacity-90"
@@ -373,21 +377,74 @@ export default function StarAcademyLandingPage() {
             CATEGORIES
         ══════════════════════════════════════ */}
         <section className="px-5 py-10 max-w-4xl mx-auto text-center">
-          <p className="text-[11px] font-bold text-white/25 uppercase tracking-widest mb-4">Categories acceptees</p>
-          <div className="flex flex-wrap justify-center gap-2.5">
+          <p className="text-[11px] font-bold text-white/25 uppercase tracking-widest mb-2">Categories candidats</p>
+          <h2 className="text-xl sm:text-2xl font-black text-white mb-6">
+            Chant, Rap & Mix vocal
+          </h2>
+          <p className="text-sm text-white/40 mb-6 max-w-lg mx-auto leading-relaxed">
+            Comme la vraie Star Academy, le concours se concentre sur la voix.
+            Les DJs/producteurs sont acceptes uniquement s&apos;ils integrent du chant ou du vocal dans leur performance.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2.5 mb-6">
             {[
-              { label: "Chant" },
-              { label: "Rap" },
-              { label: "Mix / DJ" },
-              { label: "Performance / Danse" },
-              { label: "Autre" },
+              { label: "Chant Solo", hot: true },
+              { label: "Rap / Spoken Word", hot: true },
+              { label: "Cover / Reprise", hot: false },
+              { label: "Mix avec Vocal", hot: false },
+              { label: "Duo / Groupe", hot: false },
             ].map(c => (
               <span key={c.label}
-                className="rounded-full border border-white/10 px-5 py-2 text-sm font-semibold text-white/60 hover:border-violet-500/30 hover:text-white/80 transition-all cursor-default"
-                style={{ background: "rgba(255,255,255,0.03)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
+                className={`rounded-full border px-5 py-2 text-sm font-semibold transition-all cursor-default ${
+                  c.hot
+                    ? "border-violet-500/30 text-violet-300 bg-violet-500/10"
+                    : "border-white/10 text-white/60 hover:border-violet-500/30 hover:text-white/80"
+                }`}
+                style={{ WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
                 {c.label}
               </span>
             ))}
+          </div>
+        </section>
+
+        {/* ══════════════════════════════════════
+            REJOINDRE LE STAFF
+        ══════════════════════════════════════ */}
+        <section className="px-5 py-12 max-w-5xl mx-auto">
+          <div className="rounded-3xl border border-amber-500/15 p-6 sm:p-10 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.06),rgba(236,72,153,0.04))", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+            <div className="absolute top-0 left-0 right-0 h-px"
+              style={{ background: "linear-gradient(90deg,transparent,rgba(245,158,11,0.5),transparent)" }} />
+            <div className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse at 80% 20%, rgba(245,158,11,0.1) 0%, transparent 60%)" }} />
+
+            <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center gap-6">
+              <div className="flex-1 min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 mb-4">
+                  <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Recrutement Staff</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-black text-white mb-3">
+                  Deviens coach ou membre du staff
+                </h2>
+                <p className="text-sm text-white/45 leading-relaxed max-w-lg">
+                  Tu es coach vocal, directeur musical, specialiste de la mise en scene
+                  ou producteur ? Rejoins l&apos;equipe qui encadrera les candidats en live sur TikTok.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {["Coach Vocal", "Coach Scenique", "Direction Musicale", "Jury", "Production"].map(r => (
+                    <span key={r} className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-[11px] text-white/40 font-semibold">
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="shrink-0">
+                <Link href="/star-academy-tiktok/inscription-staff"
+                  className="rounded-2xl px-7 py-3.5 font-black text-sm text-white transition-all hover:scale-[1.03] active:scale-[0.98] inline-block"
+                  style={{ background: "linear-gradient(90deg,#f59e0b,#ec4899)", boxShadow: "0 0 30px rgba(245,158,11,0.3)" }}>
+                  Postuler pour le staff
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -480,9 +537,13 @@ export default function StarAcademyLandingPage() {
                 Suivre ma candidature
               </Link>
             </div>
-            <p className="text-white/20 text-[11px] mt-5 uppercase tracking-widest">
+            <p className="text-white/20 text-[11px] mt-5 uppercase tracking-widest mb-3">
               Gratuit · Inscription en 5 min · CV vocal requis
             </p>
+            <Link href="/star-academy-tiktok/inscription-staff"
+              className="text-amber-400/60 text-xs hover:text-amber-400 transition underline underline-offset-2">
+              Tu veux rejoindre le staff ? Postuler ici
+            </Link>
           </div>
         </section>
 
@@ -515,6 +576,11 @@ export default function StarAcademyLandingPage() {
               <Link href="/star-academy-tiktok/suivi"
                 className="text-[11px] text-white/30 hover:text-white transition">
                 Suivi candidature
+              </Link>
+              <span className="text-white/10">·</span>
+              <Link href="/star-academy-tiktok/inscription-staff"
+                className="text-[11px] text-white/30 hover:text-amber-400 transition">
+                Devenir staff
               </Link>
               <span className="text-white/10">·</span>
               <Link href="/legal/cgu"

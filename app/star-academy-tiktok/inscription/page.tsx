@@ -963,7 +963,7 @@ export default function InscriptionPage() {
               </h1>
             </div>
             <div className="flex flex-wrap gap-2">
-              {["Chant / Rap", "Mix / DJ", "Danse", "Autre"].map(c => (
+              {["Chant Solo", "Rap", "Cover", "Mix + Vocal", "Duo"].map(c => (
                 <span key={c} className="rounded-full border border-white/12 bg-black/20 backdrop-blur-sm px-3 py-1 text-xs text-white/60">{c}</span>
               ))}
             </div>
@@ -1086,7 +1086,7 @@ export default function InscriptionPage() {
                 <div>
                   <label className={labelCls}>Categorie <Req /></label>
                   <div className="grid grid-cols-2 gap-2">
-                    {[["Chant", "Voix"], ["Rap", "Rap"], ["Mix / DJ", "DJ"], ["Performance / Danse", "Scene"], ["Autre", "Autre"]].map(([v, short]) => (
+                    {[["Chant Solo", "Voix"], ["Rap / Spoken Word", "Rap"], ["Cover / Reprise", "Cov"], ["Mix avec Vocal", "Mix"], ["Duo / Groupe", "Duo"]].map(([v, short]) => (
                       <button key={v} type="button" onClick={() => set("category", v)}
                         className="flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold text-left transition-all duration-200"
                         style={{

@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronDown, ChevronUp, Search, RefreshCw, ExternalLink, Play, Pause, Square, X, Check, Eye, Music } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, RefreshCw, ExternalLink, Play, Pause, Square, X, Check, Eye, Music, Users, Mic } from 'lucide-react';
+
+type Tab = 'candidates' | 'staff';
 
 interface Application {
   id: string;
@@ -27,6 +29,39 @@ interface Application {
   tracking_token: string;
   notification_sent_at: string | null;
 }
+
+interface StaffApplication {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  full_name: string;
+  age: number;
+  email: string;
+  phone: string | null;
+  location: string;
+  role: string;
+  experience: string;
+  speciality: string | null;
+  tiktok_handle: string | null;
+  portfolio_url: string | null;
+  motivation: string;
+  availability: string;
+  synaura_username: string | null;
+  user_id: string | null;
+  status: 'pending' | 'reviewing' | 'accepted' | 'rejected';
+  admin_notes: string | null;
+  tracking_token: string;
+  notification_sent_at: string | null;
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  coach_vocal: 'Coach Vocal',
+  coach_scenique: 'Coach Scenique',
+  direction_musicale: 'Direction Musicale',
+  jury: 'Jury',
+  production: 'Production / Staff',
+  autre: 'Autre',
+};
 
 const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pending:   { label: 'En attente',        color: 'text-amber-400',   bg: 'bg-amber-500/15 border-amber-500/30' },
@@ -235,7 +270,240 @@ function InlineAudioPlayer({ appId, filename, compact }: { appId: string; filena
   );
 }
 
+function StaffTab() {
+  const [apps, setApps] = useState<StaffApplication[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [selected, setSelected] = useState<StaffApplication | null>(null);
+  const [updating, setUpdating] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [newStatus, setNewStatus] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), limit: '30' });
+      if (filterStatus !== 'all') params.set('status', filterStatus);
+      if (search) params.set('search', search);
+      const res = await fetch(`/api/admin/star-academy/staff?${params}`);
+      const data = await res.json();
+      setApps(data.applications ?? []);
+      setTotal(data.total ?? 0);
+    } catch (e) { console.error(e); }
+    finally { setLoading(false); }
+  }, [page, filterStatus, search]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const openDetail = (app: StaffApplication) => {
+    setSelected(app); setNotes(app.admin_notes ?? ''); setNewStatus(app.status);
+  };
+  const closeDetail = () => { setSelected(null); };
+
+  const handleUpdate = async () => {
+    if (!selected) return;
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/admin/star-academy/staff/${selected.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, admin_notes: notes }),
+      });
+      if (res.ok) { await fetchData(); closeDetail(); }
+    } finally { setUpdating(false); }
+  };
+
+  const STAFF_STATUSES = ['all', 'pending', 'reviewing', 'accepted', 'rejected'] as const;
+
+  return (
+    <div className="space-y-5">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {(['pending', 'reviewing', 'accepted', 'rejected'] as const).map((s) => {
+          const cfg = STATUS_LABELS[s];
+          const cnt = apps.filter(a => a.status === s).length;
+          return (
+            <button key={s} onClick={() => setFilterStatus(s === filterStatus ? 'all' : s)}
+              className={`rounded-2xl border p-4 text-left transition ${filterStatus === s ? cfg.bg : 'border-border-secondary bg-white/3 hover:bg-white/5'}`}>
+              <div className={`text-2xl font-black ${cfg.color}`}>{cnt}</div>
+              <div className="text-xs text-foreground-tertiary mt-0.5">{cfg.label}</div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-52">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary" />
+          <input type="text" placeholder="Nom, email, role..." value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            className="w-full rounded-xl border border-border-secondary bg-background-fog-thin pl-9 pr-4 py-2 text-sm text-foreground-primary placeholder-foreground-tertiary outline-none focus:border-violet-500/50 transition" />
+        </div>
+        <select value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+          className="rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm text-foreground-primary outline-none">
+          {STAFF_STATUSES.map((s) => <option key={s} value={s}>{s === 'all' ? 'Tous les statuts' : STATUS_LABELS[s]?.label}</option>)}
+        </select>
+      </div>
+
+      {/* Table */}
+      <div className="rounded-2xl border border-border-secondary overflow-hidden">
+        <div className="hidden md:grid grid-cols-[2fr_1.2fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 border-b border-border-secondary text-xs font-semibold text-foreground-tertiary">
+          <span>Nom</span><span>Role</span><span>Ville</span><span>Date</span><span>Statut</span><span />
+        </div>
+
+        {loading && <div className="flex items-center justify-center py-16 text-foreground-tertiary text-sm">Chargement...</div>}
+        {!loading && apps.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 text-foreground-tertiary">
+            <Users size={28} className="mb-2 opacity-40" />
+            <span className="text-sm">Aucune candidature staff trouvee</span>
+          </div>
+        )}
+
+        {!loading && apps.map((app, idx) => (
+          <div key={app.id} className={`border-b border-border-secondary/50 last:border-b-0 ${idx % 2 === 0 ? 'bg-transparent' : 'bg-white/[0.01]'}`}>
+            <div className="grid md:grid-cols-[2fr_1.2fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 items-center">
+              <div className="min-w-0">
+                <div className="text-sm font-semibold text-foreground-primary truncate">{app.full_name}</div>
+                <div className="text-xs text-foreground-tertiary truncate">{app.email}</div>
+              </div>
+              <div className="text-sm text-foreground-secondary">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+                  {ROLE_LABELS[app.role] ?? app.role}
+                </span>
+              </div>
+              <div className="text-xs text-foreground-secondary">{app.location}</div>
+              <div className="text-xs text-foreground-tertiary">{fmt(app.created_at)}</div>
+              <StatusBadge status={app.status} />
+              <div className="flex items-center gap-2">
+                <button onClick={() => setExpandedId(expandedId === app.id ? null : app.id)}
+                  className="rounded-lg p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition">
+                  {expandedId === app.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                </button>
+                <button onClick={() => openDetail(app)}
+                  className="rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-1.5 text-xs font-semibold text-foreground-secondary hover:text-foreground-primary transition">
+                  Gerer
+                </button>
+              </div>
+            </div>
+
+            {expandedId === app.id && (
+              <div className="border-t border-border-secondary/30 bg-white/[0.02] px-4 py-4 space-y-3 text-xs">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div><span className="text-foreground-tertiary">Age :</span> <span className="text-foreground-secondary">{app.age} ans</span></div>
+                    <div><span className="text-foreground-tertiary">Ville :</span> <span className="text-foreground-secondary">{app.location}</span></div>
+                    {app.phone && <div><span className="text-foreground-tertiary">Tel :</span> <span className="text-foreground-secondary">{app.phone}</span></div>}
+                    {app.speciality && <div><span className="text-foreground-tertiary">Specialite :</span> <span className="text-foreground-secondary">{app.speciality}</span></div>}
+                    {app.tiktok_handle && <div><span className="text-foreground-tertiary">TikTok :</span> <span className="text-foreground-secondary">{app.tiktok_handle}</span></div>}
+                    {app.portfolio_url && <div><span className="text-foreground-tertiary">Portfolio :</span> <a href={app.portfolio_url} target="_blank" className="text-violet-400 underline">{app.portfolio_url}</a></div>}
+                    {app.synaura_username && <div><span className="text-foreground-tertiary">Synaura :</span> <span className="text-foreground-secondary">@{app.synaura_username}</span></div>}
+                    <div><span className="text-foreground-tertiary">Dispos :</span> <span className="text-foreground-secondary">{app.availability}</span></div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-foreground-tertiary mb-1">Experience :</div>
+                      <p className="text-foreground-secondary leading-relaxed whitespace-pre-wrap">{app.experience}</p>
+                    </div>
+                    <div>
+                      <div className="text-foreground-tertiary mb-1">Motivation :</div>
+                      <p className="text-foreground-secondary leading-relaxed whitespace-pre-wrap">{app.motivation}</p>
+                    </div>
+                    {app.admin_notes && (
+                      <div className="rounded-xl border border-border-secondary bg-white/5 p-3">
+                        <div className="text-foreground-tertiary mb-1">Notes admin :</div>
+                        <p className="text-foreground-secondary">{app.admin_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Pagination */}
+      {total > 30 && (
+        <div className="flex justify-center gap-3">
+          <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}
+            className="rounded-xl border border-border-secondary bg-background-fog-thin px-4 py-2 text-sm disabled:opacity-40">
+            ← Precedent
+          </button>
+          <span className="flex items-center text-sm text-foreground-tertiary">Page {page} / {Math.ceil(total / 30)}</span>
+          <button onClick={() => setPage((p) => p + 1)} disabled={page >= Math.ceil(total / 30)}
+            className="rounded-xl border border-border-secondary bg-background-fog-thin px-4 py-2 text-sm disabled:opacity-40">
+            Suivant →
+          </button>
+        </div>
+      )}
+
+      {/* Modal de gestion staff */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+          <div className="w-full max-w-lg rounded-3xl border border-border-secondary bg-background-primary p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-foreground-primary">{selected.full_name}</h2>
+                <p className="text-xs text-foreground-tertiary mt-0.5">{selected.email} · {ROLE_LABELS[selected.role] ?? selected.role}</p>
+              </div>
+              <button onClick={closeDetail} className="rounded-xl p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition">
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="rounded-2xl border border-border-secondary bg-white/3 p-4 space-y-3">
+              <div><div className="text-xs text-foreground-tertiary mb-1">Experience</div><p className="text-sm text-foreground-secondary leading-relaxed whitespace-pre-wrap">{selected.experience}</p></div>
+              <div><div className="text-xs text-foreground-tertiary mb-1">Motivation</div><p className="text-sm text-foreground-secondary leading-relaxed whitespace-pre-wrap">{selected.motivation}</p></div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-foreground-tertiary block">Statut</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(['pending', 'reviewing', 'accepted', 'rejected'] as const).map((s) => {
+                  const cfg = STATUS_LABELS[s];
+                  return (
+                    <button key={s} onClick={() => setNewStatus(s)}
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${newStatus === s ? cfg.bg + ' ' + cfg.color : 'border-border-secondary bg-white/3 text-foreground-tertiary hover:bg-white/6'}`}>
+                      {newStatus === s && <span className="mr-1.5">✓</span>}
+                      {cfg.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-foreground-tertiary block">Notes internes</label>
+              <textarea rows={3}
+                className="w-full rounded-xl border border-border-secondary bg-white/5 px-4 py-2.5 text-sm text-foreground-primary placeholder-foreground-tertiary outline-none focus:border-violet-500/50 resize-none transition"
+                placeholder="Commentaires, decision..." value={notes} onChange={(e) => setNotes(e.target.value)} />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button onClick={handleUpdate} disabled={updating}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-60 transition">
+                <Check size={14} />{updating ? 'Enregistrement...' : 'Enregistrer'}
+              </button>
+              <button onClick={closeDetail}
+                className="rounded-xl border border-border-secondary bg-white/5 px-4 py-2.5 text-sm text-foreground-secondary hover:text-foreground-primary transition">
+                Annuler
+              </button>
+            </div>
+            <p className="text-xs text-foreground-tertiary text-center">Un email sera envoye si le statut change (accepte/refuse).</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminStarAcademyPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('candidates');
   const [applications, setApplications] = useState<Application[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage]   = useState(1);
@@ -305,7 +573,7 @@ export default function AdminStarAcademyPage() {
         <div>
           <h1 className="text-lg font-bold text-foreground-primary">Star Academy TikTok</h1>
           <p className="text-xs text-foreground-tertiary mt-0.5">
-            {total} candidature{total !== 1 ? 's' : ''} enregistrée{total !== 1 ? 's' : ''}
+            Gestion des candidatures et du staff
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -326,6 +594,38 @@ export default function AdminStarAcademyPage() {
           </button>
         </div>
       </div>
+
+      {/* ── Tabs ─────────────────────────────────────── */}
+      <div className="flex border-b border-border-secondary">
+        <button
+          onClick={() => setActiveTab('candidates')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'candidates'
+              ? 'border-violet-500 text-violet-400'
+              : 'border-transparent text-foreground-tertiary hover:text-foreground-secondary'
+          }`}
+        >
+          <Mic size={15} />
+          Candidats
+          <span className="text-xs opacity-60">({total})</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('staff')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition ${
+            activeTab === 'staff'
+              ? 'border-amber-500 text-amber-400'
+              : 'border-transparent text-foreground-tertiary hover:text-foreground-secondary'
+          }`}
+        >
+          <Users size={15} />
+          Staff / Coachs
+        </button>
+      </div>
+
+      {activeTab === 'staff' && <StaffTab />}
+
+      {activeTab === 'candidates' && (<>
+
 
       {/* ── Stats ───────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -564,6 +864,7 @@ export default function AdminStarAcademyPage() {
           </div>
         </div>
       )}
+      </>)}
     </div>
   );
 }
