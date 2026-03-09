@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 async function getUserTrackIds(userId: string): Promise<string[]> {
   const ids: string[] = [];
   const { data, error } = await supabaseAdmin
@@ -20,6 +23,11 @@ async function getUserTrackIds(userId: string): Promise<string[]> {
   return ids;
 }
 
+function viewDate(row: any): Date | null {
+  const raw = row.created_at || row.viewed_at;
+  return raw ? new Date(raw) : null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -30,6 +38,7 @@ export async function GET(request: NextRequest) {
     const range = searchParams.get('range');
     const trackParam = searchParams.get('track');
     const startDate = getStartDate(range);
+    const startMs = startDate.getTime();
 
     let trackIds = await getUserTrackIds(session.user.id);
     if (trackParam && trackParam !== 'all' && trackIds.includes(trackParam)) {
@@ -37,14 +46,30 @@ export async function GET(request: NextRequest) {
     }
     if (trackIds.length === 0) return NextResponse.json({ matrix: empty() });
 
-    const { data: views, error } = await supabaseAdmin
-      .from('track_views').select('created_at, track_id').in('track_id', trackIds).gte('created_at', startDate.toISOString());
-
-    if (error) return NextResponse.json({ matrix: empty() });
+    /* ── Fetch views with both date columns ── */
+    let views: any[] = [];
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('track_views')
+        .select('created_at, viewed_at, track_id')
+        .in('track_id', trackIds)
+        .limit(100000);
+      if (!error && data) views = data;
+      else if (error) {
+        console.error('heatmap: views with viewed_at failed, retrying:', error.message);
+        const { data: fb } = await supabaseAdmin
+          .from('track_views')
+          .select('created_at, track_id')
+          .in('track_id', trackIds)
+          .limit(100000);
+        views = fb || [];
+      }
+    } catch (e) { console.error('heatmap: views exception:', e); }
 
     const matrix = empty();
-    for (const v of views || []) {
-      const d = new Date(v.created_at);
+    for (const v of views) {
+      const d = viewDate(v);
+      if (!d || d.getTime() < startMs) continue;
       matrix[d.getDay()][d.getHours()] += 1;
     }
     return NextResponse.json({ matrix });

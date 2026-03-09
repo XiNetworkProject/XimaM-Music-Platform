@@ -1,111 +1,148 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback, Suspense } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
 import {
   Headphones, Heart, Music, TrendingUp, TrendingDown,
   Users, Clock, Target, Sparkles, ChevronDown, Search,
   ArrowUpDown, Star, Zap, BarChart3, Play, Disc3,
-  ArrowRight, Eye, Volume2,
+  ArrowRight, Eye, Volume2, Lightbulb, Award, Flame,
+  Share2, Upload, Globe, Smartphone, Trophy, Crown,
+  Medal, AlertTriangle, CheckCircle, Info, Rocket,
 } from 'lucide-react';
 import { StatsPageSkeleton } from '@/components/Skeletons';
 
-/* ═══════════════════ Recharts (dynamic) ═══════════════════ */
+/* ═══════════════════ Recharts (lazy client-side) ═══════════════════ */
 
-const RechartsArea = dynamic(
-  () => import('recharts').then((m) => {
-    const { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = m;
-    return function RArea(props: any) {
-      const { data, metric, compareSeries } = props;
-      const color = metric === 'plays' ? '#6e56cf' : metric === 'uniques' ? '#00d3a7' : '#f43f5e';
-      const gid = `sg-${metric}`;
-      return (
-        <ResponsiveContainer width="100%" height={320}>
-          <AreaChart data={data} margin={{ top: 12, right: 16, left: -10, bottom: 4 }}>
-            <defs>
-              <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={color} stopOpacity={0.4} />
-                <stop offset="100%" stopColor={color} stopOpacity={0} />
-              </linearGradient>
-              <linearGradient id="sg-cmp" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#00d3a7" stopOpacity={0.2} />
-                <stop offset="100%" stopColor="#00d3a7" stopOpacity={0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-            <XAxis dataKey="date" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.3)', fontSize:10 }}
-              tickFormatter={(v: string) => { const d = new Date(v); return `${d.getDate()}/${d.getMonth()+1}`; }}
-              interval="preserveStartEnd" minTickGap={50} />
-            <YAxis stroke="rgba(255,255,255,0.05)" tick={{ fill:'rgba(255,255,255,0.2)', fontSize:10 }} width={36} allowDecimals={false} />
-            <Tooltip
-              contentStyle={{ background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:14, color:'#f6f7fb', fontSize:12, backdropFilter:'blur(20px)', boxShadow:'0 8px 32px rgba(0,0,0,0.5)' }}
-              labelFormatter={(v: any) => new Date(String(v)).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
-              formatter={(val: any, name: any) => [val, name === 'compare' ? 'Comparaison' : metric === 'plays' ? 'Écoutes' : metric === 'uniques' ? 'Uniques' : 'Likes']}
-            />
-            {compareSeries?.length > 0 && <Area type="monotone" dataKey="compare" stroke="#00d3a7" strokeWidth={1.5} fill="url(#sg-cmp)" dot={false} name="compare" />}
-            <Area type="monotone" dataKey="value" stroke={color} strokeWidth={2.5} fill={`url(#${gid})`} dot={false}
-              activeDot={{ r: 6, fill: color, stroke:'#fff', strokeWidth:2, filter:'drop-shadow(0 0 6px rgba(110,86,207,0.6))' }} name="main" />
-          </AreaChart>
-        </ResponsiveContainer>
-      );
-    };
-  }),
-  { ssr: false, loading: () => <div className="h-[320px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} /> }
-);
+let _rechartsModule: any = null;
 
-const RechartsPie = dynamic(
-  () => import('recharts').then((m) => {
-    const { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } = m;
-    const C = ['#6e56cf','#00d3a7','#f59e0b','#10b981','#ef4444','#3b82f6','#f97316','#22c55e'];
-    return function RPie(props: any) {
-      const entries = Object.entries(props.data||{}).sort(([,a]: any,[,b]: any) => b-a).slice(0,8).map(([name,value]) => ({name,value:Number(value)}));
-      if (!entries.length) return <div className="text-white/30 text-sm text-center py-10">Aucune donnée</div>;
-      return (
-        <ResponsiveContainer width="100%" height={200}>
-          <PieChart>
-            <Pie data={entries} cx="50%" cy="50%" innerRadius={50} outerRadius={85} paddingAngle={3} dataKey="value" stroke="none">
-              {entries.map((_,i) => <Cell key={i} fill={C[i%C.length]} />)}
-            </Pie>
-            <Tooltip contentStyle={{ background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:12, color:'#f6f7fb', fontSize:12, backdropFilter:'blur(20px)' }}
-              formatter={(val: any, name: any) => [`${val}%`, name]} />
-          </PieChart>
-        </ResponsiveContainer>
-      );
-    };
-  }),
-  { ssr: false, loading: () => <div className="h-[200px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} /> }
-);
+function useRecharts() {
+  const [mod, setMod] = useState<any>(_rechartsModule);
+  useEffect(() => {
+    if (_rechartsModule) { setMod(_rechartsModule); return; }
+    import('recharts').then((m) => { _rechartsModule = m; setMod(m); });
+  }, []);
+  return mod;
+}
 
-const RechartsBar = dynamic(
-  () => import('recharts').then((m) => {
-    const { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } = m;
-    return function RBar(props: any) {
-      return (
-        <ResponsiveContainer width="100%" height={200}>
-          <BarChart data={props.data} layout="vertical" margin={{ left: 4, right: 8 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
-            <XAxis type="number" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.3)', fontSize:10 }} allowDecimals={false} />
-            <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.5)', fontSize:10 }} width={70} />
-            <Tooltip contentStyle={{ background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:12, color:'#f6f7fb', fontSize:11, backdropFilter:'blur(20px)' }} />
-            <Bar dataKey="plays" fill="#6e56cf" radius={[0,6,6,0]} name="Lectures" />
-            <Bar dataKey="completes" fill="#00d3a7" radius={[0,6,6,0]} name="Complétions" />
-          </BarChart>
-        </ResponsiveContainer>
-      );
-    };
-  }),
-  { ssr: false, loading: () => <div className="h-[200px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} /> }
-);
+const PIE_CHART_COLORS = ['#6e56cf','#00d3a7','#f59e0b','#10b981','#ef4444','#3b82f6','#f97316','#22c55e'];
+const TOOLTIP_STYLE = { background:'rgba(10,10,16,0.95)', border:'1px solid rgba(110,86,207,0.3)', borderRadius:14, color:'#f6f7fb', fontSize:12, backdropFilter:'blur(20px)', boxShadow:'0 8px 32px rgba(0,0,0,0.5)' };
+
+function LazyAreaChart({ data, metric, compareSeries }: { data: any[]; metric: string; compareSeries?: any[] }) {
+  const rc = useRecharts();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dims, setDims] = useState({ w: 0, h: 300 });
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) setDims({ w: e.contentRect.width, h: 300 }); });
+    obs.observe(containerRef.current);
+    setDims({ w: containerRef.current.clientWidth, h: 300 });
+    return () => obs.disconnect();
+  }, []);
+  if (!rc || dims.w === 0) return <div ref={containerRef} className="h-[300px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} />;
+  const { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } = rc;
+  const color = metric === 'plays' ? '#6e56cf' : metric === 'uniques' ? '#00d3a7' : '#f43f5e';
+  const gid = `sg-${metric}-${Date.now() % 10000}`;
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: 300 }}>
+      <AreaChart data={data} width={dims.w} height={dims.h} margin={{ top: 12, right: 16, left: 0, bottom: 4 }}>
+        <defs>
+          <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity={0.5} />
+            <stop offset="100%" stopColor={color} stopOpacity={0.02} />
+          </linearGradient>
+          <linearGradient id={`${gid}-cmp`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#00d3a7" stopOpacity={0.3} />
+            <stop offset="100%" stopColor="#00d3a7" stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
+        <XAxis dataKey="date" stroke="rgba(255,255,255,0.1)" tick={{ fill:'rgba(255,255,255,0.35)', fontSize:10 }}
+          tickFormatter={(v: string) => { const d = new Date(v + 'T12:00:00'); return `${d.getDate()}/${d.getMonth()+1}`; }}
+          interval="preserveStartEnd" minTickGap={50} />
+        <YAxis stroke="rgba(255,255,255,0.06)" tick={{ fill:'rgba(255,255,255,0.25)', fontSize:10 }} width={36} allowDecimals={false} />
+        <Tooltip contentStyle={TOOLTIP_STYLE}
+          labelFormatter={(v: any) => new Date(String(v) + 'T12:00:00').toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})}
+          formatter={(val: any, name: any) => [val, name === 'compare' ? 'Comparaison' : metric === 'plays' ? 'Écoutes' : metric === 'uniques' ? 'Uniques' : 'Likes']} />
+        {compareSeries && compareSeries.length > 0 && (
+          <Area type="monotone" dataKey="compare" stroke="#00d3a7" strokeWidth={2} fill={`url(#${gid}-cmp)`} dot={false} isAnimationActive={false} name="compare" />
+        )}
+        <Area type="monotone" dataKey="value" stroke={color} strokeWidth={3} fill={`url(#${gid})`}
+          dot={{ r: 2, fill: color, stroke: 'none' }}
+          activeDot={{ r: 6, fill: color, stroke:'#fff', strokeWidth:2, filter:'drop-shadow(0 0 6px rgba(110,86,207,0.6))' }}
+          isAnimationActive={false} name="main" />
+      </AreaChart>
+    </div>
+  );
+}
+
+function LazyPieChart({ data }: { data: Record<string, number> }) {
+  const rc = useRecharts();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) setWidth(e.contentRect.width); });
+    obs.observe(containerRef.current);
+    setWidth(containerRef.current.clientWidth);
+    return () => obs.disconnect();
+  }, []);
+  const entries = useMemo(() =>
+    Object.entries(data || {}).sort(([,a],[,b]) => Number(b)-Number(a)).slice(0,8).map(([name,value]) => ({name, value:Number(value)})),
+  [data]);
+  if (!entries.length) return <div className="text-white/30 text-sm text-center py-8">Aucune donnee</div>;
+  if (!rc || width === 0) return <div ref={containerRef} className="h-[180px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} />;
+  const { PieChart, Pie, Cell, Tooltip } = rc;
+  const size = Math.min(width, 180);
+  const outerR = size * 0.42; const innerR = outerR * 0.58;
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: 180, display: 'flex', justifyContent: 'center' }}>
+      <PieChart width={size} height={180}>
+        <Pie data={entries} cx="50%" cy="50%" innerRadius={innerR} outerRadius={outerR} paddingAngle={entries.length > 1 ? 3 : 0} dataKey="value" stroke="none" isAnimationActive={false}>
+          {entries.map((_: any, i: number) => <Cell key={i} fill={PIE_CHART_COLORS[i % PIE_CHART_COLORS.length]} />)}
+        </Pie>
+        <Tooltip contentStyle={{ ...TOOLTIP_STYLE, borderRadius:12 }} formatter={(val: any, name: any) => [`${val}%`, name]} />
+      </PieChart>
+    </div>
+  );
+}
+
+function LazyBarChart({ data }: { data: any[] }) {
+  const rc = useRecharts();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const obs = new ResizeObserver(([e]) => { if (e.contentRect.width > 0) setWidth(e.contentRect.width); });
+    obs.observe(containerRef.current);
+    setWidth(containerRef.current.clientWidth);
+    return () => obs.disconnect();
+  }, []);
+  if (!rc || width === 0) return <div ref={containerRef} className="h-[200px] animate-pulse rounded-2xl" style={{ background:'linear-gradient(135deg,rgba(110,86,207,0.05),rgba(0,211,167,0.03))' }} />;
+  const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } = rc;
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: 200 }}>
+      <BarChart data={data} width={width} height={200} layout="vertical" margin={{ left: 4, right: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" horizontal={false} />
+        <XAxis type="number" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.3)', fontSize:10 }} allowDecimals={false} />
+        <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.08)" tick={{ fill:'rgba(255,255,255,0.5)', fontSize:10 }} width={70} />
+        <Tooltip contentStyle={{ ...TOOLTIP_STYLE, fontSize: 11 }} />
+        <Bar dataKey="plays" fill="#6e56cf" radius={[0,6,6,0]} name="Lectures" isAnimationActive={false} />
+        <Bar dataKey="completes" fill="#00d3a7" radius={[0,6,6,0]} name="Completions" isAnimationActive={false} />
+      </BarChart>
+    </div>
+  );
+}
 
 /* ═══════════════════ Types ═══════════════════ */
 
 type OverviewData = {
   plays: number; playsVariation: number; likes: number; likesVariation: number;
   followers: number; totalTracks: number; normalTracks: number; aiTracks: number;
-  listenHours: number; avgRetention: number;
+  listenHours: number; listenHoursEstimated?: boolean;
+  avgRetention: number; avgRetentionEstimated?: boolean;
   bestTrack: { id: string; title: string; plays: number } | null;
   ai: { count: number; plays: number; likes: number };
 };
@@ -116,7 +153,263 @@ type UnifiedTrack = {
   isAI: boolean; isRemix: boolean; retention: number; trend7d: number;
 };
 
-/* ═══════════════════ Page ═══════════════════ */
+type Tip = {
+  id: string;
+  type: 'success' | 'warning' | 'info' | 'action';
+  title: string;
+  message: string;
+  cta?: { label: string; href: string };
+  priority: number;
+};
+
+/* ═══════════════════ Score & Sparkline ═══════════════════ */
+
+function computeScore(ov: OverviewData | null, audience: any): number {
+  if (!ov) return 0;
+  let s = 0;
+  s += Math.min(100, ov.plays > 0 ? Math.log10(ov.plays + 1) * 33 : 0) * 0.3;
+  s += Math.min(100, Math.max(0, 50 + Math.min(50, Math.max(-50, ov.playsVariation)))) * 0.2;
+  const likeR = ov.plays > 0 ? (ov.likes / ov.plays) * 100 : 0;
+  s += Math.min(100, likeR * 20) * 0.15;
+  s += Math.min(100, ov.avgRetention) * 0.15;
+  s += Math.min(100, ov.followers > 0 ? Math.log10(ov.followers + 1) * 50 : 0) * 0.1;
+  const countries = Object.keys(audience?.countries || {}).length;
+  s += Math.min(100, countries * 25) * 0.1;
+  return Math.round(Math.max(0, Math.min(100, s)));
+}
+
+function getLevel(score: number): { label: string; color: string; next: string } {
+  if (score >= 76) return { label: 'Star', color: '#f59e0b', next: 'Tu es au sommet !' };
+  if (score >= 51) return { label: 'Confirme', color: '#00d3a7', next: `${76 - score} pts pour Star` };
+  if (score >= 26) return { label: 'En croissance', color: '#6e56cf', next: `${51 - score} pts pour Confirme` };
+  return { label: 'Debutant', color: '#3b82f6', next: `${26 - score} pts pour En croissance` };
+}
+
+function PerformanceScore({ score, loading }: { score: number; loading: boolean }) {
+  const R = 70;
+  const C = 2 * Math.PI * R;
+  const ARC = C * 0.75;
+  const filled = ARC * (score / 100);
+  const level = getLevel(score);
+
+  return (
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-5 sm:p-6 mb-6"
+      style={{ background: 'linear-gradient(135deg, rgba(10,10,16,0.7) 0%, rgba(110,86,207,0.06) 50%, rgba(0,211,167,0.04) 100%)' }}>
+      <div className="flex flex-col sm:flex-row items-center gap-6">
+        {/* Arc SVG */}
+        <div className="relative shrink-0" style={{ width: 160, height: 160 }}>
+          {loading ? (
+            <div className="w-full h-full rounded-full bg-white/[0.03] animate-pulse" />
+          ) : (
+            <svg viewBox="0 0 180 180" width={160} height={160}>
+              <defs>
+                <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#6e56cf" />
+                  <stop offset="100%" stopColor="#00d3a7" />
+                </linearGradient>
+              </defs>
+              <circle cx="90" cy="90" r={R} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={10}
+                strokeDasharray={`${ARC} ${C}`} strokeLinecap="round"
+                transform="rotate(135 90 90)" />
+              <circle cx="90" cy="90" r={R} fill="none" stroke="url(#scoreGrad)" strokeWidth={10}
+                strokeDasharray={`${filled} ${C}`} strokeLinecap="round"
+                transform="rotate(135 90 90)"
+                style={{ transition: 'stroke-dasharray 1s ease-out' }} />
+              <text x="90" y="82" textAnchor="middle" fill="white" fontSize="36" fontWeight="800">{score}</text>
+              <text x="90" y="102" textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="11" fontWeight="500">/100</text>
+            </svg>
+          )}
+        </div>
+        {/* Info */}
+        <div className="flex-1 text-center sm:text-left">
+          <h2 className="text-xl sm:text-2xl font-bold text-white mb-1">Score de Performance</h2>
+          <p className="text-white/40 text-sm mb-4">
+            Analyse globale de tes metriques sur la periode selectionnee.
+          </p>
+          {!loading && (
+            <>
+              <div className="flex items-center gap-3 mb-3">
+                <span className="px-3 py-1 rounded-full text-xs font-bold border"
+                  style={{ color: level.color, borderColor: `${level.color}55`, background: `${level.color}15` }}>
+                  {level.label}
+                </span>
+                <span className="text-xs text-white/30">{level.next}</span>
+              </div>
+              <div className="w-full max-w-xs bg-white/[0.04] rounded-full h-2 overflow-hidden">
+                <div className="h-full rounded-full transition-all duration-1000"
+                  style={{ width: `${score}%`, background: `linear-gradient(90deg, #6e56cf, #00d3a7)` }} />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniSparkline({ data, color = '#6e56cf', w = 80, h = 28 }: { data: number[]; color?: string; w?: number; h?: number }) {
+  if (!data.length || data.every(v => v === 0)) return null;
+  const max = Math.max(1, ...data);
+  const pts = data.map((v, i) => `${(i / Math.max(1, data.length - 1)) * w},${h - 2 - (v / max) * (h - 4)}`).join(' ');
+  return (
+    <svg width={w} height={h} className="shrink-0 opacity-70">
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ═══════════════════ Coach Tips ═══════════════════ */
+
+function generateTips(ov: OverviewData | null, tracks: UnifiedTrack[], series: any[], audience: any, heatmap: number[][]): Tip[] {
+  if (!ov) return [];
+  const tips: Tip[] = [];
+  const likeR = ov.plays > 0 ? (ov.likes / ov.plays) * 100 : 0;
+  const days = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+
+  if (ov.avgRetention > 0 && ov.avgRetention < 40) {
+    tips.push({ id:'ret-low', type:'warning', title:'Accroche tes auditeurs', message:'Les 15 premieres secondes sont cruciales. Travaille tes intros pour garder l\'attention de tes auditeurs.', cta:{ label:'Ouvrir le Studio', href:'/studio' }, priority:90 });
+  }
+  if (ov.plays > 5 && likeR < 3) {
+    tips.push({ id:'like-low', type:'info', title:'Engage ta communaute', message:'Ton ratio likes/ecoutes est faible. Encourage tes auditeurs a liker en ajoutant un appel a l\'action dans ta bio.', cta:{ label:'Modifier mon profil', href:'/profile' }, priority:70 });
+  }
+  const mobileP = Number(audience?.devices?.['Mobile'] || 0);
+  if (ov.plays > 10 && mobileP === 0) {
+    tips.push({ id:'no-mobile', type:'info', title:'Capte l\'audience mobile', message:'Tu n\'as aucune ecoute mobile. Partage tes pistes sur Instagram, TikTok et Snapchat pour toucher ce public.', priority:60 });
+  }
+  if (ov.playsVariation < -10) {
+    tips.push({ id:'decline', type:'warning', title:'Relance ta visibilite', message:'Tes ecoutes sont en baisse. Publie regulierement pour rester dans les recommandations.', cta:{ label:'Uploader une piste', href:'/upload' }, priority:85 });
+  }
+  if (heatmap.length > 0) {
+    const flat = heatmap.flat();
+    const mx = Math.max(...flat);
+    if (mx > 2) {
+      const idx = flat.indexOf(mx);
+      const day = Math.floor(idx / (heatmap[0]?.length || 24));
+      const hour = idx % (heatmap[0]?.length || 24);
+      tips.push({ id:'best-time', type:'info', title:'Publie au bon moment', message:`Ton audience est la plus active le ${days[day]} a ${hour}h. Publie a ce creneau pour maximiser l'impact.`, priority:50 });
+    }
+  }
+  if (ov.totalTracks < 3) {
+    tips.push({ id:'few-tracks', type:'action', title:'Publie plus de pistes', message:'Plus tu publies, plus l\'algorithme te recommande. Lance-toi avec le Studio IA !', cta:{ label:'Creer avec l\'IA', href:'/studio' }, priority:80 });
+  }
+  if (ov.bestTrack && ov.plays > 0 && ov.bestTrack.plays / ov.plays > 0.5 && tracks.length > 1) {
+    tips.push({ id:'diversify', type:'info', title:'Diversifie ton catalogue', message:`"${ov.bestTrack.title}" concentre plus de la moitie de tes ecoutes. Cree des pistes dans le meme style pour elargir ton audience.`, priority:55 });
+  }
+  if (ov.avgRetention >= 70 && !ov.avgRetentionEstimated) {
+    tips.push({ id:'ret-great', type:'success', title:'Retention excellente', message:'Ta musique captive les auditeurs jusqu\'au bout. Continue sur cette lancee !', priority:40 });
+  }
+  if (tracks.some(t => t.trend7d > 0)) {
+    tips.push({ id:'trending', type:'success', title:'En progression', message:'Certaines pistes gagnent en ecoutes cette semaine. Profite de l\'elan pour publier du nouveau contenu !', cta:{ label:'Studio', href:'/studio' }, priority:45 });
+  }
+  if (ov.followers > 0 && ov.plays > 20) {
+    tips.push({ id:'boost', type:'action', title:'Boost ta visibilite', message:'Utilise les Boosters pour propulser tes meilleures pistes dans les recommandations et toucher plus de monde.', cta:{ label:'Ouvrir les Boosters', href:'/boosters' }, priority:35 });
+  }
+  if (ov.playsVariation > 20) {
+    tips.push({ id:'momentum', type:'success', title:'Bel elan !', message:`Tes ecoutes augmentent de ${Math.round(ov.playsVariation)}%. C'est le moment ideal pour publier et capitaliser sur cette dynamique.`, priority:65 });
+  }
+
+  return tips.sort((a, b) => b.priority - a.priority).slice(0, 4);
+}
+
+const TIP_ICONS: Record<string, React.ReactNode> = {
+  success: <CheckCircle size={18} />,
+  warning: <AlertTriangle size={18} />,
+  info: <Info size={18} />,
+  action: <Rocket size={18} />,
+};
+const TIP_COLORS: Record<string, { bg: string; border: string; text: string; iconBg: string }> = {
+  success: { bg: 'rgba(16,185,129,0.06)', border: 'rgba(16,185,129,0.15)', text: 'text-emerald-400', iconBg: 'bg-emerald-500/20' },
+  warning: { bg: 'rgba(245,158,11,0.06)', border: 'rgba(245,158,11,0.15)', text: 'text-amber-400', iconBg: 'bg-amber-500/20' },
+  info: { bg: 'rgba(59,130,246,0.06)', border: 'rgba(59,130,246,0.15)', text: 'text-blue-400', iconBg: 'bg-blue-500/20' },
+  action: { bg: 'rgba(110,86,207,0.06)', border: 'rgba(110,86,207,0.15)', text: 'text-[#6e56cf]', iconBg: 'bg-[#6e56cf]/20' },
+};
+
+function CoachTips({ tips }: { tips: Tip[] }) {
+  if (!tips.length) return null;
+  return (
+    <div className="mb-6">
+      <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-3">
+        <Lightbulb size={18} className="text-amber-400" /> Coach Synaura
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {tips.map((t) => {
+          const style = TIP_COLORS[t.type];
+          return (
+            <div key={t.id} className="rounded-xl border p-4 flex flex-col gap-2.5 transition-all hover:scale-[1.01]"
+              style={{ background: style.bg, borderColor: style.border }}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${style.iconBg} ${style.text}`}>
+                  {TIP_ICONS[t.type]}
+                </div>
+                <span className="text-sm font-semibold text-white">{t.title}</span>
+              </div>
+              <p className="text-xs text-white/45 leading-relaxed flex-1">{t.message}</p>
+              {t.cta && (
+                <Link href={t.cta.href} className={`text-xs font-medium ${style.text} hover:underline flex items-center gap-1 mt-auto`}>
+                  {t.cta.label} <ArrowRight size={11} />
+                </Link>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════ Engagement Panel ═══════════════════ */
+
+function EngagementGauge({ value, max, label, color, suffix = '%' }: { value: number; max: number; label: string; color: string; suffix?: string }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between items-baseline mb-1">
+          <span className="text-xs text-white/50">{label}</span>
+          <span className="text-sm font-bold text-white tabular-nums">{typeof value === 'number' ? (value % 1 === 0 ? value : value.toFixed(1)) : value}{suffix}</span>
+        </div>
+        <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-700" style={{ width: `${pct}%`, background: color }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EngagementPanel({ overview, periodTotals }: { overview: OverviewData | null; periodTotals: { plays: number; uniques: number; likes: number } }) {
+  if (!overview) return null;
+  const likeRatio = overview.plays > 0 ? Math.round((overview.likes / overview.plays) * 1000) / 10 : 0;
+  const avgPlaysPerTrack = overview.totalTracks > 0 ? Math.round(overview.plays / overview.totalTracks) : 0;
+  const listenerDiv = periodTotals.plays > 0 ? Math.round((periodTotals.uniques / periodTotals.plays) * 1000) / 10 : 0;
+
+  return (
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 h-full">
+      <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
+        <Flame size={16} className="text-orange-400" /> Qualite d&apos;engagement
+      </h3>
+      <div className="space-y-4">
+        <EngagementGauge value={likeRatio} max={10} label="Ratio likes/ecoutes" color="#f43f5e" />
+        <EngagementGauge value={avgPlaysPerTrack} max={Math.max(100, avgPlaysPerTrack)} label="Ecoutes / piste" color="#6e56cf" suffix="" />
+        <EngagementGauge value={listenerDiv} max={100} label="Diversite auditeurs" color="#00d3a7" />
+        <EngagementGauge value={overview.avgRetention} max={100} label="Taux de completion" color="#f59e0b" />
+      </div>
+      <div className="mt-4 pt-3 border-t border-white/[0.06]">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white/[0.03] rounded-lg p-2.5 text-center">
+            <div className="text-lg font-bold text-white">{fmt(overview.followers)}</div>
+            <div className="text-[10px] text-white/30">Followers</div>
+          </div>
+          <div className="bg-white/[0.03] rounded-lg p-2.5 text-center">
+            <div className="text-lg font-bold text-white">{overview.normalTracks + overview.aiTracks}</div>
+            <div className="text-[10px] text-white/30">Pistes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════ Main Page ═══════════════════ */
 
 function StatsPageInner() {
   const { data: session } = useSession();
@@ -173,67 +466,13 @@ function StatsPageInner() {
     setLoading(true);
     const hdr = { 'Cache-Control': 'no-store' };
     await Promise.all([
-      (async () => {
-        setLoadingOverview(true);
-        try {
-          const r = await fetch(`/api/stats/overview?range=${range}`, { headers: hdr });
-          const d = await r.json();
-          if (r.ok) { setOverview(d); console.log('[stats] overview:', d); }
-          else console.warn('[stats] overview error:', r.status, d);
-        } catch (e) { console.error('[stats] overview fetch fail:', e); }
-        finally { setLoadingOverview(false); }
-      })(),
-      (async () => {
-        setLoadingTracks(true);
-        try {
-          const r = await fetch('/api/stats/all-tracks', { headers: hdr });
-          const d = await r.json();
-          if (r.ok) { setAllTracks(d.tracks || []); console.log('[stats] all-tracks:', d.tracks?.length, 'normal:', d.debug?.normalCount, 'ai:', d.debug?.aiCount); }
-          else console.warn('[stats] all-tracks error:', r.status, d);
-        } catch (e) { console.error('[stats] all-tracks fetch fail:', e); }
-        finally { setLoadingTracks(false); }
-      })(),
-      (async () => {
-        setLoadingSeries(true);
-        try {
-          const r = await fetch(`/api/stats/timeseries?range=${range}&track=${selectedTrack}`, { headers: hdr });
-          if (r.ok) { const d = await r.json(); setSeries(d); console.log('[stats] timeseries:', d.length, 'points, hasData:', d.some((p: any) => p.plays > 0)); }
-          else { setSeries([]); console.warn('[stats] timeseries error:', r.status); }
-        } catch { setSeries([]); }
-        finally { setLoadingSeries(false); }
-      })(),
-      (async () => {
-        if (compareTrack && compareTrack !== 'all' && compareTrack !== selectedTrack) {
-          try { const r = await fetch(`/api/stats/timeseries?range=${range}&track=${compareTrack}`, { headers: hdr }); if (r.ok) setCompareSeries(await r.json()); else setCompareSeries([]); } catch { setCompareSeries([]); }
-        } else setCompareSeries([]);
-      })(),
-      (async () => {
-        setLoadingAudience(true);
-        try {
-          const r = await fetch(`/api/stats/audience?range=${range}&track=${selectedTrack}`, { headers: hdr });
-          if (r.ok) { const d = await r.json(); setAudience({ countries: d.countries, devices: d.devices }); setAudienceTech({ os: d.os, browsers: d.browsers }); console.log('[stats] audience:', d); }
-        } catch {}
-        finally { setLoadingAudience(false); }
-      })(),
-      (async () => {
-        setLoadingHeatmap(true);
-        try {
-          const r = await fetch(`/api/stats/heatmap?range=${range}&track=${selectedTrack}`, { headers: hdr });
-          if (r.ok) { const d = await r.json(); setHeatmap(d.matrix || []); }
-        } catch {}
-        finally { setLoadingHeatmap(false); }
-      })(),
-      (async () => {
-        if (selectedTrack && selectedTrack !== 'all') {
-          setLoadingDetail(true);
-          try {
-            const r = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(selectedTrack)}`, { headers: hdr });
-            if (r.ok) { const d = await r.json(); setTrackDetail(d); console.log('[stats] track detail:', d); }
-            else setTrackDetail(null);
-          } catch { setTrackDetail(null); }
-          finally { setLoadingDetail(false); }
-        } else setTrackDetail(null);
-      })(),
+      (async () => { setLoadingOverview(true); try { const r = await fetch(`/api/stats/overview?range=${range}`, { headers: hdr }); if (r.ok) setOverview(await r.json()); } catch {} finally { setLoadingOverview(false); } })(),
+      (async () => { setLoadingTracks(true); try { const r = await fetch('/api/stats/all-tracks', { headers: hdr }); if (r.ok) { const d = await r.json(); setAllTracks(d.tracks || []); } } catch {} finally { setLoadingTracks(false); } })(),
+      (async () => { setLoadingSeries(true); try { const r = await fetch(`/api/stats/timeseries?range=${range}&track=${selectedTrack}`, { headers: hdr }); if (r.ok) setSeries(await r.json()); else setSeries([]); } catch { setSeries([]); } finally { setLoadingSeries(false); } })(),
+      (async () => { if (compareTrack && compareTrack !== 'all' && compareTrack !== selectedTrack) { try { const r = await fetch(`/api/stats/timeseries?range=${range}&track=${compareTrack}`, { headers: hdr }); if (r.ok) setCompareSeries(await r.json()); else setCompareSeries([]); } catch { setCompareSeries([]); } } else setCompareSeries([]); })(),
+      (async () => { setLoadingAudience(true); try { const r = await fetch(`/api/stats/audience?range=${range}&track=${selectedTrack}`, { headers: hdr }); if (r.ok) { const d = await r.json(); setAudience({ countries: d.countries, devices: d.devices }); setAudienceTech({ os: d.os, browsers: d.browsers }); } } catch {} finally { setLoadingAudience(false); } })(),
+      (async () => { setLoadingHeatmap(true); try { const r = await fetch(`/api/stats/heatmap?range=${range}&track=${selectedTrack}`, { headers: hdr }); if (r.ok) { const d = await r.json(); setHeatmap(d.matrix || []); } } catch {} finally { setLoadingHeatmap(false); } })(),
+      (async () => { if (selectedTrack && selectedTrack !== 'all') { setLoadingDetail(true); try { const r = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(selectedTrack)}`, { headers: hdr }); if (r.ok) setTrackDetail(await r.json()); else setTrackDetail(null); } catch { setTrackDetail(null); } finally { setLoadingDetail(false); } } else setTrackDetail(null); })(),
     ]);
     setLoading(false);
   }, [session?.user?.id, range, selectedTrack, compareTrack]);
@@ -268,14 +507,21 @@ function StatsPageInner() {
 
   const periodTotals = useMemo(() => series.reduce((a: any, p: any) => ({ plays: a.plays+(p.plays||0), uniques: a.uniques+(p.uniques||0), likes: a.likes+(p.likes||0) }), { plays:0, uniques:0, likes:0 }), [series]);
 
+  const playsSparkData = useMemo(() => series.slice(-14).map((p: any) => p.plays || 0), [series]);
+  const likesSparkData = useMemo(() => series.slice(-14).map((p: any) => p.likes || 0), [series]);
+
+  const perfScore = useMemo(() => computeScore(overview, audience), [overview, audience]);
+  const tips = useMemo(() => generateTips(overview, allTracks, series, audience, heatmap), [overview, allTracks, series, audience, heatmap]);
+
+  const maxTrackPlays = useMemo(() => Math.max(1, ...filteredTracks.map(t => t.plays)), [filteredTracks]);
+
   if (loading && !overview) return <StatsPageSkeleton />;
 
   const userName = (session?.user as any)?.name || (session?.user as any)?.username || '';
-  const greeting = (() => { const h = new Date().getHours(); if (h < 12) return 'Bonjour'; if (h < 18) return 'Bon après-midi'; return 'Bonsoir'; })();
+  const greeting = (() => { const h = new Date().getHours(); if (h < 12) return 'Bonjour'; if (h < 18) return 'Bon apres-midi'; return 'Bonsoir'; })();
 
   return (
     <div className="relative min-h-screen w-full">
-      {/* Background effects */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -top-[200px] -left-[100px] w-[600px] h-[600px] rounded-full opacity-[0.12]"
           style={{ background: 'radial-gradient(circle, rgba(110,86,207,1) 0%, transparent 70%)', filter:'blur(80px)' }} />
@@ -287,32 +533,27 @@ function StatsPageInner() {
 
       <div className="relative z-10 px-4 sm:px-6 lg:px-10 2xl:px-12 py-6 md:py-10 pb-28">
 
-        {/* ── Hero Header ── */}
-        <div className="mb-8">
+        {/* ── Header ── */}
+        <div className="mb-6">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
             <div>
               <p className="text-white/40 text-sm mb-1">{greeting}{userName ? `, ${userName}` : ''}</p>
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold">
-                <span className="bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent">
-                  Tes statistiques
-                </span>
+                <span className="bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent">Tes statistiques</span>
               </h1>
-              <p className="text-white/40 text-sm mt-2 max-w-lg">
-                Analyse les performances de tes pistes, comprends ton audience et optimise ta visibilité sur Synaura.
-              </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/[0.12] text-white/80 text-sm transition-all">
-                <Users size={15} /> Mon profil
+              <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] text-white/80 text-sm transition-all">
+                <Users size={15} /> Profil
               </Link>
-              <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] hover:shadow-[0_4px_28px_rgba(110,86,207,0.5)] transition-all">
+              <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] transition-all">
                 <Sparkles size={15} /> Studio
               </Link>
             </div>
           </div>
         </div>
 
-        {/* ── Range + Track filters ── */}
+        {/* ── Filters ── */}
         <div className="panel-suno rounded-2xl border border-white/[0.06] p-3 sm:p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 flex-wrap">
             {(['7d','30d','90d','all'] as const).map((r) => (
@@ -335,19 +576,25 @@ function StatsPageInner() {
 
         {(overview || loadingOverview) && (
           <>
-            {/* ── KPI Grid ── */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-              <KpiCard icon={<Headphones size={18}/>} label="Écoutes" value={overview?.plays??0} variation={overview?.playsVariation} loading={loadingOverview} gradient="from-violet-500/20 to-purple-600/5" iconBg="bg-violet-500/20" />
-              <KpiCard icon={<Heart size={18}/>} label="Likes" value={overview?.likes??0} variation={overview?.likesVariation} loading={loadingOverview} gradient="from-rose-500/20 to-pink-600/5" iconBg="bg-rose-500/20" />
-              <KpiCard icon={<Users size={18}/>} label="Followers" value={overview?.followers??0} loading={loadingOverview} gradient="from-blue-500/20 to-indigo-600/5" iconBg="bg-blue-500/20" />
-              <KpiCard icon={<Music size={18}/>} label="Pistes" value={overview?.totalTracks??0} loading={loadingOverview} subtitle={overview ? `${overview.normalTracks} std + ${overview.aiTracks} IA` : undefined} gradient="from-emerald-500/20 to-teal-600/5" iconBg="bg-emerald-500/20" />
-              <KpiCard icon={<Clock size={18}/>} label="Heures d'écoute" value={overview?.listenHours??0} loading={loadingOverview} suffix="h" gradient="from-amber-500/20 to-orange-600/5" iconBg="bg-amber-500/20" />
-              <KpiCard icon={<Target size={18}/>} label="Rétention moy." value={overview?.avgRetention??0} loading={loadingOverview} suffix="%" gradient="from-cyan-500/20 to-teal-600/5" iconBg="bg-cyan-500/20" />
+            {/* ══════ SECTION 1: Score + KPIs ══════ */}
+            <PerformanceScore score={perfScore} loading={loadingOverview} />
+
+            {/* KPI Row 1 - Primary */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+              <KpiCardPrimary icon={<Headphones size={20}/>} label="Ecoutes" value={overview?.plays??0} variation={overview?.playsVariation} loading={loadingOverview} sparkData={playsSparkData} color="#6e56cf" />
+              <KpiCardPrimary icon={<Heart size={20}/>} label="Likes" value={overview?.likes??0} variation={overview?.likesVariation} loading={loadingOverview} sparkData={likesSparkData} color="#f43f5e" />
+              <KpiCardPrimary icon={<Users size={20}/>} label="Followers" value={overview?.followers??0} loading={loadingOverview} color="#3b82f6" />
+            </div>
+            {/* KPI Row 2 - Secondary */}
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <KpiCardSecondary icon={<Music size={16}/>} label="Pistes" value={overview?.totalTracks??0} subtitle={overview ? `${overview.normalTracks} std + ${overview.aiTracks} IA` : undefined} loading={loadingOverview} />
+              <KpiCardSecondary icon={<Clock size={16}/>} label="Heures d'ecoute" value={overview?.listenHours??0} suffix="h" estimated={overview?.listenHoursEstimated} loading={loadingOverview} />
+              <KpiCardSecondary icon={<Target size={16}/>} label="Retention moy." value={overview?.avgRetention??0} suffix="%" estimated={overview?.avgRetentionEstimated} loading={loadingOverview} />
             </div>
 
-            {/* ── AI / Best Track Banner ── */}
+            {/* ══════ SECTION 2: Insights ══════ */}
             {overview && (overview.ai.count > 0 || overview.bestTrack) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 {overview.ai.count > 0 && (
                   <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 flex items-center gap-4"
                     style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.08) 0%, rgba(0,211,167,0.04) 100%)' }}>
@@ -356,7 +603,7 @@ function StatsPageInner() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white">{overview.ai.count} piste{overview.ai.count > 1 ? 's' : ''} IA</div>
-                      <div className="text-xs text-white/40">{fmt(overview.ai.plays)} écoutes &middot; {fmt(overview.ai.likes)} likes</div>
+                      <div className="text-xs text-white/40">{fmt(overview.ai.plays)} ecoutes &middot; {fmt(overview.ai.likes)} likes</div>
                     </div>
                   </div>
                 )}
@@ -364,64 +611,68 @@ function StatsPageInner() {
                   <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 flex items-center gap-4"
                     style={{ background:'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%)' }}>
                     <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-                      <Star size={18} className="text-amber-400" />
+                      <Trophy size={18} className="text-amber-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">Top : {overview.bestTrack.title}</div>
-                      <div className="text-xs text-white/40">{fmt(overview.bestTrack.plays)} écoutes sur la période</div>
+                      <div className="text-xs text-white/40">{fmt(overview.bestTrack.plays)} ecoutes sur la periode</div>
                     </div>
                     <button onClick={() => setSelectedTrack(overview.bestTrack!.id)} className="text-xs text-[#6e56cf] hover:text-[#00d3a7] transition-colors shrink-0">
-                      Détails <ArrowRight size={12} className="inline" />
+                      Details <ArrowRight size={12} className="inline" />
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            {/* ── Chart ── */}
-            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-                <div>
+            <CoachTips tips={tips} />
+
+            {/* ══════ SECTION 3: Performance ══════ */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 mb-6">
+              {/* Chart */}
+              <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <BarChart3 size={18} className="text-[#6e56cf]" /> Évolution
+                    <BarChart3 size={18} className="text-[#6e56cf]" /> Evolution
                   </h2>
-                  <p className="text-xs text-white/30 mt-0.5">Courbe interactive &mdash; survole pour détailler</p>
+                  <div className="flex items-center gap-1.5 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
+                    {(['plays','uniques','likes'] as const).map((m) => (
+                      <button key={m} onClick={() => setMetric(m)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${metric===m
+                          ? 'bg-[#6e56cf] text-white shadow-[0_2px_8px_rgba(110,86,207,0.4)]'
+                          : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                        {m === 'plays' ? 'Ecoutes' : m === 'uniques' ? 'Uniques' : 'Likes'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
-                  {(['plays','uniques','likes'] as const).map((m) => (
-                    <button key={m} onClick={() => setMetric(m)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${metric===m
-                        ? 'bg-[#6e56cf] text-white shadow-[0_2px_8px_rgba(110,86,207,0.4)]'
-                        : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
-                      {m === 'plays' ? 'Écoutes' : m === 'uniques' ? 'Uniques' : 'Likes'}
-                    </button>
-                  ))}
-                </div>
+                {loadingSeries ? (
+                  <div className="h-[300px] flex items-center justify-center"><Spinner label="Chargement" /></div>
+                ) : chartData.length === 0 ? (
+                  <div className="h-[300px] flex flex-col items-center justify-center gap-2">
+                    <BarChart3 size={32} className="text-white/10" />
+                    <p className="text-white/30 text-sm">Les donnees apparaitront apres les premieres ecoutes</p>
+                  </div>
+                ) : (
+                  <LazyAreaChart data={chartData} metric={metric} compareSeries={compareSeries} />
+                )}
+                {chartData.length > 0 && (
+                  <div className="mt-3 flex gap-4 flex-wrap text-xs border-t border-white/[0.06] pt-3">
+                    <span className="text-white/30">Ecoutes : <span className="text-white font-semibold">{fmt(periodTotals.plays)}</span></span>
+                    <span className="text-white/30">Uniques : <span className="text-white font-semibold">{fmt(periodTotals.uniques)}</span></span>
+                    <span className="text-white/30">Likes : <span className="text-white font-semibold">{fmt(periodTotals.likes)}</span></span>
+                  </div>
+                )}
               </div>
-              {loadingSeries ? (
-                <div className="h-[320px] flex items-center justify-center"><Spinner label="Chargement des données" /></div>
-              ) : chartData.length === 0 ? (
-                <div className="h-[320px] flex flex-col items-center justify-center gap-2">
-                  <BarChart3 size={32} className="text-white/10" />
-                  <p className="text-white/30 text-sm">Les données apparaîtront après les premières écoutes</p>
-                </div>
-              ) : (
-                <RechartsArea data={chartData} metric={metric} compareSeries={compareSeries} />
-              )}
-              {chartData.length > 0 && (
-                <div className="mt-4 flex gap-4 flex-wrap text-xs border-t border-white/[0.06] pt-3">
-                  <span className="text-white/30">Écoutes : <span className="text-white font-semibold">{fmt(periodTotals.plays)}</span></span>
-                  <span className="text-white/30">Uniques : <span className="text-white font-semibold">{fmt(periodTotals.uniques)}</span></span>
-                  <span className="text-white/30">Likes : <span className="text-white font-semibold">{fmt(periodTotals.likes)}</span></span>
-                </div>
-              )}
+              {/* Engagement */}
+              <EngagementPanel overview={overview} periodTotals={periodTotals} />
             </div>
 
-            {/* ── Track Detail ── */}
+            {/* ══════ SECTION 4: Track Detail ══════ */}
             {selectedTrack !== 'all' && trackDetail && <TrackDetailPanel detail={trackDetail} loading={loadingDetail} />}
 
-            {/* ── Tracks Table ── */}
-            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6">
+            {/* ══════ SECTION 5: Pistes ══════ */}
+            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Disc3 size={18} className="text-[#00d3a7]" /> Toutes tes pistes
@@ -445,11 +696,11 @@ function StatsPageInner() {
                     className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-sm text-white placeholder:text-white/20 focus:border-[#6e56cf]/40 outline-none transition-colors" />
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
-                  {([['plays','Écoutes'],['likes','Likes'],['recent','Récent'],['retention','Rétention'],['trend','7j']] as const).map(([key,label]) => (
+                  {([['plays','Ecoutes'],['likes','Likes'],['recent','Recent'],['retention','Retention'],['trend','7j']] as const).map(([key,label]) => (
                     <button key={key} onClick={() => setTrackSort(key as any)}
                       className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1 transition-all ${trackSort===key
                         ? 'bg-[#6e56cf]/20 text-[#6e56cf] border border-[#6e56cf]/30'
-                        : 'bg-white/[0.03] border border-white/[0.06] text-white/40 hover:text-white/60 hover:bg-white/[0.05]'}`}>
+                        : 'bg-white/[0.03] border border-white/[0.06] text-white/40 hover:text-white/60'}`}>
                       <ArrowUpDown size={9} /> {label}
                     </button>
                   ))}
@@ -458,7 +709,7 @@ function StatsPageInner() {
               {loadingTracks ? (
                 <div className="h-40 flex items-center justify-center"><Spinner /></div>
               ) : filteredTracks.length === 0 ? (
-                <div className="text-center py-10 text-white/25 text-sm">Aucune piste trouvée</div>
+                <div className="text-center py-10 text-white/25 text-sm">Aucune piste trouvee</div>
               ) : (
                 <div className="space-y-1">
                   {filteredTracks.map((t, i) => (
@@ -467,11 +718,19 @@ function StatsPageInner() {
                       className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all group ${selectedTrack === t.id
                         ? 'bg-[#6e56cf]/10 border border-[#6e56cf]/20'
                         : 'hover:bg-white/[0.03] border border-transparent'}`}>
-                      <span className="text-xs text-white/20 w-6 text-right shrink-0 tabular-nums">{i+1}</span>
+                      {/* Rank / Medal */}
+                      <div className="w-6 text-center shrink-0">
+                        {i === 0 ? <Crown size={16} className="text-amber-400 mx-auto" /> :
+                         i === 1 ? <Medal size={14} className="text-slate-300 mx-auto" /> :
+                         i === 2 ? <Medal size={14} className="text-amber-600 mx-auto" /> :
+                         <span className="text-xs text-white/20 tabular-nums">{i+1}</span>}
+                      </div>
+                      {/* Cover */}
                       <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.04] border border-white/[0.06] shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={t.coverUrl?.replace('/upload/','/upload/f_auto,q_auto,w_80/') || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" loading="lazy" />
                       </div>
+                      {/* Info + Progress bar */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-white font-medium truncate">{t.title}</span>
@@ -481,8 +740,16 @@ function StatsPageInner() {
                         <div className="flex items-center gap-3 text-[11px] text-white/25 mt-0.5">
                           <span className="flex items-center gap-0.5"><Play size={9}/> {fmt(t.plays)}</span>
                           <span className="flex items-center gap-0.5"><Heart size={9}/> {fmt(t.likes)}</span>
-                          <span className={`${t.retention > 50 ? 'text-emerald-400/60' : ''}`}>{t.retention}%</span>
-                          {t.trend7d !== 0 && <span className={t.trend7d > 0 ? 'text-emerald-400/60' : 'text-red-400/60'}>{t.trend7d > 0 ? '+' : ''}{fmt(t.trend7d)}</span>}
+                          <span className={t.retention > 50 ? 'text-emerald-400/70' : ''}>{t.retention}%</span>
+                          {t.trend7d !== 0 && (
+                            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${t.trend7d > 0 ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
+                              {t.trend7d > 0 ? '+' : ''}{fmt(t.trend7d)}
+                            </span>
+                          )}
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-1.5 h-1 bg-white/[0.04] rounded-full overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${(t.plays / maxTrackPlays) * 100}%`, background: 'linear-gradient(90deg, #6e56cf, #00d3a7)' }} />
                         </div>
                       </div>
                       <div className="text-xs text-white/15 hidden sm:block shrink-0">{t.createdAt ? new Date(t.createdAt).toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : ''}</div>
@@ -492,22 +759,25 @@ function StatsPageInner() {
               )}
             </div>
 
-            {/* ── Heatmap ── */}
-            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6">
+            {/* ══════ SECTION 6: Audience ══════ */}
+            <div className="mb-6">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2 mb-4">
-                <Clock size={18} className="text-amber-400" /> Meilleurs créneaux
+                <Globe size={18} className="text-blue-400" /> Connais ton audience
               </h2>
-              {loadingHeatmap ? <div className="h-40 flex items-center justify-center"><Spinner /></div> : <HeatmapGrid matrix={heatmap} />}
-            </div>
-
-            {/* ── Audience ── */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <AudienceCard title="Pays" icon={<Eye size={16} className="text-blue-400"/>} data={audience.countries} loading={loadingAudience} />
-              <AudienceCard title="Appareils" icon={<Volume2 size={16} className="text-emerald-400"/>} data={audience.devices} loading={loadingAudience} />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-              <AudienceCard title="Systèmes" icon={<Disc3 size={16} className="text-violet-400"/>} data={audienceTech.os} loading={loadingAudience} />
-              <AudienceCard title="Navigateurs" icon={<Search size={16} className="text-cyan-400"/>} data={audienceTech.browsers} loading={loadingAudience} />
+              {/* Heatmap */}
+              <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 mb-4">
+                <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+                  <Clock size={16} className="text-amber-400" /> Meilleurs creneaux
+                </h3>
+                {loadingHeatmap ? <div className="h-40 flex items-center justify-center"><Spinner /></div> : <HeatmapGrid matrix={heatmap} />}
+              </div>
+              {/* 4 Audience charts */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <AudienceCard title="Pays" icon={<Globe size={14} className="text-blue-400"/>} data={audience.countries} loading={loadingAudience} />
+                <AudienceCard title="Appareils" icon={<Smartphone size={14} className="text-emerald-400"/>} data={audience.devices} loading={loadingAudience} />
+                <AudienceCard title="Systemes" icon={<Disc3 size={14} className="text-violet-400"/>} data={audienceTech.os} loading={loadingAudience} />
+                <AudienceCard title="Navigateurs" icon={<Search size={14} className="text-cyan-400"/>} data={audienceTech.browsers} loading={loadingAudience} />
+              </div>
             </div>
           </>
         )}
@@ -520,36 +790,65 @@ export default function StatsPage() {
   return <Suspense fallback={<StatsPageSkeleton />}><StatsPageInner /></Suspense>;
 }
 
-/* ═══════════════════ Components ═══════════════════ */
+/* ═══════════════════ KPI Cards ═══════════════════ */
 
-function KpiCard({ icon, label, value, variation, loading, suffix, subtitle, gradient, iconBg }: {
-  icon: React.ReactNode; label: string; value: number; variation?: number; loading?: boolean; suffix?: string; subtitle?: string; gradient?: string; iconBg?: string;
+function KpiCardPrimary({ icon, label, value, variation, loading, sparkData, color }: {
+  icon: React.ReactNode; label: string; value: number; variation?: number; loading?: boolean; sparkData?: number[]; color: string;
 }) {
   return (
-    <div className={`relative overflow-hidden rounded-2xl border border-white/[0.06] p-3.5 sm:p-4 bg-gradient-to-br ${gradient || 'from-white/[0.04] to-transparent'}`}
-      style={{ background: `linear-gradient(135deg, rgba(10,10,16,0.6) 0%, rgba(10,10,16,0.3) 100%)`, backdropFilter:'blur(10px)' }}>
-      <div className="flex items-center gap-2.5 mb-2">
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${iconBg || 'bg-white/10'}`}>{icon}</div>
-        <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">{label}</span>
+    <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] p-4 sm:p-5"
+      style={{ background: `linear-gradient(135deg, ${color}12 0%, rgba(10,10,16,0.5) 100%)`, backdropFilter:'blur(10px)' }}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}25`, color }}>
+            {icon}
+          </div>
+          <span className="text-xs font-medium text-white/45 uppercase tracking-wider">{label}</span>
+        </div>
+        {sparkData && <MiniSparkline data={sparkData} color={color} />}
       </div>
-      {loading ? <div className="h-8 w-20 bg-white/[0.04] rounded-lg animate-pulse" /> : (
-        <>
-          <div className="text-2xl sm:text-3xl font-bold text-white tabular-nums">{fmt(value)}{suffix||''}</div>
+      {loading ? <div className="h-9 w-24 bg-white/[0.04] rounded-lg animate-pulse mt-1" /> : (
+        <div className="flex items-end gap-3">
+          <div className="text-3xl sm:text-4xl font-extrabold text-white tabular-nums">{fmt(value)}</div>
           {variation !== undefined && variation !== 0 && (
-            <div className={`flex items-center gap-1 text-[11px] mt-1.5 font-medium ${variation > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-              {variation > 0 ? <TrendingUp size={12}/> : <TrendingDown size={12}/>}
+            <div className={`flex items-center gap-1 text-xs font-semibold pb-1 ${variation > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {variation > 0 ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
               {variation > 0 ? '+' : ''}{variation}%
             </div>
           )}
-          {subtitle && <div className="text-[10px] text-white/25 mt-1">{subtitle}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KpiCardSecondary({ icon, label, value, loading, suffix, subtitle, estimated }: {
+  icon: React.ReactNode; label: string; value: number; loading?: boolean; suffix?: string; subtitle?: string; estimated?: boolean;
+}) {
+  return (
+    <div className="rounded-xl border border-white/[0.06] p-3 sm:p-3.5"
+      style={{ background: 'linear-gradient(135deg, rgba(10,10,16,0.5) 0%, rgba(10,10,16,0.3) 100%)', backdropFilter:'blur(10px)' }}>
+      <div className="flex items-center gap-2 mb-1.5">
+        <div className="w-6 h-6 rounded-md flex items-center justify-center bg-white/[0.06] text-white/50">{icon}</div>
+        <span className="text-[10px] font-medium text-white/35 uppercase tracking-wider">{label}</span>
+      </div>
+      {loading ? <div className="h-6 w-16 bg-white/[0.04] rounded animate-pulse" /> : (
+        <>
+          <div className="text-xl font-bold text-white tabular-nums">
+            {estimated ? '~' : ''}{fmt(value)}{suffix||''}
+          </div>
+          {estimated && <div className="text-[9px] text-amber-400/50">Estimation</div>}
+          {subtitle && <div className="text-[9px] text-white/25">{subtitle}</div>}
         </>
       )}
     </div>
   );
 }
 
+/* ═══════════════════ Sub Components ═══════════════════ */
+
 function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }) {
-  if (loading) return <div className="panel-suno rounded-2xl border border-white/[0.06] p-6 mb-6 flex items-center justify-center h-40"><Spinner label="Chargement détail" /></div>;
+  if (loading) return <div className="panel-suno rounded-2xl border border-white/[0.06] p-6 mb-6 flex items-center justify-center h-40"><Spinner label="Chargement detail" /></div>;
   const daily = detail?.daily || [];
   const funnel = detail?.funnel;
   const sources = detail?.sources || [];
@@ -562,32 +861,32 @@ function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }
   const srcData = sources.map((s: any) => ({ name: s.source||'Direct', plays: s.plays||0, completes: s.completes||0 }));
 
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-6 mb-6"
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 mb-6"
       style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.04) 0%, rgba(0,211,167,0.02) 100%)' }}>
-      <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-        <Target size={18} className="text-[#00d3a7]" /> Détail piste (30 derniers jours)
+      <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
+        <Target size={16} className="text-[#00d3a7]" /> Detail piste (30 derniers jours)
       </h2>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
+      <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-4">
         {[
-          { l:'Vues', v:totalViews }, { l:'Lectures', v:totalPlays }, { l:'Complétions', v:totalCompletes },
-          { l:'Likes', v:totalLikes }, { l:'Heures', v:listenH, s:'h' }, { l:'Rétention', v:avgRet, s:'%' },
+          { l:'Vues', v:totalViews }, { l:'Lectures', v:totalPlays }, { l:'Completions', v:totalCompletes },
+          { l:'Likes', v:totalLikes }, { l:'Heures', v:listenH, s:'h' }, { l:'Retention', v:avgRet, s:'%' },
         ].map(m => (
-          <div key={m.l} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3">
-            <div className="text-[10px] uppercase tracking-wider text-white/25 mb-1">{m.l}</div>
-            <div className="text-lg font-bold text-white tabular-nums">{fmt(m.v)}{m.s||''}</div>
+          <div key={m.l} className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2.5">
+            <div className="text-[9px] uppercase tracking-wider text-white/25 mb-0.5">{m.l}</div>
+            <div className="text-base font-bold text-white tabular-nums">{fmt(m.v)}{m.s||''}</div>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {funnel && funnel.starts > 0 && (
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
-            <h3 className="text-sm font-semibold mb-3 text-white">Funnel de rétention</h3>
+            <h3 className="text-sm font-semibold mb-3 text-white">Funnel de retention</h3>
             <div className="space-y-2.5">
-              {[{l:'Démarrage',p:100},{l:'25%',p:funnel.p25Rate},{l:'50%',p:funnel.p50Rate},{l:'75%',p:funnel.p75Rate},{l:'Complet',p:funnel.completeRate}].map(s => (
+              {[{l:'Demarrage',p:100},{l:'25%',p:funnel.p25Rate},{l:'50%',p:funnel.p50Rate},{l:'75%',p:funnel.p75Rate},{l:'Complet',p:funnel.completeRate}].map(s => (
                 <div key={s.l} className="flex items-center gap-3">
                   <span className="w-16 text-xs text-white/40">{s.l}</span>
-                  <div className="flex-1 h-2.5 bg-white/[0.04] rounded-full overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] rounded-full transition-all duration-700" style={{ width:`${Math.max(2,s.p)}%` }} />
+                  <div className="flex-1 h-2 bg-white/[0.04] rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] rounded-full" style={{ width:`${Math.max(2,s.p)}%` }} />
                   </div>
                   <span className="w-12 text-xs text-white/50 text-right tabular-nums">{s.p}%</span>
                 </div>
@@ -598,19 +897,19 @@ function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }
         {srcData.length > 0 && (
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
             <h3 className="text-sm font-semibold mb-3 text-white">Sources de trafic</h3>
-            <RechartsBar data={srcData} />
+            <LazyBarChart data={srcData} />
           </div>
         )}
       </div>
       {daily.length > 0 && (
-        <div className="mt-4 bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
-          <h3 className="text-sm font-semibold mb-3 text-white">7 derniers jours</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+        <div className="mt-3 bg-white/[0.02] border border-white/[0.06] rounded-xl p-3">
+          <h3 className="text-xs font-semibold mb-2 text-white">7 derniers jours</h3>
+          <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
             {daily.slice(-7).map((d: any) => (
-              <div key={d.day} className="p-2.5 bg-white/[0.02] rounded-lg border border-white/[0.04]">
-                <div className="text-[10px] text-white/30">{new Date(d.day).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})}</div>
-                <div className="text-white text-sm font-semibold mt-1">{d.plays}</div>
-                <div className="text-[10px] text-white/25">{Math.round(d.retention_complete_rate||0)}% rét.</div>
+              <div key={d.day} className="p-2 bg-white/[0.02] rounded-lg border border-white/[0.04] text-center">
+                <div className="text-[9px] text-white/30">{new Date(d.day).toLocaleDateString('fr-FR',{weekday:'short',day:'numeric'})}</div>
+                <div className="text-white text-sm font-bold mt-0.5">{d.plays}</div>
+                <div className="text-[9px] text-white/25">{Math.round(d.retention_complete_rate||0)}% ret.</div>
               </div>
             ))}
           </div>
@@ -622,18 +921,18 @@ function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }
 
 function AudienceCard({ title, icon, data, loading }: { title: string; icon: React.ReactNode; data?: Record<string,number>; loading: boolean }) {
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5">
-      <h3 className="text-sm font-semibold mb-3 text-white flex items-center gap-2">{icon} {title}</h3>
-      {loading ? <div className="h-[200px] flex items-center justify-center"><Spinner /></div> :
-        data && Object.keys(data).length > 0 ? <><RechartsPie data={data} /><PieLegend data={data} /></> :
-        <div className="h-[200px] flex flex-col items-center justify-center gap-2"><Eye size={24} className="text-white/10" /><p className="text-white/20 text-xs">Pas encore de données</p></div>}
+    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4">
+      <h3 className="text-xs font-semibold mb-2 text-white flex items-center gap-1.5">{icon} {title}</h3>
+      {loading ? <div className="h-[180px] flex items-center justify-center"><Spinner /></div> :
+        data && Object.keys(data).length > 0 ? <><LazyPieChart data={data} /><PieLegend data={data} /></> :
+        <div className="h-[180px] flex flex-col items-center justify-center gap-2"><Eye size={20} className="text-white/10" /><p className="text-white/20 text-[10px]">Pas de donnees</p></div>}
     </div>
   );
 }
 
 function HeatmapGrid({ matrix }: { matrix: number[][] }) {
   const days = ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
-  if (!matrix.length) return <div className="text-white/20 text-sm text-center py-8">Pas encore de données</div>;
+  if (!matrix.length) return <div className="text-white/20 text-sm text-center py-6">Pas encore de donnees</div>;
   const flat = matrix.flat();
   const max = Math.max(1,...flat);
   const bestIdx = flat.indexOf(max);
@@ -642,24 +941,24 @@ function HeatmapGrid({ matrix }: { matrix: number[][] }) {
   return (
     <div>
       {max > 1 && (
-        <div className="mb-3 text-sm text-white/40 flex items-center gap-1.5">
+        <div className="mb-2 text-sm text-white/40 flex items-center gap-1.5">
           <Zap size={14} className="text-amber-400" />
-          Meilleur créneau : <span className="text-white font-medium">{days[bestDay]} à {bestHour}h</span> <span className="text-white/25">({max} écoutes)</span>
+          Meilleur creneau : <span className="text-white font-medium">{days[bestDay]} a {bestHour}h</span> <span className="text-white/25">({max} ecoutes)</span>
         </div>
       )}
       <div className="overflow-x-auto">
-        <div className="grid" style={{ gridTemplateColumns: `48px repeat(24, minmax(16px, 1fr))`, gap: 2 }}>
+        <div className="grid" style={{ gridTemplateColumns: `44px repeat(24, minmax(14px, 1fr))`, gap: 2 }}>
           <div />
-          {Array.from({length:24}).map((_,h) => <div key={h} className="text-[9px] text-white/20 text-center">{h}</div>)}
+          {Array.from({length:24}).map((_,h) => <div key={h} className="text-[8px] text-white/20 text-center">{h}</div>)}
           {matrix.map((row,d) => (
             <React.Fragment key={`r-${d}`}>
-              <div className="text-[11px] text-white/30 pr-2 flex items-center justify-end">{days[d]}</div>
+              <div className="text-[10px] text-white/30 pr-1.5 flex items-center justify-end">{days[d]}</div>
               {row.map((val,h) => {
                 const intensity = val / max;
                 return (
-                  <div key={`${d}-${h}`} className="h-[18px] rounded-[3px] relative group cursor-default transition-transform hover:scale-110"
+                  <div key={`${d}-${h}`} className="h-[16px] rounded-[3px] relative group cursor-default transition-transform hover:scale-110"
                     style={{ background: intensity > 0 ? `rgba(110,86,207,${0.1 + intensity * 0.9})` : 'rgba(255,255,255,0.02)' }}>
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black/95 text-white text-[10px] px-2.5 py-1 rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 border border-white/10 shadow-xl">
+                    <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/95 text-white text-[9px] px-2 py-0.5 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 border border-white/10">
                       {days[d]} {h}h : {val}
                     </div>
                   </div>
@@ -669,24 +968,22 @@ function HeatmapGrid({ matrix }: { matrix: number[][] }) {
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-1 mt-3 text-[9px] text-white/20">
+      <div className="flex items-center gap-1 mt-2 text-[8px] text-white/20">
         <span>Moins</span>
-        {[0.1,0.3,0.5,0.7,0.9].map(v => <div key={v} className="w-4 h-3 rounded-[2px]" style={{ background:`rgba(110,86,207,${v})` }} />)}
+        {[0.1,0.3,0.5,0.7,0.9].map(v => <div key={v} className="w-3.5 h-2.5 rounded-[2px]" style={{ background:`rgba(110,86,207,${v})` }} />)}
         <span>Plus</span>
       </div>
     </div>
   );
 }
 
-const PIE_COLORS = ['#6e56cf','#00d3a7','#f59e0b','#10b981','#ef4444','#3b82f6','#f97316','#22c55e'];
-
 function PieLegend({ data }: { data: Record<string,number> }) {
-  const sorted = Object.entries(data).sort(([,a],[,b]) => Number(b)-Number(a)).slice(0,8);
+  const sorted = Object.entries(data).sort(([,a],[,b]) => Number(b)-Number(a)).slice(0,6);
   return (
-    <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs">
+    <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px]">
       {sorted.map(([name,value],i) => (
-        <div key={name} className="flex items-center gap-1.5">
-          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: PIE_COLORS[i%PIE_COLORS.length] }} />
+        <div key={name} className="flex items-center gap-1">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: PIE_CHART_COLORS[i%PIE_CHART_COLORS.length] }} />
           <span className="text-white/50">{name}</span>
           <span className="text-white/25 tabular-nums">{Math.round(Number(value))}%</span>
         </div>
@@ -725,13 +1022,13 @@ function EmptyState() {
         <BarChart3 size={28} className="text-[#6e56cf]" />
       </div>
       <h2 className="text-xl font-semibold mb-2 text-white">Pas encore de stats</h2>
-      <p className="text-sm text-white/40 mb-6 max-w-md mx-auto">Dès que tu publies ou génères tes premières musiques sur Synaura, leurs performances apparaîtront ici.</p>
+      <p className="text-sm text-white/40 mb-6 max-w-md mx-auto">Des que tu publies ou generes tes premieres musiques sur Synaura, leurs performances apparaitront ici.</p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link href="/upload" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] text-white text-sm transition-all">
           <Music size={16} /> Uploader une piste
         </Link>
         <Link href="/studio" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] transition-all">
-          <Sparkles size={16} /> Créer avec l&apos;IA
+          <Sparkles size={16} /> Creer avec l&apos;IA
         </Link>
       </div>
     </div>

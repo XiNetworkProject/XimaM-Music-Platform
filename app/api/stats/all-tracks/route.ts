@@ -7,22 +7,24 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 async function getUserNormalTracks(userId: string) {
-  // Query by creator_id OR user_id (both columns exist on tracks)
   const { data, error } = await supabaseAdmin
     .from('tracks')
     .select('id, title, cover_url, duration, created_at, plays, likes')
     .or(`creator_id.eq.${userId},user_id.eq.${userId}`);
-
   if (error) {
-    console.error('all-tracks: or query failed, fallback to creator_id only:', error.message);
-    const { data: fallback } = await supabaseAdmin
+    console.error('all-tracks: or query failed, fallback:', error.message);
+    const { data: fb } = await supabaseAdmin
       .from('tracks')
       .select('id, title, cover_url, duration, created_at, plays, likes')
       .eq('creator_id', userId);
-    return fallback || [];
+    return fb || [];
   }
-
   return data || [];
+}
+
+function viewDate(row: any): Date | null {
+  const raw = row.created_at || row.viewed_at;
+  return raw ? new Date(raw) : null;
 }
 
 export async function GET(request: NextRequest) {
@@ -36,7 +38,7 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const sevenDaysAgo = new Date(now);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const sevenDaysISO = sevenDaysAgo.toISOString();
+    const sevenDaysMs = sevenDaysAgo.getTime();
 
     const normalTracks = await getUserNormalTracks(userId);
 
@@ -53,36 +55,71 @@ export async function GET(request: NextRequest) {
     const aiIds = aiTracks.map((t: any) => t.id);
     const allIds = [...normalIds, ...aiIds];
 
-    let trend7d = new Map<string, number>();
-    let viewCounts = new Map<string, number>();
-    let likeCounts = new Map<string, number>();
-    let retentionMap = new Map<string, number>();
+    const trend7d = new Map<string, number>();
+    const viewCounts = new Map<string, number>();
+    const likeCounts = new Map<string, number>();
+    const retentionMap = new Map<string, number>();
 
     if (allIds.length) {
-      const [views7dRes, allViewsRes, allLikesRes, eventsRes] = await Promise.all([
-        supabaseAdmin.from('track_views').select('track_id').in('track_id', allIds).gte('created_at', sevenDaysISO),
-        supabaseAdmin.from('track_views').select('track_id').in('track_id', allIds),
-        supabaseAdmin.from('track_likes').select('track_id').in('track_id', allIds),
-        supabaseAdmin.from('track_events').select('track_id, event_type').in('track_id', allIds).in('event_type', ['play_start', 'play_complete']),
-      ]);
-      const views7dQ = views7dRes.data || [];
-      const allViewsQ = allViewsRes.data || [];
-      const allLikesQ = allLikesRes.data || [];
-      const eventsQ = eventsRes.data || [];
+      /* ── Fetch ALL views with both date columns ── */
+      let allViewRows: any[] = [];
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('track_views')
+          .select('track_id, created_at, viewed_at')
+          .in('track_id', allIds)
+          .limit(100000);
+        if (!error && data) allViewRows = data;
+        else if (error) {
+          const { data: fb } = await supabaseAdmin
+            .from('track_views')
+            .select('track_id, created_at')
+            .in('track_id', allIds)
+            .limit(100000);
+          allViewRows = fb || [];
+        }
+      } catch {}
 
-      for (const v of views7dQ) trend7d.set(v.track_id, (trend7d.get(v.track_id) || 0) + 1);
-      for (const v of allViewsQ) viewCounts.set(v.track_id, (viewCounts.get(v.track_id) || 0) + 1);
-      for (const v of allLikesQ) likeCounts.set(v.track_id, (likeCounts.get(v.track_id) || 0) + 1);
-
-      const starts = new Map<string, number>();
-      const completes = new Map<string, number>();
-      for (const e of eventsQ) {
-        if (e.event_type === 'play_start') starts.set(e.track_id, (starts.get(e.track_id) || 0) + 1);
-        else completes.set(e.track_id, (completes.get(e.track_id) || 0) + 1);
+      for (const v of allViewRows) {
+        viewCounts.set(v.track_id, (viewCounts.get(v.track_id) || 0) + 1);
+        const d = viewDate(v);
+        if (d && d.getTime() >= sevenDaysMs) {
+          trend7d.set(v.track_id, (trend7d.get(v.track_id) || 0) + 1);
+        }
       }
-      starts.forEach((s, id) => {
-        retentionMap.set(id, s > 0 ? Math.round(((completes.get(id) || 0) / s) * 1000) / 10 : 0);
-      });
+
+      /* ── Likes ── */
+      try {
+        const { data: allLikesQ } = await supabaseAdmin
+          .from('track_likes')
+          .select('track_id')
+          .in('track_id', allIds)
+          .limit(100000);
+        if (allLikesQ) {
+          for (const v of allLikesQ) likeCounts.set(v.track_id, (likeCounts.get(v.track_id) || 0) + 1);
+        }
+      } catch {}
+
+      /* ── Retention from events ── */
+      try {
+        const { data: eventsQ } = await supabaseAdmin
+          .from('track_events')
+          .select('track_id, event_type')
+          .in('track_id', allIds)
+          .in('event_type', ['play_start', 'play_complete'])
+          .limit(100000);
+        if (eventsQ) {
+          const starts = new Map<string, number>();
+          const completes = new Map<string, number>();
+          for (const e of eventsQ) {
+            if (e.event_type === 'play_start') starts.set(e.track_id, (starts.get(e.track_id) || 0) + 1);
+            else completes.set(e.track_id, (completes.get(e.track_id) || 0) + 1);
+          }
+          starts.forEach((s, id) => {
+            retentionMap.set(id, s > 0 ? Math.round(((completes.get(id) || 0) / s) * 1000) / 10 : 0);
+          });
+        }
+      } catch {}
     }
 
     type UnifiedTrack = {
