@@ -874,16 +874,16 @@ export default function InscriptionPage() {
       {/* ══════ BANNIÈRE MOBILE (cachée sur lg) ══════ */}
       <div className="relative lg:hidden h-48 shrink-0 overflow-hidden">
         <Image
-          src="/StarAcRes/sa-hero-mansion.jpg"
+          src="/star-academy-crowd.jpg"
           alt="Star Academy TikTok"
-          fill className="object-cover object-top" priority sizes="100vw"
+          fill className="object-cover object-center" priority sizes="100vw"
         />
         {/* gradient bas → fond */}
         <div className="absolute inset-0"
-          style={{ background: "linear-gradient(to bottom, rgba(7,0,15,0.1) 0%, rgba(7,0,15,0.55) 60%, rgba(7,0,15,1) 100%)" }} />
+          style={{ background: "linear-gradient(to bottom, rgba(7,0,15,0.35) 0%, rgba(7,0,15,0.6) 60%, rgba(7,0,15,1) 100%)" }} />
         {/* halo violet */}
         <div className="absolute inset-0 pointer-events-none"
-          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(147,51,234,0.35) 0%, transparent 65%)" }} />
+          style={{ background: "radial-gradient(ellipse at 20% 50%, rgba(147,51,234,0.3) 0%, transparent 65%)" }} />
 
         {/* Contenu bannière */}
         <div className="absolute inset-0 flex items-end justify-between px-5 pb-4 z-10">
@@ -921,17 +921,17 @@ export default function InscriptionPage() {
       {/* ══════ PANNEAU GAUCHE desktop (caché sur mobile) ══════ */}
       <div className="hidden lg:block relative lg:sticky lg:top-0 lg:h-screen lg:w-[44%] xl:w-[42%] shrink-0 overflow-hidden">
         <Image
-          src="/StarAcRes/sa-hero-mansion.jpg"
+          src="/star-academy-crowd.jpg"
           alt="Star Academy TikTok"
           fill className="object-cover object-center" priority sizes="44vw"
         />
         <div className="absolute inset-0"
-          style={{ background: "linear-gradient(180deg, rgba(7,0,15,0.2) 0%, rgba(7,0,15,0.05) 35%, rgba(7,0,15,0.65) 75%, rgba(7,0,15,0.98) 100%)" }} />
+          style={{ background: "linear-gradient(180deg, rgba(7,0,15,0.55) 0%, rgba(7,0,15,0.15) 30%, rgba(7,0,15,0.4) 65%, rgba(7,0,15,0.97) 100%)" }} />
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full opacity-40"
+          <div className="absolute top-[-10%] left-[-10%] w-[70%] h-[70%] rounded-full opacity-30"
             style={{ background: "radial-gradient(circle, rgba(147,51,234,0.5) 0%, transparent 70%)", filter: "blur(60px)" }} />
-          <div className="absolute bottom-[20%] right-[-5%] w-[50%] h-[40%] rounded-full opacity-30"
-            style={{ background: "radial-gradient(circle, rgba(245,158,11,0.4) 0%, transparent 70%)", filter: "blur(50px)" }} />
+          <div className="absolute bottom-[15%] right-[-5%] w-[50%] h-[40%] rounded-full opacity-25"
+            style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)", filter: "blur(50px)" }} />
         </div>
 
         <div className="absolute inset-0 flex flex-col justify-between p-8 z-10">
