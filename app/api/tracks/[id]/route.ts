@@ -130,7 +130,9 @@ export async function PUT(
     };
 
     if (body.title) updateData.title = body.title;
+    if (typeof body.description === 'string') updateData.description = body.description;
     if (body.genre) updateData.genre = Array.isArray(body.genre) ? body.genre : [body.genre];
+    if (body.tags) updateData.tags = Array.isArray(body.tags) ? body.tags : [body.tags];
     if (typeof body.isPublic === 'boolean') updateData.is_public = body.isPublic;
     if (typeof body.isFeatured === 'boolean') updateData.is_featured = body.isFeatured;
 
@@ -156,7 +158,9 @@ export async function PUT(
     const formattedTrack = {
       id: updatedTrack.id,
       title: updatedTrack.title,
-      genre: updatedTrack.genre,
+      description: updatedTrack.description || '',
+      genre: updatedTrack.genre || [],
+      tags: updatedTrack.tags || [],
       is_featured: updatedTrack.is_featured,
       is_public: updatedTrack.is_public,
       cover_url: updatedTrack.cover_url,
@@ -164,6 +168,7 @@ export async function PUT(
       duration: updatedTrack.duration,
       plays: updatedTrack.plays || 0,
       likes: updatedTrack.likes || 0,
+      created_at: updatedTrack.created_at,
       updated_at: updatedTrack.updated_at
     };
     

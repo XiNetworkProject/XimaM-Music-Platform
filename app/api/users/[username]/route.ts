@@ -57,7 +57,7 @@ export async function GET(
       console.error('❌ Erreur récupération tracks manuelles:', tracksError);
     }
 
-    // Récupérer les tracks IA publiées (ou toutes si propriétaire du profil)
+    // Récupérer uniquement les tracks IA publiées (is_public=true) pour le profil
     let aiTracksQuery = supabaseAdmin
       .from('ai_tracks')
       .select(`
@@ -66,11 +66,8 @@ export async function GET(
       `)
       .eq('generation.user_id', profile.id)
       .eq('generation.status', 'completed')
+      .eq('generation.is_public', true)
       .order('created_at', { ascending: false });
-
-    if (!isOwnProfile) {
-      aiTracksQuery = aiTracksQuery.eq('generation.is_public', true);
-    }
 
     const { data: aiTracks, error: aiTracksError } = await aiTracksQuery;
     if (aiTracksError) {

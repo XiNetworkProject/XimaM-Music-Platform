@@ -1,29 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
-  BarChart3,
-  Camera,
-  Check,
-  ChevronRight,
-  Edit,
-  Heart,
-  Headphones,
-  Loader2,
-  MapPin,
-  Globe,
-  Music2,
-  MoreHorizontal,
-  Pause,
-  Play,
-  Share2,
-  Upload,
-  UserPlus,
-  Sparkles,
-  Calendar,
-  X,
-  MessageCircle,
-  Send,
+  BarChart3, Camera, Check, ChevronRight, Edit, Heart, Headphones,
+  Loader2, MapPin, Globe, Music2, MoreHorizontal, Pause, Play,
+  Share2, Upload, UserPlus, Sparkles, Calendar, X, MessageCircle,
+  Send, Search, Users, Disc3, ExternalLink, Crown, TrendingUp, Zap, Clock,
+  ArrowUpRight, Library, Mic2, Shield, SortAsc, ListPlus, ListEnd, Flag, Link2, FolderPlus, Trash2,
 } from "lucide-react";
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -37,25 +21,17 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
-/**
- * Synaura — Page Profil (même style que la Home) — HYBRID GRID + DRAWER
- * - Connexion aux vraies données API
- * - Bannière héro + avatar superposé
- * - Stats & bio en cartes
- * - Grille compacte de tracks (cards carrées)
- * - CLIC sur une card => ouvre un DRAWER latéral
- */
-
-// ---- Utils ----
-const fmt = new Intl.NumberFormat();
+const fmtN = new Intl.NumberFormat();
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+function fmtK(n: number): string { if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'; if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K'; return String(n); }
 
-// ---- Page ----
-export default function SynauraProfile(){
+/* ═══════════════════════════════════════════════════════ */
+
+export default function SynauraProfile() {
   const { username } = useParams();
   const { data: session } = useSession();
   const router = useRouter();
-  const { playTrack, audioState } = useAudioPlayer();
+  const { playTrack, audioState, addToUpNext } = useAudioPlayer();
   const { canOpen, openDaily, lastOpened, remainingMs, loading: boostersLoading, inventory } = useBoosters();
 
   const [profile, setProfile] = useState<any>(null);
@@ -63,12 +39,10 @@ export default function SynauraProfile(){
   const [error, setError] = useState('');
   const [userTracks, setUserTracks] = useState<any[]>([]);
   const [uploading, setUploading] = useState(false);
-  
   const [query, setQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<'tracks' | 'playlists' | 'about'>('tracks');
-  const [sortBy, setSortBy] = useState<'recent' | 'plays' | 'likes'>('recent');
-  const [playlistQuery, setPlaylistQuery] = useState("");
-  const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<'recent' | 'plays' | 'likes'>('plays');
+  const [showAllTracks, setShowAllTracks] = useState(false);
+  const [ctxTrack, setCtxTrack] = useState<{ track: any; anchorEl: HTMLButtonElement } | null>(null);
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [showBoosterModal, setShowBoosterModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -81,1217 +55,467 @@ export default function SynauraProfile(){
   const [sendingRequest, setSendingRequest] = useState(false);
   const [messageRequestStatus, setMessageRequestStatus] = useState<'none' | 'pending' | 'accepted'>('none');
   const [existingConvId, setExistingConvId] = useState<string | null>(null);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-
   const usernameStr = Array.isArray(username) ? username[0] : username;
   const isOwnProfile = (session?.user as any)?.username === usernameStr;
 
-  // Auto-ouvrir le modal booster après ouverture
-  useEffect(() => {
-    if (lastOpened) setShowBoosterModal(true);
-  }, [lastOpened]);
+  useEffect(() => { if (lastOpened) setShowBoosterModal(true); }, [lastOpened]);
+  const formatRemaining = (ms: number) => { if (!ms || ms <= 0) return 'Dispo'; const h = Math.floor(ms / 3_600_000); const m = Math.floor((ms % 3_600_000) / 60_000); if (h > 0) return `${h}h${m.toString().padStart(2, '0')}`; const s = Math.floor((ms % 60_000) / 1000); return `${m}:${s.toString().padStart(2, '0')}`; };
 
-  // Formater le temps restant
-  const formatRemaining = (ms: number) => {
-    if (!ms || ms <= 0) return 'Disponible';
-    const h = Math.floor(ms / 3_600_000);
-    const m = Math.floor((ms % 3_600_000) / 60_000);
-    const s = Math.floor((ms % 60_000) / 1000);
-    if (h > 0) return `${h}h ${m.toString().padStart(2,'0')}m`;
-    return `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-  };
-
-  // Charger le profil
+  /* ─── Data fetching ─── */
   useEffect(() => {
     const fetchProfile = async () => {
-      setLoading(true);
-      setError('');
+      setLoading(true); setError('');
       try {
-        if (!usernameStr) throw new Error('Nom d’utilisateur manquant');
+        if (!usernameStr) throw new Error("Username manquant");
         const res = await fetch(`/api/users/${encodeURIComponent(usernameStr)}`);
         const data = await res.json();
-        
-        if (!res.ok) {
-          throw new Error(data.error || 'Erreur chargement profil');
-        }
-        
-        // Vérifier l'état de suivi
+        if (!res.ok) throw new Error(data.error || 'Erreur');
         let isFollowing = false;
         if (session?.user?.id && data.id !== session.user.id) {
-          try {
-            const followRes = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`);
-            if (followRes.ok) {
-              const followData = await followRes.json();
-              isFollowing = followData.isFollowing;
-            }
-          } catch (e) {
-            console.error('Erreur vérification follow:', e);
-          }
+          try { const fr = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`); if (fr.ok) isFollowing = (await fr.json()).isFollowing; } catch {}
         }
-        
-        setProfile({ ...data, isFollowing });
-        setEditData({ ...data, isFollowing });
-        setUserTracks(data.tracks || []);
-      } catch (e: any) {
-        setError(e.message || 'Erreur chargement profil');
-      } finally {
-        setLoading(false);
-      }
+        setProfile({ ...data, isFollowing }); setEditData({ ...data, isFollowing }); setUserTracks(data.tracks || []);
+      } catch (e: any) { setError(e.message); } finally { setLoading(false); }
     };
     if (usernameStr) fetchProfile();
   }, [usernameStr, session?.user?.id]);
 
-  const playlists = useMemo(
-    () => (Array.isArray(profile?.playlists) ? profile.playlists : []),
-    [profile],
-  );
+  const playlists = useMemo(() => (Array.isArray(profile?.playlists) ? profile.playlists : []), [profile]);
 
-  const visibleTracks = useMemo(() => {
+  const sortedTracks = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const list = (userTracks || [])
-      .filter((t) => String(t?.title || '').toLowerCase().includes(q));
-
-    const score = (t: any) => ({
-      plays: Number(t?.plays || 0),
-      likes: Number(t?.likes || 0),
-      created: new Date(t?.created_at || t?.createdAt || 0).getTime() || 0,
+    const list = (userTracks || []).filter((t) => String(t?.title || '').toLowerCase().includes(q));
+    return [...list].sort((a, b) => {
+      if (sortBy === 'plays') return (b.plays || 0) - (a.plays || 0);
+      if (sortBy === 'likes') return (b.likes || 0) - (a.likes || 0);
+      return new Date(b.created_at || b.createdAt || 0).getTime() - new Date(a.created_at || a.createdAt || 0).getTime();
     });
-
-    const sorted = [...list].sort((a, b) => {
-      const A = score(a);
-      const B = score(b);
-      if (sortBy === 'plays') return (B.plays - A.plays) || (B.created - A.created);
-      if (sortBy === 'likes') return (B.likes - A.likes) || (B.created - A.created);
-      return B.created - A.created;
-    });
-    return sorted;
   }, [query, sortBy, userTracks]);
 
-  const visiblePlaylists = useMemo(() => {
-    const q = playlistQuery.trim().toLowerCase();
-    return playlists.filter((p: any) =>
-      String(p?.name || '').toLowerCase().includes(q),
-    );
-  }, [playlistQuery, playlists]);
+  const displayTracks = showAllTracks ? sortedTracks : sortedTracks.slice(0, 5);
 
-  // Click-outside pour fermer les menus
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      const open = document.querySelector('[data-menu-root="true"]');
-      if (open && !open.contains(e.target as Node)) setMenuOpenId(null);
-    };
-    document.addEventListener('click', onClick);
-    return () => document.removeEventListener('click', onClick);
-  }, []);
-
-  // ESC pour fermer le drawer
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerId(null); };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-
-  // Style no-scrollbar (si besoin)
-  useEffect(() => {
-    const style = document.createElement('style');
-    style.innerHTML = `.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`;
-    document.head.appendChild(style);
-    return () => { try { document.head.removeChild(style); } catch (e) {} };
-  }, []);
+  const closeCtx = useCallback(() => setCtxTrack(null), []);
+  useEffect(() => { const h = (e: KeyboardEvent) => { if (e.key === 'Escape') setDrawerId(null); }; document.addEventListener('keydown', h); return () => document.removeEventListener('keydown', h); }, []);
 
   const selected = useMemo(() => userTracks.find(t => t.id === drawerId) || null, [drawerId, userTracks]);
 
-  // Gestion play track
-  const handlePlayTrack = async (track: any) => {
-    try {
-      const trackToPlay = {
-        _id: track.id,
-        title: track.title,
-        artist: track.artist || track.artist_name || profile?.name || 'Artiste inconnu',
-        audioUrl: track.audioUrl || track.audio_url,
-        coverUrl: track.coverUrl || track.cover_url,
-        duration: track.duration,
-        album: track.album || null,
-        likes: track.likes || 0,
-        comments: track.comments || [],
-        plays: track.plays || 0,
-        genre: track.genre || [],
-        isLiked: track.isLiked || false
-      };
-      await playTrack(trackToPlay);
-    } catch (error) {
-      console.error('Erreur lecture:', error);
-      notify.error('Erreur', 'Impossible de lire la piste');
-    }
-  };
-
-  // Gestion like avec mise à jour de l'état local
-  const handleLikeUpdate = (trackId: string, isLiked: boolean, likesCount: number) => {
-    setUserTracks(prev => prev.map(track => 
-      track.id === trackId 
-        ? { ...track, isLiked, likes: likesCount }
-        : track
-    ));
-    
-    setProfile((prev: any) => ({
-      ...prev,
-      tracks: prev.tracks?.map((track: any) => 
-        track.id === trackId ? { ...track, isLiked, likes: likesCount } : track
-      )
-    }));
-  };
-
-  // Gestion delete track
-  const handleDeleteTrack = async (trackId: string) => {
-    if (!confirm('Supprimer cette piste définitivement ?')) return;
-    try {
-      const isAiTrack = String(trackId).startsWith('ai-');
-      const effectiveId = isAiTrack ? String(trackId).slice(3) : trackId;
-      const endpoint = isAiTrack ? `/api/ai/tracks/${effectiveId}` : `/api/tracks/${effectiveId}`;
-      const res = await fetch(endpoint, { method: 'DELETE' });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erreur suppression');
-      }
-      
-      setUserTracks(prev => prev.filter(track => track.id !== trackId));
-      setDrawerId(null);
-      notify.success('Track supprimée', 'Track supprimée avec succès');
-    } catch (e: any) {
-      notify.error('Erreur', e.message || 'Erreur suppression');
-    }
-  };
-
-  // Gestion follow
-  const handleFollow = async () => {
-    if (!session?.user) {
-      router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`);
-      return;
-    }
-    try {
-      if (!usernameStr) return;
-      const res = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`, { method: 'POST' });
-      if (!res.ok) throw new Error('Erreur follow');
-      const data = await res.json();
-      setProfile((prev: any) => ({
-        ...prev,
-        isFollowing: data.action === 'followed',
-        followerCount: prev.followerCount + (data.action === 'followed' ? 1 : -1),
-      }));
-    } catch (e) {
-      notify.error('Erreur', 'Impossible de suivre cet utilisateur');
-    }
-  };
-
-  // Verifier le statut de demande de message
-  useEffect(() => {
-    if (!session?.user?.id || !profile?.id || isOwnProfile) return;
-    const checkMessageRequest = async () => {
-      try {
-        const res = await fetch(`/api/messages/requests/status?targetId=${profile.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          setMessageRequestStatus(data.status || 'none');
-          if (data.conversationId) setExistingConvId(data.conversationId);
-        }
-      } catch {}
-    };
-    checkMessageRequest();
-  }, [session?.user?.id, profile?.id, isOwnProfile]);
-
-  const handleSendMessageRequest = async () => {
-    if (!session?.user) {
-      router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`);
-      return;
-    }
-    if (!profile?.id) return;
-    setSendingRequest(true);
-    try {
-      const res = await fetch('/api/messages/requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessageRequestStatus('pending');
-        setShowMessageModal(false);
-        setMessageText('');
-        notify.success('Demande envoyee', `Votre demande a ete envoyee a ${profile.name}`);
-      } else if (data.alreadyConnected) {
-        if (data.conversationId) {
-          router.push(`/messages/${data.conversationId}`);
-        } else {
-          router.push('/messages');
-        }
-      } else if (data.alreadySent) {
-        setMessageRequestStatus('pending');
-        notify.info('Deja envoyee', 'Votre demande est en attente');
-      } else {
-        notify.error('Erreur', data.error || 'Impossible d\'envoyer la demande');
-      }
-    } catch {
-      notify.error('Erreur', 'Erreur de connexion');
-    } finally {
-      setSendingRequest(false);
-    }
-  };
-
-  // Upload image
-  const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => {
-    setUploading(true);
-    try {
-      const timestamp = Math.round(Date.now() / 1000);
-      const publicId = `${usernameStr || 'user'}_${type}_${timestamp}`;
-      
-      if (!usernameStr) throw new Error('Nom d’utilisateur manquant');
-      const sigRes = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/upload-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ timestamp, publicId, type })
-      });
-      
-      if (!sigRes.ok) throw new Error('Erreur signature');
-      const { signature, apiKey, cloudName } = await sigRes.json();
-      
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('timestamp', String(timestamp));
-      formData.append('public_id', publicId);
-      formData.append('folder', `ximam/profiles/${username}`);
-      formData.append('resource_type', 'image');
-      formData.append('api_key', apiKey);
-      formData.append('signature', signature);
-      
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
-        method: 'POST',
-        body: formData
-      });
-      
-      if (!uploadRes.ok) throw new Error('Erreur upload');
-      const uploadData = await uploadRes.json();
-      
-      const saveRes = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/save-image`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageUrl: uploadData.secure_url, type, publicId })
-      });
-      
-      if (!saveRes.ok) throw new Error('Erreur sauvegarde');
-      const saveData = await saveRes.json();
-      setProfile((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
-      setEditData((prev: any) => ({ ...prev, [type]: saveData.imageUrl }));
-      notify.success('Succès', 'Image mise à jour');
-    } catch (e: any) {
-      notify.error('Erreur', e.message || 'Erreur upload image');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Édition profil
+  /* ─── Handlers (unchanged logic) ─── */
+  const handlePlayTrack = async (track: any) => { try { await playTrack({ _id: track.id, title: track.title, artist: track.artist || track.artist_name || profile?.name || 'Artiste', audioUrl: track.audioUrl || track.audio_url, coverUrl: track.coverUrl || track.cover_url, duration: track.duration, album: track.album || null, likes: track.likes || 0, comments: [], plays: track.plays || 0, genre: track.genre || [], isLiked: track.isLiked || false }); } catch { notify.error('Erreur', 'Lecture impossible'); } };
+  const handleLikeUpdate = (tid: string, liked: boolean, count: number) => { setUserTracks(p => p.map(t => t.id === tid ? { ...t, isLiked: liked, likes: count } : t)); setProfile((p: any) => ({ ...p, tracks: p.tracks?.map((t: any) => t.id === tid ? { ...t, isLiked: liked, likes: count } : t) })); };
+  const handleDeleteTrack = async (tid: string) => { if (!confirm('Supprimer ?')) return; try { const ai = String(tid).startsWith('ai-'); const eid = ai ? tid.slice(3) : tid; const r = await fetch(ai ? `/api/ai/tracks/${eid}` : `/api/tracks/${eid}`, { method: 'DELETE' }); if (!r.ok) throw new Error((await r.json()).error); setUserTracks(p => p.filter(t => t.id !== tid)); setDrawerId(null); notify.success('OK', 'Supprimee'); } catch (e: any) { notify.error('Erreur', e.message); } };
+  const handleFollow = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } try { if (!usernameStr) return; const r = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/follow`, { method: 'POST' }); if (!r.ok) throw new Error(); const d = await r.json(); setProfile((p: any) => ({ ...p, isFollowing: d.action === 'followed', followerCount: p.followerCount + (d.action === 'followed' ? 1 : -1) })); } catch { notify.error('Erreur', 'Impossible'); } };
+  useEffect(() => { if (!session?.user?.id || !profile?.id || isOwnProfile) return; (async () => { try { const r = await fetch(`/api/messages/requests/status?targetId=${profile.id}`); if (r.ok) { const d = await r.json(); setMessageRequestStatus(d.status || 'none'); if (d.conversationId) setExistingConvId(d.conversationId); } } catch {} })(); }, [session?.user?.id, profile?.id, isOwnProfile]);
+  const handleSendMessageRequest = async () => { if (!session?.user) { router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`); return; } if (!profile?.id) return; setSendingRequest(true); try { const r = await fetch('/api/messages/requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetId: profile.id, message: messageText.trim() || null }) }); const d = await r.json(); if (r.ok) { setMessageRequestStatus('pending'); setShowMessageModal(false); setMessageText(''); notify.success('OK', 'Demande envoyee'); } else if (d.alreadyConnected) router.push(d.conversationId ? `/messages/${d.conversationId}` : '/messages'); else if (d.alreadySent) { setMessageRequestStatus('pending'); notify.info('Info', 'Deja envoyee'); } else notify.error('Erreur', d.error || 'Erreur'); } catch { notify.error('Erreur', 'Connexion'); } finally { setSendingRequest(false); } };
+  const handleImageUpload = async (type: 'avatar' | 'banner', file: File) => { setUploading(true); try { const ts = Math.round(Date.now() / 1000); const pid = `${usernameStr || 'u'}_${type}_${ts}`; if (!usernameStr) throw new Error(); const s = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/upload-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp: ts, publicId: pid, type }) }); if (!s.ok) throw new Error(); const { signature, apiKey, cloudName } = await s.json(); const fd = new FormData(); fd.append('file', file); fd.append('timestamp', String(ts)); fd.append('public_id', pid); fd.append('folder', `ximam/profiles/${username}`); fd.append('resource_type', 'image'); fd.append('api_key', apiKey); fd.append('signature', signature); const u = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd }); if (!u.ok) throw new Error(); const ud = await u.json(); const sv = await fetch(`/api/users/${encodeURIComponent(usernameStr)}/save-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imageUrl: ud.secure_url, type, publicId: pid }) }); if (!sv.ok) throw new Error(); const sd = await sv.json(); setProfile((p: any) => ({ ...p, [type]: sd.imageUrl })); setEditData((p: any) => ({ ...p, [type]: sd.imageUrl })); notify.success('OK', 'Image mise a jour'); } catch { notify.error('Erreur', 'Upload echoue'); } finally { setUploading(false); } };
   const handleEdit = () => setShowEditModal(true);
-  const handleCancelEdit = () => {
-    setShowEditModal(false);
-    setEditData({ ...profile });
-  };
-  const handleSaveEdit = async () => {
-    setUploading(true);
-    setError('');
-    try {
-      if (!usernameStr) throw new Error('Nom d’utilisateur manquant');
-      const res = await fetch(`/api/users/${encodeURIComponent(usernameStr)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Erreur modification profil');
-      setProfile(data);
-      setEditData(data);
-      setShowEditModal(false);
-      notify.success('Succès', 'Profil mis à jour');
-    } catch (e: any) {
-      setError(e.message || 'Erreur modification profil');
-      notify.error('Erreur', e.message || 'Erreur modification profil');
-    } finally {
-      setUploading(false);
-    }
-  };
+  const handleCancelEdit = () => { setShowEditModal(false); setEditData({ ...profile }); };
+  const handleSaveEdit = async () => { setUploading(true); try { if (!usernameStr) throw new Error(); const r = await fetch(`/api/users/${encodeURIComponent(usernameStr)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editData) }); const d = await r.json(); if (!r.ok) throw new Error(d.error); const merged = { ...profile, name: d.name || editData.name, bio: d.bio ?? editData.bio, artistName: d.artist_name || editData.artistName, location: d.location ?? editData.location, website: d.website ?? editData.website, genre: d.genre || editData.genre, isArtist: d.is_artist ?? editData.isArtist }; setProfile(merged); setEditData(merged); setShowEditModal(false); notify.success('OK', 'Profil sauvegarde'); } catch (e: any) { notify.error('Erreur', e.message); } finally { setUploading(false); } };
+  const handleEditTrack = (t: any) => { setEditingTrack(t); setTrackEditData({ title: t.title, description: t.description || '', genre: Array.isArray(t.genre) ? t.genre.join(', ') : (t.genre || ''), tags: t.tags?.join(', ') || '', isPublic: t.is_public !== false }); setShowEditTrackModal(true); closeCtx(); };
+  const handleSaveTrackEdit = async () => { if (!editingTrack) return; setUploading(true); try { const tid = editingTrack.id; const r = await fetch(`/api/tracks/${tid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: trackEditData.title, description: trackEditData.description, genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean), tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean), isPublic: trackEditData.isPublic }) }); if (!r.ok) throw new Error((await r.json()).error); const u = await r.json(); setUserTracks(p => p.map(t => t.id === tid ? { ...t, ...u } : t)); setProfile((p: any) => ({ ...p, tracks: (p.tracks || []).map((t: any) => t.id === tid ? { ...t, ...u } : t) })); setShowEditTrackModal(false); notify.success('OK', 'Modifiee'); } catch (e: any) { notify.error('Erreur', e.message); } finally { setUploading(false); } };
+  const handleShareProfile = async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/profile/${encodeURIComponent(usernameStr || '')}`); notify.success('OK', 'Lien copie'); } catch {} };
+  const memberSince = useMemo(() => { const raw = profile?.createdAt || profile?.created_at; if (!raw) return null; const d = new Date(raw); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }, [profile]);
 
-  // Édition track
-  const handleEditTrack = (track: any) => {
-    setEditingTrack(track);
-    setTrackEditData({
-      title: track.title,
-      description: track.description || '',
-      genre: Array.isArray(track.genre) ? track.genre.join(', ') : (track.genre || ''),
-      tags: track.tags?.join(', ') || '',
-      isPublic: track.is_public !== false
-    });
-    setShowEditTrackModal(true);
-    setMenuOpenId(null);
-  };
+  /* ═══════════ LOADING ═══════════ */
+  if (loading) return (
+    <div className="min-h-screen">
+      <div className="h-[340px] bg-gradient-to-b from-[#1a1a2e] to-[#0a0a10] animate-pulse" />
+      <div className="max-w-4xl mx-auto px-6 -mt-20">
+        <div className="flex gap-5 items-end"><div className="w-36 h-36 rounded-full bg-white/[0.06] animate-pulse border-4 border-[#0a0a10]" /><div className="pb-4 space-y-3"><div className="h-8 w-48 bg-white/[0.04] rounded-lg animate-pulse" /><div className="h-4 w-32 bg-white/[0.03] rounded animate-pulse" /></div></div>
+      </div>
+    </div>
+  );
 
-  const handleSaveTrackEdit = async () => {
-    if (!editingTrack) return;
-    setUploading(true);
-    setError('');
-    try {
-      const trackId = editingTrack.id || editingTrack._id;
-      const res = await fetch(`/api/tracks/${trackId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: trackEditData.title,
-          genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean),
-          isPublic: trackEditData.isPublic
-        }),
-      });
-      
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erreur modification');
-      }
-      
-      const updatedTrack = await res.json();
-      
-      setUserTracks(prev => prev.map(track => 
-        track.id === trackId ? { ...track, ...updatedTrack } : track
-      ));
-      
-      setProfile((prev: any) => ({
-        ...prev,
-        tracks: prev.tracks.map((track: any) => 
-          track.id === trackId ? { ...track, ...updatedTrack } : track
-        )
-      }));
-      
-      setShowEditTrackModal(false);
-      setEditingTrack(null);
-      notify.success('Succès', 'Track modifiée');
-    } catch (e: any) {
-      setError(e.message || 'Erreur modification');
-      notify.error('Erreur', e.message || 'Erreur modification');
-    } finally {
-      setUploading(false);
-    }
-  };
+  if (error || !profile) return (
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="text-center"><Disc3 size={48} className="text-white/8 mx-auto mb-4" /><h2 className="text-xl font-bold text-white mb-2">Profil introuvable</h2><p className="text-sm text-white/30 mb-6">{error || "Ce profil n'existe pas."}</p><button onClick={() => router.push('/discover')} className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition">Decouvrir</button></div>
+    </div>
+  );
 
-  const handleShareProfile = async () => {
-    try {
-      if (typeof window === 'undefined') return;
-      const url = `${window.location.origin}/profile/${encodeURIComponent(usernameStr || '')}`;
-      await navigator.clipboard.writeText(url);
-      notify.success('Copié', 'Lien du profil copié');
-    } catch {
-      notify.error('Erreur', "Impossible de copier le lien");
-    }
-  };
+  const totalPlays = profile.totalPlays || 0;
+  const followerCount = profile.followerCount || 0;
+  const followingCount = profile.followingCount || 0;
+  const isTrackPlaying = (tid: string) => audioState.currentTrackIndex !== -1 && audioState.tracks[audioState.currentTrackIndex]?._id === tid && audioState.isPlaying;
 
-  const memberSince = useMemo(() => {
-    const raw = profile?.createdAt || profile?.created_at;
-    if (!raw) return null;
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) return null;
-    return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
-  }, [profile]);
-
-  if (loading) {
+  /* ═══════════ RENDER ═══════════ */
   return (
-      <div className="min-h-screen bg-background-primary text-foreground-primary">
-        <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-6 md:py-10">
-          <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10">
-            <div className="flex items-center gap-3">
-              <Loader2 className="animate-spin w-5 h-5 text-foreground-tertiary" />
-              <div className="text-sm text-foreground-secondary">Chargement du profil…</div>
+    <div className="min-h-screen pb-32">
+
+      {/* ═══════ HERO ═══════ */}
+      <div className="relative">
+        {/* Banner with gradient fade */}
+        <div className="h-[260px] sm:h-[320px] md:h-[360px] relative overflow-hidden">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={profile.banner || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,16,0) 0%, rgba(10,10,16,0.4) 50%, rgba(10,10,16,1) 100%)' }} />
+          {isOwnProfile && (
+            <>
+              <button className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white/70 hover:text-white transition" onClick={() => bannerInputRef.current?.click()}><Camera size={16} /></button>
+              <input type="file" accept="image/*" className="hidden" ref={bannerInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('banner', f); }} />
+            </>
+          )}
+        </div>
+
+        {/* Profile info overlapping banner bottom */}
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 relative" style={{ marginTop: '-100px' }}>
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 items-center sm:items-end">
+            {/* Avatar */}
+            <div className="relative shrink-0 group">
+              <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-[#0a0a10] shadow-[0_0_40px_rgba(0,0,0,0.5)]">
+                <Avatar src={profile.avatar} name={profile.name} username={profile.username} size="2xl" className="w-full h-full" />
+              </div>
+              {isOwnProfile && (
+                <>
+                  <button className="absolute bottom-1 right-1 p-2 rounded-full bg-[#0a0a10] hover:bg-white/[0.1] border border-white/[0.1] text-white transition opacity-0 group-hover:opacity-100" onClick={() => fileInputRef.current?.click()}><Camera size={13} /></button>
+                  <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('avatar', f); }} />
+                </>
+              )}
             </div>
-            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="h-20 rounded-2xl bg-white/5 border border-border-secondary animate-pulse" />
-              <div className="h-20 rounded-2xl bg-white/5 border border-border-secondary animate-pulse" />
-              <div className="h-20 rounded-2xl bg-white/5 border border-border-secondary animate-pulse" />
-              <div className="h-20 rounded-2xl bg-white/5 border border-border-secondary animate-pulse" />
+
+            {/* Name + info */}
+            <div className="flex-1 min-w-0 text-center sm:text-left pb-1">
+              <div className="flex items-center gap-2.5 justify-center sm:justify-start flex-wrap">
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">{profile.name}</h1>
+                {profile.isVerified && (
+                  <div className="w-6 h-6 bg-[#3b82f6] rounded-full flex items-center justify-center shrink-0"><Check className="text-white" size={14} /></div>
+                )}
+              </div>
+              {profile.artistName && <p className="text-sm text-white/40 mt-0.5">{profile.artistName}</p>}
+              <div className="flex items-center gap-1 mt-2 text-sm text-white/40 justify-center sm:justify-start flex-wrap">
+                <span>{fmtK(totalPlays)} ecoutes</span>
+                <span className="text-white/15 mx-1">&bull;</span>
+                <span>{fmtK(profile.totalLikes || 0)} likes</span>
+                <span className="text-white/15 mx-1">&bull;</span>
+                <span>{fmtK(followerCount)} followers</span>
+                <span className="text-white/15 mx-1">&bull;</span>
+                <span>{fmtK(followingCount)} abonnements</span>
+                <span className="text-white/15 mx-1">&bull;</span>
+                <span>{userTracks.length} titre{userTracks.length !== 1 ? 's' : ''}</span>
+                {playlists.length > 0 && <><span className="text-white/15 mx-1">&bull;</span><span>{playlists.length} playlist{playlists.length !== 1 ? 's' : ''}</span></>}
+              </div>
+              {profile.bio?.trim() && <p className="text-sm text-white/35 mt-2 line-clamp-2 max-w-lg">{profile.bio}</p>}
+              {(profile.location?.trim() || profile.website?.trim()) && (
+                <div className="flex items-center gap-3 mt-1.5 text-xs text-white/25 justify-center sm:justify-start flex-wrap">
+                  {profile.location?.trim() && <span className="inline-flex items-center gap-1"><MapPin size={10} /> {profile.location}</span>}
+                  {profile.website?.trim() && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white/40"><ExternalLink size={10} /> {profile.website.replace(/^https?:\/\//, '')}</a>}
+                  {memberSince && <span className="inline-flex items-center gap-1"><Calendar size={10} /> {memberSince}</span>}
+                </div>
+              )}
             </div>
           </div>
-        </main>
-      </div>
-    );
-  }
 
-  if (error || !profile) {
-    return (
-      <div className="min-h-screen bg-background-primary text-foreground-primary">
-        <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-10">
-          <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-6 md:p-10">
-            <div className="text-lg font-semibold">Profil introuvable</div>
-            <div className="mt-2 text-sm text-foreground-tertiary">{error || 'Ce profil n’existe pas.'}</div>
-            <div className="mt-6 flex gap-2 flex-wrap">
-              <button
-                onClick={() => router.push('/discover')}
-                className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
-              >
-                Découvrir
-              </button>
-              <button
-                onClick={() => router.push('/')}
-                className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition"
-              >
-                Accueil
-              </button>
-            </div>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-background-primary text-foreground-primary">
-      {/* Background FX */}
-      <div className="pointer-events-none fixed -z-10 inset-0 overflow-hidden">
-        <div className="absolute -top-24 -left-24 w-[520px] h-[520px] rounded-full bg-fuchsia-600/10 blur-3xl" />
-        <div className="absolute -bottom-24 -right-24 w-[520px] h-[520px] rounded-full bg-indigo-600/10 blur-3xl" />
-      </div>
-
-      <main className="mx-auto w-full max-w-none px-3 sm:px-4 lg:px-8 2xl:px-10 py-4 md:py-6 pb-24 space-y-4">
-        {/* HERO */}
-        <section className="rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden">
-          <div className="relative h-[200px] sm:h-[240px] md:h-[300px]">
-            <img
-              src={profile.banner || '/default-cover.jpg'}
-              alt=""
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-            <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-cyan-400/10 mix-blend-soft-light" />
-
-            {isOwnProfile && (
+          {/* Action bar */}
+          <div className="flex items-center gap-2 mt-5 flex-wrap justify-center sm:justify-start">
+            {isOwnProfile ? (
               <>
-                <button
-                  className="absolute top-3 right-3 bg-black/40 backdrop-blur-md hover:bg-black/60 text-white p-2.5 rounded-full border border-white/10 transition"
-                  onClick={() => bannerInputRef.current?.click()}
-                  title="Changer la bannière"
-                >
-                  <Camera size={18} />
+                <button onClick={handleEdit} className="h-9 px-5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center gap-1.5"><Edit size={14} /> Modifier</button>
+                <button onClick={() => router.push('/stats')} className="h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/80 text-sm font-medium transition inline-flex items-center gap-1.5"><BarChart3 size={14} /> Stats</button>
+                <button onClick={handleShareProfile} className="h-9 w-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/60 inline-flex items-center justify-center transition"><Share2 size={15} /></button>
+                <button onClick={() => setShowBoosterModal(true)} disabled={!canOpen || boostersLoading}
+                  className={`h-9 w-9 rounded-full inline-flex items-center justify-center transition ${canOpen ? 'bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white shadow-[0_0_12px_rgba(110,86,207,0.4)]' : 'bg-white/[0.06] text-white/20 cursor-not-allowed'}`}
+                  title={canOpen ? 'Booster' : formatRemaining(remainingMs)}><Sparkles size={14} /></button>
+              </>
+            ) : (
+              <>
+                <button onClick={handleFollow}
+                  className={`h-9 px-5 rounded-full text-sm font-semibold transition inline-flex items-center gap-1.5 ${profile.isFollowing ? 'bg-white/[0.08] hover:bg-white/[0.12] text-white/80' : 'bg-white text-black hover:bg-white/90'}`}>
+                  {profile.isFollowing ? <><Check size={14} /> Abonne</> : <><UserPlus size={14} /> Suivre</>}
                 </button>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  ref={bannerInputRef}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) handleImageUpload('banner', file);
-                  }}
-                />
+                <MsgBtn status={messageRequestStatus} existingConvId={existingConvId} onMsg={() => setShowMessageModal(true)} onGo={() => router.push(existingConvId ? `/messages/${existingConvId}` : '/messages')} />
+                <button onClick={handleShareProfile} className="h-9 w-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/60 inline-flex items-center justify-center transition"><Share2 size={15} /></button>
               </>
             )}
           </div>
+        </div>
+      </div>
 
-          <div className="px-4 sm:px-6 pb-5 -mt-10 sm:-mt-12">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-              <div className="flex items-end gap-3">
-                <div className="relative">
-                  <Avatar
-                    src={profile.avatar}
-                    name={profile.name}
-                    username={profile.username}
-                    size="2xl"
-                    className="w-20 h-20 sm:w-24 sm:h-24 md:w-28 md:h-28 rounded-2xl border-2 border-white/10 shadow-2xl"
-                  />
-                  {isOwnProfile && (
-                    <>
-                      <button
-                        className="absolute -bottom-2 -right-2 bg-black/40 backdrop-blur-md hover:bg-black/60 text-white p-2 rounded-full border border-white/10 transition"
-                        onClick={() => fileInputRef.current?.click()}
-                        title="Changer l'avatar"
-                      >
-                        <Camera size={14} />
-                      </button>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        ref={fileInputRef}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleImageUpload('avatar', file);
-                        }}
-                      />
-                    </>
-                  )}
-                </div>
+      {/* ═══════ QUICK ACTIONS (own profile) ═══════ */}
+      {isOwnProfile && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-8">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:gap-2">
+            <button onClick={() => router.push('/upload')} className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition group">
+              <Upload size={15} className="text-white/40 group-hover:text-[#00d3a7] transition" />
+              <span className="text-xs font-medium text-white/50 group-hover:text-white/70 transition hidden sm:inline">Uploader</span>
+            </button>
+            <button onClick={() => router.push('/ai-generator')} className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition group">
+              <Sparkles size={15} className="text-white/40 group-hover:text-[#6e56cf] transition" />
+              <span className="text-xs font-medium text-white/50 group-hover:text-white/70 transition hidden sm:inline">Studio IA</span>
+            </button>
+            <button onClick={() => router.push('/library')} className="flex items-center justify-center sm:justify-start gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition group">
+              <Library size={15} className="text-white/40 group-hover:text-white/60 transition" />
+              <span className="text-xs font-medium text-white/50 group-hover:text-white/70 transition hidden sm:inline">Bibliotheque</span>
+            </button>
+          </div>
+        </div>
+      )}
 
-                <div className="pb-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight truncate">
-                      {profile.name}
-                    </h1>
-                    {profile.isVerified && (
-                      <div className="w-5 h-5 bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full flex items-center justify-center flex-shrink-0">
-                        <Check className="text-white w-3 h-3" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="mt-1 text-sm text-white/80 truncate">@{profile.username}</div>
-                  {profile.artistName && (
-                    <div className="mt-1 text-xs text-white/60 truncate">
-                      Artiste: {profile.artistName}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 justify-start md:justify-end">
-                <button
-                  onClick={handleShareProfile}
-                  className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition inline-flex items-center gap-2 text-sm"
-                  title="Copier le lien du profil"
-                >
-                  <Share2 className="w-4 h-4" />
-                  Partager
-                </button>
-
-                {isOwnProfile ? (
-                  <>
-                    <button
-                      onClick={handleEdit}
-                      className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition inline-flex items-center gap-2 text-sm font-semibold"
-                    >
-                      <Edit className="w-4 h-4" />
-                      Modifier
-                    </button>
-                    <button
-                      onClick={() => router.push('/stats')}
-                      className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition inline-flex items-center gap-2 text-sm"
-                    >
-                      <BarChart3 className="w-4 h-4" />
-                      Stats
-                    </button>
-                    <button
-                      onClick={() => setShowBoosterModal(true)}
-                      disabled={!canOpen || boostersLoading}
-                      title={canOpen ? 'Ouvrir un booster quotidien' : `Disponible dans ${formatRemaining(remainingMs)}`}
-                      className={`h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm transition ${
-                        canOpen
-                          ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 shadow-lg'
-                          : 'bg-white/5 opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span className="hidden sm:inline">{canOpen ? 'Booster' : formatRemaining(remainingMs)}</span>
-                      <span className="sm:hidden">{canOpen ? 'Booster' : '⏳'}</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={handleFollow}
-                      disabled={uploading}
-                      className={`h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-semibold transition ${
-                        profile.isFollowing
-                          ? 'bg-white/5 hover:bg-white/10'
-                          : 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 shadow-lg'
-                      }`}
-                    >
-                      {profile.isFollowing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                      {profile.isFollowing ? 'Abonné' : 'Suivre'}
-                    </button>
-                    {messageRequestStatus === 'accepted' || existingConvId ? (
-                      <button
-                        onClick={() => router.push(existingConvId ? `/messages/${existingConvId}` : '/messages')}
-                        className="h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-medium bg-white/5 hover:bg-white/10 transition"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        <span className="hidden sm:inline">Message</span>
-                      </button>
-                    ) : messageRequestStatus === 'pending' ? (
-                      <button
-                        disabled
-                        className="h-10 px-3 rounded-2xl border border-amber-500/30 inline-flex items-center gap-2 text-sm font-medium bg-amber-500/10 text-amber-300 cursor-not-allowed"
-                      >
-                        <Send className="w-4 h-4" />
-                        <span className="hidden sm:inline">En attente</span>
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setShowMessageModal(true)}
-                        className="h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center gap-2 text-sm font-medium bg-white/5 hover:bg-white/10 transition"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        <span className="hidden sm:inline">Message</span>
-                      </button>
-                    )}
-                  </>
-                )}
-              </div>
+      {/* ═══════ POPULAR TRACKS (Spotify-style list) ═══════ */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-white">Populaires</h2>
+          <div className="flex items-center gap-2">
+            {/* Sort buttons */}
+            <div className="hidden sm:flex items-center gap-0.5 bg-white/[0.04] rounded-full p-0.5">
+              {([['plays', 'Top'], ['recent', 'Recent'], ['likes', 'Likes']] as const).map(([key, label]) => (
+                <button key={key} onClick={() => setSortBy(key)} className={`px-3 py-1 text-[11px] rounded-full font-medium transition ${sortBy === key ? 'bg-white/[0.1] text-white/80' : 'text-white/25 hover:text-white/40'}`}>{label}</button>
+              ))}
             </div>
-
-            {/* Stats pills */}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <StatPill label="Titres" value={fmt.format(profile.tracksCount || visibleTracks.length || 0)} />
-              <StatPill label="Playlists" value={fmt.format(profile.playlistsCount || playlists.length || 0)} />
-              <StatPill label="Écoutes" value={fmt.format(profile.totalPlays || 0)} icon={<Headphones className="w-4 h-4" />} />
-              <StatPill label="Likes" value={fmt.format(profile.totalLikes || 0)} icon={<Heart className="w-4 h-4" />} />
-            </div>
-
-            {/* Tabs */}
-            <div className="mt-4 flex flex-wrap gap-2">
-              <TabButton active={activeTab === 'tracks'} onClick={() => setActiveTab('tracks')}>
-                Titres
-              </TabButton>
-              <TabButton active={activeTab === 'playlists'} onClick={() => setActiveTab('playlists')}>
-                Playlists
-              </TabButton>
-              <TabButton active={activeTab === 'about'} onClick={() => setActiveTab('about')}>
-                À propos
-              </TabButton>
+            {query && <button onClick={() => setQuery('')} className="text-xs text-white/30 hover:text-white/50">Effacer</button>}
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/20" />
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher" className="h-8 w-28 sm:w-36 rounded-full bg-white/[0.06] pl-8 pr-3 text-xs text-white placeholder:text-white/20 outline-none focus:w-48 focus:bg-white/[0.08] transition-all" />
             </div>
           </div>
-        </section>
+        </div>
 
-        {/* CONTENT */}
-        {activeTab === 'tracks' && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4 sm:p-6">
-            <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">Titres publiés</h2>
-                <div className="text-xs text-foreground-tertiary">{visibleTracks.length} titre(s)</div>
+        {sortedTracks.length === 0 ? (
+          <div className="py-16 text-center">
+            <Music2 size={40} className="text-white/6 mx-auto mb-3" />
+            <p className="text-sm text-white/25">{query.trim() ? 'Aucun resultat' : isOwnProfile ? 'Pas encore de titres publies' : 'Aucun titre'}</p>
+            {isOwnProfile && !query.trim() && (
+              <div className="mt-5 flex justify-center gap-3">
+                <button onClick={() => router.push('/upload')} className="px-5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-sm text-white/70 font-medium transition inline-flex items-center gap-1.5"><Upload size={14} /> Uploader</button>
+                <button onClick={() => router.push('/studio')} className="px-5 py-2 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center gap-1.5"><Sparkles size={14} /> Studio IA</button>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-                <div className="relative flex-1 md:w-[360px]">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary">
-                    <SearchIcon />
+            )}
+          </div>
+        ) : (
+          <div>
+            {/* Track rows */}
+            <div className="space-y-0.5">
+              {displayTracks.map((track, idx) => {
+                const isAi = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
+                const playing = isTrackPlaying(track.id);
+                return (
+                  <div key={track.id}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/[0.06] transition-colors group cursor-pointer relative"
+                    onClick={() => setDrawerId(track.id)}>
+                    {/* # / Play */}
+                    <div className="w-6 text-center shrink-0">
+                      <span className="text-sm text-white/25 tabular-nums group-hover:hidden">{playing ? <Volume2Icon /> : idx + 1}</span>
+                      <button onClick={(e) => { e.stopPropagation(); handlePlayTrack(track); }} className="hidden group-hover:block text-white">
+                        {playing ? <Pause size={14} /> : <Play size={14} fill="white" />}
+                      </button>
+                    </div>
+                    {/* Cover */}
+                    <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-white/[0.04]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    {/* Title */}
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-medium truncate ${playing ? 'text-[#00d3a7]' : 'text-white'}`}>{track.title}</p>
+                      <div className="flex items-center gap-1.5 text-[11px] text-white/25">
+                        {isAi && <span className="text-[#6e56cf] font-semibold">IA</span>}
+                        <span>{profile.artistName || profile.name}</span>
+                      </div>
+                    </div>
+                    {/* Plays */}
+                    <span className="text-xs text-white/25 tabular-nums hidden sm:block w-20 text-right">{fmtN.format(track.plays || 0)}</span>
+                    {/* Like */}
+                    {!isAi && (
+                      <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                        <LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => handleLikeUpdate(track.id, s.isLiked, s.likesCount)} showCount={false} size="sm" />
+                      </div>
+                    )}
+                    {/* Duration */}
+                    <span className="text-xs text-white/20 tabular-nums w-10 text-right shrink-0">{mmss(track.duration || 0)}</span>
+                    {/* Menu */}
+                    <button onClick={(e) => { e.stopPropagation(); e.preventDefault(); setCtxTrack(ctxTrack?.track?.id === track.id ? null : { track, anchorEl: e.currentTarget as HTMLButtonElement }); }} className="p-1 rounded-md hover:bg-white/10 transition text-white/40 hover:text-white sm:opacity-0 sm:group-hover:opacity-100 shrink-0">
+                      <MoreHorizontal size={16} />
+                    </button>
                   </div>
-                  <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Rechercher un titre…"
-                    className="h-11 w-full rounded-2xl border border-border-secondary bg-white/5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-violet-400/40"
-                  />
-                </div>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value as any)}
-                  className="h-11 rounded-2xl border border-border-secondary bg-white/5 px-3 text-sm outline-none focus:ring-2 focus:ring-violet-400/40"
-                >
-                  <option value="recent">Récents</option>
-                  <option value="plays">Plus écoutés</option>
-                  <option value="likes">Plus likés</option>
-                </select>
-              </div>
+                );
+              })}
             </div>
+            {sortedTracks.length > 5 && (
+              <button onClick={() => setShowAllTracks(!showAllTracks)} className="mt-3 text-sm text-white/30 hover:text-white/50 font-medium transition">
+                {showAllTracks ? 'Voir moins' : `Voir tout (${sortedTracks.length})`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-            {visibleTracks.length === 0 ? (
-              <div className="mt-6 rounded-3xl border border-border-secondary bg-white/5 p-8 text-center">
-                <div className="text-sm font-semibold">Aucun titre</div>
-                <div className="mt-1 text-sm text-foreground-tertiary">
-                  {query.trim()
-                    ? 'Essaie une autre recherche.'
-                    : isOwnProfile
-                    ? 'Upload un son ou génère-en un dans le Studio.'
-                    : 'Cet utilisateur n’a rien publié pour le moment.'}
-                </div>
-                {isOwnProfile && (
-                  <div className="mt-5 flex justify-center gap-2 flex-wrap">
-                    <button
-                      onClick={() => router.push('/upload')}
-                      className="h-11 px-4 inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
-                    >
-                      <Upload className="w-4 h-4" />
-                      Uploader
-                    </button>
-                    <button
-                      onClick={() => router.push('/studio')}
-                      className="h-11 px-4 inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition"
-                    >
-                      <Music2 className="w-4 h-4" />
-                      Studio
-                    </button>
+      {/* ═══════ PLAYLISTS ═══════ */}
+      {playlists.length > 0 && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-10">
+          <h2 className="text-xl font-bold text-white mb-4">Playlists</h2>
+          <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+            {playlists.filter((p: any) => p?.id || p?._id).map((p: any) => {
+              const pid = String(p.id || p._id);
+              const cover = p.cover_url || p.coverUrl || '/default-cover.jpg';
+              const count = Array.isArray(p.tracks) ? p.tracks.length : Number(p.tracks_count || 0);
+              return (
+                <button key={pid} onClick={() => router.push(`/playlists/${encodeURIComponent(pid)}`)} className="shrink-0 w-36 sm:w-40 text-left group">
+                  <div className="relative rounded-lg overflow-hidden mb-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={cover} alt="" className="w-full aspect-square object-cover" loading="lazy" />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                      <Play size={28} className="text-white opacity-0 group-hover:opacity-100 transition drop-shadow-lg" fill="white" />
+                    </div>
                   </div>
-                )}
-              </div>
-            ) : (
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3">
-                {visibleTracks.map((t) => (
-                  <TrackTile
-                    key={t.id}
-                    track={t}
-                    isPlaying={
-                      audioState.currentTrackIndex !== -1 &&
-                      audioState.tracks[audioState.currentTrackIndex]?._id === t.id &&
-                      audioState.isPlaying
-                    }
-                    onPlay={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      handlePlayTrack(t);
-                    }}
-                    onOpenDetails={() => setDrawerId(t.id)}
-                    menuOpen={menuOpenId === t.id}
-                    onToggleMenu={(e: React.MouseEvent) => {
-                      e.stopPropagation();
-                      setMenuOpenId((id) => (id === t.id ? null : t.id));
-                    }}
-                    onAction={(action: string) => {
-                      if (action === "delete") handleDeleteTrack(t.id);
-                      else if (action === "edit") handleEditTrack(t);
-                      else if (action === "stats") router.push(`/stats?track_id=${encodeURIComponent(t.id)}`);
-                    }}
-                    isOwnProfile={isOwnProfile}
-                    onLikeUpdate={handleLikeUpdate}
-                  />
+                  <p className="text-sm font-semibold text-white truncate">{p.name || 'Playlist'}</p>
+                  <p className="text-xs text-white/25">{count} titre{count !== 1 ? 's' : ''}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════ A PROPOS ═══════ */}
+      {(profile.bio || profile.genre?.length > 0 || profile.location || profile.website || memberSince) && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-10">
+          <h2 className="text-xl font-bold text-white mb-4">A propos</h2>
+          <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-5 space-y-4">
+            {profile.bio && <p className="text-sm text-white/50 leading-relaxed whitespace-pre-line">{profile.bio}</p>}
+
+            {/* Genres */}
+            {profile.genre?.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                <Mic2 size={13} className="text-white/20 mt-0.5" />
+                {(Array.isArray(profile.genre) ? profile.genre : [profile.genre]).map((g: string, i: number) => (
+                  <span key={i} className="px-2.5 py-1 text-[11px] rounded-full bg-[#6e56cf]/10 text-[#a78bfa] border border-[#6e56cf]/20">{g}</span>
                 ))}
               </div>
             )}
-          </section>
-        )}
 
-        {activeTab === 'playlists' && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4 sm:p-6">
-            <div className="flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">Playlists</h2>
-                <div className="text-xs text-foreground-tertiary">{visiblePlaylists.length} playlist(s)</div>
-              </div>
-              <div className="relative flex-1 md:flex-none md:w-[360px]">
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-foreground-tertiary">
-                  <SearchIcon />
+            {/* Info rows */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {profile.location && (
+                <div className="flex items-center gap-2.5 text-sm text-white/35">
+                  <MapPin size={14} className="text-white/20 shrink-0" />
+                  <span>{profile.location}</span>
                 </div>
-                <input
-                  value={playlistQuery}
-                  onChange={(e) => setPlaylistQuery(e.target.value)}
-                  placeholder="Rechercher une playlist…"
-                  className="h-11 w-full rounded-2xl border border-border-secondary bg-white/5 pl-10 pr-3 text-sm outline-none focus:ring-2 focus:ring-violet-400/40"
-                />
-              </div>
+              )}
+              {profile.website && (
+                <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-[#00d3a7]/70 hover:text-[#00d3a7] transition">
+                  <Globe size={14} className="shrink-0" />
+                  <span className="truncate">{profile.website.replace(/^https?:\/\//, '')}</span>
+                  <ArrowUpRight size={11} className="shrink-0" />
+                </a>
+              )}
+              {memberSince && (
+                <div className="flex items-center gap-2.5 text-sm text-white/35">
+                  <Calendar size={14} className="text-white/20 shrink-0" />
+                  <span>Membre depuis {memberSince}</span>
+                </div>
+              )}
+              {profile.role && profile.role !== 'user' && (
+                <div className="flex items-center gap-2.5 text-sm text-white/35">
+                  <Shield size={14} className="text-white/20 shrink-0" />
+                  <span className="capitalize">{profile.role}</span>
+                </div>
+              )}
             </div>
 
-            {visiblePlaylists.length === 0 ? (
-              <div className="mt-6 rounded-3xl border border-border-secondary bg-white/5 p-8 text-center">
-                <div className="text-sm font-semibold">Aucune playlist</div>
-                <div className="mt-1 text-sm text-foreground-tertiary">
-                  {playlistQuery.trim()
-                    ? 'Essaie une autre recherche.'
-                    : isOwnProfile
-                    ? 'Crée une playlist depuis ta bibliothèque.'
-                    : 'Cet utilisateur n’a pas encore de playlists.'}
-                </div>
-                {isOwnProfile && (
-                  <div className="mt-5 flex justify-center">
-                    <button
-                      onClick={() => router.push('/library')}
-                      className="h-11 px-4 inline-flex items-center gap-2 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
-                    >
-                      <Music2 className="w-4 h-4" />
-                      Aller à la bibliothèque
-                    </button>
-                  </div>
+            {/* Badges */}
+            {(profile.isVerified || profile.isArtist) && (
+              <div className="flex items-center gap-2 pt-1">
+                {profile.isVerified && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#00d3a7]/10 text-[#00d3a7] border border-[#00d3a7]/20">
+                    <Check size={11} /> Verifie
+                  </span>
+                )}
+                {profile.isArtist && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full bg-[#6e56cf]/10 text-[#a78bfa] border border-[#6e56cf]/20">
+                    <Crown size={11} /> Artiste
+                  </span>
                 )}
               </div>
-            ) : (
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2 sm:gap-3">
-                {visiblePlaylists
-                  .filter((p: any) => Boolean(p?.id || p?._id))
-                  .map((p: any) => {
-                    const pid = String(p?.id || p?._id);
-                    return (
-                      <PlaylistTile
-                        key={pid}
-                        playlist={p}
-                        onOpen={() => router.push(`/playlists/${encodeURIComponent(pid)}`)}
-                      />
-                    );
-                  })}
-              </div>
             )}
-          </section>
-        )}
+          </div>
+        </div>
+      )}
 
-        {activeTab === 'about' && (
-          <section className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4 sm:p-6">
-            <h2 className="text-lg font-semibold tracking-tight">À propos</h2>
-            <div className="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <div className="lg:col-span-2 rounded-3xl border border-border-secondary bg-white/5 p-4 sm:p-5">
-                <div className="text-sm font-semibold">Bio</div>
-                <div className="mt-2 text-sm text-foreground-secondary leading-relaxed">
-                  {profile.bio?.trim() ? profile.bio : 'Aucune bio pour le moment.'}
-                </div>
-              </div>
-              <div className="rounded-3xl border border-border-secondary bg-white/5 p-4 sm:p-5 space-y-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-foreground-tertiary" />
-                  <span className="text-foreground-secondary">{profile.location?.trim() ? profile.location : 'Localisation non renseignée'}</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Globe className="w-4 h-4 text-foreground-tertiary" />
-                  {profile.website?.trim() ? (
-                    <a
-                      href={profile.website}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-foreground-secondary hover:underline truncate"
-                    >
-                      {profile.website}
-                    </a>
-                  ) : (
-                    <span className="text-foreground-secondary">Site web non renseigné</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="w-4 h-4 text-foreground-tertiary" />
-                  <span className="text-foreground-secondary">{memberSince ? `Membre depuis ${memberSince}` : 'Date d’inscription inconnue'}</span>
-                </div>
-              </div>
+      {/* ═══════ CTA GUESTS ═══════ */}
+      {!session && (
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-12">
+          <div className="text-center py-8">
+            <h2 className="text-lg font-bold text-white">Decouvre plus sur Synaura</h2>
+            <p className="text-sm text-white/30 mt-1">Cree ton compte pour suivre {profile.name} et creer ta musique.</p>
+            <div className="flex justify-center gap-3 mt-4">
+              <button onClick={() => router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`)} className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition"><UserPlus size={14} className="inline mr-1" /> S&apos;inscrire</button>
+              <button onClick={() => router.push('/auth/signin')} className="px-6 py-2.5 rounded-full bg-white/[0.08] text-sm text-white/60 hover:bg-white/[0.12] transition">Connexion</button>
             </div>
+          </div>
+        </div>
+      )}
 
-            {isOwnProfile && (
-              <div className="mt-4 rounded-3xl border border-border-secondary bg-white/5 p-4 sm:p-5">
-                <div className="text-sm font-semibold">Actions rapides</div>
-                <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <QuickAction onClick={() => router.push('/upload')} icon={<Upload className="w-4 h-4" />} label="Uploader" />
-                  <QuickAction onClick={() => router.push('/stats')} icon={<BarChart3 className="w-4 h-4" />} label="Stats" />
-                  <QuickAction onClick={() => router.push('/library')} icon={<Music2 className="w-4 h-4" />} label="Bibliothèque" />
-                </div>
-              </div>
-            )}
-          </section>
-        )}
+      {/* ═══════ CONTEXT MENU (portal) ═══════ */}
+      {ctxTrack && (
+        <TrackCtxMenu
+          track={ctxTrack.track}
+          anchorEl={ctxTrack.anchorEl}
+          isOwn={isOwnProfile}
+          onClose={closeCtx}
+          onEdit={() => handleEditTrack(ctxTrack.track)}
+          onDelete={() => { handleDeleteTrack(ctxTrack.track.id); closeCtx(); }}
+          onStats={() => { router.push(`/stats?track_id=${encodeURIComponent(ctxTrack.track.id)}`); closeCtx(); }}
+          onPlay={() => { handlePlayTrack(ctxTrack.track); closeCtx(); }}
+          addToUpNext={addToUpNext}
+          artistName={profile.artistName || profile.name}
+        />
+      )}
 
-        {/* CTA for guests */}
-        {!session && (
-          <section className="rounded-2xl bg-gradient-to-r from-violet-900/30 to-fuchsia-900/30 border border-violet-500/20 p-6 text-center space-y-3">
-            <h2 className="text-lg font-semibold">Rejoins Synaura gratuitement</h2>
-            <p className="text-sm text-white/60 max-w-md mx-auto">Crée ton compte pour suivre {profile.name || usernameStr}, sauvegarder tes favoris et créer de la musique avec l'IA.</p>
-            <div className="flex items-center justify-center gap-3 flex-wrap">
-              <button onClick={() => router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`)} className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-sm font-semibold hover:brightness-110 transition-all">
-                <UserPlus className="w-4 h-4" /> Créer un compte
-              </button>
-              <button onClick={() => router.push('/auth/signin')} className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white/10 text-sm hover:bg-white/16 transition-all">
-                Se connecter
-              </button>
-            </div>
-          </section>
-        )}
-      </main>
-
-      {/* DRAWER latéral */}
+      {/* ═══════ DRAWER ═══════ */}
       <Drawer open={!!drawerId} onClose={() => setDrawerId(null)}>
-        {selected && (
-          <DrawerContent
-            track={selected}
-            isPlaying={
-              audioState.currentTrackIndex !== -1 &&
-              audioState.tracks[audioState.currentTrackIndex]?._id === selected.id &&
-              audioState.isPlaying
-            }
-            onPlay={() => handlePlayTrack(selected)}
-            onEdit={() => handleEditTrack(selected)}
-            onDuplicate={() => notify.info('Bientôt disponible', 'Fonctionnalité en développement')}
-            onDelete={() => handleDeleteTrack(selected.id)}
-            isOwnProfile={isOwnProfile}
-            onLikeUpdate={handleLikeUpdate}
-            onClose={() => setDrawerId(null)}
-          />
-        )}
+        {selected && <DrawerContent track={selected} playing={isTrackPlaying(selected.id)} onPlay={() => handlePlayTrack(selected)} onEdit={() => handleEditTrack(selected)} onDelete={() => handleDeleteTrack(selected.id)} isOwn={isOwnProfile} onLike={handleLikeUpdate} onClose={() => setDrawerId(null)} artistName={profile.artistName || profile.name} />}
       </Drawer>
-                          
-      {/* Modal Booster */}
-      <AnimatePresence>
-        {showBoosterModal && (
-          <BoosterOpenModal
-            isOpen={showBoosterModal}
-            onClose={() => setShowBoosterModal(false)}
-            onOpenBooster={openDaily}
-            isOpening={boostersLoading}
-            openedBooster={lastOpened ? { 
-              id: lastOpened.inventoryId, 
-              status: 'owned', 
-              obtained_at: new Date().toISOString(), 
-              booster: lastOpened.booster 
-            } : null}
-            item={lastOpened || null}
-          />
-        )}
-      </AnimatePresence>
 
-      {/* Modal demande de message */}
-      <AnimatePresence>
-        {showMessageModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            onClick={() => setShowMessageModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md rounded-2xl bg-[#141418] border border-white/[0.08] p-6"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" />
-                <div>
-                  <h2 className="text-lg font-bold">Envoyer un message</h2>
-                  <p className="text-xs text-white/40">a {profile?.name || usernameStr}</p>
-                </div>
-              </div>
-              <p className="text-sm text-white/50 mb-4">
-                {profile?.name} recevra votre demande et pourra l&apos;accepter ou la refuser.
-              </p>
-              <textarea
-                value={messageText}
-                onChange={(e) => setMessageText(e.target.value)}
-                placeholder="Ajoutez un message (optionnel)..."
-                rows={3}
-                className="w-full px-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none mb-4"
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { setShowMessageModal(false); setMessageText(''); }}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleSendMessageRequest}
-                  disabled={sendingRequest}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500 text-white hover:bg-indigo-400 disabled:opacity-40 transition-colors shadow-lg shadow-indigo-500/20 inline-flex items-center justify-center gap-2"
-                >
-                  <Send className="w-4 h-4" />
-                  {sendingRequest ? 'Envoi...' : 'Envoyer'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* ═══════ MODALS ═══════ */}
+      <AnimatePresence>{showBoosterModal && <BoosterOpenModal isOpen onClose={() => setShowBoosterModal(false)} onOpenBooster={openDaily} isOpening={boostersLoading} openedBooster={lastOpened ? { id: lastOpened.inventoryId, status: 'owned', obtained_at: new Date().toISOString(), booster: lastOpened.booster } : null} item={lastOpened || null} />}</AnimatePresence>
 
-      {/* Boutons flottants mobile - z-index élevé */}
-      {isOwnProfile && (
-        <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-3 z-[100]">
-          <button
-            onClick={() => setShowBoosterModal(true)}
-            disabled={!canOpen || boostersLoading}
-            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition backdrop-blur-md border border-border-secondary ${
-              canOpen
-                ? 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700'
-                : 'bg-white/5 opacity-60'
-            }`}
-            title={canOpen ? 'Ouvrir un booster' : `Booster dans ${formatRemaining(remainingMs)}`}
-          >
-            <Sparkles className="w-6 h-6" />
-          </button>
-          <button
-            onClick={handleEdit}
-            className="w-14 h-14 bg-white/5 backdrop-blur-md rounded-full border border-border-secondary shadow-2xl flex items-center justify-center hover:bg-white/10 transition"
-            title="Modifier le profil"
-          >
-            <Edit className="w-5 h-5" />
-          </button>
+      <AnimatePresence>{showMessageModal && (
+        <Modal onClose={() => setShowMessageModal(false)}>
+          <div className="flex items-center gap-3 mb-4"><Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" /><div><h2 className="text-base font-bold text-white">Message a {profile?.name}</h2><p className="text-xs text-white/25">Demande en attente de validation</p></div></div>
+          <textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Message (optionnel)..." rows={3} className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-sm text-white placeholder:text-white/15 outline-none focus:ring-1 focus:ring-white/20 resize-none mb-4" />
+          <div className="flex gap-2"><button onClick={() => { setShowMessageModal(false); setMessageText(''); }} className="flex-1 py-2.5 rounded-full text-sm bg-white/[0.06] text-white/50 hover:bg-white/[0.1]">Annuler</button><button onClick={handleSendMessageRequest} disabled={sendingRequest} className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 disabled:opacity-40 inline-flex items-center justify-center gap-1.5"><Send size={13} /> {sendingRequest ? '...' : 'Envoyer'}</button></div>
+        </Modal>
+      )}</AnimatePresence>
+
+      <AnimatePresence>{showEditModal && (
+        <Modal onClose={() => setShowEditModal(false)}>
+          <h3 className="text-lg font-bold text-white mb-5">Modifier le profil</h3>
+          <div className="space-y-4">
+            <Field label="Nom" value={editData.name || ''} onChange={(v) => setEditData({ ...editData, name: v })} />
+            <FieldArea label="Bio" value={editData.bio || ''} onChange={(v) => setEditData({ ...editData, bio: v })} />
+            <Field label="Nom d'artiste" value={editData.artistName || ''} onChange={(v) => setEditData({ ...editData, artistName: v })} />
+            <Field label="Genres (separes par des virgules)" value={Array.isArray(editData.genre) ? editData.genre.join(', ') : (editData.genre || '')} onChange={(v) => setEditData({ ...editData, genre: v.split(',').map((g: string) => g.trim()).filter(Boolean) })} />
+            <Field label="Localisation" value={editData.location || ''} onChange={(v) => setEditData({ ...editData, location: v })} />
+            <Field label="Site web" value={editData.website || ''} onChange={(v) => setEditData({ ...editData, website: v })} />
+          </div>
+          <div className="flex gap-2 mt-5"><button onClick={handleCancelEdit} className="flex-1 py-2.5 rounded-full text-sm bg-white/[0.06] text-white/50">Annuler</button><button onClick={handleSaveEdit} disabled={uploading} className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-black disabled:opacity-50">{uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}</button></div>
+        </Modal>
+      )}</AnimatePresence>
+
+      <AnimatePresence>{showEditTrackModal && (
+        <Modal onClose={() => setShowEditTrackModal(false)}>
+          <h3 className="text-lg font-bold text-white mb-5">Modifier la piste</h3>
+          <div className="space-y-4">
+            <Field label="Titre" value={trackEditData.title || ''} onChange={(v) => setTrackEditData({ ...trackEditData, title: v })} />
+            <FieldArea label="Description" value={trackEditData.description || ''} onChange={(v) => setTrackEditData({ ...trackEditData, description: v })} />
+            <Field label="Genres" value={trackEditData.genre || ''} onChange={(v) => setTrackEditData({ ...trackEditData, genre: v })} />
+            <Field label="Tags" value={trackEditData.tags || ''} onChange={(v) => setTrackEditData({ ...trackEditData, tags: v })} />
+            <label className="flex items-center gap-2.5 cursor-pointer"><input type="checkbox" checked={trackEditData.isPublic} onChange={(e) => setTrackEditData({ ...trackEditData, isPublic: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm text-white/50">Publique</span></label>
+          </div>
+          <div className="flex gap-2 mt-5"><button onClick={() => setShowEditTrackModal(false)} className="flex-1 py-2.5 rounded-full text-sm bg-white/[0.06] text-white/50">Annuler</button><button onClick={handleSaveTrackEdit} disabled={uploading || !trackEditData.title?.trim()} className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-black disabled:opacity-50">{uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}</button></div>
+        </Modal>
+      )}</AnimatePresence>
+
+      {/* Mobile FABs */}
+      {isOwnProfile ? (
+        <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
+          <button onClick={() => setShowBoosterModal(true)} disabled={!canOpen} className={`w-11 h-11 rounded-full shadow-xl flex items-center justify-center ${canOpen ? 'bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white' : 'bg-white/[0.06] text-white/20'}`}><Sparkles size={16} /></button>
+          <button onClick={handleEdit} className="w-11 h-11 bg-white/[0.08] rounded-full shadow-xl flex items-center justify-center text-white/60 hover:bg-white/[0.12]"><Edit size={15} /></button>
         </div>
-      )}
-
-      {/* Modal Édition Profil */}
-      <AnimatePresence>
-        {showEditModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
-            onClick={() => setShowEditModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h3 className="text-lg sm:text-xl font-bold text-white">Modifier le profil</h3>
-                <button onClick={() => setShowEditModal(false)} className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
-                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Nom</label>
-                  <input
-                    type="text"
-                    value={editData.name || ''}
-                    onChange={(e) => setEditData({ ...editData, name: e.target.value })}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Votre nom"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Bio</label>
-                  <textarea
-                    value={editData.bio || ''}
-                    onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
-                    rows={3}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="Parlez-nous de vous..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Nom d'artiste (optionnel)</label>
-                  <input
-                    type="text"
-                    value={editData.artistName || ''}
-                    onChange={(e) => setEditData({ ...editData, artistName: e.target.value })}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Nom d'artiste"
-                  />
-                </div>
-
-                <div className="bg-white/5 border border-white/10 rounded-lg sm:rounded-xl p-3 sm:p-4">
-                  <h4 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3">Inventaire boosters</h4>
-                  <p className="text-[10px] sm:text-xs text-white/60 mb-2">{inventory.filter(i=>i.status==='owned').length} disponible(s)</p>
-                  {inventory.length === 0 ? (
-                    <div className="text-[10px] sm:text-xs text-white/50">Aucun booster. Ouvre ton booster quotidien.</div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-1.5 sm:gap-2 max-h-32 overflow-y-auto">
-                      {inventory.filter(i=>i.status==='owned').slice(0, 6).map((it) => (
-                        <div key={it.id} className="border border-white/10 rounded-md sm:rounded-lg p-1.5 sm:p-2 bg-white/5">
-                          <div className="text-[10px] sm:text-xs font-medium line-clamp-1">{it.booster.name}</div>
-                          <div className="text-[9px] sm:text-[10px] text-white/60">x{it.booster.multiplier.toFixed(2)}</div>
-                </div>
-                      ))}
-                </div>
-                  )}
-              </div>
-              </div>
-
-              <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
-                <button onClick={handleCancelEdit} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors">
-                  Annuler
-                </button>
-                <button onClick={handleSaveEdit} disabled={uploading} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50">
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal Édition Track */}
-      <AnimatePresence>
-        {showEditTrackModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-2 sm:p-4"
-            onClick={() => setShowEditTrackModal(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-gray-900 rounded-xl sm:rounded-2xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between mb-4 sm:mb-6">
-                <h3 className="text-lg sm:text-xl font-bold text-white">Modifier la piste</h3>
-                <button onClick={() => setShowEditTrackModal(false)} className="p-1.5 sm:p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors">
-                  <X className="w-4 h-4 sm:w-5 sm:h-5" />
-                </button>
-              </div>
-
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Titre</label>
-                  <input
-                    type="text"
-                    value={trackEditData.title || ''}
-                    onChange={(e) => setTrackEditData({ ...trackEditData, title: e.target.value })}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Titre de la piste"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Description</label>
-                  <textarea
-                    value={trackEditData.description || ''}
-                    onChange={(e) => setTrackEditData({ ...trackEditData, description: e.target.value })}
-                    rows={3}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                    placeholder="Description de la piste..."
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Genres (séparés par des virgules)</label>
-                  <input
-                    type="text"
-                    value={trackEditData.genre || ''}
-                    onChange={(e) => setTrackEditData({ ...trackEditData, genre: e.target.value })}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Rock, Pop, Électronique"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs sm:text-sm font-medium text-gray-300 mb-1.5 sm:mb-2">Tags (séparés par des virgules)</label>
-                  <input
-                    type="text"
-                    value={trackEditData.tags || ''}
-                    onChange={(e) => setTrackEditData({ ...trackEditData, tags: e.target.value })}
-                    className="w-full px-2.5 sm:px-3 py-1.5 sm:py-2 text-sm bg-white/10 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="chill, instrumental, ambient"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-2 sm:space-x-3">
-                  <input
-                    type="checkbox"
-                    id="isPublic"
-                    checked={trackEditData.isPublic}
-                    onChange={(e) => setTrackEditData({ ...trackEditData, isPublic: e.target.checked })}
-                    className="w-4 h-4 text-purple-600 bg-white/10 border-gray-600 rounded focus:ring-purple-500"
-                  />
-                  <label htmlFor="isPublic" className="text-xs sm:text-sm text-gray-300">
-                    Rendre cette piste publique
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-2 sm:gap-3 mt-4 sm:mt-6">
-                <button onClick={() => setShowEditTrackModal(false)} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors">
-                  Annuler
-                </button>
-                <button onClick={handleSaveTrackEdit} disabled={uploading || !trackEditData.title?.trim()} className="flex-1 px-3 sm:px-4 py-1.5 sm:py-2 text-sm bg-purple-600 hover:bg-purple-700 rounded-lg font-medium transition-colors disabled:opacity-50">
-                  {uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {!isOwnProfile && (
+      ) : (
         <div className="md:hidden fixed bottom-24 right-4 z-[100]">
-          <button
-            onClick={handleFollow}
-            disabled={uploading}
-            className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center transition backdrop-blur-md border border-border-secondary ${
-              profile.isFollowing ? 'bg-white/5' : 'bg-gradient-to-r from-purple-600 to-blue-600'
-            }`}
-            title={profile.isFollowing ? 'Se désabonner' : 'Suivre'}
-          >
-            {profile.isFollowing ? <Check className="w-6 h-6" /> : <UserPlus className="w-6 h-6" />}
+          <button onClick={handleFollow} className={`w-12 h-12 rounded-full shadow-xl flex items-center justify-center ${profile.isFollowing ? 'bg-white/[0.08] text-white/60' : 'bg-white text-black'}`}>
+            {profile.isFollowing ? <Check size={18} /> : <UserPlus size={18} />}
           </button>
         </div>
       )}
@@ -1299,284 +523,186 @@ export default function SynauraProfile(){
   );
 }
 
-// ---- Subcomponents ----
-function TabButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
+/* ═══════════ Small components ═══════════ */
+
+function Volume2Icon() { return <div className="flex items-center justify-center gap-[2px] h-[14px]"><div className="w-[2px] h-2 bg-[#00d3a7] rounded-full animate-pulse" /><div className="w-[2px] h-3 bg-[#00d3a7] rounded-full animate-pulse" style={{ animationDelay: '150ms' }} /><div className="w-[2px] h-1.5 bg-[#00d3a7] rounded-full animate-pulse" style={{ animationDelay: '300ms' }} /></div>; }
+
+function MsgBtn({ status, existingConvId, onMsg, onGo }: { status: string; existingConvId: string | null; onMsg: () => void; onGo: () => void }) {
+  if (status === 'accepted' || existingConvId) return <button onClick={onGo} className="h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/70 text-sm font-medium transition inline-flex items-center gap-1.5"><MessageCircle size={14} /> Message</button>;
+  if (status === 'pending') return <button disabled className="h-9 px-4 rounded-full bg-white/[0.04] text-white/25 text-sm cursor-not-allowed inline-flex items-center gap-1.5"><Send size={14} /> En attente</button>;
+  return <button onClick={onMsg} className="h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/70 text-sm font-medium transition inline-flex items-center gap-1.5"><MessageCircle size={14} /> Message</button>;
+}
+
+function TrackCtxMenu({ track, anchorEl, isOwn, onClose, onEdit, onDelete, onStats, onPlay, addToUpNext, artistName }: {
+  track: any; anchorEl: HTMLElement; isOwn: boolean; onClose: () => void;
+  onEdit: () => void; onDelete: () => void; onStats: () => void; onPlay: () => void;
+  addToUpNext: (t: any, pos: 'next' | 'end') => void; artistName: string;
 }) {
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [copied, setCopied] = useState(false);
+  const isAi = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
+  const router = useRouter();
+
+  useEffect(() => {
+    const rect = anchorEl.getBoundingClientRect();
+    const menuW = 220; const menuH = 320;
+    let left = rect.right - menuW;
+    let top = rect.bottom + 6;
+    if (left < 8) left = 8;
+    if (left + menuW > window.innerWidth - 8) left = window.innerWidth - menuW - 8;
+    if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 6;
+    setPos({ top, left });
+  }, [anchorEl]);
+
+  useEffect(() => {
+    const close = () => onClose();
+    const timer = setTimeout(() => document.addEventListener('click', close), 0);
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', esc);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); document.removeEventListener('keydown', esc); };
+  }, [onClose]);
+
+  const fmt = (t: any) => ({ _id: t.id, title: t.title, artist: t.artist || t.artist_name || artistName, audioUrl: t.audioUrl || t.audio_url, coverUrl: t.coverUrl || t.cover_url, duration: t.duration, album: t.album || null, likes: t.likes || 0, comments: [], plays: t.plays || 0, genre: t.genre || [], isLiked: t.isLiked || false });
+  const handlePlayNext = () => { addToUpNext(fmt(track), 'next'); notify.success('OK', `${track.title} — lu ensuite`); onClose(); };
+  const handleQueue = () => { addToUpNext(fmt(track), 'end'); notify.success('OK', `${track.title} — ajouté à la file`); onClose(); };
+  const handleShare = async () => {
+    const url = `${window.location.origin}/track/${track?.id || ''}`;
+    if (navigator.share) { try { await navigator.share({ title: track?.title, url }); } catch {} }
+    else { try { await navigator.clipboard.writeText(url); } catch {} setCopied(true); setTimeout(() => setCopied(false), 2000); }
+    onClose();
+  };
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(
+    <div className="fixed z-[9999] w-[220px] rounded-xl border border-white/10 bg-[#121218]/98 backdrop-blur-2xl py-1.5 shadow-[0_16px_64px_rgba(0,0,0,.7)] animate-in fade-in-0 zoom-in-95 duration-100" style={{ top: pos.top, left: pos.left }} onClick={(e) => e.stopPropagation()}>
+      <CtxItem icon={Play} label="Ecouter" onClick={onPlay} />
+      <CtxItem icon={ListPlus} label="Lire ensuite" onClick={handlePlayNext} />
+      <CtxItem icon={ListEnd} label="Ajouter a la file" onClick={handleQueue} />
+      <div className="my-1 border-t border-white/[0.06]" />
+      <CtxItem icon={copied ? Check : Share2} label={copied ? 'Lien copie !' : 'Partager'} onClick={handleShare} />
+      {isOwn && !isAi && (
+        <>
+          <div className="my-1 border-t border-white/[0.06]" />
+          <CtxItem icon={Edit} label="Modifier" onClick={onEdit} />
+          <CtxItem icon={BarChart3} label="Statistiques" onClick={onStats} />
+          <div className="my-1 border-t border-white/[0.06]" />
+          <CtxItem icon={Trash2} label="Supprimer" onClick={onDelete} subtle />
+        </>
+      )}
+    </div>,
+    document.body,
+  );
+}
+
+function CtxItem({ icon: Icon, label, onClick, subtle }: { icon: any; label: string; onClick: () => void; subtle?: boolean }) {
   return (
-    <button
-      onClick={onClick}
-      className={`h-10 px-3 rounded-2xl border border-border-secondary inline-flex items-center justify-center text-sm font-semibold transition ${
-        active ? 'bg-white/10' : 'bg-white/5 hover:bg-white/10'
-      }`}
-    >
-      {children}
+    <button onClick={(e) => { e.stopPropagation(); onClick(); }}
+      className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition ${subtle ? 'text-rose-400/70 hover:text-rose-400 hover:bg-white/[0.04]' : 'text-white/70 hover:text-white hover:bg-white/[0.06]'}`}>
+      <Icon className="w-4 h-4 shrink-0" />
+      <span className="truncate">{label}</span>
     </button>
   );
 }
 
-function StatPill({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function Drawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 inline-flex items-center gap-2">
-      {icon ? <span className="text-foreground-tertiary">{icon}</span> : null}
-      <span className="text-sm font-semibold">{value}</span>
-      <span className="text-xs text-foreground-tertiary">{label}</span>
+    <div className={`fixed inset-0 z-50 transition ${open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
+      <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition ${open ? 'opacity-100' : 'opacity-0'}`} />
+      <div className={`absolute right-0 top-0 h-full w-full sm:w-[420px] bg-[#111116] sm:border-l border-white/[0.06] shadow-2xl transform transition ${open ? 'translate-x-0' : 'translate-x-full'}`}>{children}</div>
     </div>
   );
 }
 
-function PlaylistTile({
-  playlist,
-  onOpen,
-}: {
-  playlist: any;
-  onOpen: () => void;
+function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike, onClose, artistName }: {
+  track: any; playing: boolean; onPlay: () => void; onEdit: () => void; onDelete: () => void;
+  isOwn: boolean; onLike: (id: string, l: boolean, c: number) => void; onClose: () => void; artistName: string;
 }) {
-  const cover = playlist?.cover_url || playlist?.coverUrl || '/default-cover.jpg';
-  const count = Array.isArray(playlist?.tracks)
-    ? playlist.tracks.length
-    : Number(playlist?.tracks_count || 0);
-
+  const isAi = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
+  const createdDate = (() => {
+    const raw = track?.created_at || track?.createdAt;
+    if (!raw) return null;
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  })();
   return (
-    <button
-      onClick={onOpen}
-      className="text-left rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition p-2 group"
-    >
+    <div className="h-full flex flex-col">
+      {/* Header with big cover */}
       <div className="relative">
-        <img
-          src={cover}
-          alt=""
-          loading="lazy"
-          className="w-full aspect-square object-cover rounded-xl border border-border-secondary"
-        />
-        <div className="hidden sm:flex absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-black/45 rounded-xl items-center justify-center">
-          <div className="px-3 py-1.5 text-xs rounded-full bg-white/10 border border-white/20">
-            Ouvrir
+        <button onClick={onClose} className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white"><X size={16} /></button>
+        <div className="aspect-square max-h-[320px] w-full">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, #111116 0%, transparent 100%)' }}>
+          <p className="text-lg font-bold text-white">{track.title}</p>
+          <div className="flex items-center gap-2 text-sm text-white/40">
+            <span>{artistName}</span>
+            {isAi && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#6e56cf]/30 text-[#a78bfa]">IA</span>}
           </div>
         </div>
       </div>
-      <div className="mt-2">
-        <div className="text-sm font-semibold truncate">{playlist?.name || 'Playlist'}</div>
-        <div className="text-xs text-foreground-tertiary">{fmt.format(count)} titre(s)</div>
+      {/* Controls */}
+      <div className="px-4 py-3 flex items-center gap-2">
+        <button onClick={onPlay} className="flex-1 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center justify-center gap-1.5">
+          {playing ? <Pause size={15} /> : <Play size={15} fill="black" />} {playing ? 'Pause' : 'Ecouter'}
+        </button>
+        {!isAi && <div onClick={(e) => e.stopPropagation()}><LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => onLike(track.id, s.isLiked, s.likesCount)} showCount={false} size="md" /></div>}
       </div>
-    </button>
-  );
-}
-
-function QuickAction({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick: () => void }){
-  return (
-    <button
-      onClick={onClick}
-      className="w-full px-3 py-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 flex items-center justify-between transition"
-    >
-      <span className="flex items-center gap-2 text-sm font-semibold">
-        <span className="text-foreground-tertiary">{icon}</span>
-        <span className="truncate">{label}</span>
-      </span>
-      <ChevronRight className="w-4 h-4 text-foreground-tertiary flex-shrink-0"/>
-    </button>
-  );
-}
-
-function TrackTile({ track, isPlaying, onPlay, onOpenDetails, menuOpen, onToggleMenu, onAction, isOwnProfile, onLikeUpdate }: { track: any; isPlaying: boolean; onPlay: (e: React.MouseEvent) => void; onOpenDetails: () => void; menuOpen: boolean; onToggleMenu: (e: React.MouseEvent) => void; onAction: (action: string) => void; isOwnProfile: boolean; onLikeUpdate: (trackId: string, isLiked: boolean, likesCount: number) => void }){
-  const isAiTrack = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
-  return (
-    <div
-      onClick={onOpenDetails}
-      className="bg-white/5 border border-border-secondary rounded-2xl p-2 hover:bg-white/10 transition relative cursor-pointer group"
-    >
-      <div className="relative">
-        <img
-          src={track.cover_url || track.coverUrl || '/default-cover.jpg'}
-          alt=""
-          loading="lazy"
-          className="w-full aspect-square object-cover rounded-xl border border-border-secondary"
-        />
-        
-        {/* Bouton like en haut à gauche */}
-        {!isAiTrack && (
-          <div className="absolute top-1 left-1 sm:top-2 sm:left-2 z-10" onClick={(e) => e.stopPropagation()}>
-            <LikeButton
-              trackId={track.id}
-              initialIsLiked={track.isLiked || false}
-              initialLikesCount={track.likes || 0}
-              onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
-              showCount={false}
-              size="sm"
-            />
+      {/* Stats */}
+      <div className="px-4 pb-3">
+        <div className="flex gap-4 text-center py-2 bg-white/[0.03] rounded-lg">
+          <div className="flex-1"><div className="text-sm font-bold text-white">{fmtN.format(track.plays || 0)}</div><div className="text-[10px] text-white/20">ecoutes</div></div>
+          <div className="flex-1"><div className="text-sm font-bold text-white">{fmtN.format(track.likes || 0)}</div><div className="text-[10px] text-white/20">likes</div></div>
+          <div className="flex-1"><div className="text-sm font-bold text-white">{mmss(track.duration || 0)}</div><div className="text-[10px] text-white/20">duree</div></div>
+        </div>
+      </div>
+      {/* Info */}
+      <div className="px-4 pb-4 space-y-3 overflow-y-auto flex-1">
+        {track.description && <p className="text-xs text-white/30 leading-relaxed">{track.description}</p>}
+        {track.genre?.length > 0 && <div className="flex flex-wrap gap-1.5">{(Array.isArray(track.genre) ? track.genre : [track.genre]).map((g: string, i: number) => <span key={i} className="px-2.5 py-1 text-[10px] rounded-full bg-[#6e56cf]/10 text-[#a78bfa] border border-[#6e56cf]/20">{g}</span>)}</div>}
+        {track.tags?.length > 0 && <div className="flex flex-wrap gap-1.5">{track.tags.map((t: string, i: number) => <span key={i} className="px-2.5 py-1 text-[10px] rounded-full bg-white/[0.04] text-white/20">#{t}</span>)}</div>}
+        {createdDate && (
+          <div className="flex items-center gap-2 text-xs text-white/20">
+            <Calendar size={12} />
+            <span>Publie le {createdDate}</span>
           </div>
         )}
-
-        {isOwnProfile && !isAiTrack && (
-          <button
-            onClick={onToggleMenu}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="absolute top-1 right-1 p-1.5 rounded-xl bg-black/45 hover:bg-black/65 border border-white/10"
-          >
-            <MoreHorizontal className="w-3 h-3 sm:w-4 sm:h-4" />
+        {isAi && track.prompt && (
+          <div className="mt-2 p-3 rounded-lg bg-white/[0.03] border border-white/[0.05]">
+            <p className="text-[10px] text-white/20 mb-1 font-medium uppercase tracking-wider">Prompt IA</p>
+            <p className="text-xs text-white/35 leading-relaxed">{track.prompt}</p>
+          </div>
+        )}
+      </div>
+      {/* Owner actions at bottom */}
+      {isOwn && !isAi && (
+        <div className="px-4 pb-4 pt-2 border-t border-white/[0.06] flex gap-2">
+          <button onClick={onEdit} className="flex-1 py-2.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-sm text-white/60 font-medium transition inline-flex items-center justify-center gap-1.5">
+            <Edit size={13} /> Modifier
           </button>
-        )}
-        {/* overlay on hover - hidden on mobile */}
-        <div className="hidden sm:flex absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-black/50 rounded-xl flex-col items-center justify-center gap-2 backdrop-blur-[1px]">
-          <div className="text-[11px] flex items-center gap-3">
-            <span className="flex items-center gap-1"><Headphones className="w-4 h-4"/>{fmt.format(track.plays || 0)}</span>
-            <span className="flex items-center gap-1"><Heart className="w-4 h-4"/>{fmt.format(track.likes || 0)}</span>
-          </div>
-                  <div className="flex items-center gap-2">
-            <button onClick={onPlay} className="px-2 py-1 text-[11px] rounded-full bg-white/10 hover:bg-white/20 border border-white/20">{isPlaying? 'Pause':'Play'}</button>
-            <button onClick={(e)=>{e.stopPropagation(); onAction("stats");}} className="px-2 py-1 text-[11px] rounded-full bg-white/10 hover:bg-white/20 border border-white/20">Stats</button>
-                  </div>
-                </div>
-              </div>
-      <div className="mt-1.5 sm:mt-2">
-        <p className="text-xs sm:text-sm font-semibold line-clamp-1">{track.title}</p>
-        <p className="text-[10px] sm:text-xs text-foreground-tertiary line-clamp-1">{mmss(track.duration || 0)}</p>
-              </div>
-
-      {/* Mini modal menu */}
-      {menuOpen && isOwnProfile && !isAiTrack && (
-        <div data-menu-root="true" role="menu" className="absolute right-2 top-20 z-20 w-44 rounded-2xl border border-border-secondary bg-black/80 backdrop-blur-xl shadow-lg overflow-hidden">
-          <MenuBtn onClick={() => onAction("edit")} label="Modifier" danger={false} />
-          <MenuBtn onClick={() => onAction("stats")} label="Statistiques" danger={false} />
-          <div className="h-px bg-white/10" />
-          <MenuBtn onClick={() => onAction("delete")} label="Supprimer" danger />
+          <button onClick={onDelete} className="py-2.5 px-4 rounded-full bg-white/[0.06] hover:bg-rose-500/20 text-sm text-rose-400/60 hover:text-rose-400 font-medium transition inline-flex items-center justify-center gap-1.5">
+            <X size={13} /> Supprimer
+          </button>
         </div>
       )}
     </div>
   );
 }
 
-function MenuBtn({ label, onClick, danger }: { label: string; onClick: () => void; danger: boolean }){
+function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} className={`w-full text-left text-sm px-3 py-2 hover:bg-white/10 flex items-center gap-2 ${danger? 'text-rose-400':''}`}>
-      <span>{label}</span>
-                </button>
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4" onClick={onClose}>
+      <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
+        className="w-full max-w-md rounded-2xl bg-[#1a1a22] border border-white/[0.06] p-5 sm:p-6 max-h-[90vh] overflow-y-auto shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}>{children}</motion.div>
+    </motion.div>
   );
 }
 
-// ---- Drawer ----
-function Drawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: React.ReactNode }){
-  return (
-    <>
-      <div className={`fixed inset-0 z-50 transition ${open? 'pointer-events-auto opacity-100':'pointer-events-none opacity-0'}`}>
-        {/* overlay */}
-        <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition ${open? 'opacity-100':'opacity-0'}`} />
-        {/* panel - pleine largeur sur mobile */}
-        <div className={`absolute right-0 top-0 h-full w-full sm:w-[480px] bg-background-primary sm:border-l border-border-secondary shadow-2xl transform transition ${open? 'translate-x-0':'translate-x-full'}`}>
-          {children}
-        </div>
-      </div>
-    </>
-  );
+function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return <div><label className="block text-xs text-white/30 mb-1.5">{label}</label><input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3.5 py-2.5 text-sm bg-white/[0.05] border border-white/[0.08] rounded-xl text-white placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-white/20" /></div>;
 }
 
-function DrawerContent({ track, isPlaying, onPlay, onEdit, onDuplicate, onDelete, isOwnProfile, onLikeUpdate, onClose }: { track: any; isPlaying: boolean; onPlay: () => void; onEdit: () => void; onDuplicate: () => void; onDelete: () => void; isOwnProfile: boolean; onLikeUpdate: (trackId: string, isLiked: boolean, likesCount: number) => void; onClose: () => void }){
-  const isAiTrack = Boolean(track?.is_ai || String(track?.id || '').startsWith('ai-'));
-  return (
-    <div className="h-full flex flex-col text-foreground-primary">
-      <div className="p-3 sm:p-4 border-b border-border-secondary bg-background-fog-thin">
-        <div className="flex items-center gap-2 sm:gap-3 mb-3">
-          <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl object-cover" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm sm:text-base font-semibold line-clamp-1">{track.title}</p>
-            <p className="text-[10px] sm:text-xs text-foreground-tertiary">{mmss(track.duration || 0)} • {fmt.format(track.plays || 0)} écoutes</p>
-            {track.genre && (
-              <p className="text-[10px] sm:text-xs text-foreground-tertiary mt-1 line-clamp-1">{Array.isArray(track.genre) ? track.genre.join(', ') : track.genre}</p>
-            )}
-          </div>
-          {/* Bouton fermer pour mobile */}
-          <button onClick={onClose} className="sm:hidden p-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-border-secondary transition-colors flex-shrink-0">
-            <X className="w-5 h-5" />
-                </button>
-              </div>
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <button onClick={onPlay} className="flex-1 px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm rounded-2xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 border border-border-secondary flex items-center justify-center gap-1.5 sm:gap-2">
-            {isPlaying? <Pause className="w-3 h-3 sm:w-4 sm:h-4"/> : <Play className="w-3 h-3 sm:w-4 sm:h-4"/>}
-            <span className="hidden xs:inline">{isPlaying? 'Pause':'Play'}</span>
-                </button>
-          {!isAiTrack && (
-            <LikeButton
-              trackId={track.id}
-              initialIsLiked={track.isLiked || false}
-              initialLikesCount={track.likes || 0}
-              onUpdate={(state) => onLikeUpdate(track.id, state.isLiked, state.likesCount)}
-              showCount={false}
-              size="md"
-            />
-          )}
-          {isOwnProfile && !isAiTrack && (
-            <>
-              <button onClick={onEdit} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-2xl bg-white/5 hover:bg-white/10 border border-border-secondary">
-                <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-              </button>
-              <button onClick={onDelete} className="px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400">
-                <X className="w-3 h-3 sm:w-4 sm:h-4" />
-              </button>
-            </>
-          )}
-              </div>
-      </div>
-
-      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 overflow-y-auto flex-1">
-        <div className="bg-white/5 border border-border-secondary rounded-2xl p-3">
-          <h4 className="text-xs sm:text-sm font-semibold mb-2">Statistiques</h4>
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 text-center">
-            <StatSmall label="Écoutes" value={fmt.format(track.plays || 0)} />
-            <StatSmall label="Likes" value={fmt.format(track.likes || 0)} />
-            <StatSmall label="Durée" value={mmss(track.duration || 0)} />
-          </div>
-        </div>
-
-        {track.description && (
-          <div className="bg-white/5 border border-border-secondary rounded-2xl p-3">
-            <h4 className="text-xs sm:text-sm font-semibold mb-1">Description</h4>
-            <p className="text-xs sm:text-sm text-foreground-secondary leading-relaxed">{track.description}</p>
-          </div>
-        )}
-
-        {track.tags && track.tags.length > 0 && (
-          <div className="bg-white/5 border border-border-secondary rounded-2xl p-3">
-            <h4 className="text-xs sm:text-sm font-semibold mb-2">Tags</h4>
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {track.tags.map((t: string, i: number)=> (
-                <span key={i} className="px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs rounded-full bg-white/10 border border-border-secondary">{t}</span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-} 
-
-function StatSmall({ label, value }: { label: string; value: string }){
-  return (
-    <div className="rounded-2xl bg-white/5 border border-border-secondary p-2 sm:p-3">
-      <p className="text-sm sm:text-base font-bold leading-none">{value}</p>
-      <p className="text-[10px] sm:text-[11px] text-foreground-tertiary mt-1">{label}</p>
-    </div>
-  );
-}
-
-function SearchIcon(){
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 opacity-70">
-      <path fillRule="evenodd" d="M10 2a8 8 0 105.293 14.293l4.207 4.207a1 1 0 001.414-1.414l-4.207-4.207A8 8 0 0010 2zm-6 8a6 6 0 1110.392 4.242A6 6 0 014 10z" clipRule="evenodd" />
-    </svg>
-  );
+function FieldArea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return <div><label className="block text-xs text-white/30 mb-1.5">{label}</label><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full px-3.5 py-2.5 text-sm bg-white/[0.05] border border-white/[0.08] rounded-xl text-white placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-white/20 resize-none" /></div>;
 }
