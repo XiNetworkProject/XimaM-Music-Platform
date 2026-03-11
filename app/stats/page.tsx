@@ -193,7 +193,7 @@ function PerformanceScore({ score, loading }: { score: number; loading: boolean 
   const level = getLevel(score);
 
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-5 sm:p-6 mb-6"
+    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-5 sm:p-6 mb-6"
       style={{ background: 'linear-gradient(135deg, rgba(10,10,16,0.7) 0%, rgba(110,86,207,0.06) 50%, rgba(0,211,167,0.04) 100%)' }}>
       <div className="flex flex-col sm:flex-row items-center gap-6">
         {/* Arc SVG */}
@@ -383,7 +383,7 @@ function EngagementPanel({ overview, periodTotals }: { overview: OverviewData | 
   const listenerDiv = periodTotals.plays > 0 ? Math.round((periodTotals.uniques / periodTotals.plays) * 1000) / 10 : 0;
 
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 h-full">
+    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5 h-full">
       <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
         <Flame size={16} className="text-orange-400" /> Qualite d&apos;engagement
       </h3>
@@ -543,10 +543,10 @@ function StatsPageInner() {
               </h1>
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] text-white/80 text-sm transition-all">
+              <Link href="/profile" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] text-sm transition-all">
                 <Users size={15} /> Profil
               </Link>
-              <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] transition-all">
+              <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
                 <Sparkles size={15} /> Studio
               </Link>
             </div>
@@ -554,16 +554,18 @@ function StatsPageInner() {
         </div>
 
         {/* ── Filters ── */}
-        <div className="panel-suno rounded-2xl border border-white/[0.06] p-3 sm:p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-3 sm:p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex bg-white/[0.04] rounded-full p-0.5">
             {(['7d','30d','90d','all'] as const).map((r) => (
               <button key={r} onClick={() => setRange(r)}
                 className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all ${range===r
-                  ? 'bg-gradient-to-r from-[#6e56cf] to-[#5b45be] text-white shadow-[0_2px_12px_rgba(110,86,207,0.4)]'
-                  : 'bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] text-white/60'}`}>
+                  ? 'bg-white/[0.1] text-white'
+                  : 'text-white/30 hover:text-white/60'}`}>
                 {r === 'all' ? 'Tout' : r.toUpperCase()}
               </button>
             ))}
+            </div>
             {(loadingSeries || loadingOverview) && <Spinner />}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -596,7 +598,7 @@ function StatsPageInner() {
             {overview && (overview.ai.count > 0 || overview.bestTrack) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 {overview.ai.count > 0 && (
-                  <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 flex items-center gap-4"
+                  <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 flex items-center gap-4"
                     style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.08) 0%, rgba(0,211,167,0.04) 100%)' }}>
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6e56cf] to-[#00d3a7] flex items-center justify-center shrink-0">
                       <Sparkles size={18} className="text-white" />
@@ -608,7 +610,7 @@ function StatsPageInner() {
                   </div>
                 )}
                 {overview.bestTrack && (
-                  <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 flex items-center gap-4"
+                  <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 flex items-center gap-4"
                     style={{ background:'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%)' }}>
                     <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
                       <Trophy size={18} className="text-amber-400" />
@@ -630,17 +632,17 @@ function StatsPageInner() {
             {/* ══════ SECTION 3: Performance ══════ */}
             <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 mb-6">
               {/* Chart */}
-              <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5">
+              <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                     <BarChart3 size={18} className="text-[#6e56cf]" /> Evolution
                   </h2>
-                  <div className="flex items-center gap-1.5 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
+                  <div className="inline-flex bg-white/[0.04] rounded-full p-0.5">
                     {(['plays','uniques','likes'] as const).map((m) => (
                       <button key={m} onClick={() => setMetric(m)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${metric===m
-                          ? 'bg-[#6e56cf] text-white shadow-[0_2px_8px_rgba(110,86,207,0.4)]'
-                          : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${metric===m
+                          ? 'bg-white/[0.1] text-white'
+                          : 'text-white/30 hover:text-white/60'}`}>
                         {m === 'plays' ? 'Ecoutes' : m === 'uniques' ? 'Uniques' : 'Likes'}
                       </button>
                     ))}
@@ -672,18 +674,18 @@ function StatsPageInner() {
             {selectedTrack !== 'all' && trackDetail && <TrackDetailPanel detail={trackDetail} loading={loadingDetail} />}
 
             {/* ══════ SECTION 5: Pistes ══════ */}
-            <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 mb-6">
+            <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5 mb-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Disc3 size={18} className="text-[#00d3a7]" /> Toutes tes pistes
                   <span className="text-xs font-normal text-white/30 ml-1">({allTracks.length})</span>
                 </h2>
-                <div className="flex gap-1.5 bg-white/[0.03] rounded-xl p-1 border border-white/[0.06]">
+                <div className="inline-flex bg-white/[0.04] rounded-full p-0.5">
                   {(['all','normal','ai'] as const).map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)}
-                      className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${activeTab===tab
-                        ? 'bg-[#6e56cf] text-white shadow-[0_2px_8px_rgba(110,86,207,0.4)]'
-                        : 'text-white/50 hover:text-white/80 hover:bg-white/[0.04]'}`}>
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${activeTab===tab
+                        ? 'bg-white/[0.1] text-white'
+                        : 'text-white/30 hover:text-white/60'}`}>
                       {tab === 'all' ? 'Toutes' : tab === 'normal' ? 'Standard' : 'IA'}
                     </button>
                   ))}
@@ -693,14 +695,14 @@ function StatsPageInner() {
                 <div className="relative flex-1">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
                   <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher..."
-                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06] text-sm text-white placeholder:text-white/20 focus:border-[#6e56cf]/40 outline-none transition-colors" />
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] outline-none transition-colors" />
                 </div>
                 <div className="flex gap-1.5 flex-wrap">
                   {([['plays','Ecoutes'],['likes','Likes'],['recent','Recent'],['retention','Retention'],['trend','7j']] as const).map(([key,label]) => (
                     <button key={key} onClick={() => setTrackSort(key as any)}
-                      className={`px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1 transition-all ${trackSort===key
-                        ? 'bg-[#6e56cf]/20 text-[#6e56cf] border border-[#6e56cf]/30'
-                        : 'bg-white/[0.03] border border-white/[0.06] text-white/40 hover:text-white/60'}`}>
+                      className={`px-2.5 py-1.5 rounded-full text-[11px] font-medium flex items-center gap-1 transition-all ${trackSort===key
+                        ? 'bg-white text-black font-semibold'
+                        : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.1]'}`}>
                       <ArrowUpDown size={9} /> {label}
                     </button>
                   ))}
@@ -765,7 +767,7 @@ function StatsPageInner() {
                 <Globe size={18} className="text-blue-400" /> Connais ton audience
               </h2>
               {/* Heatmap */}
-              <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 mb-4">
+              <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5 mb-4">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                   <Clock size={16} className="text-amber-400" /> Meilleurs creneaux
                 </h3>
@@ -848,7 +850,7 @@ function KpiCardSecondary({ icon, label, value, loading, suffix, subtitle, estim
 /* ═══════════════════ Sub Components ═══════════════════ */
 
 function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }) {
-  if (loading) return <div className="panel-suno rounded-2xl border border-white/[0.06] p-6 mb-6 flex items-center justify-center h-40"><Spinner label="Chargement detail" /></div>;
+  if (loading) return <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 mb-6 flex items-center justify-center h-40"><Spinner label="Chargement detail" /></div>;
   const daily = detail?.daily || [];
   const funnel = detail?.funnel;
   const sources = detail?.sources || [];
@@ -861,7 +863,7 @@ function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }
   const srcData = sources.map((s: any) => ({ name: s.source||'Direct', plays: s.plays||0, completes: s.completes||0 }));
 
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4 sm:p-5 mb-6"
+    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5 mb-6"
       style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.04) 0%, rgba(0,211,167,0.02) 100%)' }}>
       <h2 className="text-base font-semibold text-white mb-4 flex items-center gap-2">
         <Target size={16} className="text-[#00d3a7]" /> Detail piste (30 derniers jours)
@@ -921,7 +923,7 @@ function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }
 
 function AudienceCard({ title, icon, data, loading }: { title: string; icon: React.ReactNode; data?: Record<string,number>; loading: boolean }) {
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-4">
+    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4">
       <h3 className="text-xs font-semibold mb-2 text-white flex items-center gap-1.5">{icon} {title}</h3>
       {loading ? <div className="h-[180px] flex items-center justify-center"><Spinner /></div> :
         data && Object.keys(data).length > 0 ? <><LazyPieChart data={data} /><PieLegend data={data} /></> :
@@ -996,7 +998,7 @@ function Select({ value, onChange, options }: { value:string; onChange:(v:string
   return (
     <div className="relative">
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="appearance-none bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.12] focus:border-[#6e56cf]/40 transition-colors rounded-xl pl-3 pr-10 py-2 text-sm text-white min-w-[180px] outline-none backdrop-blur-sm">
+        className="appearance-none bg-white/[0.04] border border-white/[0.08] rounded-xl pl-3 pr-10 py-2 text-sm text-white min-w-[180px] outline-none transition-colors focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]">
         {options.map((o) => <option key={o.value} value={o.value} className="bg-[#0a0a14]">{o.label}</option>)}
       </select>
       <ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-white/30" />
@@ -1017,17 +1019,17 @@ function Spinner({ label }: { label?: string }) {
 
 function EmptyState() {
   return (
-    <div className="panel-suno rounded-2xl border border-white/[0.06] p-8 sm:p-12 text-center">
+    <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-8 sm:p-12 text-center">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6e56cf]/20 to-[#00d3a7]/10 flex items-center justify-center mx-auto mb-4">
         <BarChart3 size={28} className="text-[#6e56cf]" />
       </div>
       <h2 className="text-xl font-semibold mb-2 text-white">Pas encore de stats</h2>
       <p className="text-sm text-white/40 mb-6 max-w-md mx-auto">Des que tu publies ou generes tes premieres musiques sur Synaura, leurs performances apparaitront ici.</p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link href="/upload" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.1] text-white text-sm transition-all">
+        <Link href="/upload" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] text-sm transition-all">
           <Music size={16} /> Uploader une piste
         </Link>
-        <Link href="/studio" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white text-sm font-medium shadow-[0_4px_20px_rgba(110,86,207,0.35)] transition-all">
+        <Link href="/studio" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
           <Sparkles size={16} /> Creer avec l&apos;IA
         </Link>
       </div>

@@ -7,7 +7,7 @@ import BottomNav from '@/components/BottomNav';
 
 export default function CGUPage() {
   return (
-    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
+    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-white">
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -19,14 +19,14 @@ export default function CGUPage() {
           >
             <Link 
               href="/legal" 
-              className="inline-flex items-center gap-2 text-purple-400 hover:text-purple-300 transition-colors mb-6"
+              className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-6"
             >
               <ArrowLeft className="w-4 h-4" />
               Retour au centre légal
             </Link>
             
             <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
+              <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
                 <Scale className="w-8 h-8 text-white" />
               </div>
               <div>
@@ -41,7 +41,7 @@ export default function CGUPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="panel-suno border border-[var(--border)] rounded-2xl p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
+            className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6"
           >
             <div className="prose prose-invert max-w-none">
               <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-xl">
@@ -55,14 +55,14 @@ export default function CGUPage() {
                 </p>
               </div>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4">1. Objet</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4">1. Objet</h2>
+              <p className="text-sm text-white/60 mb-4">
                 Les présentes conditions générales d'utilisation (CGU) régissent l'utilisation de la plateforme 
                 Synaura, service de streaming musical et de partage de créations musicales développé par Maxime VERMEULEN.
               </p>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">2. Définitions</h2>
-              <ul className="text-sm text-white/70 space-y-2 mb-6">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">2. Définitions</h2>
+              <ul className="text-sm text-white/60 space-y-2 mb-6">
                 <li>• <strong>"Plateforme" :</strong> le site web synaura.fr et ses fonctionnalités</li>
                 <li>• <strong>"Utilisateur" :</strong> toute personne utilisant la plateforme</li>
                 <li>• <strong>"Créateur" :</strong> utilisateur publiant du contenu musical</li>
@@ -70,35 +70,35 @@ export default function CGUPage() {
                 <li>• <strong>"Abonnement" :</strong> service payant proposé par Synaura</li>
               </ul>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">3. Acceptation des conditions</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">3. Acceptation des conditions</h2>
+              <p className="text-sm text-white/60 mb-4">
                 L'utilisation de Synaura implique l'acceptation pleine et entière des présentes CGU. 
                 Ces conditions s'appliquent à tous les utilisateurs de la plateforme.
               </p>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">4. Inscription et compte</h2>
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">4. Inscription et compte</h2>
               <div className="space-y-4 mb-6">
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">4.1 Création de compte</h3>
-                  <p className="text-sm text-white/70">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">4.1 Création de compte</h3>
+                  <p className="text-sm text-white/60">
                     Pour utiliser Synaura, vous devez créer un compte en fournissant des informations exactes et à jour. 
                     Vous êtes responsable de la confidentialité de vos identifiants.
                   </p>
                 </div>
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">4.2 Âge minimum</h3>
-                  <p className="text-sm text-white/70">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">4.2 Âge minimum</h3>
+                  <p className="text-sm text-white/60">
                     Vous devez avoir au moins 13 ans pour créer un compte. Les mineurs de moins de 16 ans doivent 
                     obtenir l'autorisation de leurs parents ou tuteurs légaux.
                   </p>
                 </div>
               </div>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">5. Utilisation de la plateforme</h2>
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">5. Utilisation de la plateforme</h2>
               <div className="space-y-4 mb-6">
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">5.1 Utilisation autorisée</h3>
-                  <ul className="text-sm text-white/70 space-y-1">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">5.1 Utilisation autorisée</h3>
+                  <ul className="text-sm text-white/60 space-y-1">
                     <li>• Écouter de la musique légalement</li>
                     <li>• Créer et partager vos propres créations musicales</li>
                     <li>• Interagir avec la communauté (likes, commentaires)</li>
@@ -117,76 +117,76 @@ export default function CGUPage() {
                 </div>
               </div>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">6. Contenu utilisateur</h2>
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">6. Contenu utilisateur</h2>
               <div className="space-y-4 mb-6">
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">6.1 Responsabilité</h3>
-                  <p className="text-sm text-white/70">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">6.1 Responsabilité</h3>
+                  <p className="text-sm text-white/60">
                     Vous êtes seul responsable du contenu que vous publiez sur Synaura. Vous garantissez 
                     détenir tous les droits nécessaires sur ce contenu.
                   </p>
                 </div>
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">6.2 Modération</h3>
-                  <p className="text-sm text-white/70">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">6.2 Modération</h3>
+                  <p className="text-sm text-white/60">
                     Synaura se réserve le droit de modérer, suspendre ou supprimer tout contenu 
                     contraire aux présentes CGU ou à la législation en vigueur.
                   </p>
                 </div>
               </div>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">7. Propriété intellectuelle</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">7. Propriété intellectuelle</h2>
+              <p className="text-sm text-white/60 mb-4">
                 En publiant du contenu sur Synaura, vous accordez à la plateforme une licence non exclusive 
                 pour l'héberger, l'afficher et le distribuer dans le cadre du service. Vous conservez 
                 tous vos droits de propriété intellectuelle.
               </p>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">8. Abonnements et paiements</h2>
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">8. Abonnements et paiements</h2>
               <div className="space-y-4 mb-6">
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">8.1 Tarification</h3>
-                  <p className="text-sm text-white/70">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">8.1 Tarification</h3>
+                  <p className="text-sm text-white/60">
                     Les tarifs des abonnements sont indiqués en euros TTC. Les prix peuvent être modifiés 
                     avec un préavis de 30 jours.
                   </p>
                 </div>
-                <div className="p-4 bg-white/5 rounded-lg">
-                  <h3 className="text-sm font-medium text-white/90 mb-2">8.2 Paiement</h3>
-                  <p className="text-sm text-white/70">
+                <div className="p-4 bg-white/[0.04] rounded-lg">
+                  <h3 className="text-sm font-medium text-white mb-2">8.2 Paiement</h3>
+                  <p className="text-sm text-white/60">
                     Les paiements sont traités par Stripe. En cas de problème de paiement, 
                     votre accès peut être suspendu.
                   </p>
                 </div>
               </div>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">9. Responsabilité</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">9. Responsabilité</h2>
+              <p className="text-sm text-white/60 mb-4">
                 Synaura ne peut être tenu responsable des dommages indirects résultant de l'utilisation 
                 de la plateforme. Notre responsabilité est limitée au montant des sommes payées 
                 pour l'utilisation du service.
               </p>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">10. Suspension et résiliation</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">10. Suspension et résiliation</h2>
+              <p className="text-sm text-white/60 mb-4">
                 Synaura se réserve le droit de suspendre ou résilier votre compte en cas de violation 
                 des présentes CGU. Vous pouvez résilier votre compte à tout moment depuis les paramètres.
               </p>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">11. Modification des CGU</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">11. Modification des CGU</h2>
+              <p className="text-sm text-white/60 mb-4">
                 Ces conditions peuvent être modifiées à tout moment. Les modifications prendront effet 
                 dès leur publication sur la plateforme. Votre utilisation continue constitue 
                 votre acceptation des nouvelles conditions.
               </p>
 
-              <h2 className="text-xl font-semibold text-white/90 mb-4 mt-8">12. Droit applicable</h2>
-              <p className="text-sm text-white/70 mb-4">
+              <h2 className="text-xl font-semibold text-white mb-4 mt-8">12. Droit applicable</h2>
+              <p className="text-sm text-white/60 mb-4">
                 Les présentes CGU sont soumises au droit français. En cas de litige, les tribunaux 
                 français seront seuls compétents.
               </p>
 
-              <div className="mt-8 p-4 bg-white/5 rounded-xl border border-white/10">
+              <div className="mt-8 p-4 bg-white/[0.04] rounded-xl border border-white/[0.06]">
                 <p className="text-xs text-white/60">
                   <strong>Dernière mise à jour :</strong> {new Date().toLocaleDateString('fr-FR')}
                 </p>

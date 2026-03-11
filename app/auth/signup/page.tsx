@@ -65,8 +65,8 @@ export default function SignUpPage() {
     }
   };
 
-  const inputClass = "w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition";
-  const inputClassPw = "w-full h-11 pl-10 pr-11 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition";
+  const inputClass = "w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition";
+  const inputClassPw = "w-full h-11 pl-10 pr-11 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition";
 
   return (
     <motion.div
@@ -82,7 +82,7 @@ export default function SignUpPage() {
         <p className="text-sm text-white/40 mt-2">Crée ton compte gratuitement</p>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8">
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8">
         <AnimatePresence>
           {userCount && !userCount.canRegister && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mb-5 p-3 bg-red-500/10 border border-red-500/20 text-red-300 rounded-xl flex items-center gap-2.5 text-sm">
@@ -109,7 +109,7 @@ export default function SignUpPage() {
         <button
           type="button"
           onClick={async () => { const { signIn } = await import('next-auth/react'); signIn('google', { callbackUrl: '/' }); }}
-          className="w-full flex items-center justify-center gap-3 h-11 rounded-xl bg-white/[0.06] border border-white/[0.1] text-sm text-white font-medium hover:bg-white/[0.1] transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-3 h-11 rounded-full bg-white/[0.06] text-sm text-white/70 font-medium hover:bg-white/[0.1] transition-all active:scale-[0.98]"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -138,7 +138,7 @@ export default function SignUpPage() {
               <label className="block text-[13px] font-medium text-white/70 mb-1.5">Pseudo</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 text-sm">@</span>
-                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full h-11 pl-8 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition" placeholder="pseudo" disabled={isLoading} />
+                <input type="text" name="username" value={formData.username} onChange={handleInputChange} className="w-full h-11 pl-8 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition" placeholder="pseudo" disabled={isLoading} />
               </div>
             </div>
           </div>
@@ -175,7 +175,7 @@ export default function SignUpPage() {
 
           <button
             type="submit" disabled={isLoading || userCount?.canRegister === false}
-            className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-1"
+            className="w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-1"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -188,7 +188,7 @@ export default function SignUpPage() {
 
         <p className="mt-5 text-center text-[13px] text-white/40">
           Déjà un compte ?{' '}
-          <Link href="/auth/signin" className="text-indigo-400 hover:text-indigo-300 font-medium transition">Se connecter</Link>
+          <Link href="/auth/signin" className="text-white/60 hover:text-white font-medium transition">Se connecter</Link>
         </p>
       </div>
 

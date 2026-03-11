@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 interface Notification {
   type: 'new_message' | 'new_request' | 'request_accepted' | 'connected' | 'heartbeat';
@@ -59,22 +59,13 @@ export const useMessageNotifications = () => {
           // Afficher des notifications toast selon le type
           switch (data.type) {
             case 'new_message':
-              toast.success(`Nouveau message de ${data.senderName}`, {
-                icon: '💬',
-                duration: 4000,
-              });
+              notify.info('Message', `Nouveau message de ${data.senderName}`);
               break;
             case 'new_request':
-              toast.success('Nouvelle demande de conversation', {
-                icon: '👋',
-                duration: 4000,
-              });
+              notify.info('Demande', 'Nouvelle demande de conversation');
               break;
             case 'request_accepted':
-              toast.success('Demande de conversation acceptée', {
-                icon: '✅',
-                duration: 4000,
-              });
+              notify.success('OK', 'Demande de conversation acceptée');
               break;
           }
         } catch (error) {

@@ -17,12 +17,29 @@ export async function POST(
     }
 
     const { id: trackId } = await params;
+    const userId = session.user.id;
     const body = await request.json().catch(() => ({}));
+    const checkOnly = body?.check_only === true;
     const desiredState = typeof body?.is_favorite === 'boolean' ? body.is_favorite : null;
+
+    const likeTrackId = trackId;
+
+    const { data: existing } = await supabaseAdmin
+      .from('track_likes')
+      .select('id')
+      .eq('track_id', likeTrackId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const currentlyLiked = !!existing;
+
+    if (checkOnly) {
+      return NextResponse.json({ is_favorite: currentlyLiked, track_id: trackId });
+    }
 
     const { data: track, error: fetchError } = await supabaseAdmin
       .from('ai_tracks')
-      .select('id, generation_id')
+      .select('id')
       .eq('id', trackId)
       .single();
 
@@ -30,33 +47,27 @@ export async function POST(
       return NextResponse.json({ error: 'Piste introuvable' }, { status: 404 });
     }
 
-    const generationId = track.generation_id;
-    if (!generationId) {
-      return NextResponse.json({ error: 'Génération parente introuvable' }, { status: 404 });
+    const newState = desiredState !== null ? desiredState : !currentlyLiked;
+
+    if (newState && !currentlyLiked) {
+      const { error } = await supabaseAdmin
+        .from('track_likes')
+        .insert({ track_id: likeTrackId, user_id: userId });
+      if (error && error.code !== '23505') {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
+    } else if (!newState && currentlyLiked) {
+      const { error } = await supabaseAdmin
+        .from('track_likes')
+        .delete()
+        .eq('track_id', likeTrackId)
+        .eq('user_id', userId);
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+      }
     }
 
-    const { data: generation, error: genError } = await supabaseAdmin
-      .from('ai_generations')
-      .select('id, is_favorite')
-      .eq('id', generationId)
-      .single();
-
-    if (genError || !generation) {
-      return NextResponse.json({ error: 'Génération introuvable' }, { status: 404 });
-    }
-
-    const newState = desiredState !== null ? desiredState : !generation.is_favorite;
-
-    const { error } = await supabaseAdmin
-      .from('ai_generations')
-      .update({ is_favorite: newState })
-      .eq('id', generationId);
-
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ is_favorite: newState, generation_id: generationId });
+    return NextResponse.json({ is_favorite: newState, track_id: trackId });
   } catch (e: any) {
     console.error('Erreur toggle favori track:', e);
     return NextResponse.json({ error: e.message || 'Erreur serveur' }, { status: 500 });

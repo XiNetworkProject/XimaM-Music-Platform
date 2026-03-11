@@ -75,7 +75,7 @@ export default function StarAcademyLandingPage() {
         {/* ══════════════════════════════════════
             NAV
         ══════════════════════════════════════ */}
-        <nav className="sticky top-0 z-30 border-b border-white/5 backdrop-blur-xl"
+        <nav className="sticky top-0 z-30 border-b border-white/[0.06] backdrop-blur-xl"
           style={{ background: "rgba(7,0,15,0.80)" }}>
           <div className="max-w-6xl mx-auto px-5 py-3 flex items-center justify-between gap-4">
             <Link href="/" className="text-xs font-semibold text-white/40 hover:text-white transition uppercase tracking-widest">
@@ -169,7 +169,7 @@ export default function StarAcademyLandingPage() {
                   Candidater maintenant
                 </Link>
                 <Link href="/star-academy-tiktok/suivi"
-                  className="rounded-2xl border border-white/15 bg-black/30 backdrop-blur-sm px-7 py-3.5 font-semibold text-sm text-white/70 hover:text-white hover:bg-white/10 transition-all">
+                  className="bg-white/[0.06] text-white/70 font-medium rounded-full px-7 py-3.5 text-sm hover:bg-white/[0.1] transition-all">
                   Suivre ma candidature
                 </Link>
               </div>
@@ -180,8 +180,7 @@ export default function StarAcademyLandingPage() {
         {/* ══════════════════════════════════════
             PARTENAIRES
         ══════════════════════════════════════ */}
-        <section className="border-y border-white/5 py-6"
-          style={{ background: "rgba(255,255,255,0.02)" }}>
+        <section className="border-y border-white/[0.06] py-6 bg-white/[0.02]">
           <div className="max-w-4xl mx-auto px-6 flex flex-wrap items-center justify-center gap-8 md:gap-14">
             <div className="flex flex-col items-center gap-2">
               <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Organise par</p>
@@ -210,8 +209,7 @@ export default function StarAcademyLandingPage() {
             COUNTDOWN
         ══════════════════════════════════════ */}
         <section className="px-5 py-14 max-w-3xl mx-auto">
-          <div className="rounded-3xl border border-[#f59e0b]/15 p-7 md:p-10"
-            style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+          <div className="rounded-2xl border border-[#f59e0b]/15 bg-white/[0.02] backdrop-blur-xl p-7 md:p-10">
 
             <div className="flex items-center gap-3 mb-6">
               <div className="h-7 w-7 rounded-xl flex items-center justify-center shrink-0 text-xs font-black text-white"
@@ -270,8 +268,8 @@ export default function StarAcademyLandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Gagnants */}
-            <div className="rounded-3xl border border-[#f59e0b]/20 p-6 sm:p-8 relative overflow-hidden"
-              style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.08),rgba(236,72,153,0.05))", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+            <div className="rounded-2xl border border-[#f59e0b]/20 bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.08),rgba(236,72,153,0.05))" }}>
               <div className="absolute top-0 left-0 right-0 h-px"
                 style={{ background: "linear-gradient(90deg,transparent,rgba(245,158,11,0.5),transparent)" }} />
               <div className="flex items-start gap-4">
@@ -289,8 +287,7 @@ export default function StarAcademyLandingPage() {
               </div>
             </div>
             {/* Retenus */}
-            <div className="rounded-3xl border border-violet-500/15 p-6 sm:p-8 relative overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+            <div className="rounded-2xl border border-violet-500/15 bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 relative overflow-hidden">
               <div className="absolute top-0 left-0 right-0 h-px"
                 style={{ background: "linear-gradient(90deg,transparent,rgba(147,51,234,0.4),transparent)" }} />
               <div className="flex items-start gap-4">
@@ -308,8 +305,7 @@ export default function StarAcademyLandingPage() {
               </div>
             </div>
             {/* Visibilité */}
-            <div className="rounded-3xl border border-[#00f2ea]/10 p-6 relative overflow-hidden"
-              style={{ background: "rgba(0,242,234,0.03)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+            <div className="rounded-2xl border border-[#00f2ea]/10 bg-white/[0.02] backdrop-blur-xl p-6 relative overflow-hidden">
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center"
                   style={{ background: "rgba(0,242,234,0.1)", border: "1px solid rgba(0,242,234,0.2)" }}>
@@ -324,8 +320,7 @@ export default function StarAcademyLandingPage() {
               </div>
             </div>
             {/* Profil boosté */}
-            <div className="rounded-3xl border border-white/[0.06] p-6 relative overflow-hidden"
-              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 relative overflow-hidden">
               <div className="flex items-start gap-4">
                 <div className="h-10 w-10 rounded-xl shrink-0 flex items-center justify-center"
                   style={{ background: "rgba(147,51,234,0.1)", border: "1px solid rgba(147,51,234,0.2)" }}>
@@ -351,8 +346,7 @@ export default function StarAcademyLandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {steps.map((step, i) => (
-              <div key={step.num} className="rounded-3xl border border-white/[0.06] p-5 relative overflow-hidden group hover:border-violet-500/20 transition-all duration-300"
-                style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+              <div key={step.num} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 relative overflow-hidden group hover:border-violet-500/20 transition-all duration-300">
                 {/* Top border gradient on hover */}
                 <div className="absolute top-0 left-0 right-0 h-px opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                   style={{ background: "linear-gradient(90deg,transparent,rgba(147,51,234,0.5),transparent)" }} />
@@ -410,8 +404,8 @@ export default function StarAcademyLandingPage() {
             REJOINDRE LE STAFF
         ══════════════════════════════════════ */}
         <section className="px-5 py-12 max-w-5xl mx-auto">
-          <div className="rounded-3xl border border-amber-500/15 p-6 sm:p-10 relative overflow-hidden"
-            style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.06),rgba(236,72,153,0.04))", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+          <div className="rounded-2xl border border-amber-500/15 bg-white/[0.02] backdrop-blur-xl p-6 sm:p-10 relative overflow-hidden"
+            style={{ background: "linear-gradient(135deg,rgba(245,158,11,0.06),rgba(236,72,153,0.04))" }}>
             <div className="absolute top-0 left-0 right-0 h-px"
               style={{ background: "linear-gradient(90deg,transparent,rgba(245,158,11,0.5),transparent)" }} />
             <div className="absolute inset-0 pointer-events-none"
@@ -452,7 +446,7 @@ export default function StarAcademyLandingPage() {
             CHATEAU SECTION
         ══════════════════════════════════════ */}
         <section className="px-5 py-14 max-w-5xl mx-auto">
-          <div className="relative rounded-3xl overflow-hidden" style={{ minHeight: "340px" }}>
+          <div className="relative rounded-2xl overflow-hidden" style={{ minHeight: "340px" }}>
             <Image src="/StarAcRes/sa-chateau-sky.jpg" alt="Le Chateau Virtuel" fill
               className="object-cover object-center" sizes="(max-width:1024px)100vw,1024px" />
             <div className="absolute inset-0"
@@ -533,7 +527,7 @@ export default function StarAcademyLandingPage() {
                 Demarrer ma candidature
               </Link>
               <Link href="/star-academy-tiktok/suivi"
-                className="rounded-2xl border border-white/15 bg-black/30 backdrop-blur-sm px-7 py-4 font-semibold text-sm text-white/60 hover:text-white hover:bg-white/10 transition-all">
+                className="bg-white/[0.06] text-white/70 font-medium rounded-full px-7 py-4 text-sm hover:bg-white/[0.1] transition-all">
                 Suivre ma candidature
               </Link>
             </div>
@@ -550,8 +544,7 @@ export default function StarAcademyLandingPage() {
         {/* ══════════════════════════════════════
             FOOTER
         ══════════════════════════════════════ */}
-        <footer className="border-t border-white/5 px-5 py-10"
-          style={{ background: "rgba(255,255,255,0.01)" }}>
+        <footer className="border-t border-white/[0.06] px-5 py-10 bg-white/[0.01]">
           <div className="max-w-4xl mx-auto">
             {/* Logos */}
             <div className="flex flex-wrap items-center justify-center gap-6 mb-6">

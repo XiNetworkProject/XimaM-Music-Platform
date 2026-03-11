@@ -159,26 +159,26 @@ function SuiviContent() {
         </p>
 
         {/* ── Search form ─────────────────────────────────── */}
-        <form onSubmit={handleSubmit} className="rounded-3xl border border-white/10 bg-white/5 backdrop-blur-sm p-6 mb-6">
+        <form onSubmit={handleSubmit} className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 mb-6">
           <div className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-white/60 mb-1.5">Token de suivi</label>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-[#7c3aed]/60 focus:ring-1 focus:ring-[#7c3aed]/30 transition font-mono"
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition font-mono"
                 placeholder="abc123def456…"
                 value={tokenInput}
                 onChange={(e) => setTokenInput(e.target.value)}
               />
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px bg-white/[0.06]" />
               <span className="text-xs text-white/30">ou</span>
-              <div className="flex-1 h-px bg-white/10" />
+              <div className="flex-1 h-px bg-white/[0.06]" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-white/60 mb-1.5">Email de candidature</label>
               <input
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/25 outline-none focus:border-[#7c3aed]/60 focus:ring-1 focus:ring-[#7c3aed]/30 transition"
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition"
                 type="email"
                 placeholder="email@exemple.com"
                 value={emailInput}
@@ -190,8 +190,7 @@ function SuiviContent() {
           <button
             type="submit"
             disabled={loading || (!tokenInput && !emailInput)}
-            className="mt-5 w-full rounded-2xl py-3 font-bold text-sm text-white transition hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{ background: "linear-gradient(90deg,#7c3aed,#00f2ea)" }}
+            className="mt-5 w-full bg-white text-black font-semibold rounded-full py-3 text-sm transition hover:bg-white/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? "Recherche…" : "Voir ma candidature →"}
           </button>
@@ -199,7 +198,7 @@ function SuiviContent() {
 
         {/* ── Error ───────────────────────────────────────── */}
         {searched && !loading && error && (
-          <div className="rounded-2xl border border-[#ff2d55]/30 bg-[#ff2d55]/10 px-4 py-3 text-sm text-[#ff2d55]">
+          <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
             ⚠️ {error}
           </div>
         )}
@@ -212,7 +211,7 @@ function SuiviContent() {
           return (
             <div className="space-y-4">
               {/* Status card */}
-              <div className={`rounded-3xl border ${cfg.border} ${cfg.bg} p-6`}>
+              <div className={`rounded-2xl border ${cfg.border} ${cfg.bg} p-6`}>
                 <div className="flex items-start gap-4">
                   <div className="text-4xl">{cfg.icon}</div>
                   <div className="flex-1 min-w-0">
@@ -223,8 +222,8 @@ function SuiviContent() {
               </div>
 
               {/* Timeline */}
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-5">Progression</h2>
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-5">Progression</h2>
                 <div className="space-y-0">
                   {rejected
                     ? (
@@ -240,7 +239,7 @@ function SuiviContent() {
                         const done    = i <= activeIdx;
                         const current = i === activeIdx;
                         return (
-                          <div key={step.key} className={`flex items-center gap-3 py-3 ${i < TIMELINE_STEPS.length - 1 ? "border-b border-white/5" : ""}`}>
+                          <div key={step.key} className={`flex items-center gap-3 py-3 ${i < TIMELINE_STEPS.length - 1 ? "border-b border-white/[0.06]" : ""}`}>
                             <div className={`h-8 w-8 rounded-full border-2 flex items-center justify-center text-sm transition ${done ? "border-emerald-500/60 bg-emerald-500/10" : "border-white/10 bg-white/3"}`}>
                               {done ? "✓" : step.icon}
                             </div>
@@ -257,8 +256,8 @@ function SuiviContent() {
               </div>
 
               {/* Infos candidat */}
-              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 space-y-3">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-white/40 mb-2">Ta candidature</h2>
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 space-y-3">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-white/30 mb-2">Ta candidature</h2>
                 {[
                   { label: "Nom", value: application.full_name },
                   { label: "TikTok", value: application.tiktok_handle },
@@ -278,8 +277,7 @@ function SuiviContent() {
               {/* CTA Synaura si accepté + compte */}
               {application.status === "accepted" && application.synaura_username && (
                 <div
-                  className="rounded-3xl border border-[#7c3aed]/30 p-6 text-center"
-                  style={{ background: "linear-gradient(135deg,rgba(124,58,237,0.15),rgba(0,242,234,0.08))" }}
+                  className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 text-center"
                 >
                   <div className="text-2xl mb-2">🏆</div>
                   <div className="text-base font-black text-[#ffd47a] mb-1">3 mois Premium activés !</div>
@@ -288,8 +286,7 @@ function SuiviContent() {
                   </div>
                   <Link
                     href="/auth/signin"
-                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white transition hover:opacity-90"
-                    style={{ background: "linear-gradient(90deg,#7c3aed,#00f2ea)" }}
+                    className="inline-flex items-center gap-2 bg-white text-black font-semibold rounded-full px-5 py-2.5 text-sm transition hover:bg-white/90"
                   >
                     Accéder à Synaura →
                   </Link>

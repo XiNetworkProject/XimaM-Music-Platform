@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     // Priorité 1 : bulletin avec is_current=true
     let { data: bulletin, error } = await supabaseAdmin
       .from('meteo_bulletins')
-      .select('id, title, content, image_url, created_at, updated_at')
+      .select('id, title, content, image_url, category, tags, allow_comments, views_count, share_count, created_at, updated_at')
       .eq('is_current', true)
       .or('status.eq.published,status.is.null')
       .order('created_at', { ascending: false })
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (!bulletin && (!error || error.code === 'PGRST116')) {
       const { data: fallbackBulletin, error: fallbackError } = await supabaseAdmin
         .from('meteo_bulletins')
-        .select('id, title, content, image_url, created_at, updated_at')
+        .select('id, title, content, image_url, category, tags, allow_comments, views_count, share_count, created_at, updated_at')
         .or('status.eq.published,status.is.null')
         .order('created_at', { ascending: false })
         .limit(1)
@@ -67,7 +67,18 @@ export async function GET(request: NextRequest) {
       })();
     }
 
-    const res = NextResponse.json({ bulletin });
+    let recentBulletins: any[] = [];
+    if (searchParams.get('history') === 'true') {
+      const { data: recent } = await supabaseAdmin
+        .from('meteo_bulletins')
+        .select('id, title, image_url, category, created_at')
+        .or('status.eq.published,status.is.null')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      recentBulletins = (recent || []).filter((b: any) => b.id !== bulletin?.id);
+    }
+
+    const res = NextResponse.json({ bulletin, recentBulletins });
     res.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.headers.set('Pragma', 'no-cache');
     res.headers.set('Expires', '0');

@@ -26,12 +26,12 @@ export async function GET(request: NextRequest) {
       supabaseAdmin
         .from('ai_tracks')
         .select(`
-          id, title, audio_url, image_url, duration, tags, play_count, created_at,
+          id, title, audio_url, image_url, duration, tags, play_count, created_at, is_public,
           generation:ai_generations!inner (
             id, user_id, is_public, status, metadata, prompt
           )
         `)
-        .eq('generation.is_public', true)
+        .eq('is_public', true)
         .eq('generation.status', 'completed')
         .order('created_at', { ascending: false })
         .limit(Math.floor(limit / 3)),

@@ -19,7 +19,7 @@ import {
   Clock,
   Inbox,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 interface Conversation {
   _id: string;
@@ -93,19 +93,19 @@ export default function MessagesPage() {
         const data = await res.json();
         setRequests((prev) => prev.filter((r) => r._id !== requestId));
         if (action === 'accept') {
-          toast.success('Demande acceptee');
+          notify.success('OK', 'Demande acceptee');
           if (data.conversationId) {
             await fetchConversations();
             router.push(`/messages/${data.conversationId}`);
           }
         } else {
-          toast.success('Demande refusee');
+          notify.success('OK', 'Demande refusee');
         }
       } else {
-        toast.error('Erreur traitement');
+        notify.error('Erreur', 'Erreur traitement');
       }
     } catch {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setProcessingReqId(null);
     }
@@ -188,10 +188,10 @@ export default function MessagesPage() {
         <div className="flex items-center gap-2 mb-6">
           <button
             onClick={() => setActiveTab('conversations')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all ${
               activeTab === 'conversations'
-                ? 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30'
-                : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:bg-white/[0.06]'
+                ? 'bg-white text-black font-semibold'
+                : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.1]'
             }`}
           >
             <MessageCircle className="w-4 h-4" />
@@ -202,10 +202,10 @@ export default function MessagesPage() {
           </button>
           <button
             onClick={() => setActiveTab('requests')}
-            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all relative ${
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-sm font-medium transition-all relative ${
               activeTab === 'requests'
-                ? 'bg-violet-500/15 text-violet-300 border border-violet-500/30'
-                : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:bg-white/[0.06]'
+                ? 'bg-white text-black font-semibold'
+                : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.1]'
             }`}
           >
             <Inbox className="w-4 h-4" />
@@ -225,7 +225,7 @@ export default function MessagesPage() {
               placeholder="Rechercher une conversation..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40 transition-all"
+              className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition-all"
             />
           </motion.div>
         )}
@@ -249,7 +249,7 @@ export default function MessagesPage() {
                 </p>
                 <button
                   onClick={() => router.push('/discover')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 transition-all"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all"
                 >
                   <UserPlus className="w-4 h-4" />
                   Decouvrir des createurs
@@ -268,7 +268,7 @@ export default function MessagesPage() {
                       exit={{ opacity: 0, y: -15 }}
                       transition={{ delay: i * 0.03 }}
                       onClick={() => router.push(`/messages/${conv._id}`)}
-                      className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-pointer group"
+                      className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-pointer group backdrop-blur-xl"
                     >
                       <div className="relative shrink-0">
                         <Avatar
@@ -327,7 +327,7 @@ export default function MessagesPage() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -100 }}
                     transition={{ delay: i * 0.04 }}
-                    className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-all"
+                    className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-all"
                   >
                     <div className="flex items-start gap-3.5">
                       <div
@@ -368,7 +368,7 @@ export default function MessagesPage() {
                           <button
                             onClick={() => handleRequest(req._id, 'accept')}
                             disabled={processingReqId === req._id}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold bg-emerald-500 text-white hover:bg-emerald-400 disabled:opacity-40 transition-all shadow-lg shadow-emerald-500/20"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold bg-white text-black hover:bg-white/90 disabled:opacity-40 transition-all"
                           >
                             <Check className="w-3.5 h-3.5" />
                             Accepter
@@ -376,14 +376,14 @@ export default function MessagesPage() {
                           <button
                             onClick={() => handleRequest(req._id, 'reject')}
                             disabled={processingReqId === req._id}
-                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/20 disabled:opacity-40 transition-all"
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 disabled:opacity-40 transition-all"
                           >
                             <X className="w-3.5 h-3.5" />
                             Refuser
                           </button>
                           <button
                             onClick={() => router.push(`/profile/${req.from.username}`)}
-                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-medium bg-white/[0.04] border border-white/[0.06] text-white/40 hover:bg-white/[0.08] transition-all ml-auto"
+                            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-all ml-auto"
                           >
                             Voir profil
                             <ArrowRight className="w-3 h-3" />

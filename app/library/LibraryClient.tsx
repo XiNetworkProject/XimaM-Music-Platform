@@ -672,12 +672,12 @@ export default function LibraryClient() {
 
         <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-foreground-inactive" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/20" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher un dossier ou une piste…"
-              className="w-full h-11 pl-10 pr-10 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
+              className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
             />
             {search.trim() ? (
               <button
@@ -691,18 +691,20 @@ export default function LibraryClient() {
             ) : null}
           </div>
 
-          <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
-            Dossiers
-          </TabButton>
-          <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
-            Favoris
-          </TabButton>
-          <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
-            Récents
-          </TabButton>
-          <TabButton active={tab === 'queue'} onClick={() => { setTab('queue'); setSelectedPlaylistId(null); }}>
-            À suivre
-          </TabButton>
+          <div className="flex items-center gap-0.5 rounded-full bg-white/[0.04] p-0.5">
+            <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
+              Dossiers
+            </TabButton>
+            <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
+              Favoris
+            </TabButton>
+            <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
+              Récents
+            </TabButton>
+            <TabButton active={tab === 'queue'} onClick={() => { setTab('queue'); setSelectedPlaylistId(null); }}>
+              À suivre
+            </TabButton>
+          </div>
         </div>
 
         {/* Sort / Filter controls (tracks only) */}
@@ -1656,10 +1658,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cx(
-        'h-10 px-3 rounded-2xl border text-sm transition',
+        'h-10 px-3 rounded-full text-sm transition',
         active
-          ? 'border-border-secondary bg-background-fog-thin text-foreground-primary'
-          : 'border-border-secondary/60 bg-transparent text-foreground-tertiary hover:bg-background-fog-thin',
+          ? 'bg-white/[0.1] text-white'
+          : 'text-white/30 hover:text-white/50',
       )}
     >
       {children}

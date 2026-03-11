@@ -48,8 +48,3 @@ export const SUNO_SELECT =
 export const SUNO_PANEL =
   'bg-background-primary border border-border-primary rounded-2xl';
 
-export const SUNO_CARD =
-  'bg-background-tertiary border border-border-primary rounded-xl';
-
-export const SUNO_DIVIDER = 'bg-border-primary/60';
-

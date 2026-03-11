@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Check, X, MessageCircle, UserPlus, Clock } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import Avatar from './Avatar';
 
 interface FollowRequest {
@@ -43,12 +43,12 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
       
       if (res.ok) {
         onUpdate(request._id, 'accepted');
-        toast.success(`Vous suivez maintenant ${request.from.name}`);
+        notify.success('OK', `Vous suivez maintenant ${request.from.name}`);
       } else {
-        toast.error('Erreur lors de l\'acceptation');
+        notify.error('Erreur', 'Erreur lors de l\'acceptation');
       }
     } catch (error) {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setActionLoading(null);
     }
@@ -63,12 +63,12 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
       
       if (res.ok) {
         onUpdate(request._id, 'rejected');
-        toast.success('Demande refusée');
+        notify.success('OK', 'Demande refusée');
       } else {
-        toast.error('Erreur lors du refus');
+        notify.error('Erreur', 'Erreur lors du refus');
       }
     } catch (error) {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setActionLoading(null);
     }
@@ -89,22 +89,22 @@ export default function FollowRequestCard({ request, onUpdate }: FollowRequestCa
       });
 
       if (res.ok) {
-        toast.success('Demande de conversation envoyée');
+        notify.success('OK', 'Demande de conversation envoyée');
       } else {
         const data = await res.json();
         if (data.error === 'Conversation déjà existante') {
           if (data.accepted) {
             router.push(`/messages/${data.conversationId}`);
-            toast.success('Redirection vers la conversation existante');
+            notify.success('OK', 'Redirection vers la conversation existante');
           } else {
-            toast('Demande de conversation déjà envoyée, en attente d\'acceptation', { icon: 'ℹ️' });
+            notify.info('Info', 'Demande de conversation déjà envoyée, en attente d\'acceptation');
           }
         } else {
-          toast.error(data.error || 'Erreur lors de l\'envoi de la demande');
+          notify.error('Erreur', data.error || 'Erreur lors de l\'envoi de la demande');
         }
       }
     } catch (error) {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setLoading(false);
     }

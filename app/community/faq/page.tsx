@@ -16,7 +16,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import Link from 'next/link';
 
 interface FAQItem {
@@ -56,7 +56,7 @@ export default function FAQPage() {
           setFaqs(data.faqs || []);
         }
       } catch {
-        toast.error('Erreur chargement FAQ');
+        notify.error('Erreur', 'Erreur chargement FAQ');
       } finally {
         setLoading(false);
       }
@@ -120,12 +120,12 @@ export default function FAQPage() {
             placeholder="Rechercher une question..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-emerald-500/40 transition-all"
+            className="w-full pl-11 pr-4 py-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition-all"
           />
         </motion.div>
 
         {/* Categories */}
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pb-1 mb-6">
+        <div className="flex items-center gap-0.5 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent pb-1 mb-6 rounded-full bg-white/[0.04] p-0.5">
           {categories.map((cat) => {
             const Icon = cat.icon;
             const active = selectedCategory === cat.id;
@@ -133,10 +133,10 @@ export default function FAQPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs whitespace-nowrap transition-all ${
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs whitespace-nowrap transition-all ${
                   active
-                    ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
-                    : 'bg-white/[0.03] text-white/40 border border-white/[0.06] hover:bg-white/[0.06] hover:text-white/60'
+                    ? 'bg-white/[0.1] text-white'
+                    : 'text-white/30 hover:text-white/50'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -172,7 +172,7 @@ export default function FAQPage() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.02 }}
-                  className="rounded-2xl bg-white/[0.03] border border-white/[0.06] overflow-hidden hover:bg-white/[0.04] transition-all"
+                  className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] overflow-hidden hover:bg-white/[0.04] transition-all"
                 >
                   <button onClick={() => toggleExpanded(faq.id)} className="w-full px-4 md:px-5 py-4 text-left">
                     <div className="flex items-start justify-between gap-3">
@@ -221,7 +221,7 @@ export default function FAQPage() {
 
         {/* CTA */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-10">
-          <div className="rounded-2xl bg-gradient-to-r from-emerald-600/10 via-teal-600/10 to-cyan-600/10 border border-emerald-500/10 p-6 md:p-8">
+          <div className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 md:p-8">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold mb-1">Pas trouve votre reponse ?</h3>
@@ -237,7 +237,7 @@ export default function FAQPage() {
                 </a>
                 <Link
                   href="/community/forum"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] border border-white/[0.08] text-sm text-white hover:bg-white/[0.1] transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/[0.06] text-sm font-medium text-white/70 hover:bg-white/[0.1] transition-colors"
                 >
                   Forum <ArrowRight className="w-3.5 h-3.5" />
                 </Link>

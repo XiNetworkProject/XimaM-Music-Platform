@@ -861,11 +861,11 @@ export default function InscriptionPage() {
 
   // ── Form phase ────────────────────────────────────────
   const inputCls = [
-    "w-full rounded-2xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all duration-200",
-    "border border-white/10 bg-white/[0.05]",
-    "focus:border-violet-500/60 focus:bg-violet-900/10 focus:shadow-[0_0_0_3px_rgba(147,51,234,0.15)]",
+    "w-full rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none transition-all duration-200",
+    "border border-white/[0.08] bg-white/[0.04]",
+    "focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]",
   ].join(" ");
-  const labelCls = "block text-[11px] font-bold text-white/40 uppercase tracking-widest mb-2";
+  const labelCls = "block text-[11px] font-bold text-white/30 uppercase tracking-widest mb-2";
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#07000f" }}>
@@ -968,8 +968,7 @@ export default function InscriptionPage() {
               ))}
             </div>
             {/* Prize card */}
-            <div className="rounded-2xl border border-[#f59e0b]/20 p-4"
-              style={{ background: "rgba(245,158,11,0.07)", WebkitBackdropFilter: "blur(12px)", backdropFilter: "blur(12px)" }}>
+            <div className="rounded-2xl border border-[#f59e0b]/20 bg-white/[0.02] backdrop-blur-xl p-4">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl flex items-center justify-center shrink-0 text-white text-xs font-black"
                   style={{ background: "linear-gradient(135deg,#f59e0b,#ec4899)" }}>
@@ -1185,7 +1184,7 @@ export default function InscriptionPage() {
                       <p className="text-xs text-white/25 mt-1">MP3 · WAV · M4A — max 30 MB</p>
                       <button type="button"
                         onClick={e => { e.stopPropagation(); audioRef.current?.click(); }}
-                        className="mt-5 rounded-xl border border-violet-500/30 bg-violet-500/10 px-5 py-2 text-xs font-bold text-violet-300 hover:bg-violet-500/20 transition">
+                        className="mt-5 bg-white/[0.06] text-white/70 font-medium rounded-full px-5 py-2 text-xs hover:bg-white/[0.1] transition">
                         Choisir un fichier
                       </button>
                     </div>
@@ -1205,7 +1204,7 @@ export default function InscriptionPage() {
                           </div>
                         </div>
                         <button type="button" onClick={() => setFile(null)}
-                          className="rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/45 hover:text-white hover:bg-white/10 transition shrink-0">
+                          className="bg-rose-500/10 text-rose-400 rounded-full px-3 py-1.5 text-xs font-medium hover:bg-rose-500/20 transition shrink-0">
                           Retirer
                         </button>
                       </div>
@@ -1213,8 +1212,7 @@ export default function InscriptionPage() {
                     </div>
                   )}
                 </div>
-                <div className="rounded-2xl border border-[#f59e0b]/15 px-4 py-3 text-xs leading-relaxed"
-                  style={{ background: "rgba(245,158,11,0.05)" }}>
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-3 text-xs leading-relaxed">
                   <span className="text-[#f59e0b]/70">Conseil :</span>{" "}
                   <span className="text-white/45">Commence par ton passage le plus fort. Les 10 premieres secondes sont decisives. Un bon smartphone suffit.</span>
                 </div>
@@ -1227,8 +1225,7 @@ export default function InscriptionPage() {
             <FormCard step={5} title="Compte Synaura" subtitle="Tu rejoins Synaura au meme moment que tu candidatures.">
               <div className="space-y-5">
                 {/* Prize reminder */}
-                <div className="rounded-2xl p-4 border border-violet-500/20"
-                  style={{ background: "linear-gradient(135deg,rgba(147,51,234,0.1),rgba(236,72,153,0.06))" }}>
+                <div className="rounded-2xl p-4 border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl">
                   <div className="flex items-center gap-3">
                     <div className="h-9 w-9 rounded-xl shrink-0 flex items-center justify-center text-xs font-black text-white"
                       style={{ background: "linear-gradient(135deg,#9333ea,#ec4899)" }}>
@@ -1296,7 +1293,7 @@ export default function InscriptionPage() {
                   </div>
                 )}
                 <button type="button" disabled={loading || !fields.consent} onClick={submit}
-                  className="w-full rounded-2xl py-4 font-black text-base text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+                  className="w-full rounded-full py-4 font-black text-base text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
                   style={{
                     background: loading ? "rgba(147,51,234,0.4)" : "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
                     boxShadow: fields.consent && !loading ? "0 0 30px rgba(147,51,234,0.35), 0 4px 15px rgba(0,0,0,0.4)" : "none",
@@ -1319,12 +1316,12 @@ export default function InscriptionPage() {
             <div className="flex gap-3 mt-7">
               {step > 1 && (
                 <button type="button" onClick={prev}
-                  className="flex-none px-6 rounded-2xl border border-white/10 bg-white/4 py-3.5 text-sm font-semibold text-white/50 hover:text-white hover:bg-white/8 hover:border-white/20 transition-all duration-200">
+                  className="flex-none px-6 bg-white/[0.06] text-white/70 font-medium rounded-full py-3.5 text-sm hover:bg-white/[0.1] transition-all duration-200">
                   Retour
                 </button>
               )}
               <button type="button" onClick={next}
-                className="flex-1 rounded-2xl py-3.5 font-black text-white text-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+                className="flex-1 rounded-full py-3.5 font-black text-white text-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
                 style={{
                   background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
                   boxShadow: "0 0 24px rgba(147,51,234,0.3), 0 4px 12px rgba(0,0,0,0.35)",
@@ -1336,7 +1333,7 @@ export default function InscriptionPage() {
 
           {step === 5 && (
             <button type="button" onClick={prev}
-              className="mt-4 w-full rounded-2xl border border-white/8 py-3 text-sm text-white/30 hover:text-white/60 hover:border-white/15 transition-all duration-200">
+              className="mt-4 w-full bg-white/[0.06] text-white/70 font-medium rounded-full py-3 text-sm hover:bg-white/[0.1] transition-all duration-200">
               Modifier ma presentation
             </button>
           )}
@@ -1351,8 +1348,7 @@ export default function InscriptionPage() {
 // ─── Sub-components ───────────────────────────────────────
 function FormCard({ step, title, subtitle, children }: { step: number; title: string; subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-3xl border border-white/[0.07] p-6 sm:p-7 space-y-6"
-      style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(24px)", backdropFilter: "blur(24px)" }}>
+    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-7 space-y-6">
       <div>
         <div className="flex items-center gap-3 mb-3">
           <div className="h-7 w-7 rounded-xl flex items-center justify-center text-[11px] font-black text-white shrink-0"

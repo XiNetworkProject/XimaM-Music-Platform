@@ -26,6 +26,7 @@ import SubscriptionLimits from '@/components/SubscriptionLimits';
 import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
 import BottomNav from '@/components/BottomNav';
+import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
 
 type SettingsTab = 'profil' | 'compte' | 'parrainage' | 'preferences' | 'securite' | 'legal';
 
@@ -907,58 +908,50 @@ export default function SettingsClient() {
       </div>
 
       {/* Modal confirmation suppression de compte */}
-      {deleteAccountModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-account-title"
-          onClick={(e) => e.target === e.currentTarget && !deleteAccountLoading && setDeleteAccountModalOpen(false)}
-        >
-          <div className="panel-suno border border-red-500/40 rounded-2xl p-5 max-w-md w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 text-red-300">
-              <span className="rounded-full bg-red-500/20 p-2">
-                <AlertTriangle className="h-5 w-5" />
-              </span>
-              <h2 id="delete-account-title" className="text-lg font-bold">Supprimer définitivement mon compte</h2>
-            </div>
-            <p className="mt-3 text-sm text-foreground-secondary">
-              Cette action est <strong>irréversible</strong>. Seront supprimés : votre profil, vos pistes, playlists, commentaires, likes, abonnements, messages, et tous les médias associés (Cloudinary). Votre compte d’authentification sera également supprimé.
-            </p>
-            <p className="mt-2 text-xs text-foreground-inactive">
-              Pour confirmer, saisissez exactement : <code className="bg-background-tertiary px-1 rounded">{DELETE_CONFIRM_PHRASE}</code>
-            </p>
-            <input
-              type="text"
-              value={deleteAccountConfirm}
-              onChange={(e) => setDeleteAccountConfirm(e.target.value)}
-              placeholder={DELETE_CONFIRM_PHRASE}
-              className="mt-3 w-full rounded-xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none focus:border-red-500/50 placeholder:text-foreground-inactive"
-              disabled={deleteAccountLoading}
-              autoComplete="off"
-            />
-            <div className="mt-4 flex gap-3">
-              <button
-                type="button"
-                onClick={() => { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); }}
-                disabled={deleteAccountLoading}
-                className="flex-1 rounded-xl border border-border-secondary bg-background-tertiary px-3 py-2 text-sm font-medium hover:bg-overlay-on-primary transition"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteAccount}
-                disabled={deleteAccountConfirm !== DELETE_CONFIRM_PHRASE || deleteAccountLoading}
-                className="flex-1 rounded-xl border border-red-500/50 bg-red-500/20 px-3 py-2 text-sm font-medium text-red-300 hover:bg-red-500/30 transition disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-              >
-                {deleteAccountLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                Supprimer définitivement
-              </button>
-            </div>
+      <UModal open={deleteAccountModalOpen} onClose={() => { if (!deleteAccountLoading) { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); } }} size="md" className="border-red-500/20">
+        <UModalBody>
+          <div className="flex items-center gap-3 text-red-300">
+            <span className="rounded-full bg-red-500/20 p-2">
+              <AlertTriangle className="h-5 w-5" />
+            </span>
+            <h2 className="text-lg font-bold">Supprimer définitivement mon compte</h2>
           </div>
-        </div>
-      )}
+          <p className="mt-3 text-sm text-white/60">
+            Cette action est <strong>irréversible</strong>. Seront supprimés : votre profil, vos pistes, playlists, commentaires, likes, abonnements, messages, et tous les médias associés (Cloudinary). Votre compte d’authentification sera également supprimé.
+          </p>
+          <p className="mt-2 text-xs text-white/35">
+            Pour confirmer, saisissez exactement : <code className="bg-white/[0.06] px-1 rounded">{DELETE_CONFIRM_PHRASE}</code>
+          </p>
+          <input
+            type="text"
+            value={deleteAccountConfirm}
+            onChange={(e) => setDeleteAccountConfirm(e.target.value)}
+            placeholder={DELETE_CONFIRM_PHRASE}
+            className="mt-3 w-full h-10 px-3.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-sm text-white outline-none focus:border-red-500/40 focus:ring-1 focus:ring-red-500/20 placeholder:text-white/20 transition"
+            disabled={deleteAccountLoading}
+            autoComplete="off"
+          />
+          <div className="mt-5 flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); }}
+              disabled={deleteAccountLoading}
+              className="flex-1 inline-flex items-center justify-center rounded-full h-9 px-4 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition"
+            >
+              Annuler
+            </button>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deleteAccountConfirm !== DELETE_CONFIRM_PHRASE || deleteAccountLoading}
+              className="flex-1 inline-flex items-center justify-center gap-2 rounded-full h-9 px-4 text-sm font-medium bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {deleteAccountLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Supprimer définitivement
+            </button>
+          </div>
+        </UModalBody>
+      </UModal>
 
       <BottomNav />
     </div>

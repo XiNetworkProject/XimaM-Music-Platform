@@ -967,11 +967,11 @@ export default function BoostersClient() {
 
       {isMounted && showFilters && createPortal(
         <div className="fixed inset-0 z-[220] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowFilters(false)} />
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="relative w-[90vw] max-w-[440px] rounded-2xl border border-white/10 bg-[#0f0f1a] shadow-2xl overflow-hidden">
-            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={() => setShowFilters(false)} />
+          <motion.div initial={{ opacity: 0, scale: 0.96, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.2, ease: 'easeOut' }} className="relative w-[90vw] max-w-[440px] rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)] overflow-hidden">
+            <div className="p-4 border-b border-white/[0.06] flex items-center justify-between">
               <span className="text-sm font-bold text-white flex items-center gap-2"><Settings2 className="w-4 h-4 text-white/40" />Filtres</span>
-              <button onClick={() => setShowFilters(false)} className="text-white/40 hover:text-white"><X className="w-5 h-5" /></button>
+              <button onClick={() => setShowFilters(false)} className="p-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition"><X className="w-4 h-4" /></button>
             </div>
             <div className="p-4 space-y-3">
               <div className="grid grid-cols-2 gap-3">
@@ -983,15 +983,15 @@ export default function BoostersClient() {
                 ].map((f) => (
                   <div key={f.label}>
                     <div className="text-[10px] text-white/30 mb-1 uppercase tracking-wider">{f.label}</div>
-                    <select value={f.value} onChange={(e) => f.setter(e.target.value)} className="w-full h-10 px-3 rounded-xl border border-white/10 bg-white/5 text-sm text-white outline-none">
+                    <select value={f.value} onChange={(e) => f.setter(e.target.value)} className="w-full h-10 px-3.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-sm text-white outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] appearance-none transition">
                       {f.opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
                   </div>
                 ))}
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => { setFilterRarity('all'); setFilterType('all'); setFilterStatus('owned'); setSort('new'); }} className="flex-1 h-10 rounded-xl border border-white/10 bg-white/5 text-sm text-white/50 hover:text-white transition">Reset</button>
-                <button type="button" onClick={() => { setShowFilters(false); setTab('boosters'); }} className="flex-1 h-10 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:opacity-90 transition">Voir</button>
+                <button type="button" onClick={() => { setFilterRarity('all'); setFilterType('all'); setFilterStatus('owned'); setSort('new'); }} className="flex-1 inline-flex items-center justify-center rounded-full h-9 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition">Reset</button>
+                <button type="button" onClick={() => { setShowFilters(false); setTab('boosters'); }} className="flex-1 inline-flex items-center justify-center rounded-full h-9 text-sm font-semibold bg-white text-black hover:bg-white/90 transition">Voir</button>
               </div>
             </div>
           </motion.div>

@@ -18,7 +18,7 @@ import {
   Image as ImageIcon,
   X,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import Avatar from '@/components/Avatar';
 import { useAudioPlayer } from '@/app/providers';
 
@@ -115,7 +115,7 @@ export default function ConversationPage() {
         setMessages(data.messages || []);
       }
     } catch {
-      toast.error('Erreur chargement messages');
+      notify.error('Erreur', 'Erreur chargement messages');
     } finally {
       setLoading(false);
     }
@@ -149,10 +149,10 @@ export default function ConversationPage() {
         setMessages((prev) => [...prev, data.message]);
         setNewMessage('');
       } else {
-        toast.error('Erreur envoi');
+        notify.error('Erreur', 'Erreur envoi');
       }
     } catch {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setSending(false);
     }
@@ -167,7 +167,7 @@ export default function ConversationPage() {
     if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'].includes(ext)) type = 'image';
     else if (file.type.startsWith('video/') || ['mp4', 'mov', 'webm'].includes(ext)) type = 'video';
     else if (file.type.startsWith('audio/') || ['mp3', 'wav', 'm4a', 'aac', 'ogg'].includes(ext)) type = 'audio';
-    else { toast.error('Format non supporte'); return; }
+    else { notify.error('Erreur', 'Format non supporte'); return; }
 
     await uploadAndSend(file, type);
   };
@@ -215,7 +215,7 @@ export default function ConversationPage() {
         setMessages((prev) => [...prev, data.message]);
       }
     } catch (err) {
-      toast.error('Erreur upload');
+      notify.error('Erreur', 'Erreur upload');
     } finally {
       setUploading(false);
     }
@@ -245,7 +245,7 @@ export default function ConversationPage() {
         setRecordingDuration(Math.floor((Date.now() - start) / 1000));
       }, 1000);
     } catch {
-      toast.error('Microphone inaccessible');
+      notify.error('Erreur', 'Microphone inaccessible');
     }
   };
 
@@ -270,7 +270,7 @@ export default function ConversationPage() {
       setRecordingPreview(null);
       setRecordingDuration(0);
     } catch {
-      toast.error('Erreur envoi vocal');
+      notify.error('Erreur', 'Erreur envoi vocal');
     }
   };
 
@@ -290,7 +290,7 @@ export default function ConversationPage() {
     currentAudioRef.current = audio;
     setPlayingAudio(id);
     audio.onended = () => { setPlayingAudio(null); currentAudioRef.current = null; };
-    audio.play().catch(() => { setPlayingAudio(null); toast.error('Erreur lecture'); });
+    audio.play().catch(() => { setPlayingAudio(null); notify.error('Erreur', 'Erreur lecture'); });
   };
 
   const formatTime = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -323,7 +323,7 @@ export default function ConversationPage() {
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center gap-3">
           <button
             onClick={() => router.push('/messages')}
-            className="w-9 h-9 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center hover:bg-white/[0.08] transition-colors"
+            className="w-9 h-9 rounded-full bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1] transition-colors"
           >
             <ArrowLeft className="w-4 h-4 text-white/60" />
           </button>
@@ -448,8 +448,8 @@ export default function ConversationPage() {
               <button onClick={cancelRecording} className="w-9 h-9 rounded-full bg-red-500/20 flex items-center justify-center hover:bg-red-500/30 transition-colors">
                 <X className="w-4 h-4 text-red-400" />
               </button>
-              <button onClick={sendRecording} className="w-9 h-9 rounded-full bg-indigo-500 flex items-center justify-center hover:bg-indigo-400 transition-colors shadow-lg shadow-indigo-500/25">
-                <Send className="w-4 h-4 text-white" />
+              <button onClick={sendRecording} className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors">
+                <Send className="w-4 h-4 text-black" />
               </button>
             </div>
           ) : isRecording ? (
@@ -457,7 +457,7 @@ export default function ConversationPage() {
               <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
               <span className="text-sm text-red-400">Enregistrement... {formatTime(recordingDuration)}</span>
               <div className="flex-1" />
-              <button onClick={stopRecording} className="px-4 py-2 rounded-full bg-white/[0.06] border border-white/[0.08] text-sm text-white/60 hover:bg-white/[0.1] transition-colors">
+              <button onClick={stopRecording} className="px-4 py-2 rounded-full bg-white/[0.06] text-sm text-white/70 font-medium hover:bg-white/[0.1] transition-colors">
                 Arreter
               </button>
             </div>
@@ -466,7 +466,7 @@ export default function ConversationPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
-                className="w-9 h-9 shrink-0 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center hover:bg-white/[0.08] transition-colors disabled:opacity-30"
+                className="w-9 h-9 shrink-0 rounded-full bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1] transition-colors disabled:opacity-30"
               >
                 <Paperclip className="w-4 h-4 text-white/40" />
               </button>
@@ -477,7 +477,7 @@ export default function ConversationPage() {
                 onTouchStart={startRecording}
                 onTouchEnd={stopRecording}
                 disabled={uploading}
-                className="w-9 h-9 shrink-0 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center hover:bg-white/[0.08] transition-colors disabled:opacity-30"
+                className="w-9 h-9 shrink-0 rounded-full bg-white/[0.06] flex items-center justify-center hover:bg-white/[0.1] transition-colors disabled:opacity-30"
               >
                 <Mic className="w-4 h-4 text-white/40" />
               </button>
@@ -488,15 +488,15 @@ export default function ConversationPage() {
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder="Votre message..."
                 disabled={uploading}
-                className="flex-1 min-w-0 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.06] text-sm text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all disabled:opacity-30"
+                className="flex-1 min-w-0 px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition-all disabled:opacity-30"
               />
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={handleSend}
                 disabled={!newMessage.trim() || sending || uploading}
-                className="w-9 h-9 shrink-0 rounded-full bg-indigo-500 flex items-center justify-center shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                className="w-9 h-9 shrink-0 rounded-full bg-white flex items-center justify-center hover:bg-white/90 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
               >
-                <Send className="w-4 h-4 text-white" />
+                <Send className="w-4 h-4 text-black" />
               </motion.button>
             </div>
           )}

@@ -237,15 +237,16 @@ export default function SubscriptionsPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Rafraîchissement au retour d'onglet + intervalle
   useEffect(() => {
+    let lastFetch = Date.now();
     const onVis = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && Date.now() - lastFetch > 60000) {
+        lastFetch = Date.now();
         fetchAll();
       }
     };
     document.addEventListener('visibilitychange', onVis);
-    const id = setInterval(fetchAll, 60000);
+    const id = setInterval(() => { lastFetch = Date.now(); fetchAll(); }, 120000);
     return () => {
       document.removeEventListener('visibilitychange', onVis);
       clearInterval(id);
@@ -323,13 +324,13 @@ export default function SubscriptionsPage() {
                   onClick={() =>
                     plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                   }
-                  className="h-11 px-4 inline-flex items-center justify-center rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary hover:opacity-90 transition font-semibold"
+                  className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white text-black font-semibold hover:bg-white/90 transition"
                 >
                   Voir les plans
                 </button>
                 <button
                   onClick={() => setShowBuyCredits(true)}
-                  className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
+                  className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition"
                 >
                   Acheter des crédits
                 </button>
@@ -370,7 +371,7 @@ export default function SubscriptionsPage() {
                         const res = await fetch('/api/billing/cancel-subscription', { method: 'POST' });
                         if (res.ok) await fetchAll();
                       }}
-                      className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm font-semibold"
+                      className="h-10 px-3 rounded-full bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20 transition text-sm"
                     >
                       Annuler
                     </button>
@@ -388,7 +389,7 @@ export default function SubscriptionsPage() {
                           setToast({ type: 'error', msg: 'Échec de la rétrogradation.' });
                         }
                       }}
-                      className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+                      className="h-10 px-3 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
                     >
                       Plan gratuit
                     </button>
@@ -396,7 +397,7 @@ export default function SubscriptionsPage() {
                   <button
                     type="button"
                     onClick={() => setShowBuyCredits(true)}
-                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_20px_rgba(124,58,237,0.28)] transition text-sm font-semibold"
+                    className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm"
                   >
                     <span className="inline-flex items-center gap-2">
                       <Coins className="w-4 h-4" />
@@ -408,7 +409,7 @@ export default function SubscriptionsPage() {
                     onClick={() =>
                       plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }
-                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+                    className="h-10 px-3 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
                   >
                     Choisir un plan
                   </button>
@@ -453,7 +454,7 @@ export default function SubscriptionsPage() {
                         setToast({ type: 'error', msg: 'Échec de la relance.' });
                       }
                     }}
-                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm font-semibold"
+                    className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm"
                   >
                     Retenter le paiement
                   </button>
@@ -475,7 +476,7 @@ export default function SubscriptionsPage() {
                     onClick={() =>
                       plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                     }
-                    className="h-10 px-3 rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm font-semibold"
+                    className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm"
                   >
                     Voir les plans
                   </button>
@@ -726,13 +727,13 @@ export default function SubscriptionsPage() {
             <div className="mt-4 flex gap-2 flex-wrap">
               <button
                 onClick={() => window.location.href = '/'}
-                className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition font-semibold"
+                className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white text-black font-semibold hover:bg-white/90 transition"
               >
                 Retour musique
               </button>
               <button
                 onClick={() => window.location.href = '/settings'}
-                className="h-11 px-4 inline-flex items-center justify-center rounded-2xl border border-border-secondary bg-white/5 hover:bg-white/10 transition"
+                className="h-11 px-4 inline-flex items-center justify-center rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition"
               >
                 Gérer mon compte
               </button>
@@ -786,7 +787,7 @@ export default function SubscriptionsPage() {
             </div>
             <button
               onClick={() => payRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-              className="h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary border border-border-secondary font-semibold inline-flex items-center gap-2"
+              className="h-10 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 inline-flex items-center gap-2 transition"
             >
               Payer <ArrowDown className="w-4 h-4" />
             </button>
@@ -989,14 +990,14 @@ function PlanCard({
 
   return (
     <div
-      className={`flex h-full w-full flex-col rounded-3xl border overflow-hidden transition hover:-translate-y-0.5 hover:bg-white/[0.05] ${
+      className={`flex h-full w-full flex-col rounded-2xl border overflow-hidden transition hover:-translate-y-0.5 hover:bg-white/[0.05] ${
         highlight
-          ? 'border-purple-400/40 shadow-[0_0_60px_rgba(168,85,247,0.22)]'
-          : 'border-white/12'
+          ? 'border-white/[0.12] shadow-[0_0_60px_rgba(168,85,247,0.15)]'
+          : 'border-white/[0.06]'
       }`}
     >
-      <div className={`h-1 w-full ${highlight ? 'bg-gradient-to-r from-purple-500 to-cyan-400' : 'bg-white/10'}`} />
-      <div className="flex h-full flex-col bg-white/[0.04] backdrop-blur-md p-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.09),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.06),transparent)]">
+      <div className={`h-1 w-full ${highlight ? 'bg-gradient-to-r from-purple-500 to-cyan-400' : 'bg-white/[0.06]'}`} />
+      <div className="flex h-full flex-col bg-white/[0.02] backdrop-blur-xl p-6">
         <div className="flex flex-col gap-6 flex-1">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-[20px] lg:text-[24px] font-light text-white/90 truncate">
@@ -1064,10 +1065,10 @@ function PlanCard({
             <button
               disabled={disabled}
               onClick={onChoose}
-              className={`w-full px-6 py-3 rounded-full transition ${
+              className={`w-full px-6 py-3 rounded-full font-semibold transition ${
                 disabled
-                  ? 'text-white/60 bg-white/5 ring-1 ring-white/15 cursor-not-allowed'
-                  : 'text-white bg-gradient-to-r from-purple-500 to-cyan-400 hover:opacity-95 shadow-[0_4px_20px_rgba(124,58,237,0.35)]'
+                  ? 'bg-white/[0.06] text-white/30 cursor-not-allowed'
+                  : 'bg-white text-black hover:bg-white/90'
               }`}
             >
               {disabled ? (isActive ? 'Actif' : 'À venir') : 'Choisir ce plan'}

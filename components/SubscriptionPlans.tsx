@@ -328,7 +328,7 @@ export default function SubscriptionPlans() {
   }
 
   return (
-    <div className="min-h-screen theme-suno text-[var(--text)]">
+    <div className="min-h-screen bg-black text-white">
       <main className="container mx-auto px-2 sm:px-4 md:px-6 pt-16 pb-32">
         <div className="max-w-7xl mx-auto">
           {/* Header */}
@@ -339,14 +339,14 @@ export default function SubscriptionPlans() {
             className="text-center mb-12"
           >
             <div className="flex items-center justify-center mb-6">
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-500/30 to-pink-500/30 border border-[var(--border)]">
-                <Crown size={32} className="text-[var(--text)]" />
+              <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+                <Crown size={32} className="text-white" />
               </div>
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-2 text-[var(--text)]">
+            <h1 className="text-4xl md:text-5xl font-bold mb-2 text-white">
               Abonnements
             </h1>
-            <p className="text-xl text-[var(--text-muted)] max-w-3xl mx-auto">
+            <p className="text-xl text-white/60 max-w-3xl mx-auto">
               Choisissez le plan qui correspond à vos besoins
             </p>
           </motion.div>
@@ -374,21 +374,21 @@ export default function SubscriptionPlans() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.05 }}
-              className="w-full rounded-2xl p-4 backdrop-blur-lg bg-white/5"
+              className="w-full rounded-2xl p-4 bg-white/[0.02] backdrop-blur-xl border border-white/[0.06]"
             >
               <div className="flex w-full flex-col items-center gap-4 max-[1125px]:justify-center min-[1125px]:justify-between md:flex-row md:flex-wrap">
-                <div className="space-between flex flex-row divide-x divide-white/10">
+                <div className="space-between flex flex-row divide-x divide-white/[0.08]">
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-[var(--text-muted)]">Current Plan</span>
-                    <span className="text-sm text-[var(--text)]">{(currentSubscription?.subscription?.name || 'Free Plan')}</span>
+                    <span className="text-xs text-white/30">Current Plan</span>
+                    <span className="text-sm text-white">{(currentSubscription?.subscription?.name || 'Free Plan')}</span>
                 </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-[var(--text-muted)]">Billing Period</span>
-                    <span className="text-sm text-[var(--text)]">{currentSubscription?.subscription?.interval === 'month' ? 'Month' : currentSubscription?.subscription?.interval === 'year' ? 'Year' : '—'}</span>
+                    <span className="text-xs text-white/30">Billing Period</span>
+                    <span className="text-sm text-white">{currentSubscription?.subscription?.interval === 'month' ? 'Month' : currentSubscription?.subscription?.interval === 'year' ? 'Year' : '—'}</span>
                 </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-[var(--text-muted)]">Next Billing Date</span>
-                    <span className="text-sm text-[var(--text)]">
+                    <span className="text-xs text-white/30">Next Billing Date</span>
+                    <span className="text-sm text-white">
                       <span className="flex w-full flex-row items-center gap-2">
                         <Calendar size={16} className="hidden md:block" />
                         {(currentSubscription?.userSubscription?.currentPeriodEnd
@@ -398,19 +398,19 @@ export default function SubscriptionPlans() {
                     </span>
               </div>
                   <div className="items-left flex flex-col gap-1 px-4 first:pl-0 last:pr-0">
-                    <span className="text-xs text-[var(--text-muted)]">Credits Remaining</span>
-                    <span className="text-sm text-[var(--text)]">{currentSubscription?.userSubscription?.usage?.uploads ?? 0}</span>
+                    <span className="text-xs text-white/30">Credits Remaining</span>
+                    <span className="text-sm text-white">{currentSubscription?.userSubscription?.usage?.uploads ?? 0}</span>
                   </div>
                 </div>
                 <div className="flex flex-row justify-center gap-2">
-                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent hover:before:bg-[var(--surface-3)]">
+                  <button type="button" className="px-4 py-2 text-sm rounded-full bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20 transition">
                     <span className="relative flex flex-row items-center justify-center gap-2">Cancel subscription</span>
                   </button>
-                  <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-[var(--border)] before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--text)] bg-transparent hover:before:bg-[var(--surface-3)]">
+                  <button type="button" className="px-4 py-2 text-sm rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition">
                     <span className="relative flex flex-row items-center justify-center gap-2">Update payment</span>
                   </button>
                   <div className="flex">
-                    <button type="button" className="relative inline-block font-sans font-medium text-center before:absolute before:inset-0 before:pointer-events-none before:rounded-[inherit] before:border before:border-transparent before:bg-transparent after:absolute after:inset-0 after:pointer-events-none after:rounded-[inherit] after:bg-transparent after:opacity-0 enabled:hover:after:opacity-100 transition duration-75 before:transition before:duration-75 after:transition after:duration-75 select-none cursor-pointer px-4 py-2 text-[15px] leading-[24px] rounded-full text-[var(--bg)] bg-[var(--text)] hover:opacity-90">
+                    <button type="button" className="px-4 py-2 text-sm rounded-full bg-white text-black font-semibold hover:bg-white/90 transition">
                       <span className="relative flex flex-row items-center justify-center gap-2">Buy more credits</span>
                     </button>
                   </div>
@@ -433,7 +433,7 @@ export default function SubscriptionPlans() {
                 <h2 className="text-2xl font-bold text-white">Votre utilisation actuelle</h2>
               </div>
               
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-[var(--text)]">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-white">
                 {usageInfo && Object.entries(usageInfo).map(([key, data], index) => {
                   const label = key === 'tracks' ? 'Pistes' : 
                                key === 'playlists' ? 'Playlists' :
@@ -526,12 +526,10 @@ export default function SubscriptionPlans() {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.6, delay: 0.4 + index * 0.1 }}
                     whileHover={{ y: -8, scale: 1.02 }}
-                    className={`relative glass-effect rounded-2xl p-6 border-2 transition-all duration-300 ${
+                    className={`relative rounded-2xl p-6 border transition-all duration-300 bg-white/[0.02] backdrop-blur-xl ${
                       isCurrent 
-                        ? 'border-green-500 shadow-2xl shadow-green-500/25' 
-                        : plan.name === 'pro' 
-                        ? 'border-yellow-500 shadow-2xl shadow-yellow-500/25' 
-                        : 'border-transparent hover:border-white/20'
+                        ? 'border-white/[0.12]' 
+                        : 'border-white/[0.06] hover:border-white/[0.12]'
                     }`}
                   >
                     {/* Current Plan Badge */}
@@ -653,14 +651,10 @@ export default function SubscriptionPlans() {
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleSubscribe(plan.name)}
                       disabled={selectedPlan === plan.name || isCurrent}
-                      className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-300 ${
+                      className={`w-full py-3 px-4 rounded-full font-semibold transition-all duration-300 ${
                         isCurrent
-                          ? 'bg-green-600 text-white cursor-not-allowed'
-                          : plan.name === 'pro'
-                          ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600'
-                          : plan.name === 'free'
-                          ? 'bg-gray-600 text-white hover:bg-gray-700'
-                          : `bg-gradient-to-r ${getPlanColor(plan.name)} text-white hover:opacity-90`
+                          ? 'bg-white/[0.06] text-white/30 cursor-not-allowed'
+                          : 'bg-white text-black hover:bg-white/90'
                       } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                       {selectedPlan === plan.name ? 'Chargement...' : 

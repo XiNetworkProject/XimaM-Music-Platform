@@ -81,7 +81,18 @@ export function useLikeSystem({
 
     try {
       if (isAI) {
-        // AI tracks don't have a GET like endpoint — state comes from initialIsLiked
+        const response = await fetch(`/api/ai/tracks/${realAIId}/favorite`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ check_only: true }),
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setState(prev => ({
+            ...prev,
+            isLiked: !!data.is_favorite,
+          }));
+        }
         return;
       }
       const response = await fetch(`/api/tracks/${trackId}/like`, {
@@ -100,7 +111,7 @@ export function useLikeSystem({
     } catch (error) {
       console.error('Erreur vérification like:', error);
     }
-  }, [session?.user?.id, trackId, isAI, isRadio]);
+  }, [session?.user?.id, trackId, isAI, isRadio, realAIId]);
 
   const toggleLike = useCallback(async () => {
     if (!session?.user?.id) {

@@ -286,10 +286,11 @@ const pickDailyTracks = (
   return picks;
 };
 
-// Cache pour les données
 const dataCache = new Map<string, { tracks: Track[]; timestamp: number }>();
-const CACHE_DURATION = 15 * 1000;
-const AUTO_REFRESH_INTERVAL = 2 * 60 * 1000;
+const CACHE_DURATION = 5 * 60 * 1000;
+const AUTO_REFRESH_INTERVAL = 5 * 60 * 1000;
+const MIN_REFETCH_INTERVAL = 60 * 1000;
+let lastFullFetchTimestamp = 0;
 
 const SectionTitle = ({
   icon: _Icon,
@@ -528,7 +529,7 @@ const LiveRadioCard = ({
       className={`relative overflow-hidden rounded-2xl border cursor-pointer transition-all duration-300 group
         ${isPlaying
           ? 'bg-gradient-to-br from-indigo-500/[0.12] to-violet-500/[0.06] border-indigo-500/25'
-          : 'bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.06] hover:border-white/[0.12]'
+          : 'bg-white/[0.02] backdrop-blur-xl border-white/[0.06] hover:bg-white/[0.04]'
         }`}
       onClick={onOpenPlayer}
     >
@@ -567,12 +568,12 @@ const LiveRadioCard = ({
           {/* Play/Pause */}
           <button
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
-            className="h-9 w-9 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg shadow-indigo-500/20 shrink-0"
+            className="h-9 w-9 rounded-full bg-white text-black flex items-center justify-center transition-all hover:bg-white/90 shrink-0"
             aria-label={isPlaying ? 'Pause' : 'Lecture'}
           >
             {isPlaying
-              ? <Pause className="w-4 h-4 text-white" />
-              : <Play className="w-4 h-4 text-white fill-white ml-0.5" />}
+              ? <Pause className="w-4 h-4 text-black" />
+              : <Play className="w-4 h-4 text-black fill-black ml-0.5" />}
           </button>
         </div>
 
@@ -735,7 +736,7 @@ const HeroCarousel = ({
             {s.actionLabel && onAction && (
               <button 
                 onClick={() => onAction(s.actionType, s.actionData ?? s.track)} 
-                className="mt-3 px-5 py-2.5 bg-indigo-500 hover:bg-indigo-400 rounded-full transition-all flex items-center gap-2 text-white font-semibold shadow-lg shadow-indigo-500/25 hover:scale-[1.02] active:scale-[0.98]"
+                className="mt-3 px-5 py-2.5 bg-white text-black rounded-full transition-all flex items-center gap-2 font-semibold hover:bg-white/90"
               >
                 {s.actionIcon && <s.actionIcon className="w-4 h-4" />}
                 <span className="text-sm">{s.actionLabel}</span>
@@ -776,7 +777,7 @@ const HeroCarousel = ({
 };
 
 const Skeleton = ({ className = "" }: { className?: string }) => (
-  <div className={`animate-pulse rounded-2xl bg-white/[0.06] border border-white/[0.08] ${className}`} />
+  <div className={`animate-pulse bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl ${className}`} />
 );
 
 const getGreeting = () => {
@@ -812,7 +813,7 @@ const WelcomeHeader = ({
       <div className="flex items-center gap-2.5 shrink-0">
         <button
           onClick={onListenNow}
-          className="h-10 px-5 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white hover:scale-[1.03] active:scale-[0.97] transition-all text-sm font-bold inline-flex items-center gap-2 shadow-lg shadow-indigo-500/25"
+          className="h-10 px-5 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition-all text-sm inline-flex items-center gap-2"
         >
           <Play className="w-4 h-4 fill-current" />
           Écouter
@@ -820,14 +821,14 @@ const WelcomeHeader = ({
         {!session ? (
           <button
             onClick={() => onGo("/auth/signup")}
-            className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white"
+            className="h-10 px-5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
           >
             Créer un compte
           </button>
         ) : (
           <button
             onClick={() => onGo("/ai-generator")}
-            className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white inline-flex items-center gap-2"
+            className="h-10 px-5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm inline-flex items-center gap-2"
           >
             <Sparkles className="w-4 h-4" />
             Studio IA
@@ -912,7 +913,6 @@ export default function SynauraHome() {
 
   // Fonction pour charger les données
   const fetchCategoryData = useCallback(async (key: string, url: string) => {
-    // La clé de cache inclut l'userId pour éviter que deux comptes différents partagent le même cache
     const uid = session?.user?.id || 'guest';
     const cacheKey = `${uid}:${key}`;
     const cached = dataCache.get(cacheKey);
@@ -921,7 +921,7 @@ export default function SynauraHome() {
     }
 
     try {
-      const response = await fetch(url, { cache: 'no-store' });
+      const response = await fetch(url, { next: { revalidate: 60 } });
       if (response.ok) {
         const data = await response.json();
         if (data.tracks && Array.isArray(data.tracks)) {
@@ -1025,8 +1025,8 @@ export default function SynauraHome() {
         
     try {
       const [likedRes, recentListenRes] = await Promise.all([
-        fetch('/api/tracks?liked=true&limit=150', { cache: 'no-store' }),
-        fetch('/api/tracks?recent=true&limit=80', { cache: 'no-store' }).catch(() => null),
+        fetch('/api/tracks?liked=true&limit=150'),
+        fetch('/api/tracks?recent=true&limit=80').catch(() => null),
       ]);
       let likedTracks: Track[] = [];
       if (likedRes.ok) {
@@ -1060,14 +1060,14 @@ export default function SynauraHome() {
     const fetches: Promise<void>[] = [];
 
     fetches.push(
-      fetch('/api/tracks/rising?limit=10', { cache: 'no-store' })
+      fetch('/api/tracks/rising?limit=10')
         .then(r => r.ok ? r.json() : { tracks: [] })
         .then(d => setRisingTracks(applyCdnToTracks(d.tracks || [])))
         .catch(() => {})
     );
 
     fetches.push(
-      fetch('/api/tracks/boosted?limit=12', { cache: 'no-store' })
+      fetch('/api/tracks/boosted?limit=12')
         .then(r => r.ok ? r.json() : { tracks: [] })
         .then(d => setBoostedTracks(applyCdnToTracks(d.tracks || [])))
         .catch(() => {})
@@ -1075,19 +1075,19 @@ export default function SynauraHome() {
 
     if (uid) {
       fetches.push(
-        fetch('/api/tracks/rediscover?limit=8', { cache: 'no-store' })
+        fetch('/api/tracks/rediscover?limit=8')
           .then(r => r.ok ? r.json() : { tracks: [] })
           .then(d => setRediscoverTracks(applyCdnToTracks(d.tracks || [])))
           .catch(() => {})
       );
 
       fetches.push(
-        fetch('/api/tracks?liked=true&limit=1&sort=recent', { cache: 'no-store' })
+        fetch('/api/tracks?liked=true&limit=1&sort=recent')
           .then(r => r.ok ? r.json() : { tracks: [] })
           .then(async (d) => {
             const lastLiked = d.tracks?.[0];
             if (lastLiked?._id) {
-              const simRes = await fetch(`/api/tracks/similar?trackId=${lastLiked._id}&limit=8`, { cache: 'no-store' });
+              const simRes = await fetch(`/api/tracks/similar?trackId=${lastLiked._id}&limit=8`);
               if (simRes.ok) {
                 const simData = await simRes.json();
                 setSimilarTracks(applyCdnToTracks(simData.tracks || []));
@@ -1102,13 +1102,13 @@ export default function SynauraHome() {
       fetches.push(
         (async () => {
           try {
-            const followRes = await fetch('/api/users/following?limit=20', { cache: 'no-store' });
+            const followRes = await fetch('/api/users/following?limit=20');
             if (!followRes.ok) return;
             const followData = await followRes.json();
             const followedIds: string[] = (followData.following || followData.users || []).map((u: any) => u._id || u.id).filter(Boolean);
             if (!followedIds.length) return;
 
-            const evRes = await fetch(`/api/tracks/trending?limit=20`, { cache: 'no-store' });
+            const evRes = await fetch(`/api/tracks/trending?limit=20`);
             if (!evRes.ok) return;
             const evData = await evRes.json();
             const trendingAll: any[] = evData.tracks || [];
@@ -1124,7 +1124,7 @@ export default function SynauraHome() {
 
       // New artists (recent profiles with quality tracks)
       fetches.push(
-        fetch('/api/users?limit=30&sort=recent', { cache: 'no-store' })
+        fetch('/api/users?limit=30&sort=recent')
           .then(r => r.ok ? r.json() : { users: [] })
           .then(d => {
             const thirtyDaysAgo = Date.now() - 30 * 24 * 3600 * 1000;
@@ -1142,8 +1142,10 @@ export default function SynauraHome() {
   }, [session?.user]);
 
   const loadData = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoading(true);
-    dataCache.clear();
+    if (showLoader) {
+      setLoading(true);
+      dataCache.clear();
+    }
     const uid = session?.user?.id;
     // Pour les endpoints personnalisés, on passe userId dans l'URL afin que
     // l'API puisse l'utiliser et que le cache côté serveur soit différencié par user
@@ -1155,7 +1157,7 @@ export default function SynauraHome() {
       fetchCategoryData('trending', '/api/tracks/trending?limit=30'),
       fetchCategoryData('recent', '/api/tracks/recent?limit=30'),
       fetchCategoryData('forYou', forYouUrl),
-      fetch('/api/users?limit=12', { cache: 'no-store' }).then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
+      fetch('/api/users?limit=12').then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
     ]);
     
     setFeaturedTracks(featured);
@@ -1164,7 +1166,8 @@ export default function SynauraHome() {
     setForYouTracks(forYou);
     setPopularUsers(users);
     if (showLoader) setLoading(false);
-    
+    lastFullFetchTimestamp = Date.now();
+
     fetchLibraryStats();
     fetchSuggestedCreators();
     loadExtraSections();
@@ -1193,6 +1196,9 @@ export default function SynauraHome() {
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        const now = Date.now();
+        if (now - lastFullFetchTimestamp < MIN_REFETCH_INTERVAL) return;
+        lastFullFetchTimestamp = now;
         loadData(false);
       }
     };
@@ -1204,7 +1210,7 @@ export default function SynauraHome() {
     const loadPlaylists = async () => {
       try {
         setGuestPlaylistsLoading(true);
-        const res = await fetch('/api/playlists/popular?limit=10', { cache: 'no-store' });
+        const res = await fetch('/api/playlists/popular?limit=10');
         const json = await res.json();
         const list = Array.isArray(json?.playlists) ? (json.playlists as PublicPlaylist[]) : [];
         setGuestPlaylists(list.slice(0, 10));
@@ -1941,7 +1947,7 @@ export default function SynauraHome() {
                     <p className="text-xs text-white/40 mt-0.5">Ces artistes boostent leurs pistes en ce moment</p>
                   </div>
                 </div>
-                <button onClick={() => router.push('/boosters')} className="shrink-0 h-9 px-4 rounded-xl text-xs font-bold transition-all" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.25))', color: 'rgba(255,255,255,0.8)', border: '1px solid rgba(168,85,247,0.2)' }}>
+                <button onClick={() => router.push('/boosters')} className="shrink-0 h-9 px-4 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] text-xs transition-all">
                   Voir tout
                 </button>
               </div>
@@ -1997,7 +2003,7 @@ export default function SynauraHome() {
                     <div className="text-sm font-bold text-white">Toi aussi, boost tes musiques !</div>
                     <div className="text-[11px] text-white/35 mt-0.5">Ouvre des boosters, utilise-les sur tes pistes et monte dans les classements.</div>
                   </div>
-                  <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.97]" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.3)' }}>
+                  <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-full bg-white text-black text-xs font-semibold transition-all hover:bg-white/90">
                     Ouvrir mes boosters
                   </button>
                 </div>
@@ -2018,7 +2024,7 @@ export default function SynauraHome() {
                   <div className="text-sm font-bold text-white">Booste tes pistes</div>
                   <div className="text-[11px] text-white/35 mt-0.5">Ouvre des boosters quotidiens, tourne la roue et propulse ta musique dans les recommandations.</div>
                 </div>
-                <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-xl text-xs font-bold text-white transition-all" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.25)' }}>
+                <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-full bg-white text-black text-xs font-semibold transition-all hover:bg-white/90">
                   Decouvrir
                 </button>
               </div>
@@ -2083,7 +2089,7 @@ export default function SynauraHome() {
                 <div className="text-lg font-black text-white">Rejoins Synaura</div>
                 <p className="text-sm text-white/40 mt-0.5">Crée ton compte gratuitement et accède au Studio IA, likes, playlists et plus.</p>
               </div>
-              <button onClick={() => onGo('/auth/signup')} className="h-11 px-6 rounded-full bg-indigo-500 hover:bg-indigo-400 text-white font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-indigo-500/25 shrink-0 whitespace-nowrap">
+              <button onClick={() => onGo('/auth/signup')} className="h-11 px-6 rounded-full bg-white text-black font-semibold text-sm transition-all hover:bg-white/90 shrink-0 whitespace-nowrap">
                 Créer un compte
               </button>
             </div>
@@ -2271,7 +2277,7 @@ export default function SynauraHome() {
                   <div className="text-xs text-white/35 mt-1 max-w-md">Ouvre ton booster quotidien gratuit, complete des missions et utilise tes boosts pour propulser tes pistes dans les recommandations de tous les utilisateurs.</div>
                 </div>
                 <div className="shrink-0 flex flex-col sm:flex-row gap-2">
-                  <button onClick={() => router.push('/boosters')} className="h-10 px-5 rounded-xl text-xs font-bold text-white transition-all hover:scale-[1.03]" style={{ background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', boxShadow: '0 4px 15px rgba(139,92,246,0.25)' }}>
+                  <button onClick={() => router.push('/boosters')} className="h-10 px-5 rounded-full bg-white text-black text-xs font-semibold transition-all hover:bg-white/90">
                     Ouvrir mes boosters
                   </button>
                 </div>

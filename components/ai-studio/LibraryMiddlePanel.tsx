@@ -595,7 +595,8 @@ export function LibraryMiddlePanel({
                 const genId = (t as any).generation_id || (t as any).generation?.id;
                 const gen = genId ? generationsById.get(String(genId)) || null : null;
                 const globalIdx = filtered.indexOf(t);
-                const isPublished = gen?.is_public === true || (t as any).generation?.is_public === true;
+                const trackIsPublic = (t as any).is_public;
+                const isPublished = trackIsPublic === true || (trackIsPublic == null && (gen?.is_public === true || (t as any).generation?.is_public === true));
                 return (
                   <TrackRow
                     key={t.id}

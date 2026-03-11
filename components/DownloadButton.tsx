@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Lock, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDownloadPermission, downloadAudioFile, generateFilename } from '@/hooks/useDownloadPermission';
 import DownloadDialog from './DownloadDialog';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 interface DownloadButtonProps {
   audioUrl: string;
@@ -56,12 +56,12 @@ export default function DownloadButton({
 
   const handleDownloadClick = () => {
     if (!canDownload) {
-      toast.error(upgradeMessage || 'Téléchargement non disponible');
+      notify.error('Erreur', upgradeMessage || 'Téléchargement non disponible');
       return;
     }
 
     if (!audioUrl) {
-      toast.error('URL audio non disponible');
+      notify.error('Erreur', 'URL audio non disponible');
       return;
     }
 
@@ -81,7 +81,7 @@ export default function DownloadButton({
       });
 
       setDownloadStatus('success');
-      toast.success(`Téléchargement réussi: ${filename}`);
+      notify.success('OK', `Téléchargement réussi: ${filename}`);
       
       // Fermer le dialog après succès
       setTimeout(() => {
@@ -92,7 +92,7 @@ export default function DownloadButton({
 
     } catch (error) {
       setDownloadStatus('error');
-      toast.error('Erreur lors du téléchargement');
+      notify.error('Erreur', 'Erreur lors du téléchargement');
       
       // Reset après 3 secondes
       setTimeout(() => {

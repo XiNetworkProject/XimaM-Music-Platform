@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, GripVertical, ListMusic, Play, Plus, Save, Trash2, X, Music2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
+import { UModal, UButton } from '@/components/ui/UnifiedUI';
 
 type Props = {
   isOpen: boolean;
@@ -54,7 +53,7 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
     return () => { cancelled = true; };
   }, [isOpen, upNextTracks.length]);
 
-  if (!isOpen || typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') return null;
 
   const handlePlayFromQueue = (track: any) => {
     if (!track) return;
@@ -91,32 +90,16 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
         });
       }
 
-      toast.success('File enregistrée dans un dossier');
+      notify.success('OK', 'File enregistrée dans un dossier');
     } catch (e: any) {
-      toast.error(e?.message || 'Erreur');
+      notify.error('Erreur', e?.message || 'Erreur');
     } finally {
       setSaving(false);
     }
   };
 
-  return createPortal(
-    <AnimatePresence>
-      <motion.div
-        className="fixed inset-0 z-[260] bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 40 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="w-full sm:w-[92vw] sm:max-w-[520px] max-h-[85vh] sm:rounded-2xl rounded-t-2xl border border-white/[0.08] bg-[#0f0f17] shadow-2xl overflow-hidden flex flex-col"
-          onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-        >
+  return (
+    <UModal open={isOpen} onClose={onClose} size="lg" zClass="z-[200]" showClose={false} className="flex flex-col !overflow-hidden !max-h-[85vh]">
           {/* Header */}
           <div className="px-5 py-4 border-b border-white/[0.06] flex items-center justify-between gap-3 shrink-0">
             <div className="flex items-center gap-3 min-w-0">
@@ -224,7 +207,7 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                           <button
                             onClick={() => {
                               removeFromUpNext(t._id);
-                              toast.success('Retiré de la file', { duration: 1500, style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } });
+                              notify.success('OK', 'Retiré de la file');
                             }}
                             className="w-7 h-7 rounded-md hover:bg-red-500/15 transition flex items-center justify-center"
                             aria-label="Retirer"
@@ -267,7 +250,7 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                             <button
                               onClick={() => {
                                 addToUpNext(t as any, 'end');
-                                toast.success(`${t.title} ajouté`, { duration: 1500, style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } });
+                                notify.success('OK', `${t.title} ajouté`);
                               }}
                               className="w-7 h-7 rounded-md bg-white/[0.06] hover:bg-indigo-500/20 transition flex items-center justify-center opacity-0 group-hover:opacity-100"
                               aria-label="Ajouter"
@@ -286,31 +269,34 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
 
           {/* Footer */}
           <div className="px-5 py-3 border-t border-white/[0.06] flex gap-2 shrink-0">
-            <button
-              onClick={() => { clearUpNext(); toast.success('File vidée', { duration: 1500, style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } }); }}
+            <UButton
+              variant="secondary"
+              size="lg"
+              onClick={() => { clearUpNext(); notify.success('OK', 'File vidée'); }}
               disabled={!upNextTracks.length}
-              className="flex-1 h-10 rounded-xl text-[13px] font-medium bg-white/[0.04] hover:bg-white/[0.08] text-white/50 hover:text-white/70 border border-white/[0.06] transition disabled:opacity-30"
+              className="flex-1"
             >
               Vider
-            </button>
-            <button
+            </UButton>
+            <UButton
+              variant="secondary"
+              size="lg"
               onClick={saveAsPlaylist}
               disabled={!upNextTracks.length || saving}
-              className="flex-1 h-10 rounded-xl text-[13px] font-medium bg-white/[0.04] hover:bg-white/[0.08] text-white/50 hover:text-white/70 border border-white/[0.06] transition disabled:opacity-30 inline-flex items-center justify-center gap-1.5"
+              className="flex-1"
             >
               <Save className="w-3.5 h-3.5" />
               Sauvegarder
-            </button>
-            <button
+            </UButton>
+            <UButton
+              variant="primary"
+              size="lg"
               onClick={onClose}
-              className="flex-1 h-10 rounded-xl text-[13px] font-bold bg-indigo-500 hover:bg-indigo-400 text-white transition shadow-lg shadow-indigo-500/20"
+              className="flex-1"
             >
               OK
-            </button>
+            </UButton>
           </div>
-        </motion.div>
-      </motion.div>
-    </AnimatePresence>,
-    document.body,
+    </UModal>
   );
 }

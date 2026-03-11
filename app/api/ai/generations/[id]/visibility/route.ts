@@ -53,6 +53,12 @@ export async function PATCH(
       return NextResponse.json({ error: updateError?.message || 'Erreur update visibilite' }, { status: 500 });
     }
 
+    await supabaseAdmin
+      .from('ai_tracks')
+      .update({ is_public: body.isPublic })
+      .eq('generation_id', generationId)
+      .then(() => {});
+
     return NextResponse.json({
       generationId: updated.id,
       isPublic: Boolean(updated.is_public),

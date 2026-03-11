@@ -20,10 +20,11 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import { categorizePost, suggestTags } from '@/lib/postCategorization';
 import Avatar from '@/components/Avatar';
 import Link from 'next/link';
+import { UModal, UModalBody, UModalTitle } from '@/components/ui/UnifiedUI';
 
 interface Post {
   id: string;
@@ -123,7 +124,7 @@ export default function CommunityForumPage() {
         );
         setPosts(postsWithAuthors);
       } catch {
-        toast.error('Erreur chargement');
+        notify.error('Erreur', 'Erreur chargement');
       } finally {
         setLoading(false);
       }
@@ -139,7 +140,7 @@ export default function CommunityForumPage() {
   });
 
   const handleLike = async (postId: string) => {
-    if (!session?.user) { toast.error('Connexion requise'); return; }
+    if (!session?.user) { notify.error('Erreur', 'Connexion requise'); return; }
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
     try {
@@ -152,7 +153,7 @@ export default function CommunityForumPage() {
           setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, isLiked: true, likes: p.likes + 1 } : p));
         }
       }
-    } catch { toast.error('Erreur'); }
+    } catch { notify.error('Erreur', 'Erreur'); }
   };
 
   const handleToggleComments = async (postId: string) => {
@@ -170,8 +171,8 @@ export default function CommunityForumPage() {
   };
 
   const handleSubmitComment = async (postId: string) => {
-    if (!session?.user) { toast.error('Connexion requise'); return; }
-    if (!newComment.trim()) { toast.error('Commentaire requis'); return; }
+    if (!session?.user) { notify.error('Erreur', 'Connexion requise'); return; }
+    if (!newComment.trim()) { notify.error('Erreur', 'Commentaire requis'); return; }
     try {
       const res = await fetch('/api/community/posts/replies', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ post_id: postId, content: newComment.trim() }) });
       if (!res.ok) throw new Error();
@@ -179,13 +180,13 @@ export default function CommunityForumPage() {
       setComments((prev) => ({ ...prev, [postId]: [...(prev[postId] || []), reply] }));
       setPosts((prev) => prev.map((p) => p.id === postId ? { ...p, replies: p.replies + 1 } : p));
       setNewComment('');
-      toast.success('Commentaire ajoute');
-    } catch { toast.error('Erreur'); }
+      notify.success('OK', 'Commentaire ajoute');
+    } catch { notify.error('Erreur', 'Erreur'); }
   };
 
   const handleSubmitPost = async () => {
-    if (!session?.user) { toast.error('Connexion requise'); return; }
-    if (!newPost.title.trim() || !newPost.content.trim()) { toast.error('Titre et contenu requis'); return; }
+    if (!session?.user) { notify.error('Erreur', 'Connexion requise'); return; }
+    if (!newPost.title.trim() || !newPost.content.trim()) { notify.error('Erreur', 'Titre et contenu requis'); return; }
     try {
       const res = await fetch('/api/community/posts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newPost) });
       if (!res.ok) throw new Error((await res.json()).error);
@@ -193,8 +194,8 @@ export default function CommunityForumPage() {
       setPosts((prev) => [{ ...post, createdAt: post.created_at, likes: 0, replies: 0, author: { id: session.user.id, name: (session.user as any).name || 'Utilisateur', username: (session.user as any).username || 'user', avatar: (session.user as any).avatar || (session.user as any).image } }, ...prev]);
       setNewPost({ title: '', content: '', category: 'question', tags: [] });
       setShowNewPost(false);
-      toast.success('Post publie');
-    } catch (e: any) { toast.error(e.message || 'Erreur'); }
+      notify.success('OK', 'Post publie');
+    } catch (e: any) { notify.error('Erreur', e.message || 'Erreur'); }
   };
 
   const formatDate = (d: string) => {
@@ -401,117 +402,101 @@ export default function CommunityForumPage() {
       </div>
 
       {/* New post modal */}
-      <AnimatePresence>
-        {showNewPost && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center px-4"
-            onClick={() => setShowNewPost(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl bg-[#141418] border border-white/[0.08] p-5 md:p-6"
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+      <UModal open={showNewPost} onClose={() => setShowNewPost(false)} size="full">
+        <UModalBody>
+          <div className="mb-5">
+            <UModalTitle>Nouveau post</UModalTitle>
+            <p className="text-xs text-white/35 mt-0.5">Decrivez clairement votre question ou idee</p>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-white/40 mb-1.5">Titre</label>
+              <input
+                type="text"
+                value={newPost.title}
+                onChange={(e) => setNewPost((p) => ({ ...p, title: e.target.value }))}
+                placeholder="Titre..."
+                className="w-full h-10 px-3.5 text-sm rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-white/40 mb-1.5">Categorie</label>
+                <select
+                  value={newPost.category}
+                  onChange={(e) => setNewPost((p) => ({ ...p, category: e.target.value as any }))}
+                  className="w-full h-10 px-3.5 text-sm rounded-xl bg-white/[0.04] border border-white/[0.08] text-white outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] appearance-none transition"
+                >
+                  <option value="question">Question</option>
+                  <option value="suggestion">Suggestion</option>
+                  <option value="bug">Bug</option>
+                  <option value="general">General</option>
+                </select>
+              </div>
+              <div>
+                <label className="flex items-center gap-1 text-xs font-medium text-white/40 mb-1.5">
+                  <Tag className="w-3 h-3" /> Tags sugeres
+                </label>
+                <div className="min-h-[42px] rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2 flex flex-wrap gap-1.5">
+                  {newPost.tags.length > 0 ? (
+                    newPost.tags.map((tag, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/25 text-[11px] text-indigo-300">#{tag}</span>
+                    ))
+                  ) : (
+                    <span className="text-[11px] text-white/20">Auto-detection...</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-white/40 mb-1.5">Contenu</label>
+              <textarea
+                value={newPost.content}
+                onChange={(e) => setNewPost((p) => ({ ...p, content: e.target.value }))}
+                placeholder="Decrivez votre question ou idee..."
+                rows={5}
+                className="w-full px-3.5 py-2.5 text-sm rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] resize-none transition"
+              />
+            </div>
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (!newPost.title.trim() && !newPost.content.trim()) { notify.error('Erreur', 'Saisissez du contenu'); return; }
+                  setNewPost((p) => ({ ...p, category: categorizePost(p.title, p.content), tags: suggestTags(p.title, p.content) }));
+                  notify.success('OK', 'Categorise');
+                }}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full text-xs font-medium bg-violet-500/10 border border-violet-500/20 text-violet-300 hover:bg-violet-500/20 transition-colors"
+              >
+                <Wand2 className="w-3.5 h-3.5" />
+                Categoriser
+              </button>
+              <label className="inline-flex items-center gap-2 text-[11px] text-white/35">
+                <input type="checkbox" checked={autoCategorizeEnabled} onChange={(e) => setAutoCategorizeEnabled(e.target.checked)} className="rounded border-white/20 bg-white/[0.04]" />
+                Auto
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-2 mt-6">
+            <button
+              onClick={() => setShowNewPost(false)}
+              className="flex-1 inline-flex items-center justify-center rounded-full h-9 px-4 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition"
             >
-              <div className="mb-5">
-                <h2 className="text-lg font-bold">Nouveau post</h2>
-                <p className="text-xs text-white/35 mt-0.5">Decrivez clairement votre question ou idee</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Titre</label>
-                  <input
-                    type="text"
-                    value={newPost.title}
-                    onChange={(e) => setNewPost((p) => ({ ...p, title: e.target.value }))}
-                    placeholder="Titre..."
-                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-white/50 mb-1.5">Categorie</label>
-                    <select
-                      value={newPost.category}
-                      onChange={(e) => setNewPost((p) => ({ ...p, category: e.target.value as any }))}
-                      className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/[0.04] border border-white/[0.08] text-white outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    >
-                      <option value="question">Question</option>
-                      <option value="suggestion">Suggestion</option>
-                      <option value="bug">Bug</option>
-                      <option value="general">General</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="flex items-center gap-1 text-xs font-medium text-white/50 mb-1.5">
-                      <Tag className="w-3 h-3" /> Tags sugeres
-                    </label>
-                    <div className="min-h-[42px] rounded-xl bg-white/[0.04] border border-white/[0.08] px-3 py-2 flex flex-wrap gap-1.5">
-                      {newPost.tags.length > 0 ? (
-                        newPost.tags.map((tag, i) => (
-                          <span key={i} className="px-2 py-0.5 rounded-md bg-indigo-500/15 border border-indigo-500/25 text-[11px] text-indigo-300">#{tag}</span>
-                        ))
-                      ) : (
-                        <span className="text-[11px] text-white/20">Auto-detection...</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-medium text-white/50 mb-1.5">Contenu</label>
-                  <textarea
-                    value={newPost.content}
-                    onChange={(e) => setNewPost((p) => ({ ...p, content: e.target.value }))}
-                    placeholder="Decrivez votre question ou idee..."
-                    rows={5}
-                    className="w-full px-4 py-2.5 text-sm rounded-xl bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/25 outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none"
-                  />
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => {
-                      if (!newPost.title.trim() && !newPost.content.trim()) { toast.error('Saisissez du contenu'); return; }
-                      setNewPost((p) => ({ ...p, category: categorizePost(p.title, p.content), tags: suggestTags(p.title, p.content) }));
-                      toast.success('Categorise');
-                    }}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium bg-violet-500/10 border border-violet-500/20 text-violet-300 hover:bg-violet-500/20 transition-colors"
-                  >
-                    <Wand2 className="w-3.5 h-3.5" />
-                    Categoriser
-                  </button>
-                  <label className="inline-flex items-center gap-2 text-[11px] text-white/35">
-                    <input type="checkbox" checked={autoCategorizeEnabled} onChange={(e) => setAutoCategorizeEnabled(e.target.checked)} className="rounded border-white/20 bg-white/[0.04]" />
-                    Auto
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-6">
-                <button
-                  onClick={() => setShowNewPost(false)}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleSubmitPost}
-                  className="flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold bg-indigo-500 text-white hover:bg-indigo-400 transition-colors shadow-lg shadow-indigo-500/20"
-                >
-                  Publier
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              Annuler
+            </button>
+            <button
+              onClick={handleSubmitPost}
+              className="flex-1 inline-flex items-center justify-center rounded-full h-9 px-4 text-sm font-semibold bg-white text-black hover:bg-white/90 transition"
+            >
+              Publier
+            </button>
+          </div>
+        </UModalBody>
+      </UModal>
     </div>
   );
 }

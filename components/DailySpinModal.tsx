@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Crown, Gem, Gift, Sparkles, Star, X, Zap } from 'lucide-react';
 import Image from 'next/image';
+import { UButton } from '@/components/ui/UnifiedUI';
 
 type Props = {
   isOpen: boolean;
@@ -240,8 +241,7 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
   return createPortal(
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[260] flex items-center justify-center p-4"
-        style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+        className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -276,8 +276,7 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          className="relative w-[92vw] max-w-[480px] rounded-2xl border border-white/10 overflow-hidden"
-          style={{ background: 'linear-gradient(180deg, #0f0a20 0%, #0a0a15 100%)' }}
+          className="relative w-[92vw] max-w-[480px] rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl overflow-hidden"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
         >
           {/* Golden top accent */}

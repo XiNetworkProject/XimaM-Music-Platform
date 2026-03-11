@@ -990,7 +990,7 @@ export default function UploadPage() {
               </span>
               <button
                 onClick={() => router.push('/subscriptions', { scroll: false })}
-                className="h-9 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-xs"
+                className="h-9 px-3 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-xs"
               >
                 Voir les plans
               </button>
@@ -1098,7 +1098,7 @@ export default function UploadPage() {
                                     type="text"
                                     value={m.title}
                                     onChange={(e) => handleAlbumTrackTitleChange(idx, e.target.value)}
-                                    className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
+                                    className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
                                     placeholder={`Titre #${idx+1}`}
                                   />
                                   <div className="text-xs text-foreground-tertiary mt-1">
@@ -1114,7 +1114,7 @@ export default function UploadPage() {
                                       <button
                                         type="button"
                                         onClick={() => resetAlbumTrackOverrides(idx)}
-                                        className="h-8 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-xs text-foreground-secondary"
+                                        className="h-8 px-3 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-xs"
                                       >
                                         Réinitialiser
                                       </button>
@@ -1133,7 +1133,7 @@ export default function UploadPage() {
 
                                       <div className="flex items-center gap-2">
                                         <select
-                                          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
+                                          className="h-10 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
                                           defaultValue=""
                                           onChange={(e) => {
                                             const g = e.target.value;
@@ -1172,7 +1172,7 @@ export default function UploadPage() {
                                         value={m.lyricsOverride ?? ''}
                                         onChange={(e) => handleAlbumTrackLyricsChange(idx, e.target.value || null)}
                                         rows={2}
-                                        className="w-full min-h-[64px] px-3 py-2 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary resize-none"
+                                        className="w-full min-h-[64px] px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] resize-none"
                                         placeholder="Paroles spécifiques à cette piste (optionnel)"
                                       />
                                     </div>
@@ -1201,7 +1201,7 @@ export default function UploadPage() {
                                 <button
                                   type="button"
                                   onClick={() => { setAlbumFiles(prev => prev.filter((_, i) => i !== idx)); setAlbumTrackMetas(prev => prev.filter((_, i) => i !== idx)); }}
-                                  className="h-10 px-3 text-xs rounded-2xl border border-border-secondary bg-background-tertiary hover:bg-red-500/15 hover:border-red-500/30 transition"
+                                  className="h-10 px-3 text-xs rounded-full bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20 transition"
                                 >
                                   Retirer
                                 </button>
@@ -1263,7 +1263,7 @@ export default function UploadPage() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => handleInputChange('title', e.target.value)}
-                        className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary"
+                        className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
                         placeholder={uploadMode === 'album' ? "Nom de l'album" : "Titre de votre musique"}
                     required
                   />
@@ -1275,7 +1275,7 @@ export default function UploadPage() {
                         type="text"
                         value={formData.artist}
                         disabled
-                        className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-tertiary text-sm text-foreground-tertiary cursor-not-allowed"
+                        className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white/30 cursor-not-allowed"
                         placeholder="Synchronisé avec votre profil"
                       />
                       <p className="text-xs text-foreground-tertiary">Modifie ton nom de profil pour changer l’artiste</p>
@@ -1288,7 +1288,7 @@ export default function UploadPage() {
                     value={formData.description}
                     onChange={(e) => handleInputChange('description', e.target.value)}
                       rows={2}
-                      className="w-full min-h-[72px] px-3 py-2 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary resize-none"
+                      className="w-full min-h-[72px] px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] resize-none"
                     placeholder="Décrivez votre musique..."
                   />
                 </div>
@@ -1299,7 +1299,7 @@ export default function UploadPage() {
                       value={formData.lyrics || ''}
                       onChange={(e) => handleInputChange('lyrics', e.target.value)}
                       rows={6}
-                      className="w-full min-h-[140px] px-3 py-2 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary placeholder:text-foreground-inactive outline-none focus:ring-2 focus:ring-overlay-on-primary resize-none"
+                      className="w-full min-h-[140px] px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] resize-none"
                       placeholder="Ajoutez les paroles de votre musique..."
                     />
                     <p className="text-xs text-foreground-tertiary">Tu peux les ajouter plus tard.</p>
@@ -1392,7 +1392,7 @@ export default function UploadPage() {
                           type="text"
                           value={formData.copyright.owner}
                           disabled
-                          className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-tertiary text-sm text-foreground-tertiary cursor-not-allowed"
+                          className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white/30 cursor-not-allowed"
                         />
                       </div>
                       <div className="space-y-1.5">
@@ -1401,7 +1401,7 @@ export default function UploadPage() {
                           type="number"
                           value={formData.copyright.year}
                           onChange={(e) => handleCopyrightChange('year', parseInt(e.target.value))}
-                          className="w-full h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none focus:ring-2 focus:ring-overlay-on-primary"
+                          className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
                         />
                       </div>
                     </div>
@@ -1602,7 +1602,7 @@ export default function UploadPage() {
                   <button
                     type="button"
                   onClick={() => setCurrentStep(currentStep - 1)}
-                  className="h-10 px-4 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
+                  className="h-10 px-4 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
                   >
                   Retour
                   </button>
@@ -1612,7 +1612,7 @@ export default function UploadPage() {
                   <button
                   type="button"
                   onClick={cancelUpload}
-                  className="h-10 px-4 sm:px-6 rounded-2xl border border-border-secondary bg-background-tertiary hover:bg-red-500/15 hover:border-red-500/30 transition text-sm text-foreground-secondary"
+                  className="h-10 px-4 sm:px-6 rounded-full bg-rose-500/10 text-rose-400 font-medium hover:bg-rose-500/20 transition text-sm"
                 >
                   Annuler
                 </button>
@@ -1627,7 +1627,7 @@ export default function UploadPage() {
                       (currentStep === 2 && !formData.title.trim()) ||
                       !canUpload
                     }
-                    className="h-10 px-4 sm:px-6 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-10 px-4 sm:px-6 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Suivant
                   </button>
@@ -1636,7 +1636,7 @@ export default function UploadPage() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={isUploading || !canUpload}
-                    className="h-10 px-4 sm:px-6 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-10 px-4 sm:px-6 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isUploading ? 'Upload en cours...' : 'Publier'}
                   </button>

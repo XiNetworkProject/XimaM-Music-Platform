@@ -18,7 +18,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import BottomNav from '@/components/BottomNav';
 import FollowRequestCard from '@/components/FollowRequestCard';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import Avatar from '@/components/Avatar';
 
 interface FollowRequest {
@@ -85,7 +85,7 @@ export default function RequestsPage() {
       }
     } catch (error) {
       console.error('Erreur chargement demandes:', error);
-      toast.error('Erreur lors du chargement des demandes');
+      notify.error('Erreur', 'Erreur lors du chargement des demandes');
     } finally {
       setLoading(false);
     }
@@ -112,17 +112,17 @@ export default function RequestsPage() {
   // Affichage si non connecté
   if (!session?.user) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+      <div className="min-h-screen bg-black text-white">
         <main className="container mx-auto px-4 pt-16 pb-32">
           <div className="max-w-2xl mx-auto text-center">
             <div className="mb-8">
-              <Bell size={64} className="mx-auto text-purple-400 mb-4" />
+              <Bell size={64} className="mx-auto text-white/30 mb-4" />
               <h1 className="text-3xl font-bold mb-4">Demandes</h1>
               <p className="text-white/60">Vous devez être connecté pour voir vos demandes.</p>
             </div>
             <button
               onClick={() => router.push('/auth/signin')}
-              className="px-6 py-3 bg-purple-600 hover:bg-purple-700 rounded-lg font-semibold transition-colors"
+              className="px-6 py-3 bg-white text-black font-semibold rounded-full hover:bg-white/90 transition"
             >
               Se connecter
             </button>
@@ -138,7 +138,7 @@ export default function RequestsPage() {
   const totalPending = pendingFollowRequests.length + pendingMessageRequests.length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 text-white">
+    <div className="min-h-screen bg-black text-white">
       <main className="container mx-auto px-4 pt-16 pb-32">
         <div className="max-w-2xl mx-auto">
           {/* Header */}
@@ -146,7 +146,7 @@ export default function RequestsPage() {
             <div className="flex items-center space-x-4 mb-4">
               <button
                 onClick={() => router.back()}
-                className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
+                className="p-2 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition-colors"
               >
                 <ArrowLeft size={20} />
               </button>
@@ -165,12 +165,12 @@ export default function RequestsPage() {
             </div>
 
             {/* Tabs */}
-            <div className="flex space-x-1 bg-white/10 rounded-lg p-1">
+            <div className="flex space-x-1 bg-white/[0.04] rounded-full p-1 border border-white/[0.06]">
               <button
                 onClick={() => setActiveTab('follow')}
-                className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md transition-colors ${
+                className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-full transition-colors ${
                   activeTab === 'follow'
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-white text-black font-semibold'
                     : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -179,9 +179,9 @@ export default function RequestsPage() {
               </button>
               <button
                 onClick={() => setActiveTab('messages')}
-                className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-md transition-colors ${
+                className={`flex-1 flex items-center justify-center space-x-2 py-2 px-4 rounded-full transition-colors ${
                   activeTab === 'messages'
-                    ? 'bg-purple-600 text-white'
+                    ? 'bg-white text-black font-semibold'
                     : 'text-white/60 hover:text-white'
                 }`}
               >
@@ -260,7 +260,7 @@ export default function RequestsPage() {
             <motion.button
               onClick={handleRefresh}
               disabled={refreshing}
-              className="fixed bottom-24 right-4 p-3 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-full shadow-lg transition-colors"
+              className="fixed bottom-24 right-4 p-3 bg-white text-black hover:bg-white/90 disabled:opacity-50 rounded-full shadow-lg transition-colors"
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
             >
@@ -293,15 +293,15 @@ function MessageRequestCard({ request, onUpdate }: { request: MessageRequest; on
       
       if (res.ok) {
         onUpdate(request._id, 'accepted');
-        toast.success('Demande de conversation acceptée');
+        notify.success('OK', 'Demande de conversation acceptée');
         if (request.conversationId) {
           router.push(`/messages/${request.conversationId}`);
         }
       } else {
-        toast.error('Erreur lors de l\'acceptation');
+        notify.error('Erreur', 'Erreur lors de l\'acceptation');
       }
     } catch (error) {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setLoading(false);
     }
@@ -316,12 +316,12 @@ function MessageRequestCard({ request, onUpdate }: { request: MessageRequest; on
       
       if (res.ok) {
         onUpdate(request._id, 'rejected');
-        toast.success('Demande refusée');
+        notify.success('OK', 'Demande refusée');
       } else {
-        toast.error('Erreur lors du refus');
+        notify.error('Erreur', 'Erreur lors du refus');
       }
     } catch (error) {
-      toast.error('Erreur de connexion');
+      notify.error('Erreur', 'Erreur de connexion');
     } finally {
       setLoading(false);
     }
@@ -343,7 +343,7 @@ function MessageRequestCard({ request, onUpdate }: { request: MessageRequest; on
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className="glass-effect rounded-xl p-4 border border-white/10"
+      className="rounded-2xl p-4 bg-white/[0.02] backdrop-blur-xl border border-white/[0.06]"
     >
       <div className="flex items-start space-x-3">
         <Avatar
@@ -368,7 +368,7 @@ function MessageRequestCard({ request, onUpdate }: { request: MessageRequest; on
             <motion.button
               onClick={handleAccept}
               disabled={loading}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-white text-black font-semibold disabled:opacity-50 rounded-full hover:bg-white/90 text-sm transition-colors"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -383,7 +383,7 @@ function MessageRequestCard({ request, onUpdate }: { request: MessageRequest; on
             <motion.button
               onClick={handleReject}
               disabled={loading}
-              className="flex items-center space-x-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+              className="flex items-center space-x-1 px-3 py-1.5 bg-rose-500/10 text-rose-400 font-medium disabled:opacity-50 rounded-full hover:bg-rose-500/20 text-sm transition-colors"
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >

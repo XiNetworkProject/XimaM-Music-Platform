@@ -17,7 +17,8 @@ import Avatar from '@/components/Avatar';
 import LikeButton from '@/components/LikeButton';
 import { notify } from '@/components/NotificationCenter';
 import dynamic from 'next/dynamic';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
+import { UModal, UModalBody, UModalTitle, UModalFooter, UDrawer, UButton, UInput, UTextarea } from '@/components/ui/UnifiedUI';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -462,49 +463,58 @@ export default function SynauraProfile() {
       )}
 
       {/* ═══════ DRAWER ═══════ */}
-      <Drawer open={!!drawerId} onClose={() => setDrawerId(null)}>
+      <UDrawer open={!!drawerId} onClose={() => setDrawerId(null)}>
         {selected && <DrawerContent track={selected} playing={isTrackPlaying(selected.id)} onPlay={() => handlePlayTrack(selected)} onEdit={() => handleEditTrack(selected)} onDelete={() => handleDeleteTrack(selected.id)} isOwn={isOwnProfile} onLike={handleLikeUpdate} onClose={() => setDrawerId(null)} artistName={profile.artistName || profile.name} />}
-      </Drawer>
+      </UDrawer>
 
       {/* ═══════ MODALS ═══════ */}
       <AnimatePresence>{showBoosterModal && <BoosterOpenModal isOpen onClose={() => setShowBoosterModal(false)} onOpenBooster={openDaily} isOpening={boostersLoading} openedBooster={lastOpened ? { id: lastOpened.inventoryId, status: 'owned', obtained_at: new Date().toISOString(), booster: lastOpened.booster } : null} item={lastOpened || null} />}</AnimatePresence>
 
-      <AnimatePresence>{showMessageModal && (
-        <Modal onClose={() => setShowMessageModal(false)}>
+      <UModal open={showMessageModal} onClose={() => setShowMessageModal(false)}>
+        <UModalBody>
           <div className="flex items-center gap-3 mb-4"><Avatar src={profile?.avatar} name={profile?.name} username={usernameStr || ''} size="md" /><div><h2 className="text-base font-bold text-white">Message a {profile?.name}</h2><p className="text-xs text-white/25">Demande en attente de validation</p></div></div>
-          <textarea value={messageText} onChange={(e) => setMessageText(e.target.value)} placeholder="Message (optionnel)..." rows={3} className="w-full px-4 py-3 rounded-xl bg-white/[0.05] border border-white/[0.08] text-sm text-white placeholder:text-white/15 outline-none focus:ring-1 focus:ring-white/20 resize-none mb-4" />
-          <div className="flex gap-2"><button onClick={() => { setShowMessageModal(false); setMessageText(''); }} className="flex-1 py-2.5 rounded-full text-sm bg-white/[0.06] text-white/50 hover:bg-white/[0.1]">Annuler</button><button onClick={handleSendMessageRequest} disabled={sendingRequest} className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 disabled:opacity-40 inline-flex items-center justify-center gap-1.5"><Send size={13} /> {sendingRequest ? '...' : 'Envoyer'}</button></div>
-        </Modal>
-      )}</AnimatePresence>
+          <UTextarea value={messageText} onChange={(v) => setMessageText(v)} placeholder="Message (optionnel)..." rows={3} />
+          <UModalFooter>
+            <UButton variant="secondary" fullWidth onClick={() => { setShowMessageModal(false); setMessageText(''); }}>Annuler</UButton>
+            <UButton variant="primary" fullWidth onClick={handleSendMessageRequest} disabled={sendingRequest} loading={sendingRequest}><Send size={13} /> Envoyer</UButton>
+          </UModalFooter>
+        </UModalBody>
+      </UModal>
 
-      <AnimatePresence>{showEditModal && (
-        <Modal onClose={() => setShowEditModal(false)}>
-          <h3 className="text-lg font-bold text-white mb-5">Modifier le profil</h3>
+      <UModal open={showEditModal} onClose={() => setShowEditModal(false)}>
+        <UModalBody>
+          <UModalTitle>Modifier le profil</UModalTitle>
           <div className="space-y-4">
-            <Field label="Nom" value={editData.name || ''} onChange={(v) => setEditData({ ...editData, name: v })} />
-            <FieldArea label="Bio" value={editData.bio || ''} onChange={(v) => setEditData({ ...editData, bio: v })} />
-            <Field label="Nom d'artiste" value={editData.artistName || ''} onChange={(v) => setEditData({ ...editData, artistName: v })} />
-            <Field label="Genres (separes par des virgules)" value={Array.isArray(editData.genre) ? editData.genre.join(', ') : (editData.genre || '')} onChange={(v) => setEditData({ ...editData, genre: v.split(',').map((g: string) => g.trim()).filter(Boolean) })} />
-            <Field label="Localisation" value={editData.location || ''} onChange={(v) => setEditData({ ...editData, location: v })} />
-            <Field label="Site web" value={editData.website || ''} onChange={(v) => setEditData({ ...editData, website: v })} />
+            <UInput label="Nom" value={editData.name || ''} onChange={(v) => setEditData({ ...editData, name: v })} />
+            <UTextarea label="Bio" value={editData.bio || ''} onChange={(v) => setEditData({ ...editData, bio: v })} />
+            <UInput label="Nom d'artiste" value={editData.artistName || ''} onChange={(v) => setEditData({ ...editData, artistName: v })} />
+            <UInput label="Genres (separes par des virgules)" value={Array.isArray(editData.genre) ? editData.genre.join(', ') : (editData.genre || '')} onChange={(v) => setEditData({ ...editData, genre: v.split(',').map((g: string) => g.trim()).filter(Boolean) })} />
+            <UInput label="Localisation" value={editData.location || ''} onChange={(v) => setEditData({ ...editData, location: v })} />
+            <UInput label="Site web" value={editData.website || ''} onChange={(v) => setEditData({ ...editData, website: v })} />
           </div>
-          <div className="flex gap-2 mt-5"><button onClick={handleCancelEdit} className="flex-1 py-2.5 rounded-full text-sm bg-white/[0.06] text-white/50">Annuler</button><button onClick={handleSaveEdit} disabled={uploading} className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-black disabled:opacity-50">{uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}</button></div>
-        </Modal>
-      )}</AnimatePresence>
+          <UModalFooter>
+            <UButton variant="secondary" fullWidth onClick={handleCancelEdit}>Annuler</UButton>
+            <UButton variant="primary" fullWidth onClick={handleSaveEdit} disabled={uploading} loading={uploading}>Sauvegarder</UButton>
+          </UModalFooter>
+        </UModalBody>
+      </UModal>
 
-      <AnimatePresence>{showEditTrackModal && (
-        <Modal onClose={() => setShowEditTrackModal(false)}>
-          <h3 className="text-lg font-bold text-white mb-5">Modifier la piste</h3>
+      <UModal open={showEditTrackModal} onClose={() => setShowEditTrackModal(false)}>
+        <UModalBody>
+          <UModalTitle>Modifier la piste</UModalTitle>
           <div className="space-y-4">
-            <Field label="Titre" value={trackEditData.title || ''} onChange={(v) => setTrackEditData({ ...trackEditData, title: v })} />
-            <FieldArea label="Description" value={trackEditData.description || ''} onChange={(v) => setTrackEditData({ ...trackEditData, description: v })} />
-            <Field label="Genres" value={trackEditData.genre || ''} onChange={(v) => setTrackEditData({ ...trackEditData, genre: v })} />
-            <Field label="Tags" value={trackEditData.tags || ''} onChange={(v) => setTrackEditData({ ...trackEditData, tags: v })} />
+            <UInput label="Titre" value={trackEditData.title || ''} onChange={(v) => setTrackEditData({ ...trackEditData, title: v })} />
+            <UTextarea label="Description" value={trackEditData.description || ''} onChange={(v) => setTrackEditData({ ...trackEditData, description: v })} />
+            <UInput label="Genres" value={trackEditData.genre || ''} onChange={(v) => setTrackEditData({ ...trackEditData, genre: v })} />
+            <UInput label="Tags" value={trackEditData.tags || ''} onChange={(v) => setTrackEditData({ ...trackEditData, tags: v })} />
             <label className="flex items-center gap-2.5 cursor-pointer"><input type="checkbox" checked={trackEditData.isPublic} onChange={(e) => setTrackEditData({ ...trackEditData, isPublic: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm text-white/50">Publique</span></label>
           </div>
-          <div className="flex gap-2 mt-5"><button onClick={() => setShowEditTrackModal(false)} className="flex-1 py-2.5 rounded-full text-sm bg-white/[0.06] text-white/50">Annuler</button><button onClick={handleSaveTrackEdit} disabled={uploading || !trackEditData.title?.trim()} className="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-black disabled:opacity-50">{uploading ? <Loader2 className="w-4 h-4 animate-spin mx-auto" /> : 'Sauvegarder'}</button></div>
-        </Modal>
-      )}</AnimatePresence>
+          <UModalFooter>
+            <UButton variant="secondary" fullWidth onClick={() => setShowEditTrackModal(false)}>Annuler</UButton>
+            <UButton variant="primary" fullWidth onClick={handleSaveTrackEdit} disabled={uploading || !trackEditData.title?.trim()} loading={uploading}>Sauvegarder</UButton>
+          </UModalFooter>
+        </UModalBody>
+      </UModal>
 
       {/* Mobile FABs */}
       {isOwnProfile ? (
@@ -608,7 +618,7 @@ function Drawer({ open, onClose, children }: { open: boolean; onClose: () => voi
   return (
     <div className={`fixed inset-0 z-50 transition ${open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
       <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition ${open ? 'opacity-100' : 'opacity-0'}`} />
-      <div className={`absolute right-0 top-0 h-full w-full sm:w-[420px] bg-[#111116] sm:border-l border-white/[0.06] shadow-2xl transform transition ${open ? 'translate-x-0' : 'translate-x-full'}`}>{children}</div>
+      <div className={`absolute right-0 top-0 h-full w-full sm:w-[420px] bg-[#0c0c14] sm:border-l border-white/[0.06] shadow-2xl transform transition ${open ? 'translate-x-0' : 'translate-x-full'}`}>{children}</div>
     </div>
   );
 }
@@ -633,7 +643,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" />
         </div>
-        <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, #111116 0%, transparent 100%)' }}>
+        <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, #0c0c14 0%, transparent 100%)' }}>
           <p className="text-lg font-bold text-white">{track.title}</p>
           <div className="flex items-center gap-2 text-sm text-white/40">
             <span>{artistName}</span>
@@ -689,20 +699,3 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
   );
 }
 
-function Modal({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center px-4" onClick={onClose}>
-      <motion.div initial={{ scale: 0.96, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.96, opacity: 0 }}
-        className="w-full max-w-md rounded-2xl bg-[#1a1a22] border border-white/[0.06] p-5 sm:p-6 max-h-[90vh] overflow-y-auto shadow-[0_24px_80px_rgba(0,0,0,0.6)]"
-        onClick={(e: React.MouseEvent) => e.stopPropagation()}>{children}</motion.div>
-    </motion.div>
-  );
-}
-
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return <div><label className="block text-xs text-white/30 mb-1.5">{label}</label><input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3.5 py-2.5 text-sm bg-white/[0.05] border border-white/[0.08] rounded-xl text-white placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-white/20" /></div>;
-}
-
-function FieldArea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return <div><label className="block text-xs text-white/30 mb-1.5">{label}</label><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full px-3.5 py-2.5 text-sm bg-white/[0.05] border border-white/[0.08] rounded-xl text-white placeholder:text-white/15 focus:outline-none focus:ring-1 focus:ring-white/20 resize-none" /></div>;
-}

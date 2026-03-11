@@ -21,11 +21,20 @@ type MeteoStatsResponse = {
 
 export async function GET(request: NextRequest) {
   try {
-    // Vérifier l'authentification (admin uniquement)
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email || session.user.email !== 'alertempsfrance@gmail.com') {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    }
+
+    const { data: teamMember } = await supabaseAdmin
+      .from('meteo_team_members')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!teamMember) {
+      return NextResponse.json({ error: 'Acces non autorise' }, { status: 403 });
     }
 
     // Récupérer les paramètres

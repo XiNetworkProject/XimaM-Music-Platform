@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, Upload, Clock } from 'lucide-react';
+import { UModal, UButton } from '@/components/ui/UnifiedUI';
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -57,28 +56,8 @@ export function UploadConfirmModal({
     onConfirm(t || 'Audio uploadé');
   };
 
-  const modalContent = (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-[400] flex items-center justify-center p-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onCancel}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="upload-modal-title"
-        >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
-          <motion.section
-            initial={{ scale: 0.96, opacity: 0, y: 10 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.96, opacity: 0, y: 10 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-full max-w-md rounded-3xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)] overflow-hidden"
-            onClick={(e: React.MouseEvent) => e.stopPropagation()}
-          >
+  return (
+    <UModal open={isOpen} onClose={onCancel} size="md" zClass="z-[200]" showClose={false}>
             {/* Header */}
             <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
               <div className="flex items-center gap-2.5">
@@ -151,30 +130,14 @@ export function UploadConfirmModal({
 
               {/* Actions */}
               <div className="flex gap-2.5 pt-1">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="flex-1 h-11 rounded-xl border border-white/[0.06] bg-white/[0.03] text-sm font-medium text-white/60 hover:bg-white/[0.06] transition-all"
-                >
+                <UButton variant="secondary" size="lg" onClick={onCancel} className="flex-1">
                   Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  className="flex-1 h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-500 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/35 hover:brightness-110 transition-all"
-                >
+                </UButton>
+                <UButton variant="primary" size="lg" onClick={handleSave} className="flex-1">
                   Enregistrer
-                </button>
+                </UButton>
               </div>
             </div>
-          </motion.section>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </UModal>
   );
-
-  if (typeof document !== 'undefined') {
-    return createPortal(modalContent, document.body);
-  }
-  return modalContent;
 }

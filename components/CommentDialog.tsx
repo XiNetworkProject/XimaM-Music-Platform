@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react';
 import ModerationWarning from './ModerationWarning';
 import CreatorModerationActions from './CreatorModerationActions';
 import CreatorFilterManager from './CreatorFilterManager';
+import { UButton } from '@/components/ui/UnifiedUI';
 
 type CommentUser = {
   id: string;
@@ -377,7 +378,7 @@ export default function CommentDialog({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className={cx('fixed inset-0 z-[220] bg-black/60 backdrop-blur-[3px]', className)}
+        className={cx('fixed inset-0 z-[200] bg-black/70 backdrop-blur-md', className)}
         onClick={onClose}
       >
         <motion.div
@@ -391,7 +392,7 @@ export default function CommentDialog({
           style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
         >
           {/* Glass background */}
-          <div className="absolute inset-0 bg-[#0a0a12]/[0.97] backdrop-blur-3xl border-t border-white/[0.08] rounded-t-[20px] sm:rounded-none sm:border-l sm:border-t-0" />
+          <div className="absolute inset-0 bg-[#0c0c14] backdrop-blur-3xl border-t border-white/[0.08] rounded-t-[20px] sm:rounded-none sm:border-l sm:border-t-0" />
 
           <div className="relative flex flex-col h-full">
             {/* Drag handle (mobile) */}
@@ -543,19 +544,21 @@ export default function CommentDialog({
                               rows={3}
                             />
                             <div className="flex gap-2">
-                              <button
+                              <UButton
+                                variant="primary"
+                                size="sm"
                                 onClick={saveEdit}
                                 disabled={!editContent.trim() || isSubmitting}
-                                className="rounded-full bg-indigo-500/20 border border-indigo-400/20 px-3.5 py-1.5 text-xs text-indigo-200 font-medium hover:bg-indigo-500/30 transition disabled:opacity-50"
                               >
                                 Enregistrer
-                              </button>
-                              <button
+                              </UButton>
+                              <UButton
+                                variant="secondary"
+                                size="sm"
                                 onClick={() => { setEditingId(null); setEditContent(''); }}
-                                className="rounded-full bg-white/[0.04] border border-white/[0.08] px-3.5 py-1.5 text-xs text-white/50 hover:bg-white/[0.08] transition"
                               >
                                 Annuler
-                              </button>
+                              </UButton>
                             </div>
                           </div>
                         ) : (
@@ -628,19 +631,21 @@ export default function CommentDialog({
                               autoFocus
                             />
                             <div className="mt-2 flex items-center justify-end gap-2">
-                              <button
+                              <UButton
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => { setReplyTo(null); setReplyContent(''); }}
-                                className="px-3 py-1.5 text-[11px] text-white/30 hover:text-white/50 transition rounded-full"
                               >
                                 Annuler
-                              </button>
-                              <button
+                              </UButton>
+                              <UButton
+                                variant="accent"
+                                size="sm"
                                 onClick={() => submitReply(c.id)}
                                 disabled={!replyContent.trim() || isSubmitting}
-                                className="rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 px-4 py-1.5 text-[11px] text-white font-semibold shadow-sm shadow-indigo-500/20 hover:brightness-110 transition disabled:opacity-50"
                               >
                                 {isSubmitting ? '…' : 'Envoyer'}
-                              </button>
+                              </UButton>
                             </div>
                           </div>
                         ) : null}

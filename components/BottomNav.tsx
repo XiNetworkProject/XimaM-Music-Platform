@@ -146,7 +146,7 @@ export default function BottomNav() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="fixed inset-0 z-[9998] lg:hidden bg-black/60"
+                className="fixed inset-0 z-[9998] lg:hidden bg-black/70 backdrop-blur-md"
                 onClick={() => setShowMore(false)}
               />
               <motion.div
@@ -157,11 +157,11 @@ export default function BottomNav() {
                 className="fixed inset-x-0 bottom-0 z-[9999] lg:hidden"
               >
                 <div
-                  className="rounded-t-2xl bg-neutral-900 border-t border-neutral-800"
+                  className="rounded-t-2xl bg-[#0c0c14] border-t border-white/[0.06]"
                   style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
                 >
                   <div className="flex justify-center pt-3 pb-1">
-                    <div className="w-9 h-1 rounded-full bg-neutral-700" />
+                    <div className="w-9 h-1 rounded-full bg-white/[0.1]" />
                   </div>
 
                   <div className="flex items-center justify-between px-5 py-3">
@@ -180,20 +180,20 @@ export default function BottomNav() {
                         <div className="text-[15px] font-bold text-white truncate">
                           {(session?.user as any)?.username || (session?.user as any)?.name || 'Profil'}
                         </div>
-                        <div className="text-[12px] text-neutral-400">Voir le profil</div>
+                        <div className="text-[12px] text-white/40">Voir le profil</div>
                       </div>
                     </button>
                     <button
                       type="button"
                       onClick={() => setShowMore(false)}
-                      className="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400"
+                      className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:bg-white/[0.1] hover:text-white/70 transition"
                       aria-label="Fermer"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <div className="h-px bg-neutral-800 mx-4 my-1" />
+                  <div className="h-px bg-white/[0.06] mx-4 my-1" />
 
                   <div className="px-4 py-3">
                     <div className="grid grid-cols-4 gap-2">
@@ -209,10 +209,10 @@ export default function BottomNav() {
                             onClick={() => go(item.path, item.auth)}
                             className={`flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all active:scale-95 ${
                               active
-                                ? 'bg-neutral-800 text-white'
+                                ? 'bg-white/[0.08] text-white'
                                 : disabled
-                                  ? 'opacity-25 text-neutral-500'
-                                  : 'text-neutral-400 hover:bg-neutral-800 hover:text-white'
+                                  ? 'opacity-25 text-white/30'
+                                  : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
                             }`}
                           >
                             <Icon className="w-5 h-5" />

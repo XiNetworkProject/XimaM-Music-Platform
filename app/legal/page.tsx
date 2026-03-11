@@ -52,7 +52,7 @@ const legalPages = [
 
 export default function LegalPage() {
   return (
-    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-[var(--text)]">
+    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-white">
       <div className="relative z-10 w-full p-0 sm:p-2">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
@@ -63,7 +63,7 @@ export default function LegalPage() {
             className="mb-8 text-center"
           >
             <div className="flex items-center justify-center mb-6">
-              <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 bg-purple-500/10 border-purple-500/20 border">
+              <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
                 <Scale className="w-8 h-8 text-white" />
               </div>
             </div>
@@ -76,39 +76,39 @@ export default function LegalPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="panel-suno border border-[var(--border)] rounded-2xl p-6 mb-6 [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
+            className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 mb-6"
           >
             <div className="flex items-center gap-3 mb-4">
-              <div className="p-2 rounded-lg bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                <Globe className="w-5 h-5 text-purple-400" />
+              <div className="p-2 rounded-lg bg-white/[0.06] border border-white/[0.06]">
+                <Globe className="w-5 h-5 text-white/60" />
               </div>
-              <h2 className="text-xl font-semibold text-white/90">Informations entreprise</h2>
+              <h2 className="text-xl font-bold text-white">Informations entreprise</h2>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-white/60">Raison sociale :</span>
-                <span className="text-white/90 ml-2">Maxime VERMEULEN</span>
+                <span className="text-white ml-2">Maxime VERMEULEN</span>
               </div>
               <div>
                 <span className="text-white/60">Statut :</span>
-                <span className="text-white/90 ml-2">Auto-entrepreneur</span>
+                <span className="text-white ml-2">Auto-entrepreneur</span>
               </div>
               <div>
                 <span className="text-white/60">SIRET :</span>
-                <span className="text-white/90 ml-2">991635194</span>
+                <span className="text-white ml-2">991635194</span>
               </div>
               <div>
                 <span className="text-white/60">Activité :</span>
-                <span className="text-white/90 ml-2">Développement d'applications</span>
+                <span className="text-white ml-2">Développement d'applications</span>
               </div>
               <div>
                 <span className="text-white/60">Site web :</span>
-                <span className="text-white/90 ml-2">synaura.fr</span>
+                <span className="text-white ml-2">synaura.fr</span>
               </div>
               <div>
                 <span className="text-white/60">Contact :</span>
-                <span className="text-white/90 ml-2">contact.syn@synaura.fr</span>
+                <span className="text-white ml-2">contact.syn@synaura.fr</span>
               </div>
             </div>
           </motion.div>
@@ -121,7 +121,7 @@ export default function LegalPage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
-                className="panel-suno border border-[var(--border)] rounded-2xl overflow-hidden [background:radial-gradient(120%_60%_at_20%_0%,rgba(124,58,237,0.10),transparent),_radial-gradient(120%_60%_at_80%_100%,rgba(34,211,238,0.08),transparent)]"
+                className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden"
               >
                 <Link
                   href={page.href}
@@ -129,11 +129,11 @@ export default function LegalPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/30">
-                        <page.icon className="w-6 h-6 text-purple-400" />
+                      <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
+                        <page.icon className="w-6 h-6 text-white/60" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-white/90 group-hover:text-white transition-colors">
+                        <h3 className="text-lg font-semibold text-white group-hover:text-white transition-colors">
                           {page.title}
                         </h3>
                         <p className="text-sm text-white/60 mt-1">
@@ -153,12 +153,12 @@ export default function LegalPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
-            className="mt-8 text-center text-sm text-white/50"
+            className="mt-8 text-center text-sm text-white/30"
           >
             <p>Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</p>
             <p className="mt-2">
               Pour toute question légale :{' '}
-              <a href="mailto:contact.syn@synaura.fr" className="text-purple-400 hover:text-purple-300 transition-colors">
+              <a href="mailto:contact.syn@synaura.fr" className="text-white/60 hover:text-white transition-colors">
                 contact.syn@synaura.fr
               </a>
             </p>

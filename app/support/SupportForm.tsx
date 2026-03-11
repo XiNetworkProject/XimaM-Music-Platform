@@ -154,7 +154,7 @@ export function RevealEmailButton() {
     return (
       <button
         onClick={handleReveal}
-        className="inline-flex items-center gap-2 rounded-xl border border-border-secondary bg-white/5 px-4 py-2 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition"
+        className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-4 py-2 text-sm font-medium text-white/70 hover:bg-white/[0.1] transition"
       >
         <Eye size={14} />
         Révéler l'adresse e-mail
@@ -164,20 +164,20 @@ export function RevealEmailButton() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="rounded-xl border border-border-secondary bg-white/5 px-4 py-2 text-sm font-mono text-indigo-300 select-all">
+      <span className="rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-2 text-sm font-mono text-white/60 select-all">
         {/* Assembled in JS only, not in initial server HTML */}
         {email}
       </span>
       <button
         onClick={handleCopy}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-border-secondary bg-white/5 px-3 py-2 text-xs text-white/60 hover:text-white hover:bg-white/10 transition"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-3 py-2 text-xs text-white/60 font-medium hover:bg-white/[0.1] transition"
       >
         {copied ? <CheckCircle2 size={13} className="text-emerald-400" /> : <Copy size={13} />}
         {copied ? 'Copié !' : 'Copier'}
       </button>
       <a
         href={`mailto:${email}?subject=Support%20Synaura`}
-        className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-500/40 bg-indigo-600/10 px-3 py-2 text-xs text-indigo-300 hover:bg-indigo-600/20 transition"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white text-black px-3 py-2 text-xs font-semibold hover:bg-white/90 transition"
       >
         <Mail size={13} />
         Envoyer un email
@@ -263,7 +263,7 @@ export function SupportForm() {
             setFormState('idle');
             setFields({ email: '', subject: '', message: '', url: '' });
           }}
-          className="mt-2 text-xs text-indigo-400 underline hover:text-indigo-300 transition"
+          className="mt-2 text-xs text-white/60 underline hover:text-white transition"
         >
           Envoyer une autre demande
         </button>
@@ -272,7 +272,7 @@ export function SupportForm() {
   }
 
   const inputClass =
-    'w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/30 transition';
+    'w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition';
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4" noValidate>
@@ -357,7 +357,7 @@ export function SupportForm() {
       <button
         type="submit"
         disabled={formState === 'loading'}
-        className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-60 disabled:cursor-not-allowed transition"
+        className="inline-flex items-center gap-2 rounded-full bg-white text-black px-6 py-2.5 text-sm font-semibold hover:bg-white/90 disabled:opacity-60 disabled:cursor-not-allowed transition"
       >
         {formState === 'loading' ? (
           <>

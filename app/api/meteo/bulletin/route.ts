@@ -12,8 +12,19 @@ export async function POST(request: NextRequest) {
     // Vérifier l'authentification
     const session = await getServerSession(authOptions);
     
-    if (!session?.user?.email || session.user.email !== 'alertempsfrance@gmail.com') {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    }
+
+    const { data: teamMember } = await supabaseAdmin
+      .from('meteo_team_members')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!teamMember) {
+      return NextResponse.json({ error: 'Acces non autorise' }, { status: 403 });
     }
 
     // Récupérer les données du formulaire
@@ -30,8 +41,9 @@ export async function POST(request: NextRequest) {
     // @ts-ignore
     const scheduledAtStr = formData.get('scheduledAt') as string | null;
 
-    // Validation backend
-    if (!imageFile) {
+    const existingImageUrl = formData.get('image_url') as string | null;
+
+    if (!imageFile && !existingImageUrl) {
       return NextResponse.json({ 
         error: "Aucune image reçue pour ce bulletin. Veuillez sélectionner une image." 
       }, { status: 400 });
@@ -51,37 +63,40 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // Vérifier le type de fichier
-    if (!imageFile.type.startsWith('image/')) {
-      return NextResponse.json({ error: 'Le fichier doit être une image' }, { status: 400 });
+    let secure_url: string;
+    let public_id: string;
+
+    if (imageFile) {
+      if (!imageFile.type.startsWith('image/')) {
+        return NextResponse.json({ error: 'Le fichier doit etre une image' }, { status: 400 });
+      }
+      if (imageFile.size > 10 * 1024 * 1024) {
+        return NextResponse.json({ error: 'L\'image ne doit pas depasser 10MB' }, { status: 400 });
+      }
+
+      const bytes = await imageFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      let uploadResult;
+      try {
+        uploadResult = await uploadImage(buffer, {
+          folder: 'meteo-bulletins',
+          resource_type: 'image',
+          public_id: `bulletin_${Date.now()}`,
+          quality: 'auto',
+        });
+      } catch (e) {
+        uploadResult = await uploadImageDirect(buffer, {
+          folder: 'meteo-bulletins',
+        });
+      }
+
+      secure_url = uploadResult.secure_url;
+      public_id = uploadResult.public_id;
+    } else {
+      secure_url = existingImageUrl!;
+      public_id = `duplicated_${Date.now()}`;
     }
-
-    // Vérifier la taille (max 10MB)
-    if (imageFile.size > 10 * 1024 * 1024) {
-      return NextResponse.json({ error: 'L\'image ne doit pas dépasser 10MB' }, { status: 400 });
-    }
-
-    // Convertir le fichier en buffer
-    const bytes = await imageFile.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Upload vers Cloudinary (avec repli en REST si SDK échoue)
-    let uploadResult;
-    try {
-      uploadResult = await uploadImage(buffer, {
-        folder: 'meteo-bulletins',
-        resource_type: 'image',
-        public_id: `bulletin_${Date.now()}`,
-        quality: 'auto',
-      });
-    } catch (e) {
-      // Fallback REST signé (souvent plus tolérant en prod)
-      uploadResult = await uploadImageDirect(buffer, {
-        folder: 'meteo-bulletins',
-      });
-    }
-
-    const { secure_url, public_id } = uploadResult;
 
     const isPublish = mode === 'publish';
     const isDraft = mode === 'draft';
@@ -129,13 +144,25 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Créer le nouveau bulletin
+    // V3 fields
+    const category = (formData.get('category') as string | null) || 'prevision';
+    const tagsRaw = formData.get('tags') as string | null;
+    const tags = tagsRaw ? JSON.parse(tagsRaw) : [];
+    const allowComments = formData.get('allow_comments') !== 'false';
+    const pinned = formData.get('pinned') === 'true';
+    const authorName = (formData.get('author_name') as string | null) || session.user.name || 'Alertemps';
+
     const insertData: any = {
       title: title || null,
       content: content || null,
       image_url: secure_url,
       image_public_id: public_id,
       author_id: session.user.id,
+      category,
+      tags,
+      allow_comments: allowComments,
+      pinned,
+      author_name: authorName,
     };
 
     if (isPublish) {
@@ -182,38 +209,52 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Vérifier l'authentification
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email || session.user.email !== 'alertempsfrance@gmail.com') {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
     }
 
-    // Récupérer le bulletin courant (uniquement publié)
-    const { data: bulletin, error } = await supabaseAdmin
+    const { data: teamMember } = await supabaseAdmin
+      .from('meteo_team_members')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!teamMember) {
+      return NextResponse.json({ error: 'Acces non autorise' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+
+    let query = supabaseAdmin
       .from('meteo_bulletins')
       .select('*')
-      .eq('author_id', session.user.id)
-      .eq('is_current', true)
-      .eq('status', 'published')
-      .single();
+      .order('created_at', { ascending: false });
 
-    if (error && error.code !== 'PGRST116') {
-      return NextResponse.json({ 
-        error: 'Erreur lors de la récupération du bulletin',
-        details: error.message 
-      }, { status: 500 });
+    if (status) {
+      query = query.eq('status', status);
+    } else {
+      query = query.eq('is_current', true).eq('status', 'published');
     }
 
-    return NextResponse.json({ bulletin });
+    const { data: bulletins, error } = await query.limit(status ? 50 : 1);
+
+    if (error && error.code !== 'PGRST116') {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!status) {
+      return NextResponse.json({ bulletin: bulletins?.[0] || null });
+    }
+
+    return NextResponse.json({ bulletins: bulletins || [] });
 
   } catch (error) {
     console.error('Erreur API bulletin GET:', error);
-    return NextResponse.json({ 
-      error: 'Erreur interne du serveur',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }

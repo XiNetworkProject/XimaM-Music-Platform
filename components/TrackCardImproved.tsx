@@ -57,7 +57,7 @@ function PlaysCounter({ trackId, plays, size = 'sm' }: {
   };
 
   return (
-    <div className="flex items-center gap-1 text-gray-500">
+    <div className="flex items-center gap-1 text-white/30">
       <Headphones size={size === 'sm' ? 12 : size === 'md' ? 14 : 16} />
       <span className={`font-medium ${size === 'sm' ? 'text-xs' : size === 'md' ? 'text-sm' : 'text-base'}`}>
         {formatNumber(plays)}
@@ -152,12 +152,12 @@ export default function TrackCardImproved({
       whileHover={{ y: -2, scale: 1.04 }}
       onHoverStart={() => setIsHovered(true)}
       onHoverEnd={() => setIsHovered(false)}
-      className={`bg-white dark:bg-gray-800 rounded-lg shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-gray-200 dark:border-gray-700 ${sizeClasses[size].card} ${className}`}
+      className={`bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl hover:shadow-xl transition-all duration-200 ${sizeClasses[size].card} ${className}`}
     >
       <div className="flex flex-col items-center gap-1.5">
         {/* Image de couverture avec bouton play */}
         <div className="relative group">
-          <div className={`${sizeClasses[size].image} relative overflow-hidden rounded-md bg-gray-200 dark:bg-gray-700`}>
+          <div className={`${sizeClasses[size].image} relative overflow-hidden rounded-xl bg-white/[0.04] border border-white/[0.06]`}>
             {track.coverUrl ? (
               <Image
                 src={track.coverUrl}
@@ -166,7 +166,7 @@ export default function TrackCardImproved({
                 className="object-cover"
               />
             ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+              <div className="w-full h-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center">
                 <span className="text-white font-bold text-lg">
                   {track.title[0].toUpperCase()}
                 </span>
@@ -183,7 +183,7 @@ export default function TrackCardImproved({
                 >
                   <motion.button
                     onClick={handlePlayPause}
-                    className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-gray-900 hover:bg-gray-100 transition-colors"
+                    className="w-6 h-6 bg-white rounded-full flex items-center justify-center text-black hover:bg-white/90 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -209,12 +209,12 @@ export default function TrackCardImproved({
         {/* Informations de la piste */}
         <div className="flex-1 min-w-0 w-full">
           <div className="flex flex-col items-center justify-between gap-1 w-full">
-            <h3 className={`font-semibold text-gray-900 dark:text-white truncate w-full text-center ${sizeClasses[size].title}`}>
+            <h3 className={`font-semibold text-white truncate w-full text-center ${sizeClasses[size].title}`}>
               {track.title}
             </h3>
             <Link
               href={`/profile/${track.artist?.username || 'unknown'}`}
-              className={`text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 transition-colors ${sizeClasses[size].artist} w-full text-center`}
+              className={`text-white/40 hover:text-white/70 transition-colors ${sizeClasses[size].artist} w-full text-center`}
             >
               {track.artist?.name || track.artist?.username || 'Artiste inconnu'}
             </Link>

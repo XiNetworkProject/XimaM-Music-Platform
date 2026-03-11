@@ -284,7 +284,7 @@ export default function SwipePage() {
               <div className="absolute top-4 left-4 right-4 z-20 flex items-center justify-between safe-area-top">
                 <button
                   onClick={close}
-                  className="w-11 h-11 rounded-full bg-black/35 hover:bg-black/55 border border-white/10 backdrop-blur-md flex items-center justify-center"
+                  className="w-11 h-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex items-center justify-center transition-all"
                   aria-label="Fermer"
                 >
                   <X className="w-5 h-5" />
@@ -302,7 +302,7 @@ export default function SwipePage() {
               <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex flex-col gap-3">
                 <button
                   onClick={() => handleLike(t._id)}
-                  className="w-12 h-12 rounded-2xl bg-black/30 hover:bg-black/45 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
                 >
                   <Heart className={`w-5 h-5 ${t.isLiked ? "text-pink-400" : "text-white"}`} />
                   <span className="text-[11px] mt-0.5 text-white/80">{fmtCount(likesCount)}</span>
@@ -310,7 +310,7 @@ export default function SwipePage() {
 
                 <button
                   onClick={() => router.push(`/track/${t._id}`, { scroll: false })}
-                  className="w-12 h-12 rounded-2xl bg-black/30 hover:bg-black/45 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
                 >
                   <MessageCircle className="w-5 h-5" />
                   <span className="text-[11px] mt-0.5 text-white/80">{fmtCount(commentsCount)}</span>
@@ -318,7 +318,7 @@ export default function SwipePage() {
 
                 <button
                   onClick={() => onShare(t)}
-                  className="w-12 h-12 rounded-2xl bg-black/30 hover:bg-black/45 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
                 >
                   <Share2 className="w-5 h-5" />
                   <span className="text-[11px] mt-0.5 text-white/80"> </span>
@@ -327,7 +327,7 @@ export default function SwipePage() {
                 <a
                   href={t.audioUrl}
                   download
-                  className="w-12 h-12 rounded-2xl bg-black/30 hover:bg-black/45 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center"
+                  className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex flex-col items-center justify-center transition-all"
                 >
                   <Download className="w-5 h-5" />
                   <span className="text-[11px] mt-0.5 text-white/80"> </span>
@@ -359,7 +359,7 @@ export default function SwipePage() {
               </div>
 
               <div className="absolute left-1/2 -translate-x-1/2 bottom-5 z-20 w-[94vw] max-w-[1000px] safe-area-bottom">
-                <div className="rounded-2xl bg-black/30 border border-white/10 backdrop-blur-xl p-4">
+                <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs text-white/70">♪ Single</p>
@@ -385,14 +385,14 @@ export default function SwipePage() {
                           else if (audioState.isPlaying) pause();
                           else play();
                         }}
-                        className="w-12 h-12 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 flex items-center justify-center"
+                        className="w-12 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center transition-all"
                       >
                         {isPlayingThis ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
                       </button>
 
                       <button
                         onClick={() => setLyricsOpen(true)}
-                        className="px-4 h-12 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 flex items-center gap-2"
+                        className="px-4 h-12 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center gap-2 transition-all"
                       >
                         <FileText className="w-4 h-4" />
                         <span className="text-sm font-semibold">Paroles</span>
@@ -427,12 +427,12 @@ export default function SwipePage() {
 
               {lyricsOpen && isThis && (
                 <div className="absolute inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-end">
-                  <div className="w-full max-w-[1000px] mx-auto rounded-t-3xl border border-white/10 bg-black/55 backdrop-blur-xl p-5 pb-8 safe-area-bottom">
+                  <div className="w-full max-w-[1000px] mx-auto rounded-t-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 pb-8 safe-area-bottom">
                     <div className="flex items-center justify-between">
                       <p className="font-bold text-lg">Paroles</p>
                       <button
                         onClick={() => setLyricsOpen(false)}
-                        className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 flex items-center justify-center"
+                        className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] flex items-center justify-center transition-all"
                       >
                         <X className="w-5 h-5" />
                       </button>
@@ -452,13 +452,13 @@ export default function SwipePage() {
               <div className="absolute right-4 bottom-28 z-30 hidden md:flex flex-col gap-2">
                 <button
                   onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))}
-                  className="w-10 h-10 rounded-full bg-black/30 hover:bg-black/45 border border-white/10 backdrop-blur-md flex items-center justify-center"
+                  className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex items-center justify-center transition-all"
                 >
                   <ChevronUp className="w-5 h-5" />
                 </button>
                 <button
                   onClick={() => scrollToIndex(Math.min(tracks.length - 1, activeIndex + 1))}
-                  className="w-10 h-10 rounded-full bg-black/30 hover:bg-black/45 border border-white/10 backdrop-blur-md flex items-center justify-center"
+                  className="w-10 h-10 rounded-full bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.08] backdrop-blur-md flex items-center justify-center transition-all"
                 >
                   <ChevronDown className="w-5 h-5" />
                 </button>

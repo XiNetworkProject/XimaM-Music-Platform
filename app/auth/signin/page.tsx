@@ -58,7 +58,7 @@ function SignInContent() {
   if (status === 'loading' || status === 'authenticated') {
     return (
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin mx-auto" />
         <p className="mt-3 text-sm text-white/50">
           {status === 'authenticated' ? 'Redirection...' : 'Chargement...'}
         </p>
@@ -82,7 +82,7 @@ function SignInContent() {
       </div>
 
       {/* Card */}
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8">
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8">
         <AnimatePresence>
           {successMessage && (
             <motion.div
@@ -112,7 +112,7 @@ function SignInContent() {
         <button
           type="button"
           onClick={() => signIn('google', { callbackUrl: '/' })}
-          className="w-full flex items-center justify-center gap-3 h-11 rounded-xl bg-white/[0.06] border border-white/[0.1] text-sm text-white font-medium hover:bg-white/[0.1] transition-all active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-3 h-11 rounded-full bg-white/[0.06] text-sm text-white/70 font-medium hover:bg-white/[0.1] transition-all active:scale-[0.98]"
         >
           <svg viewBox="0 0 24 24" className="w-5 h-5">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -135,7 +135,7 @@ function SignInContent() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
               <input
                 type="email" id="email" name="email" value={formData.email} onChange={handleInputChange}
-                className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
+                className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition"
                 placeholder="vous@example.com" disabled={isLoading}
               />
             </div>
@@ -147,7 +147,7 @@ function SignInContent() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
               <input
                 type={showPassword ? 'text' : 'password'} id="password" name="password" value={formData.password} onChange={handleInputChange}
-                className="w-full h-11 pl-10 pr-11 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
+                className="w-full h-11 pl-10 pr-11 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition"
                 placeholder="••••••••" disabled={isLoading}
               />
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition">
@@ -157,14 +157,14 @@ function SignInContent() {
           </div>
 
           <div className="flex justify-end">
-            <Link href="/auth/forgot-password" className="text-xs text-indigo-400 hover:text-indigo-300 transition">
+            <Link href="/auth/forgot-password" className="text-xs text-white/40 hover:text-white/60 transition">
               Mot de passe oublié ?
             </Link>
           </div>
 
           <button
             type="submit" disabled={isLoading}
-            className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? (
               <span className="flex items-center justify-center gap-2">
@@ -177,7 +177,7 @@ function SignInContent() {
 
         <p className="mt-5 text-center text-[13px] text-white/40">
           Pas encore de compte ?{' '}
-          <Link href="/auth/signup" className="text-indigo-400 hover:text-indigo-300 font-medium transition">
+          <Link href="/auth/signup" className="text-white/60 hover:text-white font-medium transition">
             Créer un compte
           </Link>
         </p>
@@ -204,7 +204,7 @@ export default function SignInPage() {
   return (
     <Suspense fallback={
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin mx-auto" />
       </div>
     }>
       <SignInContent />

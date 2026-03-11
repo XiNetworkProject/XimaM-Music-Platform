@@ -1,10 +1,10 @@
 'use client';
 
 import { useMemo } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { Copy, Download, X, Package } from 'lucide-react';
 import type { StudioTrack } from '@/lib/studio/types';
 import { notify } from '@/components/NotificationCenter';
+import { UModal, UButton } from '@/components/ui/UnifiedUI';
 
 async function copyText(text: string) {
   try {
@@ -36,106 +36,82 @@ export default function ExportPackModal({
   const caption = useMemo(() => makeCaption(tracks || []), [tracks]);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-[220] flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-        >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-md" />
-          <motion.div
-            initial={{ scale: 0.98, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.98, opacity: 0 }}
-            transition={{ duration: 0.18 }}
-            className="relative z-10 w-[92vw] max-w-[760px] rounded-3xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden"
-            onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-[var(--border)] flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white text-lg font-semibold">
-                <Package className="w-5 h-5 text-cyan-300" />
-                Export pack social
-              </div>
-              <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+    <UModal open={isOpen} onClose={onClose} size="full" zClass="z-[200]" showClose={false} className="!max-w-[760px]">
+      <div className="p-5 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="flex items-center gap-2 text-white text-lg font-semibold">
+          <Package className="w-5 h-5 text-cyan-300" />
+          Export pack social
+        </div>
+        <UButton variant="ghost" size="icon" onClick={onClose} aria-label="Fermer">
+          <X className="w-5 h-5" />
+        </UButton>
+      </div>
 
-            <div className="p-4 grid gap-4">
-              <div className="text-[12px] text-[var(--text-muted)]">
-                Pack = liens audio/cover + caption copiable. (Zip auto viendra plus tard si tu veux.)
-              </div>
+      <div className="p-4 grid gap-4">
+        <div className="text-[12px] text-white/40">
+          Pack = liens audio/cover + caption copiable. (Zip auto viendra plus tard si tu veux.)
+        </div>
 
-              <div className="grid md:grid-cols-2 gap-3">
-                <div className="panel-suno p-4">
-                  <div className="text-sm font-semibold text-white mb-2">Téléchargements</div>
-                  <div className="grid gap-2">
-                    {tracks.map((t) => (
-                      <div key={t.id} className="flex items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="text-[13px] text-white truncate">{t.title}</div>
-                          <div className="text-[11px] text-[var(--text-muted)] truncate">
-                            {t.model} · {t.durationSec ? `${t.durationSec}s` : '—'}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {t.audioUrl ? (
-                            <a
-                              className="h-8 px-2 rounded-xl border border-[var(--border)] bg-white/5 hover:bg-white/10 transition text-xs flex items-center gap-1"
-                              href={t.audioUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              download
-                            >
-                              <Download className="w-4 h-4" />
-                              Audio
-                            </a>
-                          ) : null}
-                          {t.coverUrl ? (
-                            <a
-                              className="h-8 px-2 rounded-xl border border-[var(--border)] bg-white/5 hover:bg-white/10 transition text-xs flex items-center gap-1"
-                              href={t.coverUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              download
-                            >
-                              <Download className="w-4 h-4" />
-                              Cover
-                            </a>
-                          ) : null}
-                        </div>
-                      </div>
-                    ))}
+        <div className="grid md:grid-cols-2 gap-3">
+          <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
+            <div className="text-sm font-semibold text-white mb-2">Téléchargements</div>
+            <div className="grid gap-2">
+              {tracks.map((t) => (
+                <div key={t.id} className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[13px] text-white truncate">{t.title}</div>
+                    <div className="text-[11px] text-white/40 truncate">
+                      {t.model} · {t.durationSec ? `${t.durationSec}s` : '—'}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {t.audioUrl ? (
+                      <a
+                        className="h-8 px-2 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] transition text-xs flex items-center gap-1 text-white/70"
+                        href={t.audioUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        download
+                      >
+                        <Download className="w-4 h-4" />
+                        Audio
+                      </a>
+                    ) : null}
+                    {t.coverUrl ? (
+                      <a
+                        className="h-8 px-2 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] transition text-xs flex items-center gap-1 text-white/70"
+                        href={t.coverUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        download
+                      >
+                        <Download className="w-4 h-4" />
+                        Cover
+                      </a>
+                    ) : null}
                   </div>
                 </div>
-
-                <div className="panel-suno p-4">
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="text-sm font-semibold text-white">Caption</div>
-                    <button
-                      type="button"
-                      onClick={() => copyText(caption)}
-                      className="h-8 px-2 rounded-xl border border-[var(--border)] bg-white/5 hover:bg-white/10 transition text-xs flex items-center gap-1"
-                    >
-                      <Copy className="w-4 h-4" />
-                      Copy
-                    </button>
-                  </div>
-                  <textarea
-                    readOnly
-                    value={caption}
-                    className="w-full h-[220px] rounded-2xl border border-[var(--border)] bg-black/30 p-3 text-[12px] text-white/90"
-                  />
-                </div>
-              </div>
+              ))}
             </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </div>
+
+          <div className="rounded-xl bg-white/[0.02] border border-white/[0.06] p-4">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="text-sm font-semibold text-white">Caption</div>
+              <UButton variant="secondary" size="sm" onClick={() => copyText(caption)}>
+                <Copy className="w-4 h-4" />
+                Copy
+              </UButton>
+            </div>
+            <textarea
+              readOnly
+              value={caption}
+              className="w-full h-[220px] rounded-2xl border border-white/[0.08] bg-black/30 p-3 text-[12px] text-white/90"
+            />
+          </div>
+        </div>
+      </div>
+    </UModal>
   );
 }
 

@@ -49,7 +49,7 @@ export default function ForgotPasswordPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8">
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8">
         {success ? (
           <div className="text-center py-4">
             <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
@@ -61,13 +61,13 @@ export default function ForgotPasswordPage() {
             <div className="space-y-2.5">
               <Link
                 href="/auth/signin"
-                className="block w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all text-center leading-[44px]"
+                className="block w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 text-center leading-[44px]"
               >
                 Retour à la connexion
               </Link>
               <button
                 onClick={() => { setSuccess(false); setEmail(''); }}
-                className="w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/60 hover:text-white hover:bg-white/[0.1] transition"
+                className="w-full h-11 rounded-full bg-white/[0.06] text-sm text-white/70 font-medium hover:bg-white/[0.1] transition"
               >
                 Envoyer un autre email
               </button>
@@ -94,7 +94,7 @@ export default function ForgotPasswordPage() {
                   <input
                     type="email" id="email" value={email}
                     onChange={e => { setEmail(e.target.value); if (error) setError(''); }}
-                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
+                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition"
                     placeholder="vous@example.com" disabled={isLoading}
                   />
                 </div>
@@ -102,7 +102,7 @@ export default function ForgotPasswordPage() {
 
               <button
                 type="submit" disabled={isLoading}
-                className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoading ? (
                   <span className="flex items-center justify-center gap-2">

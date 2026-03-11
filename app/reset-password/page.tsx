@@ -1,8 +1,13 @@
 'use client';
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { ArrowLeft, Check, AlertCircle, Mail, Lock, KeyRound } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
+
+const inputClass = "w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition";
 
 function ResetPasswordInner() {
   const params = useSearchParams();
@@ -36,32 +41,108 @@ function ResetPasswordInner() {
 
   if (success) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="panel-suno p-6 rounded-2xl border border-[var(--border)] text-center">
-          <h1 className="text-xl font-bold mb-2">Mot de passe réinitialisé ✅</h1>
-          <p className="text-white/70">Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.</p>
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-[420px]">
+        <div className="text-center mb-8">
+          <Link href="/" className="inline-block">
+            <h1 className="text-3xl font-black tracking-tight text-white">Synaura</h1>
+          </Link>
         </div>
-      </div>
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+            <Check className="w-7 h-7 text-emerald-400" />
+          </div>
+          <h2 className="text-lg font-bold text-white mb-2">Mot de passe réinitialisé</h2>
+          <p className="text-sm text-white/60 mb-6">Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.</p>
+          <Link
+            href="/auth/signin"
+            className="block w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 text-center leading-[44px]"
+          >
+            Se connecter
+          </Link>
+        </div>
+        <div className="mt-6 text-center">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition">
+            <ArrowLeft className="w-3 h-3" />
+            Retour à l'accueil
+          </Link>
+        </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <form onSubmit={onSubmit} className="panel-suno p-6 rounded-2xl border border-[var(--border)] w-full max-w-md space-y-4">
-        <h1 className="text-xl font-bold">Réinitialiser le mot de passe</h1>
-        {!!error && <div className="text-red-400 text-sm">{error}</div>}
-        <input className="input-suno" placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)} />
-        <input className="input-suno" placeholder="Code (6 chiffres)" value={code} onChange={(e)=>setCode(e.target.value)} />
-        <input className="input-suno" type="password" placeholder="Nouveau mot de passe" value={password} onChange={(e)=>setPassword(e.target.value)} />
-        <button disabled={loading} className="btn-suno w-full">{loading? 'En cours...' : 'Valider'}</button>
-      </form>
-    </div>
+    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="w-full max-w-[420px]">
+      <div className="text-center mb-8">
+        <Link href="/" className="inline-block">
+          <h1 className="text-3xl font-black tracking-tight text-white">Synaura</h1>
+        </Link>
+        <p className="text-sm text-white/40 mt-2">Réinitialise ton mot de passe</p>
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8">
+        {!!error && (
+          <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20 text-red-300 rounded-xl flex items-center gap-2.5 text-sm">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs text-white/40 mb-1.5">Email</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+              <input className={inputClass} placeholder="vous@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-white/40 mb-1.5">Code (6 chiffres)</label>
+            <div className="relative">
+              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+              <input className={inputClass} placeholder="123456" value={code} onChange={(e) => setCode(e.target.value)} disabled={loading} />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-white/40 mb-1.5">Nouveau mot de passe</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+              <input className={inputClass} type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} />
+            </div>
+          </div>
+
+          <button
+            type="submit" disabled={loading}
+            className="w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span className="flex items-center justify-center gap-2">
+                <span className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                En cours...
+              </span>
+            ) : 'Valider'}
+          </button>
+        </form>
+      </div>
+
+      <div className="mt-6 text-center">
+        <Link href="/auth/signin" className="inline-flex items-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition">
+          <ArrowLeft className="w-3 h-3" />
+          Retour à la connexion
+        </Link>
+      </div>
+    </motion.div>
   );
 }
 
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="min-h-[60vh] flex items-center justify-center text-white/70">Chargement…</div>}>
+    <Suspense fallback={
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin mx-auto" />
+      </div>
+    }>
       <ResetPasswordInner />
     </Suspense>
   );

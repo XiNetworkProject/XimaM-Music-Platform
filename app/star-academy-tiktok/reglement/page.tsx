@@ -103,7 +103,7 @@ export default function ReglementPage() {
     <div className="min-h-screen text-white" style={{ background: "linear-gradient(160deg,#07000f 0%,#0d0020 50%,#07000f 100%)" }}>
 
       {/* ── Header ─────────────────────────────── */}
-      <header className="sticky top-0 z-30 border-b border-white/6 backdrop-blur-xl"
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] backdrop-blur-xl"
         style={{ background: "rgba(7,0,15,0.85)" }}>
         <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -184,8 +184,7 @@ export default function ReglementPage() {
         >
           {articles.map((art) => (
             <div key={art.num}
-              className="rounded-3xl border border-white/[0.06] p-6 sm:p-8"
-              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
+              className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8">
               {/* Article header */}
               <div className="flex items-start gap-4 mb-5">
                 <div className="h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 text-xs font-black text-white"
@@ -213,8 +212,7 @@ export default function ReglementPage() {
           ))}
 
           {/* Legal footer */}
-          <div className="rounded-3xl border border-white/[0.04] p-6 sm:p-8 space-y-3"
-            style={{ background: "rgba(147,51,234,0.04)" }}>
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 space-y-3">
             <p className="text-[11px] font-bold text-white/25 uppercase tracking-widest">Mentions légales</p>
             <p className="text-xs text-white/35 leading-relaxed">
               © 2026 Star Academy TikTok — Un événement organisé par Synaura. SIRET : 99163519400012.
@@ -230,7 +228,7 @@ export default function ReglementPage() {
               href="/StarAcRes/sa-reglement.pdf"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 mt-2 rounded-xl border border-white/10 bg-white/4 px-4 py-2 text-xs font-semibold text-white/50 hover:text-white hover:bg-white/8 transition-all"
+              className="inline-flex items-center gap-2 mt-2 bg-white/[0.06] text-white/70 font-medium rounded-full px-4 py-2 text-xs hover:bg-white/[0.1] transition-all"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
@@ -243,8 +241,7 @@ export default function ReglementPage() {
         {/* ── Accept block ──────────────────────── */}
         <div className="sticky bottom-0 pt-6 pb-8 mt-8" style={{ background: "linear-gradient(to top, #07000f 60%, transparent)" }}>
           {!hasRead ? (
-            <div className="rounded-3xl border border-white/8 p-5 text-center"
-              style={{ background: "rgba(255,255,255,0.025)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
+            <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <div className="w-32 h-1 rounded-full overflow-hidden bg-white/10">
                   <div className="h-full rounded-full transition-all duration-300"
@@ -257,8 +254,7 @@ export default function ReglementPage() {
               </p>
             </div>
           ) : !accepted ? (
-            <div className="rounded-3xl border border-emerald-500/20 p-6 space-y-4"
-              style={{ background: "rgba(34,197,94,0.04)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
+            <div className="rounded-2xl border border-emerald-500/20 bg-white/[0.02] backdrop-blur-xl p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.3)" }}>
@@ -272,7 +268,7 @@ export default function ReglementPage() {
               </div>
               <button
                 onClick={() => setAccepted(true)}
-                className="w-full rounded-2xl py-4 font-black text-white text-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
+                className="w-full rounded-full py-4 font-black text-white text-sm transition-all duration-200 hover:scale-[1.01] active:scale-[0.99]"
                 style={{
                   background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
                   boxShadow: "0 0 30px rgba(147,51,234,0.35), 0 4px 15px rgba(0,0,0,0.4)",
@@ -281,8 +277,7 @@ export default function ReglementPage() {
               </button>
             </div>
           ) : (
-            <div className="rounded-3xl border border-emerald-500/25 p-6 space-y-4"
-              style={{ background: "rgba(34,197,94,0.06)", WebkitBackdropFilter: "blur(20px)", backdropFilter: "blur(20px)" }}>
+            <div className="rounded-2xl border border-emerald-500/25 bg-white/[0.02] backdrop-blur-xl p-6 space-y-4">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: "linear-gradient(135deg,#22c55e,#4ade80)" }}>
@@ -297,12 +292,12 @@ export default function ReglementPage() {
               </div>
               <div className="flex gap-3">
                 <Link href="/star-academy-tiktok/inscription"
-                  className="flex-1 rounded-2xl py-3.5 font-black text-white text-sm text-center transition-all duration-200 hover:scale-[1.01]"
+                  className="flex-1 rounded-full py-3.5 font-black text-white text-sm text-center transition-all duration-200 hover:scale-[1.01]"
                   style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 24px rgba(147,51,234,0.3)" }}>
                   Continuer l'inscription
                 </Link>
                 <Link href="/star-academy-tiktok"
-                  className="rounded-2xl border border-white/10 bg-white/4 px-5 py-3.5 text-sm text-white/45 hover:text-white transition-all">
+                  className="bg-white/[0.06] text-white/70 font-medium rounded-full px-5 py-3.5 text-sm hover:bg-white/[0.1] transition-all">
                   Retour
                 </Link>
               </div>

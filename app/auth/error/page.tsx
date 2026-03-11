@@ -37,7 +37,7 @@ function AuthErrorContent() {
         </Link>
       </div>
 
-      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8 text-center">
+      <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-6 sm:p-8 text-center">
         <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-5">
           <AlertTriangle className="w-7 h-7 text-red-400" />
         </div>
@@ -55,7 +55,7 @@ function AuthErrorContent() {
         <div className="space-y-2.5">
           <button
             onClick={() => window.location.reload()}
-            className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all inline-flex items-center justify-center gap-2"
+            className="w-full h-11 rounded-full bg-white text-black text-sm font-semibold transition-all hover:bg-white/90 inline-flex items-center justify-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
             Réessayer
@@ -63,7 +63,7 @@ function AuthErrorContent() {
 
           <Link
             href="/auth/signin"
-            className="block w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.08] text-sm text-white/60 hover:text-white hover:bg-white/[0.1] transition text-center leading-[44px]"
+            className="block w-full h-11 rounded-full bg-white/[0.06] text-sm text-white/70 font-medium hover:bg-white/[0.1] transition text-center leading-[44px]"
           >
             Retour à la connexion
           </Link>
@@ -84,7 +84,7 @@ export default function AuthErrorPage() {
   return (
     <Suspense fallback={
       <div className="text-center">
-        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
+        <div className="w-8 h-8 border-2 border-white/40 border-t-transparent rounded-full animate-spin mx-auto" />
       </div>
     }>
       <AuthErrorContent />

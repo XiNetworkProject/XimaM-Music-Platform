@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Play, Heart, User, Music, Clock } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Avatar from './Avatar';
+import { UButton } from '@/components/ui/UnifiedUI';
 
 interface SearchResult {
   _id: string;
@@ -29,10 +30,18 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
+  const stableOnClose = useCallback(onClose, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') stableOnClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [isOpen, stableOnClose]);
+
   useEffect(() => {
     if (query.trim()) {
       setIsLoading(true);
-      // Recherche réelle via l'API
       const searchData = async () => {
         try {
           const res = await fetch(`/api/search?query=${encodeURIComponent(query)}&limit=10`);
@@ -40,7 +49,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
             const data = await res.json();
             const formattedResults: SearchResult[] = [];
             
-            // Ajouter les utilisateurs
             if (data.artists) {
               data.artists.forEach((user: any) => {
                 formattedResults.push({
@@ -56,7 +64,6 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
               });
             }
             
-            // Ajouter les pistes
             if (data.tracks) {
               data.tracks.forEach((track: any) => {
                 formattedResults.push({
@@ -79,7 +86,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
         }
       };
       
-      const timeoutId = setTimeout(searchData, 100); // Réduit de 300ms à 100ms
+      const timeoutId = setTimeout(searchData, 100);
       return () => clearTimeout(timeoutId);
     } else {
       setResults([]);
@@ -96,16 +103,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
     if (result.type === 'user' && result.username) {
       router.push(`/profile/${result.username}`);
     } else if (result.type === 'track') {
-      // Naviguer vers la piste
       router.push(`/tracks/${result._id}`);
     }
     onClose();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      onClose();
-    }
   };
 
   return (
@@ -115,16 +115,16 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.1 }} // Animation très rapide
-          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm"
+          transition={{ duration: 0.1 }}
+          className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md"
           onClick={onClose}
         >
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ duration: 0.15 }} // Animation plus rapide
-            className="absolute top-0 left-0 right-0 panel-suno border-b border-[var(--border)]"
+            transition={{ duration: 0.15 }}
+            className="absolute top-0 left-0 right-0 bg-[#0c0c14]/98 backdrop-blur-2xl border-b border-white/[0.08]"
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           >
             {/* Header */}
@@ -137,17 +137,13 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                     placeholder="Rechercher des artistes, titres..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="w-full pl-10 pr-4 py-3 bg-[var(--surface)]/60 rounded-xl border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none text-white placeholder-white/60"
+                    className="w-full pl-10 pr-4 py-3 bg-white/[0.04] rounded-xl border border-white/[0.08] focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] focus:outline-none text-white placeholder-white/60 transition"
                     autoFocus
                   />
                 </div>
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
-                >
+                <UButton variant="secondary" size="icon" onClick={onClose}>
                   <X size={20} />
-                </button>
+                </UButton>
               </div>
             </div>
 
@@ -165,9 +161,9 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                        key={result._id}
                        initial={{ opacity: 0, x: -10 }}
                        animate={{ opacity: 1, x: 0 }}
-                       transition={{ duration: 0.1 }} // Animation très rapide
+                       transition={{ duration: 0.1 }}
                        onClick={() => handleResultClick(result)}
-                       className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-white/10 transition-colors text-left"
+                       className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-white/[0.06] transition-colors text-left"
                      >
                       {result.type === 'user' ? (
                         <Avatar
@@ -198,7 +194,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                       {result.metadata && (
                         <div className="flex items-center space-x-2">
                           <span className="text-sm text-white/40">{result.metadata}</span>
-                          <button className="p-2 rounded-full hover:bg-white/10 transition-colors">
+                          <button className="p-2 rounded-full hover:bg-white/[0.06] transition-colors">
                             <Play size={16} />
                           </button>
                         </div>
@@ -224,4 +220,4 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
       )}
     </AnimatePresence>
   );
-} 
+}

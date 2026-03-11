@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Crown, Gem, Package, Sparkles, Star, X } from 'lucide-react';
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
+import { UButton } from '@/components/ui/UnifiedUI';
 
 type BoosterRarity = 'common' | 'rare' | 'epic' | 'legendary';
 type BoosterType = 'track' | 'artist';
@@ -94,8 +95,7 @@ export default function BoosterPackOpenModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[210] flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.9)', backdropFilter: 'blur(8px)' }}
+          className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -301,9 +301,9 @@ export default function BoosterPackOpenModal({
                         Suivant
                       </button>
                     )}
-                    <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-white font-semibold text-sm border border-white/10 transition">
+                    <UButton variant="secondary" size="md" onClick={onClose}>
                       Fermer
-                    </button>
+                    </UButton>
                   </div>
                 </div>
               </div>

@@ -32,8 +32,10 @@ async function handleTracks(
       const track = (t && typeof t === 'object' ? { ...(t as object) } : {}) as Record<string, unknown>;
       const title = String(track?.title ?? '');
       if (search && !title.toLowerCase().includes(search.toLowerCase())) continue;
+      const trackIsPublic = (track as any).is_public;
       tracks.push({
         ...track,
+        is_public: trackIsPublic != null ? trackIsPublic : ((g as any).is_public ?? false),
         generation: {
           id: gTyped.id,
           user_id: gTyped.user_id,

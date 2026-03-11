@@ -22,7 +22,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 import { useAudioPlayer } from '@/app/providers';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
@@ -919,7 +919,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         await (navigator as any).share({ title: t.title, text: 'Écoute sur Synaura', url });
       } else {
         await navigator.clipboard.writeText(url);
-        toast.success('Lien copié !');
+        notify.success('OK', 'Lien copié !');
       }
       try { sendTrackEvents(t._id, { event_type: 'share', source: 'tiktok-player' }); } catch {}
     } catch {}
@@ -927,7 +927,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   const handleDownload = useCallback(() => {
     if (!activeTrack) return;
-    if (!canDownload) { toast.error(upgradeMessage || 'Fonction non disponible'); return; }
+    if (!canDownload) { notify.error('Erreur', upgradeMessage || 'Fonction non disponible'); return; }
     setShowDownloadDialog(true);
   }, [activeTrack, canDownload, upgradeMessage]);
 
@@ -937,8 +937,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       setIsDownloading(true);
       const filename = `${activeTrack?.artist?.name || 'Artiste'}-${activeTrack?.title || 'Titre'}.wav`.replace(/\s+/g, '_');
       await downloadAudioFile(activeTrack?.audioUrl || '', filename, () => {});
-      toast.success('Téléchargement terminé !');
-    } catch { toast.error('Échec du téléchargement'); }
+      notify.success('OK', 'Téléchargement terminé !');
+    } catch { notify.error('Erreur', 'Échec du téléchargement'); }
     finally { setIsDownloading(false); setShowDownloadDialog(false); }
   }, [activeTrack]);
 
@@ -1176,10 +1176,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       onClick={(e) => {
                         e.stopPropagation();
                         addToUpNext(t as any, 'end');
-                        toast.success(`${t.title || 'Titre'} ajouté à la file`, {
-                          duration: 2000,
-                          style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' },
-                        });
+                        notify.success('OK', `${t.title || 'Titre'} ajouté à la file`);
                       }}
                     />
                   </aside>

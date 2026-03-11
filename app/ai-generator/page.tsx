@@ -2151,52 +2151,106 @@ export default function AIGenerator() {
     effectiveTrackContext.taskId === playingTrackContext.taskId &&
     effectiveTrackContext.audioId === playingTrackContext.audioId;
 
+  const selectedTrackForVisibility = React.useMemo(() => {
+    const active = selectedTrack || generatedTrack;
+    if (!active?.id) return null;
+    const trackInAll = allTracks.find((t) => String(t.id) === String(active.id));
+    if (trackInAll) return trackInAll;
+    for (const g of recentGenerationsSorted) {
+      const found = (g.tracks || []).find((t: any) => String(t.id) === String(active.id));
+      if (found) return found;
+    }
+    return null;
+  }, [allTracks, generatedTrack, recentGenerationsSorted, selectedTrack]);
+
   const selectedGenerationForVisibility = React.useMemo(() => {
     if (selectedGeneration) return selectedGeneration;
-    if (generatedTrack) {
-      const sourceTrack = allTracks.find((t) => String(t.id) === String(generatedTrack.id));
+    const active = selectedTrack || generatedTrack;
+    if (active) {
+      const sourceTrack = allTracks.find((t) => String(t.id) === String(active.id));
       const sourceGenId = (sourceTrack as any)?.generation_id || (sourceTrack as any)?.generation?.id;
       if (sourceGenId) {
         const byId = generationsById.get(String(sourceGenId));
         if (byId) return byId;
       }
       const byTrack = recentGenerationsSorted.find((g) =>
-        (g.tracks || []).some((t: any) => String(t.id) === String(generatedTrack.id))
+        (g.tracks || []).some((t: any) => String(t.id) === String(active.id))
       );
       if (byTrack) return byTrack;
     }
     return null;
-  }, [allTracks, generatedTrack, generationsById, recentGenerationsSorted, selectedGeneration]);
+  }, [allTracks, generatedTrack, generationsById, recentGenerationsSorted, selectedGeneration, selectedTrack]);
+
+  const selectedVisibilityState = React.useMemo(() => {
+    const track = selectedTrackForVisibility as any;
+    if (track?.is_public != null) return { is_public: track.is_public };
+    const gen = selectedGenerationForVisibility;
+    if (gen) return { is_public: gen.is_public === true };
+    return null;
+  }, [selectedTrackForVisibility, selectedGenerationForVisibility]);
 
   const toggleGenerationVisibility = useCallback(async () => {
+    const track = selectedTrackForVisibility;
     const generation = selectedGenerationForVisibility;
-    if (!generation?.id) {
-      notify.warning('Publication', 'Sélectionne une génération enregistrée pour publier.');
+    if (!track?.id && !generation?.id) {
+      notify.warning('Publication', 'Sélectionne une piste enregistrée pour publier.');
       return;
     }
     if (publishingVisibility) return;
-    const nextPublic = !(generation.is_public === true);
+
+    const currentPublic = selectedVisibilityState?.is_public === true;
+    const nextPublic = !currentPublic;
     setPublishingVisibility(true);
+
     try {
-      const res = await fetch(`/api/ai/generations/${encodeURIComponent(String(generation.id))}/visibility`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPublic: nextPublic }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(json?.error || 'Impossible de changer la visibilité');
+      if (track?.id) {
+        const res = await fetch(`/api/ai/tracks/${encodeURIComponent(String(track.id))}/visibility`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isPublic: nextPublic }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilité');
+
+        setAllTracks((prev) =>
+          prev.map((t) => (String(t.id) === String(track.id) ? { ...t, is_public: nextPublic } : t))
+        );
+        setGenerations((prev) =>
+          prev.map((g) => ({
+            ...g,
+            tracks: (g.tracks || []).map((t: any) =>
+              String(t.id) === String(track.id) ? { ...t, is_public: nextPublic } : t
+            ),
+          }))
+        );
+        setSelectedGeneration((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            tracks: (prev.tracks || []).map((t: any) =>
+              String(t.id) === String(track.id) ? { ...t, is_public: nextPublic } : t
+            ),
+          };
+        });
+      } else if (generation?.id) {
+        const res = await fetch(`/api/ai/generations/${encodeURIComponent(String(generation.id))}/visibility`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ isPublic: nextPublic }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(json?.error || 'Impossible de changer la visibilité');
+
+        setGenerations((prev) =>
+          prev.map((g) => (String(g.id) === String(generation.id) ? { ...g, is_public: nextPublic } : g))
+        );
+        setSelectedGeneration((prev) =>
+          prev && String(prev.id) === String(generation.id) ? { ...prev, is_public: nextPublic } : prev
+        );
       }
 
-      setGenerations((prev) =>
-        prev.map((g) => (String(g.id) === String(generation.id) ? { ...g, is_public: nextPublic } : g))
-      );
-      setSelectedGeneration((prev) =>
-        prev && String(prev.id) === String(generation.id) ? { ...prev, is_public: nextPublic } : prev
-      );
-
-      notify.success('Publication', nextPublic ? 'Génération rendue publique.' : 'Génération rendue privée.');
-      pushLog('info', `Visibilité génération ${String(generation.id).slice(0, 8)}: ${nextPublic ? 'public' : 'privé'}`);
+      notify.success('Publication', nextPublic ? 'Piste rendue publique.' : 'Piste rendue privée.');
+      pushLog('info', `Visibilité piste: ${nextPublic ? 'public' : 'privé'}`);
       window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
     } catch (e: any) {
       notify.error('Publication', e?.message || 'Erreur de publication');
@@ -2204,7 +2258,7 @@ export default function AIGenerator() {
     } finally {
       setPublishingVisibility(false);
     }
-  }, [publishingVisibility, pushLog, selectedGenerationForVisibility]);
+  }, [publishingVisibility, pushLog, selectedTrackForVisibility, selectedGenerationForVisibility, selectedVisibilityState]);
 
   const fetchTimestampedLyrics = useCallback(async (silent = false, contextOverride?: { taskId: string; audioId: string }) => {
     const { taskId, audioId } = contextOverride ?? effectiveTrackContext;
@@ -4243,7 +4297,7 @@ export default function AIGenerator() {
                 onDownload={() => (generatedTrack ? downloadGenerated(generatedTrack) : undefined)}
                 modelVersion={modelVersion}
                 onSetModelVersion={(id: string) => setModelVersion(id)}
-                selectedGenerationForVisibility={selectedGenerationForVisibility}
+                selectedGenerationForVisibility={selectedVisibilityState}
                 publishingVisibility={publishingVisibility}
                 toggleGenerationVisibility={toggleGenerationVisibility}
               />
@@ -4396,7 +4450,7 @@ export default function AIGenerator() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md p-4 flex items-center justify-center"
+              className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md p-4 flex items-center justify-center"
               onClick={() => setSettingsOpen(false)}
             >
               <motion.div
@@ -4404,7 +4458,7 @@ export default function AIGenerator() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 8 }}
                 transition={{ duration: 0.2, ease: 'easeOut' }}
-                className="w-full max-w-lg rounded-3xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)]"
+                className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)]"
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
               >
                 <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
@@ -4584,7 +4638,7 @@ export default function AIGenerator() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[120] bg-black/70 backdrop-blur-md p-4 pt-[12vh] flex items-start justify-center"
+              className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md p-4 pt-[12vh] flex items-start justify-center"
               onClick={() => setCmdOpen(false)}
             >
               <motion.div
@@ -4678,7 +4732,7 @@ export default function AIGenerator() {
             onRemix={useGeneratedTrackForRemix}
             onCopyLyrics={handleCopyLyrics}
             variant="overlay"
-            isPublished={selectedGenerationForVisibility?.is_public === true}
+            isPublished={selectedVisibilityState?.is_public === true}
             publishingVisibility={publishingVisibility}
             onTogglePublish={toggleGenerationVisibility}
           />

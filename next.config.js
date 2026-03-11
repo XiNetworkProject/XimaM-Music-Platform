@@ -7,25 +7,42 @@ const nextConfig = {
   // Optimisations pour réduire les coûts Vercel
   compress: true,
   
-  // Configuration des headers pour le cache
   async headers() {
     return [
       {
         source: '/api/suno/status',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'no-cache, no-store, must-revalidate',
-          },
+          { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
         ],
       },
       {
         source: '/api/ai/generations',
         headers: [
-          {
-            key: 'Cache-Control',
-            value: 'public, max-age=30, stale-while-revalidate=60',
-          },
+          { key: 'Cache-Control', value: 'public, max-age=30, stale-while-revalidate=60' },
+        ],
+      },
+      {
+        source: '/api/tracks/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=30, stale-while-revalidate=120' },
+        ],
+      },
+      {
+        source: '/api/ranking/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=30, stale-while-revalidate=120' },
+        ],
+      },
+      {
+        source: '/api/users',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=120' },
+        ],
+      },
+      {
+        source: '/api/playlists/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=60, stale-while-revalidate=120' },
         ],
       },
       {

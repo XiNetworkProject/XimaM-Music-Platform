@@ -175,11 +175,11 @@ export default function InscriptionStaffPage() {
   if (phase === "done") return <SuccessScreen email={fields.email} token={token} />;
 
   const inputCls = [
-    "w-full rounded-2xl px-4 py-3 text-sm text-white placeholder-white/30 outline-none transition-all duration-200",
-    "border border-white/10 bg-white/[0.05]",
-    "focus:border-violet-500/60 focus:bg-violet-900/10 focus:shadow-[0_0_0_3px_rgba(147,51,234,0.15)]",
+    "w-full rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/20 outline-none transition-all duration-200",
+    "border border-white/[0.08] bg-white/[0.04]",
+    "focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]",
   ].join(" ");
-  const labelCls = "block text-[11px] font-bold text-white/40 uppercase tracking-widest mb-2";
+  const labelCls = "block text-[11px] font-bold text-white/30 uppercase tracking-widest mb-2";
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row" style={{ background: "#07000f" }}>
@@ -290,7 +290,7 @@ export default function InscriptionStaffPage() {
           </div>
 
           {error && (
-            <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-400">
               {error}
             </div>
           )}
@@ -339,8 +339,8 @@ export default function InscriptionStaffPage() {
                       onClick={() => set("role", r.value)}
                       className={`text-left rounded-2xl border p-4 transition-all duration-200 ${
                         fields.role === r.value
-                          ? "border-violet-500/50 bg-violet-900/20 shadow-[0_0_0_3px_rgba(147,51,234,0.15)]"
-                          : "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
+                          ? "border-white/[0.16] bg-white/[0.06] ring-1 ring-white/[0.08]"
+                          : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.1] hover:bg-white/[0.04]"
                       }`}
                     >
                       <div className="text-sm font-bold text-white">{r.label}</div>
@@ -407,7 +407,7 @@ export default function InscriptionStaffPage() {
           {step === 4 && (
             <div className="space-y-4 animate-[sa-fade-up_0.5s_ease-out_both]">
               {/* Recap */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5 space-y-3">
+              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl p-5 space-y-3">
                 <h3 className="text-sm font-bold text-white/70 uppercase tracking-wider">Recapitulatif</h3>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                   <div><span className="text-white/40">Nom :</span> <span className="text-white/80">{fields.fullName}</span></div>
@@ -460,19 +460,19 @@ export default function InscriptionStaffPage() {
           {/* Nav buttons */}
           <div className="flex gap-3 pt-2">
             {step > 1 && (
-              <button onClick={prev} className="rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/60 hover:text-white hover:bg-white/10 transition-all">
+              <button onClick={prev} className="bg-white/[0.06] text-white/70 font-medium rounded-full px-6 py-3 text-sm hover:bg-white/[0.1] transition-all">
                 Retour
               </button>
             )}
             {step < 4 ? (
               <button onClick={next} disabled={!canNext()}
-                className="flex-1 rounded-2xl px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100"
+                className="flex-1 rounded-full px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100"
                 style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 20px rgba(147,51,234,0.3)" }}>
                 Continuer
               </button>
             ) : (
               <button onClick={submit} disabled={loading || !canNext()}
-                className="flex-1 rounded-2xl px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100"
+                className="flex-1 rounded-full px-6 py-3 text-sm font-black text-white transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-40 disabled:hover:scale-100"
                 style={{ background: "linear-gradient(90deg,#059669,#10b981)", boxShadow: "0 0 20px rgba(16,185,129,0.3)" }}>
                 {loading ? "Envoi en cours..." : "Envoyer ma candidature staff"}
               </button>

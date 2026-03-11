@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Sparkles, X, Zap, Star, Crown, Gem } from 'lucide-react';
 import Image from 'next/image';
 import { InventoryItem } from '@/hooks/useBoosters';
+import { UButton } from '@/components/ui/UnifiedUI';
 
 interface BoosterOpenModalProps {
   isOpen: boolean;
@@ -128,11 +129,10 @@ export default function BoosterOpenModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[200] flex items-center justify-center"
+          className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          style={{ background: 'rgba(0,0,0,0.9)' }}
         >
           <style>{KEYFRAMES}</style>
 
@@ -388,9 +388,9 @@ export default function BoosterOpenModal({
 
                 {/* Action buttons */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="mt-5 flex gap-2">
-                  <button onClick={onClose} className="flex-1 h-11 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:opacity-90 transition">
+                  <UButton variant="accent" size="lg" fullWidth onClick={onClose}>
                     Fermer
-                  </button>
+                  </UButton>
                 </motion.div>
               </motion.div>
             )}

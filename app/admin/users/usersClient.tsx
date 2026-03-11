@@ -126,15 +126,15 @@ export default function AdminUsersClient() {
     <div className="p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-lg font-semibold text-foreground-primary">Admins & rôles</div>
-          <div className="text-sm text-foreground-tertiary mt-1">
-            Recherche un utilisateur (email / username) puis change son rôle. Le rôle <span className="text-foreground-primary font-semibold">admin</span> donne accès à <span className="text-foreground-primary font-semibold">/admin</span>.
+          <div className="text-lg font-semibold text-white">Admins & rôles</div>
+          <div className="text-sm text-white/30 mt-1">
+            Recherche un utilisateur (email / username) puis change son rôle. Le rôle <span className="text-white font-semibold">admin</span> donne accès à <span className="text-white font-semibold">/admin</span>.
           </div>
         </div>
         <button
           type="button"
           onClick={loadAdmins}
-          className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition text-sm text-foreground-secondary"
+          className="h-10 px-4 bg-white/[0.06] text-white/70 font-medium rounded-full hover:bg-white/[0.1] transition text-sm"
           disabled={loading}
         >
           {loading ? '...' : 'Refresh'}
@@ -142,30 +142,30 @@ export default function AdminUsersClient() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
           <div className="flex items-center justify-between gap-2">
-            <div className="text-foreground-primary font-semibold">Admins actuels</div>
-            <div className="text-xs text-foreground-tertiary">{admins.length}</div>
+            <div className="text-white font-semibold">Admins actuels</div>
+            <div className="text-xs text-white/30">{admins.length}</div>
           </div>
 
           <div className="mt-3 space-y-2">
             {admins.map((u) => (
-              <div key={u.id} className="p-3 rounded-3xl border border-border-secondary bg-background-fog-thin flex items-center justify-between gap-3">
+              <div key={u.id} className="p-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <ShieldCheck className="h-4 w-4 text-foreground-secondary" />
-                    <div className="text-sm font-semibold text-foreground-primary truncate">{u.username || u.name || 'Admin'}</div>
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-border-secondary bg-background-tertiary text-foreground-secondary">
+                    <ShieldCheck className="h-4 w-4 text-white/60" />
+                    <div className="text-sm font-semibold text-white truncate">{u.username || u.name || 'Admin'}</div>
+                    <span className="text-xs px-2 py-0.5 rounded-full border border-white/[0.06] bg-white/[0.04] text-white/60">
                       {u.role}
                     </span>
                   </div>
-                  <div className="text-xs text-foreground-tertiary truncate mt-1">{u.email || u.id}</div>
+                  <div className="text-xs text-white/30 truncate mt-1">{u.email || u.id}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setRole(u.id, 'user')}
                   disabled={busyId === u.id}
-                  className="h-10 px-3 rounded-2xl border border-border-secondary bg-background-tertiary hover:bg-red-500/15 hover:border-red-500/30 transition text-xs text-foreground-secondary disabled:opacity-60"
+                  className="h-10 px-3 bg-rose-500/10 text-rose-400 rounded-full hover:bg-rose-500/20 transition text-xs font-medium disabled:opacity-60"
                 >
                   Retirer
                 </button>
@@ -173,37 +173,37 @@ export default function AdminUsersClient() {
             ))}
 
             {admins.length === 0 && !loading && (
-              <div className="text-sm text-foreground-tertiary">Aucun admin trouvé.</div>
+              <div className="text-sm text-white/30">Aucun admin trouvé.</div>
             )}
           </div>
         </div>
 
-        <div className="rounded-3xl border border-border-secondary bg-background-fog-thin p-4">
-          <div className="text-foreground-primary font-semibold">Rechercher un utilisateur</div>
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4">
+          <div className="text-white font-semibold">Rechercher un utilisateur</div>
           <div className="mt-3 flex items-center gap-2">
-            <div className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-tertiary flex items-center gap-2 px-3 focus-within:ring-2 focus-within:ring-overlay-on-primary">
-              <Search className="h-4 w-4 text-foreground-tertiary" />
+            <div className="flex-1 h-11 rounded-xl border border-white/[0.08] bg-white/[0.04] flex items-center gap-2 px-3 focus-within:border-white/[0.16] focus-within:ring-1 focus-within:ring-white/[0.08]">
+              <Search className="h-4 w-4 text-white/30" />
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
                 placeholder="email ou username…"
-                className="bg-transparent outline-none text-sm text-foreground-primary placeholder:text-foreground-inactive w-full"
+                className="bg-transparent outline-none text-sm text-white placeholder:text-white/20 w-full"
               />
               {q.trim() && (
                 <button
                   type="button"
                   onClick={() => setQ('')}
-                  className="h-8 w-8 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                  className="h-8 w-8 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.1] transition grid place-items-center"
                   aria-label="Clear"
                 >
-                  <X className="h-4 w-4 text-foreground-secondary" />
+                  <X className="h-4 w-4 text-white/60" />
                 </button>
               )}
             </div>
             <select
               value={roleForNew}
               onChange={(e) => setRoleForNew(e.target.value as any)}
-              className="h-11 px-3 rounded-2xl border border-border-secondary bg-background-fog-thin text-sm text-foreground-primary outline-none"
+              className="h-11 px-3 rounded-xl border border-white/[0.08] bg-white/[0.04] text-sm text-white outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
               title="Rôle à attribuer"
             >
               <option value="admin">admin</option>
@@ -212,7 +212,7 @@ export default function AdminUsersClient() {
             </select>
           </div>
 
-          <div className="mt-3 text-xs text-foreground-tertiary">
+          <div className="mt-3 text-xs text-white/30">
             Clique sur un résultat pour lui attribuer le rôle sélectionné.
           </div>
 
@@ -224,20 +224,20 @@ export default function AdminUsersClient() {
                 onClick={() => setRole(u.id, roleForNew)}
                 disabled={busyId === u.id || !canPromote}
                 className={cx(
-                  'w-full text-left p-3 rounded-3xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition',
+                  'w-full text-left p-3 rounded-2xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.1] transition',
                   busyId === u.id && 'opacity-70',
                 )}
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-foreground-primary truncate">
+                    <div className="text-sm font-semibold text-white truncate">
                       {u.username || u.name || u.artist_name || u.email || u.id}
                     </div>
-                    <div className="text-xs text-foreground-tertiary truncate mt-1">
+                    <div className="text-xs text-white/30 truncate mt-1">
                       {u.email || '—'} • rôle actuel: {u.role}
                     </div>
                   </div>
-                  <div className="shrink-0 h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary flex items-center gap-2 text-sm font-semibold">
+                  <div className="shrink-0 h-10 px-3 rounded-2xl bg-white/[0.1] text-white flex items-center gap-2 text-sm font-semibold">
                     <UserPlus className="h-4 w-4" />
                     Appliquer
                   </div>
@@ -246,23 +246,23 @@ export default function AdminUsersClient() {
             ))}
             {results.length === 0 && q.trim() && !loading && (
               <div className="space-y-2">
-                <div className="text-sm text-foreground-tertiary">Aucun résultat.</div>
+                <div className="text-sm text-white/30">Aucun résultat.</div>
                 {canApplyDirectEmail && (
                   <button
                     type="button"
                     onClick={applyRoleToEmail}
                     disabled={busyId === `email:${q.trim().toLowerCase()}`}
-                    className="w-full inline-flex items-center justify-between gap-2 p-3 rounded-3xl border border-border-secondary bg-background-tertiary hover:bg-overlay-on-primary transition disabled:opacity-60"
+                    className="w-full inline-flex items-center justify-between gap-2 p-3 rounded-2xl border border-white/[0.06] bg-white/[0.04] hover:bg-white/[0.1] transition disabled:opacity-60"
                   >
                     <div className="min-w-0">
-                      <div className="text-sm font-semibold text-foreground-primary truncate">
+                      <div className="text-sm font-semibold text-white truncate">
                         Attribuer <span className="font-bold">{roleForNew}</span> à {q.trim().toLowerCase()}
                       </div>
-                      <div className="text-xs text-foreground-tertiary mt-1">
+                      <div className="text-xs text-white/30 mt-1">
                         Si la personne n’a pas encore de compte, elle doit d’abord s’inscrire.
                       </div>
                     </div>
-                    <div className="shrink-0 h-10 px-3 rounded-2xl bg-overlay-on-primary text-foreground-primary flex items-center gap-2 text-sm font-semibold">
+                    <div className="shrink-0 h-10 px-3 rounded-2xl bg-white/[0.1] text-white flex items-center gap-2 text-sm font-semibold">
                       <UserPlus className="h-4 w-4" />
                       Appliquer
                     </div>
@@ -272,11 +272,11 @@ export default function AdminUsersClient() {
             )}
           </div>
 
-          <div className="mt-4 rounded-3xl border border-border-secondary bg-background-tertiary p-3">
+          <div className="mt-4 rounded-2xl border border-white/[0.06] bg-white/[0.04] p-3">
             <div className="flex items-start gap-2">
-              <Check className="h-4 w-4 text-foreground-secondary mt-0.5" />
-              <div className="text-xs text-foreground-tertiary">
-                Ton compte <span className="text-foreground-primary font-semibold">vermeulenmaxime59@gmail.com</span> est autorisé par défaut (bootstrap) pour accéder à /admin et gérer les admins.
+              <Check className="h-4 w-4 text-white/60 mt-0.5" />
+              <div className="text-xs text-white/30">
+                Ton compte <span className="text-white font-semibold">vermeulenmaxime59@gmail.com</span> est autorisé par défaut (bootstrap) pour accéder à /admin et gérer les admins.
               </div>
             </div>
           </div>

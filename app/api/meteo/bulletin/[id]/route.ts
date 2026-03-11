@@ -12,32 +12,31 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Vérifier l'authentification
-    const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email || session.user.email !== 'alertempsfrance@gmail.com') {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
-    }
-
     const { id } = params;
-
     if (!id) {
       return NextResponse.json({ error: 'ID du bulletin requis' }, { status: 400 });
     }
 
-    // Récupérer le bulletin
     const { data: bulletin, error: fetchError } = await supabaseAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('id', id)
-      .eq('author_id', session.user.id)
       .single();
 
     if (fetchError || !bulletin) {
-      return NextResponse.json({ 
-        error: 'Bulletin introuvable ou accès non autorisé',
-        details: fetchError?.message 
-      }, { status: 404 });
+      return NextResponse.json({ error: 'Bulletin introuvable' }, { status: 404 });
+    }
+
+    const session = await getServerSession(authOptions);
+    const isTeam = session?.user?.id ? !!(await supabaseAdmin
+      .from('meteo_team_members')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle()).data : false;
+
+    if (bulletin.status !== 'published' && !isTeam) {
+      return NextResponse.json({ error: 'Bulletin non publie' }, { status: 403 });
     }
 
     return NextResponse.json({
@@ -47,16 +46,20 @@ export async function GET(
       image_url: bulletin.image_url,
       image_public_id: bulletin.image_public_id,
       status: bulletin.status,
+      category: bulletin.category,
+      tags: bulletin.tags,
+      allow_comments: bulletin.allow_comments,
+      author_name: bulletin.author_name,
+      views_count: bulletin.views_count,
+      share_count: bulletin.share_count,
+      pinned: bulletin.pinned,
       created_at: bulletin.created_at,
       updated_at: bulletin.updated_at,
     });
 
   } catch (error) {
     console.error('Erreur API bulletin GET:', error);
-    return NextResponse.json({ 
-      error: 'Erreur interne du serveur',
-      details: error instanceof Error ? error.message : 'Erreur inconnue'
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
   }
 }
 
@@ -65,25 +68,31 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    // Vérifier l'authentification
     const session = await getServerSession(authOptions);
-    
-    if (!session?.user?.email || session.user.email !== 'alertempsfrance@gmail.com') {
-      return NextResponse.json({ error: 'Accès non autorisé' }, { status: 403 });
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    }
+
+    const { data: teamMember } = await supabaseAdmin
+      .from('meteo_team_members')
+      .select('role')
+      .eq('user_id', session.user.id)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (!teamMember) {
+      return NextResponse.json({ error: 'Acces non autorise' }, { status: 403 });
     }
 
     const { id } = params;
-
     if (!id) {
       return NextResponse.json({ error: 'ID du bulletin requis' }, { status: 400 });
     }
 
-    // Vérifier que le bulletin existe et appartient à l'utilisateur
     const { data: existingBulletin, error: fetchError } = await supabaseAdmin
       .from('meteo_bulletins')
       .select('*')
       .eq('id', id)
-      .eq('author_id', session.user.id)
       .single();
 
     if (fetchError || !existingBulletin) {

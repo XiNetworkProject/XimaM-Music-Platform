@@ -444,31 +444,31 @@ function StaffTab() {
 
       {/* Modal de gestion staff */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-          <div className="w-full max-w-lg rounded-3xl border border-border-secondary bg-background-primary p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
+          <div className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)] p-5 sm:p-6 space-y-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-foreground-primary">{selected.full_name}</h2>
-                <p className="text-xs text-foreground-tertiary mt-0.5">{selected.email} · {ROLE_LABELS[selected.role] ?? selected.role}</p>
+                <h2 className="text-base font-bold text-white">{selected.full_name}</h2>
+                <p className="text-xs text-white/40 mt-0.5">{selected.email} · {ROLE_LABELS[selected.role] ?? selected.role}</p>
               </div>
-              <button onClick={closeDetail} className="rounded-xl p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition">
+              <button onClick={closeDetail} className="p-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="rounded-2xl border border-border-secondary bg-white/3 p-4 space-y-3">
-              <div><div className="text-xs text-foreground-tertiary mb-1">Experience</div><p className="text-sm text-foreground-secondary leading-relaxed whitespace-pre-wrap">{selected.experience}</p></div>
-              <div><div className="text-xs text-foreground-tertiary mb-1">Motivation</div><p className="text-sm text-foreground-secondary leading-relaxed whitespace-pre-wrap">{selected.motivation}</p></div>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
+              <div><div className="text-xs text-white/40 mb-1">Experience</div><p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{selected.experience}</p></div>
+              <div><div className="text-xs text-white/40 mb-1">Motivation</div><p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{selected.motivation}</p></div>
             </div>
 
             <div className="space-y-3">
-              <label className="text-xs font-semibold text-foreground-tertiary block">Statut</label>
+              <label className="text-xs font-semibold text-white/40 block">Statut</label>
               <div className="grid grid-cols-2 gap-2">
                 {(['pending', 'reviewing', 'accepted', 'rejected'] as const).map((s) => {
                   const cfg = STATUS_LABELS[s];
                   return (
                     <button key={s} onClick={() => setNewStatus(s)}
-                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${newStatus === s ? cfg.bg + ' ' + cfg.color : 'border-border-secondary bg-white/3 text-foreground-tertiary hover:bg-white/6'}`}>
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${newStatus === s ? cfg.bg + ' ' + cfg.color : 'border-white/[0.08] bg-white/[0.04] text-white/40 hover:bg-white/[0.08]'}`}>
                       {newStatus === s && <span className="mr-1.5">✓</span>}
                       {cfg.label}
                     </button>
@@ -478,23 +478,23 @@ function StaffTab() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground-tertiary block">Notes internes</label>
+              <label className="text-xs font-semibold text-white/40 block">Notes internes</label>
               <textarea rows={3}
-                className="w-full rounded-xl border border-border-secondary bg-white/5 px-4 py-2.5 text-sm text-foreground-primary placeholder-foreground-tertiary outline-none focus:border-violet-500/50 resize-none transition"
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] resize-none transition"
                 placeholder="Commentaires, decision..." value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-2">
               <button onClick={handleUpdate} disabled={updating}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-60 transition">
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full h-9 px-4 text-sm font-semibold bg-white text-black hover:bg-white/90 disabled:opacity-40 transition">
                 <Check size={14} />{updating ? 'Enregistrement...' : 'Enregistrer'}
               </button>
               <button onClick={closeDetail}
-                className="rounded-xl border border-border-secondary bg-white/5 px-4 py-2.5 text-sm text-foreground-secondary hover:text-foreground-primary transition">
+                className="inline-flex items-center justify-center rounded-full h-9 px-4 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition">
                 Annuler
               </button>
             </div>
-            <p className="text-xs text-foreground-tertiary text-center">Un email sera envoye si le statut change (accepte/refuse).</p>
+            <p className="text-xs text-white/35 text-center">Un email sera envoye si le statut change (accepte/refuse).</p>
           </div>
         </div>
       )}
@@ -778,30 +778,27 @@ export default function AdminStarAcademyPage() {
 
       {/* ── Modal de gestion ────────────────────────────── */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
-          <div className="w-full max-w-lg rounded-3xl border border-border-secondary bg-background-primary p-6 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center p-4" onClick={(e) => e.target === e.currentTarget && closeDetail()}>
+          <div className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl shadow-[0_30px_100px_rgba(0,0,0,.8)] p-5 sm:p-6 space-y-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-base font-bold text-foreground-primary">{selected.full_name}</h2>
-                <p className="text-xs text-foreground-tertiary mt-0.5">{selected.email} · {selected.tiktok_handle}</p>
+                <h2 className="text-base font-bold text-white">{selected.full_name}</h2>
+                <p className="text-xs text-white/40 mt-0.5">{selected.email} · {selected.tiktok_handle}</p>
               </div>
-              <button onClick={closeDetail} className="rounded-xl p-1.5 text-foreground-tertiary hover:text-foreground-primary hover:bg-white/5 transition">
+              <button onClick={closeDetail} className="p-1.5 rounded-full bg-white/[0.06] hover:bg-white/[0.1] text-white/40 hover:text-white/70 transition">
                 <X size={16} />
               </button>
             </div>
 
-            {/* Audio player */}
             <InlineAudioPlayer appId={selected.id} filename={selected.audio_filename} />
 
-            {/* Bio */}
-            <div className="rounded-2xl border border-border-secondary bg-white/3 p-4">
-              <div className="text-xs text-foreground-tertiary mb-2">Présentation</div>
-              <p className="text-sm text-foreground-secondary leading-relaxed whitespace-pre-wrap">{selected.bio}</p>
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+              <div className="text-xs text-white/40 mb-2">Présentation</div>
+              <p className="text-sm text-white/60 leading-relaxed whitespace-pre-wrap">{selected.bio}</p>
             </div>
 
-            {/* Changer le statut */}
             <div className="space-y-3">
-              <label className="text-xs font-semibold text-foreground-tertiary block">Statut</label>
+              <label className="text-xs font-semibold text-white/40 block">Statut</label>
               <div className="grid grid-cols-2 gap-2">
                 {(['pending', 'reviewing', 'accepted', 'winner', 'rejected'] as const).map((s) => {
                   const cfg = STATUS_LABELS[s];
@@ -809,7 +806,7 @@ export default function AdminStarAcademyPage() {
                     <button
                       key={s}
                       onClick={() => setNewStatus(s)}
-                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${newStatus === s ? cfg.bg + ' ' + cfg.color : 'border-border-secondary bg-white/3 text-foreground-tertiary hover:bg-white/6'}`}
+                      className={`rounded-xl border px-3 py-2.5 text-xs font-semibold transition ${newStatus === s ? cfg.bg + ' ' + cfg.color : 'border-white/[0.08] bg-white/[0.04] text-white/40 hover:bg-white/[0.08]'}`}
                     >
                       {newStatus === s && <span className="mr-1.5">✓</span>}
                       {cfg.label}
@@ -829,36 +826,35 @@ export default function AdminStarAcademyPage() {
               )}
             </div>
 
-            {/* Notes admin */}
             <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground-tertiary block">Notes internes (non visibles du candidat)</label>
+              <label className="text-xs font-semibold text-white/40 block">Notes internes (non visibles du candidat)</label>
               <textarea
                 rows={3}
-                className="w-full rounded-xl border border-border-secondary bg-white/5 px-4 py-2.5 text-sm text-foreground-primary placeholder-foreground-tertiary outline-none focus:border-violet-500/50 resize-none transition"
+                className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] resize-none transition"
                 placeholder="Commentaires, décision, raison…"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="flex gap-2 pt-2">
               <button
                 onClick={handleUpdate}
                 disabled={updating}
-                className="flex-1 inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-60 transition"
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-full h-9 px-4 text-sm font-semibold bg-white text-black hover:bg-white/90 disabled:opacity-40 transition"
               >
                 <Check size={14} />
                 {updating ? 'Enregistrement…' : 'Enregistrer'}
               </button>
               <button
                 onClick={closeDetail}
-                className="rounded-xl border border-border-secondary bg-white/5 px-4 py-2.5 text-sm text-foreground-secondary hover:text-foreground-primary transition"
+                className="inline-flex items-center justify-center rounded-full h-9 px-4 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition"
               >
                 Annuler
               </button>
             </div>
 
-            <p className="text-xs text-foreground-tertiary text-center">
+            <p className="text-xs text-white/35 text-center">
               Un email de notification sera envoyé automatiquement si le statut change.
             </p>
           </div>

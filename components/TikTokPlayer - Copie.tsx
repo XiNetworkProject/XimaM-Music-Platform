@@ -6,7 +6,7 @@ import { useAudioPlayer } from '@/app/providers';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import { Heart, X, Volume2, VolumeX, MessageCircle, Share2, Download, Lock, Disc3, ListMusic, Loader2, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import AudioQualityIndicator, { AudioQualityTooltip } from './AudioQualityIndicator';
 import DownloadDialog from './DownloadDialog';
 import { useDownloadPermission, downloadAudioFile } from '@/hooks/useDownloadPermission';
@@ -594,7 +594,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
         await (navigator as any).share(shareData);
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareData.url);
-        toast.success('Lien copié');
+        notify.success('OK', 'Lien copié');
       }
       
       if (id) {
@@ -606,7 +606,7 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
   // Download
   const handleDownload = useCallback(() => {
     if (!canDownload) {
-      toast.error(upgradeMessage || 'Fonction non disponible pour votre offre');
+      notify.error('Erreur', upgradeMessage || 'Fonction non disponible pour votre offre');
       return;
     }
     setShowDownloadDialog(true);
@@ -617,9 +617,9 @@ export default function TikTokPlayer({ isOpen, onClose }: TikTokPlayerProps) {
       setIsDownloading(true);
       const filename = `${currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste'}-${currentTrack?.title || 'Titre'}.wav`.replace(/\s+/g, '_');
       await downloadAudioFile(currentTrack?.audioUrl || '', filename, () => {});
-      toast.success('Téléchargement terminé !');
+      notify.success('OK', 'Téléchargement terminé !');
     } catch {
-      toast.error('Échec du téléchargement');
+      notify.error('Erreur', 'Échec du téléchargement');
     } finally {
       setIsDownloading(false);
       setShowDownloadDialog(false);

@@ -61,12 +61,12 @@ export async function GET(
     let aiTracksQuery = supabaseAdmin
       .from('ai_tracks')
       .select(`
-        id, title, audio_url, image_url, duration, prompt, tags, play_count, like_count, created_at,
+        id, title, audio_url, image_url, duration, prompt, tags, play_count, like_count, created_at, is_public,
         generation:ai_generations!inner(id, user_id, is_public, status, task_id, model)
       `)
       .eq('generation.user_id', profile.id)
       .eq('generation.status', 'completed')
-      .eq('generation.is_public', true)
+      .eq('is_public', true)
       .order('created_at', { ascending: false });
 
     const { data: aiTracks, error: aiTracksError } = await aiTracksQuery;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { UModal, UModalBody, UButton } from '@/components/ui/UnifiedUI';
 
 type Track = {
   id: string;
@@ -41,60 +41,42 @@ export default function TrackSelectModal({ isOpen, onClose, onSelect }: TrackSel
   }, [isOpen]);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-        >
-          <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-            className="relative z-10 w-full max-w-lg rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] p-4"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-[var(--text)]">Sélectionner une piste</h3>
-              <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text)]">Fermer</button>
-            </div>
-            {loading && <div className="py-8 text-center text-[var(--text-muted)]">Chargement…</div>}
-            {error && <div className="py-8 text-center text-red-400">{error}</div>}
-            {!loading && !error && (
-              <div className="max-h-[60vh] overflow-y-auto grid grid-cols-1 gap-2">
-                {tracks.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => onSelect(t.id)}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--surface-3)] text-left"
-                  >
-                    <div className="w-12 h-12 rounded-md overflow-hidden bg-black/30 border border-[var(--border)]">
-                      {t.coverUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={t.coverUrl} alt={t.title} className="w-full h-full object-cover" />
-                      ) : null}
-                    </div>
-                    <div className="flex-1">
-                      <div className="text-[var(--text)] font-semibold truncate">{t.title}</div>
-                      {typeof t.duration === 'number' ? (
-                        <div className="text-xs text-[var(--text-muted)]">{Math.round((t.duration || 0) / 1000)}s</div>
-                      ) : null}
-                    </div>
-                  </button>
-                ))}
-                {tracks.length === 0 && (
-                  <div className="py-8 text-center text-[var(--text-muted)]">Aucune piste trouvée</div>
-                )}
-              </div>
+    <UModal open={isOpen} onClose={onClose} zClass="z-50" size="lg" showClose={false}>
+      <UModalBody>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-white">Sélectionner une piste</h3>
+          <UButton variant="ghost" size="sm" onClick={onClose}>Fermer</UButton>
+        </div>
+        {loading && <div className="py-8 text-center text-white/40">Chargement…</div>}
+        {error && <div className="py-8 text-center text-red-400">{error}</div>}
+        {!loading && !error && (
+          <div className="max-h-[60vh] overflow-y-auto grid grid-cols-1 gap-2">
+            {tracks.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onSelect(t.id)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/[0.06] text-left transition-colors"
+              >
+                <div className="w-12 h-12 rounded-md overflow-hidden bg-black/30 border border-white/[0.08]">
+                  {t.coverUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={t.coverUrl} alt={t.title} className="w-full h-full object-cover" />
+                  ) : null}
+                </div>
+                <div className="flex-1">
+                  <div className="text-white font-semibold truncate">{t.title}</div>
+                  {typeof t.duration === 'number' ? (
+                    <div className="text-xs text-white/40">{Math.round((t.duration || 0) / 1000)}s</div>
+                  ) : null}
+                </div>
+              </button>
+            ))}
+            {tracks.length === 0 && (
+              <div className="py-8 text-center text-white/40">Aucune piste trouvée</div>
             )}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          </div>
+        )}
+      </UModalBody>
+    </UModal>
   );
 }
-
-

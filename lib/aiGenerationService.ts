@@ -44,6 +44,7 @@ export interface AITrack {
   source_links?: string | null;
   created_at: string;
   is_favorite: boolean;
+  is_public?: boolean | null;
   play_count: number;
   like_count: number;
 }

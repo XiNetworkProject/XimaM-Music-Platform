@@ -122,12 +122,12 @@ export async function GET(request: NextRequest) {
           const { data: recentAI, error: recentAIErr } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, created_at, image_url, audio_url, duration, tags, play_count,
+              id, title, created_at, image_url, audio_url, duration, tags, play_count, is_public,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
             `)
-            .eq('generation.is_public', true)
+            .eq('is_public', true)
             .eq('generation.status', 'completed')
             .order('created_at', { ascending: false })
             .limit(limitFallback);
@@ -248,12 +248,12 @@ export async function GET(request: NextRequest) {
           const { data } = await supabaseAdmin
             .from('ai_tracks')
             .select(`
-              id, title, created_at, image_url, audio_url, duration, tags, play_count,
+              id, title, created_at, image_url, audio_url, duration, tags, play_count, is_public,
               generation:ai_generations!inner (
                 user_id, is_public, status
               )
             `)
-            .eq('generation.is_public', true)
+            .eq('is_public', true)
             .eq('generation.status', 'completed')
             .in('id', aiIds as any);
           aiTracks = (data || []).map((t: any) => ({ ...t, _aiPrefixedId: `ai-${t.id}` }));
@@ -438,12 +438,12 @@ export async function GET(request: NextRequest) {
         const { data, error } = await supabaseAdmin
           .from('ai_tracks')
           .select(`
-            id, title, created_at, image_url, audio_url, duration, tags, play_count,
+            id, title, created_at, image_url, audio_url, duration, tags, play_count, is_public,
             generation:ai_generations!inner (
               user_id, is_public, status
             )
           `)
-          .eq('generation.is_public', true)
+          .eq('is_public', true)
           .eq('generation.status', 'completed')
           .in('id', rawAiIds);
       if (error) {

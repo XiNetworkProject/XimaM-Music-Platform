@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 import Avatar from '@/components/Avatar';
 
 const sectionFade = {
@@ -98,7 +98,7 @@ export default function CommunityPage() {
           setPopularFaqs(faqData.faqs || []);
         }
       } catch {
-        toast.error('Erreur lors du chargement');
+        notify.error('Erreur', 'Erreur lors du chargement');
       } finally {
         setLoading(false);
       }
@@ -173,21 +173,21 @@ export default function CommunityPage() {
               <div className="flex flex-wrap gap-3 pt-2">
                 <Link
                   href="/community/forum"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-indigo-500 text-white shadow-lg shadow-indigo-500/25 hover:bg-indigo-400 hover:shadow-indigo-400/30 transition-all hover:scale-[1.02] active:scale-100"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-all hover:scale-[1.02] active:scale-100"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Ouvrir le forum
                 </Link>
                 <Link
                   href="/community/faq"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/[0.1] transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-colors"
                 >
                   <HelpCircle className="w-4 h-4" />
                   Centre d&apos;aide
                 </Link>
                 <Link
                   href="/messages"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] border border-white/[0.08] text-white/80 hover:bg-white/[0.1] transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-colors"
                 >
                   <MessagesSquare className="w-4 h-4" />
                   Messagerie
@@ -202,7 +202,7 @@ export default function CommunityPage() {
                 transition={{ delay: 0.3 }}
                 className="w-full lg:w-auto"
               >
-                <div className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-5 backdrop-blur-sm lg:w-72">
+                <div className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-5 lg:w-72">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     <span className="text-xs text-white/40 uppercase tracking-wider">Votre espace</span>
@@ -243,7 +243,7 @@ export default function CommunityPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.15 + i * 0.06 }}
-                  className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 md:p-5 hover:bg-white/[0.06] transition-colors group"
+                  className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-4 md:p-5 hover:bg-white/[0.06] transition-colors group"
                 >
                   <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${s.gradient} flex items-center justify-center mb-3 shadow-lg group-hover:scale-110 transition-transform`}>
                     <Icon className="w-5 h-5 text-white" />
@@ -271,7 +271,7 @@ export default function CommunityPage() {
             {/* Forum */}
             <Link
               href="/community/forum"
-              className="group relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
+              className="group relative rounded-2xl overflow-hidden bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-indigo-500/10 to-transparent rounded-bl-full" />
               <div className="relative">
@@ -292,7 +292,7 @@ export default function CommunityPage() {
             {/* FAQ */}
             <Link
               href="/community/faq"
-              className="group relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
+              className="group relative rounded-2xl overflow-hidden bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-emerald-500/10 to-transparent rounded-bl-full" />
               <div className="relative">
@@ -313,7 +313,7 @@ export default function CommunityPage() {
             {/* Messagerie */}
             <Link
               href="/messages"
-              className="group relative rounded-2xl overflow-hidden bg-white/[0.03] border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
+              className="group relative rounded-2xl overflow-hidden bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-6 hover:bg-white/[0.06] transition-all"
             >
               <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-violet-500/10 to-transparent rounded-bl-full" />
               <div className="relative">
@@ -366,7 +366,7 @@ export default function CommunityPage() {
                       initial={{ opacity: 0, x: -15 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 + i * 0.05 }}
-                      className="rounded-2xl bg-white/[0.03] border border-white/[0.06] p-4 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-default group"
+                      className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-4 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-default group"
                     >
                       <div className="flex items-start gap-3">
                         <div className={`shrink-0 w-9 h-9 rounded-xl ${meta.bg} border flex items-center justify-center`}>
@@ -431,7 +431,7 @@ export default function CommunityPage() {
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.25 + i * 0.04 }}
-                    className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-3.5 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-default"
+                    className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-3.5 hover:bg-white/[0.06] hover:border-white/[0.1] transition-all cursor-default"
                   >
                     <h3 className="text-sm font-medium text-white mb-1.5 line-clamp-2">{faq.question}</h3>
                     <div className="flex items-center gap-2 text-[10px] text-white/35">
@@ -479,14 +479,14 @@ export default function CommunityPage() {
               <div className="flex flex-wrap gap-3 justify-center">
                 <Link
                   href="/community/forum"
-                  className="px-6 py-3 rounded-full text-sm font-bold bg-white text-black hover:bg-white/90 transition-colors shadow-lg inline-flex items-center gap-2"
+                  className="px-6 py-3 rounded-full text-sm font-semibold bg-white text-black hover:bg-white/90 transition-colors shadow-lg inline-flex items-center gap-2"
                 >
                   <MessageSquare className="w-4 h-4" />
                   Lancer un sujet
                 </Link>
                 <Link
                   href="/messages"
-                  className="px-6 py-3 rounded-full text-sm font-medium bg-white/[0.06] border border-white/[0.1] text-white hover:bg-white/[0.1] transition-colors inline-flex items-center gap-2"
+                  className="px-6 py-3 rounded-full text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition-colors inline-flex items-center gap-2"
                 >
                   <Send className="w-4 h-4" />
                   Messagerie directe

@@ -96,7 +96,7 @@ export default function PartnershipsPage() {
         </section>
 
         {/* ── Comment nous contacter ───────────────────────── */}
-        <section className="rounded-2xl border border-white/8 bg-white/3 p-5 md:p-6 space-y-4">
+        <section className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-5 md:p-6 space-y-4">
           <h2 className="text-sm font-semibold text-white/80">Soumettre une demande</h2>
           <p className="text-xs text-white/45 leading-relaxed">
             Envoie-nous un email avec :<br />
@@ -130,7 +130,7 @@ export default function PartnershipsPage() {
           </div>
           <Link
             href="/publish"
-            className="shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-violet-500/40 bg-violet-600/15 px-4 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-600/25 transition whitespace-nowrap"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white text-black px-4 py-2 text-xs font-semibold hover:bg-white/90 transition whitespace-nowrap"
           >
             Publier
             <ArrowRight size={13} />

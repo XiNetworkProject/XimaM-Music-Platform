@@ -251,23 +251,6 @@ a {
   animation: scaleIn 0.6s ease-out;
 }
 
-/* Transitions hover optimisées */
-.hover-scale-105 {
-  transition: transform 0.2s ease-out;
-}
-
-.hover-scale-105:hover {
-  transform: scale(1.05);
-}
-
-.active-scale-95:active {
-  transform: scale(0.95);
-}
-
-/* Classes supplémentaires pour les animations */
-.hover-scale-110:hover {
-  transform: scale(1.1);
-}
 
 .active-scale-90:active {
   transform: scale(0.9);
@@ -333,21 +316,6 @@ a {
   border: 1px solid var(--glass-border);
 }
 
-.gradient-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.music-card {
-  transition: all 0.3s ease;
-}
-
-.music-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-}
 
 .swipe-container {
   touch-action: pan-y pinch-zoom;
@@ -460,23 +428,6 @@ a {
   animation: fadeIn 0.3s ease-out;
 }
 
-/* Effet de hover pour les cartes */
-.card-hover {
-  @apply transition-all duration-300 ease-out;
-}
-
-.card-hover:hover {
-  @apply transform scale-105 shadow-2xl;
-}
-
-/* Gradient de fond pour les boutons */
-.btn-gradient {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-}
-
-.btn-gradient:hover {
-  background: linear-gradient(135deg, #b91c1c 0%, #991b1b 100%);
-}
 
 /* Sliders */
 .slider {
@@ -1243,69 +1194,6 @@ a {
 .bg-accent-warning { background-color: var(--accent-warning); }
 .bg-accent-error { background-color: var(--accent-error); }
 
-/* Suno Button Styles */
-.suno-button {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  border-radius: 8px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  border: 1px solid var(--border-primary);
-  background: var(--background-secondary);
-  color: var(--foreground-primary);
-  cursor: pointer;
-}
-
-.suno-button:hover {
-  background: var(--background-tertiary);
-  border-color: var(--border-secondary);
-}
-
-.suno-button-primary {
-  background: var(--accent-brand);
-  border-color: var(--accent-brand);
-  color: white;
-}
-
-.suno-button-primary:hover {
-  background: #5B45BE;
-  border-color: #5B45BE;
-}
-
-.suno-button-secondary {
-  background: var(--accent-blue);
-  border-color: var(--accent-blue);
-  color: white;
-}
-
-.suno-button-secondary:hover {
-  background: #2563eb;
-  border-color: #2563eb;
-}
-
-/* Suno Input Styles */
-.suno-input {
-  background: var(--background-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 8px;
-  padding: 12px 16px;
-  color: var(--foreground-primary);
-  font-size: 14px;
-  transition: all 0.2s ease;
-}
-
-.suno-input:focus {
-  outline: none;
-  border-color: var(--accent-blue);
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-.suno-input::placeholder {
-  color: var(--foreground-tertiary);
-}
 
 /* Upload-style Card Classes */
 .bg-white-upload {

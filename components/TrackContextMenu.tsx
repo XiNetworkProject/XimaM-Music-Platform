@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAudioPlayer } from '@/app/providers';
-import toast from 'react-hot-toast';
+import { notify } from '@/components/NotificationCenter';
 
 interface TrackContextMenuProps {
   track: any;
@@ -34,14 +34,14 @@ export default function TrackContextMenu({ track }: TrackContextMenuProps) {
   const handlePlayNext = () => {
     if (!track) return;
     addToUpNext(track, 'next');
-    toast.success(`${track.title || 'Titre'} — sera lu ensuite`, { duration: 2000, style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } });
+    notify.success('OK', `${track.title || 'Titre'} — sera lu ensuite`);
     handleClose();
   };
 
   const handleAddToQueue = () => {
     if (!track) return;
     addToUpNext(track, 'end');
-    toast.success(`${track.title || 'Titre'} — ajouté à la file`, { duration: 2000, style: { background: '#1a1a2e', color: '#fff', border: '1px solid rgba(255,255,255,0.08)' } });
+    notify.success('OK', `${track.title || 'Titre'} — ajouté à la file`);
     handleClose();
   };
 
