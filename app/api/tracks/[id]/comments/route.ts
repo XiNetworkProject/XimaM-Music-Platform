@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import contentModerator from '@/lib/contentModeration';
+import { notifyNewComment } from '@/lib/notifications';
 
 // GET /api/tracks/[id]/comments - liste publique (filtrée) des commentaires
 // POST /api/tracks/[id]/comments - ajouter un commentaire (avec modération)
@@ -203,6 +204,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       .select('id, username, name, avatar')
       .eq('id', userId)
       .maybeSingle();
+
+    try {
+      const { data: track } = await supabaseAdmin
+        .from('tracks')
+        .select('title, creator_id')
+        .eq('id', trackId)
+        .maybeSingle();
+      if (track && track.creator_id && track.creator_id !== userId) {
+        const commenterName = (user as any)?.name || (user as any)?.username || 'Quelqu\'un';
+        notifyNewComment(userId, track.creator_id, commenterName, track.title, trackId).catch(() => {});
+      }
+    } catch {}
 
     return NextResponse.json({
       comment: {

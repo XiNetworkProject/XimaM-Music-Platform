@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
+import { notifyNewFollower } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,7 +114,17 @@ export async function POST(
     }
 
     console.log('✅ Action terminée:', action);
-    
+
+    if (action === 'followed') {
+      const { data: followerProfile } = await supabaseAdmin
+        .from('profiles')
+        .select('username, name')
+        .eq('id', followerId)
+        .maybeSingle();
+      const followerName = followerProfile?.name || followerProfile?.username || 'Quelqu\'un';
+      notifyNewFollower(followerId, followingId, followerName).catch(() => {});
+    }
+
     return NextResponse.json({ 
       success: true, 
       action,

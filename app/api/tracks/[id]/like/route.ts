@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
 import { applyMissionProgress } from '@/lib/missions/progress';
+import { notifyNewLike, notifyLikeMilestone, checkMilestone } from '@/lib/notifications';
 
 // GET /api/tracks/[id]/like - Vérifier l'état du like (version simplifiée)
 export async function GET(
@@ -174,6 +175,30 @@ export async function POST(
     }
 
     console.log('POST like - Succès:', { isLiked: !!likeRow, likesCount });
+
+    if (likeRow && !insErr) {
+      try {
+        const { data: track } = await supabaseAdmin
+          .from('tracks')
+          .select('title, creator_id')
+          .eq('id', trackId)
+          .maybeSingle();
+        if (track && track.creator_id && track.creator_id !== userId) {
+          const { data: liker } = await supabaseAdmin
+            .from('profiles')
+            .select('username, name')
+            .eq('id', userId)
+            .maybeSingle();
+          const likerName = liker?.name || liker?.username || 'Quelqu\'un';
+          notifyNewLike(userId, track.creator_id, likerName, track.title, trackId).catch(() => {});
+          const milestone = checkMilestone(likesCount);
+          if (milestone) {
+            notifyLikeMilestone(track.creator_id, track.title, milestone, trackId).catch(() => {});
+          }
+        }
+      } catch {}
+    }
+
     return NextResponse.json({ success: true, isLiked: !!likeRow, likesCount });
 
   } catch (error) {

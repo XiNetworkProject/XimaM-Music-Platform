@@ -85,6 +85,27 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: `Erreur lors de la sauvegarde en base de données: ${error.message}` }, { status: 500 });
       }
 
+      try {
+        const { data: artist } = await supabaseAdmin
+          .from('profiles')
+          .select('username, name')
+          .eq('id', session.user.id)
+          .maybeSingle();
+        if (artist && trackData.isPublic !== false) {
+          const { data: followers } = await supabaseAdmin
+            .from('user_follows')
+            .select('follower_id')
+            .eq('following_id', session.user.id);
+          if (followers?.length) {
+            const { notifyNewTrackFromFollowed } = await import('@/lib/notifications');
+            const artistName = artist.name || artist.username || 'Un artiste';
+            for (const f of followers.slice(0, 500)) {
+              notifyNewTrackFromFollowed(f.follower_id, artistName, trackData.title, track.id, session.user.id).catch(() => {});
+            }
+          }
+        }
+      } catch {}
+
       return NextResponse.json({ success: true, trackId: track.id, message: 'Piste sauvegardée avec succès' });
     } else if (contentType.includes('multipart/form-data')) {
       return NextResponse.json({ success: true, message: 'Piste uploadée avec succès (simulation)' });

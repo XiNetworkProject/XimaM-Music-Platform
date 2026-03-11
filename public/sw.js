@@ -62,52 +62,64 @@ self.addEventListener('activate', (event) => {
 // Gestion des notifications push
 self.addEventListener('push', (event) => {
   let notificationData = {
-    title: 'XimaM Music',
-    body: 'Nouvelle musique disponible',
+    title: 'Synaura',
+    body: 'Nouvelle notification',
     icon: '/android-chrome-192x192.png',
     badge: '/android-chrome-192x192.png',
     tag: NOTIFICATION_TAG
   };
 
-  // Essayer de parser les données de la notification
   if (event.data) {
     try {
       const data = event.data.json();
-      notificationData = {
-        ...notificationData,
-        ...data
-      };
+      notificationData = { ...notificationData, ...data };
     } catch (error) {
       notificationData.body = event.data.text() || notificationData.body;
     }
   }
 
-  const isBoostNotif = notificationData.tag && notificationData.tag.startsWith('boost');
-  const actions = isBoostNotif
-    ? [
-        { action: 'open-boosters', title: 'Ouvrir', icon: '/android-chrome-192x192.png' },
-        { action: 'dismiss', title: 'Plus tard', icon: '/android-chrome-192x192.png' },
-      ]
-    : [
-        { action: 'play', title: 'Lire', icon: '/android-chrome-192x192.png' },
-        { action: 'pause', title: 'Pause', icon: '/android-chrome-192x192.png' },
-        { action: 'next', title: 'Suivant', icon: '/android-chrome-192x192.png' },
-        { action: 'previous', title: 'Precedent', icon: '/android-chrome-192x192.png' },
-      ];
+  const tag = notificationData.tag || '';
+  const type = (notificationData.data && notificationData.data.type) || '';
+  const isBoostNotif = tag.startsWith('boost');
+  const isSynauraNotif = tag.startsWith('synaura-');
+  const isMusicPlayer = !isBoostNotif && !isSynauraNotif;
+
+  let actions;
+  if (isBoostNotif) {
+    actions = [
+      { action: 'open-boosters', title: 'Ouvrir' },
+      { action: 'dismiss', title: 'Plus tard' },
+    ];
+  } else if (isSynauraNotif) {
+    actions = [
+      { action: 'open-url', title: 'Voir' },
+      { action: 'dismiss', title: 'Fermer' },
+    ];
+  } else {
+    actions = [
+      { action: 'play', title: 'Lire' },
+      { action: 'pause', title: 'Pause' },
+      { action: 'next', title: 'Suivant' },
+      { action: 'previous', title: 'Precedent' },
+    ];
+  }
 
   const options = {
-    ...notificationData,
-    vibrate: [200, 100, 200],
+    body: notificationData.body,
+    icon: notificationData.icon,
+    badge: notificationData.badge,
+    vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
-      primaryKey: 1,
       url: notificationData.url || '/',
+      type: type,
       ...notificationData.data
     },
     actions,
-    requireInteraction: !isBoostNotif,
+    requireInteraction: false,
     silent: false,
-    renotify: true
+    renotify: true,
+    tag: tag || NOTIFICATION_TAG,
   };
 
   event.waitUntil(
@@ -119,19 +131,32 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
+  if (event.action === 'dismiss') return;
+
   if (event.action === 'open-boosters') {
     event.waitUntil(self.clients.openWindow('/boosters'));
     return;
   }
-  if (event.action === 'dismiss') return;
 
-  const notifUrl = event.notification.data?.url;
-  if (notifUrl && notifUrl !== '/') {
-    event.waitUntil(self.clients.openWindow(notifUrl));
-    return;
+  if (event.action === 'open-url' || !event.action) {
+    const notifUrl = event.notification.data?.url;
+    if (notifUrl && notifUrl !== '/') {
+      event.waitUntil(
+        self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+          const existingClient = clients.find((c) => c.url.includes(self.location.origin));
+          if (existingClient) {
+            existingClient.focus();
+            existingClient.navigate(notifUrl);
+          } else {
+            return self.clients.openWindow(notifUrl);
+          }
+        })
+      );
+      return;
+    }
   }
 
-  if (event.action) {
+  if (['play', 'pause', 'next', 'previous'].includes(event.action)) {
     event.waitUntil(
       self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
         const message = {
@@ -139,22 +164,16 @@ self.addEventListener('notificationclick', (event) => {
           action: event.action,
           timestamp: Date.now()
         };
-
-        clients.forEach((client) => {
-          client.postMessage(message);
-        });
-
+        clients.forEach((client) => client.postMessage(message));
         if (clients.length === 0) {
           return self.clients.openWindow('/');
         }
       })
     );
-  } else {
-    // Ouvrir l'application
-    event.waitUntil(
-      self.clients.openWindow('/')
-    );
+    return;
   }
+
+  event.waitUntil(self.clients.openWindow('/'));
 });
 
 // Gestion des messages du service worker

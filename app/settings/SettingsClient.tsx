@@ -194,6 +194,68 @@ export default function SettingsClient() {
   });
 
   const [notifPerm, setNotifPerm] = useState<'default' | 'denied' | 'granted'>('default');
+
+  // Notification preferences (serveur)
+  type NotifPrefs = {
+    push_enabled: boolean;
+    email_enabled: boolean;
+    in_app_enabled: boolean;
+    new_follower: boolean;
+    new_like: boolean;
+    like_milestone: boolean;
+    new_comment: boolean;
+    new_message: boolean;
+    new_track_followed: boolean;
+    view_milestone: boolean;
+    boost_reminder: boolean;
+    admin_broadcast: boolean;
+    weekly_recap: boolean;
+  };
+  const defaultNotifPrefs: NotifPrefs = {
+    push_enabled: true, email_enabled: false, in_app_enabled: true,
+    new_follower: true, new_like: true, like_milestone: true,
+    new_comment: true, new_message: true, new_track_followed: true,
+    view_milestone: true, boost_reminder: true, admin_broadcast: true,
+    weekly_recap: false,
+  };
+  const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>(defaultNotifPrefs);
+  const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
+  const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
+
+  useEffect(() => {
+    if (tab !== 'preferences') return;
+    setNotifPrefsLoading(true);
+    fetch('/api/notifications/preferences')
+      .then(r => r.json())
+      .then(d => {
+        if (d.preferences) {
+          setNotifPrefs(prev => ({ ...prev, ...d.preferences }));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setNotifPrefsLoading(false));
+  }, [tab]);
+
+  const updateNotifPref = async (key: keyof NotifPrefs, value: boolean) => {
+    const prev = { ...notifPrefs };
+    setNotifPrefs(p => ({ ...p, [key]: value }));
+    setNotifPrefsSaving(true);
+    try {
+      const res = await fetch('/api/notifications/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value }),
+      });
+      if (!res.ok) throw new Error();
+      notify.success('Preference mise a jour');
+    } catch {
+      setNotifPrefs(prev);
+      notify.error('Erreur de sauvegarde');
+    } finally {
+      setNotifPrefsSaving(false);
+    }
+  };
+
   const [deleteAccountModalOpen, setDeleteAccountModalOpen] = useState(false);
   const [deleteAccountConfirm, setDeleteAccountConfirm] = useState('');
   const [deleteAccountLoading, setDeleteAccountLoading] = useState(false);
@@ -832,6 +894,77 @@ export default function SettingsClient() {
                     </div>
                   </div>
                 </div>
+
+                {/* ─── Preferences de notification granulaires ─── */}
+                <div className="mt-6 text-base font-semibold">Notifications</div>
+                <div className="mt-1 text-xs text-foreground-inactive">Choisissez les notifications que vous souhaitez recevoir.</div>
+
+                {notifPrefsLoading ? (
+                  <div className="mt-4 text-sm text-foreground-inactive flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Chargement…
+                  </div>
+                ) : (
+                  <>
+                    <div className="mt-3 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Canaux</div>
+                    <div className="mt-2 grid gap-2">
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.push_enabled} onChange={(v) => updateNotifPref('push_enabled', v)} label="Notifications push" description="Recevez des notifications meme quand vous n'etes pas sur le site." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.in_app_enabled} onChange={(v) => updateNotifPref('in_app_enabled', v)} label="Notifications in-app" description="Notifications dans le panneau de la cloche." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.email_enabled} onChange={(v) => updateNotifPref('email_enabled', v)} label="Notifications par email" description="Recevez un resume par email (hebdomadaire)." />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Social</div>
+                    <div className="mt-2 grid gap-2">
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.new_follower} onChange={(v) => updateNotifPref('new_follower', v)} label="Nouvel abonne" description="Quand quelqu'un commence a vous suivre." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.new_like} onChange={(v) => updateNotifPref('new_like', v)} label="Nouveau like" description="Quand quelqu'un aime votre musique." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.new_comment} onChange={(v) => updateNotifPref('new_comment', v)} label="Nouveau commentaire" description="Quand quelqu'un commente votre musique." />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Musique</div>
+                    <div className="mt-2 grid gap-2">
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.new_track_followed} onChange={(v) => updateNotifPref('new_track_followed', v)} label="Nouvelle musique d'un artiste suivi" description="Quand un artiste que vous suivez publie une nouvelle musique." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.new_message} onChange={(v) => updateNotifPref('new_message', v)} label="Nouveau message" description="Quand vous recevez un message prive." />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Milestones & Boosts</div>
+                    <div className="mt-2 grid gap-2">
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.like_milestone} onChange={(v) => updateNotifPref('like_milestone', v)} label="Palier de likes" description="10, 50, 100, 500, 1000 likes atteints." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.view_milestone} onChange={(v) => updateNotifPref('view_milestone', v)} label="Palier d'ecoutes" description="10, 50, 100, 500, 1000 ecoutes atteintes." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.boost_reminder} onChange={(v) => updateNotifPref('boost_reminder', v)} label="Rappels de boost" description="Rappels quotidiens pour vos boosts disponibles." />
+                      </div>
+                    </div>
+
+                    <div className="mt-4 text-xs text-foreground-inactive font-semibold uppercase tracking-wider">Plateforme</div>
+                    <div className="mt-2 grid gap-2">
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.admin_broadcast} onChange={(v) => updateNotifPref('admin_broadcast', v)} label="Annonces Synaura" description="Annonces officielles et mises a jour de la plateforme." />
+                      </div>
+                      <div className="rounded-2xl border border-border-secondary bg-background-fog-thin p-3">
+                        <Toggle checked={notifPrefs.weekly_recap} onChange={(v) => updateNotifPref('weekly_recap', v)} label="Resume hebdomadaire" description="Recevez un resume de vos stats chaque semaine." />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
