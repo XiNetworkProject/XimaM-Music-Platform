@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await createBroadcast({
-      adminId: g.userId,
+      adminId: g.userId!,
       title,
       message,
       target: target || 'all',

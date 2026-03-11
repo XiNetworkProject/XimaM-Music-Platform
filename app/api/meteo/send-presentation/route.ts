@@ -5,8 +5,10 @@ import path from 'path';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    const body = await request.json().catch(() => ({}));
+    const to = body?.to || 'vermeulenmaxime50@gmail.com';
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr';
     const synauraLogo = process.env.EMAIL_LOGO_URL || 'cid:synaura-logo';
 
@@ -130,7 +132,7 @@ export async function POST() {
     await transporter.sendMail({
       from,
       replyTo,
-      to: 'vermeulenmaxime50@gmail.com',
+      to,
       subject: 'Alertemps V3.5 — Nouveau Dashboard & Nouvelles Fonctionnalites',
       html,
       attachments,
