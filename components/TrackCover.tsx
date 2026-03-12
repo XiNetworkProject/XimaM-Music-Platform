@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Music2 } from 'lucide-react';
 
-const FALLBACK_GRADIENTS = [
+const FALLBACK_GRADIENTS: [string, string][] = [
   ['#7c3aed', '#3b82f6'],
   ['#ec4899', '#8b5cf6'],
   ['#06b6d4', '#6366f1'],
