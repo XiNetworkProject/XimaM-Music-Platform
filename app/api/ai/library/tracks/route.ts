@@ -34,7 +34,7 @@ async function handleTracks(
   const likedSet = new Set<string>();
   if (allTrackIds.length > 0) {
     const { data: likes } = await supabaseAdmin
-      .from('track_likes')
+      .from('ai_track_likes')
       .select('track_id')
       .eq('user_id', userId)
       .in('track_id', allTrackIds);

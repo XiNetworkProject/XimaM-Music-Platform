@@ -22,12 +22,10 @@ export async function POST(
     const checkOnly = body?.check_only === true;
     const desiredState = typeof body?.is_favorite === 'boolean' ? body.is_favorite : null;
 
-    const likeTrackId = trackId;
-
     const { data: existing } = await supabaseAdmin
-      .from('track_likes')
+      .from('ai_track_likes')
       .select('id')
-      .eq('track_id', likeTrackId)
+      .eq('track_id', trackId)
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -51,16 +49,16 @@ export async function POST(
 
     if (newState && !currentlyLiked) {
       const { error } = await supabaseAdmin
-        .from('track_likes')
-        .insert({ track_id: likeTrackId, user_id: userId });
+        .from('ai_track_likes')
+        .insert({ track_id: trackId, user_id: userId });
       if (error && error.code !== '23505') {
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
     } else if (!newState && currentlyLiked) {
       const { error } = await supabaseAdmin
-        .from('track_likes')
+        .from('ai_track_likes')
         .delete()
-        .eq('track_id', likeTrackId)
+        .eq('track_id', trackId)
         .eq('user_id', userId);
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 });
