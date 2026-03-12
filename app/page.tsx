@@ -1344,7 +1344,7 @@ export default function SynauraHome() {
       id: 'star-academy-tiktok',
       title: 'Star Academy TikTok — Promo 2026',
       subtitle: 'Inscriptions ouvertes le 17 mars ! Rejoins l\'aventure musicale.',
-      image: '/images/star-academy/promo.png',
+      image: '/images/star-academy/banner.png',
       tag: 'Star Academy',
       actionLabel: 'Decouvrir',
       actionType: 'navigate',
