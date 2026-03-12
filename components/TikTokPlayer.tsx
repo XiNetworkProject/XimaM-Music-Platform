@@ -987,13 +987,15 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                 transition={{ duration: reduceMotion ? 0 : 0.5 }}
                 className="absolute inset-0"
               >
-                <img
-                  src={bgUrl}
-                  alt=""
-                  loading="eager"
-                  decoding="async"
-                  className="h-full w-full object-cover blur-[60px] scale-150 saturate-150 opacity-30"
-                />
+                {bgUrl && (
+                  <img
+                    src={bgUrl}
+                    alt=""
+                    loading="eager"
+                    decoding="async"
+                    className="h-full w-full object-cover blur-[60px] scale-150 saturate-150 opacity-30"
+                  />
+                )}
               </motion.div>
             </AnimatePresence>
             <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/30 to-black/70" />
