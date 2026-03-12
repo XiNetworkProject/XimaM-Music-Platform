@@ -836,7 +836,7 @@ export default function LibraryClient() {
                   <div className="h-16 w-16 rounded-3xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={selectedPlaylist.coverUrl || '/default-cover.jpg'}
+                      src={selectedPlaylist.coverUrl || '/default-cover.svg'}
                       alt={selectedPlaylist.name}
                       className="h-full w-full object-cover"
                     />
@@ -1702,7 +1702,7 @@ function PlaylistCard({
   onDelete: () => void;
   onPlay: () => void;
 }) {
-  const cover = playlist.coverUrl || '/default-cover.jpg';
+  const cover = playlist.coverUrl || '/default-cover.svg';
   const count = playlist.trackCount || playlist.tracks?.length || 0;
 
   if (viewMode === 'list') {
@@ -1806,7 +1806,7 @@ function TrackRow({
   liked: boolean;
   onMore?: () => void;
 }) {
-  const cover = track.coverUrl || '/default-cover.jpg';
+  const cover = track.coverUrl || '/default-cover.svg';
   return (
     <div className={cx('px-3 py-2 flex items-center gap-3', disabled && 'opacity-60')}>
       <button

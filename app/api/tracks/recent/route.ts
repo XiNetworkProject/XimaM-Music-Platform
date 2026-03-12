@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { supabase, supabaseAdmin } from '@/lib/supabase';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest) {
           avatar: profile.avatar || '',
         },
         duration: t.duration || 120,
-        coverUrl: t.image_url || '/default-cover.jpg',
+        coverUrl: t.image_url || '/default-cover.svg',
         audioUrl: t.audio_url || '',
         album: null,
         genre: t.tags || [],

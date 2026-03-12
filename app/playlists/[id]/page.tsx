@@ -104,7 +104,7 @@ export default function PublicPlaylistPage() {
       <main className="container mx-auto px-4 pt-16 pb-24 max-w-4xl">
         <div className="flex items-start gap-4 mb-6">
           <img
-            src={(data.coverUrl || '/default-cover.jpg').replace('/upload/','/upload/f_auto,q_auto/')}
+            src={(data.coverUrl || '/default-cover.svg').replace('/upload/','/upload/f_auto,q_auto/')}
             alt={data.name}
             className="w-28 h-28 rounded-lg object-cover"
           />
@@ -143,7 +143,7 @@ export default function PublicPlaylistPage() {
               className="flex items-center gap-3 p-3 bg-white/5 rounded-lg"
             >
               <span className="w-6 text-white/40 text-sm">{idx + 1}</span>
-              <img src={track.coverUrl || '/default-cover.jpg'} alt={track.title} className="w-10 h-10 rounded object-cover" />
+              <img src={track.coverUrl || '/default-cover.svg'} alt={track.title} className="w-10 h-10 rounded object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
               <div className="flex-1 min-w-0">
                 <div className="font-medium truncate">{track.title}</div>
                 <div className="text-xs text-white/60 truncate">{track.artist?.name || track.artist?.username}</div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import TikTokStyleMediaScroller, { type TikTokMediaItem } from '@/components/TikTokStyleMediaScroller';
@@ -78,7 +78,7 @@ export default function FeedClient() {
         type: 'track' as const,
         title: t.title,
         subtitle: t.artist?.name || t.artist?.username || '',
-        coverUrl: t.coverUrl || '/default-cover.jpg',
+        coverUrl: t.coverUrl || '/default-cover.svg',
       }));
   }, [tracks]);
 
@@ -120,7 +120,7 @@ export default function FeedClient() {
             <div className="absolute inset-0">
               <div
                 className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${item.coverUrl || '/default-cover.jpg'})` }}
+                style={{ backgroundImage: `url(${item.coverUrl || '/default-cover.svg'})` }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-black/10" />
 

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -103,9 +103,9 @@ export default function TrendingPage() {
     return `${mins} min`;
   };
   const mosaicCovers = useMemo(() => {
-    const urls = (tracks || []).map(t => t.coverUrl || '/default-cover.jpg');
+    const urls = (tracks || []).map(t => t.coverUrl || '/default-cover.svg');
     const base = urls.slice(0, 4);
-    while (base.length < 4) base.push('/default-cover.jpg');
+    while (base.length < 4) base.push('/default-cover.svg');
     return base;
   }, [tracks]);
 
@@ -174,7 +174,7 @@ export default function TrendingPage() {
               {tracks.length > 0 ? (
                 <div className="grid grid-cols-2 grid-rows-2 w-full h-full">
                   {mosaicCovers.map((src, i) => (
-                    <img key={i} src={src} alt="cover" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                    <img key={i} src={src} alt="cover" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                   ))}
                 </div>
               ) : (
@@ -309,11 +309,11 @@ export default function TrendingPage() {
                   <div className="relative">
                     <span className="absolute right-[2px] bottom-[2px] z-10 flex items-center rounded-sm bg-black/60 px-1.5 font-mono text-[10px] font-bold text-white/90">{formatDuration(track.duration)}</span>
                     <img
-                      src={track.coverUrl || '/default-cover.jpg'}
+                      src={track.coverUrl || '/default-cover.svg'}
                       alt={track.title}
                       className="w-10 h-10 sm:w-11 sm:h-11 rounded object-cover flex-shrink-0"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg';
+                        (e.currentTarget as HTMLImageElement).src = '/default-cover.svg';
                       }}
                     />
                     {isTopThree && (

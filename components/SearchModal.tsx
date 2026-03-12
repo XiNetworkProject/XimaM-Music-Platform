@@ -71,7 +71,7 @@ export default function SearchModal({ isOpen, onClose }: SearchModalProps) {
                   type: 'track',
                   title: track.title,
                   subtitle: track.artist?.name || track.artist?.username || 'Artiste inconnu',
-                  imageUrl: track.coverUrl || '/default-cover.jpg',
+                  imageUrl: track.coverUrl || '/default-cover.svg',
                   metadata: formatDuration(track.duration)
                 });
               });

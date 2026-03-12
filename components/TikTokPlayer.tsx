@@ -36,6 +36,7 @@ import CommentDialog from '@/components/CommentDialog';
 import DownloadDialog from '@/components/DownloadDialog';
 import QueueBubble from '@/components/QueueBubble';
 import QueueDialog from '@/components/QueueDialog';
+import TrackCover from '@/components/TrackCover';
 
 type Track = {
   _id: string;
@@ -216,8 +217,9 @@ function SeekBar({ onSeek, getAudioElement }: SeekBarProps) {
   );
 }
 
-function getCoverUrl(track: any) {
-  const raw = track?.coverUrl || '/default-cover.jpg';
+function getCoverUrl(track: any): string | null {
+  const raw = track?.coverUrl;
+  if (!raw) return null;
   const url = getCdnUrl(raw) || raw;
   return url && typeof url === 'string' && url.includes('res.cloudinary.com')
     ? url.replace('/upload/', '/upload/f_auto,q_auto/')
@@ -1079,22 +1081,34 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       {/* Shadow glow behind cover */}
                       <div
                         className="absolute -inset-4 rounded-[36px] opacity-50 blur-[50px] -z-10 transition-opacity duration-700"
-                        style={{ backgroundImage: `url(${coverUrl})`, backgroundSize: 'cover' }}
+                        style={coverUrl
+                          ? { backgroundImage: `url(${coverUrl})`, backgroundSize: 'cover' }
+                          : { background: 'linear-gradient(135deg, #7c3aed, #3b82f6)' }
+                        }
                       />
                       {/* Cover image */}
                       <div className={`relative w-full h-full rounded-[24px] overflow-hidden shadow-[0_20px_60px_rgba(0,0,0,0.5)] ring-1 ring-white/[0.12] transition-transform duration-300 ${isPlayingThis ? 'scale-[1.02]' : 'scale-100'}`}>
-                        <img
-                          src={coverUrl}
-                          alt={t.title}
-                          loading={Math.abs(i - activeIndex) <= 2 ? 'eager' : 'lazy'}
-                          decoding="async"
-                          className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[10000ms] ease-linear ${isPlayingThis ? 'scale-[1.08]' : 'scale-100'}`}
-                          onLoad={() => {
-                            if (!t._id) return;
-                            setCoverLoadedById((prev) => (prev[t._id] ? prev : { ...prev, [t._id]: true }));
-                          }}
-                          onError={(e) => ((e.currentTarget as HTMLImageElement).src = '/default-cover.jpg')}
-                        />
+                        {coverUrl ? (
+                          <img
+                            src={coverUrl}
+                            alt={t.title}
+                            loading={Math.abs(i - activeIndex) <= 2 ? 'eager' : 'lazy'}
+                            decoding="async"
+                            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-[10000ms] ease-linear ${isPlayingThis ? 'scale-[1.08]' : 'scale-100'}`}
+                            onLoad={() => {
+                              if (!t._id) return;
+                              setCoverLoadedById((prev) => (prev[t._id] ? prev : { ...prev, [t._id]: true }));
+                            }}
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <TrackCover
+                            src={null}
+                            title={t.title}
+                            className={`absolute inset-0 w-full h-full transition-transform duration-[10000ms] ease-linear ${isPlayingThis ? 'scale-[1.08]' : 'scale-100'}`}
+                            rounded="rounded-none"
+                          />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent" />
                         {/* Play/Pause indicator */}
                         <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-300 ${isPlayingThis ? 'opacity-0 group-hover/cover:opacity-100' : 'opacity-100'}`}>

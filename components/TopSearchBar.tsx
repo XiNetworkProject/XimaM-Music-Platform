@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -211,7 +211,7 @@ export default function TopSearchBar() {
                             onClick={() => { playTrack(track as any); setShowResults(false); setActiveIdx(-1); }}
                           >
                             <div className="relative w-11 h-11 rounded-lg overflow-hidden bg-neutral-800 shrink-0">
-                              <img src={safeImg(track.coverUrl, '/default-cover.jpg')} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                              <img src={safeImg(track.coverUrl, '/default-cover.svg')} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-cover.svg'; }} />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <Play className="w-4 h-4 text-white fill-white" />
                               </div>
@@ -262,7 +262,7 @@ export default function TopSearchBar() {
                               }`}
                             >
                               <div className="w-11 h-11 rounded-lg overflow-hidden bg-neutral-800 shrink-0">
-                                <img src={safeImg(pl.coverUrl, '/default-cover.jpg')} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                                <img src={safeImg(pl.coverUrl, '/default-cover.svg')} alt="" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = '/default-cover.svg'; }} />
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-white truncate">{pl.name}</p>

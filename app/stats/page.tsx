@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useEffect, useRef, useMemo, useState, useCallback, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -730,7 +730,7 @@ function StatsPageInner() {
                       {/* Cover */}
                       <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.04] border border-white/[0.06] shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={t.coverUrl?.replace('/upload/','/upload/f_auto,q_auto,w_80/') || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" loading="lazy" />
+                        <img src={t.coverUrl?.replace('/upload/','/upload/f_auto,q_auto,w_80/') || '/default-cover.svg'} alt="" className="w-full h-full object-cover" loading="lazy" />
                       </div>
                       {/* Info + Progress bar */}
                       <div className="flex-1 min-w-0">

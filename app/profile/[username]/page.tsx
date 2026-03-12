@@ -173,7 +173,7 @@ export default function SynauraProfile() {
         {/* Banner with gradient fade */}
         <div className="h-[260px] sm:h-[320px] md:h-[360px] relative overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={profile.banner || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" />
+          <img src={profile.banner || '/default-cover.svg'} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,16,0) 0%, rgba(10,10,16,0.4) 50%, rgba(10,10,16,1) 100%)' }} />
           {isOwnProfile && (
             <>
@@ -327,7 +327,7 @@ export default function SynauraProfile() {
                     {/* Cover */}
                     <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-white/[0.04]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" loading="lazy" />
+                      <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="w-full h-full object-cover" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                     </div>
                     {/* Title */}
                     <div className="flex-1 min-w-0">
@@ -371,7 +371,7 @@ export default function SynauraProfile() {
           <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
             {playlists.filter((p: any) => p?.id || p?._id).map((p: any) => {
               const pid = String(p.id || p._id);
-              const cover = p.cover_url || p.coverUrl || '/default-cover.jpg';
+              const cover = p.cover_url || p.coverUrl || '/default-cover.svg';
               const count = Array.isArray(p.tracks) ? p.tracks.length : Number(p.tracks_count || 0);
               return (
                 <button key={pid} onClick={() => router.push(`/playlists/${encodeURIComponent(pid)}`)} className="shrink-0 w-36 sm:w-40 text-left group">
@@ -687,7 +687,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
         <button onClick={onClose} className="absolute top-3 right-3 z-10 p-2 rounded-full bg-black/40 backdrop-blur-md text-white/70 hover:text-white"><X size={16} /></button>
         <div className="aspect-square max-h-[320px] w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={track.cover_url || track.coverUrl || '/default-cover.jpg'} alt="" className="w-full h-full object-cover" />
+          <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
         </div>
         <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, #0c0c14 0%, transparent 100%)' }}>
           <p className="text-lg font-bold text-white">{track.title}</p>

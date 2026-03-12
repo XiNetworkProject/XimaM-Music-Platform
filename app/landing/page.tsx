@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
@@ -116,7 +116,7 @@ export default async function LandingPage() {
               tracks.map((t, idx) => (
                 <div key={t._id} className="rounded-2xl border border-border-secondary bg-white/5 p-3 flex gap-3">
                   <img
-                    src={t.coverUrl || '/default-cover.jpg'}
+                    src={t.coverUrl || '/default-cover.svg'}
                     className="w-14 h-14 rounded-xl object-cover border border-border-secondary"
                     alt=""
                   />

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -272,10 +272,10 @@ export default function SwipePage() {
             >
               <div className="absolute inset-0">
                 <img
-                  src={t.coverUrl || "/default-cover.jpg"}
+                  src={t.coverUrl || "/default-cover.svg"}
                   alt=""
                   className="w-full h-full object-cover scale-110 blur-3xl opacity-40"
-                  onError={(e) => (((e.currentTarget as HTMLImageElement).src = "/default-cover.jpg"))}
+                  onError={(e) => (((e.currentTarget as HTMLImageElement).src = "/default-cover.svg"))}
                 />
                 <div className="absolute inset-0 bg-black/55" />
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-transparent to-cyan-900/20" />
@@ -344,10 +344,10 @@ export default function SwipePage() {
                   className="relative w-[78vw] max-w-[520px] aspect-square rounded-3xl overflow-hidden border border-white/10 shadow-2xl"
                 >
                   <img
-                    src={t.coverUrl || "/default-cover.jpg"}
+                    src={t.coverUrl || "/default-cover.svg"}
                     alt={t.title}
                     className="w-full h-full object-cover"
-                    onError={(e) => (((e.currentTarget as HTMLImageElement).src = "/default-cover.jpg"))}
+                    onError={(e) => (((e.currentTarget as HTMLImageElement).src = "/default-cover.svg"))}
                   />
                   <div className="absolute inset-0 bg-black/10" />
                   <div className="absolute inset-0 flex items-center justify-center">

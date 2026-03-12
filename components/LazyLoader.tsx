@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useRef, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -100,7 +100,7 @@ export function LazyImage({
   src, 
   alt, 
   className = '', 
-  fallback = '/default-cover.jpg',
+  fallback = '/default-cover.svg',
   onLoad,
   onError
 }: LazyImageProps) {

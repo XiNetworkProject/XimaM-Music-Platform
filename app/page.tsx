@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
@@ -420,7 +420,7 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
           src={track.cover}
           alt={track.title}
           className="relative z-[1] w-full aspect-square object-cover rounded-lg"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }}
         />
         {dur > 0 && (
           <span className="absolute z-[2] top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">
@@ -719,7 +719,7 @@ const HeroCarousel = ({
             i === index ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
         >
-          <img src={s.image} alt={s.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+          <img src={s.image} alt={s.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
           <div className="absolute bottom-4 left-4 right-4 md:left-6 md:right-6">
             <div className="flex items-center gap-2 text-xs mb-2">
@@ -1288,7 +1288,7 @@ export default function SynauraHome() {
       id: t._id,
       title: t.title,
       artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
-      cover: t.coverUrl || '/default-cover.jpg',
+      cover: t.coverUrl || '/default-cover.svg',
       duration: t.duration || 0,
       liked: false,
       _original: t,
@@ -1300,7 +1300,7 @@ export default function SynauraHome() {
     id: t._id,
     title: t.title,
     artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
-    cover: t.coverUrl || '/default-cover.jpg',
+    cover: t.coverUrl || '/default-cover.svg',
     duration: t.duration || 0,
     liked: false,
     _original: { ...t, isAI: (t as any).isAI || String(t._id || '').startsWith('ai-'), isRemix: (t as any).isRemix }
@@ -1310,7 +1310,7 @@ export default function SynauraHome() {
     id: t._id,
     title: t.title,
     artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
-    cover: t.coverUrl || '/default-cover.jpg',
+    cover: t.coverUrl || '/default-cover.svg',
     duration: t.duration || 0,
     liked: false,
     _original: { ...t, isBoosted: (t as any).isBoosted, boostMultiplier: (t as any).boostMultiplier, isAI: (t as any).isAI || String(t._id || '').startsWith('ai-'), isRemix: (t as any).isRemix }
@@ -1329,7 +1329,7 @@ export default function SynauraHome() {
     id: t._id,
     title: t.title,
     artist: t.artist?.name || t.artist?.username || 'Artiste inconnu',
-    cover: t.coverUrl || '/default-cover.jpg',
+    cover: t.coverUrl || '/default-cover.svg',
     duration: t.duration || 0,
     liked: false,
     _original: { ...t, isAI: (t as any).isAI || String(t._id || '').startsWith('ai-'), isRemix: (t as any).isRemix }
@@ -1384,7 +1384,7 @@ export default function SynauraHome() {
         id: track._id,
         title: track.title,
         subtitle: `${track.artist?.name || track.artist?.username}`,
-        image: track.coverUrl || '/default-cover.jpg',
+        image: track.coverUrl || '/default-cover.svg',
         tag,
         genre: track.genre?.[0],
         actionLabel: 'Écouter',
@@ -1797,7 +1797,7 @@ export default function SynauraHome() {
                     onClick={() => { setTracks(trendingList.slice(0, 30) as any); playTrack(t as any); }}
                     className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
-                    <img src={t.coverUrl || '/default-cover.jpg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} alt="" />
+                    <img src={t.coverUrl || '/default-cover.svg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} alt="" />
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-semibold text-white truncate">{t.title}</div>
                       <div className="text-[11px] text-white/30 truncate">{Array.isArray(t.genre) ? t.genre[0] : t.genre || ''}</div>
@@ -1831,7 +1831,7 @@ export default function SynauraHome() {
                     onClick={() => { setTracks(recentTracks.slice(0, 30) as any); playTrack(t as any); }}
                     className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
-                    <img src={t.coverUrl || '/default-cover.jpg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} alt="" />
+                    <img src={t.coverUrl || '/default-cover.svg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} alt="" />
                     <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-semibold text-white truncate">{t.title}</div>
                       <div className="text-[11px] text-white/30 truncate">{Array.isArray(t.genre) ? t.genre[0] : t.genre || ''}</div>
@@ -1907,7 +1907,7 @@ export default function SynauraHome() {
                   >
                     <div className="flex gap-3 p-3">
                       <div className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden">
-                        <img src={pick.cover} alt={pick.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                        <img src={pick.cover} alt={pick.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                         <button
                           onClick={() => { setTracks([orig] as any); playTrack(orig as any); }}
                           className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -1983,7 +1983,7 @@ export default function SynauraHome() {
                           animation: 'boost-halo-pulse 3s ease-in-out infinite',
                         }} />
                         <div className="relative z-[1] rounded-xl overflow-hidden">
-                          <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                          <img src={t.coverUrl || '/default-cover.svg'} alt={t.title} className="w-full aspect-square object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                           <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center">
                               <Play className="w-5 h-5 text-white fill-white ml-0.5" />
@@ -2069,7 +2069,7 @@ export default function SynauraHome() {
                   <div key={t._id} className="flex items-center gap-3 rounded-xl p-2.5 hover:bg-white/[0.06] transition group">
                     <span className="text-lg font-black text-white/15 w-6 text-center tabular-nums">{idx + 1}</span>
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0">
-                      <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                      <img src={t.coverUrl || '/default-cover.svg'} alt={t.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                       <button onClick={() => { setTracks(risingTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Play className="w-4 h-4 text-white fill-white ml-0.5" />
                       </button>
@@ -2196,7 +2196,7 @@ export default function SynauraHome() {
                 return (
                   <div key={t._id} className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card" style={{ scrollSnapAlign: 'start' }}>
                     <div className="relative group/cover">
-                      <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover rounded-lg sepia-[.15] group-hover/card:sepia-0 transition-all duration-300" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                      <img src={t.coverUrl || '/default-cover.svg'} alt={t.title} className="w-full aspect-square object-cover rounded-lg sepia-[.15] group-hover/card:sepia-0 transition-all duration-300" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                       {dur > 0 && <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm">{durStr}</span>}
                       <div className="absolute top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity"><TrackContextMenu track={t} /></div>
                       <button onClick={() => { setTracks(rediscoverTracks as any); playTrack(t as any); }} className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-amber-500/30 hover:scale-110">
@@ -2252,7 +2252,7 @@ export default function SynauraHome() {
                     id: t._id,
                     title: t.title,
                     artist: t.artist?.name || t.artist?.username || '',
-                    cover: t.coverUrl || '/default-cover.jpg',
+                    cover: t.coverUrl || '/default-cover.svg',
                     duration: t.duration || 0,
                     liked: false,
                     _original: t,
@@ -2322,7 +2322,7 @@ export default function SynauraHome() {
                     id: t._id,
                     title: t.title,
                     artist: t.artist?.name || t.artist?.username || '',
-                    cover: t.coverUrl || '/default-cover.jpg',
+                    cover: t.coverUrl || '/default-cover.svg',
                     duration: t.duration || 0,
                     liked: false,
                     _original: t,
@@ -2348,10 +2348,10 @@ export default function SynauraHome() {
                 >
                   <div className="relative aspect-square rounded-lg overflow-hidden bg-white/[0.06]">
                     <img
-                      src={pl.coverUrl || '/default-cover.jpg'}
+                      src={pl.coverUrl || '/default-cover.svg'}
                       alt={pl.name}
                       className="w-full h-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }}
                     />
                     <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center opacity-0 group-hover/pl:opacity-100 transition-all shadow-lg shadow-indigo-500/30">
                       <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />

@@ -6,6 +6,7 @@ import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, Li
 import { useAudioPlayer, useAudioTime, useSidebar } from '@/app/providers';
 import LikeButton from './LikeButton';
 import TikTokPlayer from './TikTokPlayer';
+import TrackCover from './TrackCover';
 
 export default function SynauraMiniPlayer() {
   const {
@@ -46,7 +47,7 @@ export default function SynauraMiniPlayer() {
     id: currentTrack?._id || '',
     title: currentTrack?.title || 'Titre inconnu',
     artist: currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu',
-    cover: currentTrack?.coverUrl || '/default-cover.jpg',
+    cover: currentTrack?.coverUrl || null,
     src: currentTrack?.audioUrl || '',
   }), [currentTrack]);
 
@@ -151,10 +152,12 @@ export default function SynauraMiniPlayer() {
                   onClick={() => setShowTikTok(true)}
                 >
                   <div className="relative shrink-0">
-                    <img
+                    <TrackCover
                       src={track.cover}
-                      className="w-10 h-10 rounded-lg object-cover ring-1 ring-white/[0.08]"
-                      alt={track.title}
+                      title={track.title}
+                      className="w-10 h-10 ring-1 ring-white/[0.08]"
+                      rounded="rounded-lg"
+                      objectFit="cover"
                     />
                     {isLive && (
                       <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-red-500 text-white text-[7px] font-bold uppercase px-1 py-px rounded-full tracking-wider">

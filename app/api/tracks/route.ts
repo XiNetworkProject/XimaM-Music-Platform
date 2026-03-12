@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
       },
       duration: t.duration || 0,
-      coverUrl: t.image_url || '/default-cover.jpg',
+      coverUrl: t.image_url || '/default-cover.svg',
       audioUrl: t.audio_url,
       genre: Array.isArray(t.tags) ? t.tags : [],
       likes: [],

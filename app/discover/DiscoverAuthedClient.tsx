@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -333,7 +333,7 @@ export default function DiscoverAuthedClient({
                           <div className="relative rounded-xl overflow-hidden mb-2">
                             <div className="absolute -inset-[2px] rounded-xl z-0" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4), rgba(236,72,153,0.4), rgba(168,85,247,0.5))', filter: 'blur(6px)', animation: 'boost-halo-pulse 3s ease-in-out infinite' }} />
                             <div className="relative z-[1] rounded-xl overflow-hidden">
-                              <img src={t.coverUrl || '/default-cover.jpg'} alt={t.title} className="w-full aspect-square object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }} />
+                              <img src={t.coverUrl || '/default-cover.svg'} alt={t.title} className="w-full aspect-square object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                               <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center">
                                   <Play className="w-5 h-5 text-white fill-white ml-0.5" />

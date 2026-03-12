@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, GripVertical, ListMusic, Play, Plus, Save, Trash2, 
 import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
 import { UModal, UButton } from '@/components/ui/UnifiedUI';
+import TrackCover from '@/components/TrackCover';
 
 type Props = {
   isOpen: boolean;
@@ -123,11 +124,12 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
           {current && (
             <div className="px-5 py-3 border-b border-white/[0.04] flex items-center gap-3">
               <div className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 ring-2 ring-indigo-500/40">
-                <img
-                  src={current.coverUrl || '/default-cover.jpg'}
-                  alt=""
-                  className="w-full h-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+                <TrackCover
+                  src={current.coverUrl}
+                  title={current.title}
+                  className="w-full h-full"
+                  rounded="rounded-none"
+                  objectFit="cover"
                 />
                 <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
                   <div className="flex gap-0.5">
@@ -179,11 +181,12 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                           <GripVertical className="w-3.5 h-3.5 text-white/15 group-hover:text-white/30 transition mx-auto" />
                         </div>
                         <div className="relative w-10 h-10 rounded-md overflow-hidden shrink-0 group/cover">
-                          <img
-                            src={t.coverUrl || '/default-cover.jpg'}
-                            alt=""
-                            className="w-full h-full object-cover"
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+                          <TrackCover
+                            src={t.coverUrl}
+                            title={t.title}
+                            className="w-full h-full"
+                            rounded="rounded-none"
+                            objectFit="cover"
                           />
                           <button
                             onClick={() => handlePlayFromQueue(t)}
@@ -237,11 +240,12 @@ export default function QueueDialog({ isOpen, onClose }: Props) {
                       <div className="space-y-0.5">
                         {suggestions.slice(0, 8).map((t: any) => (
                           <div key={t._id} className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.04] transition p-2 group">
-                            <img
-                              src={t.coverUrl || '/default-cover.jpg'}
-                              alt=""
-                              className="w-9 h-9 rounded-md object-cover shrink-0"
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+                            <TrackCover
+                              src={t.coverUrl}
+                              title={t.title}
+                              className="w-9 h-9 shrink-0"
+                              rounded="rounded-md"
+                              objectFit="cover"
                             />
                             <div className="min-w-0 flex-1">
                               <p className="text-[13px] text-white truncate">{t.title}</p>

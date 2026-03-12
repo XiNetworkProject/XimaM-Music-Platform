@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Play, Sparkles, Zap } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
+import TrackCover from '@/components/TrackCover';
 
 export type DiscoverPlaylistLite = {
   _id: string;
@@ -150,12 +151,12 @@ export function TrackTile({ track, grid }: { track: DiscoverTrackLite; grid?: bo
         {isBoosted && (
           <div className="absolute -inset-[2px] rounded-lg z-0 pointer-events-none" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.45), rgba(245,158,11,0.35), rgba(236,72,153,0.35))', filter: 'blur(5px)', animation: 'boost-halo-pulse 3s ease-in-out infinite' }} />
         )}
-        <img
-          src={track.coverUrl || '/default-cover.jpg'}
-          alt={track.title}
-          className={`w-full aspect-square object-cover rounded-lg ${isBoosted ? 'relative z-[1]' : ''}`}
-          loading="lazy"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+        <TrackCover
+          src={track.coverUrl}
+          title={track.title}
+          className={`w-full aspect-square rounded-lg ${isBoosted ? 'relative z-[1]' : ''}`}
+          rounded="rounded-lg"
+          objectFit="cover"
         />
         {durStr && (
           <span className={`absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-semibold text-white tabular-nums backdrop-blur-sm ${isBoosted ? 'z-[2]' : ''}`}>
@@ -223,11 +224,12 @@ export function TrackRow({ track, index }: { track: DiscoverTrackLite; index?: n
         </span>
       )}
       <div className="relative shrink-0">
-        <img
-          src={track.coverUrl || '/default-cover.jpg'}
-          alt=""
-          className="w-11 h-11 rounded-md object-cover"
-          loading="lazy"
+        <TrackCover
+          src={track.coverUrl}
+          title={track.title}
+          className="w-11 h-11"
+          rounded="rounded-md"
+          objectFit="cover"
         />
         <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-md opacity-0 group-hover/row:opacity-100 transition-opacity">
           <Play className="w-4 h-4 text-white fill-white" />
@@ -265,11 +267,11 @@ export function PlaylistTile({ playlist }: { playlist: DiscoverPlaylistLite }) {
       style={{ scrollSnapAlign: 'start' }}
     >
       <img
-        src={playlist.coverUrl || '/default-cover.jpg'}
+        src={playlist.coverUrl || '/default-cover.svg'}
         alt={playlist.name}
         className="w-full aspect-square object-cover rounded-lg"
         loading="lazy"
-        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.jpg'; }}
+        onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }}
       />
       <div className="mt-2">
         <p className="text-[13px] font-semibold line-clamp-1 text-white">{playlist.name}</p>

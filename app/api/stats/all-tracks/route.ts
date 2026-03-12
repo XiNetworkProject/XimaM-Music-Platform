@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { supabaseAdmin } from '@/lib/supabase';
@@ -134,7 +134,7 @@ export async function GET(request: NextRequest) {
       unified.push({
         id: t.id,
         title: t.title || 'Sans titre',
-        coverUrl: t.cover_url || '/default-cover.jpg',
+        coverUrl: t.cover_url || '/default-cover.svg',
         duration: t.duration || 0,
         createdAt: t.created_at || '',
         plays: viewCounts.get(t.id) || t.plays || 0,
@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
       unified.push({
         id: t.id,
         title: t.title || 'Sans titre',
-        coverUrl: t.image_url || '/default-cover.jpg',
+        coverUrl: t.image_url || '/default-cover.svg',
         duration: t.duration || 0,
         createdAt: t.created_at || '',
         plays: viewCounts.get(t.id) || t.play_count || 0,

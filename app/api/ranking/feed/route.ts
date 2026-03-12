@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase';
 import { computeRankingScore } from '@/lib/ranking';
 import { getServerSession } from 'next-auth';
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
                   artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
                 },
                 duration: t.duration || 0,
-                coverUrl: t.image_url || '/default-cover.jpg',
+                coverUrl: t.image_url || '/default-cover.svg',
                 audioUrl: t.audio_url,
                 genre: Array.isArray(t.tags) ? t.tags : [],
                 likes: [],
@@ -338,7 +338,7 @@ export async function GET(request: NextRequest) {
               artistName: t.generation?.profiles?.name || t.generation?.profiles?.username,
             },
             duration: t.duration || 0,
-            coverUrl: t.image_url || '/default-cover.jpg',
+            coverUrl: t.image_url || '/default-cover.svg',
             audioUrl: t.audio_url,
             genre: Array.isArray(t.tags) ? t.tags : [],
             likes: [],
@@ -784,7 +784,7 @@ export async function GET(request: NextRequest) {
         },
         duration: t.duration || 0,
         isLiked: false,
-        coverUrl: t.image_url || '/default-cover.jpg',
+        coverUrl: t.image_url || '/default-cover.svg',
         audioUrl: t.audio_url,
         genre: Array.isArray(t.tags) ? t.tags : [],
         likes: [],

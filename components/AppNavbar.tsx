@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
@@ -370,8 +370,8 @@ export default function AppNavbar() {
                                           src={
                                             getValidImageUrl(
                                               track.coverUrl,
-                                              '/default-cover.jpg',
-                                            ) || '/default-cover.jpg'
+                                              '/default-cover.svg',
+                                            ) || '/default-cover.svg'
                                           }
                                           alt={track.title}
                                           className="w-full h-full object-cover"
@@ -477,8 +477,8 @@ export default function AppNavbar() {
                                             src={
                                               getValidImageUrl(
                                                 playlist.coverUrl,
-                                                '/default-cover.jpg',
-                                              ) || '/default-cover.jpg'
+                                                '/default-cover.svg',
+                                              ) || '/default-cover.svg'
                                             }
                                             alt={playlist.name}
                                             className="w-full h-full object-cover"

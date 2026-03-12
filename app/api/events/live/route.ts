@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 
 export async function GET() {
   // Mock d'événements live
@@ -14,7 +14,7 @@ export async function GET() {
       },
       viewers: 1200,
       status: 'live',
-      coverUrl: '/default-cover.jpg',
+      coverUrl: '/default-cover.svg',
       startTime: new Date(Date.now() - 1000 * 60 * 10),
     },
     {
@@ -28,7 +28,7 @@ export async function GET() {
       },
       viewers: 856,
       status: 'live',
-      coverUrl: '/default-cover.jpg',
+      coverUrl: '/default-cover.svg',
       startTime: new Date(Date.now() - 1000 * 60 * 30),
     },
     {
@@ -42,7 +42,7 @@ export async function GET() {
       },
       viewers: 2100,
       status: 'live',
-      coverUrl: '/default-cover.jpg',
+      coverUrl: '/default-cover.svg',
       startTime: new Date(Date.now() - 1000 * 60 * 5),
     },
   ];
