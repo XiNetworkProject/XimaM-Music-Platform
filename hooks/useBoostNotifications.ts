@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { notify } from '@/components/NotificationCenter';
 
@@ -29,32 +29,38 @@ function markSeen(key: string) {
   } catch {}
 }
 
-async function registerPushSubscription() {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+export async function registerPushSubscription(): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
   const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
-  if (!vapidKey) return;
+  if (!vapidKey) return false;
 
   try {
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
+
     if (!sub) {
-      const perm = await Notification.requestPermission();
-      if (perm !== 'granted') return;
+      if (Notification.permission === 'denied') return false;
+      const perm = Notification.permission === 'granted'
+        ? 'granted'
+        : await Notification.requestPermission();
+      if (perm !== 'granted') return false;
+
       sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: vapidKey,
       });
     }
+
     const subJson = sub.toJSON();
-    await fetch('/api/notifications/push/subscribe', {
+    const res = await fetch('/api/notifications/push/subscribe', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        endpoint: subJson.endpoint,
-        keys: subJson.keys,
-      }),
+      body: JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }),
     });
-  } catch {}
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function sendPushIfBackground(userId: string, title: string, body: string) {
@@ -69,15 +75,20 @@ async function sendPushIfBackground(userId: string, title: string, body: string)
 }
 
 export function useBoostNotifications() {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const userId = (session?.user as any)?.id as string | undefined;
-  const registeredRef = useRef(false);
 
+  // Tenter l'enregistrement push au chargement si permission deja accordee
   useEffect(() => {
-    if (!userId || registeredRef.current) return;
-    registeredRef.current = true;
-    registerPushSubscription();
-  }, [userId]);
+    if (status !== 'authenticated' || !userId) return;
+    if (typeof window === 'undefined') return;
+    if (!('Notification' in window)) return;
+
+    // Si permission deja accordee, re-enregistrer silencieusement (refresh subscription)
+    if (Notification.permission === 'granted') {
+      registerPushSubscription().catch(() => {});
+    }
+  }, [status, userId]);
 
   const poll = useCallback(async () => {
     if (!userId) return;

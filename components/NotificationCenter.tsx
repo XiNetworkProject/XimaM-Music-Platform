@@ -5,12 +5,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import {
   Bell,
+  BellOff,
+  BellRing,
   X,
   Check,
   CheckCheck,
   AlertCircle,
   Info,
-  Sparkles,
   Music,
   Heart,
   MessageCircle,
@@ -20,7 +21,6 @@ import {
   Megaphone,
   Zap,
   Trash2,
-  Filter,
   Loader2,
 } from 'lucide-react';
 
@@ -65,15 +65,15 @@ class NotificationStore {
   }
 
   add(notification: Omit<Notification, 'id'>) {
-    const newNotification: Notification = {
+    const n: Notification = {
       ...notification,
       id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       duration: notification.duration ?? 5000,
     };
-    this.notifications = [newNotification, ...this.notifications];
+    this.notifications = [n, ...this.notifications];
     this.notify();
-    if (newNotification.duration && newNotification.duration > 0) {
-      setTimeout(() => this.remove(newNotification.id), newNotification.duration);
+    if (n.duration && n.duration > 0) {
+      setTimeout(() => this.remove(n.id), n.duration);
     }
   }
 
@@ -88,7 +88,7 @@ class NotificationStore {
   }
 
   private notify() {
-    this.listeners.forEach(listener => listener([...this.notifications]));
+    this.listeners.forEach(l => l([...this.notifications]));
   }
 }
 
@@ -168,7 +168,7 @@ function NotificationIcon({ type }: { type: string }) {
   const Icon = NOTIF_ICONS[type] || Info;
   const color = NOTIF_COLORS[type] || NOTIF_COLORS.general;
   return (
-    <div className={`p-2 rounded-xl border ${color}`}>
+    <div className={`p-2 rounded-xl border ${color} flex-shrink-0`}>
       <Icon className="w-4 h-4" />
     </div>
   );
@@ -263,9 +263,7 @@ function DBNotifItem({
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       className={`group relative rounded-xl p-3 transition cursor-pointer ${
-        n.is_read
-          ? 'bg-transparent hover:bg-white/[0.03]'
-          : 'bg-white/[0.04] hover:bg-white/[0.06]'
+        n.is_read ? 'bg-transparent hover:bg-white/[0.03]' : 'bg-white/[0.04] hover:bg-white/[0.06]'
       }`}
       onClick={() => {
         if (!n.is_read) onMarkRead(n.id);
@@ -288,7 +286,7 @@ function DBNotifItem({
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(n.id); }}
-          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all"
+          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-white/10 transition-all flex-shrink-0"
           aria-label="Supprimer"
         >
           <X className="w-3.5 h-3.5 text-white/30" />
@@ -296,6 +294,43 @@ function DBNotifItem({
       </div>
     </motion.div>
   );
+}
+
+async function registerPush(): Promise<'granted' | 'denied' | 'unsupported' | 'already'> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return 'unsupported';
+  const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!vapidKey) return 'unsupported';
+
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      const sub = existing.toJSON();
+      await fetch('/api/notifications/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint: sub.endpoint, keys: sub.keys }),
+      });
+      return 'already';
+    }
+
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') return 'denied';
+
+    const sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: vapidKey,
+    });
+    const subJson = sub.toJSON();
+    await fetch('/api/notifications/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ endpoint: subJson.endpoint, keys: subJson.keys }),
+    });
+    return 'granted';
+  } catch {
+    return 'denied';
+  }
 }
 
 export default function NotificationCenter({ className = '' }: NotificationCenterProps) {
@@ -308,10 +343,35 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('all');
+  const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported' | 'loading'>('unknown');
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return notificationStore.subscribe(setToasts);
+  }, []);
+
+  // Detecter le statut de permission push
+  useEffect(() => {
+    if (!isAuthenticated || typeof window === 'undefined') return;
+    if (!('Notification' in window)) { setPushStatus('unsupported'); return; }
+    if (!('PushManager' in window)) { setPushStatus('unsupported'); return; }
+    const perm = Notification.permission;
+    if (perm === 'granted') setPushStatus('granted');
+    else if (perm === 'denied') setPushStatus('denied');
+    else setPushStatus('unknown');
+  }, [isAuthenticated]);
+
+  const handleEnablePush = useCallback(async () => {
+    setPushStatus('loading');
+    const result = await registerPush();
+    if (result === 'granted' || result === 'already') {
+      setPushStatus('granted');
+      notify.success('Notifications activees', 'Tu recevras les notifications meme hors du site');
+    } else if (result === 'denied') {
+      setPushStatus('denied');
+    } else {
+      setPushStatus('unsupported');
+    }
   }, []);
 
   const doFetchUnread = useCallback(async () => {
@@ -342,7 +402,6 @@ export default function NotificationCenter({ className = '' }: NotificationCente
     return () => clearInterval(interval);
   }, [isAuthenticated, doFetchUnread]);
 
-  // Fetch quand le panel s'ouvre
   useEffect(() => {
     if (showPanel && isAuthenticated) {
       setLoading(true);
@@ -350,7 +409,6 @@ export default function NotificationCenter({ className = '' }: NotificationCente
     }
   }, [showPanel, category, isAuthenticated, fetchNotifs]);
 
-  // Fermer le panel au clic exterieur
   useEffect(() => {
     if (!showPanel) return;
     const handleClick = (e: MouseEvent) => {
@@ -442,7 +500,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 w-[380px] max-h-[520px] flex flex-col bg-[#121218] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden"
+              className="absolute right-0 top-full mt-2 w-[380px] max-h-[580px] flex flex-col bg-[#121218] border border-white/[0.08] rounded-2xl shadow-2xl shadow-black/50 z-50 overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]">
@@ -472,8 +530,32 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 </div>
               </div>
 
+              {/* Push notification opt-in banner */}
+              {isAuthenticated && pushStatus === 'unknown' && (
+                <div className="mx-3 mt-3 px-3 py-2.5 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center gap-2.5">
+                  <BellRing className="w-4 h-4 text-violet-400 flex-shrink-0" />
+                  <p className="text-[12px] text-violet-200/80 flex-1">Activer les notifs meme hors du site</p>
+                  <button
+                    onClick={handleEnablePush}
+                    disabled={pushStatus === 'loading'}
+                    className="px-3 py-1 text-[11px] font-semibold bg-violet-500 hover:bg-violet-400 text-white rounded-full transition flex-shrink-0"
+                  >
+                    {pushStatus === 'loading' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Activer'}
+                  </button>
+                </div>
+              )}
+
+              {isAuthenticated && pushStatus === 'denied' && (
+                <div className="mx-3 mt-3 px-3 py-2 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                  <BellOff className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <p className="text-[11px] text-amber-200/70 flex-1">
+                    Notifs bloquees — autoriser dans les reglages du navigateur
+                  </p>
+                </div>
+              )}
+
               {/* Category filter */}
-              <div className="flex gap-1 px-3 py-2 border-b border-white/[0.04] overflow-x-auto scrollbar-hide">
+              <div className="flex gap-1 px-3 py-2 border-b border-white/[0.04] overflow-x-auto scrollbar-hide mt-1">
                 {CATEGORIES.map(c => (
                   <button
                     key={c.key}
@@ -518,16 +600,14 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               </div>
 
               {/* Footer */}
-              {dbNotifs.length > 0 && (
-                <div className="border-t border-white/[0.04] px-4 py-2.5 text-center">
-                  <button
-                    onClick={() => { window.location.href = '/settings?tab=preferences'; setShowPanel(false); }}
-                    className="text-xs text-white/30 hover:text-violet-400 transition"
-                  >
-                    Gerer les preferences
-                  </button>
-                </div>
-              )}
+              <div className="border-t border-white/[0.04] px-4 py-2.5 text-center">
+                <button
+                  onClick={() => { window.location.href = '/settings?tab=preferences'; setShowPanel(false); }}
+                  className="text-xs text-white/30 hover:text-violet-400 transition"
+                >
+                  Gerer les preferences
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
