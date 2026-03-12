@@ -373,7 +373,7 @@ export default function UploadPage() {
         notify.success('Publie !', 'Ton titre a ete publie avec succes !');
       } else {
         const albumName = title || `Album ${new Date().toLocaleDateString()}`;
-        const plRes = await fetch('/api/playlists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: albumName, description, isPublic, coverUrl: coverResult?.secure_url || null }) });
+        const plRes = await fetch('/api/playlists', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: albumName, description, isPublic, coverUrl: coverResult?.secure_url || null, is_album: true }) });
         if (!plRes.ok) throw new Error('Erreur creation album');
         const playlist = await plRes.json();
 

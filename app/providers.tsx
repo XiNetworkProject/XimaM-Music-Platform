@@ -61,8 +61,17 @@ interface AudioPlayerState {
   playbackRate: number;
 }
 
+interface AlbumContext {
+  id: string;
+  name: string;
+  coverUrl: string | null;
+  totalTracks: number;
+}
+
 interface AudioPlayerContextType {
   audioState: AudioPlayerState;
+  albumContext: AlbumContext | null;
+  setAlbumContext: (ctx: AlbumContext | null) => void;
   // Up Next ("À suivre") – independent list, optionally injected into queue
   upNextEnabled: boolean;
   upNextTracks: Track[];
@@ -132,6 +141,32 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   // Time state séparé pour éviter de rerender toute l'app à chaque tick
   const [audioTime, setAudioTime] = useState<AudioTimeState>({ currentTime: 0, duration: 0 });
+
+  // Album context: set when playing from an album page
+  const [albumContext, setAlbumContext] = useState<AlbumContext | null>(null);
+
+  // Listen for albumContext events from album page
+  useEffect(() => {
+    const handler = (e: any) => {
+      const detail = e.detail;
+      if (detail) {
+        setAlbumContext({ id: detail.id, name: detail.name, coverUrl: detail.coverUrl, totalTracks: detail.totalTracks });
+      }
+    };
+    window.addEventListener('albumContext', handler);
+    return () => window.removeEventListener('albumContext', handler);
+  }, []);
+
+  // Auto-clear albumContext when the current track leaves the album
+  useEffect(() => {
+    if (!albumContext) return;
+    const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+    if (!currentTrack) return;
+    const trackAlbum = (currentTrack as any).album;
+    if (trackAlbum && trackAlbum === albumContext.name) return;
+    // Current track is not part of the album anymore — clear context
+    setAlbumContext(null);
+  }, [audioState.currentTrackIndex, audioState.tracks, albumContext]);
 
   // Up Next ("À suivre") – persisted, independent from the active queue
   const [upNextEnabled, setUpNextEnabled] = useState<boolean>(false);
@@ -941,6 +976,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(() => ({
     audioState,
+    albumContext,
+    setAlbumContext,
     upNextEnabled,
     upNextTracks,
     setUpNextEnabled,
@@ -980,6 +1017,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     getAudioElement,
   }), [
     audioState,
+    albumContext,
     upNextEnabled,
     upNextTracks,
     setUpNextEnabled,

@@ -74,6 +74,7 @@ export async function GET(request: NextRequest) {
         trackCount: trackList.length,
         duration: totalDuration,
         isPublic: playlist.is_public,
+        isAlbum: playlist.is_album || false,
         tracks: trackList,
         createdBy: playlist.creator_id,
         createdAt: playlist.created_at,
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
 // POST - Créer une nouvelle playlist
 export async function POST(request: NextRequest) {
   try {
-    const { name, description, isPublic, coverUrl } = await request.json();
+    const { name, description, isPublic, coverUrl, is_album } = await request.json();
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
@@ -133,18 +134,30 @@ export async function POST(request: NextRequest) {
     
     const playlistId = randomUUID();
 
-    const { data: playlist, error } = await supabase
-      .from('playlists')
-      .insert({
+    const insertPayload: Record<string, any> = {
         id: playlistId,
         name: name.trim(),
         description: description?.trim() || '',
         is_public: isPublic !== false,
         creator_id: userId,
-        cover_url: coverUrl || null
-      })
-      .select()
-      .single();
+        cover_url: coverUrl || null,
+    };
+    if (is_album) insertPayload.is_album = true;
+
+    let playlist: any = null;
+    let error: any = null;
+
+    const result = await supabase.from('playlists').insert(insertPayload).select().single();
+    playlist = result.data;
+    error = result.error;
+
+    // Fallback if is_album column doesn't exist yet
+    if (error && is_album) {
+      const { is_album: _drop, ...fallback } = insertPayload;
+      const retry = await supabase.from('playlists').insert(fallback).select().single();
+      playlist = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.error('❌ Erreur Supabase:', error);
@@ -164,6 +177,7 @@ export async function POST(request: NextRequest) {
       trackCount: 0,
       duration: 0,
       isPublic: playlist.is_public,
+      isAlbum: playlist.is_album || false,
       tracks: [],
       createdBy: playlist.creator_id,
       createdAt: playlist.created_at,

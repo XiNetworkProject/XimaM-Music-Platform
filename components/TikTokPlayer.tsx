@@ -20,6 +20,7 @@ import {
   Bookmark,
   Zap,
   Sparkles,
+  Disc3,
 } from 'lucide-react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { notify } from '@/components/NotificationCenter';
@@ -275,6 +276,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
 
   const {
     audioState,
+    albumContext,
     setTracks,
     setCurrentTrackIndex,
     setQueueAndPlay,
@@ -915,17 +917,21 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   );
 
   const onShare = useCallback(async (t: Track) => {
-    const url = `${window.location.origin}/track/${t._id}`;
+    const shareUrl = albumContext
+      ? `${window.location.origin}/album/${albumContext.id}`
+      : `${window.location.origin}/track/${t._id}`;
+    const shareTitle = albumContext ? albumContext.name : t.title;
+    const shareText = albumContext ? `Ecoute ${albumContext.name} sur Synaura` : 'Ecoute sur Synaura';
     try {
       if ((navigator as any).share) {
-        await (navigator as any).share({ title: t.title, text: 'Écoute sur Synaura', url });
+        await (navigator as any).share({ title: shareTitle, text: shareText, url: shareUrl });
       } else {
-        await navigator.clipboard.writeText(url);
-        notify.success('OK', 'Lien copié !');
+        await navigator.clipboard.writeText(shareUrl);
+        notify.success('OK', 'Lien copie !');
       }
       try { sendTrackEvents(t._id, { event_type: 'share', source: 'tiktok-player' }); } catch {}
     } catch {}
-  }, []);
+  }, [albumContext]);
 
   const handleDownload = useCallback(() => {
     if (!activeTrack) return;
@@ -1228,6 +1234,16 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                                 </span>
                               )}
                             </div>
+                            {albumContext && isThis && (
+                              <a
+                                href={`/album/${albumContext.id}`}
+                                onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+                                className="mt-1 inline-flex items-center gap-1 text-[10px] text-violet-300/70 hover:text-violet-300 transition truncate"
+                              >
+                                <Disc3 className="w-3 h-3 flex-shrink-0" />
+                                <span className="truncate">{albumContext.name}</span>
+                              </a>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">

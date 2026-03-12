@@ -1373,16 +1373,16 @@ export const useAudioService = () => {
   const setQueueAndPlay = useCallback((tracks: Track[], startIndex: number = 0) => {
     setQueue(tracks);
     setCurrentIndex(startIndex);
-    
+
     if (shuffle) {
       const shuffled = [...tracks].sort(() => Math.random() - 0.5);
       setShuffledQueue(shuffled);
     }
-    
-    if (tracks.length > 0) {
-      loadTrack(tracks[startIndex]);
+
+    if (tracks.length > 0 && tracks[startIndex]) {
+      playImmediate(tracks[startIndex]);
     }
-  }, [shuffle, loadTrack]);
+  }, [shuffle, playImmediate]);
 
   const toggleShuffle = useCallback(() => {
     const newShuffle = !shuffle;

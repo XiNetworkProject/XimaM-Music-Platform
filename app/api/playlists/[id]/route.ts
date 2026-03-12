@@ -21,7 +21,7 @@ export async function GET(
           track_id,
           position,
           tracks(
-            id, title, creator_id, created_at, cover_url, audio_url, duration, genre,
+            id, title, creator_id, created_at, cover_url, audio_url, duration, genre, album,
             profiles:profiles!tracks_creator_id_fkey ( id, username, name, avatar, is_artist, artist_name )
           )
         )
@@ -52,6 +52,7 @@ export async function GET(
       duration: t.duration || 0,
       coverUrl: t.cover_url,
       audioUrl: t.audio_url,
+      album: t.album || null,
       genre: Array.isArray(t.genre) ? t.genre : [],
       likes: [],
       plays: 0,
@@ -72,6 +73,7 @@ export async function GET(
       trackCount: trackList.length || 0,
       duration: totalDuration || 0,
       isPublic: playlist.is_public,
+      isAlbum: playlist.is_album || false,
       tracks: trackList,
       createdBy: playlist.creator_id,
       createdAt: playlist.created_at,

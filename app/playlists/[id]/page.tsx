@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Share2, Music, Clock, Eye, Copy } from 'lucide-react';
 import { notify } from '@/components/NotificationCenter';
@@ -21,6 +21,7 @@ interface PlaylistView {
   description: string;
   coverUrl?: string;
   isPublic: boolean;
+  isAlbum?: boolean;
   tracks: Track[];
 }
 
@@ -47,6 +48,7 @@ function Skeleton() {
 
 export default function PublicPlaylistPage() {
   const params = useParams();
+  const router = useRouter();
   const id = (params?.id as string) || '';
   const [data, setData] = useState<PlaylistView | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,15 +60,20 @@ export default function PublicPlaylistPage() {
         const res = await fetch(`/api/playlists/${encodeURIComponent(id)}`, { cache: 'no-store' });
         if (!res.ok) throw new Error('not ok');
         const json = await res.json();
+        // Redirect to album page if this is an album
+        if (json.isAlbum) {
+          router.replace(`/album/${id}`);
+          return;
+        }
         setData(json);
       } catch (e) {
-        setError('Dossier introuvable ou privé');
+        setError('Dossier introuvable ou prive');
       } finally {
         setLoading(false);
       }
     };
     if (id) load();
-  }, [id]);
+  }, [id, router]);
 
   const totalDuration = useMemo(() => (data?.tracks || []).reduce((a, t) => a + (t.duration || 0), 0), [data?.tracks]);
 

@@ -11,6 +11,7 @@ import TrackCover from './TrackCover';
 export default function SynauraMiniPlayer() {
   const {
     audioState,
+    albumContext,
     setShowPlayer,
     play,
     pause,
@@ -172,7 +173,10 @@ export default function SynauraMiniPlayer() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-white/90 truncate leading-tight">{track.title}</p>
-                    <p className="text-[11px] text-white/40 truncate leading-tight">{track.artist}</p>
+                    <p className="text-[11px] text-white/40 truncate leading-tight">
+                      {track.artist}
+                      {albumContext && <span className="text-white/20"> — {albumContext.name}</span>}
+                    </p>
                   </div>
                 </div>
 
