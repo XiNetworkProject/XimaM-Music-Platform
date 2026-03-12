@@ -51,9 +51,17 @@ export async function POST(request: NextRequest) {
       const trackGenre = Array.isArray(trackData.genre) ? trackData.genre : [];
       const albumName: string | null = (trackData.album && String(trackData.album).trim()) ? String(trackData.album).trim() : null;
 
-      const { data: track, error } = await supabaseAdmin
-        .from('tracks')
-        .insert({
+      // New optional fields from the refactored upload form
+      const extraMood = jsonData.mood || null;
+      const extraLanguage = jsonData.language || null;
+      const extraTags = Array.isArray(jsonData.tags) ? jsonData.tags : null;
+      const extraFeaturing = Array.isArray(jsonData.featuring) ? jsonData.featuring : null;
+      const extraCredits = jsonData.credits && typeof jsonData.credits === 'object' ? jsonData.credits : null;
+      const extraReleaseType = jsonData.release_type || null;
+      const extraVisibility = jsonData.visibility || null;
+      const extraScheduledAt = jsonData.scheduled_at || null;
+
+      const insertPayload: Record<string, any> = {
           id: `track_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           title: trackData.title,
           description: trackData.description || '',
@@ -64,7 +72,7 @@ export async function POST(request: NextRequest) {
           album: albumName,
           duration: trackDuration,
           creator_id: session.user.id,
-          is_public: trackData.isPublic !== false,
+          is_public: extraVisibility === 'private' ? false : trackData.isPublic !== false,
           plays: 0,
           likes: 0,
           is_featured: false,
@@ -72,9 +80,40 @@ export async function POST(request: NextRequest) {
           cover_size_mb: (jsonData.coverBytes ? Math.round(jsonData.coverBytes / (1024*1024)) : null),
           audio_public_id: audioPublicId || null,
           cover_public_id: coverPublicId || null,
-        })
-        .select()
-        .single();
+      };
+
+      // Store extended metadata in a JSONB `data` column if the column exists,
+      // and also attempt direct columns for forward-compatibility.
+      const extendedData: Record<string, any> = {};
+      if (extraMood) extendedData.mood = extraMood;
+      if (extraLanguage) extendedData.language = extraLanguage;
+      if (extraTags) extendedData.tags = extraTags;
+      if (extraFeaturing) extendedData.featuring = extraFeaturing;
+      if (extraCredits) extendedData.credits = extraCredits;
+      if (extraReleaseType) extendedData.release_type = extraReleaseType;
+      if (extraVisibility) extendedData.visibility = extraVisibility;
+      if (extraScheduledAt) extendedData.scheduled_at = extraScheduledAt;
+      if (trackData.isExplicit) extendedData.is_explicit = true;
+
+      // Try with extended data in a `data` JSONB column, fallback without it
+      if (Object.keys(extendedData).length > 0) {
+        insertPayload.data = extendedData;
+      }
+
+      let track: any = null;
+      let error: any = null;
+
+      const result = await supabaseAdmin.from('tracks').insert(insertPayload).select().single();
+      track = result.data;
+      error = result.error;
+
+      // If the `data` column doesn't exist, retry without it
+      if (error && insertPayload.data) {
+        const { data: _d, ...payloadWithout } = insertPayload;
+        const retry = await supabaseAdmin.from('tracks').insert(payloadWithout).select().single();
+        track = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         // rollback Cloudinary (best-effort)
