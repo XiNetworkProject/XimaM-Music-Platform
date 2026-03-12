@@ -27,6 +27,7 @@ import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { notify } from '@/components/NotificationCenter';
 import Avatar from '@/components/Avatar';
+import StarAcademyBanner from '@/components/StarAcademyBanner';
 
 const sectionFade = {
   hidden: { opacity: 0, y: 30 },
@@ -225,6 +226,11 @@ export default function CommunityPage() {
             )}
           </div>
         </motion.section>
+
+        {/* Star Academy promo */}
+        <div className="mb-12">
+          <StarAcademyBanner variant="compact" />
+        </div>
 
         {/* STATS */}
         <motion.section

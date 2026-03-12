@@ -31,6 +31,7 @@ import TrackContextMenu from '@/components/TrackContextMenu';
 import LikeButton from '@/components/LikeButton';
 import AdSlot from '@/components/AdSlot';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
+import StarAcademyBanner from '@/components/StarAcademyBanner';
 
 interface Track {
   _id: string;
@@ -1338,6 +1339,18 @@ export default function SynauraHome() {
   // Heroslides basées sur les vraies données + trending + pour toi
   const heroSlides = useMemo(() => {
     const slides: any[] = [];
+
+    slides.push({
+      id: 'star-academy-tiktok',
+      title: 'Star Academy TikTok — Promo 2026',
+      subtitle: 'Inscriptions ouvertes le 17 mars ! Rejoins l\'aventure musicale.',
+      image: '/images/star-academy/promo.png',
+      tag: 'Star Academy',
+      actionLabel: 'Decouvrir',
+      actionType: 'navigate',
+      actionIcon: Sparkles,
+      actionData: '/star-academy-tiktok',
+    });
     
     slides.push({
       id: 'subscriptions',
@@ -1762,6 +1775,9 @@ export default function SynauraHome() {
         <section className="w-full" aria-label="À la une">
           <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
         </section>
+
+        {/* Star Academy TikTok — Banniere promo */}
+        <StarAcademyBanner variant="full" />
 
         {/* 3 colonnes style Suno : Tendances / Nouveautés / Créateurs */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">

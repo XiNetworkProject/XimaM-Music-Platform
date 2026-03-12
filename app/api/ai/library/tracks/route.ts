@@ -24,6 +24,23 @@ async function handleTracks(
 
   if (error) throw error;
 
+  const allTrackIds: string[] = [];
+  for (const g of generations ?? []) {
+    for (const t of ((g as any).tracks ?? [])) {
+      if (t && typeof t === 'object' && (t as any).id) allTrackIds.push((t as any).id);
+    }
+  }
+
+  const likedSet = new Set<string>();
+  if (allTrackIds.length > 0) {
+    const { data: likes } = await supabaseAdmin
+      .from('track_likes')
+      .select('track_id')
+      .eq('user_id', userId)
+      .in('track_id', allTrackIds);
+    for (const l of likes ?? []) likedSet.add(l.track_id);
+  }
+
   const tracks: Array<Record<string, unknown> & { generation?: Record<string, unknown> }> = [];
   for (const g of generations ?? []) {
     const gTyped = g as { id: string; user_id: string; task_id?: string; model?: string; created_at?: string; prompt?: string; status?: string; tracks?: unknown[] };
@@ -33,9 +50,11 @@ async function handleTracks(
       const title = String(track?.title ?? '');
       if (search && !title.toLowerCase().includes(search.toLowerCase())) continue;
       const trackIsPublic = (track as any).is_public;
+      const trackId = String(track?.id ?? '');
       tracks.push({
         ...track,
         is_public: trackIsPublic != null ? trackIsPublic : ((g as any).is_public ?? false),
+        is_liked: likedSet.has(trackId),
         generation: {
           id: gTyped.id,
           user_id: gTyped.user_id,

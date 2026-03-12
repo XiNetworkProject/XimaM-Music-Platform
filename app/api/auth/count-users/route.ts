@@ -14,7 +14,7 @@ export async function GET() {
     }
 
     const userCount = count || 0;
-    const maxUsers = 50;
+    const maxUsers = 200;
     const canRegister = userCount < maxUsers;
 
     return NextResponse.json({

@@ -591,7 +591,7 @@ export default function AIGenerator() {
         const trJson = await trRes.json().catch(() => ({}));
         const loadedTracks: AITrack[] = trJson.tracks || [];
         setAllTracks(loadedTracks);
-        setLikedTrackIds(new Set(loadedTracks.filter((t: any) => t.generation?.is_favorite || t.is_favorite).map((t: AITrack) => t.id)));
+        setLikedTrackIds(new Set(loadedTracks.filter((t: any) => t.is_liked).map((t: AITrack) => t.id)));
         setTrashedTrackIds(new Set(loadedTracks.filter((t: any) => t.generation?.is_trashed).map((t: AITrack) => t.id)));
         pushLog('info', `Assets synchronisés: ${loadedTracks.length} tracks`);
       } else {
@@ -947,7 +947,7 @@ export default function AIGenerator() {
       plays: track.play_count || 0,
       likes: [],
       comments: [],
-      isLiked: generation.is_favorite || likedTrackIds.has(track.id),
+      isLiked: likedTrackIds.has(track.id),
       // @ts-ignore - player Track accepte lyrics via providers
       lyrics: (track.prompt || generation.prompt || '').trim(),
     };
@@ -1145,24 +1145,7 @@ export default function AIGenerator() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_favorite: wantFav }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.generation_id) {
-          setGenerations(prev => prev.map(g =>
-            g.id === data.generation_id ? { ...g, is_favorite: data.is_favorite } : g
-          ));
-          const gen = generations.find(g => g.id === data.generation_id);
-          if (gen?.tracks) {
-            setLikedTrackIds(prev => {
-              const next = new Set(prev);
-              for (const t of gen.tracks!) {
-                if (data.is_favorite) next.add(t.id); else next.delete(t.id);
-              }
-              return next;
-            });
-          }
-        }
-      } else {
+      if (!res.ok) {
         setLikedTrackIds((prev) => {
           const next = new Set(prev);
           if (wasLiked) next.add(trackId); else next.delete(trackId);

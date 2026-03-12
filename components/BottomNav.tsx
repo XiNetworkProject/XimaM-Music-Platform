@@ -21,7 +21,9 @@ import {
   X,
   User,
   Music2,
+  Star,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAudioPlayer } from '@/app/providers';
 
 export default function BottomNav() {
@@ -69,6 +71,7 @@ export default function BottomNav() {
   ];
 
   const drawerItems = [
+    { icon: Star, label: 'Star Academy', path: '/star-academy-tiktok', highlight: true },
     { icon: Plus, label: 'Uploader', path: '/upload', auth: true },
     { icon: Music2, label: 'Publier', path: '/publish' },
     { icon: Gift, label: 'Boosters', path: '/boosters', auth: true },
@@ -195,27 +198,46 @@ export default function BottomNav() {
 
                   <div className="h-px bg-white/[0.06] mx-4 my-1" />
 
+                  {/* Star Academy promo banner */}
+                  <Link
+                    href="/star-academy-tiktok"
+                    onClick={() => setShowMore(false)}
+                    className="mx-4 mt-3 flex items-center gap-3 rounded-xl p-3 bg-gradient-to-r from-violet-600/20 to-blue-600/20 border border-violet-500/20 active:scale-[0.98] transition-all"
+                  >
+                    <img src="/images/star-academy/logo.png" alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-bold text-white truncate">Star Academy TikTok</p>
+                      <p className="text-[11px] text-violet-300/70">Inscriptions le 17 mars 2026</p>
+                    </div>
+                    <span className="text-[10px] font-bold bg-violet-500/80 text-white px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+                      NEW
+                    </span>
+                  </Link>
+
                   <div className="px-4 py-3">
                     <div className="grid grid-cols-4 gap-2">
                       {drawerItems.map((item) => {
                         const active = isActive(item.path);
                         const Icon = item.icon;
-                        const disabled = item.auth && !session;
+                        const disabled = (item as any).auth && !session;
+                        const highlight = (item as any).highlight;
                         return (
                           <button
                             key={item.path}
                             type="button"
                             disabled={disabled}
-                            onClick={() => go(item.path, item.auth)}
+                            onClick={() => go(item.path, (item as any).auth)}
                             className={`flex flex-col items-center gap-1.5 rounded-xl py-3 transition-all active:scale-95 ${
-                              active
-                                ? 'bg-white/[0.08] text-white'
-                                : disabled
-                                  ? 'opacity-25 text-white/30'
-                                  : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
+                              highlight
+                                ? 'bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/30'
+                                : active
+                                  ? 'bg-white/[0.08] text-white'
+                                  : disabled
+                                    ? 'opacity-25 text-white/30'
+                                    : 'text-white/40 hover:bg-white/[0.06] hover:text-white/70'
                             }`}
                           >
-                            <Icon className="w-5 h-5" />
+                            <Icon className={`w-5 h-5 ${highlight ? 'fill-current' : ''}`} />
                             <span className="text-[10px] font-semibold">{item.label}</span>
                           </button>
                         );

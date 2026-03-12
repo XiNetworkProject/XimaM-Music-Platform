@@ -4,6 +4,262 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
+// ─── Dates cles ─────────────────────────────────────────
+const INSCRIPTION_OPEN  = new Date("2026-03-17T00:00:00");
+const INSCRIPTION_CLOSE = new Date("2026-04-17T00:00:00");
+const PRESELECTION_END  = new Date("2026-05-01T00:00:00");
+
+function useNow(interval = 1000) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), interval);
+    return () => clearInterval(id);
+  }, [interval]);
+  return now;
+}
+
+function decompose(ms: number) {
+  const s = Math.floor(Math.max(0, ms) / 1000);
+  return {
+    days:    Math.floor(s / 86400),
+    hours:   Math.floor((s % 86400) / 3600),
+    minutes: Math.floor((s % 3600) / 60),
+    seconds: s % 60,
+  };
+}
+
+// ─── Gate : avant ouverture ──────────────────────────────
+function NotYetOpen() {
+  const now = useNow();
+  const cd = decompose(INSCRIPTION_OPEN.getTime() - now);
+
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center text-white" style={{ background: "#07000f" }}>
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full opacity-25"
+          style={{ background: "radial-gradient(circle, rgba(147,51,234,0.8) 0%, transparent 70%)", filter: "blur(100px)" }} />
+        <div className="absolute bottom-[-15%] right-[-10%] w-[50%] h-[50%] rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, rgba(236,72,153,0.7) 0%, transparent 70%)", filter: "blur(100px)" }} />
+      </div>
+
+      <div className="relative z-10 text-center px-6 max-w-lg">
+        <Image
+          src="/StarAcRes/sa-logo-transparent.png"
+          alt="Star Academy TikTok"
+          width={200} height={140}
+          className="mx-auto mb-8"
+          style={{ filter: "drop-shadow(0 0 30px rgba(147,51,234,0.6)) brightness(1.2)" }}
+        />
+
+        <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-4 py-1.5 mb-6">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-violet-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-violet-400" />
+          </span>
+          <span className="text-[11px] font-black text-violet-300 uppercase tracking-widest">Bientot</span>
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-black mb-3">
+          Les inscriptions ouvrent le
+        </h1>
+        <p className="text-xl sm:text-2xl font-black mb-8"
+          style={{ background: "linear-gradient(90deg,#f59e0b,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          17 mars 2026 a minuit
+        </p>
+
+        <div className="flex justify-center gap-4 sm:gap-8 mb-10">
+          {[
+            { v: cd.days,    l: "Jours" },
+            { v: cd.hours,   l: "Heures" },
+            { v: cd.minutes, l: "Min" },
+            { v: cd.seconds, l: "Sec" },
+          ].map(({ v, l }) => (
+            <div key={l} className="flex flex-col items-center">
+              <div className="text-4xl sm:text-5xl font-black tabular-nums text-white"
+                style={{ textShadow: "0 0 30px rgba(147,51,234,0.5)" }}>
+                {String(v).padStart(2, "0")}
+              </div>
+              <div className="text-[10px] text-white/30 mt-1.5 uppercase tracking-widest font-medium">{l}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-3">
+          <Link
+            href="/star-academy-tiktok"
+            className="block rounded-2xl px-7 py-3.5 font-black text-sm text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 30px rgba(147,51,234,0.4)" }}>
+            Decouvrir Star Academy TikTok
+          </Link>
+          <Link
+            href="/"
+            className="block rounded-2xl px-7 py-3 font-medium text-sm text-white/50 border border-white/10 hover:bg-white/[0.04] transition">
+            Retour a Synaura
+          </Link>
+        </div>
+
+        <p className="text-[11px] text-white/15 mt-8">
+          Les inscriptions seront ouvertes pendant 1 mois, du 17 mars au 17 avril 2026.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Gate : pre-selection en cours ───────────────────────
+function PreSelectionInProgress() {
+  const now = useNow();
+  const cd = decompose(PRESELECTION_END.getTime() - now);
+
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center text-white" style={{ background: "#07000f" }}>
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full opacity-20"
+          style={{ background: "radial-gradient(circle, rgba(147,51,234,0.7) 0%, transparent 70%)", filter: "blur(100px)" }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-15"
+          style={{ background: "radial-gradient(circle, rgba(245,158,11,0.6) 0%, transparent 70%)", filter: "blur(80px)" }} />
+      </div>
+
+      <div className="relative z-10 text-center px-6 max-w-lg">
+        <Image
+          src="/StarAcRes/sa-logo-transparent.png"
+          alt="Star Academy TikTok"
+          width={200} height={140}
+          className="mx-auto mb-8"
+          style={{ filter: "drop-shadow(0 0 30px rgba(147,51,234,0.6)) brightness(1.2)" }}
+        />
+
+        <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/30 bg-amber-500/10 px-4 py-1.5 mb-6">
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+          </span>
+          <span className="text-[11px] font-black text-amber-300 uppercase tracking-widest">Pre-selection en cours</span>
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-black mb-3">
+          Inscriptions fermees
+        </h1>
+        <p className="text-sm text-white/40 mb-6 leading-relaxed max-w-sm mx-auto">
+          Les inscriptions sont terminees. Notre equipe analyse chaque candidature avec attention.
+          Les resultats de la pre-selection seront communiques par email.
+        </p>
+
+        <div className="rounded-2xl border border-amber-500/15 bg-white/[0.02] backdrop-blur-xl p-5 mb-8">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/60 mb-4">
+            Resultats dans environ
+          </p>
+          <div className="flex justify-center gap-4 sm:gap-6">
+            {[
+              { v: cd.days,    l: "Jours" },
+              { v: cd.hours,   l: "Heures" },
+              { v: cd.minutes, l: "Min" },
+              { v: cd.seconds, l: "Sec" },
+            ].map(({ v, l }) => (
+              <div key={l} className="flex flex-col items-center">
+                <div className="text-3xl sm:text-4xl font-black tabular-nums text-white"
+                  style={{ textShadow: "0 0 20px rgba(245,158,11,0.4)" }}>
+                  {String(v).padStart(2, "0")}
+                </div>
+                <div className="text-[9px] text-white/30 mt-1 uppercase tracking-widest font-medium">{l}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 mb-6 text-left">
+          <div className="flex gap-3">
+            <div className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 text-[10px] font-black text-white"
+              style={{ background: "linear-gradient(135deg,#f59e0b,#ec4899)" }}>
+              SA
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white mb-0.5">Comment ca se passe ?</p>
+              <p className="text-[11px] text-white/35 leading-relaxed">
+                L&apos;equipe ecoute chaque CV vocal et analyse les profils.
+                Les candidats retenus recevront un email d&apos;invitation pour les lives TikTok.
+                Cette phase dure 1 a 2 semaines.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Link
+            href="/star-academy-tiktok/suivi"
+            className="block rounded-2xl px-7 py-3.5 font-black text-sm text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 30px rgba(147,51,234,0.4)" }}>
+            Suivre ma candidature
+          </Link>
+          <Link
+            href="/star-academy-tiktok"
+            className="block rounded-2xl px-7 py-3 font-medium text-sm text-white/50 border border-white/10 hover:bg-white/[0.04] transition">
+            Retour a Star Academy
+          </Link>
+        </div>
+
+        <p className="text-[11px] text-white/15 mt-8">
+          Pre-selection du 17 avril au 1er mai 2026 — Resultats par email
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Gate : tout est termine ─────────────────────────────
+function InscriptionsClosed() {
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center text-white" style={{ background: "#07000f" }}>
+      <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] rounded-full opacity-15"
+          style={{ background: "radial-gradient(circle, rgba(147,51,234,0.6) 0%, transparent 70%)", filter: "blur(100px)" }} />
+      </div>
+
+      <div className="relative z-10 text-center px-6 max-w-lg">
+        <Image
+          src="/StarAcRes/sa-logo-transparent.png"
+          alt="Star Academy TikTok"
+          width={180} height={120}
+          className="mx-auto mb-8 opacity-60"
+          style={{ filter: "drop-shadow(0 0 20px rgba(147,51,234,0.4)) brightness(1.1)" }}
+        />
+
+        <div className="inline-flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-4 py-1.5 mb-6">
+          <span className="h-2 w-2 rounded-full bg-red-400" />
+          <span className="text-[11px] font-black text-red-300 uppercase tracking-widest">Termine</span>
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl font-black mb-3">
+          Inscriptions fermees
+        </h1>
+        <p className="text-sm text-white/40 mb-8 leading-relaxed max-w-sm mx-auto">
+          La periode d&apos;inscription et de pre-selection pour la Star Academy TikTok Promo 2026 est terminee.
+          Les lives sont en cours ou a venir !
+        </p>
+
+        <div className="space-y-3">
+          <Link
+            href="/star-academy-tiktok/suivi"
+            className="block rounded-2xl px-7 py-3.5 font-black text-sm text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
+            style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 30px rgba(147,51,234,0.4)" }}>
+            Suivre ma candidature
+          </Link>
+          <Link
+            href="/star-academy-tiktok"
+            className="block rounded-2xl px-7 py-3 font-medium text-sm text-white/50 border border-white/10 hover:bg-white/[0.04] transition">
+            Retour a Star Academy
+          </Link>
+          <Link
+            href="/"
+            className="block text-xs text-white/25 hover:text-white/50 transition mt-2">
+            Synaura.fr
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Types ────────────────────────────────────────────────
 type Phase = "intro" | "form" | "done";
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -737,6 +993,18 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
 
 // ─── Main Component ───────────────────────────────────────
 export default function InscriptionPage() {
+  const now = useNow(1000);
+  const isBeforeOpen   = now < INSCRIPTION_OPEN.getTime();
+  const isOpen         = now >= INSCRIPTION_OPEN.getTime() && now < INSCRIPTION_CLOSE.getTime();
+  const isPreSelection = now >= INSCRIPTION_CLOSE.getTime() && now < PRESELECTION_END.getTime();
+
+  if (isBeforeOpen)   return <NotYetOpen />;
+  if (isOpen)         return <InscriptionForm />;
+  if (isPreSelection) return <PreSelectionInProgress />;
+  return <InscriptionsClosed />;
+}
+
+function InscriptionForm() {
   const [phase, setPhase] = useState<Phase>("intro");
   const [step, setStep] = useState<Step>(1);
   const [fields, setFields] = useState<FormFields>(EMPTY);

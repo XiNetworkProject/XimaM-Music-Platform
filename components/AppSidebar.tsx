@@ -31,6 +31,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useSidebar } from '@/app/providers';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { AnimatePresence, motion } from 'framer-motion';
+import StarAcademyBanner from '@/components/StarAcademyBanner';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Accueil', icon: Home },
@@ -235,6 +236,8 @@ export default function AppSidebar() {
           <Upload className="w-[18px] h-[18px] shrink-0 relative z-[1]" />
           <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Uploader</span>
         </Link>
+
+        {!collapsed && <StarAcademyBanner variant="mini" />}
       </div>
 
       {/* Separator */}

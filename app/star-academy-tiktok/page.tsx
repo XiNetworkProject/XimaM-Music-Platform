@@ -4,22 +4,27 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-// ── Countdown ─────────────────────────────────────────────
-const DEADLINE = new Date("2026-09-01T23:59:59");
+// ── Dates cles ────────────────────────────────────────────
+const INSCRIPTION_OPEN  = new Date("2026-03-17T00:00:00");
+const INSCRIPTION_CLOSE = new Date("2026-04-17T00:00:00");
+const PRESELECTION_END  = new Date("2026-05-01T00:00:00");
 
-function useCountdown(target: Date) {
-  const [diff, setDiff] = useState(Math.max(0, target.getTime() - Date.now()));
+function useNow(interval = 1000) {
+  const [now, setNow] = useState(Date.now());
   useEffect(() => {
-    const id = setInterval(() => setDiff(Math.max(0, target.getTime() - Date.now())), 1000);
+    const id = setInterval(() => setNow(Date.now()), interval);
     return () => clearInterval(id);
-  }, [target]);
-  const s = Math.floor(diff / 1000);
+  }, [interval]);
+  return now;
+}
+
+function decompose(ms: number) {
+  const s = Math.floor(Math.max(0, ms) / 1000);
   return {
     days:    Math.floor(s / 86400),
     hours:   Math.floor((s % 86400) / 3600),
     minutes: Math.floor((s % 3600) / 60),
     seconds: s % 60,
-    closed:  diff === 0,
   };
 }
 
@@ -28,7 +33,21 @@ function Pad({ n }: { n: number }) {
 }
 
 export default function StarAcademyLandingPage() {
-  const cd = useCountdown(DEADLINE);
+  const now = useNow();
+  const isBeforeOpen   = now < INSCRIPTION_OPEN.getTime();
+  const isOpen         = now >= INSCRIPTION_OPEN.getTime() && now < INSCRIPTION_CLOSE.getTime();
+  const isPreSelection = now >= INSCRIPTION_CLOSE.getTime() && now < PRESELECTION_END.getTime();
+  const isLivePhase    = now >= PRESELECTION_END.getTime();
+
+  const countdownTarget = isBeforeOpen
+    ? INSCRIPTION_OPEN
+    : isOpen
+      ? INSCRIPTION_CLOSE
+      : isPreSelection
+        ? PRESELECTION_END
+        : null;
+  const cd = countdownTarget ? decompose(countdownTarget.getTime() - now) : decompose(0);
+  const countdownDone = !countdownTarget || countdownTarget.getTime() - now <= 0;
   const [count, setCount] = useState<number | null>(null);
 
   useEffect(() => {
@@ -106,11 +125,23 @@ export default function StarAcademyLandingPage() {
                 className="hidden sm:block rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-400 hover:bg-amber-500/20 transition">
                 Devenir Staff
               </Link>
-              <Link href="/star-academy-tiktok/inscription"
-                className="rounded-xl px-4 py-2 text-xs font-black text-white transition hover:opacity-90"
-                style={{ background: "linear-gradient(90deg,#7c3aed,#db2777)" }}>
-                Candidater
-              </Link>
+              {isOpen ? (
+                <Link href="/star-academy-tiktok/inscription"
+                  className="rounded-xl px-4 py-2 text-xs font-black text-white transition hover:opacity-90"
+                  style={{ background: "linear-gradient(90deg,#7c3aed,#db2777)" }}>
+                  Candidater
+                </Link>
+              ) : isPreSelection ? (
+                <span className="rounded-xl px-4 py-2 text-xs font-bold text-amber-300/80"
+                  style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                  Pre-selection
+                </span>
+              ) : (
+                <span className="rounded-xl px-4 py-2 text-xs font-black text-white/40"
+                  style={{ background: "rgba(124,58,237,0.2)" }}>
+                  {isBeforeOpen ? '17 mars' : 'Lives'}
+                </span>
+              )}
             </div>
           </div>
         </nav>
@@ -138,13 +169,23 @@ export default function StarAcademyLandingPage() {
           {/* Contenu hero */}
           <div className="absolute inset-0 flex flex-col justify-end px-6 pb-14 max-w-6xl mx-auto w-full">
             <div className="max-w-xl">
-              {/* Badge live */}
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#ec4899]/40 bg-[#ec4899]/15 px-3 py-1.5 mb-5 backdrop-blur-sm">
+              {/* Badge statut */}
+              <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 mb-5 backdrop-blur-sm ${
+                isOpen
+                  ? 'border-[#ec4899]/40 bg-[#ec4899]/15'
+                  : isPreSelection
+                    ? 'border-amber-500/40 bg-amber-500/15'
+                    : isBeforeOpen
+                      ? 'border-violet-500/40 bg-violet-500/15'
+                      : 'border-white/20 bg-white/5'
+              }`}>
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#ec4899] opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#ec4899]" />
+                  {!isLivePhase && <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isOpen ? 'bg-[#ec4899]' : isPreSelection ? 'bg-amber-400' : 'bg-violet-400'}`} />}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${isOpen ? 'bg-[#ec4899]' : isPreSelection ? 'bg-amber-400' : isBeforeOpen ? 'bg-violet-400' : 'bg-white/40'}`} />
                 </span>
-                <span className="text-[10px] font-black text-[#ec4899] uppercase tracking-widest">Auditions ouvertes · Live 2026</span>
+                <span className={`text-[10px] font-black uppercase tracking-widest ${isOpen ? 'text-[#ec4899]' : isPreSelection ? 'text-amber-300' : isBeforeOpen ? 'text-violet-300' : 'text-white/40'}`}>
+                  {isOpen ? 'Inscriptions ouvertes' : isPreSelection ? 'Pre-selection en cours' : isBeforeOpen ? 'Ouverture le 17 mars' : 'Lives en cours'}
+                </span>
               </div>
 
               {/* Titre */}
@@ -163,11 +204,28 @@ export default function StarAcademyLandingPage() {
               </p>
 
               <div className="flex flex-wrap gap-3">
-                <Link href="/star-academy-tiktok/inscription"
-                  className="rounded-2xl px-7 py-3.5 font-black text-sm text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
-                  style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 30px rgba(147,51,234,0.4), 0 4px 15px rgba(0,0,0,0.5)" }}>
-                  Candidater maintenant
-                </Link>
+                {isOpen ? (
+                  <Link href="/star-academy-tiktok/inscription"
+                    className="rounded-2xl px-7 py-3.5 font-black text-sm text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
+                    style={{ background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)", boxShadow: "0 0 30px rgba(147,51,234,0.4), 0 4px 15px rgba(0,0,0,0.5)" }}>
+                    Candidater maintenant
+                  </Link>
+                ) : isBeforeOpen ? (
+                  <div className="rounded-2xl px-7 py-3.5 font-black text-sm text-white/60 cursor-not-allowed"
+                    style={{ background: "linear-gradient(90deg,rgba(124,58,237,0.4),rgba(147,51,234,0.4),rgba(219,39,119,0.4))" }}>
+                    Inscriptions le 17 mars
+                  </div>
+                ) : isPreSelection ? (
+                  <div className="rounded-2xl px-7 py-3.5 font-black text-sm text-amber-300/80 cursor-default"
+                    style={{ background: "rgba(245,158,11,0.15)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                    Pre-selection en cours
+                  </div>
+                ) : (
+                  <div className="rounded-2xl px-7 py-3.5 font-black text-sm text-white/40 cursor-not-allowed"
+                    style={{ background: "rgba(255,255,255,0.06)" }}>
+                    Inscriptions fermees
+                  </div>
+                )}
                 <Link href="/star-academy-tiktok/suivi"
                   className="bg-white/[0.06] text-white/70 font-medium rounded-full px-7 py-3.5 text-sm hover:bg-white/[0.1] transition-all">
                   Suivre ma candidature
@@ -220,10 +278,16 @@ export default function StarAcademyLandingPage() {
             </div>
 
             <p className="text-center text-[11px] font-bold uppercase tracking-widest text-[#f59e0b]/70 mb-6">
-              {cd.closed ? "Inscriptions fermees" : "Fermeture des candidatures dans"}
+              {isLivePhase
+                ? "Les lives ont commence !"
+                : isPreSelection
+                  ? "Resultats de la pre-selection dans"
+                  : isBeforeOpen
+                    ? "Ouverture des inscriptions dans"
+                    : "Fermeture des candidatures dans"}
             </p>
 
-            {!cd.closed && (
+            {!countdownDone && (
               <div className="flex justify-center gap-5 md:gap-10 text-center">
                 {[
                   { v: cd.days,    l: "Jours" },
@@ -245,6 +309,21 @@ export default function StarAcademyLandingPage() {
                   </div>
                 ))}
               </div>
+            )}
+
+            {isPreSelection && (
+              <div className="mt-6 rounded-xl border border-amber-500/15 bg-amber-500/5 p-4 text-center max-w-md mx-auto">
+                <p className="text-xs text-amber-300/70 leading-relaxed">
+                  Notre equipe analyse chaque candidature avec attention.
+                  Les candidats retenus seront contactes par email pour rejoindre les lives.
+                </p>
+              </div>
+            )}
+
+            {isBeforeOpen && (
+              <p className="text-center text-xs text-white/25 mt-4">
+                Les inscriptions seront ouvertes du 17 mars au 17 avril 2026
+              </p>
             )}
 
             {count !== null && (
@@ -518,21 +597,44 @@ export default function StarAcademyLandingPage() {
               et rejoins la competition en direct.
             </p>
             <div className="flex flex-wrap justify-center gap-3">
-              <Link href="/star-academy-tiktok/inscription"
-                className="rounded-2xl px-9 py-4 font-black text-base text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
-                style={{
-                  background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
-                  boxShadow: "0 0 40px rgba(147,51,234,0.5), 0 4px 20px rgba(0,0,0,0.5)",
-                }}>
-                Demarrer ma candidature
-              </Link>
+              {isOpen ? (
+                <Link href="/star-academy-tiktok/inscription"
+                  className="rounded-2xl px-9 py-4 font-black text-base text-white transition-all hover:scale-[1.03] active:scale-[0.98]"
+                  style={{
+                    background: "linear-gradient(90deg,#7c3aed,#9333ea,#db2777)",
+                    boxShadow: "0 0 40px rgba(147,51,234,0.5), 0 4px 20px rgba(0,0,0,0.5)",
+                  }}>
+                  Demarrer ma candidature
+                </Link>
+              ) : isBeforeOpen ? (
+                <div className="rounded-2xl px-9 py-4 font-black text-base text-white/50 cursor-not-allowed"
+                  style={{ background: "linear-gradient(90deg,rgba(124,58,237,0.3),rgba(147,51,234,0.3),rgba(219,39,119,0.3))" }}>
+                  Inscriptions le 17 mars 2026
+                </div>
+              ) : isPreSelection ? (
+                <div className="rounded-2xl px-9 py-4 font-black text-base text-amber-300/80 cursor-default"
+                  style={{ background: "rgba(245,158,11,0.12)", border: "1px solid rgba(245,158,11,0.25)" }}>
+                  Pre-selection en cours...
+                </div>
+              ) : (
+                <div className="rounded-2xl px-9 py-4 font-black text-base text-white/40 cursor-not-allowed"
+                  style={{ background: "rgba(255,255,255,0.06)" }}>
+                  Inscriptions fermees
+                </div>
+              )}
               <Link href="/star-academy-tiktok/suivi"
                 className="bg-white/[0.06] text-white/70 font-medium rounded-full px-7 py-4 text-sm hover:bg-white/[0.1] transition-all">
                 Suivre ma candidature
               </Link>
             </div>
             <p className="text-white/20 text-[11px] mt-5 uppercase tracking-widest mb-3">
-              Gratuit · Inscription en 5 min · CV vocal requis
+              {isOpen
+                ? 'Gratuit · Inscription en 5 min · CV vocal requis'
+                : isBeforeOpen
+                  ? 'Ouverture le 17 mars · Gratuit · CV vocal requis'
+                  : isPreSelection
+                    ? 'L\'equipe analyse chaque candidature · Resultats par email'
+                    : 'Les lives sont en cours ou a venir'}
             </p>
             <Link href="/star-academy-tiktok/inscription-staff"
               className="text-amber-400/60 text-xs hover:text-amber-400 transition underline underline-offset-2">

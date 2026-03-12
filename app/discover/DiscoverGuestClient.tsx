@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, Play, Sparkles, UserPlus, X } from 'lucide-react';
+import StarAcademyBanner from '@/components/StarAcademyBanner';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
@@ -154,6 +155,9 @@ export default function DiscoverGuestClient({
             )}
           </div>
         </div>
+
+        {/* Star Academy TikTok promo */}
+        <StarAcademyBanner variant="compact" />
 
         {/* Genre chips */}
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 -mx-1 px-1">
