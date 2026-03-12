@@ -343,7 +343,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('all');
-  const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported' | 'loading'>('unknown');
+  const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported'>('unknown');
+  const [pushLoading, setPushLoading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -362,8 +363,9 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   }, [isAuthenticated]);
 
   const handleEnablePush = useCallback(async () => {
-    setPushStatus('loading');
+    setPushLoading(true);
     const result = await registerPush();
+    setPushLoading(false);
     if (result === 'granted' || result === 'already') {
       setPushStatus('granted');
       notify.success('Notifications activees', 'Tu recevras les notifications meme hors du site');
@@ -537,10 +539,10 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                   <p className="text-[12px] text-violet-200/80 flex-1">Activer les notifs meme hors du site</p>
                   <button
                     onClick={handleEnablePush}
-                    disabled={pushStatus === 'loading'}
+                    disabled={pushLoading}
                     className="px-3 py-1 text-[11px] font-semibold bg-violet-500 hover:bg-violet-400 text-white rounded-full transition flex-shrink-0"
                   >
-                    {pushStatus === 'loading' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Activer'}
+                    {pushLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Activer'}
                   </button>
                 </div>
               )}
