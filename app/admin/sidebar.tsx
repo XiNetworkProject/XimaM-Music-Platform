@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, ShieldCheck, Users, Star, Bell } from 'lucide-react';
+import { LayoutDashboard, ShieldCheck, Users, Star, Bell, Mail } from 'lucide-react';
 
 function cx(...classes: Array<string | false | undefined | null>) {
   return classes.filter(Boolean).join(' ');
@@ -16,6 +16,7 @@ export default function AdminSidebar({ isOwner }: { isOwner: boolean }) {
     { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/admin/users', label: 'Admins & rôles', icon: Users },
     { href: '/admin/notifications', label: 'Notifications', icon: Bell },
+    { href: '/admin/emails', label: 'Campagnes Email', icon: Mail },
     { href: '/admin/star-academy', label: 'Star Academy', icon: Star },
   ];
 
