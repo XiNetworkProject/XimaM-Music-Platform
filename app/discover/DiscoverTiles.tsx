@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Play, Sparkles, Zap } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, Pause, Sparkles, Zap, Disc3, Music } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import TrackCover from '@/components/TrackCover';
@@ -12,6 +12,24 @@ export type DiscoverPlaylistLite = {
   name: string;
   description?: string;
   coverUrl?: string | null;
+};
+
+export type DiscoverAlbumLite = {
+  _id: string;
+  name: string;
+  description?: string;
+  coverUrl?: string | null;
+  trackCount?: number;
+  duration?: number;
+  genres?: string[];
+  createdAt?: string;
+  artist?: {
+    _id: string;
+    username: string;
+    name: string;
+    avatar?: string | null;
+    isArtist?: boolean;
+  };
 };
 
 export type DiscoverArtistLite = {
@@ -333,6 +351,96 @@ const GENRE_COLORS: Record<string, string> = {
   'latin': 'from-red-400 to-orange-500',
   'afro': 'from-amber-400 to-yellow-600',
 };
+
+/* ─── Album Card ─── */
+export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
+  const { setQueueAndPlay, audioState, albumContext, setAlbumContext } = useAudioPlayer() as any;
+
+  const fmtDur = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h${m}` : `${m} min`;
+  };
+
+  const isThisAlbum = albumContext?.id === album._id;
+  const isPlaying = isThisAlbum && audioState.isPlaying;
+
+  const handlePlay = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isThisAlbum) {
+      // Toggle play/pause
+      return;
+    }
+    try {
+      const res = await fetch(`/api/playlists/${encodeURIComponent(album._id)}`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const tracks = (data.tracks || []).map((t: any) => ({
+        ...t,
+        likes: t.likes || [],
+        comments: t.comments || [],
+        plays: t.plays || 0,
+        album: album.name,
+      }));
+      if (!tracks.length) return;
+      setQueueAndPlay(tracks, 0);
+      window.dispatchEvent(new CustomEvent('albumContext', {
+        detail: { id: album._id, name: album.name, coverUrl: album.coverUrl || null, totalTracks: album.trackCount || tracks.length }
+      }));
+    } catch {}
+  };
+
+  return (
+    <Link
+      href={`/album/${album._id}`}
+      className="group/album min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] shrink-0 rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 block"
+      style={{ scrollSnapAlign: 'start' }}
+    >
+      {/* Cover */}
+      <div className="relative aspect-square rounded-lg overflow-hidden">
+        {album.coverUrl ? (
+          <img src={album.coverUrl} alt={album.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
+            <Disc3 className="w-10 h-10 text-white/20" />
+          </div>
+        )}
+        {/* Album badge */}
+        <div className="absolute top-2 left-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-bold text-white/70 border border-white/10">
+          <Disc3 className="w-2.5 h-2.5" /> Album
+        </div>
+        {/* Play button */}
+        <button
+          onClick={handlePlay}
+          className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-violet-500 hover:bg-violet-400 flex items-center justify-center opacity-0 group-hover/album:opacity-100 transition-all shadow-lg shadow-violet-500/30 hover:scale-110 z-10"
+        >
+          {isPlaying
+            ? <Pause className="w-4 h-4 text-white" />
+            : <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+          }
+        </button>
+        {/* Now playing indicator */}
+        {isThisAlbum && (
+          <div className="absolute top-2 right-2 flex items-center gap-px">
+            <span className="w-0.5 h-3 bg-violet-400 rounded-full animate-pulse" />
+            <span className="w-0.5 h-4 bg-violet-400 rounded-full animate-pulse" style={{ animationDelay: '150ms' }} />
+            <span className="w-0.5 h-2 bg-violet-400 rounded-full animate-pulse" style={{ animationDelay: '300ms' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Info */}
+      <div className="mt-2">
+        <p className="text-[13px] font-semibold line-clamp-1 text-white group-hover/album:text-violet-300 transition">{album.name}</p>
+        <p className="text-[11px] text-white/40 truncate mt-0.5">{album.artist?.name || 'Artiste'}</p>
+      </div>
+      <div className="mt-1 flex items-center gap-2 text-[10px] text-white/25">
+        {album.trackCount ? <span className="flex items-center gap-0.5"><Music className="w-2.5 h-2.5" /> {album.trackCount}</span> : null}
+        {album.duration ? <span>{fmtDur(album.duration)}</span> : null}
+      </div>
+    </Link>
+  );
+}
 
 export function GenreCard({ genre, onClick }: { genre: string; onClick?: () => void }) {
   const gradient = GENRE_COLORS[genre.toLowerCase()] || 'from-indigo-500 to-violet-600';

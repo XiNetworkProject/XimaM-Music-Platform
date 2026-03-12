@@ -5,7 +5,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import DiscoverGuestClient from './DiscoverGuestClient';
 import DiscoverAuthedClient from './DiscoverAuthedClient';
-import type { DiscoverArtistLite, DiscoverPlaylistLite } from './DiscoverTiles';
+import type { DiscoverArtistLite, DiscoverAlbumLite, DiscoverPlaylistLite } from './DiscoverTiles';
 import type { DiscoverTrackLite } from './DiscoverPlayButton';
 
 export const dynamic = 'force-dynamic';
@@ -84,6 +84,16 @@ async function fetchArtists(baseUrl: string): Promise<DiscoverArtistLite[]> {
   }
 }
 
+async function fetchAlbums(baseUrl: string): Promise<DiscoverAlbumLite[]> {
+  try {
+    const res = await fetch(`${baseUrl}/api/playlists/albums?limit=20`, { cache: 'no-store' });
+    const json = await res.json().catch(() => ({}));
+    return Array.isArray(json?.albums) ? json.albums : [];
+  } catch {
+    return [];
+  }
+}
+
 export default async function DiscoverPage({ searchParams }: { searchParams: Promise<{ genre?: string }> }) {
   const sp = await searchParams;
   const genreFilter = sp?.genre || null;
@@ -92,12 +102,13 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
   const userId = (session?.user as any)?.id as string | undefined;
   const baseUrl = await getBaseUrl();
 
-  const [trendingData, forYouData, recentData, playlistsData, artistsData] = await Promise.all([
+  const [trendingData, forYouData, recentData, playlistsData, artistsData, albumsData] = await Promise.all([
     fetchFromApi(baseUrl, `/api/tracks/trending?limit=30`),
     fetchFromFeed(baseUrl, `limit=30&ai=1&strategy=reco${genreParam}`),
     fetchFromApi(baseUrl, `/api/tracks/recent?limit=30`),
     fetchPlaylists(baseUrl),
     fetchArtists(baseUrl),
+    fetchAlbums(baseUrl),
   ]);
 
   if (userId) {
@@ -127,6 +138,7 @@ export default async function DiscoverPage({ searchParams }: { searchParams: Pro
       newest={recentData}
       playlists={playlistsData}
       artists={artistsData}
+      albums={albumsData}
     />
   );
 }

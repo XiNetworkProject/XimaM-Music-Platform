@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
@@ -881,6 +881,7 @@ export default function SynauraHome() {
   const [newArtists, setNewArtists] = useState<any[]>([]);
   const [socialDiscovery, setSocialDiscovery] = useState<any[]>([]);
   const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
+  const [homeAlbums, setHomeAlbums] = useState<any[]>([]);
 
   // États pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
@@ -1071,6 +1072,13 @@ export default function SynauraHome() {
       fetch('/api/tracks/boosted?limit=12')
         .then(r => r.ok ? r.json() : { tracks: [] })
         .then(d => setBoostedTracks(applyCdnToTracks(d.tracks || [])))
+        .catch(() => {})
+    );
+
+    fetches.push(
+      fetch('/api/playlists/albums?limit=16')
+        .then(r => r.ok ? r.json() : { albums: [] })
+        .then(d => setHomeAlbums(Array.isArray(d.albums) ? d.albums : []))
         .catch(() => {})
     );
 
@@ -2329,6 +2337,46 @@ export default function SynauraHome() {
                   }}
                   onPlay={playTrack}
                 />
+              ))}
+            </HorizontalScroller>
+          </section>
+        )}
+
+        {/* Albums & EPs */}
+        {homeAlbums.length > 0 && (
+          <section>
+            <SectionTitle title="Albums & EPs" icon={Disc3} actionLabel="Voir tout" onAction={() => router.push('/discover', { scroll: false })} />
+            <HorizontalScroller>
+              {homeAlbums.map((album: any) => (
+                <button
+                  key={album._id}
+                  onClick={() => router.push(`/album/${album._id}`, { scroll: false })}
+                  className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all group/al text-left"
+                  style={{ scrollSnapAlign: 'start' }}
+                >
+                  <div className="relative aspect-square rounded-lg overflow-hidden bg-white/[0.06]">
+                    {album.coverUrl ? (
+                      <img src={album.coverUrl} alt={album.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
+                        <Disc3 className="w-10 h-10 text-white/20" />
+                      </div>
+                    )}
+                    <div className="absolute top-2 left-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-bold text-white/70">
+                      <Disc3 className="w-2.5 h-2.5" /> Album
+                    </div>
+                    <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center opacity-0 group-hover/al:opacity-100 transition-all shadow-lg shadow-violet-500/30">
+                      <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
+                    </div>
+                  </div>
+                  <div className="mt-2">
+                    <div className="text-sm font-semibold text-white truncate group-hover/al:text-violet-300 transition">{album.name}</div>
+                    <div className="text-[11px] text-white/40 truncate">
+                      {album.artist?.name || 'Artiste'}
+                      {album.trackCount ? ` · ${album.trackCount} titres` : ''}
+                    </div>
+                  </div>
+                </button>
               ))}
             </HorizontalScroller>
           </section>

@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -7,6 +7,7 @@ import StarAcademyBanner from '@/components/StarAcademyBanner';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
+  AlbumTile,
   ArtistTile,
   HorizontalScroller,
   PlaylistTile,
@@ -14,6 +15,7 @@ import {
   TrackRow,
   TrackTile,
   type DiscoverArtistLite,
+  type DiscoverAlbumLite,
   type DiscoverPlaylistLite,
 } from './DiscoverTiles';
 
@@ -76,16 +78,18 @@ export default function DiscoverAuthedClient({
   const [playlists, setPlaylists] = useState(initialPlaylists);
   const [artists, setArtists] = useState(initialArtists);
   const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
+  const [albums, setAlbums] = useState<DiscoverAlbumLite[]>([]);
 
   const refreshData = useCallback(async () => {
     try {
-      const [fy, tr, nw, pl, ar, bt] = await Promise.all([
+      const [fy, tr, nw, pl, ar, bt, alb] = await Promise.all([
         fetch('/api/ranking/feed?limit=50&ai=1&strategy=reco', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/tracks/trending?limit=50', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/tracks/recent?limit=40', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/playlists/popular?limit=18', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/artists?sort=trending&limit=16', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
         fetch('/api/tracks/boosted?limit=10', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
+        fetch('/api/playlists/albums?limit=20', { cache: 'no-store' }).then(r => r.json()).catch(() => ({})),
       ]);
       if (Array.isArray(fy?.tracks)) setForYou(fy.tracks);
       if (Array.isArray(tr?.tracks)) setTrending(tr.tracks);
@@ -107,6 +111,7 @@ export default function DiscoverAuthedClient({
         isTrending: Boolean(a?.isTrending),
       })));
       if (Array.isArray(bt?.tracks)) setBoostedTracks(bt.tracks);
+      if (Array.isArray(alb?.albums)) setAlbums(alb.albums);
     } catch {}
   }, []);
 
@@ -299,6 +304,23 @@ export default function DiscoverAuthedClient({
                 <HorizontalScroller>
                   {displayForYou.slice(0, 20).map(t => (
                     <TrackTile key={t._id} track={t} />
+                  ))}
+                </HorizontalScroller>
+              </section>
+            )}
+
+            {/* Albums & EPs */}
+            {albums.length > 0 && (
+              <section>
+                <SectionHeader
+                  title="Albums & EPs"
+                  subtitle="Les sorties completes a ecouter"
+                  actionLabel="Voir tout"
+                  actionHref="/discover?section=albums"
+                />
+                <HorizontalScroller>
+                  {albums.map(album => (
+                    <AlbumTile key={album._id} album={album} />
                   ))}
                 </HorizontalScroller>
               </section>

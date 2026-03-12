@@ -8,6 +8,7 @@ import StarAcademyBanner from '@/components/StarAcademyBanner';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
 import {
+  AlbumTile,
   ArtistTile,
   HorizontalScroller,
   PlaylistTile,
@@ -15,6 +16,7 @@ import {
   TrackRow,
   TrackTile,
   type DiscoverArtistLite,
+  type DiscoverAlbumLite,
   type DiscoverPlaylistLite,
 } from './DiscoverTiles';
 
@@ -47,12 +49,14 @@ export default function DiscoverGuestClient({
   newest,
   playlists,
   artists,
+  albums,
 }: {
   genreFilter?: string | null;
   trending: DiscoverTrackLite[];
   newest: DiscoverTrackLite[];
   playlists: DiscoverPlaylistLite[];
   artists: DiscoverArtistLite[];
+  albums?: DiscoverAlbumLite[];
 }) {
   const router = useRouter();
   const { playTrack, setTracks } = useAudioPlayer();
@@ -231,6 +235,23 @@ export default function DiscoverGuestClient({
                 <HorizontalScroller>
                   {filteredNewest.slice(0, 16).map(t => (
                     <TrackTile key={t._id} track={t} />
+                  ))}
+                </HorizontalScroller>
+              </section>
+            )}
+
+            {/* Albums & EPs */}
+            {!isFiltered && albums && albums.length > 0 && (
+              <section>
+                <SectionHeader
+                  title="Albums & EPs"
+                  subtitle="Les sorties completes a ecouter"
+                  actionLabel="Voir tout"
+                  actionHref="/discover?section=albums"
+                />
+                <HorizontalScroller>
+                  {albums.slice(0, 16).map(album => (
+                    <AlbumTile key={album._id} album={album} />
                   ))}
                 </HorizontalScroller>
               </section>
