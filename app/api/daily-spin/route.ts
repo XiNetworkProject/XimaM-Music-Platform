@@ -134,9 +134,13 @@ export async function POST(_req: NextRequest) {
   const prevTs = status.lastSpunAt ? new Date(status.lastSpunAt).getTime() : null;
   const nextStreak = prevTs != null && (Date.now() - prevTs) <= (48 * 60 * 60 * 1000) ? (status.streak + 1) : 1;
 
-  await supabaseAdmin
+  const { error: upsertError } = await supabaseAdmin
     .from('user_daily_spin')
     .upsert({ user_id: userId, last_spun_at: nowIso, streak: nextStreak }, { onConflict: 'user_id' });
+  if (upsertError) {
+    console.error('[daily-spin] upsert error:', upsertError);
+    return NextResponse.json({ error: 'Erreur sauvegarde spin' }, { status: 500 });
+  }
 
   let payload: any = null;
   try {

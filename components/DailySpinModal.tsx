@@ -200,6 +200,9 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
 
   const spin = async () => {
     if (spinning || loading) return;
+    if (!status?.canSpin) return;
+
+    setStatus((s) => s ? { ...s, canSpin: false } : s);
     setSpinning(true);
     setResult(null);
     setShowConfetti(false);
@@ -207,12 +210,18 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
     try {
       const res = await fetch('/api/daily-spin', { method: 'POST' });
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) { setStatus(j as Status); setSpinning(false); return; }
+      if (!res.ok) {
+        setStatus(j as Status);
+        setSpinning(false);
+        return;
+      }
       const r = j as SpinResult;
 
       const baseTurns = 5 + Math.floor(Math.random() * 3);
-      const target = 360 - (r.index + 0.5) * segmentAngle;
-      const nextRotation = rotation + baseTurns * 360 + target;
+      const targetAngle = 360 - (r.index + 0.5) * segmentAngle;
+      const currentOffset = ((rotation % 360) + 360) % 360;
+      const delta = ((targetAngle - currentOffset) % 360 + 360) % 360;
+      const nextRotation = rotation + baseTurns * 360 + delta;
       setRotation(nextRotation);
 
       window.setTimeout(() => {
@@ -226,7 +235,10 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
         });
         setSpinning(false);
       }, 4200);
-    } catch { setSpinning(false); }
+    } catch {
+      setSpinning(false);
+      refresh();
+    }
   };
 
   if (!isOpen || !mounted || typeof document === 'undefined') return null;
