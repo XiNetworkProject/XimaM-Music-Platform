@@ -664,6 +664,11 @@ export default function UploadPage() {
       return;
     }
 
+    if (!coverFile) {
+      notify.error('Pochette requise', 'Ajoutez une image de couverture pour votre musique');
+      return;
+    }
+
     setIsUploading(true);
     setUploadProgress({ audio: 0, cover: 0 });
 
@@ -1326,7 +1331,7 @@ export default function UploadPage() {
                 </div>
 
                   <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-foreground-secondary">{uploadMode === 'album' ? 'Cover de l’album' : 'Image de couverture'}</label>
+                    <label className="block text-sm font-medium text-foreground-secondary">{uploadMode === 'album' ? "Cover de l'album" : 'Image de couverture'} <span className="text-red-400">*</span></label>
                     <div
                       {...getCoverRootProps()}
                       className={`border-2 border-dashed rounded-3xl p-4 text-center transition-colors cursor-pointer ${

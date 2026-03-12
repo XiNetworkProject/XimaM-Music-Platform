@@ -114,8 +114,32 @@ export default function SynauraProfile() {
   const handleEdit = () => setShowEditModal(true);
   const handleCancelEdit = () => { setShowEditModal(false); setEditData({ ...profile }); };
   const handleSaveEdit = async () => { setUploading(true); try { if (!usernameStr) throw new Error(); const r = await fetch(`/api/users/${encodeURIComponent(usernameStr)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(editData) }); const d = await r.json(); if (!r.ok) throw new Error(d.error); const merged = { ...profile, name: d.name || editData.name, bio: d.bio ?? editData.bio, artistName: d.artist_name || editData.artistName, location: d.location ?? editData.location, website: d.website ?? editData.website, genre: d.genre || editData.genre, isArtist: d.is_artist ?? editData.isArtist }; setProfile(merged); setEditData(merged); setShowEditModal(false); notify.success('OK', 'Profil sauvegarde'); } catch (e: any) { notify.error('Erreur', e.message); } finally { setUploading(false); } };
-  const handleEditTrack = (t: any) => { setEditingTrack(t); setTrackEditData({ title: t.title, description: t.description || '', genre: Array.isArray(t.genre) ? t.genre.join(', ') : (t.genre || ''), tags: t.tags?.join(', ') || '', isPublic: t.is_public !== false }); setShowEditTrackModal(true); closeCtx(); };
-  const handleSaveTrackEdit = async () => { if (!editingTrack) return; setUploading(true); try { const tid = editingTrack.id; const r = await fetch(`/api/tracks/${tid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: trackEditData.title, description: trackEditData.description, genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean), tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean), isPublic: trackEditData.isPublic }) }); if (!r.ok) throw new Error((await r.json()).error); const u = await r.json(); setUserTracks(p => p.map(t => t.id === tid ? { ...t, ...u } : t)); setProfile((p: any) => ({ ...p, tracks: (p.tracks || []).map((t: any) => t.id === tid ? { ...t, ...u } : t) })); setShowEditTrackModal(false); notify.success('OK', 'Modifiee'); } catch (e: any) { notify.error('Erreur', e.message); } finally { setUploading(false); } };
+  const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUploading, setCoverUploading] = useState(false);
+  const handleEditTrack = (t: any) => { setEditingTrack(t); setTrackEditData({ title: t.title, description: t.description || '', genre: Array.isArray(t.genre) ? t.genre.join(', ') : (t.genre || ''), tags: t.tags?.join(', ') || '', isPublic: t.is_public !== false }); setCoverFile(null); setCoverPreview(t.cover_url || t.coverUrl || null); setShowEditTrackModal(true); closeCtx(); };
+  const uploadCoverToCloudinary = async (file: File) => {
+    const timestamp = Math.round(Date.now() / 1000);
+    const publicId = `cover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const sigRes = await fetch('/api/upload/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, publicId, resourceType: 'image' }) });
+    if (!sigRes.ok) throw new Error('Erreur signature');
+    const { signature, apiKey, cloudName } = await sigRes.json();
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('folder', 'ximam/images');
+    fd.append('public_id', publicId);
+    fd.append('resource_type', 'image');
+    fd.append('timestamp', timestamp.toString());
+    fd.append('api_key', apiKey);
+    fd.append('signature', signature);
+    fd.append('width', '800');
+    fd.append('height', '800');
+    fd.append('crop', 'fill');
+    const upRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
+    if (!upRes.ok) throw new Error('Erreur upload image');
+    return upRes.json();
+  };
+  const handleSaveTrackEdit = async () => { if (!editingTrack) return; setUploading(true); try { const tid = editingTrack.id; let coverUrl: string | undefined; let coverPublicId: string | undefined; if (coverFile) { setCoverUploading(true); const result = await uploadCoverToCloudinary(coverFile); coverUrl = result.secure_url; coverPublicId = result.public_id; setCoverUploading(false); } const payload: any = { title: trackEditData.title, description: trackEditData.description, genre: trackEditData.genre.split(',').map((g: string) => g.trim()).filter(Boolean), tags: trackEditData.tags.split(',').map((t: string) => t.trim()).filter(Boolean), isPublic: trackEditData.isPublic }; if (coverUrl) { payload.coverUrl = coverUrl; payload.coverPublicId = coverPublicId; } const r = await fetch(`/api/tracks/${tid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); if (!r.ok) throw new Error((await r.json()).error); const u = await r.json(); setUserTracks(p => p.map(t => t.id === tid ? { ...t, ...u, cover_url: coverUrl || t.cover_url } : t)); setProfile((p: any) => ({ ...p, tracks: (p.tracks || []).map((t: any) => t.id === tid ? { ...t, ...u, cover_url: coverUrl || t.cover_url } : t) })); setShowEditTrackModal(false); setCoverFile(null); notify.success('OK', 'Modifiee'); } catch (e: any) { notify.error('Erreur', e.message); setCoverUploading(false); } finally { setUploading(false); } };
   const handleShareProfile = async () => { try { await navigator.clipboard.writeText(`${window.location.origin}/profile/${encodeURIComponent(usernameStr || '')}`); notify.success('OK', 'Lien copie'); } catch {} };
   const memberSince = useMemo(() => { const raw = profile?.createdAt || profile?.created_at; if (!raw) return null; const d = new Date(raw); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }, [profile]);
 
@@ -503,6 +527,28 @@ export default function SynauraProfile() {
         <UModalBody>
           <UModalTitle>Modifier la piste</UModalTitle>
           <div className="space-y-4">
+            {/* Cover */}
+            <div>
+              <div className="text-sm font-semibold text-white/70 mb-2">Pochette</div>
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.04] flex-shrink-0">
+                  {(coverFile ? URL.createObjectURL(coverFile) : coverPreview) ? (
+                    <img src={coverFile ? URL.createObjectURL(coverFile) : (coverPreview || '')} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center"><Music2 className="w-6 h-6 text-white/20" /></div>
+                  )}
+                </div>
+                <div>
+                  <label className="inline-flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs text-white/60 hover:bg-white/[0.08] cursor-pointer transition">
+                    <Camera className="h-4 w-4" />
+                    {coverFile ? 'Changer' : (coverPreview ? 'Remplacer' : 'Ajouter une pochette')}
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) { setCoverFile(f); } e.target.value = ''; }} />
+                  </label>
+                  {coverFile && <div className="text-[11px] text-emerald-400/70 mt-1.5">{coverFile.name}</div>}
+                  {!coverPreview && !coverFile && <div className="text-[11px] text-amber-400/70 mt-1.5">Pochette manquante</div>}
+                </div>
+              </div>
+            </div>
             <UInput label="Titre" value={trackEditData.title || ''} onChange={(v) => setTrackEditData({ ...trackEditData, title: v })} />
             <UTextarea label="Description" value={trackEditData.description || ''} onChange={(v) => setTrackEditData({ ...trackEditData, description: v })} />
             <UInput label="Genres" value={trackEditData.genre || ''} onChange={(v) => setTrackEditData({ ...trackEditData, genre: v })} />
@@ -510,8 +556,8 @@ export default function SynauraProfile() {
             <label className="flex items-center gap-2.5 cursor-pointer"><input type="checkbox" checked={trackEditData.isPublic} onChange={(e) => setTrackEditData({ ...trackEditData, isPublic: e.target.checked })} className="w-4 h-4 rounded" /><span className="text-sm text-white/50">Publique</span></label>
           </div>
           <UModalFooter>
-            <UButton variant="secondary" fullWidth onClick={() => setShowEditTrackModal(false)}>Annuler</UButton>
-            <UButton variant="primary" fullWidth onClick={handleSaveTrackEdit} disabled={uploading || !trackEditData.title?.trim()} loading={uploading}>Sauvegarder</UButton>
+            <UButton variant="secondary" fullWidth onClick={() => { setShowEditTrackModal(false); setCoverFile(null); }}>Annuler</UButton>
+            <UButton variant="primary" fullWidth onClick={handleSaveTrackEdit} disabled={uploading || coverUploading || !trackEditData.title?.trim()} loading={uploading || coverUploading}>{coverUploading ? 'Upload image...' : 'Sauvegarder'}</UButton>
           </UModalFooter>
         </UModalBody>
       </UModal>

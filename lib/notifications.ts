@@ -75,11 +75,12 @@ interface CreateNotificationOpts {
 
 async function getUserPrefs(userId: string) {
   try {
-    const { data } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('notification_preferences')
       .select('*')
       .eq('user_id', userId)
       .single();
+    if (error) return null;
     return data;
   } catch {
     return null;
@@ -104,7 +105,20 @@ export async function createNotification(opts: CreateNotificationOpts) {
 
   const category = TYPE_TO_CATEGORY[type] || 'general';
 
-  const { data: notif, error } = await supabaseAdmin
+  const extendedData = {
+    ...(data || {}),
+    category,
+    action_url: actionUrl || null,
+    icon_url: iconUrl || null,
+    sender_id: senderId || null,
+    related_id: relatedId || null,
+  };
+
+  // Essayer l'insert avec le schema etendu d'abord
+  let notif: any = null;
+  let insertError: any = null;
+
+  const { data: result1, error: err1 } = await supabaseAdmin
     .from('notifications')
     .insert({
       user_id: userId,
@@ -122,11 +136,40 @@ export async function createNotification(opts: CreateNotificationOpts) {
     .select('id')
     .single();
 
-  if (error) {
-    console.error('[notifications] insert error:', error);
+  if (err1) {
+    // Fallback: schema de base (sans les colonnes etendues)
+    console.warn('[notifications] extended insert failed, trying base schema:', err1.message);
+    const { data: result2, error: err2 } = await supabaseAdmin
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        type,
+        title,
+        message,
+        data: extendedData,
+        is_read: false,
+      })
+      .select('id')
+      .single();
+
+    if (err2) {
+      console.error('[notifications] base insert also failed:', err2.message);
+      insertError = err2;
+    } else {
+      notif = result2;
+    }
+  } else {
+    notif = result1;
+  }
+
+  if (insertError || !notif) {
+    console.error('[notifications] all insert attempts failed for user', userId);
+    // Toujours envoyer le push meme si le DB insert echoue
+    sendPushInBackground(userId, type, title, message, actionUrl);
     return null;
   }
 
+  console.log('[notifications] created:', { id: notif.id, type, userId: userId.slice(0, 8) });
   sendPushInBackground(userId, type, title, message, actionUrl);
 
   return notif;
@@ -139,7 +182,10 @@ async function sendPushInBackground(
   body: string,
   url?: string,
 ) {
-  if (!VAPID_PUBLIC || !VAPID_PRIVATE) return;
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    console.warn('[notifications] VAPID keys not configured, skipping push');
+    return;
+  }
 
   try {
     const prefs = await getUserPrefs(userId);
@@ -173,6 +219,8 @@ async function sendPushInBackground(
       } catch (err: any) {
         if (err?.statusCode === 404 || err?.statusCode === 410) {
           expired.push(sub.endpoint);
+        } else {
+          console.warn('[notifications] push failed for endpoint:', err?.statusCode || err?.message);
         }
       }
     }
@@ -205,43 +253,53 @@ export async function createBroadcast(opts: {
     query = query.eq('is_artist', true);
   }
 
-  const { data: users } = await query;
+  const { data: users, error: usersErr } = await query;
+  if (usersErr) {
+    console.error('[broadcast] users query error:', usersErr.message);
+    return { sent: 0, error: usersErr.message };
+  }
   if (!users?.length) return { sent: 0 };
 
-  const { data: broadcast } = await supabaseAdmin
-    .from('admin_broadcasts')
-    .insert({
-      admin_id: adminId,
-      title,
-      message,
-      category,
-      target,
-      sent_count: users.length,
-    })
-    .select('id')
-    .single();
+  // Tenter d'enregistrer le broadcast (table peut ne pas exister)
+  let broadcastId: string | null = null;
+  try {
+    const { data: broadcast } = await supabaseAdmin
+      .from('admin_broadcasts')
+      .insert({
+        admin_id: adminId,
+        title,
+        message,
+        category,
+        target,
+        sent_count: users.length,
+      })
+      .select('id')
+      .single();
+    broadcastId = broadcast?.id || null;
+  } catch (e) {
+    console.warn('[broadcast] admin_broadcasts table may not exist, continuing without logging');
+  }
 
+  let successCount = 0;
   const batchSize = 50;
   for (let i = 0; i < users.length; i += batchSize) {
     const batch = users.slice(i, i + batchSize);
-    const inserts = batch.map(u => ({
-      user_id: u.id,
-      type: 'admin_broadcast',
-      title,
-      message,
-      category: 'admin',
-      data: { broadcast_id: broadcast?.id },
-      is_read: false,
-    }));
-
-    await supabaseAdmin.from('notifications').insert(inserts);
 
     for (const u of batch) {
-      sendPushInBackground(u.id, 'admin_broadcast', title, message);
+      const result = await createNotification({
+        userId: u.id,
+        type: 'admin_broadcast',
+        title,
+        message,
+        data: broadcastId ? { broadcast_id: broadcastId } : {},
+        skipPrefCheck: false,
+      });
+      if (result) successCount++;
     }
   }
 
-  return { sent: users.length, broadcastId: broadcast?.id };
+  console.log(`[broadcast] sent to ${successCount}/${users.length} users`);
+  return { sent: successCount, broadcastId };
 }
 
 // ─── Trigger helpers ───────────────────────────────────────────

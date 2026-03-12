@@ -299,8 +299,8 @@ function DBNotifItem({
 }
 
 export default function NotificationCenter({ className = '' }: NotificationCenterProps) {
-  const { data: session } = useSession();
-  const userId = (session?.user as any)?.id;
+  const { data: session, status: sessionStatus } = useSession();
+  const isAuthenticated = sessionStatus === 'authenticated';
 
   const [toasts, setToasts] = useState<Notification[]>([]);
   const [showPanel, setShowPanel] = useState(false);
@@ -309,14 +309,21 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('all');
   const panelRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return notificationStore.subscribe(setToasts);
   }, []);
 
+  const doFetchUnread = useCallback(async () => {
+    try {
+      const res = await fetch('/api/notifications?limit=1');
+      if (!res.ok) return;
+      const data = await res.json();
+      setUnreadCount(data.unread || 0);
+    } catch {}
+  }, []);
+
   const fetchNotifs = useCallback(async (cat?: string) => {
-    if (!userId) return;
     try {
       const params = new URLSearchParams({ limit: '40' });
       if (cat && cat !== 'all') params.set('category', cat);
@@ -326,32 +333,24 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       setDbNotifs(data.notifications || []);
       setUnreadCount(data.unread || 0);
     } catch {}
-  }, [userId]);
-
-  const fetchUnreadCount = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const res = await fetch('/api/notifications?limit=1');
-      if (!res.ok) return;
-      const data = await res.json();
-      setUnreadCount(data.unread || 0);
-    } catch {}
-  }, [userId]);
+  }, []);
 
   useEffect(() => {
-    if (!userId) return;
-    fetchUnreadCount();
-    pollRef.current = setInterval(fetchUnreadCount, 30000);
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [userId, fetchUnreadCount]);
+    if (!isAuthenticated) return;
+    doFetchUnread();
+    const interval = setInterval(doFetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, doFetchUnread]);
 
+  // Fetch quand le panel s'ouvre
   useEffect(() => {
-    if (showPanel && userId) {
+    if (showPanel && isAuthenticated) {
       setLoading(true);
       fetchNotifs(category).finally(() => setLoading(false));
     }
-  }, [showPanel, category, userId, fetchNotifs]);
+  }, [showPanel, category, isAuthenticated, fetchNotifs]);
 
+  // Fermer le panel au clic exterieur
   useEffect(() => {
     if (!showPanel) return;
     const handleClick = (e: MouseEvent) => {

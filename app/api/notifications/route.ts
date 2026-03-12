@@ -33,12 +33,38 @@ export async function GET(request: NextRequest) {
       query = query.eq('is_read', false);
     }
 
-    const { data: notifications, count, error } = await query;
+    let { data: notifications, count, error } = await query;
+
+    // Fallback: si le filtre category cause une erreur (colonne inexistante), re-essayer sans
+    if (error && category && category !== 'all') {
+      console.warn('[notifications] category filter failed, retrying without:', error.message);
+      let fallbackQuery = supabaseAdmin
+        .from('notifications')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (unreadOnly) fallbackQuery = fallbackQuery.eq('is_read', false);
+      const fallback = await fallbackQuery;
+      notifications = fallback.data;
+      count = fallback.count;
+      error = fallback.error;
+    }
 
     if (error) {
       console.error('[notifications] fetch error:', error);
-      return NextResponse.json({ error: 'Erreur chargement' }, { status: 500 });
+      return NextResponse.json({ notifications: [], total: 0, unread: 0, page, limit });
     }
+
+    // Enrichir les notifs du schema de base avec les metadonnees stockees dans data
+    const enriched = (notifications || []).map((n: any) => ({
+      ...n,
+      category: n.category || n.data?.category || 'general',
+      action_url: n.action_url || n.data?.action_url || null,
+      icon_url: n.icon_url || n.data?.icon_url || null,
+      sender_id: n.sender_id || n.data?.sender_id || null,
+      related_id: n.related_id || n.data?.related_id || null,
+    }));
 
     const { count: unreadCount } = await supabaseAdmin
       .from('notifications')
@@ -47,14 +73,15 @@ export async function GET(request: NextRequest) {
       .eq('is_read', false);
 
     return NextResponse.json({
-      notifications: notifications || [],
+      notifications: enriched,
       total: count || 0,
       unread: unreadCount || 0,
       page,
       limit,
     });
   } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+    console.error('[notifications] GET error:', e);
+    return NextResponse.json({ notifications: [], total: 0, unread: 0, page: 1, limit: 30 });
   }
 }
 

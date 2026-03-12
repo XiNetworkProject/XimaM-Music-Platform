@@ -17,13 +17,16 @@ export async function GET(request: NextRequest) {
     const offset = (page - 1) * limit;
 
     if (tab === 'broadcasts') {
-      const { data, count } = await supabaseAdmin
-        .from('admin_broadcasts')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(offset, offset + limit - 1);
-
-      return NextResponse.json({ broadcasts: data || [], total: count || 0, page, limit });
+      try {
+        const { data, count } = await supabaseAdmin
+          .from('admin_broadcasts')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .range(offset, offset + limit - 1);
+        return NextResponse.json({ broadcasts: data || [], total: count || 0, page, limit });
+      } catch {
+        return NextResponse.json({ broadcasts: [], total: 0, page, limit });
+      }
     }
 
     if (tab === 'stats') {
@@ -40,9 +43,11 @@ export async function GET(request: NextRequest) {
         .from('push_subscriptions')
         .select('id', { count: 'exact', head: true });
 
-      const { count: totalBroadcasts } = await supabaseAdmin
-        .from('admin_broadcasts')
-        .select('id', { count: 'exact', head: true });
+      let totalBroadcasts = 0;
+      try {
+        const res = await supabaseAdmin.from('admin_broadcasts').select('id', { count: 'exact', head: true });
+        totalBroadcasts = res.count || 0;
+      } catch {}
 
       const { data: recentNotifs } = await supabaseAdmin
         .from('notifications')
@@ -59,7 +64,7 @@ export async function GET(request: NextRequest) {
           totalNotifications: totalNotifs || 0,
           unreadNotifications: unreadNotifs || 0,
           pushSubscriptions: totalSubs || 0,
-          totalBroadcasts: totalBroadcasts || 0,
+          totalBroadcasts,
           last7daysBreakdown: typeBreakdown,
         },
       });
@@ -84,6 +89,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Titre et message requis' }, { status: 400 });
     }
 
+    console.log('[admin/notifications] POST broadcast:', { title, target, category, adminId: g.userId });
+
     const result = await createBroadcast({
       adminId: g.userId!,
       title,
@@ -92,6 +99,7 @@ export async function POST(request: NextRequest) {
       category: category || 'announcement',
     });
 
+    console.log('[admin/notifications] broadcast result:', result);
     return NextResponse.json({ ok: true, ...result });
   } catch (e: any) {
     if (e.message?.includes('admin')) {

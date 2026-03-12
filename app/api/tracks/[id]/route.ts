@@ -92,7 +92,7 @@ export async function PUT(
     // Vérifier que la track existe et que l'utilisateur est le propriétaire
     const { data: existingTrack, error: trackError } = await supabaseAdmin
       .from('tracks')
-      .select('id, creator_id')
+      .select('id, creator_id, cover_public_id')
       .eq('id', id)
       .single();
 
@@ -135,6 +135,21 @@ export async function PUT(
     if (body.tags) updateData.tags = Array.isArray(body.tags) ? body.tags : [body.tags];
     if (typeof body.isPublic === 'boolean') updateData.is_public = body.isPublic;
     if (typeof body.isFeatured === 'boolean') updateData.is_featured = body.isFeatured;
+
+    if (body.coverUrl) {
+      const oldCoverPublicId = existingTrack.cover_public_id;
+      updateData.cover_url = body.coverUrl;
+      updateData.cover_public_id = body.coverPublicId || null;
+
+      if (oldCoverPublicId && oldCoverPublicId !== body.coverPublicId) {
+        try {
+          await cloudinary.uploader.destroy(oldCoverPublicId, { resource_type: 'image' });
+          console.log('🗑️ Ancienne cover supprimee:', oldCoverPublicId);
+        } catch (e) {
+          console.warn('Echec suppression ancienne cover:', e);
+        }
+      }
+    }
 
     // Mettre à jour la track
     const { data: updatedTrack, error: updateError } = await supabaseAdmin

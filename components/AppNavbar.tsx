@@ -97,7 +97,7 @@ export default function AppNavbar() {
         const res = await fetch('/api/subscriptions/usage');
         if (res.ok) {
           const data = await res.json();
-          console.log('📊 Plan utilisateur chargé:', data.plan);
+          console.log('Plan utilisateur charge:', data.plan);
           setUserPlan(data.plan || 'free');
         }
       } catch (error) {
@@ -109,6 +109,7 @@ export default function AppNavbar() {
 
     loadUserPlan();
   }, [session?.user?.id]);
+
 
   const goToProfile = () => {
     const username = (session?.user as any)?.username;
