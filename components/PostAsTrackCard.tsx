@@ -7,7 +7,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { Camera, Share2, Play, Pause, Heart } from 'lucide-react';
-import { useAudioPlayer } from '@/components/AudioPlayerProvider';
+import { useAudioPlayer } from '@/app/providers';
 import { type Post } from '@/components/PostCard';
 import PostCommentsSheet from '@/components/PostCommentsSheet';
 
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function PostAsTrackCard({ post }: Props) {
-  const { playTrack, currentTrack, isPlaying } = useAudioPlayer();
+  const { playTrack, audioState } = useAudioPlayer();
   const [liked, setLiked] = useState(post.isLiked ?? false);
   const [likesCount, setLikesCount] = useState(post.likes_count ?? 0);
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -29,12 +29,12 @@ export default function PostAsTrackCard({ post }: Props) {
     ? (imgError ? null : post.image_url)
     : (isTrackShare ? post.track?.cover_url : null);
 
+  const currentTrackId = audioState.tracks[audioState.currentTrackIndex]?._id;
   const isPlayingThis =
     isTrackShare &&
     !!post.track?.audio_url &&
-    !!currentTrack &&
-    (currentTrack as any)._id === post.track?.id &&
-    isPlaying;
+    currentTrackId === post.track?.id &&
+    audioState.isPlaying;
 
   const handlePlay = useCallback(
     (e: React.MouseEvent) => {
