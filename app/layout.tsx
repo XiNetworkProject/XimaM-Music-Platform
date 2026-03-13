@@ -107,6 +107,27 @@ export default function RootLayout({
         <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />
         <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
         <AdSenseScript />
+        {/* Mobile debug console (eruda) — activated with ?debug=1 in URL */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                try {
+                  if (typeof window === 'undefined') return;
+                  var p = new URLSearchParams(window.location.search);
+                  if (p.get('debug') === '1' || localStorage.getItem('__eruda') === '1') {
+                    localStorage.setItem('__eruda', '1');
+                    var s = document.createElement('script');
+                    s.src = 'https://cdn.jsdelivr.net/npm/eruda@3.0.1/eruda.min.js';
+                    s.onload = function(){ eruda.init(); };
+                    document.head.appendChild(s);
+                  }
+                  if (p.get('debug') === '0') localStorage.removeItem('__eruda');
+                } catch(e){}
+              })();
+            `,
+          }}
+        />
       </head>
           <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
         <Providers>

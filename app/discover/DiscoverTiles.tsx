@@ -367,9 +367,9 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
   const isThisAlbum = albumContext?.id === album._id;
   const isPlaying = isThisAlbum && audioState.isPlaying;
 
-  // Navigate to album page — play is triggered there synchronously (important for mobile autoplay policy)
   const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     router.push(`/album/${album._id}`);
   };
 

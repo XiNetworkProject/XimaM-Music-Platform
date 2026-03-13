@@ -1179,11 +1179,10 @@ export const useAudioService = () => {
       if (!nextTrack && session && session.user && session.user.id) {
         const recommendedTracks = allTracks.filter(track => 
           track._id !== state.currentTrack?._id && 
-          track.likes.includes(session.user.id)
+          Array.isArray(track.likes) && track.likes.includes(session.user.id)
         );
         if (recommendedTracks.length > 0) {
           nextTrack = recommendedTracks[Math.floor(Math.random() * recommendedTracks.length)];
-          // Recommandation personnalisée sélectionnée
         }
       }
       
@@ -1191,11 +1190,10 @@ export const useAudioService = () => {
       if (!nextTrack) {
         const popularTracks = allTracks.filter(track => 
           track._id !== state.currentTrack?._id && 
-          track.likes.length > 5
+          Array.isArray(track.likes) && track.likes.length > 5
         );
         if (popularTracks.length > 0) {
           nextTrack = popularTracks[Math.floor(Math.random() * popularTracks.length)];
-          // Piste populaire sélectionnée
         }
       }
       
@@ -1204,12 +1202,10 @@ export const useAudioService = () => {
         const availableTracks = allTracks.filter(track => track._id !== state.currentTrack?._id);
         if (availableTracks.length > 0) {
           nextTrack = availableTracks[Math.floor(Math.random() * availableTracks.length)];
-          // Piste aléatoire sélectionnée
         }
       }
       
       if (nextTrack) {
-        // Charger et jouer la nouvelle piste
         if (state.isPlaying) {
           play(nextTrack).catch(() => {});
         } else {
@@ -1217,11 +1213,9 @@ export const useAudioService = () => {
         }
         setCurrentIndex(allTracks.findIndex(track => track._id === nextTrack!._id));
       } else {
-        // Aucune piste disponible pour la lecture
         setState(prev => ({ ...prev, isPlaying: false }));
       }
     } else {
-      // Aucune piste disponible dans la bibliothèque
       setState(prev => ({ ...prev, isPlaying: false }));
     }
   }, [queue, shuffledQueue, currentIndex, shuffle, repeat, state.isPlaying, state.currentTrack, allTracks, loadTrack, play, stop, session]);
@@ -1286,11 +1280,10 @@ export const useAudioService = () => {
       if (!prevTrack && session && session.user && session.user.id) {
         const recommendedTracks = allTracks.filter(track => 
           track._id !== state.currentTrack?._id && 
-          track.likes.includes(session.user.id)
+          Array.isArray(track.likes) && track.likes.includes(session.user.id)
         );
         if (recommendedTracks.length > 0) {
           prevTrack = recommendedTracks[Math.floor(Math.random() * recommendedTracks.length)];
-          // Recommandation personnalisée sélectionnée
         }
       }
       
@@ -1298,11 +1291,10 @@ export const useAudioService = () => {
       if (!prevTrack) {
         const popularTracks = allTracks.filter(track => 
           track._id !== state.currentTrack?._id && 
-          track.likes.length > 5
+          Array.isArray(track.likes) && track.likes.length > 5
         );
         if (popularTracks.length > 0) {
           prevTrack = popularTracks[Math.floor(Math.random() * popularTracks.length)];
-          // Piste populaire sélectionnée
         }
       }
       
@@ -1695,7 +1687,9 @@ export const useAudioService = () => {
       console.log('🎯 Sélection intelligente - Pistes disponibles:', allTracks.length);
       
       // Filtrer les pistes récemment jouées (éviter les répétitions)
-      const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
+      let recentlyPlayed: string[] = [];
+      try { recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]'); } catch {}
+      if (!Array.isArray(recentlyPlayed)) recentlyPlayed = [];
       const avoidTracks = [state.currentTrack?._id, ...recentlyPlayed.slice(-3)].filter(Boolean);
       
       console.log('🚫 Pistes à éviter (récemment jouées):', avoidTracks);
@@ -1730,11 +1724,10 @@ export const useAudioService = () => {
       if (!autoPlayNextTrack && session && session.user && session.user.id) {
         const recommendedTracks = allTracks.filter(track => 
           !avoidTracks.includes(track._id) &&
-          track.likes.includes(session.user.id)
+          Array.isArray(track.likes) && track.likes.includes(session.user.id)
         );
         if (recommendedTracks.length > 0) {
           autoPlayNextTrack = recommendedTracks[Math.floor(Math.random() * recommendedTracks.length)];
-          console.log('Auto-play: Recommandation personnalisée sélectionnée:', autoPlayNextTrack.title);
         }
       }
       
@@ -1742,11 +1735,10 @@ export const useAudioService = () => {
       if (!autoPlayNextTrack) {
         const popularTracks = allTracks.filter(track => 
           !avoidTracks.includes(track._id) &&
-          track.likes.length > 5
+          Array.isArray(track.likes) && track.likes.length > 5
         );
         if (popularTracks.length > 0) {
           autoPlayNextTrack = popularTracks[Math.floor(Math.random() * popularTracks.length)];
-          console.log('Auto-play: Piste populaire sélectionnée:', autoPlayNextTrack.title);
         }
       }
       
@@ -1764,9 +1756,13 @@ export const useAudioService = () => {
         console.log('🎵 Auto-play de la piste suivante:', autoPlayNextTrack.title);
         
         // Mettre à jour l'historique des pistes jouées
-        const recentlyPlayed = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]');
-        const updatedHistory = [...recentlyPlayed, autoPlayNextTrack._id].slice(-10); // Garder les 10 dernières
-        localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+        try {
+          let rp: string[] = [];
+          try { rp = JSON.parse(localStorage.getItem('recentlyPlayed') || '[]'); } catch {}
+          if (!Array.isArray(rp)) rp = [];
+          const updatedHistory = [...rp, autoPlayNextTrack._id].slice(-10);
+          localStorage.setItem('recentlyPlayed', JSON.stringify(updatedHistory));
+        } catch {}
         
         if (!maybePlayAudioAdThen(autoPlayNextTrack)) playImmediate(autoPlayNextTrack);
         setCurrentIndex(allTracks.findIndex(track => track._id === autoPlayNextTrack!._id));
