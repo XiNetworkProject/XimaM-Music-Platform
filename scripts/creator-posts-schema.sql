@@ -7,7 +7,7 @@
 CREATE TABLE IF NOT EXISTS creator_posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   creator_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('text','photo','track_share')),
+  post_type TEXT NOT NULL CHECK (post_type IN ('text','photo','track_share')),
   content TEXT,
   image_url TEXT,
   track_id TEXT,

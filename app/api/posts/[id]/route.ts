@@ -16,7 +16,7 @@ export async function GET(
     const { data: post, error } = await supabaseAdmin
       .from('creator_posts')
       .select(`
-        id, type, content, image_url, track_id,
+        id, post_type, content, image_url, track_id,
         likes_count, comments_count, is_public, created_at, creator_id,
         profiles!creator_posts_creator_id_fkey (
           id, username, name, avatar, is_verified
@@ -30,7 +30,7 @@ export async function GET(
     }
 
     let track = null;
-    if ((post as any).type === 'track_share' && (post as any).track_id) {
+    if ((post as any).post_type === 'track_share' && (post as any).track_id) {
       const { data: t } = await supabaseAdmin
         .from('tracks')
         .select('id, title, artist_name, cover_url, audio_url, duration')
@@ -52,6 +52,7 @@ export async function GET(
 
     return NextResponse.json({
       ...(post as any),
+      type: (post as any).post_type,
       creator: (post as any).profiles,
       track,
       isLiked,

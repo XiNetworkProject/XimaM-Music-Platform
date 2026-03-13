@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       .from('creator_posts')
       .select(`
         id,
-        type,
+        post_type,
         content,
         image_url,
         track_id,
@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     // Enrichir avec les tracks partagées et le statut "liké par l'utilisateur"
     const enriched = await Promise.all((posts || []).map(async (post: any) => {
       let track = null;
-      if (post.type === 'track_share' && post.track_id) {
+      if (post.post_type === 'track_share' && post.track_id) {
         const { data: t } = await supabaseAdmin
           .from('tracks')
           .select('id, title, artist_name, cover_url, audio_url, duration')
@@ -113,6 +113,7 @@ export async function GET(request: NextRequest) {
 
       return {
         ...post,
+        type: post.post_type,
         creator: post.profiles,
         track,
         isLiked,
@@ -158,14 +159,14 @@ export async function POST(request: NextRequest) {
       .from('creator_posts')
       .insert({
         creator_id: session.user.id,
-        type,
+        post_type: type,
         content: content?.trim() || null,
         image_url: image_url || null,
         track_id: track_id || null,
         is_public: true,
       })
       .select(`
-        id, type, content, image_url, track_id,
+        id, post_type, content, image_url, track_id,
         likes_count, comments_count, is_public, created_at, creator_id,
         profiles!creator_posts_creator_id_fkey (
           id, username, name, avatar, is_verified
@@ -179,7 +180,7 @@ export async function POST(request: NextRequest) {
     }
 
     let track = null;
-    if (type === 'track_share' && track_id) {
+    if (type === 'track_share' && track_id && post) {
       const { data: t } = await supabaseAdmin
         .from('tracks')
         .select('id, title, artist_name, cover_url, audio_url, duration')
@@ -190,6 +191,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ...(post as any),
+      type: (post as any).post_type,
       creator: (post as any).profiles,
       track,
       isLiked: false,
