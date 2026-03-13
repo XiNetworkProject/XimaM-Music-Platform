@@ -209,7 +209,7 @@ export async function POST(
 
       const { error: viewError } = await supabaseAdmin
         .from('track_views')
-        .insert(insertPayload);
+        .upsert(insertPayload, { onConflict: 'user_id,track_id,viewed_date', ignoreDuplicates: true });
       if (viewError) {
         console.warn('⚠️ Erreur insertion track_views:', viewError);
       }
