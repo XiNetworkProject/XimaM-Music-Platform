@@ -533,30 +533,27 @@ export const useAudioService = () => {
 
 
   const updateNotification = useCallback(() => {
-    if (!('serviceWorker' in navigator) || !state.currentTrack || notificationPermission !== 'granted') {
-      // Notification non envoyée
-      return;
-    }
+    if (!state.currentTrack || notificationPermission !== 'granted') return;
 
-    // Envoi notification
-    const notification = new Notification('XimaM', {
-      body: `Lecture de ${state.currentTrack?.title} par ${state.currentTrack?.artist?.name || state.currentTrack?.artist?.username}`,
-      icon: '/android-chrome-192x192.png',
-      badge: '/android-chrome-192x192.png',
-      tag: 'ximam-track',
-      requireInteraction: false,
-      silent: false
-    });
-    
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
-    
-    // Auto-fermeture après 5 secondes
-    setTimeout(() => {
-      notification.close();
-    }, 5000);
+    try {
+      const body = `Lecture de ${state.currentTrack?.title} par ${state.currentTrack?.artist?.name || state.currentTrack?.artist?.username}`;
+      const opts = {
+        body,
+        icon: '/android-chrome-192x192.png',
+        badge: '/android-chrome-192x192.png',
+        tag: 'ximam-track',
+        requireInteraction: false,
+        silent: true,
+      };
+
+      // Mobile (Android Chrome): new Notification() throws "Illegal constructor",
+      // must use ServiceWorkerRegistration.showNotification() instead.
+      if ('serviceWorker' in navigator && navigator.serviceWorker.ready) {
+        navigator.serviceWorker.ready
+          .then((reg) => reg.showNotification('Synaura', opts))
+          .catch(() => {});
+      }
+    } catch {}
   }, [state.currentTrack, notificationPermission]);
 
   const loadTrack = useCallback(async (track: Track) => {
