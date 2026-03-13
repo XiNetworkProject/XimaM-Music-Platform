@@ -32,7 +32,7 @@ import LikeButton from '@/components/LikeButton';
 import AdSlot from '@/components/AdSlot';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
-import CreatorFeed from '@/components/CreatorFeed';
+import PostInlineStrip from '@/components/PostInlineStrip';
 
 interface Track {
   _id: string;
@@ -1885,6 +1885,9 @@ export default function SynauraHome() {
           </div>
         </div>
 
+        {/* Posts créateurs — inline entre sections */}
+        <PostInlineStrip count={2} label="Du côté des créateurs" />
+
         {/* Sélection du jour */}
         {!loading && dailyPicks.length > 0 && (
           <section>
@@ -2383,6 +2386,9 @@ export default function SynauraHome() {
           </section>
         )}
 
+        {/* Post inline entre albums et playlists */}
+        <PostInlineStrip count={1} />
+
         {/* Playlists populaires */}
         {guestPlaylists.length > 0 && (
           <section>
@@ -2460,12 +2466,6 @@ export default function SynauraHome() {
             </div>
           </section>
         )}
-
-        {/* Fil des créateurs */}
-        <section>
-          <SectionTitle title="Fil des créateurs" />
-          <CreatorFeed showComposer={!!session} compact={true} />
-        </section>
 
         {/* En direct */}
         <section>

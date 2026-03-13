@@ -398,7 +398,6 @@ export default function SynauraProfile() {
         <CreatorFeed
           creatorId={profile.id}
           showComposer={isOwnProfile}
-          compact={isOwnProfile}
         />
       </div>
 

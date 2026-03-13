@@ -2,7 +2,7 @@
 
 import React, { memo, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Heart, MessageCircle, MoreHorizontal, Trash2, Play, Pause, Music2, Image as ImageIcon } from 'lucide-react';
+import { Heart, MessageCircle, MoreHorizontal, Trash2, Play, Pause, Music2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -47,6 +47,8 @@ interface PostCardProps {
   post: Post;
   onDelete?: (postId: string) => void;
   onCommentClick?: (post: Post) => void;
+  /** compact = card horizontale pour affichage inline entre sections */
+  compact?: boolean;
 }
 
 const fmtCount = (n: number) => {
@@ -55,42 +57,53 @@ const fmtCount = (n: number) => {
   return String(n);
 };
 
-const PostCard = memo(function PostCard({ post, onDelete, onCommentClick }: PostCardProps) {
+function Avatar({ creator, size = 'md' }: { creator: PostCreator; size?: 'sm' | 'md' }) {
+  const url = creator.avatar ? getCdnUrl(creator.avatar) || creator.avatar : null;
+  const cls = size === 'sm' ? 'w-7 h-7 text-[11px]' : 'w-9 h-9 text-sm';
+  if (url) {
+    return (
+      <img
+        src={url}
+        alt=""
+        className={`${cls} rounded-full object-cover ring-2 ring-white/10 shrink-0`}
+        onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+      />
+    );
+  }
+  return (
+    <div className={`${cls} rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0`}>
+      {(creator.name || creator.username || '?')[0].toUpperCase()}
+    </div>
+  );
+}
+
+const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compact = false }: PostCardProps) {
   const { data: session } = useSession();
   const { playTrack, audioState } = useAudioPlayer();
   const [liked, setLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likes_count);
   const [showMenu, setShowMenu] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [imgError, setImgError] = useState(false);
 
   const currentTrackId = audioState.tracks[audioState.currentTrackIndex]?._id;
   const isPlayingThis = post.track && currentTrackId === post.track.id && audioState.isPlaying;
-
   const isOwn = (session?.user as any)?.id === post.creator.id ||
     (session?.user as any)?.username === post.creator.username;
 
-  const avatarUrl = post.creator.avatar ? getCdnUrl(post.creator.avatar) || post.creator.avatar : null;
-
   const timeAgo = (() => {
-    try {
-      return formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr });
-    } catch {
-      return '';
-    }
+    try { return formatDistanceToNow(new Date(post.created_at), { addSuffix: true, locale: fr }); }
+    catch { return ''; }
   })();
 
   const handleLike = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!session) { notify.error('', 'Connecte-toi pour liker'); return; }
-
     const wasLiked = liked;
     setLiked(!wasLiked);
     setLikesCount(c => wasLiked ? Math.max(0, c - 1) : c + 1);
-
     try {
-      const res = await fetch(`/api/posts/${post.id}/like`, {
-        method: wasLiked ? 'DELETE' : 'POST',
-      });
+      const res = await fetch(`/api/posts/${post.id}/like`, { method: wasLiked ? 'DELETE' : 'POST' });
       if (!res.ok && res.status !== 409) {
         setLiked(wasLiked);
         setLikesCount(c => wasLiked ? c + 1 : Math.max(0, c - 1));
@@ -106,201 +119,255 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick }: Post
     setShowMenu(false);
     try {
       const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
-      if (res.ok) {
-        onDelete?.(post.id);
-        notify.success('', 'Post supprimé');
-      } else {
-        notify.error('', 'Impossible de supprimer ce post');
-      }
-    } catch {
-      notify.error('', 'Erreur réseau');
-    }
+      if (res.ok) { onDelete?.(post.id); notify.success('', 'Post supprimé'); }
+      else notify.error('', 'Impossible de supprimer');
+    } catch { notify.error('', 'Erreur réseau'); }
   }, [post.id, onDelete]);
 
   const handlePlayTrack = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     if (!post.track?.audio_url) return;
-    const trackData = {
-      _id: post.track.id,
-      title: post.track.title,
+    playTrack({
+      _id: post.track.id, title: post.track.title,
       artist: { _id: '', name: post.track.artist_name || 'Artiste', username: '' },
-      audioUrl: post.track.audio_url,
-      coverUrl: post.track.cover_url,
-      duration: post.track.duration || 0,
-      likes: 0,
-      plays: 0,
-    };
-    playTrack(trackData as any);
+      audioUrl: post.track.audio_url, coverUrl: post.track.cover_url,
+      duration: post.track.duration || 0, likes: 0, plays: 0,
+    } as any);
   }, [post.track, playTrack]);
 
-  return (
-    <div className="bg-white/[0.03] border border-white/[0.06] rounded-2xl overflow-hidden hover:border-white/[0.1] transition-all duration-200">
-      {/* Header */}
-      <div className="flex items-center gap-3 p-4 pb-3">
-        <Link href={`/profile/${post.creator.username}`} className="shrink-0" onClick={e => e.stopPropagation()}>
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={post.creator.name || post.creator.username}
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-white/[0.06]"
-              onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
-              {(post.creator.name || post.creator.username || '?')[0].toUpperCase()}
-            </div>
-          )}
+  /* ── COMPACT (inline entre sections) ── */
+  if (compact) {
+    return (
+      <div className="relative flex gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] transition-all duration-200 overflow-hidden group">
+        {/* Accent line */}
+        <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-gradient-to-b from-violet-500 to-indigo-500 opacity-60" />
+
+        <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()} className="shrink-0 mt-0.5">
+          <Avatar creator={post.creator} size="sm" />
         </Link>
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <Link
-              href={`/profile/${post.creator.username}`}
-              className="text-[14px] font-semibold text-white/90 hover:text-white truncate transition-colors"
-              onClick={e => e.stopPropagation()}
-            >
+          <div className="flex items-center gap-1.5 mb-1">
+            <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()} className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors truncate">
               {post.creator.name || post.creator.username}
             </Link>
-            {post.creator.is_verified && (
-              <svg className="w-3.5 h-3.5 text-violet-400 shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            )}
+            <span className="text-[11px] text-white/20 shrink-0">{timeAgo}</span>
           </div>
-          <p className="text-[12px] text-white/30 tabular-nums">{timeAgo}</p>
+
+          {post.content && (
+            <p className="text-[13px] text-white/60 line-clamp-2 leading-snug">{post.content}</p>
+          )}
+
+          {post.type === 'photo' && post.image_url && !imgError && (
+            <img src={post.image_url} alt="" className="mt-2 h-14 w-auto rounded-lg object-cover" onError={() => setImgError(true)} />
+          )}
+
+          {post.type === 'track_share' && post.track && (
+            <div className="mt-2 flex items-center gap-2">
+              <Music2 className="w-3.5 h-3.5 text-violet-400 shrink-0" />
+              <span className="text-[12px] text-violet-300/70 truncate">{post.track.title}</span>
+              <button onClick={handlePlayTrack} className="ml-auto shrink-0 w-6 h-6 rounded-full bg-violet-500/30 flex items-center justify-center hover:bg-violet-500/50 transition-all">
+                {isPlayingThis ? <Pause className="w-2.5 h-2.5 text-white" /> : <Play className="w-2.5 h-2.5 text-white ml-px" />}
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Menu */}
-        <div className="relative shrink-0">
-          <button
-            onClick={e => { e.stopPropagation(); setShowMenu(v => !v); }}
-            className="p-1.5 rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.06] transition-all"
-          >
-            <MoreHorizontal className="w-4 h-4" />
-          </button>
-          <AnimatePresence>
-            {showMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: -5 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -5 }}
-                  transition={{ duration: 0.1 }}
-                  className="absolute right-0 top-8 z-50 min-w-[140px] rounded-xl bg-[#16161e] border border-white/[0.08] shadow-2xl overflow-hidden"
-                >
-                  {isOwn && (
-                    <button
-                      onClick={handleDelete}
-                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-400 hover:bg-red-500/10 transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      Supprimer
-                    </button>
-                  )}
-                  {!isOwn && (
-                    <button
-                      onClick={() => setShowMenu(false)}
-                      className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-white/50 hover:bg-white/[0.05] transition-colors"
-                    >
-                      Signaler
-                    </button>
-                  )}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
-        </div>
+        <button onClick={handleLike} className={`self-start shrink-0 flex items-center gap-1 text-[11px] font-medium transition-all ${liked ? 'text-rose-400' : 'text-white/20 hover:text-white/40'}`}>
+          <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
+          {likesCount > 0 && fmtCount(likesCount)}
+        </button>
       </div>
+    );
+  }
 
-      {/* Content */}
-      <div className="px-4 pb-3">
-        {/* Text */}
-        {post.content && (
-          <p className="text-[14px] text-white/80 leading-relaxed whitespace-pre-wrap break-words">
+  /* ── FULL CARD ── */
+
+  /* TEXT POST */
+  if (post.type === 'text') {
+    return (
+      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
+        {/* Subtle gradient top accent */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
+
+        <div className="p-4">
+          {/* Header */}
+          <div className="flex items-center gap-2.5 mb-3">
+            <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()}>
+              <Avatar creator={post.creator} />
+            </Link>
+            <div className="flex-1 min-w-0">
+              <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()} className="text-[13px] font-semibold text-white/85 hover:text-white transition-colors truncate block">
+                {post.creator.name || post.creator.username}
+              </Link>
+              <span className="text-[11px] text-white/25">{timeAgo}</span>
+            </div>
+            <PostMenu isOwn={isOwn} showMenu={showMenu} setShowMenu={setShowMenu} onDelete={handleDelete} />
+          </div>
+
+          {/* Text */}
+          <p className="text-[15px] text-white/80 leading-relaxed whitespace-pre-wrap break-words font-[450]">
             {post.content}
           </p>
-        )}
+        </div>
 
-        {/* Photo */}
-        {post.type === 'photo' && post.image_url && !imgError && (
-          <div className={`${post.content ? 'mt-3' : ''} rounded-xl overflow-hidden`}>
+        <PostActions liked={liked} likesCount={likesCount} commentsCount={post.comments_count}
+          onLike={handleLike} onComment={() => onCommentClick?.(post)} />
+      </div>
+    );
+  }
+
+  /* PHOTO POST */
+  if (post.type === 'photo') {
+    return (
+      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
+        {/* Photo full-width */}
+        {post.image_url && !imgError && (
+          <div className="relative">
             <img
               src={post.image_url}
-              alt="Post photo"
-              className="w-full object-cover max-h-[500px]"
+              alt=""
+              className={`w-full object-cover max-h-[420px] transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+              onLoad={() => setImgLoaded(true)}
               onError={() => setImgError(true)}
             />
-          </div>
-        )}
-        {post.type === 'photo' && imgError && (
-          <div className="mt-3 rounded-xl bg-white/[0.03] border border-white/[0.06] h-32 flex items-center justify-center">
-            <ImageIcon className="w-8 h-8 text-white/20" />
+            {!imgLoaded && <div className="w-full h-48 bg-white/[0.04] animate-pulse" />}
+
+            {/* Author overlay on photo */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-black/50 backdrop-blur-md border border-white/[0.08]">
+              <Avatar creator={post.creator} size="sm" />
+              <span className="text-[12px] font-semibold text-white/90">{post.creator.name || post.creator.username}</span>
+            </div>
+
+            <div className="absolute top-3 right-3">
+              <PostMenu isOwn={isOwn} showMenu={showMenu} setShowMenu={setShowMenu} onDelete={handleDelete}
+                btnClass="bg-black/50 backdrop-blur-md border border-white/[0.08]" />
+            </div>
           </div>
         )}
 
-        {/* Track share */}
-        {post.type === 'track_share' && post.track && (
-          <div className={`${post.content ? 'mt-3' : ''} flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06] hover:border-white/[0.1] transition-colors group`}>
-            <div className="shrink-0 relative">
-              <TrackCover
-                src={post.track.cover_url || null}
-                title={post.track.title}
-                className="w-12 h-12"
-                rounded="rounded-lg"
-                objectFit="cover"
-              />
+        {/* Caption */}
+        {post.content && (
+          <p className="px-4 pt-3 pb-1 text-[14px] text-white/70 leading-relaxed">{post.content}</p>
+        )}
+
+        <PostActions liked={liked} likesCount={likesCount} commentsCount={post.comments_count}
+          onLike={handleLike} onComment={() => onCommentClick?.(post)}
+          extra={<span className="text-[11px] text-white/20">{timeAgo}</span>} />
+      </div>
+    );
+  }
+
+  /* TRACK SHARE POST */
+  return (
+    <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
+      <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
+
+      {/* Track hero */}
+      {post.track && (
+        <div className="relative overflow-hidden">
+          {/* Blurred cover background */}
+          {post.track.cover_url && (
+            <div className="absolute inset-0 overflow-hidden">
+              <img src={post.track.cover_url} alt="" className="w-full h-full object-cover blur-2xl scale-150 opacity-20" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/40 to-[#0d0d18]" />
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-semibold text-white/90 truncate">{post.track.title}</p>
+          )}
+          <div className="relative flex items-center gap-4 p-4">
+            <div className="shrink-0 relative">
+              <TrackCover src={post.track.cover_url || null} title={post.track.title}
+                className="w-16 h-16 shadow-2xl" rounded="rounded-xl" objectFit="cover" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-bold text-white truncate">{post.track.title}</p>
               <p className="text-[12px] text-white/40 truncate">{post.track.artist_name || 'Artiste inconnu'}</p>
             </div>
-            <button
-              onClick={handlePlayTrack}
-              className="shrink-0 w-9 h-9 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-lg shadow-white/10 active:scale-95"
-              aria-label={isPlayingThis ? 'Pause' : 'Écouter'}
-            >
-              {isPlayingThis
-                ? <Pause className="w-3.5 h-3.5" />
-                : <Play className="w-3.5 h-3.5 ml-0.5" />
-              }
+            <button onClick={handlePlayTrack}
+              className="shrink-0 w-11 h-11 rounded-full bg-white text-black flex items-center justify-center hover:scale-105 transition-all shadow-xl shadow-white/10 active:scale-95">
+              {isPlayingThis ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Track share sans données */}
-        {post.type === 'track_share' && !post.track && (
-          <div className={`${post.content ? 'mt-3' : ''} flex items-center gap-3 p-3 rounded-xl bg-white/[0.04] border border-white/[0.06]`}>
-            <Music2 className="w-5 h-5 text-white/20 shrink-0" />
-            <span className="text-[13px] text-white/30">Musique indisponible</span>
-          </div>
-        )}
+      {/* Author + caption */}
+      <div className="px-4 pt-2 pb-0 flex items-center gap-2.5">
+        <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()}>
+          <Avatar creator={post.creator} size="sm" />
+        </Link>
+        <div className="flex-1 min-w-0">
+          <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()} className="text-[12px] font-semibold text-white/60 hover:text-white/90 transition-colors">
+            {post.creator.name || post.creator.username}
+          </Link>
+          {post.content && <p className="text-[13px] text-white/55 mt-0.5">{post.content}</p>}
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] text-white/20">{timeAgo}</span>
+          <PostMenu isOwn={isOwn} showMenu={showMenu} setShowMenu={setShowMenu} onDelete={handleDelete} />
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 px-3 pb-3 border-t border-white/[0.04] pt-3">
-        <button
-          onClick={handleLike}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all active:scale-95 text-[13px] font-medium ${
-            liked
-              ? 'text-rose-400 bg-rose-500/10'
-              : 'text-white/30 hover:text-white/60 hover:bg-white/[0.05]'
-          }`}
-        >
-          <Heart className={`w-4 h-4 ${liked ? 'fill-current' : ''}`} />
-          {likesCount > 0 && <span className="tabular-nums">{fmtCount(likesCount)}</span>}
-        </button>
-
-        <button
-          onClick={e => { e.stopPropagation(); onCommentClick?.(post); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.05] transition-all active:scale-95 text-[13px] font-medium"
-        >
-          <MessageCircle className="w-4 h-4" />
-          {post.comments_count > 0 && <span className="tabular-nums">{fmtCount(post.comments_count)}</span>}
-        </button>
-      </div>
+      <PostActions liked={liked} likesCount={likesCount} commentsCount={post.comments_count}
+        onLike={handleLike} onComment={() => onCommentClick?.(post)} />
     </div>
   );
 });
+
+/* ── Sub-components ── */
+
+function PostMenu({ isOwn, showMenu, setShowMenu, onDelete, btnClass = '' }: {
+  isOwn: boolean; showMenu: boolean; setShowMenu: (v: boolean) => void;
+  onDelete: () => void; btnClass?: string;
+}) {
+  return (
+    <div className="relative shrink-0">
+      <button onClick={e => { e.stopPropagation(); setShowMenu(!showMenu); }}
+        className={`p-1.5 rounded-full text-white/20 hover:text-white/50 hover:bg-white/[0.06] transition-all ${btnClass}`}>
+        <MoreHorizontal className="w-4 h-4" />
+      </button>
+      <AnimatePresence>
+        {showMenu && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: -5 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }} transition={{ duration: 0.1 }}
+              className="absolute right-0 top-8 z-50 min-w-[140px] rounded-xl bg-[#14141f] border border-white/[0.08] shadow-2xl overflow-hidden">
+              {isOwn ? (
+                <button onClick={onDelete} className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-red-400 hover:bg-red-500/10 transition-colors">
+                  <Trash2 className="w-3.5 h-3.5" /> Supprimer
+                </button>
+              ) : (
+                <button onClick={() => setShowMenu(false)} className="flex items-center gap-2.5 w-full px-3.5 py-2.5 text-[13px] text-white/40 hover:bg-white/[0.04] transition-colors">
+                  Signaler
+                </button>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function PostActions({ liked, likesCount, commentsCount, onLike, onComment, extra }: {
+  liked: boolean; likesCount: number; commentsCount: number;
+  onLike: (e: React.MouseEvent) => void; onComment: () => void; extra?: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-1 px-3 py-2.5 border-t border-white/[0.04] mt-1">
+      <button onClick={onLike}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all active:scale-95 text-[12px] font-medium ${liked ? 'text-rose-400 bg-rose-500/10' : 'text-white/25 hover:text-white/50 hover:bg-white/[0.04]'}`}>
+        <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
+        {likesCount > 0 && <span className="tabular-nums">{fmtCount(likesCount)}</span>}
+      </button>
+      <button onClick={e => { e.stopPropagation(); onComment(); }}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white/25 hover:text-white/50 hover:bg-white/[0.04] transition-all active:scale-95 text-[12px] font-medium">
+        <MessageCircle className="w-3.5 h-3.5" />
+        {commentsCount > 0 && <span className="tabular-nums">{fmtCount(commentsCount)}</span>}
+      </button>
+      {extra && <div className="ml-auto">{extra}</div>}
+    </div>
+  );
+}
 
 export default PostCard;

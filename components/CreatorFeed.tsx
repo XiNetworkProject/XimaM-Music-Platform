@@ -10,10 +10,9 @@ import PostCommentsSheet from '@/components/PostCommentsSheet';
 interface CreatorFeedProps {
   creatorId?: string;
   showComposer?: boolean;
-  compact?: boolean;
 }
 
-export default function CreatorFeed({ creatorId, showComposer = true, compact = false }: CreatorFeedProps) {
+export default function CreatorFeed({ creatorId, showComposer = true }: CreatorFeedProps) {
   const { data: session } = useSession();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
@@ -101,10 +100,7 @@ export default function CreatorFeed({ creatorId, showComposer = true, compact = 
       <div className="space-y-3">
         {/* Composer */}
         {showComposer && session && (
-          <PostComposer
-            onPostCreated={handlePostCreated}
-            compact={compact}
-          />
+          <PostComposer onPostCreated={handlePostCreated} />
         )}
 
         {/* Loading state */}
