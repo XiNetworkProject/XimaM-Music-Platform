@@ -55,7 +55,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
   };
 
   const close = useCallback(() => {
-    if (preventCloseRef.current || uploading) return;
+    if (preventCloseRef.current) return;
     setStep('idle');
     setContent('');
     setImageUrl(null);
@@ -63,7 +63,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     setSelectedTrack(null);
     setMode('text');
     setTrackSearch('');
-  }, [uploading]);
+  }, []);
 
   useEffect(() => {
     if (step === 'compose') {
@@ -91,17 +91,14 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
   }, [loadingTracks, userTracks.length]);
 
   const triggerImagePicker = useCallback(() => {
-    // Bloque toute fermeture pendant 800ms après l'ouverture du file picker
     preventCloseRef.current = true;
     fileInputRef.current?.click();
-    setTimeout(() => { preventCloseRef.current = false; }, 800);
   }, []);
 
   const handleImagePick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    // Maintenir le verrou pendant tout l'upload
-    preventCloseRef.current = true;
     if (!file) { preventCloseRef.current = false; return; }
+
     if (!file.type.startsWith('image/')) {
       notify.error('', 'Seules les images sont acceptées');
       preventCloseRef.current = false;
@@ -112,12 +109,21 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
       preventCloseRef.current = false;
       return;
     }
-    // Afficher la prévisualisation immédiatement
+
+    // Lire le fichier localement d'abord, puis ouvrir la sheet
+    // → la sheet n'existe PAS encore pendant que le file picker était ouvert
+    //   donc aucun "fantôme de clic" ne peut toucher le backdrop
     const reader = new FileReader();
-    reader.onload = ev => setImagePreview(ev.target?.result as string);
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      setImagePreview(dataUrl);
+      setMode('photo');
+      setStep('compose');
+      // Libérer le verrou légèrement après l'ouverture de la sheet
+      setTimeout(() => { preventCloseRef.current = false; }, 300);
+    };
     reader.readAsDataURL(file);
-    setMode('photo');
-    setStep('compose');
+
     setUploading(true);
     try {
       const fd = new FormData();
@@ -127,19 +133,14 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
       if (res.ok && data.url) {
         setImageUrl(data.url);
       } else {
+        // On garde le preview visible — l'utilisateur peut réessayer ou l'enlever manuellement
         notify.error('', data.error || 'Erreur upload image');
-        setImagePreview(null);
-        setMode('text');
       }
     } catch {
-      notify.error('', 'Erreur réseau');
-      setImagePreview(null);
-      setMode('text');
+      notify.error('', 'Erreur réseau — réessaie');
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      // Libérer le verrou après un court délai (laisse les événements fantômes passer)
-      setTimeout(() => { preventCloseRef.current = false; }, 400);
     }
   }, []);
 
@@ -200,7 +201,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
             className="p-2 rounded-xl text-white/25 hover:text-violet-300 hover:bg-violet-500/10 transition-all">
             <Pencil className="w-4 h-4" />
           </button>
-          <button onClick={() => { setStep('compose'); setMode('photo'); triggerImagePicker(); }}
+          <button onClick={triggerImagePicker}
             title="Photo"
             className="p-2 rounded-xl text-white/25 hover:text-blue-300 hover:bg-blue-500/10 transition-all">
             <ImageIcon className="w-4 h-4" />
