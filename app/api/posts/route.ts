@@ -92,12 +92,25 @@ export async function GET(request: NextRequest) {
     const enriched = await Promise.all((posts || []).map(async (post: any) => {
       let track = null;
       if (post.post_type === 'track_share' && post.track_id) {
-        const { data: t } = await supabaseAdmin
+        const { data: t, error: trackErr } = await supabaseAdmin
           .from('tracks')
-          .select('id, title, artist_name, cover_url, audio_url, duration')
+          .select('*')
           .eq('id', post.track_id)
-          .single();
-        if (t) track = t;
+          .maybeSingle();
+        if (trackErr) console.error('[posts] track fetch error:', trackErr);
+        if (t) {
+          const artistName = (t as any).artist_name
+            || (t as any).creator_name
+            || 'Artiste inconnu';
+          track = {
+            id: (t as any).id,
+            title: (t as any).title,
+            artist_name: artistName,
+            cover_url: (t as any).cover_url,
+            audio_url: (t as any).audio_url,
+            duration: (t as any).duration,
+          };
+        }
       }
 
       let isLiked = false;
@@ -181,12 +194,25 @@ export async function POST(request: NextRequest) {
 
     let track = null;
     if (type === 'track_share' && track_id && post) {
-      const { data: t } = await supabaseAdmin
+      const { data: t, error: trackErr } = await supabaseAdmin
         .from('tracks')
-        .select('id, title, artist_name, cover_url, audio_url, duration')
+        .select('*')
         .eq('id', track_id)
-        .single();
-      if (t) track = t;
+        .maybeSingle();
+      if (trackErr) console.error('[posts] track fetch error (POST):', trackErr);
+      if (t) {
+        const artistName = (t as any).artist_name
+          || (t as any).creator_name
+          || 'Artiste inconnu';
+        track = {
+          id: (t as any).id,
+          title: (t as any).title,
+          artist_name: artistName,
+          cover_url: (t as any).cover_url,
+          audio_url: (t as any).audio_url,
+          duration: (t as any).duration,
+        };
+      }
     }
 
     return NextResponse.json({

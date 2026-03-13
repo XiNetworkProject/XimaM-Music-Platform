@@ -76,10 +76,11 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
       const data = await res.json();
       const tracks = Array.isArray(data?.tracks) ? data.tracks : Array.isArray(data) ? data : [];
       setUserTracks(tracks.map((t: any) => ({
-        id: t._id || t.id, title: t.title,
-        artist_name: t.artist?.name || t.artist_name || t.creator_name,
-        cover_url: t.coverUrl || t.cover_url,
-        audio_url: t.audioUrl || t.audio_url,
+        id: t.id || t._id,
+        title: t.title,
+        artist_name: t.artist?.name || t.artist_name || t.creator_name || '',
+        cover_url: t.cover_url || t.coverUrl || null,
+        audio_url: t.audio_url || t.audioUrl || null,
         duration: t.duration,
       })));
     } catch { /* ignore */ }

@@ -31,12 +31,25 @@ export async function GET(
 
     let track = null;
     if ((post as any).post_type === 'track_share' && (post as any).track_id) {
-      const { data: t } = await supabaseAdmin
+      const { data: t, error: trackErr } = await supabaseAdmin
         .from('tracks')
-        .select('id, title, artist_name, cover_url, audio_url, duration')
+        .select('*')
         .eq('id', (post as any).track_id)
-        .single();
-      if (t) track = t;
+        .maybeSingle();
+      if (trackErr) console.error('[posts/id] track fetch error:', trackErr);
+      if (t) {
+        const artistName = (t as any).artist_name
+          || (t as any).creator_name
+          || 'Artiste inconnu';
+        track = {
+          id: (t as any).id,
+          title: (t as any).title,
+          artist_name: artistName,
+          cover_url: (t as any).cover_url,
+          audio_url: (t as any).audio_url,
+          duration: (t as any).duration,
+        };
+      }
     }
 
     let isLiked = false;
