@@ -17,10 +17,7 @@ export async function GET(
 
     let query = supabaseAdmin
       .from('post_comments')
-      .select(`
-        id, content, created_at, user_id,
-        profiles ( id, username, name, avatar, is_verified )
-      `)
+      .select('id, content, created_at, user_id')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
       .limit(limit);
@@ -36,12 +33,23 @@ export async function GET(
       return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 
+    // Récupérer les profils des auteurs séparément
+    const userIds = [...new Set((comments || []).map((c: any) => c.user_id).filter(Boolean))];
+    let profilesMap: Record<string, any> = {};
+    if (userIds.length > 0) {
+      const { data: profilesData } = await supabaseAdmin
+        .from('profiles')
+        .select('id, username, name, avatar, is_verified')
+        .in('id', userIds);
+      (profilesData || []).forEach((p: any) => { profilesMap[p.id] = p; });
+    }
+
     const formatted = (comments || []).map((c: any) => ({
       id: c.id,
       content: c.content,
       created_at: c.created_at,
       user_id: c.user_id,
-      user: c.profiles ?? { id: c.user_id, username: 'utilisateur', name: null, avatar: null },
+      user: profilesMap[c.user_id] ?? { id: c.user_id, username: 'utilisateur', name: null, avatar: null },
     }));
 
     const nextCursor = formatted.length === limit
@@ -77,10 +85,7 @@ export async function POST(
     const { data: comment, error } = await supabaseAdmin
       .from('post_comments')
       .insert({ post_id: postId, user_id: userId, content: content.trim() })
-      .select(`
-        id, content, created_at, user_id,
-        profiles ( id, username, name, avatar, is_verified )
-      `)
+      .select('id, content, created_at, user_id')
       .single();
 
     if (error) {
@@ -108,12 +113,24 @@ export async function POST(
       }
     }
 
+    // Récupérer le profil de l'auteur séparément
+    const { data: authorProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, username, name, avatar, is_verified')
+      .eq('id', userId)
+      .single();
+
     return NextResponse.json({
       id: (comment as any).id,
       content: (comment as any).content,
       created_at: (comment as any).created_at,
       user_id: (comment as any).user_id,
-      user: (comment as any).profiles ?? { id: userId, username: (session.user as any)?.username || 'utilisateur', name: session.user?.name || null, avatar: session.user?.image || null },
+      user: authorProfile ?? {
+        id: userId,
+        username: (session.user as any)?.username || session.user?.name || 'utilisateur',
+        name: session.user?.name || null,
+        avatar: session.user?.image || null,
+      },
     }, { status: 201 });
   } catch (e) {
     console.error('[posts/comments] POST error:', e);
