@@ -1182,8 +1182,6 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     }, [onClose, setCurrentTrackIndex, setTracks]),
   });
 
-  const close = scrollSnap.onClose as unknown as () => void;
-  // Re-extract for the keyboard hook (the hook uses onClose from opts)
   const closeHandler = useCallback(() => {
     if (prevQueueRef.current && !changedTrackRef.current) {
       try {
