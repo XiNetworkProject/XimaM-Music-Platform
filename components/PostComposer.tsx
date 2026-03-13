@@ -37,6 +37,8 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
   const [trackSearch, setTrackSearch] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Empêche la fermeture du sheet pendant/juste après un pick de fichier
+  const preventCloseRef = useRef(false);
 
   const avatarUrl = (session?.user as any)?.image
     ? getCdnUrl((session?.user as any).image) || (session?.user as any).image
@@ -52,7 +54,8 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     }
   };
 
-  const close = () => {
+  const close = useCallback(() => {
+    if (preventCloseRef.current || uploading) return;
     setStep('idle');
     setContent('');
     setImageUrl(null);
@@ -60,7 +63,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     setSelectedTrack(null);
     setMode('text');
     setTrackSearch('');
-  };
+  }, [uploading]);
 
   useEffect(() => {
     if (step === 'compose') {
@@ -87,24 +90,57 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
     finally { setLoadingTracks(false); }
   }, [loadingTracks, userTracks.length]);
 
+  const triggerImagePicker = useCallback(() => {
+    // Bloque toute fermeture pendant 800ms après l'ouverture du file picker
+    preventCloseRef.current = true;
+    fileInputRef.current?.click();
+    setTimeout(() => { preventCloseRef.current = false; }, 800);
+  }, []);
+
   const handleImagePick = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { notify.error('', 'Seules les images sont acceptées'); return; }
-    if (file.size > 5 * 1024 * 1024) { notify.error('', 'Image trop volumineuse (max 5MB)'); return; }
+    // Maintenir le verrou pendant tout l'upload
+    preventCloseRef.current = true;
+    if (!file) { preventCloseRef.current = false; return; }
+    if (!file.type.startsWith('image/')) {
+      notify.error('', 'Seules les images sont acceptées');
+      preventCloseRef.current = false;
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      notify.error('', 'Image trop volumineuse (max 5MB)');
+      preventCloseRef.current = false;
+      return;
+    }
+    // Afficher la prévisualisation immédiatement
     const reader = new FileReader();
-    reader.onload = e => setImagePreview(e.target?.result as string);
+    reader.onload = ev => setImagePreview(ev.target?.result as string);
     reader.readAsDataURL(file);
+    setMode('photo');
+    setStep('compose');
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
       const res = await fetch('/api/posts/upload-image', { method: 'POST', body: fd });
       const data = await res.json();
-      if (res.ok && data.url) { setImageUrl(data.url); setMode('photo'); }
-      else { notify.error('', data.error || 'Erreur upload image'); setImagePreview(null); }
-    } catch { notify.error('', 'Erreur réseau'); setImagePreview(null); }
-    finally { setUploading(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+      if (res.ok && data.url) {
+        setImageUrl(data.url);
+      } else {
+        notify.error('', data.error || 'Erreur upload image');
+        setImagePreview(null);
+        setMode('text');
+      }
+    } catch {
+      notify.error('', 'Erreur réseau');
+      setImagePreview(null);
+      setMode('text');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      // Libérer le verrou après un court délai (laisse les événements fantômes passer)
+      setTimeout(() => { preventCloseRef.current = false; }, 400);
+    }
   }, []);
 
   const handleTrackSelect = (track: UserTrack) => {
@@ -164,7 +200,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
             className="p-2 rounded-xl text-white/25 hover:text-violet-300 hover:bg-violet-500/10 transition-all">
             <Pencil className="w-4 h-4" />
           </button>
-          <button onClick={() => { setStep('compose'); setMode('photo'); fileInputRef.current?.click(); }}
+          <button onClick={() => { setStep('compose'); setMode('photo'); triggerImagePicker(); }}
             title="Photo"
             className="p-2 rounded-xl text-white/25 hover:text-blue-300 hover:bg-blue-500/10 transition-all">
             <ImageIcon className="w-4 h-4" />
@@ -207,7 +243,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
                     return (
                       <button key={m} onClick={() => {
                         if (m === 'track_share') { setStep('track_picker'); loadUserTracks(); }
-                        else if (m === 'photo') { fileInputRef.current?.click(); }
+                        else if (m === 'photo') { triggerImagePicker(); }
                         else setMode(m);
                       }}
                         className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[12px] font-medium transition-all ${
