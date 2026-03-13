@@ -29,15 +29,7 @@ export async function POST(
       return NextResponse.json({ error: 'Erreur like' }, { status: 500 });
     }
 
-    // Incrémenter le compteur
-    await supabaseAdmin.rpc('increment_post_likes', { post_id_arg: postId }).catch(() => {
-      supabaseAdmin
-        .from('creator_posts')
-        .update({ likes_count: supabaseAdmin.rpc('coalesce', {}) as any })
-        .eq('id', postId);
-    });
-
-    // Mettre à jour manuellement
+    // Incrémenter le compteur + notifier
     const { data: post } = await supabaseAdmin
       .from('creator_posts')
       .select('likes_count, creator_id')
@@ -50,7 +42,6 @@ export async function POST(
         .update({ likes_count: ((post as any).likes_count || 0) + 1 })
         .eq('id', postId);
 
-      // Notifier le créateur (pas soi-même)
       if ((post as any).creator_id !== userId) {
         const likerName = (session.user as any).username || (session.user as any).name || 'Quelqu\'un';
         notifyPostLike(userId, (post as any).creator_id, likerName, postId).catch(() => {});
