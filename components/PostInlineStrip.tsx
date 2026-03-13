@@ -60,7 +60,7 @@ export default function PostInlineStrip({ count = 2, label, postType }: PostInli
       {label && (
         <div className="flex items-center justify-between mb-2.5">
           <span className="text-[11px] font-bold uppercase tracking-widest text-white/20">{label}</span>
-          <a href="/" className="flex items-center gap-0.5 text-[11px] text-white/20 hover:text-white/40 transition-colors">
+          <a href="/posts" className="flex items-center gap-0.5 text-[11px] text-white/20 hover:text-white/40 transition-colors">
             Voir tout <ChevronRight className="w-3 h-3" />
           </a>
         </div>
