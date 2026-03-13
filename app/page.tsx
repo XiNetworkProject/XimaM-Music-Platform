@@ -33,6 +33,7 @@ import AdSlot from '@/components/AdSlot';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
 import PostInlineStrip from '@/components/PostInlineStrip';
+import PostAsTrackCard from '@/components/PostAsTrackCard';
 
 interface Track {
   _id: string;
@@ -883,6 +884,7 @@ export default function SynauraHome() {
   const [socialDiscovery, setSocialDiscovery] = useState<any[]>([]);
   const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
   const [homeAlbums, setHomeAlbums] = useState<any[]>([]);
+  const [homePosts, setHomePosts] = useState<any[]>([]);
 
   // États pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
@@ -1080,6 +1082,18 @@ export default function SynauraHome() {
       fetch('/api/playlists/albums?limit=16')
         .then(r => r.ok ? r.json() : { albums: [] })
         .then(d => setHomeAlbums(Array.isArray(d.albums) ? d.albums : []))
+        .catch(() => {})
+    );
+
+    fetches.push(
+      fetch('/api/posts?limit=8')
+        .then(r => r.ok ? r.json() : { posts: [] })
+        .then(d => {
+          const filtered = (d.posts || []).filter(
+            (p: any) => p.type === 'photo' || p.type === 'track_share'
+          );
+          setHomePosts(filtered.slice(0, 6));
+        })
         .catch(() => {})
     );
 
@@ -1885,8 +1899,8 @@ export default function SynauraHome() {
           </div>
         </div>
 
-        {/* Posts créateurs — inline entre sections */}
-        <PostInlineStrip count={2} label="Du côté des créateurs" />
+        {/* Posts créateurs — inline entre sections (texte uniquement) */}
+        <PostInlineStrip count={2} label="Du côté des créateurs" postType="text" />
 
         {/* Sélection du jour */}
         {!loading && dailyPicks.length > 0 && (
@@ -2238,7 +2252,10 @@ export default function SynauraHome() {
           <section>
             <SectionTitle title="Pour toi" actionLabel="Tout voir" onAction={() => router.push('/for-you', { scroll: false })} />
             <HorizontalScroller>
-              {forYouCards.map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+              {forYouCards.slice(0, 3).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+              {homePosts[0] && <PostAsTrackCard key={`post-${homePosts[0].id}`} post={homePosts[0]} />}
+              {forYouCards.slice(3).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+              {homePosts[1] && <PostAsTrackCard key={`post-${homePosts[1].id}`} post={homePosts[1]} />}
             </HorizontalScroller>
           </section>
         )}
@@ -2281,7 +2298,11 @@ export default function SynauraHome() {
           <section>
             <SectionTitle title="Nouvelles musiques" actionLabel="Tout voir" />
             <HorizontalScroller>
-              {recentCards.slice(0, 12).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+              {recentCards.slice(0, 4).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+              {homePosts[2] && <PostAsTrackCard key={`post-${homePosts[2].id}`} post={homePosts[2]} />}
+              {recentCards.slice(4, 8).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
+              {homePosts[3] && <PostAsTrackCard key={`post-${homePosts[3].id}`} post={homePosts[3]} />}
+              {recentCards.slice(8, 12).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
             </HorizontalScroller>
           </section>
         )}
@@ -2387,7 +2408,18 @@ export default function SynauraHome() {
         )}
 
         {/* Post inline entre albums et playlists */}
-        <PostInlineStrip count={1} />
+        {homePosts[4] && (
+          <section>
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-widest text-white/20">Du côté des créateurs</span>
+            </div>
+            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
+              {homePosts.slice(4, 6).map(p => (
+                <PostAsTrackCard key={p.id} post={p} />
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Playlists populaires */}
         {guestPlaylists.length > 0 && (

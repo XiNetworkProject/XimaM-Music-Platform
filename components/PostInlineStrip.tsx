@@ -13,9 +13,10 @@ import PostCommentsSheet from '@/components/PostCommentsSheet';
 interface PostInlineStripProps {
   count?: number;
   label?: string;
+  postType?: 'text' | 'photo' | 'track_share';
 }
 
-export default function PostInlineStrip({ count = 2, label }: PostInlineStripProps) {
+export default function PostInlineStrip({ count = 2, label, postType }: PostInlineStripProps) {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -27,12 +28,16 @@ export default function PostInlineStrip({ count = 2, label }: PostInlineStripPro
     if (loaded || loading) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/posts?limit=${count}`);
+      const res = await fetch(`/api/posts?limit=${count * 3}`);
       const data = await res.json();
-      setPosts((data.posts || []).slice(0, count));
+      const allPosts = data.posts || [];
+      const filtered = postType
+        ? allPosts.filter((p: Post) => p.type === postType)
+        : allPosts;
+      setPosts(filtered.slice(0, count));
     } catch { /* ignore */ }
     finally { setLoading(false); setLoaded(true); }
-  }, [count, loaded, loading]);
+  }, [count, postType, loaded, loading]);
 
   useEffect(() => {
     const el = ref.current;
