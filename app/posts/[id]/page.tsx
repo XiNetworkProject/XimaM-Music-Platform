@@ -351,7 +351,7 @@ export default function PostPage() {
               <p className="text-center py-8 text-[13px] text-white/20">Sois le premier à commenter</p>
             ) : (
               <div className="space-y-1">
-                {comments.map(comment => {
+                {comments.filter(c => c?.user).map(comment => {
                   const isMine = (session?.user as any)?.id === comment.user.id
                     || (session?.user as any)?.username === comment.user.username;
                   return (

@@ -38,10 +38,12 @@ export async function GET(
       return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 
-    const formatted = (comments || []).map((c: any) => ({
-      ...c,
-      author: c.profiles,
-      profiles: undefined,
+    const formatted = (comments || []).filter((c: any) => !!c.profiles).map((c: any) => ({
+      id: c.id,
+      content: c.content,
+      created_at: c.created_at,
+      user_id: c.user_id,
+      user: c.profiles,
     }));
 
     const nextCursor = formatted.length === limit
@@ -111,9 +113,11 @@ export async function POST(
     }
 
     return NextResponse.json({
-      ...(comment as any),
-      author: (comment as any).profiles,
-      profiles: undefined,
+      id: (comment as any).id,
+      content: (comment as any).content,
+      created_at: (comment as any).created_at,
+      user_id: (comment as any).user_id,
+      user: (comment as any).profiles,
     }, { status: 201 });
   } catch (e) {
     console.error('[posts/comments] POST error:', e);
@@ -132,7 +136,7 @@ export async function DELETE(
     }
 
     const { searchParams } = new URL(request.url);
-    const commentId = searchParams.get('comment_id');
+    const commentId = searchParams.get('comment_id') || searchParams.get('commentId');
     if (!commentId) return NextResponse.json({ error: 'comment_id requis' }, { status: 400 });
 
     const { data: existing } = await supabaseAdmin
