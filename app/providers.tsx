@@ -732,6 +732,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // Si la piste n'est pas dans la liste et qu'on a les données, l'ajouter
     if (trackIndex === -1 && trackData) {
       const addedTrack = trackData;
+      const mergedQueue = [...audioState.tracks, trackData];
       setAudioState(prev => {
         const newTracks: Track[] = [...prev.tracks, addedTrack];
         return {
@@ -745,12 +746,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
       try {
         // Sync the audio service queue so auto-next works correctly
-        const mergedQueue = [...audioState.tracks, trackData];
         audioService.actions.setQueueOnly(mergedQueue, mergedQueue.length - 1);
-
-        await audioService.actions.loadTrack(trackData);
-        await audioService.actions.play();
-        await updatePlayCount(trackData._id);
+        // IMPORTANT: use playImmediate (synchronous src set + play) to respect mobile autoplay policy.
+        // loadTrack + play() fails on mobile because play() is called after an await (outside user gesture).
+        (audioService.actions as any).playImmediate?.(trackData);
+        updatePlayCount(trackData._id);
         setTimeout(() => { audioService.actions.forceUpdateNotification(); }, 100);
       } catch {}
       return;
@@ -788,9 +788,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     audioService.actions.setQueueOnly(audioState.tracks, trackIndex);
 
     try {
-      await audioService.actions.loadTrack(trackToPlay);
-      await audioService.actions.play();
-      await updatePlayCount(trackToPlay._id);
+      // IMPORTANT: use playImmediate (synchronous src set + play()) to respect mobile autoplay policy.
+      // The old loadTrack() + play() pattern fails on mobile because play() is called after an await,
+      // which loses the user gesture trust required by mobile browsers.
+      (audioService.actions as any).playImmediate?.(trackToPlay);
+      updatePlayCount(trackToPlay._id);
       setTimeout(() => { audioService.actions.forceUpdateNotification(); }, 100);
     } catch {}
   }, [audioState.tracks, audioState.currentTrackIndex, audioState.isPlaying, audioService.actions, setShowPlayer, setIsMinimized, updatePlayCount]);
