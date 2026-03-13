@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { Play, Pause, Shuffle, Share2, ListPlus, Clock, Music, Disc3, ArrowLeft, MoreHorizontal } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { notify } from '@/components/NotificationCenter';
-import BottomNav from '@/components/BottomNav';
 import TrackCover from '@/components/TrackCover';
 
 interface Track {
@@ -321,7 +320,6 @@ export default function AlbumPage() {
         </div>
       </div>
 
-      <BottomNav />
     </div>
   );
 }

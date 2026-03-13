@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Play, Pause, Sparkles, Zap, Disc3, Music } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { type DiscoverTrackLite } from './DiscoverPlayButton';
@@ -354,7 +355,8 @@ const GENRE_COLORS: Record<string, string> = {
 
 /* ─── Album Card ─── */
 export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
-  const { setQueueAndPlay, audioState, albumContext, setAlbumContext } = useAudioPlayer() as any;
+  const router = useRouter();
+  const { audioState, albumContext } = useAudioPlayer();
 
   const fmtDur = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -365,29 +367,10 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
   const isThisAlbum = albumContext?.id === album._id;
   const isPlaying = isThisAlbum && audioState.isPlaying;
 
-  const handlePlay = async (e: React.MouseEvent) => {
+  // Navigate to album page — play is triggered there synchronously (important for mobile autoplay policy)
+  const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isThisAlbum) {
-      // Toggle play/pause
-      return;
-    }
-    try {
-      const res = await fetch(`/api/playlists/${encodeURIComponent(album._id)}`, { cache: 'no-store' });
-      if (!res.ok) return;
-      const data = await res.json();
-      const tracks = (data.tracks || []).map((t: any) => ({
-        ...t,
-        likes: t.likes || [],
-        comments: t.comments || [],
-        plays: t.plays || 0,
-        album: album.name,
-      }));
-      if (!tracks.length) return;
-      setQueueAndPlay(tracks, 0);
-      window.dispatchEvent(new CustomEvent('albumContext', {
-        detail: { id: album._id, name: album.name, coverUrl: album.coverUrl || null, totalTracks: album.trackCount || tracks.length }
-      }));
-    } catch {}
+    router.push(`/album/${album._id}`);
   };
 
   return (
@@ -409,7 +392,7 @@ export function AlbumTile({ album }: { album: DiscoverAlbumLite }) {
         <div className="absolute top-2 left-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-bold text-white/70 border border-white/10">
           <Disc3 className="w-2.5 h-2.5" /> Album
         </div>
-        {/* Play button */}
+        {/* Play button — navigates to album page for correct mobile autoplay */}
         <button
           onClick={handlePlay}
           className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-violet-500 hover:bg-violet-400 flex items-center justify-center opacity-0 group-hover/album:opacity-100 transition-all shadow-lg shadow-violet-500/30 hover:scale-110 z-10"
