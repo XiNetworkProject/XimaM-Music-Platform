@@ -24,17 +24,14 @@ import {
   Star,
 } from 'lucide-react';
 import Link from 'next/link';
-import { useAudioPlayer } from '@/app/providers';
 
 export default function BottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { audioState } = useAudioPlayer();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const isStudioPage = pathname?.startsWith('/ai-generator');
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -60,9 +57,6 @@ export default function BottomNav() {
     setShowMore(false);
   }, [router, session]);
 
-  // On studio page, global mini player is hidden on mobile, so don't shift the nav up
-  const playerVisible = !isStudioPage && audioState.showPlayer && audioState.tracks.length > 0;
-
   const tabs = [
     { icon: Home, label: 'Accueil', path: '/' },
     { icon: Search, label: 'Explorer', path: '/discover' },
@@ -87,7 +81,6 @@ export default function BottomNav() {
     <>
       <nav
         className="fixed left-0 right-0 bottom-0 z-40 lg:hidden"
-        style={{ marginBottom: playerVisible ? 56 : 0, transition: 'margin-bottom 200ms ease' }}
       >
         <div
           className="bg-[#0a0a0e] border-t border-white/[0.06]"

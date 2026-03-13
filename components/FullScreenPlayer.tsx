@@ -134,8 +134,8 @@ export default function SynauraMiniPlayer() {
           className={`fixed bottom-0 right-0 pointer-events-none z-[50] ${isStudioPage ? 'hidden lg:block' : ''}`}
           style={{ left: isLg ? sidebarWidth : 0, transition: 'left 200ms ease' }}
         >
-          {/* Spacer for mobile BottomNav */}
-          <div className="lg:hidden h-[68px]" />
+          {/* Spacer for mobile BottomNav — matches nav h-14 + safe area */}
+          <div className="lg:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
 
           <div className="pointer-events-auto">
             {/* ── Progress bar — top edge ── */}
@@ -362,16 +362,16 @@ export default function SynauraMiniPlayer() {
                   </div>
                 </div>
 
-                {/* Row 2: Secondary actions */}
-                <div className="flex items-center justify-between px-3 pb-2 -mt-0.5">
-                  <span className="text-[10px] font-mono text-white/25 tabular-nums">
+                {/* Row 2: Secondary actions — compact */}
+                <div className="flex items-center justify-between px-3 pb-1.5 -mt-1">
+                  <span className="text-[9px] font-mono text-white/20 tabular-nums">
                     {toTime(currentTime || 0)} / {toTime(duration || 0)}
                   </span>
 
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-0.5">
                     <button
                       onClick={() => setShuffle(!audioState.shuffle)}
-                      className={`p-1.5 rounded-full transition-all ${audioState.shuffle ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/30 active:text-white/60'}`}
+                      className={`p-1 rounded-full transition-all ${audioState.shuffle ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/25 active:text-white/50'}`}
                       aria-label="Aléatoire"
                     >
                       <Shuffle className="w-3.5 h-3.5" />
@@ -379,7 +379,7 @@ export default function SynauraMiniPlayer() {
 
                     <button
                       onClick={handleRepeat}
-                      className={`p-1.5 rounded-full transition-all relative ${audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/30 active:text-white/60'}`}
+                      className={`p-1 rounded-full transition-all relative ${audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/25 active:text-white/50'}`}
                       aria-label="Répéter"
                     >
                       <Repeat className="w-3.5 h-3.5" />
@@ -394,7 +394,7 @@ export default function SynauraMiniPlayer() {
                         addToUpNext(currentTrack as any, 'end');
                       }}
                       disabled={!currentTrack || isLive}
-                      className="p-1.5 rounded-full text-white/30 active:text-white/60 transition-all disabled:opacity-30"
+                      className="p-1 rounded-full text-white/25 active:text-white/50 transition-all disabled:opacity-30"
                       aria-label="À suivre"
                     >
                       <ListPlus className="w-3.5 h-3.5" />
@@ -402,7 +402,7 @@ export default function SynauraMiniPlayer() {
 
                     <button
                       onClick={handleShare}
-                      className="p-1.5 rounded-full text-white/30 active:text-white/60 transition-all"
+                      className="p-1 rounded-full text-white/25 active:text-white/50 transition-all"
                       aria-label="Partager"
                     >
                       <Share2 className="w-3.5 h-3.5" />
@@ -410,7 +410,7 @@ export default function SynauraMiniPlayer() {
 
                     <button
                       onClick={() => setShowTikTok(true)}
-                      className="p-1.5 rounded-full text-white/30 active:text-white/60 transition-all"
+                      className="p-1 rounded-full text-white/25 active:text-white/50 transition-all"
                       aria-label="Player complet"
                     >
                       <ListMusic className="w-3.5 h-3.5" />
