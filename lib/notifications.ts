@@ -30,7 +30,9 @@ export type NotifType =
   | 'boost_reminder'
   | 'admin_broadcast'
   | 'weekly_recap'
-  | 'general';
+  | 'general'
+  | 'post_like'
+  | 'post_comment';
 
 const TYPE_TO_CATEGORY: Record<NotifType, NotifCategory> = {
   new_follower: 'social',
@@ -44,6 +46,8 @@ const TYPE_TO_CATEGORY: Record<NotifType, NotifCategory> = {
   admin_broadcast: 'admin',
   weekly_recap: 'general',
   general: 'general',
+  post_like: 'social',
+  post_comment: 'social',
 };
 
 const TYPE_TO_PREF_KEY: Record<NotifType, string> = {
@@ -58,6 +62,8 @@ const TYPE_TO_PREF_KEY: Record<NotifType, string> = {
   admin_broadcast: 'admin_broadcast',
   weekly_recap: 'weekly_recap',
   general: 'admin_broadcast',
+  post_like: 'new_like',
+  post_comment: 'new_comment',
 };
 
 interface CreateNotificationOpts {
@@ -381,6 +387,30 @@ export async function notifyNewMessage(senderId: string, recipientId: string, se
     message: `${senderName} t'a envoye un message`,
     actionUrl: '/messages',
     senderId,
+  });
+}
+
+export async function notifyPostLike(likerId: string, postOwnerId: string, likerName: string, postId: string) {
+  return createNotification({
+    userId: postOwnerId,
+    type: 'post_like',
+    title: 'Nouveau like',
+    message: `${likerName} a aimé ton post`,
+    actionUrl: `/`,
+    senderId: likerId,
+    relatedId: postId,
+  });
+}
+
+export async function notifyPostComment(commenterId: string, postOwnerId: string, commenterName: string, postId: string) {
+  return createNotification({
+    userId: postOwnerId,
+    type: 'post_comment',
+    title: 'Nouveau commentaire',
+    message: `${commenterName} a commenté ton post`,
+    actionUrl: `/`,
+    senderId: commenterId,
+    relatedId: postId,
   });
 }
 

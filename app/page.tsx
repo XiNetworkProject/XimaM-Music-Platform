@@ -32,6 +32,7 @@ import LikeButton from '@/components/LikeButton';
 import AdSlot from '@/components/AdSlot';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
+import CreatorFeed from '@/components/CreatorFeed';
 
 interface Track {
   _id: string;
@@ -2459,6 +2460,12 @@ export default function SynauraHome() {
             </div>
           </section>
         )}
+
+        {/* Fil des créateurs */}
+        <section>
+          <SectionTitle title="Fil des créateurs" />
+          <CreatorFeed showComposer={!!session} compact={true} />
+        </section>
 
         {/* En direct */}
         <section>

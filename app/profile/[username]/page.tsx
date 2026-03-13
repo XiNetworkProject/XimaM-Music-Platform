@@ -19,6 +19,7 @@ import { notify } from '@/components/NotificationCenter';
 import dynamic from 'next/dynamic';
 import { AnimatePresence } from 'framer-motion';
 import { UModal, UModalBody, UModalTitle, UModalFooter, UDrawer, UButton, UInput, UTextarea } from '@/components/ui/UnifiedUI';
+import CreatorFeed from '@/components/CreatorFeed';
 
 const BoosterOpenModal = dynamic(() => import('@/components/BoosterOpenModal'), { ssr: false });
 
@@ -390,6 +391,16 @@ export default function SynauraProfile() {
           </div>
         </div>
       )}
+
+      {/* ═══════ POSTS ═══════ */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 mt-10">
+        <h2 className="text-xl font-bold text-white mb-4">Posts</h2>
+        <CreatorFeed
+          creatorId={profile.id}
+          showComposer={isOwnProfile}
+          compact={isOwnProfile}
+        />
+      </div>
 
       {/* ═══════ A PROPOS ═══════ */}
       {(profile.bio || profile.genre?.length > 0 || profile.location || profile.website || memberSince) && (
