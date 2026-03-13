@@ -39,7 +39,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const avatarUrl = (session?.user as any)?.image
-    ? getCdnUrl((session.user as any).image) || (session.user as any).image
+    ? getCdnUrl((session?.user as any).image) || (session?.user as any).image
     : null;
   const displayName = (session?.user as any)?.username || session?.user?.name || 'Moi';
 
