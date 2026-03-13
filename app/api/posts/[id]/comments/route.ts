@@ -19,9 +19,7 @@ export async function GET(
       .from('post_comments')
       .select(`
         id, content, created_at, user_id,
-        profiles!post_comments_user_id_fkey (
-          id, username, name, avatar, is_verified
-        )
+        profiles ( id, username, name, avatar, is_verified )
       `)
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
@@ -38,12 +36,12 @@ export async function GET(
       return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
     }
 
-    const formatted = (comments || []).filter((c: any) => !!c.profiles).map((c: any) => ({
+    const formatted = (comments || []).map((c: any) => ({
       id: c.id,
       content: c.content,
       created_at: c.created_at,
       user_id: c.user_id,
-      user: c.profiles,
+      user: c.profiles ?? { id: c.user_id, username: 'utilisateur', name: null, avatar: null },
     }));
 
     const nextCursor = formatted.length === limit
@@ -81,9 +79,7 @@ export async function POST(
       .insert({ post_id: postId, user_id: userId, content: content.trim() })
       .select(`
         id, content, created_at, user_id,
-        profiles!post_comments_user_id_fkey (
-          id, username, name, avatar, is_verified
-        )
+        profiles ( id, username, name, avatar, is_verified )
       `)
       .single();
 
@@ -117,7 +113,7 @@ export async function POST(
       content: (comment as any).content,
       created_at: (comment as any).created_at,
       user_id: (comment as any).user_id,
-      user: (comment as any).profiles,
+      user: (comment as any).profiles ?? { id: userId, username: (session.user as any)?.username || 'utilisateur', name: session.user?.name || null, avatar: session.user?.image || null },
     }, { status: 201 });
   } catch (e) {
     console.error('[posts/comments] POST error:', e);
