@@ -1899,8 +1899,8 @@ export default function SynauraHome() {
           </div>
         </div>
 
-        {/* Posts créateurs — inline entre sections (texte uniquement) */}
-        <PostInlineStrip count={2} label="Du côté des créateurs" postType="text" />
+        {/* Posts créateurs — inline entre sections */}
+        <PostInlineStrip count={2} label="Du côté des créateurs" />
 
         {/* Sélection du jour */}
         {!loading && dailyPicks.length > 0 && (

@@ -2,6 +2,7 @@
 
 import React, { memo, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Heart, MessageCircle, MoreHorizontal, Trash2, Play, Pause, Music2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -79,6 +80,7 @@ function Avatar({ creator, size = 'md' }: { creator: PostCreator; size?: 'sm' | 
 
 const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compact = false }: PostCardProps) {
   const { data: session } = useSession();
+  const router = useRouter();
   const { playTrack, audioState } = useAudioPlayer();
   const [liked, setLiked] = useState(post.isLiked);
   const [likesCount, setLikesCount] = useState(post.likes_count);
@@ -137,47 +139,81 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
 
   /* ── COMPACT (inline entre sections) ── */
   if (compact) {
+    const thumbSrc = post.type === 'photo'
+      ? (imgError ? null : post.image_url)
+      : post.type === 'track_share'
+      ? post.track?.cover_url
+      : null;
+
     return (
-      <div className="relative flex gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] transition-all duration-200 overflow-hidden group">
+      <Link
+        href={`/posts/${post.id}`}
+        className="relative flex gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/[0.05] hover:border-white/[0.09] hover:bg-white/[0.05] transition-all duration-200 overflow-hidden group block"
+      >
         {/* Accent line */}
         <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full bg-gradient-to-b from-violet-500 to-indigo-500 opacity-60" />
 
-        <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()} className="shrink-0 mt-0.5">
-          <Avatar creator={post.creator} size="sm" />
-        </Link>
+        {/* Miniature photo/track (à gauche) ou avatar */}
+        {thumbSrc ? (
+          <div className="shrink-0 w-12 h-12 rounded-xl overflow-hidden border border-white/[0.06]">
+            <img
+              src={thumbSrc}
+              alt=""
+              className="w-full h-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          </div>
+        ) : (
+          <div className="shrink-0 mt-0.5">
+            <Avatar creator={post.creator} size="sm" />
+          </div>
+        )}
 
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1">
-            <Link href={`/profile/${post.creator.username}`} onClick={e => e.stopPropagation()} className="text-[12px] font-semibold text-white/70 hover:text-white transition-colors truncate">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="text-[12px] font-semibold text-white/70 truncate">
               {post.creator.name || post.creator.username}
-            </Link>
+            </span>
             <span className="text-[11px] text-white/20 shrink-0">{timeAgo}</span>
           </div>
 
-          {post.content && (
-            <p className="text-[13px] text-white/60 line-clamp-2 leading-snug">{post.content}</p>
-          )}
-
-          {post.type === 'photo' && post.image_url && !imgError && (
-            <img src={post.image_url} alt="" className="mt-2 h-14 w-auto rounded-lg object-cover" onError={() => setImgError(true)} />
-          )}
-
-          {post.type === 'track_share' && post.track && (
-            <div className="mt-2 flex items-center gap-2">
-              <Music2 className="w-3.5 h-3.5 text-violet-400 shrink-0" />
-              <span className="text-[12px] text-violet-300/70 truncate">{post.track.title}</span>
-              <button onClick={handlePlayTrack} className="ml-auto shrink-0 w-6 h-6 rounded-full bg-violet-500/30 flex items-center justify-center hover:bg-violet-500/50 transition-all">
-                {isPlayingThis ? <Pause className="w-2.5 h-2.5 text-white" /> : <Play className="w-2.5 h-2.5 text-white ml-px" />}
-              </button>
+          {/* Titre track ou caption */}
+          {post.type === 'track_share' && post.track ? (
+            <div className="flex items-center gap-1.5">
+              <Music2 className="w-3 h-3 text-violet-400 shrink-0" />
+              <span className="text-[13px] font-semibold text-white/80 truncate">{post.track.title}</span>
             </div>
+          ) : (
+            post.content && (
+              <p className="text-[13px] text-white/55 line-clamp-2 leading-snug">{post.content}</p>
+            )
+          )}
+
+          {/* Artiste pour track_share */}
+          {post.type === 'track_share' && post.track?.artist_name && (
+            <p className="text-[11px] text-white/30 truncate mt-0.5">{post.track.artist_name}</p>
           )}
         </div>
 
-        <button onClick={handleLike} className={`self-start shrink-0 flex items-center gap-1 text-[11px] font-medium transition-all ${liked ? 'text-rose-400' : 'text-white/20 hover:text-white/40'}`}>
-          <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
-          {likesCount > 0 && fmtCount(likesCount)}
-        </button>
-      </div>
+        {/* Like + play */}
+        <div className="shrink-0 flex flex-col items-end gap-2">
+          <button
+            onClick={e => { e.preventDefault(); handleLike(e as any); }}
+            className={`flex items-center gap-1 text-[11px] font-medium transition-all ${liked ? 'text-rose-400' : 'text-white/20 hover:text-white/40'}`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
+            {likesCount > 0 && fmtCount(likesCount)}
+          </button>
+          {post.type === 'track_share' && post.track?.audio_url && (
+            <button
+              onClick={e => { e.preventDefault(); handlePlayTrack(e as any); }}
+              className="w-6 h-6 rounded-full bg-violet-500/30 flex items-center justify-center hover:bg-violet-500/50 transition-all"
+            >
+              {isPlayingThis ? <Pause className="w-2.5 h-2.5 text-white" /> : <Play className="w-2.5 h-2.5 text-white ml-px" />}
+            </button>
+          )}
+        </div>
+      </Link>
     );
   }
 
@@ -186,7 +222,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
   /* TEXT POST */
   if (post.type === 'text') {
     return (
-      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
+      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18] cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
         {/* Subtle gradient top accent */}
         <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-violet-500/40 to-transparent" />
 
@@ -220,7 +256,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
   /* PHOTO POST */
   if (post.type === 'photo') {
     return (
-      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
+      <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18] cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
         {/* Photo full-width */}
         {post.image_url && !imgError && (
           <div className="relative">
@@ -260,7 +296,7 @@ const PostCard = memo(function PostCard({ post, onDelete, onCommentClick, compac
 
   /* TRACK SHARE POST */
   return (
-    <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18]">
+    <div className="relative rounded-2xl overflow-hidden border border-white/[0.06] hover:border-white/[0.1] transition-all duration-200 bg-[#0d0d18] cursor-pointer" onClick={() => router.push(`/posts/${post.id}`)}>
       <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-indigo-500/40 to-transparent" />
 
       {/* Track hero */}
@@ -355,7 +391,7 @@ function PostActions({ liked, likesCount, commentsCount, onLike, onComment, extr
 }) {
   return (
     <div className="flex items-center gap-1 px-3 py-2.5 border-t border-white/[0.04] mt-1">
-      <button onClick={onLike}
+      <button onClick={e => { e.stopPropagation(); onLike(e); }}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all active:scale-95 text-[12px] font-medium ${liked ? 'text-rose-400 bg-rose-500/10' : 'text-white/25 hover:text-white/50 hover:bg-white/[0.04]'}`}>
         <Heart className={`w-3.5 h-3.5 ${liked ? 'fill-current' : ''}`} />
         {likesCount > 0 && <span className="tabular-nums">{fmtCount(likesCount)}</span>}
