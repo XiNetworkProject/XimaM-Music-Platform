@@ -134,9 +134,6 @@ export default function SynauraMiniPlayer() {
           className={`fixed bottom-0 right-0 pointer-events-none z-[50] ${isStudioPage ? 'hidden lg:block' : ''}`}
           style={{ left: isLg ? sidebarWidth : 0, transition: 'left 200ms ease' }}
         >
-          {/* Spacer for mobile BottomNav — matches nav h-14 + safe area */}
-          <div className="lg:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
-
           <div className="pointer-events-auto">
             {/* ── Progress bar — top edge ── */}
             <div
@@ -420,6 +417,9 @@ export default function SynauraMiniPlayer() {
               </div>
             </div>
           </div>
+
+          {/* Spacer mobile — occupe l'espace de la BottomNav sous le player */}
+          <div className="lg:hidden" style={{ height: 'calc(3.5rem + env(safe-area-inset-bottom, 0px))' }} />
         </div>
       )}
     </>
