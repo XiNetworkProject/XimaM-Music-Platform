@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, ChevronUp, ChevronDown, X, Sparkles } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Heart, Repeat, ListMusic, ListPlus, Radio, ChevronUp, ChevronDown, X, Sparkles, Shuffle, Share2 } from "lucide-react";
 import { useAudioPlayer, useAudioTime, useSidebar } from '@/app/providers';
 import LikeButton from './LikeButton';
 import TikTokPlayer from './TikTokPlayer';
@@ -20,6 +20,7 @@ export default function SynauraMiniPlayer() {
     seek,
     setVolume,
     toggleMute,
+    setShuffle,
     setRepeat,
     addToUpNext,
   } = useAudioPlayer();
@@ -29,7 +30,6 @@ export default function SynauraMiniPlayer() {
 
   const progressRef = useRef<HTMLDivElement>(null);
   const [showTikTok, setShowTikTok] = useState(false);
-  const [expanded, setExpanded] = useState(false);
   const [isLg, setIsLg] = useState(false);
   
   const sidebarWidth = isSidebarOpen ? 220 : 72;
@@ -100,6 +100,21 @@ export default function SynauraMiniPlayer() {
     setRepeat(modes[(modes.indexOf(audioState.repeat) + 1) % modes.length]);
   };
 
+  const handleShare = async () => {
+    if (!currentTrack) return;
+    const url = albumContext
+      ? `${window.location.origin}/album/${albumContext.id}`
+      : `${window.location.origin}/track/${currentTrack._id}`;
+    const title = albumContext ? albumContext.name : track.title;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title, text: `Ecoute ${title} sur Synaura`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch {}
+  };
+
   const progressPct = duration ? ((currentTime || 0) / duration) * 100 : 0;
 
   if (!currentTrack || !audioState.showPlayer) return null;
@@ -123,7 +138,7 @@ export default function SynauraMiniPlayer() {
           <div className="lg:hidden h-[68px]" />
 
           <div className="pointer-events-auto">
-            {/* ── Progress bar — top edge, always visible ── */}
+            {/* ── Progress bar — top edge ── */}
             <div
               ref={progressRef}
               onClick={onProgressClick}
@@ -145,21 +160,15 @@ export default function SynauraMiniPlayer() {
 
             {/* ── Player bar ── */}
             <div className="bg-[#0a0a12]/95 backdrop-blur-2xl border-t border-white/[0.04]">
-              {/* Main row — always visible */}
-              <div className="flex items-center gap-3 px-3 lg:px-5 h-[58px] lg:h-[56px]">
+              {/* ── DESKTOP layout (sm+) ── */}
+              <div className="hidden sm:flex items-center gap-3 px-5 h-[56px]">
                 {/* Cover + info */}
                 <div
                   className="flex items-center gap-3 min-w-0 flex-1 cursor-pointer"
                   onClick={() => setShowTikTok(true)}
                 >
                   <div className="relative shrink-0">
-                    <TrackCover
-                      src={track.cover}
-                      title={track.title}
-                      className="w-10 h-10 ring-1 ring-white/[0.08]"
-                      rounded="rounded-lg"
-                      objectFit="cover"
-                    />
+                    <TrackCover src={track.cover} title={track.title} className="w-10 h-10 ring-1 ring-white/[0.08]" rounded="rounded-lg" objectFit="cover" />
                     {isLive && (
                       <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-red-500 text-white text-[7px] font-bold uppercase px-1 py-px rounded-full tracking-wider">
                         <Radio className="w-2 h-2" /> Live
@@ -180,13 +189,9 @@ export default function SynauraMiniPlayer() {
                   </div>
                 </div>
 
-                {/* Controls — center */}
+                {/* Controls */}
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={previousTrack}
-                    className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all hidden sm:flex"
-                    aria-label="Précédent"
-                  >
+                  <button onClick={previousTrack} className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" aria-label="Précédent">
                     <SkipBack className="w-4 h-4" />
                   </button>
                   <button
@@ -195,21 +200,14 @@ export default function SynauraMiniPlayer() {
                     className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-black hover:scale-105 shadow-lg shadow-white/10 transition-all"
                     aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
                   >
-                    {audioState.isPlaying
-                      ? <Pause className="w-4 h-4" />
-                      : <Play className="w-4 h-4 fill-current ml-0.5" />
-                    }
+                    {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                   </button>
-                  <button
-                    onClick={nextTrack}
-                    className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all hidden sm:flex"
-                    aria-label="Suivant"
-                  >
+                  <button onClick={nextTrack} className="p-2 rounded-full text-white/40 hover:text-white/80 hover:bg-white/[0.06] transition-all" aria-label="Suivant">
                     <SkipForward className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Time — desktop only */}
+                {/* Time */}
                 <div className="hidden md:flex items-center gap-2 text-[10px] font-mono text-white/30 tabular-nums shrink-0">
                   <span>{toTime(currentTime || 0)}</span>
                   <span>/</span>
@@ -229,23 +227,13 @@ export default function SynauraMiniPlayer() {
                     />
                   )}
 
-                  {/* Expand toggle — mobile */}
-                  <button
-                    onClick={() => setExpanded((v) => !v)}
-                    className="p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all sm:hidden"
-                    aria-label={expanded ? 'Réduire' : 'Plus d\'options'}
-                  >
-                    {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
-                  </button>
-
-                  {/* Desktop extras */}
                   <button
                     onClick={() => {
                       if (!currentTrack || isLive || String(currentTrack._id || '').startsWith('radio-')) return;
                       addToUpNext(currentTrack as any, 'end');
                     }}
                     disabled={!currentTrack || isLive || String(currentTrack?._id || '').startsWith('radio-')}
-                    className="hidden sm:flex p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                     title="À suivre"
                     aria-label="Ajouter à la liste d'attente"
                   >
@@ -254,7 +242,7 @@ export default function SynauraMiniPlayer() {
 
                   <button
                     onClick={handleRepeat}
-                    className={`hidden sm:flex p-2 rounded-full transition-all relative ${
+                    className={`p-2 rounded-full transition-all relative ${
                       audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/30 hover:text-white/60 hover:bg-white/[0.06]'
                     }`}
                     aria-pressed={audioState.repeat !== 'none'}
@@ -273,10 +261,7 @@ export default function SynauraMiniPlayer() {
                       className="p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
                       aria-label={audioState.isMuted ? 'Unmute' : 'Mute'}
                     >
-                      {audioState.isMuted || audioState.volume === 0
-                        ? <VolumeX className="w-4 h-4" />
-                        : <Volume2 className="w-4 h-4" />
-                      }
+                      {audioState.isMuted || audioState.volume === 0 ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                     </button>
                     <input
                       type="range" min={0} max={1} step={0.01}
@@ -289,7 +274,7 @@ export default function SynauraMiniPlayer() {
 
                   <button
                     onClick={() => setShowTikTok(true)}
-                    className="hidden sm:flex p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
+                    className="p-2 rounded-full text-white/30 hover:text-white/60 hover:bg-white/[0.06] transition-all"
                     title="Player complet"
                     aria-label="Player complet"
                   >
@@ -306,36 +291,133 @@ export default function SynauraMiniPlayer() {
                 </div>
               </div>
 
-              {/* Expanded row — mobile only */}
-              {expanded && (
-                <div className="flex items-center justify-center gap-3 px-3 pb-3 sm:hidden">
-                  <button onClick={previousTrack} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/[0.06] transition-all" aria-label="Précédent">
-                    <SkipBack className="w-5 h-5" />
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (!currentTrack || isLive || String(currentTrack._id || '').startsWith('radio-')) return;
-                      addToUpNext(currentTrack as any, 'end');
-                    }}
-                    disabled={!currentTrack || isLive}
-                    className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/[0.06] transition-all disabled:opacity-30"
-                    aria-label="À suivre"
+              {/* ── MOBILE layout (<sm) ── */}
+              <div className="sm:hidden">
+                {/* Row 1: Cover + Title + Play/Pause + Close */}
+                <div className="flex items-center gap-2.5 px-3 h-[54px]">
+                  {/* Cover */}
+                  <div
+                    className="relative shrink-0 cursor-pointer"
+                    onClick={() => setShowTikTok(true)}
                   >
-                    <ListPlus className="w-5 h-5" />
-                  </button>
+                    <TrackCover src={track.cover} title={track.title} className="w-10 h-10 ring-1 ring-white/[0.08]" rounded="rounded-lg" objectFit="cover" />
+                    {isLive && (
+                      <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-red-500 text-white text-[7px] font-bold uppercase px-1 py-px rounded-full tracking-wider">
+                        <Radio className="w-2 h-2" /> Live
+                      </span>
+                    )}
+                    {!isLive && ((currentTrack as any)?.isAI || String(currentTrack?._id || '').startsWith('ai-') || String(currentTrack?._id || '').startsWith('gen-')) && (
+                      <span className="absolute -top-1 -right-1 flex items-center gap-0.5 bg-violet-500 text-white text-[7px] font-bold px-1 py-px rounded-full">
+                        <Sparkles className="w-2 h-2" /> IA
+                      </span>
+                    )}
+                  </div>
 
-                  <button onClick={handleRepeat} className={`p-2.5 rounded-full transition-all ${audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/50 hover:text-white hover:bg-white/[0.06]'}`} aria-label="Répéter">
-                    <Repeat className="w-5 h-5" />
-                  </button>
+                  {/* Title + artist — tap opens full player */}
+                  <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setShowTikTok(true)}>
+                    <p className="text-[13px] font-semibold text-white/90 truncate leading-tight">{track.title}</p>
+                    <p className="text-[11px] text-white/40 truncate leading-tight">
+                      {track.artist}
+                      {albumContext && <span className="text-white/20"> — {albumContext.name}</span>}
+                    </p>
+                  </div>
 
-                  <button onClick={nextTrack} className="p-2.5 rounded-full text-white/50 hover:text-white hover:bg-white/[0.06] transition-all" aria-label="Suivant">
-                    <SkipForward className="w-5 h-5" />
-                  </button>
+                  {/* Core controls */}
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button onClick={previousTrack} className="p-1.5 rounded-full text-white/50 active:text-white active:bg-white/[0.08] transition-all" aria-label="Précédent">
+                      <SkipBack className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={togglePlay}
+                      disabled={audioState.isLoading}
+                      className="w-9 h-9 flex items-center justify-center rounded-full bg-white text-black active:scale-95 shadow-lg shadow-white/10 transition-all"
+                      aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
+                    >
+                      {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                    </button>
+                    <button onClick={nextTrack} className="p-1.5 rounded-full text-white/50 active:text-white active:bg-white/[0.08] transition-all" aria-label="Suivant">
+                      <SkipForward className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                  <span className="text-[10px] font-mono text-white/30 tabular-nums ml-1">{toTime(currentTime || 0)} / {toTime(duration || 0)}</span>
+                  {/* Like + Close */}
+                  <div className="flex items-center gap-0 shrink-0">
+                    {currentTrack && (
+                      <LikeButton
+                        key={currentTrack._id}
+                        trackId={currentTrack._id}
+                        initialIsLiked={currentTrack.isLiked || false}
+                        initialLikesCount={typeof currentTrack.likes === 'number' ? currentTrack.likes : (Array.isArray(currentTrack.likes) ? currentTrack.likes.length : 0)}
+                        showCount={false}
+                        size="sm"
+                      />
+                    )}
+                    <button
+                      onClick={() => setShowPlayer(false)}
+                      className="p-1.5 rounded-full text-white/20 active:text-white/50 transition-all"
+                      aria-label="Fermer"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                {/* Row 2: Secondary actions */}
+                <div className="flex items-center justify-between px-3 pb-2 -mt-0.5">
+                  <span className="text-[10px] font-mono text-white/25 tabular-nums">
+                    {toTime(currentTime || 0)} / {toTime(duration || 0)}
+                  </span>
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setShuffle(!audioState.shuffle)}
+                      className={`p-1.5 rounded-full transition-all ${audioState.shuffle ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/30 active:text-white/60'}`}
+                      aria-label="Aléatoire"
+                    >
+                      <Shuffle className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={handleRepeat}
+                      className={`p-1.5 rounded-full transition-all relative ${audioState.repeat !== 'none' ? 'text-indigo-300 bg-indigo-500/10' : 'text-white/30 active:text-white/60'}`}
+                      aria-label="Répéter"
+                    >
+                      <Repeat className="w-3.5 h-3.5" />
+                      {audioState.repeat === 'one' && (
+                        <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-indigo-500 rounded-full text-[7px] font-bold flex items-center justify-center text-white">1</span>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (!currentTrack || isLive || String(currentTrack._id || '').startsWith('radio-')) return;
+                        addToUpNext(currentTrack as any, 'end');
+                      }}
+                      disabled={!currentTrack || isLive}
+                      className="p-1.5 rounded-full text-white/30 active:text-white/60 transition-all disabled:opacity-30"
+                      aria-label="À suivre"
+                    >
+                      <ListPlus className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={handleShare}
+                      className="p-1.5 rounded-full text-white/30 active:text-white/60 transition-all"
+                      aria-label="Partager"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => setShowTikTok(true)}
+                      className="p-1.5 rounded-full text-white/30 active:text-white/60 transition-all"
+                      aria-label="Player complet"
+                    >
+                      <ListMusic className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

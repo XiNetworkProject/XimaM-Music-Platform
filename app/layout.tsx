@@ -107,52 +107,6 @@ export default function RootLayout({
         <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />
         <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
         <AdSenseScript />
-        {/* Mobile debug console (eruda) — activated with ?debug=1 in URL */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function(){
-                try {
-                  if (typeof window === 'undefined') return;
-                  // Capture errors early — show on screen even without eruda
-                  window.__capturedErrors = [];
-                  window.onerror = function(msg, src, line, col, err) {
-                    var e = {msg:msg, src:src, line:line, col:col, stack:err&&err.stack||''};
-                    window.__capturedErrors.push(e);
-                    var d = document.getElementById('__err_overlay');
-                    if (!d) {
-                      d = document.createElement('div');
-                      d.id = '__err_overlay';
-                      d.style.cssText = 'position:fixed;bottom:0;left:0;right:0;max-height:50vh;overflow:auto;background:rgba(0,0,0,0.95);color:#ff6b6b;font:12px/1.5 monospace;padding:12px;z-index:2147483647;border-top:2px solid #ff4444;';
-                      d.innerHTML = '<b style="color:#ff4444">ERRORS:</b><br>';
-                      document.body.appendChild(d);
-                    }
-                    d.innerHTML += '<div style="margin:4px 0;padding:4px;background:rgba(255,0,0,0.1);border-radius:4px;">' + msg + '<br><span style="color:#888;font-size:10px;">' + (src||'') + ':' + (line||'') + '</span></div>';
-                  };
-                  window.addEventListener('unhandledrejection', function(ev) {
-                    var msg = ev.reason && ev.reason.message || String(ev.reason || 'Promise rejected');
-                    window.onerror(msg, '', 0, 0, ev.reason instanceof Error ? ev.reason : null);
-                  });
-
-                  var p = new URLSearchParams(window.location.search);
-                  if (p.get('debug') === '1' || localStorage.getItem('__eruda') === '1') {
-                    localStorage.setItem('__eruda', '1');
-                    var s = document.createElement('script');
-                    s.src = 'https://cdn.jsdelivr.net/npm/eruda@3.0.1/eruda.min.js';
-                    s.onload = function(){
-                      eruda.init();
-                      // Force eruda above everything
-                      var el = document.querySelector('.eruda-container');
-                      if (el) el.style.zIndex = '2147483647';
-                    };
-                    document.head.appendChild(s);
-                  }
-                  if (p.get('debug') === '0') localStorage.removeItem('__eruda');
-                } catch(e){}
-              })();
-            `,
-          }}
-        />
       </head>
           <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
         <Providers>
