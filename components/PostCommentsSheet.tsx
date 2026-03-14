@@ -15,7 +15,7 @@ interface Comment {
   content: string;
   created_at: string;
   user_id: string;
-  author: {
+  user: {
     id: string;
     username: string;
     name?: string;
@@ -161,8 +161,8 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                 </div>
               )}
               {comments.map(comment => {
-                const avatarUrl = comment.author?.avatar
-                  ? getCdnUrl(comment.author.avatar) || comment.author.avatar
+                const avatarUrl = comment.user?.avatar
+                  ? getCdnUrl(comment.user.avatar) || comment.user.avatar
                   : null;
                 const timeAgo = (() => {
                   try { return formatDistanceToNow(new Date(comment.created_at), { addSuffix: true, locale: fr }); }
@@ -180,13 +180,13 @@ export default function PostCommentsSheet({ post, isOpen, onClose, onCommentCoun
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">
-                        {(comment.author?.name || comment.author?.username || '?')[0].toUpperCase()}
+                        {(comment.user?.name || comment.user?.username || '?')[0].toUpperCase()}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline gap-2">
                         <span className="text-[13px] font-semibold text-white/80">
-                          {comment.author?.name || comment.author?.username}
+                          {comment.user?.name || comment.user?.username}
                         </span>
                         <span className="text-[11px] text-white/25 tabular-nums">{timeAgo}</span>
                       </div>
