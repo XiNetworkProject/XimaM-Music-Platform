@@ -34,7 +34,7 @@ export async function GET(
     }
 
     // Récupérer les profils des auteurs séparément
-    const userIds = [...new Set((comments || []).map((c: any) => c.user_id).filter(Boolean))];
+    const userIds = Array.from(new Set((comments || []).map((c: any) => c.user_id).filter(Boolean)));
     let profilesMap: Record<string, any> = {};
     if (userIds.length > 0) {
       const { data: profilesData } = await supabaseAdmin
