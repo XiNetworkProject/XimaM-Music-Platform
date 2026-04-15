@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
     }
     if (config.deadline) {
       const deadline = new Date(config.deadline);
+      // Prolongation exceptionnelle de 15 jours
+      deadline.setDate(deadline.getDate() + 15);
       if (new Date() > deadline) {
         return NextResponse.json({ error: 'La date limite d\'inscription est dépassée.' }, { status: 403 });
       }
