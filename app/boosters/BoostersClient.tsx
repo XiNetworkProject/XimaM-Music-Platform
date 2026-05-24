@@ -371,7 +371,7 @@ export default function BoostersClient() {
     if (filterRarity !== 'all') list = list.filter((i) => i.booster.rarity === filterRarity);
     if (filterType !== 'all') list = list.filter((i) => i.booster.type === filterType);
     if (needle) list = list.filter((i) => {
-      const b = i.booster;
+        const b = i.booster;
       return String(b.name || '').toLowerCase().includes(needle) || String(b.key || '').toLowerCase().includes(needle) || String(b.description || '').toLowerCase().includes(needle);
     });
     const arr = [...list];
@@ -475,7 +475,7 @@ export default function BoostersClient() {
         <div className="absolute top-[-20%] left-[-15%] w-[55%] h-[55%] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.6) 0%, transparent 70%)', filter: 'blur(80px)', animation: 'blob-drift 20s ease-in-out infinite' }} />
         <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full opacity-15" style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.6) 0%, transparent 70%)', filter: 'blur(80px)', animation: 'blob-drift 25s ease-in-out infinite reverse' }} />
         <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full opacity-10" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)', filter: 'blur(60px)', animation: 'blob-drift 18s ease-in-out infinite 5s' }} />
-      </div>
+                  </div>
 
       <div className="relative z-10">
         {/* ══════════════════════════════════════
@@ -525,13 +525,13 @@ export default function BoostersClient() {
                 </p>
 
                 <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowDailyModal(true)}
-                    disabled={!canOpen || boostersLoading}
-                    className={cx(
+                <button
+                  type="button"
+                  onClick={() => setShowDailyModal(true)}
+                  disabled={!canOpen || boostersLoading}
+                  className={cx(
                       'h-12 px-6 rounded-2xl font-bold text-sm transition-all',
-                      canOpen
+                    canOpen
                         ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-violet-500/30'
                         : 'border border-white/10 bg-white/5 text-white/40',
                     )}
@@ -541,7 +541,7 @@ export default function BoostersClient() {
                     ) : (
                       <span className="flex items-center gap-2"><Clock className="w-4 h-4" />{formatRemaining(remainingMs)}</span>
                     )}
-                  </button>
+                </button>
 
                   <button
                     type="button"
@@ -550,8 +550,8 @@ export default function BoostersClient() {
                   >
                     <span className="flex items-center gap-2"><Gift className="w-4 h-4" />Roue quotidienne</span>
                   </button>
-                </div>
-              </div>
+          </div>
+        </div>
 
               {/* Right: streak + stats */}
               <div className="flex sm:flex-col items-center sm:items-end gap-4 shrink-0">
@@ -560,35 +560,35 @@ export default function BoostersClient() {
                   <div className={cx('relative h-14 w-14 rounded-2xl border flex items-center justify-center', streak >= 7 ? 'border-amber-500/40 bg-amber-500/10' : 'border-white/10 bg-white/5')}>
                     <div className="text-xl font-black text-white">{streak}</div>
                     {streak >= 7 && <Flame className="absolute -top-2 -right-2 w-5 h-5 text-amber-400" style={{ animation: 'streak-fire 1.5s ease-in-out infinite' }} />}
-                  </div>
+                </div>
                   <div className="text-left">
                     <div className="text-xs font-bold text-white/70">Streak</div>
                     <div className="text-[10px] text-white/30">
                       {streak >= 30 ? 'Legendaire garanti !' : streak >= 14 ? 'Epique bientot' : streak >= 7 ? 'Rare garanti' : `J${7 - streak} pour Rare`}
                     </div>
-                  </div>
-                </div>
+                    </div>
+                    </div>
 
                 {/* Mini stats */}
                 <div className="flex items-center gap-3 text-xs">
                   <div className="text-center">
                     <div className="text-lg font-bold text-white">{owned.length}</div>
                     <div className="text-white/30">Dispo</div>
-                  </div>
+                        </div>
                   <div className="w-px h-8 bg-white/10" />
                   <div className="text-center">
                     <div className="text-lg font-bold text-white">{activeCount}</div>
                     <div className="text-white/30">Actifs</div>
-                  </div>
+                                </div>
                   <div className="w-px h-8 bg-white/10" />
                   <div className="text-center">
                     <div className="text-lg font-bold text-white">{used.length}</div>
                     <div className="text-white/30">Utilises</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                                </div>
+                              </div>
+                            </div>
+                        </div>
+                      </div>
         </section>
 
         {/* ══════════════════════════════════════
@@ -598,12 +598,12 @@ export default function BoostersClient() {
           <div className="max-w-5xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-2 scrollbar-none">
             {tabs.map((t) => {
               const Icon = t.icon;
-              return (
-                <button
+                        return (
+                              <button
                   key={t.id}
-                  type="button"
+                                type="button"
                   onClick={() => setTab(t.id)}
-                  className={cx(
+                                className={cx(
                     'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap',
                     tab === t.id
                       ? 'bg-white/10 text-white border border-white/10'
@@ -612,21 +612,21 @@ export default function BoostersClient() {
                 >
                   <Icon className="w-4 h-4" />
                   {t.label}
-                </button>
-              );
-            })}
+                              </button>
+                        );
+                      })}
 
             <div className="ml-auto flex items-center gap-2 shrink-0">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
                 <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher..."
                   className="h-9 pl-8 pr-3 w-32 sm:w-40 rounded-xl border border-white/10 bg-white/5 text-xs text-white placeholder:text-white/20 outline-none focus:border-violet-500/50 transition" />
-              </div>
+                  </div>
               <button type="button" onClick={() => setShowFilters(true)} className="h-9 w-9 rounded-xl border border-white/10 bg-white/5 grid place-items-center text-white/40 hover:text-white hover:bg-white/10 transition">
                 <Filter className="h-3.5 w-3.5" />
               </button>
-            </div>
-          </div>
+                  </div>
+                </div>
         </nav>
 
         {/* ══════════════════════════════════════
@@ -645,35 +645,35 @@ export default function BoostersClient() {
                     <div className="flex items-center gap-2 mb-3">
                       <Zap className="w-4 h-4 text-emerald-400" />
                       <span className="text-sm font-bold text-emerald-400">{activeCount} boost{activeCount > 1 ? 's' : ''} actif{activeCount > 1 ? 's' : ''}</span>
-                    </div>
+                  </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {activeTrackBoosts.map((b, idx) => {
-                        const t = trackMap[String(b.track_id)];
-                        const msLeft = new Date(b.expires_at).getTime() - nowTs;
-                        return (
+                        {activeTrackBoosts.map((b, idx) => {
+                          const t = trackMap[String(b.track_id)];
+                          const msLeft = new Date(b.expires_at).getTime() - nowTs;
+                          return (
                           <div key={`t-${idx}`} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5">
                             {t?.coverUrl && <img src={t.coverUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />}
-                            <div className="min-w-0 flex-1">
+                              <div className="min-w-0 flex-1">
                               <div className="text-xs font-semibold text-white truncate">{t?.title || 'Piste'}</div>
                               <div className="text-[10px] text-white/40">x{Number(b.multiplier).toFixed(2)} · {formatRemaining(msLeft)}</div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                      {activeArtistBoosts.map((b, idx) => {
-                        const msLeft = new Date(b.expires_at).getTime() - nowTs;
-                        return (
+                          );
+                        })}
+                        {activeArtistBoosts.map((b, idx) => {
+                          const msLeft = new Date(b.expires_at).getTime() - nowTs;
+                          return (
                           <div key={`a-${idx}`} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5">
                             <div className="w-8 h-8 rounded-lg bg-violet-500/20 grid place-items-center"><Star className="w-4 h-4 text-violet-400" /></div>
                             <div className="min-w-0 flex-1">
                               <div className="text-xs font-semibold text-white">Profil artiste</div>
                               <div className="text-[10px] text-white/40">x{Number(b.multiplier).toFixed(2)} · {formatRemaining(msLeft)}</div>
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+                          );
+                        })}
+                      </div>
+                </div>
                 )}
 
                 {/* Filters display */}
@@ -705,7 +705,7 @@ export default function BoostersClient() {
                       disabled={boostersLoading}
                     />
                   ))}
-                </div>
+                      </div>
 
                 {filteredInventory.length === 0 && (
                   <div className="py-16 text-center">
@@ -713,7 +713,7 @@ export default function BoostersClient() {
                     <div className="text-sm font-semibold text-white/40">Aucun booster</div>
                     <div className="text-xs text-white/20 mt-1">Ouvre ton daily ou va au Shop.</div>
                     <button type="button" onClick={() => setTab('shop')} className="mt-4 h-10 px-5 rounded-xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:opacity-90 transition">Aller au Shop</button>
-                  </div>
+                                  </div>
                 )}
               </motion.div>
             )}
@@ -729,7 +729,7 @@ export default function BoostersClient() {
                     <div className="flex items-center justify-between gap-3 p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5">
                       <div className="text-sm font-semibold text-emerald-400">{claimableIds.length} recompense{claimableIds.length > 1 ? 's' : ''} a recuperer</div>
                       <button type="button" onClick={() => claimManyMissions(claimableIds)} className="h-9 px-4 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition">Tout reclamer</button>
-                    </div>
+                              </div>
                   ) : null;
                 })()}
 
@@ -749,9 +749,9 @@ export default function BoostersClient() {
                           <div className="min-w-0">
                             <div className="text-sm font-bold text-white">{m.title}</div>
                             <div className="text-[11px] text-white/30 mt-0.5">{m.progress}/{m.threshold} · {m.goal_type}</div>
-                          </div>
+                            </div>
                           {done && <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">{m.claimed ? 'Reclamee' : 'OK'}</span>}
-                        </div>
+                          </div>
 
                         {/* Progress bar */}
                         <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden mb-3">
@@ -759,22 +759,22 @@ export default function BoostersClient() {
                         </div>
 
                         {/* Reward + action */}
-                        <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center justify-between gap-3">
                           {reward && rewardCfg ? (
                             <div className="flex items-center gap-2 min-w-0">
                               {React.createElement(rewardCfg.icon, { className: `w-3.5 h-3.5 ${rewardCfg.text}` })}
                               <span className={cx('text-[11px] font-semibold', rewardCfg.text)}>{reward.name}</span>
                               <span className="text-[10px] text-white/25">x{Number(reward.multiplier).toFixed(2)}</span>
-                            </div>
+                                  </div>
                           ) : <div />}
-                          <button
-                            type="button"
-                            onClick={() => claimMission(m.id)}
-                            disabled={!canClaim || claimingMissionId === m.id}
+                            <button
+                              type="button"
+                              onClick={() => claimMission(m.id)}
+                              disabled={!canClaim || claimingMissionId === m.id}
                             className={cx('h-8 px-4 rounded-lg text-xs font-bold transition', canClaim ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:opacity-90' : 'bg-white/5 text-white/20 border border-white/5')}
-                          >
+                            >
                             {claimingMissionId === m.id ? '...' : canClaim ? 'Reclamer' : m.claimed ? `Reset ${msToReset ? formatCountdown(msToReset) : ''}` : 'En cours'}
-                          </button>
+                            </button>
                         </div>
                       </div>
                     );
@@ -796,7 +796,7 @@ export default function BoostersClient() {
                   <div className="flex items-center gap-2 mb-4">
                     <Target className="w-4 h-4 text-white/40" />
                     <span className="text-sm font-bold text-white">Systeme de garantie (Pity)</span>
-                  </div>
+                      </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {[
                       { label: 'Rare', current: pity?.opens_since_rare ?? 0, max: 6, color: 'from-blue-500 to-indigo-500', text: 'text-blue-400' },
@@ -809,7 +809,7 @@ export default function BoostersClient() {
                           <div className="flex items-center justify-between mb-2">
                             <span className={cx('text-xs font-bold', p.text)}>{p.label}</span>
                             <span className="text-[10px] text-white/30">{p.current}/{p.max}</span>
-                          </div>
+                    </div>
                           <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
                             <div className={cx('h-full rounded-full bg-gradient-to-r transition-all duration-500', p.color)}
                               style={{ width: pct(ratio), boxShadow: ratio > 70 ? `0 0 8px currentColor` : 'none' }} />
@@ -839,16 +839,16 @@ export default function BoostersClient() {
                         <div className="px-2 py-1 rounded-lg border border-blue-500/30 bg-blue-500/10 text-[10px] font-bold text-blue-400 uppercase">Rare+</div>
                       </div>
                       <div className="text-[11px] text-white/25 mb-3">{packs?.starter_weekly ? `${packs.starter_weekly.claimed}/${packs.starter_weekly.perWeek} cette semaine` : '---'}</div>
-                      <button
-                        type="button"
+                    <button
+                      type="button"
                         onClick={() => claimPack('starter_weekly')}
                         disabled={plan === 'free' || (packs?.starter_weekly ? packs.starter_weekly.claimed >= packs.starter_weekly.perWeek : false)}
                         className="w-full h-11 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                      >
+                    >
                         Ouvrir le pack
-                      </button>
-                    </div>
+                    </button>
                   </div>
+                </div>
 
                   {/* Pro Pack */}
                   <div className="group relative rounded-2xl border border-amber-500/20 overflow-hidden transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10">
@@ -860,15 +860,15 @@ export default function BoostersClient() {
                           <div className="flex items-center gap-2 mb-1">
                             <Crown className="w-5 h-5 text-amber-400" />
                             <span className="text-base font-black text-white">Pack Pro</span>
-                          </div>
+                    </div>
                           <div className="text-xs text-white/40">5 boosters · 1 rare garanti · 2/sem</div>
-                        </div>
+                    </div>
                         <div className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-[10px] font-bold text-amber-400 uppercase">Premium</div>
-                      </div>
+                    </div>
                       <div className="text-[11px] text-white/25 mb-3">{packs?.pro_weekly ? `${packs.pro_weekly.claimed}/${packs.pro_weekly.perWeek} cette semaine` : '---'}</div>
                       <button
                         type="button"
-                        onClick={() => claimPack('pro_weekly')}
+                    onClick={() => claimPack('pro_weekly')}
                         disabled={(plan !== 'pro' && plan !== 'enterprise') || (packs?.pro_weekly ? packs.pro_weekly.claimed >= packs.pro_weekly.perWeek : false)}
                         className="w-full h-11 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
                       >
@@ -923,12 +923,12 @@ export default function BoostersClient() {
                         <div className="min-w-0 flex-1">
                           <div className="text-xs font-semibold text-white truncate">{o.booster_key || 'Booster'}</div>
                           <div className="text-[10px] text-white/25">{String(o.source || 'daily')} · {o.opened_at ? new Date(o.opened_at).toLocaleString('fr-FR') : ''}</div>
-                        </div>
-                        <div className="shrink-0 text-right">
+                      </div>
+                      <div className="shrink-0 text-right">
                           {o.multiplier && <div className="text-xs text-emerald-400 font-bold">x{Number(o.multiplier).toFixed(2)}</div>}
                           {rarity && <div className={cx('text-[10px] font-semibold', cfg?.text)}>{rarityLabel(rarity)}</div>}
-                        </div>
                       </div>
+                    </div>
                     );
                   })}
 
@@ -985,15 +985,15 @@ export default function BoostersClient() {
                     <div className="text-[10px] text-white/30 mb-1 uppercase tracking-wider">{f.label}</div>
                     <select value={f.value} onChange={(e) => f.setter(e.target.value)} className="w-full h-10 px-3.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-sm text-white outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] appearance-none transition">
                       {f.opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
+                  </select>
+                </div>
                 ))}
-              </div>
+                </div>
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => { setFilterRarity('all'); setFilterType('all'); setFilterStatus('owned'); setSort('new'); }} className="flex-1 inline-flex items-center justify-center rounded-full h-9 text-sm font-medium bg-white/[0.06] text-white/70 hover:bg-white/[0.1] transition">Reset</button>
                 <button type="button" onClick={() => { setShowFilters(false); setTab('boosters'); }} className="flex-1 inline-flex items-center justify-center rounded-full h-9 text-sm font-semibold bg-white text-black hover:bg-white/90 transition">Voir</button>
-              </div>
-            </div>
+                </div>
+                </div>
           </motion.div>
         </div>,
         document.body,

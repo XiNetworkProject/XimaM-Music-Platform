@@ -1132,7 +1132,7 @@ export default function MeteoDashboardClient({ user, role }: MeteoDashboardClien
       {showV3Banner && (
         <div className="relative z-10 bg-violet-500/[0.06] border-b border-white/[0.06]">
           <div className="px-4 lg:px-8 py-2.5 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
               <Sparkles className="w-4 h-4 text-violet-400 flex-shrink-0" />
               <p className="text-[13px] text-white/70">
                 <span className="font-semibold text-white/90">Alertemps V3</span>
@@ -1146,7 +1146,7 @@ export default function MeteoDashboardClient({ user, role }: MeteoDashboardClien
               <button onClick={() => setShowV3Banner(false)} className="p-1 rounded-full hover:bg-white/[0.06] text-white/30 hover:text-white/60 transition-colors">
                 <X className="w-4 h-4" />
               </button>
-            </div>
+              </div>
           </div>
         </div>
       )}
@@ -1252,8 +1252,8 @@ export default function MeteoDashboardClient({ user, role }: MeteoDashboardClien
               </div>
               <span className="text-[13px] text-white/60 truncate max-w-[120px]">{user.name || user.email}</span>
               <span className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border ${ROLE_COLORS[role] || ROLE_COLORS.contributor}`}>
-                {role}
-              </span>
+              {role}
+            </span>
             </div>
             <button onClick={handleLogout} className="inline-flex items-center gap-1.5 rounded-xl bg-white/[0.04] hover:bg-red-500/10 text-white/40 hover:text-red-400 px-3 py-2 text-[13px] transition-all">
               <LogOut className="w-4 h-4" />

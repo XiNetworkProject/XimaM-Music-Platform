@@ -32,6 +32,7 @@ import LikeButton from '@/components/LikeButton';
 import AdSlot from '@/components/AdSlot';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import StarAcademyBanner from '@/components/StarAcademyBanner';
+import SynauraShutdownBanner from '@/components/SynauraShutdownBanner';
 import PostInlineStrip from '@/components/PostInlineStrip';
 import PostAsTrackCard from '@/components/PostAsTrackCard';
 
@@ -404,7 +405,7 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
   const dur = track.duration || 0;
   const durStr = `${Math.floor(dur / 60)}:${String(dur % 60).padStart(2, '0')}`;
   const genre = Array.isArray(orig?.genre) ? orig.genre[0] : orig?.genre;
-
+  
   return (
     <div
       className="min-w-[160px] md:min-w-[200px] max-w-[160px] md:max-w-[200px] rounded-xl p-2 hover:bg-white/[0.06] transition-all duration-200 group/card"
@@ -470,7 +471,7 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
         {likesCount > 0 && (
           <span className="flex items-center gap-0.5">
             <Heart className="w-2.5 h-2.5" /> {formatK(likesCount)}
-          </span>
+        </span>
         )}
       </div>
 
@@ -485,8 +486,8 @@ const TrackCard = ({ track, onPlay }: { track: any; onPlay?: (track: any) => voi
           <span className="text-[11px] text-white/40 truncate">{orig.artist.name || orig.artist.username}</span>
         </div>
       )}
-    </div>
-  );
+  </div>
+);
 };
 
 
@@ -548,12 +549,12 @@ const LiveRadioCard = ({
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden shrink-0 transition-all
             ${isPlaying ? 'ring-2 ring-indigo-400/30 shadow-lg shadow-indigo-500/15' : 'bg-white/[0.06] border border-white/[0.08]'}`}
           >
-            {logoSrc ? (
+          {logoSrc ? (
               <img src={logoSrc} alt={title} className="w-10 h-7 object-contain" />
-            ) : (
+          ) : (
               <Radio className="w-5 h-5 text-white/50" />
-            )}
-          </div>
+          )}
+        </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-0.5 flex-wrap">
@@ -562,14 +563,14 @@ const LiveRadioCard = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />
                 <span className="text-[9px] font-black text-red-300 uppercase tracking-wider">Live</span>
               </span>
-            </div>
+        </div>
             {listeners > 0 && (
               <p className="text-[11px] text-white/35">{fmtListeners(listeners)} auditeurs</p>
             )}
-          </div>
+      </div>
 
           {/* Play/Pause */}
-          <button
+      <button
             onClick={(e) => { e.stopPropagation(); onToggle(); }}
             className="h-9 w-9 rounded-full bg-white text-black flex items-center justify-center transition-all hover:bg-white/90 shrink-0"
             aria-label={isPlaying ? 'Pause' : 'Lecture'}
@@ -577,7 +578,7 @@ const LiveRadioCard = ({
             {isPlaying
               ? <Pause className="w-4 h-4 text-black" />
               : <Play className="w-4 h-4 text-black fill-black ml-0.5" />}
-          </button>
+      </button>
         </div>
 
         {/* Current track info */}
@@ -807,35 +808,35 @@ const WelcomeHeader = ({
     "";
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div className="min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
         <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
           {session ? `${getGreeting()}, ${name}` : 'Bienvenue sur Synaura'}
-        </h1>
-      </div>
+          </h1>
+        </div>
       <div className="flex items-center gap-2.5 shrink-0">
-        <button
-          onClick={onListenNow}
+          <button
+            onClick={onListenNow}
           className="h-10 px-5 rounded-full bg-white text-black font-semibold hover:bg-white/90 transition-all text-sm inline-flex items-center gap-2"
-        >
+          >
           <Play className="w-4 h-4 fill-current" />
           Écouter
-        </button>
-        {!session ? (
-          <button
-            onClick={() => onGo("/auth/signup")}
+          </button>
+          {!session ? (
+            <button
+              onClick={() => onGo("/auth/signup")}
             className="h-10 px-5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm"
-          >
-            Créer un compte
-          </button>
-        ) : (
-          <button
-            onClick={() => onGo("/ai-generator")}
+            >
+              Créer un compte
+            </button>
+          ) : (
+        <button
+          onClick={() => onGo("/ai-generator")}
             className="h-10 px-5 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] transition text-sm inline-flex items-center gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            Studio IA
-          </button>
+        >
+          <Sparkles className="w-4 h-4" />
+          Studio IA
+        </button>
         )}
       </div>
     </div>
@@ -885,7 +886,7 @@ export default function SynauraHome() {
   const [boostedTracks, setBoostedTracks] = useState<any[]>([]);
   const [homeAlbums, setHomeAlbums] = useState<any[]>([]);
   const [homePosts, setHomePosts] = useState<any[]>([]);
-
+  
   // États pour la radio
   const [isRadioPlaying, setIsRadioPlaying] = useState(false);
   const [radioInfo, setRadioInfo] = useState({
@@ -1023,10 +1024,10 @@ export default function SynauraHome() {
         const guestPool = [...forYouTracks.slice(0, 40), ...recentTracks.slice(0, 40)];
         setPreferenceProfile(buildPreferenceProfile(guestPool));
       } else {
-        setPreferenceProfile(null);
+      setPreferenceProfile(null);
       }
-      return;
-    }
+          return;
+        }
         
     try {
       const [likedRes, recentListenRes] = await Promise.all([
@@ -1167,7 +1168,7 @@ export default function SynauraHome() {
 
   const loadData = useCallback(async (showLoader = false) => {
     if (showLoader) {
-      setLoading(true);
+    setLoading(true);
       dataCache.clear();
     }
     const uid = session?.user?.id;
@@ -1176,27 +1177,27 @@ export default function SynauraHome() {
     const forYouUrl = uid
       ? `/api/ranking/feed?limit=50&ai=1&userId=${uid}`
       : '/api/ranking/feed?limit=50&ai=1';
-    const [featured, trending, recent, forYou, users] = await Promise.all([
-      fetchCategoryData('featured', '/api/tracks/featured?limit=10'),
-      fetchCategoryData('trending', '/api/tracks/trending?limit=30'),
-      fetchCategoryData('recent', '/api/tracks/recent?limit=30'),
+      const [featured, trending, recent, forYou, users] = await Promise.all([
+        fetchCategoryData('featured', '/api/tracks/featured?limit=10'),
+        fetchCategoryData('trending', '/api/tracks/trending?limit=30'),
+        fetchCategoryData('recent', '/api/tracks/recent?limit=30'),
       fetchCategoryData('forYou', forYouUrl),
-      fetch('/api/users?limit=12').then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
-    ]);
-    
-    setFeaturedTracks(featured);
-    setTrendingTracks(trending);
-    setRecentTracks(recent);
-    setForYouTracks(forYou);
-    setPopularUsers(users);
+        fetch('/api/users?limit=12').then(r => r.ok ? r.json().then(d => d.users || []) : []).catch(() => [])
+      ]);
+      
+      setFeaturedTracks(featured);
+      setTrendingTracks(trending);
+      setRecentTracks(recent);
+      setForYouTracks(forYou);
+      setPopularUsers(users);
     if (showLoader) setLoading(false);
     lastFullFetchTimestamp = Date.now();
-
-    fetchLibraryStats();
-    fetchSuggestedCreators();
+      
+      fetchLibraryStats();
+      fetchSuggestedCreators();
     loadExtraSections();
   }, [fetchCategoryData, fetchLibraryStats, fetchSuggestedCreators, loadExtraSections, session?.user?.id]);
-
+    
   useEffect(() => {
     loadData(true);
   }, [loadData]);
@@ -1317,7 +1318,7 @@ export default function SynauraHome() {
       _original: t,
     }));
   }, [trendingList, personalizedForYouList, recentTracks, session?.user?.id, preferenceProfile]);
-
+  
   // Convertir les vraies données en format attendu par les composants
   const mockTracks = useMemo(() => trendingList.map(t => ({
     id: t._id,
@@ -1398,21 +1399,21 @@ export default function SynauraHome() {
       actionIcon: Sparkles,
       actionData: '/ai-generator'
     });
-
+    
     const usedIds = new Set<string>();
     const addTrackSlide = (track: Track, tag: string) => {
       if (usedIds.has(track._id)) return;
       usedIds.add(track._id);
-      slides.push({
-        id: track._id,
-        title: track.title,
-        subtitle: `${track.artist?.name || track.artist?.username}`,
+        slides.push({
+          id: track._id,
+          title: track.title,
+          subtitle: `${track.artist?.name || track.artist?.username}`,
         image: track.coverUrl || '/default-cover.svg',
         tag,
-        genre: track.genre?.[0],
-        actionLabel: 'Écouter',
-        actionType: 'play',
-        actionIcon: Play,
+          genre: track.genre?.[0],
+          actionLabel: 'Écouter',
+          actionType: 'play',
+          actionIcon: Play,
         track,
       });
     };
@@ -1794,6 +1795,9 @@ export default function SynauraHome() {
 
         {session && <OnboardingChecklist />}
 
+        {/* Annonce fermeture définitive */}
+        <SynauraShutdownBanner variant="full" />
+
         {/* Carousel en avant — visible immédiatement */}
         <section className="w-full" aria-label="À la une">
           <HeroCarousel slides={heroSlides} onAction={handleCarouselAction} />
@@ -1809,14 +1813,14 @@ export default function SynauraHome() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-white">Tendances</h2>
               <button onClick={() => onGo('/trending')} className="text-xs font-semibold text-white/40 hover:text-white transition">Voir tout &rsaquo;</button>
-            </div>
+                </div>
             <div className="space-y-0.5">
               {trendingList.slice(0, 5).map((t) => (
                 <div
                   key={t._id}
                   className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.06] transition p-2 group"
                 >
-                  <button
+                <button
                     onClick={() => { setTracks(trendingList.slice(0, 30) as any); playTrack(t as any); }}
                     className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
@@ -1829,55 +1833,55 @@ export default function SynauraHome() {
                         <span className="flex items-center gap-0.5"><Heart className="w-2.5 h-2.5" /> {formatK(Array.isArray(t.likes) ? t.likes.length : 0)}</span>
                       </div>
                     </div>
-                  </button>
+                </button>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <TrackContextMenu track={t} />
                   </div>
                 </div>
               ))}
+              </div>
             </div>
-          </div>
 
           {/* Nouveautés */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-white">Nouveautés</h2>
               <button onClick={() => onGo('/discover')} className="text-xs font-semibold text-white/40 hover:text-white transition">Voir tout &rsaquo;</button>
-            </div>
+                  </div>
             <div className="space-y-0.5">
               {recentTracks.slice(0, 5).map((t) => (
                 <div
                   key={t._id}
                   className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.06] transition p-2 group"
                 >
-                  <button
+                    <button
                     onClick={() => { setTracks(recentTracks.slice(0, 30) as any); playTrack(t as any); }}
                     className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                   >
                     <img src={t.coverUrl || '/default-cover.svg'} className="w-11 h-11 rounded-md object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} alt="" />
-                    <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1">
                       <div className="text-[13px] font-semibold text-white truncate">{t.title}</div>
                       <div className="text-[11px] text-white/30 truncate">{Array.isArray(t.genre) ? t.genre[0] : t.genre || ''}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <img src={t.artist?.avatar || '/default-avatar.png'} className="w-3.5 h-3.5 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
                         <span className="text-[10px] text-white/25 truncate">{t.artist?.name || t.artist?.username}</span>
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                     <TrackContextMenu track={t} />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+                  ))}
+                </div>
+              </div>
 
           {/* Créateurs */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-black text-white">Créateurs</h2>
               <button onClick={() => onGo('/community')} className="text-xs font-semibold text-white/40 hover:text-white transition">Explorer &rsaquo;</button>
-            </div>
+                    </div>
             <div className="space-y-0.5">
               {personalizedCreators.slice(0, 5).map((creator: any) => (
                 <div key={creator._id || creator.id} className="flex items-center gap-2.5 rounded-lg hover:bg-white/[0.06] transition p-2">
@@ -1887,17 +1891,17 @@ export default function SynauraHome() {
                       <div className="text-[13px] font-semibold text-white truncate">{creator.name || creator.username}</div>
                       <div className="text-[11px] text-white/30 truncate">
                         {creator.followerCount ? `${formatK(creator.followerCount)} abonnés` : `@${creator.username}`}
-                      </div>
+                  </div>
                     </div>
-                  </button>
+                        </button>
                   <div onClick={(e) => e.stopPropagation()}>
                     <FollowButton artistId={creator._id} artistUsername={creator.username} size="sm" className="text-xs py-1.5 rounded-lg" />
-                  </div>
+                        </div>
                 </div>
               ))}
             </div>
-          </div>
-        </div>
+                  </div>
+                </div>
 
         {/* Posts créateurs — inline entre sections */}
         <PostInlineStrip count={2} label="Du côté des créateurs" />
@@ -1908,7 +1912,7 @@ export default function SynauraHome() {
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Sparkles className="w-4 h-4 text-white" />
-              </div>
+                  </div>
               <div>
                 <h2 className="text-base font-black text-white leading-tight">Sélection du jour</h2>
                 <p className="text-[11px] text-white/30">3 titres choisis pour toi &middot; change chaque jour</p>
@@ -1934,7 +1938,7 @@ export default function SynauraHome() {
                     <div className="flex gap-3 p-3">
                       <div className="relative shrink-0 w-20 h-20 rounded-lg overflow-hidden">
                         <img src={pick.cover} alt={pick.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
-                        <button
+                      <button
                           onClick={() => { setTracks([orig] as any); playTrack(orig as any); }}
                           className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -1945,7 +1949,7 @@ export default function SynauraHome() {
                         {dur > 0 && (
                           <span className="absolute bottom-1 right-1 px-1 py-0.5 rounded text-[9px] font-semibold text-white bg-black/60 backdrop-blur-sm tabular-nums">{durStr}</span>
                         )}
-                      </div>
+                        </div>
                       <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                         <div>
                           <p className="text-[13px] font-bold text-white line-clamp-1">{pick.title}</p>
@@ -1955,18 +1959,18 @@ export default function SynauraHome() {
                           <div className="flex items-center gap-1.5">
                             <img src={orig?.artist?.avatar || '/default-avatar.png'} className="w-4 h-4 rounded-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
                             <span className="text-[11px] text-white/40 truncate">{orig?.artist?.name || orig?.artist?.username}</span>
-                          </div>
+                  </div>
                           <span className="text-[10px] text-white/25 tabular-nums flex items-center gap-0.5">&#9654; {formatK(plays)}</span>
-                        </div>
-                      </div>
-                    </div>
+                </div>
+              </div>
+            </div>
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <TrackContextMenu track={orig} />
-                    </div>
-                  </div>
+          </div>
+                </div>
                 );
               })}
-            </div>
+              </div>
           </section>
         )}
 
@@ -1983,15 +1987,15 @@ export default function SynauraHome() {
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="h-11 w-11 rounded-xl grid place-items-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.4), rgba(245,158,11,0.3))', boxShadow: '0 0 20px rgba(168,85,247,0.2)' }}>
                     <Zap className="h-5 w-5 text-amber-400" style={{ filter: 'drop-shadow(0 0 6px rgba(245,158,11,0.5))' }} />
-                  </div>
+                    </div>
                   <div className="min-w-0">
                     <h2 className="text-lg font-black text-white leading-tight">Le meilleur des boosts</h2>
                     <p className="text-xs text-white/40 mt-0.5">Ces artistes boostent leurs pistes en ce moment</p>
-                  </div>
+                    </div>
                 </div>
                 <button onClick={() => router.push('/boosters')} className="shrink-0 h-9 px-4 rounded-full bg-white/[0.06] text-white/70 font-medium hover:bg-white/[0.1] text-xs transition-all">
                   Voir tout
-                </button>
+                  </button>
               </div>
 
               {/* Track carousel */}
@@ -2013,27 +2017,27 @@ export default function SynauraHome() {
                           <button onClick={() => { setTracks(boostedTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
                             <div className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center">
                               <Play className="w-5 h-5 text-white fill-white ml-0.5" />
-                            </div>
-                          </button>
+                </div>
+                </button>
                           {/* Badge */}
                           <div className="absolute top-1.5 right-1.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-violet-400/30" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.5), rgba(245,158,11,0.4))', backdropFilter: 'blur(8px)' }}>
                             <Zap className="w-2.5 h-2.5 text-amber-300" style={{ fill: 'rgba(245,158,11,0.4)' }} />
                             <span className="text-[8px] font-bold text-white">Boosted</span>
-                          </div>
+              </div>
                           {/* Multiplier */}
                           {t.boostMultiplier && t.boostMultiplier > 1 && (
                             <div className="absolute bottom-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/60 backdrop-blur-sm border border-emerald-500/20">
                               <span className="text-[9px] font-bold text-emerald-400">x{Number(t.boostMultiplier).toFixed(1)}</span>
-                            </div>
+                    </div>
                           )}
-                        </div>
-                      </div>
+                    </div>
+              </div>
                       <div className="text-xs font-semibold text-white truncate">{t.title}</div>
                       <div className="text-[10px] text-white/35 truncate">{t.artist?.name || t.artist?.username || 'Artiste'} · {durStr}</div>
                     </div>
                   );
                 })}
-              </div>
+          </div>
 
               {/* CTA banner */}
               <div className="mt-5 rounded-xl overflow-hidden" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.15), rgba(10,10,21,0.6), rgba(245,158,11,0.1))', border: '1px solid rgba(168,85,247,0.15)' }}>
@@ -2048,10 +2052,10 @@ export default function SynauraHome() {
                   <button onClick={() => router.push('/boosters')} className="shrink-0 h-10 px-5 rounded-full bg-white text-black text-xs font-semibold transition-all hover:bg-white/90">
                     Ouvrir mes boosters
                   </button>
+                  </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </section>
+              </section>
         )}
 
         {/* CTA Boosters (si aucune piste boostee, on montre quand meme le CTA) */}
@@ -2080,11 +2084,11 @@ export default function SynauraHome() {
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center shadow-lg shadow-orange-500/20">
                 <Flame className="w-4 h-4 text-white" />
-              </div>
+                        </div>
               <div>
                 <h2 className="text-base font-black text-white leading-tight">Montée en puissance</h2>
                 <p className="text-[11px] text-white/30">Les titres qui explosent en ce moment</p>
-              </div>
+                      </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
               {risingTracks.slice(0, 6).map((t: any, idx: number) => {
@@ -2098,12 +2102,12 @@ export default function SynauraHome() {
                       <img src={t.coverUrl || '/default-cover.svg'} alt={t.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
                       <button onClick={() => { setTracks(risingTracks as any); playTrack(t as any); }} className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Play className="w-4 h-4 text-white fill-white ml-0.5" />
-                      </button>
+                    </button>
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-[13px] font-semibold text-white truncate">{t.title}</p>
                       <p className="text-[11px] text-white/30 truncate">{t.artist?.name || t.artist?.username}</p>
-                    </div>
+                  </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {growth > 0 && (
                         <span className="flex items-center gap-0.5 text-[10px] font-bold text-emerald-400">
@@ -2113,12 +2117,12 @@ export default function SynauraHome() {
                       {dur > 0 && <span className="text-[10px] text-white/20 tabular-nums">{durStr}</span>}
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                         <TrackContextMenu track={t} />
-                      </div>
-                    </div>
-                  </div>
+              </div>
+        </div>
+                </div>
                 );
               })}
-            </div>
+                  </div>
           </section>
         )}
 
@@ -2130,12 +2134,12 @@ export default function SynauraHome() {
               <div>
                 <div className="text-lg font-black text-white">Rejoins Synaura</div>
                 <p className="text-sm text-white/40 mt-0.5">Crée ton compte gratuitement et accède au Studio IA, likes, playlists et plus.</p>
-              </div>
+            </div>
               <button onClick={() => onGo('/auth/signup')} className="h-11 px-6 rounded-full bg-white text-black font-semibold text-sm transition-all hover:bg-white/90 shrink-0 whitespace-nowrap">
                 Créer un compte
-              </button>
-            </div>
-          </section>
+                </button>
+              </div>
+            </section>
         )}
 
         {/* Bibliothèque — style "Jump Back In" */}
@@ -2151,26 +2155,26 @@ export default function SynauraHome() {
                   <div className="text-sm font-bold text-white">Favoris</div>
                   <div className="text-[11px] text-white/40">{libraryStats.favorites} titres</div>
                 </div>
-              </button>
+                </button>
               <button onClick={() => router.push('/library?tab=playlists', { scroll: false })} className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-violet-600/25 to-violet-600/10 hover:from-violet-600/35 hover:to-violet-600/15 transition min-w-[200px] p-3">
                 <div className="w-10 h-10 rounded-lg bg-violet-500 flex items-center justify-center shrink-0">
                   <Disc3 className="w-5 h-5 text-white" />
-                </div>
+              </div>
                 <div className="min-w-0 text-left">
                   <div className="text-sm font-bold text-white">Playlists</div>
                   <div className="text-[11px] text-white/40">{libraryStats.playlists} dossiers</div>
-                </div>
+                  </div>
               </button>
               <button onClick={() => router.push('/library?tab=recent', { scroll: false })} className="flex items-center gap-3 rounded-lg bg-gradient-to-r from-emerald-600/25 to-emerald-600/10 hover:from-emerald-600/35 hover:to-emerald-600/15 transition min-w-[200px] p-3">
                 <div className="w-10 h-10 rounded-lg bg-emerald-500 flex items-center justify-center shrink-0">
                   <Clock className="w-5 h-5 text-white" />
-                </div>
+                  </div>
                 <div className="min-w-0 text-left">
                   <div className="text-sm font-bold text-white">Historique</div>
                   <div className="text-[11px] text-white/40">Récemment jouées</div>
                 </div>
-              </button>
-            </div>
+                </button>
+              </div>
           </section>
         )}
 
@@ -2188,7 +2192,7 @@ export default function SynauraHome() {
               { name: 'Lo-Fi', img: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=300&h=300&fit=crop', color: 'from-indigo-600/40' },
               { name: 'Classical', img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=300&h=300&fit=crop', color: 'from-emerald-600/40' },
             ].map((g) => (
-              <button
+                <button
                 key={g.name}
                 onClick={() => router.push(`/discover?genre=${encodeURIComponent(g.name)}`, { scroll: false })}
                 className="relative min-w-[130px] md:min-w-[160px] aspect-square rounded-xl overflow-hidden group shrink-0"
@@ -2197,7 +2201,7 @@ export default function SynauraHome() {
                 <img src={g.img} alt={g.name} className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110" />
                 <div className={`absolute inset-0 bg-gradient-to-t ${g.color} to-black/60`} />
                 <span className="absolute bottom-3 left-3 text-sm font-bold text-white">{g.name}</span>
-              </button>
+                </button>
             ))}
           </HorizontalScroller>
         </section>
@@ -2227,8 +2231,8 @@ export default function SynauraHome() {
                       <div className="absolute top-2 right-2 opacity-0 group-hover/cover:opacity-100 transition-opacity"><TrackContextMenu track={t} /></div>
                       <button onClick={() => { setTracks(rediscoverTracks as any); playTrack(t as any); }} className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-amber-500 hover:bg-amber-400 flex items-center justify-center opacity-0 group-hover/cover:opacity-100 transition-all shadow-lg shadow-amber-500/30 hover:scale-110">
                         <Play className="w-4 h-4 text-white fill-white ml-0.5" />
-                      </button>
-                    </div>
+                </button>
+              </div>
                     <div className="mt-2">
                       <p className="text-[13px] font-semibold line-clamp-1 text-white">{t.title}</p>
                       {genre && <p className="text-[10px] text-white/30 truncate mt-0.5">{genre}</p>}
@@ -2238,7 +2242,7 @@ export default function SynauraHome() {
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <img src={t.artist.avatar || '/default-avatar.png'} className="w-4 h-4 rounded-full object-cover shrink-0" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }} alt="" />
                         <span className="text-[11px] text-white/40 truncate">{t.artist.name || t.artist.username}</span>
-                      </div>
+                  </div>
                     )}
                   </div>
                 );
@@ -2257,7 +2261,7 @@ export default function SynauraHome() {
               {forYouCards.slice(3).map(t => <TrackCard key={t.id} track={t} onPlay={playTrack} />)}
               {homePosts[1] && <PostAsTrackCard key={`post-${homePosts[1].id}`} post={homePosts[1]} />}
             </HorizontalScroller>
-          </section>
+        </section>
         )}
 
         {/* Parce que tu as aimé */}
@@ -2318,7 +2322,7 @@ export default function SynauraHome() {
                     <div className="absolute -inset-3 rounded-full opacity-30" style={{ background: 'radial-gradient(circle, rgba(168,85,247,0.5), transparent 70%)', filter: 'blur(8px)' }} />
                     <div className="relative h-14 w-14 rounded-2xl grid place-items-center" style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.3), rgba(245,158,11,0.2))', border: '1px solid rgba(168,85,247,0.2)' }}>
                       <Zap className="w-7 h-7 text-amber-400" style={{ filter: 'drop-shadow(0 0 8px rgba(245,158,11,0.4))' }} />
-                    </div>
+                  </div>
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
@@ -2328,11 +2332,11 @@ export default function SynauraHome() {
                 <div className="shrink-0 flex flex-col sm:flex-row gap-2">
                   <button onClick={() => router.push('/boosters')} className="h-10 px-5 rounded-full bg-white text-black text-xs font-semibold transition-all hover:bg-white/90">
                     Ouvrir mes boosters
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
+                    </button>
+                  </div>
+                    </div>
+                  </div>
+        </section>
         )}
 
         {/* Les artistes que tu suis écoutent */}
@@ -2364,7 +2368,7 @@ export default function SynauraHome() {
                 />
               ))}
             </HorizontalScroller>
-          </section>
+        </section>
         )}
 
         {/* Albums & EPs */}
@@ -2385,22 +2389,22 @@ export default function SynauraHome() {
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
                         <Disc3 className="w-10 h-10 text-white/20" />
-                      </div>
+                  </div>
                     )}
                     <div className="absolute top-2 left-2 inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[8px] font-bold text-white/70">
                       <Disc3 className="w-2.5 h-2.5" /> Album
-                    </div>
+                  </div>
                     <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center opacity-0 group-hover/al:opacity-100 transition-all shadow-lg shadow-violet-500/30">
                       <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
-                    </div>
-                  </div>
+                </div>
+              </div>
                   <div className="mt-2">
                     <div className="text-sm font-semibold text-white truncate group-hover/al:text-violet-300 transition">{album.name}</div>
                     <div className="text-[11px] text-white/40 truncate">
                       {album.artist?.name || 'Artiste'}
                       {album.trackCount ? ` · ${album.trackCount} titres` : ''}
+                </div>
                     </div>
-                  </div>
                 </button>
               ))}
             </HorizontalScroller>
@@ -2412,13 +2416,13 @@ export default function SynauraHome() {
           <section>
             <div className="flex items-center gap-1.5 mb-2.5">
               <span className="text-[11px] font-bold uppercase tracking-widest text-white/20">Du côté des créateurs</span>
-            </div>
+                  </div>
             <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-hide">
               {homePosts.slice(4, 6).map(p => (
                 <PostAsTrackCard key={p.id} post={p} />
               ))}
-            </div>
-          </section>
+          </div>
+        </section>
         )}
 
         {/* Playlists populaires */}
@@ -2443,13 +2447,13 @@ export default function SynauraHome() {
                     <div className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center opacity-0 group-hover/pl:opacity-100 transition-all shadow-lg shadow-indigo-500/30">
                       <Play className="w-3.5 h-3.5 text-white fill-white ml-0.5" />
                     </div>
-                  </div>
+                    </div>
                   <div className="mt-2">
                     <div className="text-sm font-semibold text-white truncate">{pl.name}</div>
                     <div className="text-[11px] text-white/40 truncate">
                       {pl.trackCount ? `${pl.trackCount} titres` : ''}
                       {pl.user?.username ? ` · ${pl.user.name || pl.user.username}` : ''}
-                    </div>
+                        </div>
                   </div>
                 </button>
               ))}
@@ -2463,7 +2467,7 @@ export default function SynauraHome() {
             <div className="flex items-center gap-2.5 mb-4">
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
                 <UserPlus className="w-4 h-4 text-white" />
-              </div>
+                  </div>
               <div>
                 <h2 className="text-base font-black text-white leading-tight">Nouveaux artistes</h2>
                 <p className="text-[11px] text-white/30">Fraîchement arrivés sur Synaura</p>
@@ -2471,7 +2475,7 @@ export default function SynauraHome() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {newArtists.map((artist: any) => (
-                <button
+                          <button
                   key={artist._id || artist.id}
                   onClick={() => router.push(`/profile/${encodeURIComponent(artist.username)}`, { scroll: false })}
                   className="flex flex-col items-center gap-2 p-3 rounded-xl hover:bg-white/[0.06] transition group text-center"
@@ -2485,18 +2489,18 @@ export default function SynauraHome() {
                     />
                     <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center ring-2 ring-[#0a0a0f]">
                       <Sparkles className="w-2.5 h-2.5 text-white" />
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                   <div className="min-w-0 w-full">
                     <p className="text-[13px] font-semibold text-white truncate">{artist.name || artist.username}</p>
                     <p className="text-[10px] text-white/30 truncate">
                       {artist.trackCount ? `${artist.trackCount} titres` : artist.totalPlays ? `${formatK(artist.totalPlays)} écoutes` : 'Nouveau'}
                     </p>
-                  </div>
+                    </div>
                 </button>
-              ))}
+                  ))}
             </div>
-          </section>
+            </section>
         )}
 
         {/* En direct */}
@@ -2509,7 +2513,7 @@ export default function SynauraHome() {
             <LiveRadioCard title="Mixx Party" logoSrc="/mixxpartywhitelog.png" isPlaying={isRadioPlaying} currentTrack={radioInfo.currentTrack} currentArtist={radioInfo.currentArtist} listeners={radioInfo.listeners} onToggle={handleRadioToggle} onOpenPlayer={() => { if (!isRadioPlaying) handleRadioToggle(); }} />
             <LiveRadioCard title="XimaM Radio" logoSrc="/ximam-radio-x.svg" isPlaying={isXimamRadioPlaying} currentTrack={ximamRadioInfo.currentTrack} currentArtist={ximamRadioInfo.currentArtist} listeners={ximamRadioInfo.listeners} onToggle={handleXimamRadioToggle} onOpenPlayer={() => { if (!isXimamRadioPlaying) handleXimamRadioToggle(); }} />
           </div>
-        </section>
+          </section>
 
         <AdSlot placement="home_card" />
 
@@ -2517,7 +2521,7 @@ export default function SynauraHome() {
         {process.env.NODE_ENV !== "production" && <DevTests />}
 
         <footer className="pt-8 pb-10 text-xs text-white/40">
-          <div className="flex flex-wrap items-center gap-3 justify-center">
+            <div className="flex flex-wrap items-center gap-3 justify-center">
             <a href="/support" className="hover:text-white transition">Support / Contact</a>
             <span className="opacity-40">&middot;</span>
             <a href="/legal/mentions-legales" className="hover:text-white transition">Mentions légales</a>
@@ -2533,13 +2537,13 @@ export default function SynauraHome() {
             <a href="/legal/rgpd" className="hover:text-white transition">RGPD</a>
             <span className="opacity-40">&middot;</span>
             <span>&copy; {new Date().getFullYear()} Synaura. Tous droits réservés.</span>
-          </div>
-        </footer>
+            </div>
+          </footer>
       </main>
-    </div>
+                              </div>
   );
 }
 
 function DevTests() {
   return null;
-}
+} 

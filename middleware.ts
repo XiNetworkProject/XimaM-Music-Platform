@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { isPastShutdownEnd, isShutdownAllowedPath } from '@/lib/synauraShutdown';
 
 // Pages publiques (accessibles sans authentification)
 const publicPages = [
@@ -16,6 +17,8 @@ const publicPages = [
   '/embed',
   '/join',
   '/landing',
+  '/fermeture',
+  '/arret',
 ];
 
 // Pages protégées (nécessitent une authentification)
@@ -33,6 +36,14 @@ const protectedPages = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Après la date de fin : seules les pages d'information restent accessibles
+  if (isPastShutdownEnd() && !isShutdownAllowedPath(pathname)) {
+    const arretUrl = new URL('/arret', request.url);
+    if (pathname !== arretUrl.pathname) {
+      return NextResponse.redirect(arretUrl);
+    }
+  }
   
   // Vérifier si c'est une page publique
   const isPublicPage = publicPages.some(page => 

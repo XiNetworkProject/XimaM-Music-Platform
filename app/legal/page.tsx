@@ -1,11 +1,18 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { FileText, Shield, Cookie, Scale, Users, Globe, ArrowRight } from 'lucide-react';
+import { FileText, Shield, Cookie, Scale, Users, Globe, ArrowRight, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import BottomNav from '@/components/BottomNav';
 
 const legalPages = [
+  {
+    id: 'fermeture',
+    title: 'Fermeture de Synaura',
+    description: 'Annonce officielle d\'arrêt définitif du service',
+    icon: AlertTriangle,
+    href: '/fermeture'
+  },
   {
     id: 'mentions-legales',
     title: 'Mentions légales',
@@ -69,6 +76,35 @@ export default function LegalPage() {
             </div>
             <h1 className="text-3xl font-bold text-white mb-2">Centre légal</h1>
             <p className="text-white/60">Documents légaux et informations importantes</p>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.15 }}
+            className="mb-6"
+          >
+            <Link
+              href="/fermeture"
+              className="block p-5 rounded-2xl border border-red-500/30 bg-gradient-to-r from-red-950/60 to-rose-950/40 hover:border-red-400/50 transition group"
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/25">
+                    <AlertTriangle className="w-6 h-6 text-red-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-red-100 group-hover:text-white transition">
+                      Synaura ferme définitivement
+                    </h2>
+                    <p className="text-sm text-white/50 mt-0.5">
+                      Lire l&apos;annonce officielle — dernier accès le 24 juin 2026
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight className="w-5 h-5 text-red-300/60 group-hover:text-red-200 group-hover:translate-x-1 transition-all shrink-0" />
+              </div>
+            </Link>
           </motion.div>
 
           {/* Informations entreprise */}

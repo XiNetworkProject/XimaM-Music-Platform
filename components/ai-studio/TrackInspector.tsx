@@ -187,49 +187,49 @@ function InspectorContent({
   const lyricsText = track.lyrics || '';
   const hasPromptCard = Boolean(promptText.trim()) && normalizeText(promptText) !== normalizeText(lyricsText);
 
-  return (
+    return (
     <>
-      {/* Header */}
+        {/* Header */}
       <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4 shrink-0">
         {isMobileSheet && (
           <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20" />
         )}
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">
-            Détails de la piste
-          </p>
+              Détails de la piste
+            </p>
           <h2 className="text-sm font-semibold text-white/90 truncate max-w-[260px]">
-            {track.title || 'Piste générée'}
-          </h2>
-        </div>
-        <button
-          onClick={onClose}
+              {track.title || 'Piste générée'}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
           className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl text-white/30 hover:bg-white/[0.06] hover:text-white/60 transition-all touch-manipulation"
           aria-label="Fermer"
-        >
+          >
           {isMobileSheet ? <ChevronDown className="w-5 h-5" /> : <X className="w-4 h-4" />}
-        </button>
-      </div>
+          </button>
+        </div>
 
       {/* Cover + Actions */}
       <div className={`px-5 pt-5 shrink-0 ${isMobileSheet ? 'flex gap-4 items-start' : ''}`}>
         <div className={`${isMobileSheet ? 'w-28 h-28 shrink-0' : 'w-full aspect-square mb-4'} rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center overflow-hidden`}>
-          {sanitizeCoverUrl(track.imageUrl) ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={sanitizeCoverUrl(track.imageUrl)}
-              alt={track.title || 'Cover générée'}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const img = e.currentTarget;
-                if (img.src.endsWith('/synaura_symbol.svg')) return;
-                img.src = '/synaura_symbol.svg';
-              }}
-            />
-          ) : (
+            {sanitizeCoverUrl(track.imageUrl) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={sanitizeCoverUrl(track.imageUrl)}
+                alt={track.title || 'Cover générée'}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  if (img.src.endsWith('/synaura_symbol.svg')) return;
+                  img.src = '/synaura_symbol.svg';
+                }}
+              />
+            ) : (
             <Music className="w-10 h-10 text-white/40" />
-          )}
-        </div>
+            )}
+          </div>
 
         {isMobileSheet ? (
           <div className="flex-1 min-w-0">
@@ -268,7 +268,7 @@ function InspectorContent({
             <ActionBtn onClick={() => onShare(track)} label="Partager"><Share2 className="w-4 h-4" /></ActionBtn>
           </div>
         )}
-      </div>
+          </div>
 
       {/* Info grid — desktop only */}
       {!isMobileSheet && (
@@ -307,7 +307,7 @@ function InspectorContent({
             publishing={publishingVisibility}
             onToggle={onTogglePublish}
           />
-        </div>
+            </div>
       )}
 
       {/* Lyrics / Prompt */}
@@ -318,29 +318,29 @@ function InspectorContent({
             text={promptText}
             onCopy={onCopyLyrics ? () => onCopyLyrics(track, true) : undefined}
           />
-        )}
+          )}
 
-        {lyricsText.trim() && (
+          {lyricsText.trim() && (
           <InfoCard
             title="Paroles générées"
             text={lyricsText}
             onCopy={onCopyLyrics ? () => onCopyLyrics(track) : undefined}
           />
-        )}
+          )}
 
-        {onCopyLyrics && promptText.trim() && !lyricsText.trim() && (
+          {onCopyLyrics && promptText.trim() && !lyricsText.trim() && (
           <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => onCopyLyrics(track, true)}
+              <button
+                type="button"
+                onClick={() => onCopyLyrics(track, true)}
               className="text-[10px] uppercase tracking-wider text-white/30 hover:text-white/60 inline-flex items-center gap-1 transition-colors touch-manipulation"
-            >
-              <Copy className="w-3 h-3" />
-              Copier le prompt
-            </button>
-          </div>
-        )}
-      </div>
+              >
+                <Copy className="w-3 h-3" />
+                Copier le prompt
+              </button>
+            </div>
+          )}
+        </div>
     </>
   );
 }
@@ -366,11 +366,11 @@ export function TrackInspector(props: TrackInspectorProps) {
   return (
     <AnimatePresence>
       {isOpen && track && (
-        <motion.div
+          <motion.div
           className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
           onClick={props.onClose}
         >
           {/* Mobile: bottom sheet */}

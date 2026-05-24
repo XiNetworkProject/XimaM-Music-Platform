@@ -13,6 +13,7 @@ import { LikeProvider, useLikeContext } from '@/contexts/LikeContext';
 import { PlaysProvider } from '@/contexts/PlaysContext';
 import { usePlaysSync } from '@/hooks/usePlaysSync';
 import { PreloadProvider } from '@/contexts/PreloadContext';
+import { isPastShutdownEnd, isShutdownAnnounced } from '@/lib/synauraShutdown';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -1227,11 +1228,35 @@ function NativeFeaturesWrapper({ children }: { children: React.ReactNode }) {
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const WhatsNewModal = dynamic(() => import('@/components/WhatsNewModal'), { ssr: false });
+  const ShutdownModal = dynamic(() => import('@/components/SynauraShutdownModal'), { ssr: false });
   const WHATSNEW_VERSION = (process.env.NEXT_PUBLIC_WHATSNEW_VERSION as string) || 'v2-mars2026';
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showShutdown, setShowShutdown] = useState(false);
   const storageKey = `whatsnew.${WHATSNEW_VERSION}.dontShowUntilNextUpdate`;
+  const shutdownStorageKey = 'synaura.shutdown.2026.dismissed';
 
   useEffect(() => {
+    try {
+      if (typeof window === 'undefined') return;
+      if (!isShutdownAnnounced() || isPastShutdownEnd()) return;
+
+      const params = new URLSearchParams(window.location.search);
+      const shutdownFlag = params.get('fermeture');
+      if (shutdownFlag === 'reset') localStorage.removeItem(shutdownStorageKey);
+      if (shutdownFlag === '1' || shutdownFlag === 'true') {
+        setShowShutdown(true);
+        return;
+      }
+      const shutdownDismissed = localStorage.getItem(shutdownStorageKey);
+      if (!shutdownDismissed) {
+        setShowShutdown(true);
+        return;
+      }
+    } catch {}
+  }, [shutdownStorageKey]);
+
+  useEffect(() => {
+    if (showShutdown) return;
     try {
       if (typeof window === 'undefined') return;
       const params = new URLSearchParams(window.location.search);
@@ -1245,13 +1270,20 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       const dismissed = localStorage.getItem(storageKey);
       if (!dismissed) setShowWhatsNew(true);
     } catch {}
-  }, [storageKey]);
+  }, [storageKey, showShutdown]);
 
   const dontShowUntilNextUpdate = () => {
     try {
       localStorage.setItem(storageKey, '1');
     } catch {}
     setShowWhatsNew(false);
+  };
+
+  const dismissShutdownModal = () => {
+    try {
+      localStorage.setItem(shutdownStorageKey, '1');
+    } catch {}
+    setShowShutdown(false);
   };
 
   useEffect(() => {
@@ -1275,8 +1307,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                     <NativeFeaturesWrapper>
                   {children}
                     </NativeFeaturesWrapper>
+                    <ShutdownModal
+                      isOpen={showShutdown}
+                      onClose={() => setShowShutdown(false)}
+                      onDismiss={dismissShutdownModal}
+                    />
                     <WhatsNewModal
-                      isOpen={showWhatsNew}
+                      isOpen={showWhatsNew && !showShutdown}
                       onClose={() => setShowWhatsNew(false)}
                       onDontShowUntilNextUpdate={dontShowUntilNextUpdate}
                     />

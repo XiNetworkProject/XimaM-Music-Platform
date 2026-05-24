@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
-import {
+import { 
   Upload, Music, Image, X, Play, Pause,
   ArrowLeft, Check, FileText, ChevronDown, ChevronRight, Sparkles,
 } from 'lucide-react';
@@ -131,7 +131,7 @@ function Section({ title, icon: Icon, children, defaultOpen = true }: { title: s
 export default function UploadPage() {
   const { user, requireAuth } = useAuth();
   const router = useRouter();
-
+  
   // Release type
   const [releaseType, setReleaseType] = useState<ReleaseType>('single');
 
@@ -251,11 +251,11 @@ export default function UploadPage() {
 
       // Compute durations async
       valid.forEach((f) => {
-        const url = URL.createObjectURL(f);
-        const a = new Audio(url);
+            const url = URL.createObjectURL(f);
+              const a = new Audio(url);
         a.addEventListener('loadedmetadata', () => {
           const d = isFinite(a.duration) ? Math.round(a.duration) : 0;
-          URL.revokeObjectURL(url);
+                URL.revokeObjectURL(url);
           setTrackMetas((prev) => prev.map((m) => m.file === f ? { ...m, duration: d } : m));
         });
         a.addEventListener('error', () => URL.revokeObjectURL(url));
@@ -358,17 +358,17 @@ export default function UploadPage() {
       if (releaseType === 'single') {
         const tr = uploadedTracks[0]!;
         const res = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
             audioUrl: tr.secure_url, audioPublicId: tr.public_id,
             coverUrl: coverResult?.secure_url || null, coverPublicId: coverResult?.public_id || null,
             trackData: { title, description, lyrics, genre: genres, isExplicit, isPublic, copyright: { owner: user?.name || '', year: copyrightYear, rights: 'Tous droits reserves' }, album: null },
             duration: tr.duration || 0,
             audioBytes: tr.file?.size || 0, coverBytes: coverFile?.size || 0,
             ...extraFields,
-          }),
-        });
+        }),
+      });
         if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Erreur sauvegarde'); }
         notify.success('Publie !', 'Ton titre a ete publie avec succes !');
       } else {
@@ -404,7 +404,7 @@ export default function UploadPage() {
         notify.success('Publie !', `${uploadedTracks.length} piste(s) publiees dans ${albumName}.`);
       }
 
-      sessionStorage.setItem('fromUpload', 'true');
+        sessionStorage.setItem('fromUpload', 'true');
       router.push('/');
     } catch (err) {
       notify.error('Erreur', err instanceof Error ? err.message : 'Erreur upload');
@@ -504,7 +504,7 @@ export default function UploadPage() {
                   {s.k}. {s.label}
                 </button>
               ))}
-            </div>
+              </div>
 
             {/* Progress bar */}
             <div className="h-0.5 bg-white/[0.04]">
@@ -523,10 +523,10 @@ export default function UploadPage() {
           {/* ─── Content ──────────────────────────────── */}
           <div className="flex flex-col lg:flex-row">
             <div className="flex-1 min-w-0">
-              <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait">
 
                 {/* ═══════ STEP 1: Fichiers ═══════ */}
-                {currentStep === 1 && (
+            {currentStep === 1 && (
                   <motion.div key="s1" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="p-4 sm:p-6 space-y-5">
 
                     {/* Release type */}
@@ -552,14 +552,14 @@ export default function UploadPage() {
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{audioFile.name}</div>
                             <div className="text-[10px] text-white/30">{(audioFile.size / 1024 / 1024).toFixed(1)} MB — {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</div>
-                          </div>
-                          <button type="button" onClick={() => { setAudioFile(null); setIsPlaying(false); }} className="w-8 h-8 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-white/30 hover:text-red-400"><X className="w-4 h-4" /></button>
                         </div>
-                        <WaveformDisplay audioFile={audioFile} currentTime={currentTime} duration={duration} onSeek={(t) => { if (audioRef.current) { audioRef.current.currentTime = t; setCurrentTime(t); } }} />
+                          <button type="button" onClick={() => { setAudioFile(null); setIsPlaying(false); }} className="w-8 h-8 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-white/30 hover:text-red-400"><X className="w-4 h-4" /></button>
                       </div>
+                        <WaveformDisplay audioFile={audioFile} currentTime={currentTime} duration={duration} onSeek={(t) => { if (audioRef.current) { audioRef.current.currentTime = t; setCurrentTime(t); } }} />
+                  </div>
                     ) : (
                       /* EP / Album mode */
-                      <div className="space-y-3">
+                        <div className="space-y-3">
                         <div {...getAudioRP()} className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${isAudioDrag ? 'border-violet-500/60 bg-violet-500/5' : 'border-white/[0.08] hover:border-white/[0.16]'}`}>
                           <input {...getAudioIP()} />
                           <Upload className="w-8 h-8 mx-auto text-white/20 mb-2" />
@@ -567,7 +567,7 @@ export default function UploadPage() {
                           <p className="text-[10px] text-white/30 mt-1">
                             {releaseType === 'ep' ? '2 a 6 pistes' : '7 a 50 pistes'} — Glisse ou clique
                           </p>
-                        </div>
+                </div>
 
                         {trackMetas.length > 0 && (
                           <div>
@@ -578,11 +578,11 @@ export default function UploadPage() {
                                   {releaseType === 'ep' ? 'EP : 2-6 pistes requises' : 'Album : 7+ pistes requises'}
                                 </span>
                               )}
-                            </div>
+                                  </div>
                             <TrackListEditor tracks={trackMetas} onChange={setTrackMetas} />
-                          </div>
+                                      </div>
                         )}
-                      </div>
+                                    </div>
                     )}
                   </motion.div>
                 )}
@@ -601,14 +601,14 @@ export default function UploadPage() {
                             <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                               <Image className="w-6 h-6 text-white/70" />
-                            </div>
-                          </div>
+                                      </div>
+                                    </div>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-1.5">
                             <Image className="w-6 h-6 text-white/20" />
                             <span className="text-[10px] text-white/30 text-center px-2">Pochette *</span>
-                          </div>
-                        )}
+                                      </div>
+                                    )}
                       </div>
 
                       {/* Title + Artist */}
@@ -618,19 +618,19 @@ export default function UploadPage() {
                             {releaseType === 'single' ? 'Titre *' : releaseType === 'ep' ? "Nom de l'EP *" : "Nom de l'album *"}
                           </label>
                           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition" placeholder="Titre de ta sortie" />
-                        </div>
+                                    </div>
                         <div>
                           <label className="text-xs text-white/40 mb-1 block">Artiste</label>
                           <input type="text" value={user?.name || ''} disabled className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white/30 cursor-not-allowed" />
+                                  </div>
                         </div>
                       </div>
-                    </div>
 
                     {/* Description */}
                     <div>
                       <label className="text-xs text-white/40 mb-1 block">Description</label>
                       <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 resize-none" placeholder="Decris ta musique..." />
-                    </div>
+                              </div>
 
                     {/* Genres */}
                     <Section title="Genres" icon={Music} defaultOpen={true}>
@@ -651,10 +651,10 @@ export default function UploadPage() {
                           return (
                             <button key={k} type="button" onClick={() => setLanguage(active ? '' : k)} className={['px-2.5 py-2 rounded-xl text-xs transition', active ? 'bg-violet-500/15 border border-violet-500/40 text-violet-300' : 'bg-white/[0.03] border border-white/[0.06] text-white/50 hover:bg-white/[0.06]'].join(' ')}>
                               {labels[k]}
-                            </button>
+                  </button>
                           );
                         })}
-                      </div>
+                </div>
                     </Section>
 
                     {/* Tags */}
@@ -678,8 +678,8 @@ export default function UploadPage() {
                     <Section title="Credits" icon={FileText} defaultOpen={false}>
                       <CreditsEditor credits={credits} onChange={setCredits} />
                     </Section>
-                  </motion.div>
-                )}
+              </motion.div>
+            )}
 
                 {/* ═══════ STEP 3: Publier ═══════ */}
                 {currentStep === 3 && (
@@ -695,8 +695,8 @@ export default function UploadPage() {
                             {([['public', 'Public'], ['unlisted', 'Non-liste'], ['private', 'Prive']] as const).map(([k, l]) => (
                               <button key={k} type="button" onClick={() => setVisibility(k)} className={['px-3 py-2 rounded-xl text-xs transition', visibility === k ? 'bg-violet-500/15 border border-violet-500/40 text-violet-300' : 'bg-white/[0.03] border border-white/[0.06] text-white/50 hover:bg-white/[0.06]'].join(' ')}>{l}</button>
                             ))}
-                          </div>
-                        </div>
+                    </div>
+                  </div>
 
                         {/* Explicit */}
                         <label className="flex items-center gap-3 text-sm text-white/60 cursor-pointer">
@@ -708,14 +708,14 @@ export default function UploadPage() {
                         <div>
                           <label className="text-xs text-white/40 mb-1.5 block">Date de publication</label>
                           <ScheduleSelector mode={scheduleMode} scheduledAt={scheduledAt} onModeChange={setScheduleMode} onDateChange={setScheduledAt} />
-                        </div>
+                  </div>
 
                         {/* Copyright year */}
                         <div className="flex items-center gap-3">
                           <label className="text-xs text-white/40">Annee copyright</label>
                           <input type="number" value={copyrightYear} onChange={(e) => setCopyrightYear(parseInt(e.target.value) || new Date().getFullYear())} className="w-24 h-9 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-violet-500/40" />
-                        </div>
-                      </div>
+                  </div>
+                </div>
                     </Section>
 
                     {/* Preview */}
@@ -744,59 +744,59 @@ export default function UploadPage() {
                         copyrightOwner={user?.name || ''}
                         copyrightYear={copyrightYear}
                       />
-                    </div>
+                      </div>
                   </motion.div>
                 )}
 
               </AnimatePresence>
-            </div>
+                    </div>
 
             {/* ─── Desktop side preview ──────────────── */}
             <div className="hidden lg:block w-72 xl:w-80 border-l border-white/[0.06] p-4">
               <div className="sticky top-28 space-y-4">
                 <div className="text-xs text-white/30 font-medium uppercase tracking-wider">Apercu</div>
                 <div className="w-full aspect-square rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10">
-                  {coverFile ? (
+                          {coverFile ? (
                     <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
-                  ) : (
+                          ) : (
                     <div className="w-full h-full flex items-center justify-center"><Music className="w-12 h-12 text-white/10" /></div>
-                  )}
+                          )}
                 </div>
                 <div>
                   <div className="text-sm font-bold truncate">{title || 'Sans titre'}</div>
                   <div className="text-xs text-white/40">{user?.name || 'Artiste'}</div>
                   {featuring.length > 0 && <div className="text-[10px] text-white/25 mt-0.5">feat. {featuring.map((f) => f.name).join(', ')}</div>}
-                </div>
+                          </div>
                 {genres.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {genres.slice(0, 3).map((g) => <span key={g} className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[10px] text-white/40">{g}</span>)}
                     {genres.length > 3 && <span className="text-[10px] text-white/20">+{genres.length - 3}</span>}
-                  </div>
-                )}
+                        </div>
+                      )}
                 {releaseType !== 'single' && trackMetas.length > 0 && (
                   <div className="text-[10px] text-white/30">{trackMetas.length} piste(s) — {Math.floor(trackMetas.reduce((s, t) => s + t.duration, 0) / 60)} min</div>
-                )}
-              </div>
-            </div>
-          </div>
+                          )}
+                        </div>
+                          </div>
+                        </div>
 
           {/* ─── Upload progress ──────────────────────── */}
-          {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
+            {(uploadProgress.audio > 0 || uploadProgress.cover > 0) && (
             <div className="px-4 py-3 space-y-2 border-t border-white/[0.06]">
-              {uploadProgress.audio > 0 && (
-                <div>
+                {uploadProgress.audio > 0 && (
+                  <div>
                   <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Audio</span><span>{uploadProgress.audio}%</span></div>
                   <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.audio}%` }} /></div>
                 </div>
-              )}
-              {uploadProgress.cover > 0 && (
-                <div>
+                )}
+                {uploadProgress.cover > 0 && (
+                  <div>
                   <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Pochette</span><span>{uploadProgress.cover}%</span></div>
                   <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.cover}%` }} /></div>
-                </div>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            )}
 
           {/* ─── Footer nav ───────────────────────────── */}
           <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-t border-white/[0.06] bg-[#0a0a14]/80 backdrop-blur-xl">
@@ -806,21 +806,21 @@ export default function UploadPage() {
               )}
               <button type="button" onClick={cancelUpload} className="h-10 px-4 rounded-full bg-red-500/8 text-red-400/80 text-sm font-medium hover:bg-red-500/15 transition">Annuler</button>
             </div>
-
-            {currentStep < totalSteps ? (
-              <button
-                type="button"
-                onClick={() => setCurrentStep(currentStep + 1)}
+                
+                {currentStep < totalSteps ? (
+                  <button 
+                    type="button"
+                    onClick={() => setCurrentStep(currentStep + 1)}
                 disabled={(currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid) || !canUpload}
                 className="h-10 px-6 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                Suivant
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={isUploading || !canUpload}
+                  >
+                    Suivant
+                  </button>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={isUploading || !canUpload}
                 className="h-10 px-6 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:opacity-90 transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {isUploading ? (
@@ -828,13 +828,13 @@ export default function UploadPage() {
                 ) : (
                   <><Sparkles className="w-4 h-4" /> Publier</>
                 )}
-              </button>
+                  </button>
             )}
-          </div>
-
         </div>
-      </div>
+
+            </div>
+          </div>
       <BottomNav />
     </div>
   );
-}
+} 

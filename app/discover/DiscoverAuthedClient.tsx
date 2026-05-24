@@ -197,14 +197,14 @@ export default function DiscoverAuthedClient({
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="min-w-0">
+            <div className="min-w-0">
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white">
               {`${greeting()}, ${displayName}`}
-            </h1>
+              </h1>
             <p className="text-sm text-white/40 mt-1">
               Explore, découvre et écoute sans limites.
-            </p>
-          </div>
+              </p>
+            </div>
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={() => handlePlayAll(filteredForYou.length ? filteredForYou : filteredTrending)}
@@ -218,10 +218,10 @@ export default function DiscoverAuthedClient({
               className="h-10 px-5 rounded-full bg-white/10 hover:bg-white/15 border border-white/10 transition text-sm font-semibold text-white inline-flex items-center gap-2"
             >
               <Sparkles className="w-4 h-4" />
-              Studio IA
+                  Studio IA
             </button>
           </div>
-        </div>
+          </div>
 
         {/* Search */}
         <div className="relative">
@@ -259,7 +259,7 @@ export default function DiscoverAuthedClient({
               {g}
             </button>
           ))}
-        </div>
+            </div>
 
         {/* Search Results */}
         {isSearching ? (
@@ -289,9 +289,9 @@ export default function DiscoverAuthedClient({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
                   {topHits.map((t, i) => (
                     <TrackRow key={t._id} track={t} index={i} />
-                  ))}
-                </div>
-              </section>
+                ))}
+              </div>
+            </section>
             )}
 
             {/* Pour toi */}
@@ -404,12 +404,12 @@ export default function DiscoverAuthedClient({
                   title={isFiltered ? `Tendances ${activeGenre}` : 'Tendances'}
                   subtitle="Les plus écoutés"
                 />
-                <HorizontalScroller>
+              <HorizontalScroller>
                   {displayTrending.slice(0, 20).map(t => (
-                    <TrackTile key={t._id} track={t} />
-                  ))}
-                </HorizontalScroller>
-              </section>
+                  <TrackTile key={t._id} track={t} />
+                ))}
+              </HorizontalScroller>
+            </section>
             )}
 
             {/* Nouveautés */}
@@ -419,48 +419,48 @@ export default function DiscoverAuthedClient({
                   title={isFiltered ? `Nouveautés ${activeGenre}` : 'Nouveautés'}
                   subtitle="Tout juste publié"
                 />
-                <HorizontalScroller>
+              <HorizontalScroller>
                   {displayNewest.slice(0, 20).map(t => (
-                    <TrackTile key={t._id} track={t} />
-                  ))}
-                </HorizontalScroller>
-              </section>
+                  <TrackTile key={t._id} track={t} />
+                ))}
+              </HorizontalScroller>
+            </section>
             )}
 
             {/* Créations IA */}
             {aiTracks.length > 0 && (
               <section>
                 <SectionHeader title="Créations IA" subtitle="Généré par intelligence artificielle" actionLabel="Créer" actionHref="/ai-generator" />
-                <HorizontalScroller>
+              <HorizontalScroller>
                   {aiTracks.map(t => (
-                    <TrackTile key={t._id} track={t} />
-                  ))}
-                </HorizontalScroller>
-              </section>
+                  <TrackTile key={t._id} track={t} />
+                ))}
+              </HorizontalScroller>
+            </section>
             )}
 
             {/* Artistes */}
             {!isFiltered && artists.length > 0 && (
               <section>
-                <SectionHeader title="Artistes du moment" subtitle="À suivre" />
-                <HorizontalScroller>
+              <SectionHeader title="Artistes du moment" subtitle="À suivre" />
+              <HorizontalScroller>
                   {artists.slice(0, 12).map(a => (
-                    <ArtistTile key={a._id} artist={a} />
-                  ))}
-                </HorizontalScroller>
-              </section>
+                  <ArtistTile key={a._id} artist={a} />
+                ))}
+              </HorizontalScroller>
+            </section>
             )}
 
             {/* Playlists */}
             {!isFiltered && playlists.length > 0 && (
               <section>
                 <SectionHeader title="Playlists populaires" subtitle="Compilations de la communauté" />
-                <HorizontalScroller>
+              <HorizontalScroller>
                   {playlists.slice(0, 12).map(p => (
-                    <PlaylistTile key={p._id} playlist={p} />
-                  ))}
-                </HorizontalScroller>
-              </section>
+                  <PlaylistTile key={p._id} playlist={p} />
+                ))}
+              </HorizontalScroller>
+            </section>
             )}
 
             {/* Empty state when genre has no results */}

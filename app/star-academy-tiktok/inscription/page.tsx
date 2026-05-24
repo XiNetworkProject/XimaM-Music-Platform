@@ -750,7 +750,7 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
               height={100}
               style={{ filter: "drop-shadow(0 0 20px rgba(147,51,234,0.6)) brightness(1.2)", mixBlendMode: "screen" }}
             />
-          </div>
+                </div>
 
           {/* Success title */}
           <div style={{ marginBottom: "8px", animation: "sa-fade-up 0.8s ease-out 0.8s both" }}>
@@ -812,7 +812,7 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
             }}>
               {token}
             </code>
-          </div>
+                </div>
 
           {/* CTAs */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", animation: "sa-fade-up 0.8s ease-out 1.4s both" }}>
@@ -851,7 +851,7 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
             >
               Retour a Star Academy
             </Link>
-          </div>
+              </div>
 
           {/* Synaura discovery section — invitiation */}
           <div style={{
@@ -888,14 +888,14 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
 
               {/* Logo */}
               <div style={{ marginBottom: "12px" }}>
-                <Image
+                  <Image
                   src="/synaura_logotype.svg"
                   alt="Synaura"
                   width={110}
                   height={28}
                   style={{ filter: "brightness(0) invert(1)", opacity: 0.9, display: "inline-block" }}
-                />
-              </div>
+                  />
+                </div>
 
               <h3 style={{
                 fontSize: "18px", fontWeight: 800, color: "#fff",
@@ -983,11 +983,11 @@ function SuccessScreen({ email, token }: { email: string; token: string }) {
               letterSpacing: "2px", textTransform: "uppercase",
             }}>
               Retenus : 1 mois Premium · Gagnants : 3 mois Premium
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+                  </div>
+                </div>
+                  </div>
+                </div>
+                  </div>
   );
 }
 
@@ -1165,8 +1165,8 @@ function InscriptionForm() {
               <span className="text-[10px] font-bold text-[#f59e0b] uppercase tracking-widest">Auditions 2026</span>
               <span className="text-white/20">·</span>
               <span className="text-[10px] text-white/40">Etape {step} / 5</span>
-            </div>
-          </div>
+                </div>
+                  </div>
           <div className="flex flex-col items-end gap-2">
             <div className="flex items-center gap-1.5 rounded-full border border-[#ec4899]/40 bg-[#ec4899]/15 px-2.5 py-1">
               <span className="relative flex h-1.5 w-1.5">
@@ -1174,17 +1174,17 @@ function InscriptionForm() {
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#ec4899]" />
               </span>
               <span className="text-[9px] font-black text-[#ec4899] uppercase tracking-widest">Live</span>
-            </div>
+                </div>
             {/* mini progress */}
             <div className="flex gap-1">
               {STEPS.map(s => (
                 <div key={s.n} className="h-1 w-5 rounded-full transition-all duration-500"
                   style={{ background: s.n <= step ? "linear-gradient(90deg,#9333ea,#ec4899)" : "rgba(255,255,255,0.2)" }} />
               ))}
-            </div>
-          </div>
-        </div>
-      </div>
+              </div>
+                  </div>
+                </div>
+                  </div>
 
       {/* ══════ PANNEAU GAUCHE desktop (caché sur mobile) ══════ */}
       <div className="hidden lg:block relative lg:sticky lg:top-0 lg:h-screen lg:w-[44%] xl:w-[42%] shrink-0 overflow-hidden">
@@ -1200,7 +1200,7 @@ function InscriptionForm() {
             style={{ background: "radial-gradient(circle, rgba(147,51,234,0.5) 0%, transparent 70%)", filter: "blur(60px)" }} />
           <div className="absolute bottom-[15%] right-[-5%] w-[50%] h-[40%] rounded-full opacity-25"
             style={{ background: "radial-gradient(circle, rgba(236,72,153,0.5) 0%, transparent 70%)", filter: "blur(50px)" }} />
-        </div>
+                </div>
 
         <div className="absolute inset-0 flex flex-col justify-between p-8 z-10">
           {/* Top */}
@@ -1221,7 +1221,7 @@ function InscriptionForm() {
 
           {/* Centre */}
           <div className="space-y-5">
-            <div>
+                  <div>
               <p className="text-xs font-bold text-[#f59e0b] uppercase tracking-widest mb-3">Nouvelle Saison 2026</p>
               <h1 className="text-5xl font-black leading-[1.05] text-white" style={{ textShadow: "0 2px 24px rgba(0,0,0,0.9)" }}>
                 Inscription<br />
@@ -1229,12 +1229,12 @@ function InscriptionForm() {
                   Auditions
                 </span>
               </h1>
-            </div>
+                  </div>
             <div className="flex flex-wrap gap-2">
               {["Chant Solo", "Rap", "Cover", "Mix + Vocal", "Duo"].map(c => (
                 <span key={c} className="rounded-full border border-white/12 bg-black/20 backdrop-blur-sm px-3 py-1 text-xs text-white/60">{c}</span>
               ))}
-            </div>
+                </div>
             {/* Prize card */}
             <div className="rounded-2xl border border-[#f59e0b]/20 bg-white/[0.02] backdrop-blur-xl p-4">
               <div className="flex items-center gap-3">
@@ -1242,16 +1242,16 @@ function InscriptionForm() {
                   style={{ background: "linear-gradient(135deg,#f59e0b,#ec4899)" }}>
                   SA
                 </div>
-                <div>
+                  <div>
                   <p className="text-sm font-black text-[#fbbf24]">Premium Synaura offert</p>
                   <p className="text-xs text-white/45 mt-0.5">1 mois si retenu · 3 mois si gagnant</p>
+                  </div>
                 </div>
               </div>
-            </div>
           </div>
 
           {/* Bottom : step progress */}
-          <div>
+                <div>
             <div className="flex items-center justify-between mb-2.5">
               <p className="text-xs text-white/30 font-medium">Etape {step} sur 5</p>
               <p className="text-xs text-white/30">{STEPS[step - 1]?.label}</p>
@@ -1263,8 +1263,8 @@ function InscriptionForm() {
               ))}
             </div>
           </div>
-        </div>
-      </div>
+                </div>
+              </div>
 
       {/* ══════ PANNEAU DROIT — Formulaire ══════ */}
       <div className="flex-1 flex flex-col min-h-screen lg:min-h-0 lg:overflow-y-auto relative">
@@ -1275,7 +1275,7 @@ function InscriptionForm() {
             style={{ background: "radial-gradient(circle, rgba(147,51,234,0.8) 0%, transparent 70%)", filter: "blur(80px)" }} />
           <div className="absolute top-[20%] right-[-10%] w-[40%] h-[40%] rounded-full opacity-12"
             style={{ background: "radial-gradient(circle, rgba(236,72,153,0.7) 0%, transparent 70%)", filter: "blur(80px)" }} />
-        </div>
+                </div>
 
         <div className="relative z-10 flex-1 flex flex-col justify-center px-5 py-8 sm:py-12 md:px-8 max-w-lg mx-auto w-full">
 
@@ -1322,14 +1322,14 @@ function InscriptionForm() {
                   <label className={labelCls}>Nom / Prenom <Req /></label>
                   <input className={inputCls} placeholder="Marie Dupont" value={fields.fullName} onChange={e => set("fullName", e.target.value)} />
                 </div>
-                <div>
+                  <div>
                   <label className={labelCls}>Age <Req /></label>
                   <input className={inputCls} type="number" min={13} max={99} placeholder="18" value={fields.age} onChange={e => set("age", e.target.value)} />
-                </div>
-                <div>
+                  </div>
+                  <div>
                   <label className={labelCls}>Telephone</label>
                   <input className={inputCls} placeholder="+33 6..." value={fields.phone} onChange={e => set("phone", e.target.value)} />
-                </div>
+                  </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Email <Req /></label>
                   <input className={inputCls} type="email" placeholder="email@exemple.com" value={fields.email} onChange={e => set("email", e.target.value)} />
@@ -1346,11 +1346,11 @@ function InscriptionForm() {
           {step === 2 && (
             <FormCard step={2} title="Ton profil artistique" subtitle="Dis-nous ce que tu fais et ou te trouver.">
               <div className="space-y-4">
-                <div>
+                  <div>
                   <label className={labelCls}>Pseudo TikTok <Req /></label>
                   <input className={inputCls} placeholder="@tonpseudo" value={fields.tiktok} onChange={e => set("tiktok", e.target.value)} />
-                </div>
-                <div>
+                  </div>
+                  <div>
                   <label className={labelCls}>Categorie <Req /></label>
                   <div className="grid grid-cols-2 gap-2">
                     {[["Chant Solo", "Voix"], ["Rap / Spoken Word", "Rap"], ["Cover / Reprise", "Cov"], ["Mix avec Vocal", "Mix"], ["Duo / Groupe", "Duo"]].map(([v, short]) => (
@@ -1373,7 +1373,7 @@ function InscriptionForm() {
                     ))}
                   </div>
                 </div>
-                <div>
+                  <div>
                   <label className={labelCls}>Niveau</label>
                   <div className="flex gap-2 flex-wrap">
                     {["Debutant", "Intermediaire", "Confirme", "Pro"].map(l => (
@@ -1388,12 +1388,12 @@ function InscriptionForm() {
                       </button>
                     ))}
                   </div>
-                </div>
-                <div>
+                  </div>
+                  <div>
                   <label className={labelCls}>Lien portfolio (optionnel)</label>
                   <input className={inputCls} placeholder="TikTok / Instagram / YouTube / Synaura" value={fields.link} onChange={e => set("link", e.target.value)} />
+                  </div>
                 </div>
-              </div>
             </FormCard>
           )}
 
@@ -1401,7 +1401,7 @@ function InscriptionForm() {
           {step === 3 && (
             <FormCard step={3} title="Presente-toi" subtitle="Ton univers, ton style, pourquoi Star Academy TikTok.">
               <div className="space-y-4">
-                <div>
+                  <div>
                   <label className={labelCls}>Ta presentation <Req /></label>
                   <textarea className={`${inputCls} resize-none`} rows={6}
                     placeholder="Mon univers, mon style, ce que j'ai envie de montrer en live, pourquoi Star Academy TikTok..."
@@ -1412,13 +1412,13 @@ function InscriptionForm() {
                       {fields.bio.length} / 500
                     </span>
                   </div>
-                </div>
-                <div>
+                  </div>
+                  <div>
                   <label className={labelCls}>Disponibilites (optionnel)</label>
                   <input className={inputCls} placeholder="Soirs, week-ends, vacances d'ete..."
                     value={fields.availability} onChange={e => set("availability", e.target.value)} />
+                  </div>
                 </div>
-              </div>
             </FormCard>
           )}
 
@@ -1547,18 +1547,18 @@ function InscriptionForm() {
                 {error && (
                   <div className="rounded-2xl border border-[#ec4899]/25 bg-[#ec4899]/8 px-4 py-3 text-sm text-[#f9a8d4]">
                     {error}
-                  </div>
+                    </div>
                 )}
                 {loading && (
                   <div className="space-y-2">
                     <div className="flex justify-between text-xs text-white/35 font-medium">
                       <span>Envoi en cours...</span><span>{progress}%</span>
-                    </div>
+                  </div>
                     <div className="h-1.5 rounded-full overflow-hidden bg-white/8">
                       <div className="h-full rounded-full transition-all duration-300"
                         style={{ width: `${progress}%`, background: "linear-gradient(90deg,#9333ea,#ec4899)" }} />
-                    </div>
-                  </div>
+                        </div>
+                      </div>
                 )}
                 <button type="button" disabled={loading || !fields.consent} onClick={submit}
                   className="w-full rounded-full py-4 font-black text-base text-white transition-all duration-200 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
@@ -1567,16 +1567,16 @@ function InscriptionForm() {
                     boxShadow: fields.consent && !loading ? "0 0 30px rgba(147,51,234,0.35), 0 4px 15px rgba(0,0,0,0.4)" : "none",
                   }}>
                   {loading ? "Envoi en cours..." : "Envoyer ma candidature"}
-                </button>
-              </div>
+                      </button>
+                    </div>
             </FormCard>
-          )}
+                    )}
 
           {/* Error global */}
           {error && step !== 5 && (
             <div className="mt-4 rounded-2xl border border-[#ec4899]/25 bg-[#ec4899]/8 px-4 py-3 text-sm text-[#f9a8d4]">
               {error}
-            </div>
+                  </div>
           )}
 
           {/* Navigation */}
@@ -1596,20 +1596,20 @@ function InscriptionForm() {
                 }}>
                 Continuer
               </button>
-            </div>
+                </div>
           )}
 
           {step === 5 && (
             <button type="button" onClick={prev}
               className="mt-4 w-full bg-white/[0.06] text-white/70 font-medium rounded-full py-3 text-sm hover:bg-white/[0.1] transition-all duration-200">
               Modifier ma presentation
-            </button>
+                </button>
           )}
 
           <p className="text-center text-[11px] text-white/15 mt-8">Gratuit — Aucun engagement — Resultats par email</p>
+              </div>
+          </div>
         </div>
-      </div>
-    </div>
   );
 }
 

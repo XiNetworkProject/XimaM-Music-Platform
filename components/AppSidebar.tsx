@@ -18,6 +18,7 @@ import {
   Gift,
   ChevronDown,
   ChevronLeft,
+  AlertTriangle,
   LifeBuoy,
   Scale,
   Upload,
@@ -146,9 +147,9 @@ export default function AppSidebar() {
 
       {/* Profile with dropdown */}
       <div className="px-3 mb-2 relative" ref={profileMenuRef}>
-        <button
-          type="button"
-          onClick={() => {
+          <button
+            type="button"
+            onClick={() => {
             if (!session) { router.push('/auth/signin', { scroll: false }); return; }
             if (collapsed) { if (username) router.push(`/profile/${username}`, { scroll: false }); return; }
             setProfileMenuOpen(v => !v);
@@ -158,7 +159,7 @@ export default function AppSidebar() {
           <img
             alt="profil"
             className="rounded-full h-8 w-8 shrink-0 object-cover ring-1 ring-white/10"
-            src={getSafeAvatar()}
+                      src={getSafeAvatar()}
             onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-avatar.png'; }}
           />
           <div className="min-w-0 flex-1 text-left group-data-[collapsed=true]/sidebar:hidden">
@@ -166,7 +167,7 @@ export default function AppSidebar() {
               {username || (session?.user as any)?.name || 'Invité'}
             </p>
             <p className="text-[11px] text-white/30 truncate">{creditsBalance} crédits</p>
-          </div>
+                </div>
           <ChevronDown className={`w-3.5 h-3.5 text-white/30 shrink-0 transition-transform group-data-[collapsed=true]/sidebar:hidden ${profileMenuOpen ? 'rotate-180' : ''}`} />
         </button>
 
@@ -201,11 +202,11 @@ export default function AppSidebar() {
               >
                 <LogOut className="w-4 h-4 shrink-0" strokeWidth={1.6} />
                 Déconnexion
-              </button>
+          </button>
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+        </div>
 
       {/* CTA : Studio IA + Uploader */}
       <div className="px-3 mb-3 space-y-1.5">
@@ -235,6 +236,15 @@ export default function AppSidebar() {
           <div className={`absolute inset-0 bg-gradient-to-r from-emerald-600/10 to-cyan-600/10 opacity-0 transition-opacity ${uploadActive ? 'opacity-100' : 'group-hover/cta:opacity-100'}`} />
           <Upload className="w-[18px] h-[18px] shrink-0 relative z-[1]" />
           <span className="group-data-[collapsed=true]/sidebar:hidden truncate relative z-[1]">Uploader</span>
+        </Link>
+
+        <Link
+          href="/fermeture"
+          className={`group/ferm relative flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-[13px] font-bold transition-all active:scale-[0.97] overflow-hidden bg-gradient-to-r from-red-950/50 to-rose-950/30 text-red-200 ring-1 ring-red-500/25 hover:ring-red-400/40 group-data-[collapsed=true]/sidebar:justify-center group-data-[collapsed=true]/sidebar:px-0`}
+          title={collapsed ? 'Fermeture' : undefined}
+        >
+          <AlertTriangle className="w-[18px] h-[18px] shrink-0" />
+          <span className="group-data-[collapsed=true]/sidebar:hidden truncate">Fermeture Synaura</span>
         </Link>
 
         {!collapsed && <StarAcademyBanner variant="mini" />}
@@ -272,7 +282,7 @@ export default function AppSidebar() {
           const active = isActive(item.href);
           const Icon = item.icon;
           return (
-            <Link
+          <Link
               key={item.href}
               href={item.href}
               className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-[12px] font-medium transition-colors ${
@@ -282,7 +292,7 @@ export default function AppSidebar() {
             >
               <Icon className="w-4 h-4 shrink-0" />
               <span className="group-data-[collapsed=true]/sidebar:hidden truncate">{item.label}</span>
-            </Link>
+          </Link>
           );
         })}
       </div>

@@ -196,7 +196,7 @@ export default function StarAcademyLandingPage() {
                   style={{ background: "linear-gradient(90deg,#f59e0b,#ec4899,#9333ea)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
                   TikTok
                 </span>
-              </h1>
+          </h1>
 
               <p className="text-white/60 text-base sm:text-lg leading-relaxed mb-6 max-w-md">
                 Le premier concours musical en Live TikTok organise par Synaura et Mixx Party.
@@ -700,7 +700,7 @@ export default function StarAcademyLandingPage() {
             <p className="text-center text-[10px] text-white/10 mt-1">
               Non affilie a TikTok ou aux ayants droit de la marque Star Academy
             </p>
-          </div>
+        </div>
         </footer>
       </div>
     </div>

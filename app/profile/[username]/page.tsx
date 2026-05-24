@@ -57,7 +57,7 @@ export default function SynauraProfile() {
   const [sendingRequest, setSendingRequest] = useState(false);
   const [messageRequestStatus, setMessageRequestStatus] = useState<'none' | 'pending' | 'accepted'>('none');
   const [existingConvId, setExistingConvId] = useState<string | null>(null);
-
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const usernameStr = Array.isArray(username) ? username[0] : username;
@@ -120,11 +120,11 @@ export default function SynauraProfile() {
   const [coverUploading, setCoverUploading] = useState(false);
   const handleEditTrack = (t: any) => { setEditingTrack(t); setTrackEditData({ title: t.title, description: t.description || '', genre: Array.isArray(t.genre) ? t.genre.join(', ') : (t.genre || ''), tags: t.tags?.join(', ') || '', isPublic: t.is_public !== false }); setCoverFile(null); setCoverPreview(t.cover_url || t.coverUrl || null); setShowEditTrackModal(true); closeCtx(); };
   const uploadCoverToCloudinary = async (file: File) => {
-    const timestamp = Math.round(Date.now() / 1000);
+      const timestamp = Math.round(Date.now() / 1000);
     const publicId = `cover_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const sigRes = await fetch('/api/upload/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ timestamp, publicId, resourceType: 'image' }) });
-    if (!sigRes.ok) throw new Error('Erreur signature');
-    const { signature, apiKey, cloudName } = await sigRes.json();
+      if (!sigRes.ok) throw new Error('Erreur signature');
+      const { signature, apiKey, cloudName } = await sigRes.json();
     const fd = new FormData();
     fd.append('file', file);
     fd.append('folder', 'ximam/images');
@@ -150,15 +150,15 @@ export default function SynauraProfile() {
       <div className="h-[340px] bg-gradient-to-b from-[#1a1a2e] to-[#0a0a10] animate-pulse" />
       <div className="max-w-4xl mx-auto px-6 -mt-20">
         <div className="flex gap-5 items-end"><div className="w-36 h-36 rounded-full bg-white/[0.06] animate-pulse border-4 border-[#0a0a10]" /><div className="pb-4 space-y-3"><div className="h-8 w-48 bg-white/[0.04] rounded-lg animate-pulse" /><div className="h-4 w-32 bg-white/[0.03] rounded animate-pulse" /></div></div>
+            </div>
       </div>
-    </div>
-  );
+    );
 
   if (error || !profile) return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="text-center"><Disc3 size={48} className="text-white/8 mx-auto mb-4" /><h2 className="text-xl font-bold text-white mb-2">Profil introuvable</h2><p className="text-sm text-white/30 mb-6">{error || "Ce profil n'existe pas."}</p><button onClick={() => router.push('/discover')} className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition">Decouvrir</button></div>
-    </div>
-  );
+      </div>
+    );
 
   const totalPlays = profile.totalPlays || 0;
   const followerCount = profile.followerCount || 0;
@@ -176,13 +176,13 @@ export default function SynauraProfile() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={profile.banner || '/default-cover.svg'} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,10,16,0) 0%, rgba(10,10,16,0.4) 50%, rgba(10,10,16,1) 100%)' }} />
-          {isOwnProfile && (
-            <>
+            {isOwnProfile && (
+              <>
               <button className="absolute top-4 right-4 z-10 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-md text-white/70 hover:text-white transition" onClick={() => bannerInputRef.current?.click()}><Camera size={16} /></button>
               <input type="file" accept="image/*" className="hidden" ref={bannerInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('banner', f); }} />
-            </>
-          )}
-        </div>
+              </>
+            )}
+          </div>
 
         {/* Profile info overlapping banner bottom */}
         <div className="max-w-4xl mx-auto px-4 sm:px-6 relative" style={{ marginTop: '-100px' }}>
@@ -192,22 +192,22 @@ export default function SynauraProfile() {
               <div className="w-32 h-32 sm:w-36 sm:h-36 md:w-40 md:h-40 rounded-full overflow-hidden border-4 border-[#0a0a10] shadow-[0_0_40px_rgba(0,0,0,0.5)]">
                 <Avatar src={profile.avatar} name={profile.name} username={profile.username} size="2xl" className="w-full h-full" />
               </div>
-              {isOwnProfile && (
-                <>
+                  {isOwnProfile && (
+                    <>
                   <button className="absolute bottom-1 right-1 p-2 rounded-full bg-[#0a0a10] hover:bg-white/[0.1] border border-white/[0.1] text-white transition opacity-0 group-hover:opacity-100" onClick={() => fileInputRef.current?.click()}><Camera size={13} /></button>
                   <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('avatar', f); }} />
-                </>
-              )}
-            </div>
+                    </>
+                  )}
+                </div>
 
             {/* Name + info */}
             <div className="flex-1 min-w-0 text-center sm:text-left pb-1">
               <div className="flex items-center gap-2.5 justify-center sm:justify-start flex-wrap">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white tracking-tight">{profile.name}</h1>
-                {profile.isVerified && (
+                    {profile.isVerified && (
                   <div className="w-6 h-6 bg-[#3b82f6] rounded-full flex items-center justify-center shrink-0"><Check className="text-white" size={14} /></div>
-                )}
-              </div>
+                    )}
+                  </div>
               {profile.artistName && <p className="text-sm text-white/40 mt-0.5">{profile.artistName}</p>}
               <div className="flex items-center gap-1 mt-2 text-sm text-white/40 justify-center sm:justify-start flex-wrap">
                 <span>{fmtK(totalPlays)} ecoutes</span>
@@ -227,35 +227,35 @@ export default function SynauraProfile() {
                   {profile.location?.trim() && <span className="inline-flex items-center gap-1"><MapPin size={10} /> {profile.location}</span>}
                   {profile.website?.trim() && <a href={profile.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-white/40"><ExternalLink size={10} /> {profile.website.replace(/^https?:\/\//, '')}</a>}
                   {memberSince && <span className="inline-flex items-center gap-1"><Calendar size={10} /> {memberSince}</span>}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
+              </div>
 
           {/* Action bar */}
           <div className="flex items-center gap-2 mt-5 flex-wrap justify-center sm:justify-start">
-            {isOwnProfile ? (
-              <>
+                {isOwnProfile ? (
+                  <>
                 <button onClick={handleEdit} className="h-9 px-5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center gap-1.5"><Edit size={14} /> Modifier</button>
                 <button onClick={() => router.push('/stats')} className="h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/80 text-sm font-medium transition inline-flex items-center gap-1.5"><BarChart3 size={14} /> Stats</button>
                 <button onClick={handleShareProfile} className="h-9 w-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/60 inline-flex items-center justify-center transition"><Share2 size={15} /></button>
                 <button onClick={() => setShowBoosterModal(true)} disabled={!canOpen || boostersLoading}
                   className={`h-9 w-9 rounded-full inline-flex items-center justify-center transition ${canOpen ? 'bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white shadow-[0_0_12px_rgba(110,86,207,0.4)]' : 'bg-white/[0.06] text-white/20 cursor-not-allowed'}`}
                   title={canOpen ? 'Booster' : formatRemaining(remainingMs)}><Sparkles size={14} /></button>
-              </>
-            ) : (
+                  </>
+                ) : (
               <>
                 <button onClick={handleFollow}
                   className={`h-9 px-5 rounded-full text-sm font-semibold transition inline-flex items-center gap-1.5 ${profile.isFollowing ? 'bg-white/[0.08] hover:bg-white/[0.12] text-white/80' : 'bg-white text-black hover:bg-white/90'}`}>
                   {profile.isFollowing ? <><Check size={14} /> Abonne</> : <><UserPlus size={14} /> Suivre</>}
-                </button>
+                  </button>
                 <MsgBtn status={messageRequestStatus} existingConvId={existingConvId} onMsg={() => setShowMessageModal(true)} onGo={() => router.push(existingConvId ? `/messages/${existingConvId}` : '/messages')} />
                 <button onClick={handleShareProfile} className="h-9 w-9 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-white/60 inline-flex items-center justify-center transition"><Share2 size={15} /></button>
               </>
-            )}
-          </div>
-        </div>
-      </div>
+                )}
+              </div>
+            </div>
+            </div>
 
       {/* ═══════ QUICK ACTIONS (own profile) ═══════ */}
       {isOwnProfile && (
@@ -273,8 +273,8 @@ export default function SynauraProfile() {
               <Library size={15} className="text-white/40 group-hover:text-white/60 transition" />
               <span className="text-xs font-medium text-white/50 group-hover:text-white/70 transition hidden sm:inline">Bibliotheque</span>
             </button>
+            </div>
           </div>
-        </div>
       )}
 
       {/* ═══════ POPULAR TRACKS (Spotify-style list) ═══════ */}
@@ -287,14 +287,14 @@ export default function SynauraProfile() {
               {([['plays', 'Top'], ['recent', 'Recent'], ['likes', 'Likes']] as const).map(([key, label]) => (
                 <button key={key} onClick={() => setSortBy(key)} className={`px-3 py-1 text-[11px] rounded-full font-medium transition ${sortBy === key ? 'bg-white/[0.1] text-white/80' : 'text-white/25 hover:text-white/40'}`}>{label}</button>
               ))}
-            </div>
+              </div>
             {query && <button onClick={() => setQuery('')} className="text-xs text-white/30 hover:text-white/50">Effacer</button>}
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/20" />
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Rechercher" className="h-8 w-28 sm:w-36 rounded-full bg-white/[0.06] pl-8 pr-3 text-xs text-white placeholder:text-white/20 outline-none focus:w-48 focus:bg-white/[0.08] transition-all" />
+                  </div>
+              </div>
             </div>
-          </div>
-        </div>
 
         {sortedTracks.length === 0 ? (
           <div className="py-16 text-center">
@@ -304,11 +304,11 @@ export default function SynauraProfile() {
               <div className="mt-5 flex justify-center gap-3">
                 <button onClick={() => router.push('/upload')} className="px-5 py-2 rounded-full bg-white/[0.08] hover:bg-white/[0.12] text-sm text-white/70 font-medium transition inline-flex items-center gap-1.5"><Upload size={14} /> Uploader</button>
                 <button onClick={() => router.push('/studio')} className="px-5 py-2 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center gap-1.5"><Sparkles size={14} /> Studio IA</button>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ) : (
-          <div>
+            ) : (
+              <div>
             {/* Track rows */}
             <div className="space-y-0.5">
               {displayTracks.map((track, idx) => {
@@ -324,27 +324,27 @@ export default function SynauraProfile() {
                       <button onClick={(e) => { e.stopPropagation(); handlePlayTrack(track); }} className="hidden group-hover:block text-white">
                         {playing ? <Pause size={14} /> : <Play size={14} fill="white" />}
                       </button>
-                    </div>
+              </div>
                     {/* Cover */}
                     <div className="w-10 h-10 rounded overflow-hidden shrink-0 bg-white/[0.04]">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="w-full h-full object-cover" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
-                    </div>
+                </div>
                     {/* Title */}
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm font-medium truncate ${playing ? 'text-[#00d3a7]' : 'text-white'}`}>{track.title}</p>
                       <div className="flex items-center gap-1.5 text-[11px] text-white/25">
                         {isAi && <span className="text-[#6e56cf] font-semibold">IA</span>}
                         <span>{profile.artistName || profile.name}</span>
-                      </div>
-                    </div>
+              </div>
+            </div>
                     {/* Plays */}
                     <span className="text-xs text-white/25 tabular-nums hidden sm:block w-20 text-right">{fmtN.format(track.plays || 0)}</span>
                     {/* Like */}
                     {!isAi && (
                       <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
                         <LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => handleLikeUpdate(track.id, s.isLiked, s.likesCount)} showCount={false} size="sm" />
-                      </div>
+                </div>
                     )}
                     {/* Duration */}
                     <span className="text-xs text-white/20 tabular-nums w-10 text-right shrink-0">{mmss(track.duration || 0)}</span>
@@ -353,17 +353,17 @@ export default function SynauraProfile() {
                       <MoreHorizontal size={16} />
                     </button>
                   </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+              </div>
             {sortedTracks.length > 5 && (
               <button onClick={() => setShowAllTracks(!showAllTracks)} className="mt-3 text-sm text-white/30 hover:text-white/50 font-medium transition">
                 {showAllTracks ? 'Voir moins' : `Voir tout (${sortedTracks.length})`}
               </button>
             )}
-          </div>
+                </div>
         )}
-      </div>
+            </div>
 
       {/* ═══════ PLAYLISTS ═══════ */}
       {playlists.length > 0 && (
@@ -381,14 +381,14 @@ export default function SynauraProfile() {
                     <img src={cover} alt="" className="w-full aspect-square object-cover" loading="lazy" />
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
                       <Play size={28} className="text-white opacity-0 group-hover:opacity-100 transition drop-shadow-lg" fill="white" />
-                    </div>
-                  </div>
+                </div>
+              </div>
                   <p className="text-sm font-semibold text-white truncate">{p.name || 'Playlist'}</p>
                   <p className="text-xs text-white/25">{count} titre{count !== 1 ? 's' : ''}</p>
-                </button>
+              </button>
               );
             })}
-          </div>
+            </div>
         </div>
       )}
 
@@ -415,7 +415,7 @@ export default function SynauraProfile() {
                 {(Array.isArray(profile.genre) ? profile.genre : [profile.genre]).map((g: string, i: number) => (
                   <span key={i} className="px-2.5 py-1 text-[11px] rounded-full bg-[#6e56cf]/10 text-[#a78bfa] border border-[#6e56cf]/20">{g}</span>
                 ))}
-              </div>
+                </div>
             )}
 
             {/* Info rows */}
@@ -424,8 +424,8 @@ export default function SynauraProfile() {
                 <div className="flex items-center gap-2.5 text-sm text-white/35">
                   <MapPin size={14} className="text-white/20 shrink-0" />
                   <span>{profile.location}</span>
-                </div>
-              )}
+        </div>
+      )}
               {profile.website && (
                 <a href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 text-sm text-[#00d3a7]/70 hover:text-[#00d3a7] transition">
                   <Globe size={14} className="shrink-0" />
@@ -437,7 +437,7 @@ export default function SynauraProfile() {
                 <div className="flex items-center gap-2.5 text-sm text-white/35">
                   <Calendar size={14} className="text-white/20 shrink-0" />
                   <span>Membre depuis {memberSince}</span>
-                </div>
+              </div>
               )}
               {profile.role && profile.role !== 'user' && (
                 <div className="flex items-center gap-2.5 text-sm text-white/35">
@@ -445,7 +445,7 @@ export default function SynauraProfile() {
                   <span className="capitalize">{profile.role}</span>
                 </div>
               )}
-            </div>
+                </div>
 
             {/* Badges */}
             {(profile.isVerified || profile.isArtist) && (
@@ -460,11 +460,11 @@ export default function SynauraProfile() {
                     <Crown size={11} /> Artiste
                   </span>
                 )}
-              </div>
+                </div>
             )}
-          </div>
-        </div>
-      )}
+                </div>
+                </div>
+                  )}
 
       {/* ═══════ CTA GUESTS ═══════ */}
       {!session && (
@@ -475,9 +475,9 @@ export default function SynauraProfile() {
             <div className="flex justify-center gap-3 mt-4">
               <button onClick={() => router.push(`/auth/signup?callbackUrl=/profile/${encodeURIComponent(usernameStr || '')}`)} className="px-6 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition"><UserPlus size={14} className="inline mr-1" /> S&apos;inscrire</button>
               <button onClick={() => router.push('/auth/signin')} className="px-6 py-2.5 rounded-full bg-white/[0.08] text-sm text-white/60 hover:bg-white/[0.12] transition">Connexion</button>
-            </div>
-          </div>
-        </div>
+              </div>
+              </div>
+              </div>
       )}
 
       {/* ═══════ CONTEXT MENU (portal) ═══════ */}
@@ -525,7 +525,7 @@ export default function SynauraProfile() {
             <UInput label="Genres (separes par des virgules)" value={Array.isArray(editData.genre) ? editData.genre.join(', ') : (editData.genre || '')} onChange={(v) => setEditData({ ...editData, genre: v.split(',').map((g: string) => g.trim()).filter(Boolean) })} />
             <UInput label="Localisation" value={editData.location || ''} onChange={(v) => setEditData({ ...editData, location: v })} />
             <UInput label="Site web" value={editData.website || ''} onChange={(v) => setEditData({ ...editData, website: v })} />
-          </div>
+                </div>
           <UModalFooter>
             <UButton variant="secondary" fullWidth onClick={handleCancelEdit}>Annuler</UButton>
             <UButton variant="primary" fullWidth onClick={handleSaveEdit} disabled={uploading} loading={uploading}>Sauvegarder</UButton>
@@ -538,7 +538,7 @@ export default function SynauraProfile() {
           <UModalTitle>Modifier la piste</UModalTitle>
           <div className="space-y-4">
             {/* Cover */}
-            <div>
+                <div>
               <div className="text-sm font-semibold text-white/70 mb-2">Pochette</div>
               <div className="flex items-center gap-4">
                 <div className="w-20 h-20 rounded-xl overflow-hidden border border-white/[0.08] bg-white/[0.04] flex-shrink-0">
@@ -577,7 +577,7 @@ export default function SynauraProfile() {
         <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
           <button onClick={() => setShowBoosterModal(true)} disabled={!canOpen} className={`w-11 h-11 rounded-full shadow-xl flex items-center justify-center ${canOpen ? 'bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] text-white' : 'bg-white/[0.06] text-white/20'}`}><Sparkles size={16} /></button>
           <button onClick={handleEdit} className="w-11 h-11 bg-white/[0.08] rounded-full shadow-xl flex items-center justify-center text-white/60 hover:bg-white/[0.12]"><Edit size={15} /></button>
-        </div>
+              </div>
       ) : (
         <div className="md:hidden fixed bottom-24 right-4 z-[100]">
           <button onClick={handleFollow} className={`w-12 h-12 rounded-full shadow-xl flex items-center justify-center ${profile.isFollowing ? 'bg-white/[0.08] text-white/60' : 'bg-white text-black'}`}>
@@ -666,7 +666,7 @@ function CtxItem({ icon: Icon, label, onClick, subtle }: { icon: any; label: str
       className={`w-full flex items-center gap-2.5 px-3 py-2 text-[13px] transition ${subtle ? 'text-rose-400/70 hover:text-rose-400 hover:bg-white/[0.04]' : 'text-white/70 hover:text-white hover:bg-white/[0.06]'}`}>
       <Icon className="w-4 h-4 shrink-0" />
       <span className="truncate">{label}</span>
-    </button>
+                </button>
   );
 }
 
@@ -675,7 +675,7 @@ function Drawer({ open, onClose, children }: { open: boolean; onClose: () => voi
     <div className={`fixed inset-0 z-50 transition ${open ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}`}>
       <div onClick={onClose} className={`absolute inset-0 bg-black/60 backdrop-blur-sm transition ${open ? 'opacity-100' : 'opacity-0'}`} />
       <div className={`absolute right-0 top-0 h-full w-full sm:w-[420px] bg-[#0c0c14] sm:border-l border-white/[0.06] shadow-2xl transform transition ${open ? 'translate-x-0' : 'translate-x-full'}`}>{children}</div>
-    </div>
+        </div>
   );
 }
 
@@ -698,30 +698,30 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
         <div className="aspect-square max-h-[320px] w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
-        </div>
+          </div>
         <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, #0c0c14 0%, transparent 100%)' }}>
           <p className="text-lg font-bold text-white">{track.title}</p>
           <div className="flex items-center gap-2 text-sm text-white/40">
             <span>{artistName}</span>
             {isAi && <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-[#6e56cf]/30 text-[#a78bfa]">IA</span>}
-          </div>
+              </div>
         </div>
       </div>
       {/* Controls */}
       <div className="px-4 py-3 flex items-center gap-2">
         <button onClick={onPlay} className="flex-1 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition inline-flex items-center justify-center gap-1.5">
           {playing ? <Pause size={15} /> : <Play size={15} fill="black" />} {playing ? 'Pause' : 'Ecouter'}
-        </button>
+                </button>
         {!isAi && <div onClick={(e) => e.stopPropagation()}><LikeButton trackId={track.id} initialIsLiked={track.isLiked || false} initialLikesCount={track.likes || 0} onUpdate={(s) => onLike(track.id, s.isLiked, s.likesCount)} showCount={false} size="md" /></div>}
-      </div>
+              </div>
       {/* Stats */}
       <div className="px-4 pb-3">
         <div className="flex gap-4 text-center py-2 bg-white/[0.03] rounded-lg">
           <div className="flex-1"><div className="text-sm font-bold text-white">{fmtN.format(track.plays || 0)}</div><div className="text-[10px] text-white/20">ecoutes</div></div>
           <div className="flex-1"><div className="text-sm font-bold text-white">{fmtN.format(track.likes || 0)}</div><div className="text-[10px] text-white/20">likes</div></div>
           <div className="flex-1"><div className="text-sm font-bold text-white">{mmss(track.duration || 0)}</div><div className="text-[10px] text-white/20">duree</div></div>
-        </div>
       </div>
+          </div>
       {/* Info */}
       <div className="px-4 pb-4 space-y-3 overflow-y-auto flex-1">
         {track.description && <p className="text-xs text-white/30 leading-relaxed">{track.description}</p>}
@@ -731,7 +731,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
           <div className="flex items-center gap-2 text-xs text-white/20">
             <Calendar size={12} />
             <span>Publie le {createdDate}</span>
-          </div>
+        </div>
         )}
         {isAi && track.prompt && (
           <div className="mt-2 p-3 rounded-lg bg-white/[0.03] border border-white/[0.05]">
@@ -739,7 +739,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
             <p className="text-xs text-white/35 leading-relaxed">{track.prompt}</p>
           </div>
         )}
-      </div>
+            </div>
       {/* Owner actions at bottom */}
       {isOwn && !isAi && (
         <div className="px-4 pb-4 pt-2 border-t border-white/[0.06] flex gap-2">
@@ -749,9 +749,9 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
           <button onClick={onDelete} className="py-2.5 px-4 rounded-full bg-white/[0.06] hover:bg-rose-500/20 text-sm text-rose-400/60 hover:text-rose-400 font-medium transition inline-flex items-center justify-center gap-1.5">
             <X size={13} /> Supprimer
           </button>
-        </div>
-      )}
+          </div>
+        )}
     </div>
   );
-}
+} 
 

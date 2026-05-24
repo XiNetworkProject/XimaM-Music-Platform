@@ -24,9 +24,9 @@ export const metadata: Metadata = {
 };
 
 async function getBaseUrl() {
-  const h = await headers();
-  const proto = h.get('x-forwarded-proto') || 'https';
-  const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
+    const h = await headers();
+    const proto = h.get('x-forwarded-proto') || 'https';
+    const host = h.get('x-forwarded-host') || h.get('host') || 'localhost:3000';
   return `${proto}://${host}`;
 }
 
@@ -55,9 +55,9 @@ async function fetchPlaylists(baseUrl: string): Promise<DiscoverPlaylistLite[]> 
     const res = await fetch(`${baseUrl}/api/playlists/popular?limit=12`, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
     return (Array.isArray(json?.playlists) ? json.playlists : []).map((p: any) => ({
-      _id: String(p?._id || p?.id || ''),
-      name: String(p?.name || 'Playlist'),
-      description: typeof p?.description === 'string' ? p.description : '',
+          _id: String(p?._id || p?.id || ''),
+          name: String(p?.name || 'Playlist'),
+          description: typeof p?.description === 'string' ? p.description : '',
       coverUrl: p?.coverUrl ?? null,
     })).filter((p: any) => p._id);
   } catch {
@@ -70,14 +70,14 @@ async function fetchArtists(baseUrl: string): Promise<DiscoverArtistLite[]> {
     const res = await fetch(`${baseUrl}/api/artists?sort=trending&limit=16`, { cache: 'no-store' });
     const json = await res.json().catch(() => ({}));
     return (Array.isArray(json?.artists) ? json.artists : []).map((a: any) => ({
-      _id: String(a?._id || a?.id || ''),
-      username: String(a?.username || ''),
-      name: String(a?.name || a?.username || 'Artiste'),
-      avatar: typeof a?.avatar === 'string' ? a.avatar : '',
-      totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
-      totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
-      trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
-      isTrending: Boolean(a?.isTrending),
+          _id: String(a?._id || a?.id || ''),
+          username: String(a?.username || ''),
+          name: String(a?.name || a?.username || 'Artiste'),
+          avatar: typeof a?.avatar === 'string' ? a.avatar : '',
+          totalPlays: typeof a?.totalPlays === 'number' ? a.totalPlays : undefined,
+          totalLikes: typeof a?.totalLikes === 'number' ? a.totalLikes : undefined,
+          trackCount: typeof a?.trackCount === 'number' ? a.trackCount : undefined,
+          isTrending: Boolean(a?.isTrending),
     })).filter((a: any) => a._id && a.username);
   } catch {
     return [];

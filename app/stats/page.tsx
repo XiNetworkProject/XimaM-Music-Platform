@@ -392,7 +392,7 @@ function EngagementPanel({ overview, periodTotals }: { overview: OverviewData | 
         <EngagementGauge value={avgPlaysPerTrack} max={Math.max(100, avgPlaysPerTrack)} label="Ecoutes / piste" color="#6e56cf" suffix="" />
         <EngagementGauge value={listenerDiv} max={100} label="Diversite auditeurs" color="#00d3a7" />
         <EngagementGauge value={overview.avgRetention} max={100} label="Taux de completion" color="#f59e0b" />
-      </div>
+          </div>
       <div className="mt-4 pt-3 border-t border-white/[0.06]">
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-white/[0.03] rounded-lg p-2.5 text-center">
@@ -463,7 +463,7 @@ function StatsPageInner() {
 
   const fetchAll = useCallback(async () => {
     if (!session?.user?.id) { setLoading(false); return; }
-    setLoading(true);
+        setLoading(true);
     const hdr = { 'Cache-Control': 'no-store' };
     await Promise.all([
       (async () => { setLoadingOverview(true); try { const r = await fetch(`/api/stats/overview?range=${range}`, { headers: hdr }); if (r.ok) setOverview(await r.json()); } catch {} finally { setLoadingOverview(false); } })(),
@@ -474,7 +474,7 @@ function StatsPageInner() {
       (async () => { setLoadingHeatmap(true); try { const r = await fetch(`/api/stats/heatmap?range=${range}&track=${selectedTrack}`, { headers: hdr }); if (r.ok) { const d = await r.json(); setHeatmap(d.matrix || []); } } catch {} finally { setLoadingHeatmap(false); } })(),
       (async () => { if (selectedTrack && selectedTrack !== 'all') { setLoadingDetail(true); try { const r = await fetch(`/api/stats/tracks?track_id=${encodeURIComponent(selectedTrack)}`, { headers: hdr }); if (r.ok) setTrackDetail(await r.json()); else setTrackDetail(null); } catch { setTrackDetail(null); } finally { setLoadingDetail(false); } } else setTrackDetail(null); })(),
     ]);
-    setLoading(false);
+          setLoading(false);
   }, [session?.user?.id, range, selectedTrack, compareTrack]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -548,10 +548,10 @@ function StatsPageInner() {
               </Link>
               <Link href="/studio" className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white text-black text-sm font-semibold hover:bg-white/90 transition-all">
                 <Sparkles size={15} /> Studio
-              </Link>
+            </Link>
             </div>
           </div>
-        </div>
+          </div>
 
         {/* ── Filters ── */}
         <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-3 sm:p-4 mb-6 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
@@ -563,16 +563,16 @@ function StatsPageInner() {
                   ? 'bg-white/[0.1] text-white'
                   : 'text-white/30 hover:text-white/60'}`}>
                 {r === 'all' ? 'Tout' : r.toUpperCase()}
-              </button>
-            ))}
-            </div>
+                  </button>
+                ))}
+              </div>
             {(loadingSeries || loadingOverview) && <Spinner />}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
             <Select value={selectedTrack} onChange={setSelectedTrack} options={[{ value:'all', label:'Toutes les pistes' }, ...allTracks.map(t => ({ value:t.id, label:`${t.isAI?'[IA] ':''}${t.title}` }))]} />
             <Select value={compareTrack} onChange={setCompareTrack} options={[{ value:'', label:'Comparer...' }, ...allTracks.filter(t => t.id !== selectedTrack).map(t => ({ value:t.id, label:`${t.isAI?'[IA] ':''}${t.title}` }))]} />
+            </div>
           </div>
-        </div>
 
         {!overview && !loadingOverview && allTracks.length === 0 && <EmptyState />}
 
@@ -586,13 +586,13 @@ function StatsPageInner() {
               <KpiCardPrimary icon={<Headphones size={20}/>} label="Ecoutes" value={overview?.plays??0} variation={overview?.playsVariation} loading={loadingOverview} sparkData={playsSparkData} color="#6e56cf" />
               <KpiCardPrimary icon={<Heart size={20}/>} label="Likes" value={overview?.likes??0} variation={overview?.likesVariation} loading={loadingOverview} sparkData={likesSparkData} color="#f43f5e" />
               <KpiCardPrimary icon={<Users size={20}/>} label="Followers" value={overview?.followers??0} loading={loadingOverview} color="#3b82f6" />
-            </div>
+                      </div>
             {/* KPI Row 2 - Secondary */}
             <div className="grid grid-cols-3 gap-3 mb-6">
               <KpiCardSecondary icon={<Music size={16}/>} label="Pistes" value={overview?.totalTracks??0} subtitle={overview ? `${overview.normalTracks} std + ${overview.aiTracks} IA` : undefined} loading={loadingOverview} />
               <KpiCardSecondary icon={<Clock size={16}/>} label="Heures d'ecoute" value={overview?.listenHours??0} suffix="h" estimated={overview?.listenHoursEstimated} loading={loadingOverview} />
               <KpiCardSecondary icon={<Target size={16}/>} label="Retention moy." value={overview?.avgRetention??0} suffix="%" estimated={overview?.avgRetentionEstimated} loading={loadingOverview} />
-            </div>
+                                </div>
 
             {/* ══════ SECTION 2: Insights ══════ */}
             {overview && (overview.ai.count > 0 || overview.bestTrack) && (
@@ -602,30 +602,30 @@ function StatsPageInner() {
                     style={{ background:'linear-gradient(135deg, rgba(110,86,207,0.08) 0%, rgba(0,211,167,0.04) 100%)' }}>
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#6e56cf] to-[#00d3a7] flex items-center justify-center shrink-0">
                       <Sparkles size={18} className="text-white" />
-                    </div>
+                                  </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white">{overview.ai.count} piste{overview.ai.count > 1 ? 's' : ''} IA</div>
                       <div className="text-xs text-white/40">{fmt(overview.ai.plays)} ecoutes &middot; {fmt(overview.ai.likes)} likes</div>
-                    </div>
-                  </div>
-                )}
+                            </div>
+                          </div>
+                        )}
                 {overview.bestTrack && (
                   <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 flex items-center gap-4"
                     style={{ background:'linear-gradient(135deg, rgba(245,158,11,0.08) 0%, rgba(245,158,11,0.02) 100%)' }}>
                     <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
                       <Trophy size={18} className="text-amber-400" />
-                    </div>
+                      </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-white truncate">Top : {overview.bestTrack.title}</div>
                       <div className="text-xs text-white/40">{fmt(overview.bestTrack.plays)} ecoutes sur la periode</div>
-                    </div>
+                                </div>
                     <button onClick={() => setSelectedTrack(overview.bestTrack!.id)} className="text-xs text-[#6e56cf] hover:text-[#00d3a7] transition-colors shrink-0">
                       Details <ArrowRight size={12} className="inline" />
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
+                        </div>
+                  )}
+                </div>
+              )}
 
             <CoachTips tips={tips} />
 
@@ -636,7 +636,7 @@ function StatsPageInner() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                     <BarChart3 size={18} className="text-[#6e56cf]" /> Evolution
-                  </h2>
+                    </h2>
                   <div className="inline-flex bg-white/[0.04] rounded-full p-0.5">
                     {(['plays','uniques','likes'] as const).map((m) => (
                       <button key={m} onClick={() => setMetric(m)}
@@ -663,12 +663,12 @@ function StatsPageInner() {
                     <span className="text-white/30">Ecoutes : <span className="text-white font-semibold">{fmt(periodTotals.plays)}</span></span>
                     <span className="text-white/30">Uniques : <span className="text-white font-semibold">{fmt(periodTotals.uniques)}</span></span>
                     <span className="text-white/30">Likes : <span className="text-white font-semibold">{fmt(periodTotals.likes)}</span></span>
-                  </div>
-                )}
-              </div>
+                    </div>
+                  )}
+                    </div>
               {/* Engagement */}
               <EngagementPanel overview={overview} periodTotals={periodTotals} />
-            </div>
+              </div>
 
             {/* ══════ SECTION 4: Track Detail ══════ */}
             {selectedTrack !== 'all' && trackDetail && <TrackDetailPanel detail={trackDetail} loading={loadingDetail} />}
@@ -679,7 +679,7 @@ function StatsPageInner() {
                 <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                   <Disc3 size={18} className="text-[#00d3a7]" /> Toutes tes pistes
                   <span className="text-xs font-normal text-white/30 ml-1">({allTracks.length})</span>
-                </h2>
+                  </h2>
                 <div className="inline-flex bg-white/[0.04] rounded-full p-0.5">
                   {(['all','normal','ai'] as const).map(tab => (
                     <button key={tab} onClick={() => setActiveTab(tab)}
@@ -690,13 +690,13 @@ function StatsPageInner() {
                     </button>
                   ))}
                 </div>
-              </div>
+                  </div>
               <div className="flex flex-col sm:flex-row gap-2 mb-3">
                 <div className="relative flex-1">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20" />
                   <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Rechercher..."
                     className="w-full pl-9 pr-4 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] outline-none transition-colors" />
-                </div>
+              </div>
                 <div className="flex gap-1.5 flex-wrap">
                   {([['plays','Ecoutes'],['likes','Likes'],['recent','Recent'],['retention','Retention'],['trend','7j']] as const).map(([key,label]) => (
                     <button key={key} onClick={() => setTrackSort(key as any)}
@@ -706,8 +706,8 @@ function StatsPageInner() {
                       <ArrowUpDown size={9} /> {label}
                     </button>
                   ))}
-                </div>
-              </div>
+                    </div>
+                            </div>
               {loadingTracks ? (
                 <div className="h-40 flex items-center justify-center"><Spinner /></div>
               ) : filteredTracks.length === 0 ? (
@@ -726,19 +726,19 @@ function StatsPageInner() {
                          i === 1 ? <Medal size={14} className="text-slate-300 mx-auto" /> :
                          i === 2 ? <Medal size={14} className="text-amber-600 mx-auto" /> :
                          <span className="text-xs text-white/20 tabular-nums">{i+1}</span>}
-                      </div>
+                    </div>
                       {/* Cover */}
                       <div className="w-10 h-10 rounded-lg overflow-hidden bg-white/[0.04] border border-white/[0.06] shrink-0">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={t.coverUrl?.replace('/upload/','/upload/f_auto,q_auto,w_80/') || '/default-cover.svg'} alt="" className="w-full h-full object-cover" loading="lazy" />
-                      </div>
+                </div>
                       {/* Info + Progress bar */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
                           <span className="text-sm text-white font-medium truncate">{t.title}</span>
                           {t.isAI && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#6e56cf]/20 text-[#6e56cf]">IA</span>}
                           {t.isRemix && <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-fuchsia-500/20 text-fuchsia-400">Remix</span>}
-                        </div>
+                    </div>
                         <div className="flex items-center gap-3 text-[11px] text-white/25 mt-0.5">
                           <span className="flex items-center gap-0.5"><Play size={9}/> {fmt(t.plays)}</span>
                           <span className="flex items-center gap-0.5"><Heart size={9}/> {fmt(t.likes)}</span>
@@ -748,18 +748,18 @@ function StatsPageInner() {
                               {t.trend7d > 0 ? '+' : ''}{fmt(t.trend7d)}
                             </span>
                           )}
-                        </div>
+                    </div>
                         {/* Progress bar */}
                         <div className="mt-1.5 h-1 bg-white/[0.04] rounded-full overflow-hidden">
                           <div className="h-full rounded-full" style={{ width: `${(t.plays / maxTrackPlays) * 100}%`, background: 'linear-gradient(90deg, #6e56cf, #00d3a7)' }} />
-                        </div>
-                      </div>
+                </div>
+              </div>
                       <div className="text-xs text-white/15 hidden sm:block shrink-0">{t.createdAt ? new Date(t.createdAt).toLocaleDateString('fr-FR', { day:'numeric', month:'short' }) : ''}</div>
                     </div>
                   ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
             {/* ══════ SECTION 6: Audience ══════ */}
             <div className="mb-6">
@@ -770,21 +770,21 @@ function StatsPageInner() {
               <div className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-4 sm:p-5 mb-4">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                   <Clock size={16} className="text-amber-400" /> Meilleurs creneaux
-                </h3>
+                  </h3>
                 {loadingHeatmap ? <div className="h-40 flex items-center justify-center"><Spinner /></div> : <HeatmapGrid matrix={heatmap} />}
-              </div>
+                    </div>
               {/* 4 Audience charts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                 <AudienceCard title="Pays" icon={<Globe size={14} className="text-blue-400"/>} data={audience.countries} loading={loadingAudience} />
                 <AudienceCard title="Appareils" icon={<Smartphone size={14} className="text-emerald-400"/>} data={audience.devices} loading={loadingAudience} />
                 <AudienceCard title="Systemes" icon={<Disc3 size={14} className="text-violet-400"/>} data={audienceTech.os} loading={loadingAudience} />
                 <AudienceCard title="Navigateurs" icon={<Search size={14} className="text-cyan-400"/>} data={audienceTech.browsers} loading={loadingAudience} />
-              </div>
+                    </div>
             </div>
           </>
-        )}
-      </div>
-    </div>
+                  )}
+                </div>
+              </div>
   );
 }
 
@@ -804,11 +804,11 @@ function KpiCardPrimary({ icon, label, value, variation, loading, sparkData, col
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${color}25`, color }}>
             {icon}
-          </div>
+                </div>
           <span className="text-xs font-medium text-white/45 uppercase tracking-wider">{label}</span>
-        </div>
+                  </div>
         {sparkData && <MiniSparkline data={sparkData} color={color} />}
-      </div>
+                        </div>
       {loading ? <div className="h-9 w-24 bg-white/[0.04] rounded-lg animate-pulse mt-1" /> : (
         <div className="flex items-end gap-3">
           <div className="text-3xl sm:text-4xl font-extrabold text-white tabular-nums">{fmt(value)}</div>
@@ -816,10 +816,10 @@ function KpiCardPrimary({ icon, label, value, variation, loading, sparkData, col
             <div className={`flex items-center gap-1 text-xs font-semibold pb-1 ${variation > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {variation > 0 ? <TrendingUp size={14}/> : <TrendingDown size={14}/>}
               {variation > 0 ? '+' : ''}{variation}%
-            </div>
+                  </div>
+                )}
+              </div>
           )}
-        </div>
-      )}
     </div>
   );
 }
@@ -838,7 +838,7 @@ function KpiCardSecondary({ icon, label, value, loading, suffix, subtitle, estim
         <>
           <div className="text-xl font-bold text-white tabular-nums">
             {estimated ? '~' : ''}{fmt(value)}{suffix||''}
-          </div>
+      </div>
           {estimated && <div className="text-[9px] text-amber-400/50">Estimation</div>}
           {subtitle && <div className="text-[9px] text-white/25">{subtitle}</div>}
         </>
@@ -889,12 +889,12 @@ function TrackDetailPanel({ detail, loading }: { detail: any; loading: boolean }
                   <span className="w-16 text-xs text-white/40">{s.l}</span>
                   <div className="flex-1 h-2 bg-white/[0.04] rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-[#6e56cf] to-[#00d3a7] rounded-full" style={{ width:`${Math.max(2,s.p)}%` }} />
-                  </div>
+        </div>
                   <span className="w-12 text-xs text-white/50 text-right tabular-nums">{s.p}%</span>
-                </div>
+        </div>
               ))}
-            </div>
-          </div>
+      </div>
+      </div>
         )}
         {srcData.length > 0 && (
           <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">
@@ -948,26 +948,26 @@ function HeatmapGrid({ matrix }: { matrix: number[][] }) {
           Meilleur creneau : <span className="text-white font-medium">{days[bestDay]} a {bestHour}h</span> <span className="text-white/25">({max} ecoutes)</span>
         </div>
       )}
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto">
         <div className="grid" style={{ gridTemplateColumns: `44px repeat(24, minmax(14px, 1fr))`, gap: 2 }}>
-          <div />
+        <div />
           {Array.from({length:24}).map((_,h) => <div key={h} className="text-[8px] text-white/20 text-center">{h}</div>)}
           {matrix.map((row,d) => (
             <React.Fragment key={`r-${d}`}>
               <div className="text-[10px] text-white/30 pr-1.5 flex items-center justify-end">{days[d]}</div>
               {row.map((val,h) => {
-                const intensity = val / max;
-                return (
+              const intensity = val / max;
+              return (
                   <div key={`${d}-${h}`} className="h-[16px] rounded-[3px] relative group cursor-default transition-transform hover:scale-110"
                     style={{ background: intensity > 0 ? `rgba(110,86,207,${0.1 + intensity * 0.9})` : 'rgba(255,255,255,0.02)' }}>
                     <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-black/95 text-white text-[9px] px-2 py-0.5 rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 border border-white/10">
                       {days[d]} {h}h : {val}
                     </div>
                   </div>
-                );
-              })}
-            </React.Fragment>
-          ))}
+              );
+            })}
+          </React.Fragment>
+        ))}
         </div>
       </div>
       <div className="flex items-center gap-1 mt-2 text-[8px] text-white/20">
