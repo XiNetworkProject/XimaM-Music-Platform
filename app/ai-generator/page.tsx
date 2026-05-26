@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import { createPortal } from 'react-dom';
 import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +28,14 @@ import { SUNO_BTN_BASE, SUNO_FIELD, SUNO_SELECT, SUNO_TEXTAREA, SUNO_INPUT, SUNO
 import { SunoAccordionSection } from '@/components/ui/SunoAccordionSection';
 import { SunoSlider } from '@/components/ui/SunoSlider';
 import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
+import {
+  SynauraAnnouncementStrip,
+  SynauraAppShell,
+  SynauraHero,
+  SynauraInkPanel,
+  SynauraRouteNav,
+  SynauraTopBar,
+} from '@/components/synaura/SynauraShell';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -2822,26 +2831,85 @@ export default function AIGenerator() {
   }
 
   // Vérification d'authentification (même logique que ai-library)
+  const studioModeLabel = shellMode === 'ide' ? 'IDE immersif' : 'Classic';
+  const studioModelLabel = modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5';
+
   if (!session) {
     return (
-      <div className="relative min-h-screen text-white" suppressHydrationWarning>
-        <div className="relative z-10 flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <Music className="w-16 h-16 mx-auto mb-4 text-green-400" />
-            <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
+      <SynauraAppShell>
+        <SynauraTopBar />
+        <SynauraRouteNav />
+        <div className="flex min-h-[70vh] items-center justify-center">
+          <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-8 py-10 text-center shadow-[0_20px_70px_rgba(20,15,10,0.12)]">
+            <Music className="mx-auto mb-4 h-16 w-16 text-[#171313]" />
+            <h2 className="mb-2 text-2xl font-black tracking-[-0.04em] text-[#171313]">Connexion requise</h2>
             <p className="text-gray-400">Connectez-vous pour accéder à votre générateur IA</p>
           </div>
         </div>
-      </div>
-    );
-  }
+      </SynauraAppShell>
+  );
+}
 
   return (
-    <div className="studio-pro min-h-screen bg-[#07070a] text-white font-sans selection:bg-indigo-500/30">
-      <StudioBackground />
+    <SynauraAppShell contentClassName="max-w-[1660px]">
+      <SynauraTopBar />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+      <div className="space-y-4">
+        <SynauraHero
+          eyebrow="Studio Synaura"
+          title={<>Le studio IA est maintenant branche au meme point d'entree que le reste de l'app.</>}
+          description={
+            <>
+              Generation, bibliotheque, remix, export et publication restent intacts,
+              mais l'experience commence enfin dans le nouveau shell Synaura.
+            </>
+          }
+          actions={
+            <>
+              <Link
+                href="/upload"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+              >
+                <Upload className="h-4 w-4" />
+                Aller a l'upload
+              </Link>
+              <Link
+                href="/library"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-[#171313] transition hover:bg-black/[0.10]"
+              >
+                <Library className="h-4 w-4" />
+                Voir la bibliotheque
+              </Link>
+            </>
+          }
+          aside={
+            <div className="rounded-[1.55rem] bg-[#171313] p-4 text-white shadow-[0_24px_70px_rgba(15,10,10,0.24)]">
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Mode</p>
+                  <p className="mt-2 text-lg font-black">{studioModeLabel}</p>
+                </div>
+                <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Modele</p>
+                  <p className="mt-2 text-lg font-black">{studioModelLabel}</p>
+                </div>
+                <div className="rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
+                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Credits</p>
+                  <p className="mt-2 text-lg font-black">{creditsBalance}</p>
+                  <p className="mt-1 text-xs text-white/40">{activeGenerationCount > 0 ? `${activeGenerationCount} generation(s) en cours` : 'Pret a lancer une session'}</p>
+                </div>
+              </div>
+            </div>
+          }
+        />
+
+        <SynauraInkPanel className="overflow-hidden p-0">
+          <div className="studio-pro relative min-h-screen bg-[#07070a] text-white font-sans selection:bg-indigo-500/30">
+            <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#07070a]/80 backdrop-blur-xl">
+      <header className="sticky top-[5.25rem] z-30 border-b border-white/[0.06] bg-[linear-gradient(180deg,rgba(10,10,18,0.96),rgba(10,10,18,0.88))] backdrop-blur-2xl sm:top-[5.75rem]">
         <div className="flex items-center justify-between h-14 px-3 sm:px-5">
           {/* Left: Logo + Play */}
           <div className="flex items-center gap-3 min-w-0">
@@ -4720,8 +4788,10 @@ export default function AIGenerator() {
             onTogglePublish={toggleGenerationVisibility}
           />
         </div>
+          </div>
+        </div>
+        </SynauraInkPanel>
       </div>
-    </div>
+    </SynauraAppShell>
   );
 }
-

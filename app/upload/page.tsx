@@ -6,11 +6,19 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useDropzone } from 'react-dropzone';
 import { 
   Upload, Music, Image, X, Play, Pause,
-  ArrowLeft, Check, FileText, ChevronDown, ChevronRight, Sparkles,
+  ArrowLeft, Check, FileText, ChevronDown, ChevronRight, Sparkles, Clock3, Disc3, Library, ShieldCheck, Wand2, CheckCircle2,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { notify } from '@/components/NotificationCenter';
-import BottomNav from '@/components/BottomNav';
+import {
+  SynauraAnnouncementStrip,
+  SynauraAppShell,
+  SynauraHero,
+  SynauraInkPanel,
+  SynauraPanel,
+  SynauraRouteNav,
+  SynauraTopBar,
+} from '@/components/synaura/SynauraShell';
 import { getEntitlements } from '@/lib/entitlements';
 import { MUSIC_GENRES, type MoodKey } from '@/lib/genres';
 import { SynauraWaveform } from '@/components/audio/SynauraWaveform';
@@ -116,13 +124,19 @@ function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: {
 function Section({ title, icon: Icon, children, defaultOpen = true }: { title: string; icon: typeof Music; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-white/[0.01] overflow-hidden">
-      <button type="button" onClick={() => setOpen(!open)} className="w-full flex items-center gap-2.5 px-4 py-3 text-left hover:bg-white/[0.02] transition">
-        <Icon className="w-4 h-4 text-violet-400/70" />
-        <span className="text-sm font-semibold text-white/80 flex-1">{title}</span>
+    <div className="overflow-hidden rounded-[1.45rem] border border-white/[0.09] bg-white/[0.03] shadow-[0_18px_50px_rgba(5,4,12,0.18)]">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition hover:bg-white/[0.04]"
+      >
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-white/[0.06]">
+          <Icon className="h-4 w-4 text-violet-300" />
+        </div>
+        <span className="flex-1 text-sm font-semibold text-white/86">{title}</span>
         {open ? <ChevronDown className="w-4 h-4 text-white/30" /> : <ChevronRight className="w-4 h-4 text-white/30" />}
       </button>
-      {open && <div className="px-4 pb-4 space-y-3">{children}</div>}
+      {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
     </div>
   );
 }
@@ -445,11 +459,89 @@ export default function UploadPage() {
   ];
 
   const coverPreviewUrl = coverFile ? URL.createObjectURL(coverFile) : null;
+  const releaseLabel = releaseType === 'single' ? 'Single' : releaseType === 'ep' ? 'EP' : 'Album';
+  const selectedTrackCount = releaseType === 'single' ? (audioFile ? 1 : 0) : trackMetas.length;
+  const progressPercent = Math.round((currentStep / totalSteps) * 100);
+  const uploadLimitLabel = planKey === 'starter' ? '200 MB' : planKey === 'pro' ? '500 MB' : planKey === 'enterprise' ? '1 Go' : '80 MB';
+  const scheduledLabel =
+    scheduleMode === 'scheduled' && scheduledAt
+      ? new Date(scheduledAt).toLocaleString('fr-FR', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      : 'Immediatement';
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white pb-20">
-      <div className="mx-auto max-w-5xl px-3 md:px-6 py-4">
-        <div className="rounded-3xl border border-white/[0.06] bg-[#0f0f1e]/80 backdrop-blur-xl overflow-hidden">
+    <SynauraAppShell contentClassName="max-w-[1500px]">
+      <SynauraTopBar />
+      <SynauraRouteNav />
+      <SynauraAnnouncementStrip />
+      <div className="space-y-4">
+        <SynauraHero
+          eyebrow="Publication native"
+          title={<>Publier et le studio vivent maintenant dans le meme shell que l'accueil.</>}
+          description={
+            <>
+              Tu peux preparer une sortie, la documenter, la planifier puis la pousser en ligne
+              sans revenir a l'ancien Synaura.
+            </>
+          }
+          actions={
+            <>
+              <button
+                type="button"
+                onClick={() => router.push('/ai-generator')}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+              >
+                <Wand2 className="h-4 w-4" />
+                Ouvrir le studio
+              </button>
+              <button
+                type="button"
+                onClick={() => router.push('/library')}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-[#171313] transition hover:bg-black/[0.10]"
+              >
+                <Library className="h-4 w-4" />
+                Voir la biblio
+              </button>
+            </>
+          }
+          aside={
+            <SynauraInkPanel className="p-4 sm:p-5">
+              <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/58">
+                    <Disc3 className="h-3.5 w-3.5" />
+                    {releaseLabel}
+                  </div>
+                  <div className="mt-3 text-3xl font-black leading-none text-white">{selectedTrackCount}</div>
+                  <p className="mt-1 text-xs text-white/44">piste(s) prete(s) pour la mise en ligne</p>
+                </div>
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/58">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Diffusion
+                  </div>
+                  <div className="mt-3 text-sm font-black text-white">{scheduledLabel}</div>
+                  <p className="mt-1 text-xs text-white/44">visibilite {visibility === 'public' ? 'publique' : visibility === 'unlisted' ? 'non listee' : 'privee'}</p>
+                </div>
+                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] p-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/58">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Plan
+                  </div>
+                  <div className="mt-3 text-sm font-black capitalize text-white">{planKey}</div>
+                  <p className="mt-1 text-xs text-white/44">limite par fichier: {uploadLimitLabel}</p>
+                </div>
+              </div>
+            </SynauraInkPanel>
+          }
+        />
+
+        <SynauraInkPanel className="overflow-hidden">
+          <div className="overflow-hidden">
 
           {/* ─── Header ─────────────────────────────────── */}
           <div className="sticky top-0 z-10 bg-[#0a0a14]/95 backdrop-blur-xl border-b border-white/[0.06]">
@@ -832,9 +924,9 @@ export default function UploadPage() {
             )}
         </div>
 
-            </div>
           </div>
-      <BottomNav />
-    </div>
+        </SynauraInkPanel>
+      </div>
+    </SynauraAppShell>
   );
-} 
+}
