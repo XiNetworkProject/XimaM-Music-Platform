@@ -447,10 +447,10 @@ function buildTrackFeedItem(track: Track, index: number, strategyLabel: string) 
   return {
     id: `feed-track-${strategyLabel}-${track.id}-${index}`,
     kind: 'track' as const,
-    title: index % 2 === 0 ? 'Le feed continue' : isTrending ? 'Ca monte maintenant' : 'Encore pour toi',
+    title: index % 2 === 0 ? 'A suivre' : isTrending ? 'Ca monte' : 'Encore pour toi',
     subtitle: isTrending
-      ? 'le fil repart sur les morceaux qui prennent de la vitesse en ce moment'
-      : 'on prolonge la session avec des morceaux proches de tes habitudes',
+      ? 'les morceaux qui accelerent en ce moment'
+      : 'on prolonge avec des morceaux proches de tes habitudes',
     label: isTrending ? 'tendance' : 'pour toi',
     track,
   };
@@ -964,12 +964,12 @@ function ComposerCard() {
           >
             {session?.user ? 'Partager un texte, une image ou un son...' : 'Connecte-toi pour publier et reagir...'}
           </Link>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
             {chips.map((chip) => (
               <Link
                 key={chip.label}
                 href={chip.href}
-                className={`inline-flex h-9 min-w-0 items-center justify-center gap-2 rounded-full px-3 text-xs font-black ${
+                className={`inline-flex h-10 w-full min-w-0 items-center justify-center gap-2 rounded-full px-3 text-[11px] font-black sm:h-9 sm:w-auto sm:text-xs ${
                   chip.active ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/56'
                 }`}
               >
@@ -1429,7 +1429,7 @@ function PostCard({ item }: { item: PostItem }) {
                     {item.author}
                   </Link>
                   <span className="text-xs font-semibold text-black/38 sm:text-sm">{item.handle}</span>
-                  <span className="text-sm font-semibold text-black/28">· {item.time}</span>
+                  <span className="text-xs font-semibold text-black/28 sm:text-sm">· {item.time}</span>
                 </div>
                 <span className="mt-2 inline-flex rounded-full bg-black/[0.055] px-2 py-1 text-[9px] font-black uppercase tracking-wide text-black/46 sm:px-2.5 sm:text-[10px]">
                   {item.mood}
@@ -1531,36 +1531,38 @@ function TrackFeedCard({ item }: { item: Extract<FeedItem, { kind: 'track' }> })
 
   return (
     <InkCard className="p-3 sm:p-5">
-      <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="mb-3 flex flex-col items-start gap-1.5 sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="min-w-0">
-          <p className="text-lg font-black">{item.title}</p>
-          <p className="text-sm text-white/45">{item.subtitle}</p>
+          <p className="text-base font-black sm:text-lg">{item.title}</p>
+          <p className="text-xs text-white/45 sm:text-sm">{item.subtitle}</p>
         </div>
-        <span className="rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/62">{item.label}</span>
+        <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-black text-white/62 sm:px-3 sm:py-1.5 sm:text-xs">{item.label}</span>
       </div>
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <img
           src={item.track.cover}
           alt=""
-          className="h-[156px] w-full rounded-[1rem] object-cover sm:h-28 sm:w-28 sm:rounded-[1.2rem] sm:shrink-0"
+          className="h-[112px] w-full rounded-[0.95rem] object-cover sm:h-28 sm:w-28 sm:rounded-[1.2rem] sm:shrink-0"
         />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-black sm:text-xl">{item.track.title}</p>
+          <p className="truncate text-base font-black sm:text-xl">{item.track.title}</p>
           <p className="truncate text-sm font-semibold text-white/45">
             {item.track.artist} · {item.track.style}
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 text-center text-[11px] font-bold text-white/50 sm:flex sm:flex-wrap sm:text-left sm:text-xs">
+          <div className="mt-2 grid grid-cols-2 gap-2 text-center text-[10px] font-bold text-white/50 sm:mt-3 sm:flex sm:flex-wrap sm:text-left sm:text-xs">
             <span className="min-w-0 rounded-full bg-white/[0.06] px-2 py-1">{item.track.plays} ecoutes</span>
             <span className="min-w-0 rounded-full bg-white/[0.06] px-2 py-1">{item.track.likes} likes</span>
             <span className="col-span-2 min-w-0 rounded-full bg-white/[0.06] px-2 py-1 sm:col-auto">{item.track.comments} coms</span>
           </div>
-          <Wave color={item.track.tint} active={isPlayingThis} />
+          <div className="hidden sm:block">
+            <Wave color={item.track.tint} active={isPlayingThis} />
+          </div>
           <TrackInlineActions track={item.track} dark />
         </div>
         <button
           type="button"
           onClick={() => playTrack(item.track.playerTrack as any)}
-          className="grid h-10 w-full shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
+          className="grid h-9 w-full shrink-0 place-items-center rounded-full bg-[#fffaf2] text-black sm:h-12 sm:w-12 sm:self-auto"
         >
           {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
         </button>
@@ -2241,8 +2243,22 @@ export default function SynauraWarmFeed() {
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,760px)_330px] xl:justify-center">
         <main className="mx-auto w-full max-w-[760px] pb-28">
-          <div className="sticky top-[82px] z-30 -mx-3 mb-4 border-y border-black/[0.08] bg-[#F4EFE6]/88 px-3 py-3 backdrop-blur-2xl sm:mx-0 sm:rounded-[1.3rem] sm:border">
-            <div className="no-scrollbar flex gap-2 overflow-x-auto">
+          <div className="sticky top-[82px] z-30 -mx-2 mb-4 border-y border-black/[0.08] bg-[#F4EFE6]/88 px-2 py-3 backdrop-blur-2xl sm:-mx-3 sm:px-3 md:mx-0 md:rounded-[1.3rem] md:border">
+            <div className="grid grid-cols-3 gap-2 sm:hidden">
+              {FILTERS.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setFilter(item)}
+                  className={`h-9 min-w-0 rounded-full px-2 text-[11px] font-black transition ${
+                    filter === item ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/55 hover:bg-black/[0.09]'
+                  }`}
+                >
+                  <span className="block truncate">{item}</span>
+                </button>
+              ))}
+            </div>
+            <div className="no-scrollbar hidden gap-2 overflow-x-auto sm:flex">
               {FILTERS.map((item) => (
                 <button
                   key={item}
